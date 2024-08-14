@@ -815,6 +815,7 @@ def dag_maker(request):
     if serialized_marker:
         (want_serialized,) = serialized_marker.args or (True,)
 
+    from airflow.utils.helpers import NOTSET
     from airflow.utils.log.logging_mixin import LoggingMixin
 
     class DagFactory(LoggingMixin):
@@ -844,6 +845,13 @@ def dag_maker(request):
                 return json.loads(data)
             return data
 
+        def _bag_dag_compat(self, dag):
+            # This is a compatibility shim for the old bag_dag method in Airflow <3.0
+            # TODO: Remove this when we drop support for Airflow <3.0 in Providers
+            if hasattr(dag, "parent_dag"):
+                return self.dagbag.bag_dag(dag, root_dag=dag)
+            return self.dagbag.bag_dag(dag)
+
         def __exit__(self, type, value, traceback):
             from airflow.models import DagModel
             from airflow.models.serialized_dag import SerializedDagModel
@@ -863,10 +871,10 @@ def dag_maker(request):
                 )
                 self.session.merge(self.serialized_model)
                 serialized_dag = self._serialized_dag()
-                self.dagbag.bag_dag(serialized_dag, root_dag=serialized_dag)
+                self._bag_dag_compat(serialized_dag)
                 self.session.flush()
             else:
-                self.dagbag.bag_dag(self.dag, self.dag)
+                self._bag_dag_compat(self.dag)
 
         def create_dagrun(self, **kwargs):
             from airflow.utils import timezone
@@ -920,6 +928,7 @@ def dag_maker(request):
         def __call__(
             self,
             dag_id="test_dag",
+            schedule=NOTSET,
             serialized=want_serialized,
             fileloc=None,
             processor_subdir=None,
@@ -948,6 +957,12 @@ def dag_maker(request):
                     DEFAULT_DATE = timezone.datetime(2016, 1, 1)
                     self.start_date = DEFAULT_DATE
             self.kwargs["start_date"] = self.start_date
+            # Set schedule argument to explicitly set value, or a default if no
+            # other scheduling arguments are set.
+            if schedule is not NOTSET:
+                self.kwargs["schedule"] = schedule
+            elif "timetable" not in self.kwargs and "schedule_interval" not in self.kwargs:
+                self.kwargs["schedule"] = timedelta(days=1)
             self.dag = DAG(dag_id, **self.kwargs)
             self.dag.fileloc = fileloc or request.module.__file__
             self.want_serialized = serialized

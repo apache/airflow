@@ -43,7 +43,7 @@ def _trigger_dag(
     conf: dict | str | None = None,
     execution_date: datetime | None = None,
     replace_microseconds: bool = True,
-) -> list[DagRun | None]:
+) -> DagRun | None:
     """
     Triggers DAG run.
 
@@ -90,21 +90,17 @@ def _trigger_dag(
     if conf:
         run_conf = conf if isinstance(conf, dict) else json.loads(conf)
 
-    dag_runs = []
-    dags_to_run = [dag, *dag.subdags]
-    for _dag in dags_to_run:
-        dag_run = _dag.create_dagrun(
-            run_id=run_id,
-            execution_date=execution_date,
-            state=DagRunState.QUEUED,
-            conf=run_conf,
-            external_trigger=True,
-            dag_hash=dag_bag.dags_hash.get(dag_id),
-            data_interval=data_interval,
-        )
-        dag_runs.append(dag_run)
+    dag_run = dag.create_dagrun(
+        run_id=run_id,
+        execution_date=execution_date,
+        state=DagRunState.QUEUED,
+        conf=run_conf,
+        external_trigger=True,
+        dag_hash=dag_bag.dags_hash.get(dag_id),
+        data_interval=data_interval,
+    )
 
-    return dag_runs
+    return dag_run
 
 
 @internal_api_call
@@ -133,7 +129,7 @@ def trigger_dag(
         raise DagNotFound(f"Dag id {dag_id} not found in DagModel")
 
     dagbag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
-    triggers = _trigger_dag(
+    dr = _trigger_dag(
         dag_id=dag_id,
         dag_bag=dagbag,
         run_id=run_id,
@@ -142,4 +138,4 @@ def trigger_dag(
         replace_microseconds=replace_microseconds,
     )
 
-    return triggers[0] if triggers else None
+    return dr if dr else None

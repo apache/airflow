@@ -94,7 +94,7 @@ def setup_module():
 
 class TestDbtCloudRunJobOperator:
     def setup_method(self):
-        self.dag = DAG("test_dbt_cloud_job_run_op", start_date=DEFAULT_DATE)
+        self.dag = DAG("test_dbt_cloud_job_run_op", schedule=None, start_date=DEFAULT_DATE)
         self.mock_ti = MagicMock()
         self.mock_context = {"ti": self.mock_ti}
         self.config = {
@@ -492,7 +492,7 @@ class TestDbtCloudRunJobOperator:
 
 class TestDbtCloudGetJobRunArtifactOperator:
     def setup_method(self):
-        self.dag = DAG("test_dbt_cloud_get_artifact_op", start_date=DEFAULT_DATE)
+        self.dag = DAG("test_dbt_cloud_get_artifact_op", schedule=None, start_date=DEFAULT_DATE)
 
     @patch("airflow.providers.dbt.cloud.hooks.dbt.DbtCloudHook.get_job_run_artifact")
     @pytest.mark.parametrize(
@@ -667,7 +667,7 @@ class TestDbtCloudGetJobRunArtifactOperator:
 
 class TestDbtCloudListJobsOperator:
     def setup_method(self):
-        self.dag = DAG("test_dbt_cloud_list_jobs_op", start_date=DEFAULT_DATE)
+        self.dag = DAG("test_dbt_cloud_list_jobs_op", schedule=None, start_date=DEFAULT_DATE)
         self.mock_ti = MagicMock()
         self.mock_context = {"ti": self.mock_ti}
 
