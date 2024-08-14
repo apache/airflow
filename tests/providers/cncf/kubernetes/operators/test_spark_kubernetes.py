@@ -166,7 +166,7 @@ TEST_APPLICATION_DICT = {
 
 
 def create_context(task):
-    dag = DAG(dag_id="dag")
+    dag = DAG(dag_id="dag", schedule=None)
     tzinfo = pendulum.timezone("Europe/Amsterdam")
     execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
     dag_run = DagRun(
