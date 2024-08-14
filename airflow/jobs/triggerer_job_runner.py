@@ -778,7 +778,12 @@ class TriggerRunner(threading.Thread, LoggingMixin):
 
         other_reasons_trigger_ids = cancel_trigger_ids - reassigned_trigger_ids
 
-        trigger_id_reasons = add_reason(reassigned_trigger_ids, TriggerTerminationReason.REASSIGNED)
-        trigger_id_reasons.extend(add_reason(other_reasons_trigger_ids, TriggerTerminationReason.OTHER))
-
-        return trigger_id_reasons
+        reassigned_pairs = (
+            (trigger_id, TriggerTerminationReason.REASSIGNED)
+            for trigger_id in reassigned_trigger_ids
+        )
+        other_reason_pairs = (
+            (trigger_id, TriggerTerminationReason.OTHER)
+            for trigger_id in other_reasons_trigger_ids
+        )
+        return [*reassigned_pairs, *other_reason_pairs]
