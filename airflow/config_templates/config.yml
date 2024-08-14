@@ -1364,7 +1364,6 @@ cli:
       description: |
         If you set web_server_url_prefix, do NOT forget to append it here, ex:
         ``endpoint_url = http://localhost:8080/myroot``
-        So api will look like: ``http://localhost:8080/myroot/api/experimental/...``
       version_added: ~
       type: string
       example: ~
