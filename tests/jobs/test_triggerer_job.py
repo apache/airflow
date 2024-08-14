@@ -883,18 +883,15 @@ class RemoteJobTrigger(BaseTrigger):
         return RemoteService().get_job(self.remote_job_id).get_status()
 
     async def run(self):
-        print(f"Trigger object {id(self)}: start to run")
 
         while self.get_status() == RemoteJob.RUNNING_STATUS:
             await asyncio.sleep(0.1)
         self.finished = True
-        print(f"Trigger object {id(self)}: finished with status: {self.get_status()}")
         yield TriggerEvent(self.remote_job_id)
 
     async def cleanup(self) -> None:
         RemoteService().kill_job(self, self.remote_job_id)
         self.cleanup_done = True
-        print(f"Trigger object {id(self)}: cleanup done")
 
     def should_cleanup(self, termination_reason: TriggerTerminationReason | None) -> bool:
         return (

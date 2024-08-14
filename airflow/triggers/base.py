@@ -125,7 +125,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         another triggerer, this method allows the trigger to decide whether it should be cleaned up under the
         current circumstances.
 
-        By default, will always return True, override this method base custom requirements.
+        The cleanup will always be applied, override this method based on custom requirements.
         """
         return True
 

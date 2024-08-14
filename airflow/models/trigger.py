@@ -314,7 +314,7 @@ class Trigger(Base):
     @provide_session
     def filter_out_reassigned_triggers(
         cls, triggerer_id: int, local_trigger_ids: set[int], session: Session = NEW_SESSION
-    ) -> list[int]:
+    ) -> set[int]:
         """
         Get the triggers that reassigned to other triggerers.
 
@@ -325,4 +325,4 @@ class Trigger(Base):
         reassigned_trigger_ids = session.scalars(
             select(cls.id).where(cls.triggerer_id != triggerer_id, cls.id.in_(local_trigger_ids))
         ).all()
-        return list(reassigned_trigger_ids)
+        return set(reassigned_trigger_ids)

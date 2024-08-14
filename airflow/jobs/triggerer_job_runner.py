@@ -527,6 +527,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                     "name": f"{ti.dag_id}/{ti.run_id}/{ti.task_id}/{ti.map_index}/{ti.try_number} "
                     f"(ID {trigger_id})",
                     "events": 0,
+                    "termination_reason": None
                 }
             else:
                 self.log.warning("Trigger %s had insertion attempted twice", trigger_id)
@@ -648,7 +649,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             # they exit cleanly. Exception from cleanup methods are ignored.
             with suppress(Exception):
                 trigger_details = self.triggers[trigger_id]
-                if trigger.should_cleanup(trigger_details.get("termination_reason")):
+                if trigger.should_cleanup(trigger_details["termination_reason"]):
                     await trigger.cleanup()
             if SEND_TRIGGER_END_MARKER:
                 self.mark_trigger_end(trigger)
@@ -774,7 +775,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             return [(trigger_id, reason) for trigger_id in ids]
 
         # find out reassigned triggers
-        reassigned_trigger_ids = set(Trigger.filter_out_reassigned_triggers(triggerer_id, cancel_trigger_ids))
+        reassigned_trigger_ids = Trigger.filter_out_reassigned_triggers(triggerer_id, cancel_trigger_ids)
 
         other_reasons_trigger_ids = cancel_trigger_ids - reassigned_trigger_ids
 
