@@ -210,7 +210,7 @@ class TestDag:
         params = {"param1": Param(type="string")}
 
         with pytest.raises(AirflowException):
-            DAG("dummy-dag", schedule=None, params=params)
+            DAG("dummy-dag", schedule=timedelta(days=1), params=params)
 
     def test_dag_invalid_default_view(self):
         """
@@ -1151,7 +1151,11 @@ class TestDag:
         Test that DagModel.next_dagrun_create_after is set to NULL when the dag cannot be created due to max
         active runs being hit.
         """
-        dag = DAG(dag_id="test_scheduler_verify_max_active_runs", schedule=None, start_date=DEFAULT_DATE)
+        dag = DAG(
+            dag_id="test_scheduler_verify_max_active_runs",
+            schedule=timedelta(days=1),
+            start_date=DEFAULT_DATE,
+        )
         dag.max_active_runs = 1
 
         EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
@@ -3243,7 +3247,7 @@ def test_dag_schedule_interval_change_after_init(schedule_interval):
 
 @pytest.mark.parametrize("timetable", [NullTimetable(), OnceTimetable()])
 def test_dag_timetable_change_after_init(timetable):
-    dag = DAG("my-dag", schedule=timedelta(days=1))
+    dag = DAG("my-dag", schedule=timedelta(days=1), start_date=DEFAULT_DATE)
     dag.timetable = timetable
     assert not dag._check_schedule_interval_matches_timetable()
 
