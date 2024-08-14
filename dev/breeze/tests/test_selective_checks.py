@@ -1075,7 +1075,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
         ),
         (
             pytest.param(
-                ("INTHEWILD.md",),
+                ("INTHEWILD.md", "tests/providers/asana.py"),
                 ("full tests needed",),
                 "v2-7-stable",
                 {
@@ -1095,6 +1095,9 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "skip-provider-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "API Always BranchExternalPython "
+                    "BranchPythonVenv CLI Core ExternalPython Operators Other PlainAsserts "
+                    "PythonVenv Serialization WWW",
+                    "separate-test-types-list-as-string": "API Always BranchExternalPython "
                     "BranchPythonVenv CLI Core ExternalPython Operators Other PlainAsserts "
                     "PythonVenv Serialization WWW",
                     "needs-mypy": "true",
