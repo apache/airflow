@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from collections import namedtuple
+from collections import namedtuple, MutableMapping
+from typing import Any
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -286,7 +287,6 @@ class TestACIOperator:
         assert aci_mock.return_value.get_logs.call_count == 4
 
         assert aci_mock.return_value.delete.call_count == 1
-        print('context', context)
         assert context["ti"].xcom_pull(key="logs") == aci_mock.return_value.get_logs.return_value
 
     @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
@@ -326,7 +326,6 @@ class TestACIOperator:
         assert aci_mock.return_value.get_logs.call_count == 4
 
         assert aci_mock.return_value.delete.call_count == 1
-        print('context', context)
         assert context["ti"].xcom_pull(key="logs") == aci_mock.return_value.get_logs.return_value[-1:]
         assert context["ti"].xcom_pull(key="logs") == ["logs"]
 
@@ -580,13 +579,13 @@ class TestACIOperator:
 
         assert aci_mock.return_value.delete.call_count == 1
 
-class XcomMock():
-    def __init__(self) -> None:
-        self.values = {}
 
-    def xcom_push(self, key: str, value: any):
+class XcomMock:
+    def __init__(self) -> None:
+        self.values : MutableMapping[str, Any | None] = {}
+
+    def xcom_push(self, key: str, value: Any | None) -> None:
         self.values[key] = value
 
-    def xcom_pull(self, key: str) -> any:
-        return self.values[key] 
-
+    def xcom_pull(self, key: str) -> Any:
+        return self.values[key]

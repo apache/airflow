@@ -314,7 +314,6 @@ class AzureContainerInstancesOperator(BaseOperator):
                     else:
                         # slice off the last entry in the list logs and return it as a list
                         context["ti"].xcom_push(key="logs", value=logs[-1:])
-                        
 
             self.log.info("Container had exit code: %s", exit_code)
             if exit_code != 0:
