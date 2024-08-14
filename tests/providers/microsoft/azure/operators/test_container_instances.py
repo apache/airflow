@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from collections import namedtuple, MutableMapping
+from collections import namedtuple
+from collections.abc import MutableMapping
 from typing import Any
 from unittest import mock
 from unittest.mock import MagicMock
@@ -582,7 +583,7 @@ class TestACIOperator:
 
 class XcomMock:
     def __init__(self) -> None:
-        self.values : MutableMapping[str, Any | None] = {}
+        self.values: MutableMapping[str, Any | None] = {}
 
     def xcom_push(self, key: str, value: Any | None) -> None:
         self.values[key] = value
