@@ -21,14 +21,15 @@
 **Table of contents**
 
 - [Main branch is Airflow 3](#main-branch-is-airflow-3)
-- [Developing for providers and Helm chart](#developing-for-providers-and-helm-chart)
-- [Developing for Airflow 3](#developing-for-airflow-3)
-- [Developing for Airflow 2.10.x](#developing-for-airflow-210x)
-- [Developing for Airflow 3 and 2.10.x / 2.11.x](#developing-for-airflow-3-and-210x--211x)
-- [Merging PRs 2.10.x](#merging-prs-210x)
-- [Merging PRs for Airflow 3](#merging-prs-for-airflow-3)
-  - [PRs that involve breaking changes](#prs-that-involve-breaking-changes)
-- [Merging PR for Airflow 3 and 2.10.x / 2.11.x](#merging-pr-for-airflow-3-and-210x--211x)
+- [Contributors](#contributors)
+  - [Developing for providers and Helm chart](#developing-for-providers-and-helm-chart)
+  - [Developing for Airflow 3](#developing-for-airflow-3)
+  - [Developing for Airflow 2.10.x](#developing-for-airflow-210x)
+  - [Developing for Airflow 3 and 2.10.x / 2.11.x](#developing-for-airflow-3-and-210x--211x)
+- [Committers / PMCs](#committers--pmcs)
+  - [Merging PRs 2.10.x](#merging-prs-210x)
+  - [Merging PRs for Airflow 3](#merging-prs-for-airflow-3)
+  - [Merging PR for Airflow 3 and 2.10.x / 2.11.x](#merging-pr-for-airflow-3-and-210x--211x)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -79,6 +80,6 @@ Our goal is to avoid breaking changes if we can so we should allow time to revie
 
 ## Merging PR for Airflow 3 and 2.10.x / 2.11.x
 
-The committer who merge the PR is responsible for back-porting the PR to `v-2-10-test` (opening a new PR where original change gets cherry-picked and conflicts resolved). 
+The committer who merge the PR is responsible for back-porting the PR to `v-2-10-test` (opening a new PR where original change gets cherry-picked and conflicts resolved).
 If cherry pick is too complex then ask the PR author / start your own PR against `v-2-10-test` directly with the change.
 Note: tracking that the PRs merged as expected is the responsibility of committer who merged the PR.
