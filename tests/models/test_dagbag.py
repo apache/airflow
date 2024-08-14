@@ -702,7 +702,7 @@ class TestDagBag:
 
             dag_name = "nested_cycle"
             default_args = {"owner": "owner1", "start_date": datetime.datetime(2016, 1, 1)}
-            dag = DAG(dag_name, default_args=default_args)
+            dag = DAG(dag_name, schedule=timedelta(days=1), default_args=default_args)
 
             # cycle:
             #     A -> op_subdag_0
@@ -725,35 +725,59 @@ class TestDagBag:
             with dag:
 
                 def subdag_a():
-                    subdag_a = DAG("nested_cycle.op_subdag_0.opSubdag_A", default_args=default_args)
+                    subdag_a = DAG(
+                        dag_id="nested_cycle.op_subdag_0.opSubdag_A",
+                        schedule=None,
+                        default_args=default_args,
+                    )
                     EmptyOperator(task_id="subdag_a.task", dag=subdag_a)
                     return subdag_a
 
                 def subdag_b():
-                    subdag_b = DAG("nested_cycle.op_subdag_0.opSubdag_B", default_args=default_args)
+                    subdag_b = DAG(
+                        dag_id="nested_cycle.op_subdag_0.opSubdag_B",
+                        schedule=None,
+                        default_args=default_args,
+                    )
                     EmptyOperator(task_id="subdag_b.task", dag=subdag_b)
                     return subdag_b
 
                 def subdag_c():
-                    subdag_c = DAG("nested_cycle.op_subdag_1.opSubdag_C", default_args=default_args)
+                    subdag_c = DAG(
+                        dag_id="nested_cycle.op_subdag_1.opSubdag_C",
+                        schedule=None,
+                        default_args=default_args,
+                    )
                     op_subdag_c_task = EmptyOperator(task_id="subdag_c.task", dag=subdag_c)
                     # introduce a loop in opSubdag_C
                     op_subdag_c_task.set_downstream(op_subdag_c_task)
                     return subdag_c
 
                 def subdag_d():
-                    subdag_d = DAG("nested_cycle.op_subdag_1.opSubdag_D", default_args=default_args)
+                    subdag_d = DAG(
+                        dag_id="nested_cycle.op_subdag_1.opSubdag_D",
+                        schedule=None,
+                        default_args=default_args,
+                    )
                     EmptyOperator(task_id="subdag_d.task", dag=subdag_d)
                     return subdag_d
 
                 def subdag_0():
-                    subdag_0 = DAG("nested_cycle.op_subdag_0", default_args=default_args)
+                    subdag_0 = DAG(
+                        dag_id="nested_cycle.op_subdag_0",
+                        schedule=None,
+                        default_args=default_args,
+                    )
                     SubDagOperator(task_id="opSubdag_A", dag=subdag_0, subdag=subdag_a())
                     SubDagOperator(task_id="opSubdag_B", dag=subdag_0, subdag=subdag_b())
                     return subdag_0
 
                 def subdag_1():
-                    subdag_1 = DAG("nested_cycle.op_subdag_1", default_args=default_args)
+                    subdag_1 = DAG(
+                        dag_id="nested_cycle.op_subdag_1",
+                        schedule=None,
+                        default_args=default_args,
+                    )
                     SubDagOperator(task_id="opSubdag_C", dag=subdag_1, subdag=subdag_c())
                     SubDagOperator(task_id="opSubdag_D", dag=subdag_1, subdag=subdag_d())
                     return subdag_1

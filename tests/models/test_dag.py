@@ -1401,10 +1401,7 @@ class TestDag:
         dag = DAG("dag", start_date=DEFAULT_DATE, schedule=None)
         with dag:
             EmptyOperator(task_id="task", owner="owner1")
-            subdag = DAG(
-                "dag.subtask",
-                start_date=DEFAULT_DATE,
-            )
+            subdag = DAG("dag.subtask", schedule=None, start_date=DEFAULT_DATE)
             # parent_dag and is_subdag was set by DagBag. We don't use DagBag, so this value is not set.
             subdag.parent_dag = dag
             with pytest.warns(
@@ -1438,10 +1435,7 @@ class TestDag:
                 SubDagOperator(
                     task_id="subtask",
                     owner="owner2",
-                    subdag=DAG(
-                        "dag.subtask",
-                        start_date=DEFAULT_DATE,
-                    ),
+                    subdag=DAG("dag.subtask", schedule=None, start_date=DEFAULT_DATE),
                 )
         session = settings.Session()
         dag.sync_to_db(session=session)
@@ -1454,20 +1448,12 @@ class TestDag:
     @provide_session
     def test_is_paused_subdag(self, session):
         subdag_id = "dag.subdag"
-        subdag = DAG(
-            subdag_id,
-            start_date=DEFAULT_DATE,
-        )
+        subdag = DAG(subdag_id, start_date=DEFAULT_DATE, schedule=timedelta(days=1))
         with subdag:
-            EmptyOperator(
-                task_id="dummy_task",
-            )
+            EmptyOperator(task_id="dummy_task")
 
         dag_id = "dag"
-        dag = DAG(
-            dag_id,
-            start_date=DEFAULT_DATE,
-        )
+        dag = DAG(dag_id, start_date=DEFAULT_DATE, schedule=timedelta(days=1))
 
         with dag, pytest.warns(
             RemovedInAirflow3Warning, match="Please use `airflow.utils.task_group.TaskGroup`."
@@ -1485,9 +1471,7 @@ class TestDag:
 
         unpaused_dags = (
             session.query(DagModel.dag_id, DagModel.is_paused)
-            .filter(
-                DagModel.dag_id.in_([subdag_id, dag_id]),
-            )
+            .filter(DagModel.dag_id.in_([subdag_id, dag_id]))
             .all()
         )
 
@@ -1500,9 +1484,7 @@ class TestDag:
 
         paused_dags = (
             session.query(DagModel.dag_id, DagModel.is_paused)
-            .filter(
-                DagModel.dag_id.in_([subdag_id, dag_id]),
-            )
+            .filter(DagModel.dag_id.in_([subdag_id, dag_id]))
             .all()
         )
 
@@ -1515,9 +1497,7 @@ class TestDag:
 
         paused_dags = (
             session.query(DagModel.dag_id, DagModel.is_paused)
-            .filter(
-                DagModel.dag_id.in_([subdag_id, dag_id]),
-            )
+            .filter(DagModel.dag_id.in_([subdag_id, dag_id]))
             .all()
         )
 
@@ -2374,9 +2354,9 @@ my_postgres_conn:
         dag_id = "test_subdag"
         self._clean_up(dag_id)
         task_id = "t1"
-        dag = DAG(dag_id, start_date=DEFAULT_DATE, max_active_runs=1)
+        dag = DAG(dag_id, start_date=DEFAULT_DATE, schedule=timedelta(days=1), max_active_runs=1)
         t_1 = EmptyOperator(task_id=task_id, dag=dag)
-        subdag = DAG(dag_id + ".test", start_date=DEFAULT_DATE, max_active_runs=1)
+        subdag = DAG(dag_id + ".test", start_date=DEFAULT_DATE, schedule=timedelta(days=1), max_active_runs=1)
         with pytest.warns(
             RemovedInAirflow3Warning,
             match="This class is deprecated. Please use `airflow.utils.task_group.TaskGroup`.",
@@ -2451,13 +2431,7 @@ my_postgres_conn:
             session=session,
         )
 
-        dagrun = (
-            session.query(
-                DagRun,
-            )
-            .filter(DagRun.dag_id == dag.dag_id)
-            .one()
-        )
+        dagrun = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).one()
         assert dagrun.state == dag_run_state
 
     @pytest.mark.parametrize(
