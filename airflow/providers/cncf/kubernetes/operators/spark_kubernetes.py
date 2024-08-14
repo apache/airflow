@@ -202,7 +202,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             labels.update(try_number=ti.try_number)
 
         # In the case of sub dags this is just useful
-        if context["dag"].is_subdag:
+        if getattr(context["dag"], "is_subdag", False):
             labels["parent_dag_id"] = context["dag"].parent_dag.dag_id
         # Ensure that label is valid for Kube,
         # and if not truncate/remove invalid chars and replace with short hash.
