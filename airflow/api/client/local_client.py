@@ -19,14 +19,20 @@
 
 from __future__ import annotations
 
-from airflow.api.client import api_client
+import httpx
+
 from airflow.api.common import delete_dag, trigger_dag
 from airflow.exceptions import AirflowBadRequest, PoolNotFound
 from airflow.models.pool import Pool
 
 
-class Client(api_client.Client):
+class Client:
     """Local API client implementation."""
+
+    def __init__(self, auth=None, session: httpx.Client | None = None):
+        self._session: httpx.Client = session or httpx.Client()
+        if auth:
+            self._session.auth = auth
 
     def trigger_dag(
         self, dag_id, run_id=None, conf=None, execution_date=None, replace_microseconds=True

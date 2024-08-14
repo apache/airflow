@@ -1348,26 +1348,6 @@ secrets:
       type: integer
       example: ~
       default: "900"
-cli:
-  description: ~
-  options:
-    api_client:
-      description: |
-        In what way should the cli access the API. The LocalClient will use the
-        database directly, while the json_client will use the api running on the
-        webserver
-      version_added: ~
-      type: string
-      example: ~
-      default: "airflow.api.client.local_client"
-    endpoint_url:
-      description: |
-        If you set web_server_url_prefix, do NOT forget to append it here, ex:
-        ``endpoint_url = http://localhost:8080/myroot``
-      version_added: ~
-      type: string
-      example: ~
-      default: "http://localhost:8080"
 debug:
   description: ~
   options:
