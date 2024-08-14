@@ -47,6 +47,7 @@ class TestVariable:
         db.clear_db_variables()
         crypto._fernet = None
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode, internal API has other fernet
     @conf_vars({("core", "fernet_key"): "", ("core", "unit_test_mode"): "True"})
     def test_variable_no_encryption(self, session):
         """
@@ -60,6 +61,7 @@ class TestVariable:
         # should mask anything. That logic is tested in test_secrets_masker.py
         self.mask_secret.assert_called_once_with("value", "key")
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode, internal API has other fernet
     @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
     def test_variable_with_encryption(self, session):
         """
@@ -70,6 +72,7 @@ class TestVariable:
         assert test_var.is_encrypted
         assert test_var.val == "value"
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode, internal API has other fernet
     @pytest.mark.parametrize("test_value", ["value", ""])
     def test_var_with_encryption_rotate_fernet_key(self, test_value, session):
         """
@@ -152,6 +155,7 @@ class TestVariable:
         Variable.update(key="test_key", value="value2", session=session)
         assert "value2" == Variable.get("test_key")
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode, API server has other ENV
     def test_variable_update_fails_on_non_metastore_variable(self, session):
         with mock.patch.dict("os.environ", AIRFLOW_VAR_KEY="env-value"):
             with pytest.raises(AttributeError):
@@ -281,6 +285,7 @@ class TestVariable:
         mock_backend.get_variable.assert_called_once()  # second call was not made because of cache
         assert first == second
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode, internal API has other env
     def test_cache_invalidation_on_set(self, session):
         with mock.patch.dict("os.environ", AIRFLOW_VAR_KEY="from_env"):
             a = Variable.get("key")  # value is saved in cache
@@ -316,7 +321,7 @@ def test_masking_only_secret_values(variable_value, deserialize_json, expected_m
             val=variable_value,
         )
         session.add(var)
-        session.flush()
+        session.commit()
         # Make sure we re-load it, not just get the cached object back
         session.expunge(var)
         _secrets_masker().patterns = set()
@@ -326,5 +331,4 @@ def test_masking_only_secret_values(variable_value, deserialize_json, expected_m
         for expected_masked_value in expected_masked_values:
             assert expected_masked_value in _secrets_masker().patterns
     finally:
-        session.rollback()
         db.clear_db_variables()
