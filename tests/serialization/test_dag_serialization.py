@@ -231,7 +231,6 @@ serialized_simple_dag_ground_truth = {
                 },
             },
         ],
-        "schedule_interval": {"__type": "timedelta", "__var": 86400.0},
         "timezone": "UTC",
         "_access_control": {
             "__type": "dict",
@@ -369,10 +368,9 @@ def collect_dags(dag_folder=None):
 
 
 def get_timetable_based_simple_dag(timetable):
-    """Create a simple_dag variant that uses timetable instead of schedule_interval."""
+    """Create a simple_dag variant that uses a timetable."""
     dag = collect_dags(["airflow/example_dags"])["simple_dag"]
     dag.timetable = timetable
-    dag.schedule_interval = timetable.summary
     return dag
 
 
@@ -452,13 +450,12 @@ class TestStringifiedDAGs:
     )
     @pytest.mark.usefixtures("timetable_plugin")
     def test_dag_serialization_to_timetable(self, timetable, serialized_timetable):
-        """Verify a timetable-backed schedule_interval is excluded in serialization."""
+        """Verify a timetable-backed DAG is serialized correctly."""
         dag = get_timetable_based_simple_dag(timetable)
         serialized_dag = SerializedDAG.to_dict(dag)
         SerializedDAG.validate_schema(serialized_dag)
 
         expected = copy.deepcopy(serialized_simple_dag_ground_truth)
-        del expected["dag"]["schedule_interval"]
         expected["dag"]["timetable"] = serialized_timetable
 
         # these tasks are not mapped / in mapped task group
@@ -861,40 +858,6 @@ class TestStringifiedDAGs:
             "Please check the airflow best practices documentation."
         )
         assert str(ctx.value) == message
-
-    @pytest.mark.parametrize(
-        "serialized_schedule_interval, expected_timetable",
-        [
-            (None, NullTimetable()),
-            ("@weekly", cron_timetable("0 0 * * 0")),
-            ("@once", OnceTimetable()),
-            (
-                {"__type": "timedelta", "__var": 86400.0},
-                delta_timetable(timedelta(days=1)),
-            ),
-        ],
-    )
-    def test_deserialization_schedule_interval(
-        self,
-        serialized_schedule_interval,
-        expected_timetable,
-    ):
-        """Test DAGs serialized before 2.2 can be correctly deserialized."""
-        serialized = {
-            "__version": 1,
-            "dag": {
-                "default_args": {"__type": "dict", "__var": {}},
-                "_dag_id": "simple_dag",
-                "fileloc": __file__,
-                "tasks": [],
-                "timezone": "UTC",
-                "schedule_interval": serialized_schedule_interval,
-            },
-        }
-
-        SerializedDAG.validate_schema(serialized)
-        dag = SerializedDAG.from_dict(serialized)
-        assert dag.timetable == expected_timetable
 
     @pytest.mark.parametrize(
         "val, expected",

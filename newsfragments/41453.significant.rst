@@ -1,0 +1,7 @@
+Removed legacy scheduling arguments on DAG
+
+The ``schedule_interval`` and ``timetable`` arguments are removed from ``DAG``.
+
+The ``schedule_interval`` _attribute_ has also been removed. In the API, a new
+``timetable_summary`` field has been added to replace ``schedule_interval`` for
+presentation purposes.

@@ -166,7 +166,7 @@ def test_serializing_pydantic_dagrun(session, create_task_instance):
 
 
 @pytest.mark.parametrize(
-    "schedule_interval",
+    "schedule",
     [
         None,
         "*/10 * * *",
@@ -174,11 +174,11 @@ def test_serializing_pydantic_dagrun(session, create_task_instance):
         relativedelta.relativedelta(days=+12),
     ],
 )
-def test_serializing_pydantic_dagmodel(schedule_interval):
+def test_serializing_pydantic_dagmodel(schedule):
     dag_model = DagModel(
         dag_id="test-dag",
         fileloc="/tmp/dag_1.py",
-        schedule_interval=schedule_interval,
+        timetable_summary=schedule,
         is_active=True,
         is_paused=False,
     )
@@ -189,7 +189,7 @@ def test_serializing_pydantic_dagmodel(schedule_interval):
     deserialized_model = DagModelPydantic.model_validate_json(json_string)
     assert deserialized_model.dag_id == "test-dag"
     assert deserialized_model.fileloc == "/tmp/dag_1.py"
-    assert deserialized_model.schedule_interval == schedule_interval
+    assert deserialized_model.timetable_summary == schedule
     assert deserialized_model.is_active is True
     assert deserialized_model.is_paused is False
 

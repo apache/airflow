@@ -17,7 +17,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Iterator, NamedTuple, Sequence
-from warnings import warn
 
 from airflow.datasets import BaseDataset
 from airflow.typing_compat import Protocol, runtime_checkable
@@ -163,25 +162,14 @@ class Timetable(Protocol):
     like ``schedule=None`` and ``"@once"`` set it to *False*.
     """
 
-    _can_be_scheduled: bool = True
+    can_be_scheduled: bool = True
+    """
+    Whether this timetable can actually schedule runs in an automated manner.
 
-    @property
-    def can_be_scheduled(self):
-        """
-        Whether this timetable can actually schedule runs in an automated manner.
-
-        This defaults to and should generally be *True* (including non periodic
-        execution types like *@once* and data triggered tables), but
-        ``NullTimetable`` sets this to *False*.
-        """
-        if hasattr(self, "can_run"):
-            warn(
-                'can_run class variable is deprecated. Use "can_be_scheduled" instead.',
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            return self.can_run
-        return self._can_be_scheduled
+    This defaults to and should generally be *True* (including non periodic
+    execution types like *@once* and data triggered tables), but
+    ``NullTimetable`` sets this to *False*.
+    """
 
     run_ordering: Sequence[str] = ("data_interval_end", "execution_date")
     """How runs triggered from this timetable should be ordered in UI.
