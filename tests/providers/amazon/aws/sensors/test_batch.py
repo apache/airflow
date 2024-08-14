@@ -67,9 +67,7 @@ class TestBatchSensor:
     @mock.patch.object(BatchClientHook, "get_job_description")
     def test_poke_on_invalid_state(self, mock_get_job_description, batch_sensor: BatchSensor):
         mock_get_job_description.return_value = {"status": "INVALID"}
-        with pytest.raises(
-            AirflowException, match="Batch sensor failed. Unknown AWS Batch job status: INVALID"
-        ):
+        with pytest.raises(AirflowException, match="Batch sensor failed. AWS Batch job status: INVALID"):
             batch_sensor.poke({})
 
         mock_get_job_description.assert_called_once_with(JOB_ID)
@@ -101,13 +99,10 @@ class TestBatchSensor:
             deferrable_batch_sensor.execute_complete(context={}, event={"status": "failure"})
 
     @pytest.mark.parametrize(
-        "state, error_message",
+        "state",
         (
-            (
-                BatchClientHook.FAILURE_STATE,
-                f"Batch sensor failed. AWS Batch job status: {BatchClientHook.FAILURE_STATE}",
-            ),
-            ("unknown_state", "Batch sensor failed. Unknown AWS Batch job status: unknown_state"),
+            BatchClientHook.FAILURE_STATE,
+            "unknown_state",
         ),
     )
     @mock.patch.object(BatchClientHook, "get_job_description")
@@ -116,10 +111,9 @@ class TestBatchSensor:
         mock_get_job_description,
         batch_sensor: BatchSensor,
         state,
-        error_message,
     ):
         mock_get_job_description.return_value = {"status": state}
-        with pytest.raises(AirflowException, match=error_message):
+        with pytest.raises(AirflowException, match=f"Batch sensor failed. AWS Batch job status: {state}"):
             batch_sensor.poke({})
 
 
