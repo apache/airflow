@@ -273,12 +273,7 @@ class TestTriggerRunner:
     async def test_run_inline_trigger_canceled(self, session) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
-            1: {
-                "task": MagicMock(),
-                "name": "mock_name",
-                "events": 0,
-                "termination_reason": None
-            }
+            1: {"task": MagicMock(), "name": "mock_name", "events": 0, "termination_reason": None}
         }
         mock_trigger = MagicMock()
         mock_trigger.task_instance.trigger_timeout = None
@@ -292,12 +287,7 @@ class TestTriggerRunner:
     async def test_run_inline_trigger_timeout(self, session, caplog) -> None:
         trigger_runner = TriggerRunner()
         trigger_runner.triggers = {
-            1: {
-                "task": MagicMock(),
-                "name": "mock_name",
-                "events": 0,
-                "termination_reason": None
-            }
+            1: {"task": MagicMock(), "name": "mock_name", "events": 0, "termination_reason": None}
         }
         mock_trigger = MagicMock()
         mock_trigger.task_instance.trigger_timeout = timezone.utcnow() - datetime.timedelta(hours=1)
@@ -883,7 +873,6 @@ class RemoteJobTrigger(BaseTrigger):
         return RemoteService().get_job(self.remote_job_id).get_status()
 
     async def run(self):
-
         while self.get_status() == RemoteJob.RUNNING_STATUS:
             await asyncio.sleep(0.1)
         self.finished = True
@@ -894,10 +883,7 @@ class RemoteJobTrigger(BaseTrigger):
         self.cleanup_done = True
 
     def should_cleanup(self, termination_reason: TriggerTerminationReason | None) -> bool:
-        return (
-            termination_reason != TriggerTerminationReason.REASSIGNED
-            or self.cleanup_on_reassignment
-        )
+        return termination_reason != TriggerTerminationReason.REASSIGNED or self.cleanup_on_reassignment
 
     def has_been_cleaned(self):
         return self.cleanup_done

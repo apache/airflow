@@ -527,7 +527,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
                     "name": f"{ti.dag_id}/{ti.run_id}/{ti.task_id}/{ti.map_index}/{ti.try_number} "
                     f"(ID {trigger_id})",
                     "events": 0,
-                    "termination_reason": None
+                    "termination_reason": None,
                 }
             else:
                 self.log.warning("Trigger %s had insertion attempted twice", trigger_id)
@@ -780,11 +780,9 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         other_reasons_trigger_ids = cancel_trigger_ids - reassigned_trigger_ids
 
         reassigned_pairs = (
-            (trigger_id, TriggerTerminationReason.REASSIGNED)
-            for trigger_id in reassigned_trigger_ids
+            (trigger_id, TriggerTerminationReason.REASSIGNED) for trigger_id in reassigned_trigger_ids
         )
         other_reason_pairs = (
-            (trigger_id, TriggerTerminationReason.OTHER)
-            for trigger_id in other_reasons_trigger_ids
+            (trigger_id, TriggerTerminationReason.OTHER) for trigger_id in other_reasons_trigger_ids
         )
         return [*reassigned_pairs, *other_reason_pairs]
