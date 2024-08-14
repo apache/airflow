@@ -897,8 +897,9 @@ class RemoteJobTrigger(BaseTrigger):
         print(f"Trigger object {id(self)}: cleanup done")
 
     def should_cleanup(self, termination_reason: TriggerTerminationReason | None) -> bool:
-        return not (
-            termination_reason == TriggerTerminationReason.REASSIGNED and not self.cleanup_on_reassignment
+        return (
+            termination_reason != TriggerTerminationReason.REASSIGNED
+            or self.cleanup_on_reassignment
         )
 
     def has_been_cleaned(self):
