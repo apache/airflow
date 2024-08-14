@@ -125,7 +125,7 @@ class KiotaRequestAdapterHook(BaseHook):
         self._api_version = self.resolve_api_version_from_value(api_version)
 
     @property
-    def api_version(self) -> str:
+    def api_version(self) -> str | None:
         self.get_conn()  # Make sure config has been loaded through get_conn to have correct api version!
         return self._api_version
 

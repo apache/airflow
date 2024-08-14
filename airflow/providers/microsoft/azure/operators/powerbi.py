@@ -94,7 +94,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         return self.hook.proxies
 
     @property
-    def api_version(self) -> str:
+    def api_version(self) -> str | None:
         return self.hook.api_version
 
     def execute(self, context: Context):
