@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import timedelta
 from unittest.mock import Mock, patch
 
 import pytest
@@ -36,7 +35,7 @@ class TestDagrunRunningDep:
         """
         Task instances without dagruns should fail this dep
         """
-        dag = DAG("test_dag", schedule=timedelta(days=1), max_active_runs=2)
+        dag = DAG("test_dag", schedule=None, max_active_runs=2)
         dagrun = DagRun(state=State.QUEUED)
         ti = Mock(task=Mock(dag=dag), get_dagrun=Mock(return_value=dagrun))
         assert not DagrunRunningDep().is_met(ti=ti)

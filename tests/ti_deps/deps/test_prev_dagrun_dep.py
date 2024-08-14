@@ -33,6 +33,8 @@ from tests.test_utils.db import clear_db_runs
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
+START_DATE = convert_to_utc(datetime(2016, 1, 1))
+
 
 class TestPrevDagrunDep:
     def teardown_method(self):
@@ -43,12 +45,12 @@ class TestPrevDagrunDep:
         The first task run of a new task in an old DAG should pass if the task has
         ignore_first_depends_on_past set to True.
         """
-        dag = DAG("test_dag", schedule=timedelta(days=1))
+        dag = DAG("test_dag", schedule=timedelta(days=1), start_date=START_DATE)
         old_task = BaseOperator(
             task_id="test_task",
             dag=dag,
             depends_on_past=True,
-            start_date=convert_to_utc(datetime(2016, 1, 1)),
+            start_date=START_DATE,
             wait_for_downstream=False,
         )
         # Old DAG run will include only TaskInstance of old_task
@@ -221,7 +223,7 @@ def test_dagrun_dep(
 ):
     task = BaseOperator(
         task_id="test_task",
-        dag=DAG("test_dag", schedule=timedelta(days=1)),
+        dag=DAG("test_dag", schedule=timedelta(days=1), start_date=datetime(2016, 1, 1)),
         depends_on_past=depends_on_past,
         start_date=datetime(2016, 1, 1),
         wait_for_downstream=wait_for_downstream,
