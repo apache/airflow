@@ -33,7 +33,7 @@ EXAMPLE_URL = "http://www.example.com"
 class TestHttpToS3Operator:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
         self.http_conn_id = "HTTP_EXAMPLE"
         self.response = b"Example.com fake response"
         self.endpoint = "/"

@@ -861,6 +861,10 @@ class SelectiveChecks:
         if "Providers" in current_test_types:
             current_test_types.remove("Providers")
             current_test_types.update({f"Providers[{provider}]" for provider in get_available_packages()})
+        if self.skip_provider_tests:
+            current_test_types = {
+                test_type for test_type in current_test_types if not test_type.startswith("Providers")
+            }
         return " ".join(sorted(current_test_types))
 
     @cached_property

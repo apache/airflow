@@ -36,6 +36,7 @@ dag = DAG(
     default_args={"retries": 1},
     tags=["example"],
     start_date=datetime(2021, 1, 1),
+    schedule=None,
     catchup=False,
 )
 

@@ -75,7 +75,7 @@ class TestSparkSubmitOperator:
 
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     def test_execute(self):
         # Given / When

@@ -48,7 +48,7 @@ class TestTriggerDag:
     @mock.patch("airflow.models.DagBag")
     def test_trigger_dag_dag_run_exist(self, dag_bag_mock, dag_run_mock):
         dag_id = "dag_run_exist"
-        dag = DAG(dag_id)
+        dag = DAG(dag_id, schedule=None)
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
         dag_run_mock.find_duplicate.return_value = DagRun()
@@ -58,7 +58,11 @@ class TestTriggerDag:
     @mock.patch("airflow.models.DagBag")
     def test_trigger_dag_with_too_early_start_date(self, dag_bag_mock):
         dag_id = "trigger_dag_with_too_early_start_date"
-        dag = DAG(dag_id, default_args={"start_date": timezone.datetime(2016, 9, 5, 10, 10, 0)})
+        dag = DAG(
+            dag_id=dag_id,
+            schedule=None,
+            default_args={"start_date": timezone.datetime(2016, 9, 5, 10, 10, 0)},
+        )
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
 
@@ -68,7 +72,11 @@ class TestTriggerDag:
     @mock.patch("airflow.models.DagBag")
     def test_trigger_dag_with_valid_start_date(self, dag_bag_mock):
         dag_id = "trigger_dag_with_valid_start_date"
-        dag = DAG(dag_id, default_args={"start_date": timezone.datetime(2016, 9, 5, 10, 10, 0)})
+        dag = DAG(
+            dag_id=dag_id,
+            schedule=None,
+            default_args={"start_date": timezone.datetime(2016, 9, 5, 10, 10, 0)},
+        )
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
         dag_bag_mock.dags_hash = {}
@@ -88,7 +96,7 @@ class TestTriggerDag:
     @mock.patch("airflow.models.DagBag")
     def test_trigger_dag_with_conf(self, dag_bag_mock, conf, expected_conf):
         dag_id = "trigger_dag_with_conf"
-        dag = DAG(dag_id)
+        dag = DAG(dag_id, schedule=None)
         dag_bag_mock.dags = [dag_id]
         dag_bag_mock.get_dag.return_value = dag
 

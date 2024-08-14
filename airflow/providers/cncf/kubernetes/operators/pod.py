@@ -1004,7 +1004,7 @@ class KubernetesPodOperator(BaseOperator):
         return None
 
     def patch_already_checked(self, pod: k8s.V1Pod, *, reraise=True):
-        """Add an "already checked" annotation to ensure we don't reattach on retries."""
+        """Add an "already checked" label to ensure we don't reattach on retries."""
         with _optionally_suppress(reraise=reraise):
             self.client.patch_namespaced_pod(
                 name=pod.metadata.name,
