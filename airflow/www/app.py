@@ -44,6 +44,7 @@ from airflow.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.www.extensions.init_robots import init_robots
 from airflow.www.extensions.init_security import (
+    init_api_auth,
     init_cache_control,
     init_check_user_active,
     init_xframe_protection,
@@ -147,6 +148,8 @@ def create_app(config=None, testing=False):
     db.init_app(flask_app)
 
     init_dagbag(flask_app)
+
+    init_api_auth(flask_app)
 
     init_robots(flask_app)
 
