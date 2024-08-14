@@ -79,6 +79,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.elements import ClauseElement, TextClause
     from sqlalchemy.sql.selectable import Select
 
+    from airflow.models.base import BaseDBManager
     from airflow.models.connection import Connection
     from airflow.typing_compat import Self
 
@@ -2123,8 +2124,8 @@ class ExternalDBManager:
     """
 
     def __init__(self):
-        self._managers = []
-        managers = conf.get("database", "external_db_managers", fallback="").split(",")
+        self._managers: list[type[BaseDBManager]] = []
+        managers = conf.get("database", "external_db_managers").split(",")
         for module in managers:
             manager = import_string(module)
             self._managers.append(manager)
@@ -2132,14 +2133,11 @@ class ExternalDBManager:
     def validate(self):
         """Validate the external database managers."""
         for manager in self._managers:
-            self._validate(manager)
+            ExternalDBManager._validate(manager)
 
-    def _validate(self, manager):
-        """
-        Validate the external database migration.
-
-        :param cls: External database class
-        """
+    @staticmethod
+    def _validate(manager: type[BaseDBManager]):
+        """Validate the external database migration."""
         import ast
 
         from airflow.models.base import metadata as airflow_metadata
@@ -2185,9 +2183,3 @@ class ExternalDBManager:
         for manager in self._managers:
             m = manager(session)
             m.downgradedb()
-
-    def _create_db_from_orm(self, session):
-        """Create the external database from ORM."""
-        for manager in self._managers:
-            m = manager(session)
-            m.create_db_from_orm()
