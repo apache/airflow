@@ -27,6 +27,20 @@
 Changelog
 ---------
 
+3.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add on kill to ssh (#40377)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave July 2024 (#40644)``
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
 3.11.2
 ......
 

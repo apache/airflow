@@ -242,7 +242,7 @@ class LockboxSecretBackend(BaseSecretsBackend, LoggingMixin):
         return f"{prefix}{self.sep}{key}"
 
     def _get_secret_value(self, prefix: str, key: str) -> str | None:
-        secret: secret_pb.Secret = None
+        secret: secret_pb.Secret | None = None
         for s in self._get_secrets():
             if s.name == self._build_secret_name(prefix=prefix, key=key):
                 secret = s

@@ -35,35 +35,23 @@ from airflow import settings
 from airflow.decorators import task, task_group
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.cloud_sql import (
     CloudSQLCreateInstanceDatabaseOperator,
     CloudSQLCreateInstanceOperator,
     CloudSQLDeleteInstanceOperator,
     CloudSQLExecuteQueryOperator,
 )
+from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-DAG_ID = "cloudsql-query"
+DAG_ID = "cloudsql_query"
 REGION = "us-central1"
 HOME_DIR = Path.home()
 
 COMPOSER_ENVIRONMENT = os.environ.get("COMPOSER_ENVIRONMENT", "")
-if COMPOSER_ENVIRONMENT:
-    # We assume that the test is launched in Cloud Composer environment because the reserved environment
-    # variable is assigned (https://cloud.google.com/composer/docs/composer-2/set-environment-variables)
-    GET_COMPOSER_NETWORK_COMMAND = """
-    gcloud composer environments describe $COMPOSER_ENVIRONMENT \
-    --location=$COMPOSER_LOCATION \
-    --project=$GCP_PROJECT \
-    --format="value(config.nodeConfig.network)"
-    """
-else:
-    # The test is launched locally
-    GET_COMPOSER_NETWORK_COMMAND = "echo"
 
 
 def run_in_composer():
@@ -115,7 +103,7 @@ def ip_configuration() -> dict[str, Any]:
             "ipv4Enabled": True,
             "requireSsl": False,
             "enablePrivatePathForGoogleCloudServices": True,
-            "privateNetwork": """{{ task_instance.xcom_pull('get_composer_network')}}""",
+            "privateNetwork": f"projects/{PROJECT_ID}/global/networks/default",
         }
     else:
         # Use connection to Cloud SQL instance via Public IP from anywhere (mask 0.0.0.0/0).
@@ -237,8 +225,6 @@ SQL = [
     "DROP TABLE TABLE_TEST",
     "DROP TABLE TABLE_TEST2",
 ]
-
-DELETE_CONNECTION_COMMAND = "airflow connections delete {}"
 
 # [START howto_operator_cloudsql_query_connections_env]
 
@@ -395,12 +381,6 @@ with DAG(
     catchup=False,
     tags=["example", "cloudsql", "postgres"],
 ) as dag:
-    get_composer_network = BashOperator(
-        task_id="get_composer_network",
-        bash_command=GET_COMPOSER_NETWORK_COMMAND,
-        do_xcom_push=True,
-    )
-
     for db_provider in DB_PROVIDERS:
         database_type: str = db_provider["database_type"]
         cloud_sql_instance_name: str = db_provider["cloud_sql_instance_name"]
@@ -467,9 +447,9 @@ with DAG(
             kwargs: dict[str, Any],
         ) -> str | None:
             session = settings.Session()
-            if session.query(Connection).filter(Connection.conn_id == connection_id).first():
-                log.warning("Connection '%s' already exists", connection_id)
-                return connection_id
+            log.info("Removing connection %s if it exists", connection_id)
+            query = session.query(Connection).filter(Connection.conn_id == connection_id)
+            query.delete()
 
             connection: dict[str, Any] = deepcopy(kwargs)
             connection["extra"]["instance"] = instance
@@ -523,30 +503,28 @@ with DAG(
 
         execute_queries_task = execute_queries(db_type=database_type)
 
-        @task_group(group_id=f"teardown_{database_type}")
-        def teardown(instance: str, db_type: str):
-            task_id = f"delete_cloud_sql_instance_{db_type}"
-            CloudSQLDeleteInstanceOperator(
-                task_id=task_id,
-                project_id=PROJECT_ID,
-                instance=instance,
-                trigger_rule=TriggerRule.ALL_DONE,
-            )
+        @task()
+        def delete_connection(connection_id: str) -> None:
+            session = Session()
+            log.info("Removing connection %s", connection_id)
+            query = session.query(Connection).filter(Connection.conn_id == connection_id)
+            query.delete()
+            session.commit()
 
-            for conn in CONNECTIONS:
-                connection_id = f"{conn.id}_{db_type}"
-                BashOperator(
-                    task_id=f"delete_connection_{connection_id}",
-                    bash_command=DELETE_CONNECTION_COMMAND.format(connection_id),
-                    trigger_rule=TriggerRule.ALL_DONE,
-                )
+        delete_connections_task = delete_connection.expand(
+            connection_id=[f"{conn.id}_{database_type}" for conn in CONNECTIONS]
+        )
 
-        teardown_task = teardown(instance=cloud_sql_instance_name, db_type=database_type)
+        delete_instance = CloudSQLDeleteInstanceOperator(
+            task_id=f"delete_cloud_sql_instance_{database_type}",
+            project_id=PROJECT_ID,
+            instance=cloud_sql_instance_name,
+            trigger_rule=TriggerRule.ALL_DONE,
+        )
 
         (
             # TEST SETUP
-            get_composer_network
-            >> create_cloud_sql_instance
+            create_cloud_sql_instance
             >> [
                 create_database,
                 create_user_task,
@@ -556,7 +534,7 @@ with DAG(
             # TEST BODY
             >> execute_queries_task
             # TEST TEARDOWN
-            >> teardown_task
+            >> [delete_instance, delete_connections_task]
         )
 
     # ### Everything below this line is not part of example ###

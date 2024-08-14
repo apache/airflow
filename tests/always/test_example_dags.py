@@ -33,7 +33,6 @@ from tests.test_utils.asserts import assert_queries_count
 AIRFLOW_SOURCES_ROOT = Path(__file__).resolve().parents[2]
 AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
-NO_DB_QUERY_EXCEPTION = ("/airflow/example_dags/example_subdag_operator.py",)
 PROVIDERS_PREFIXES = ("airflow/providers/", "tests/system/providers/")
 OPTIONAL_PROVIDERS_DEPENDENCIES: dict[str, dict[str, str | None]] = {
     # Some examples or system tests may depend on additional packages
@@ -124,6 +123,13 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
         for prefix in PROVIDERS_PREFIXES
         for provider in suspended_providers_folders
     ]
+    temporary_excluded_upgrade_boto_providers_folders = [
+        AIRFLOW_SOURCES_ROOT.joinpath(prefix, provider).as_posix()
+        for prefix in PROVIDERS_PREFIXES
+        # TODO - remove me when https://github.com/apache/beam/issues/32080 is addressed
+        #        and we bring back yandex to be run in case of upgrade boto
+        for provider in ["yandex"]
+    ]
     current_python_excluded_providers_folders = [
         AIRFLOW_SOURCES_ROOT.joinpath(prefix, provider).as_posix()
         for prefix in PROVIDERS_PREFIXES
@@ -139,6 +145,11 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
             if candidate.startswith(tuple(suspended_providers_folders)):
                 param_marks.append(pytest.mark.skip(reason="Suspended provider"))
 
+            if os.environ.get("UPGRADE_BOTO", "false") == "true" and candidate.startswith(
+                tuple(temporary_excluded_upgrade_boto_providers_folders)
+            ):
+                param_marks.append(pytest.mark.skip(reason="Temporary excluded upgrade boto provider"))
+
             if candidate.startswith(tuple(current_python_excluded_providers_folders)):
                 param_marks.append(
                     pytest.mark.skip(reason=f"Not supported for Python {CURRENT_PYTHON_VERSION}")
@@ -150,10 +161,6 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
                         result, reason = match_optional_dependencies(distribution_name, specifier)
                         if not result:
                             param_marks.append(pytest.mark.skip(reason=reason))
-
-            if xfail_db_exception and candidate.endswith(NO_DB_QUERY_EXCEPTION):
-                # Use strict XFAIL for excluded tests. So if it is not failed, we should remove from the list.
-                param_marks.append(pytest.mark.xfail(reason="Expected DB call", strict=True))
 
             if candidate.startswith(providers_folders):
                 # Do not raise an error for airflow.exceptions.RemovedInAirflow3Warning.
@@ -193,7 +200,7 @@ def test_should_be_importable(example: str):
 @pytest.mark.db_test
 @pytest.mark.parametrize("example", example_not_excluded_dags(xfail_db_exception=True))
 def test_should_not_do_database_queries(example: str):
-    with assert_queries_count(0, stacklevel_from_module=example.rsplit(os.sep, 1)[-1]):
+    with assert_queries_count(1, stacklevel_from_module=example.rsplit(os.sep, 1)[-1]):
         DagBag(
             dag_folder=example,
             include_examples=False,

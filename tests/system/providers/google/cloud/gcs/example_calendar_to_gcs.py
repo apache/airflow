@@ -18,13 +18,13 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from datetime import datetime
 
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.calendar_to_gcs import GoogleCalendarToGCSOperator
 from airflow.settings import Session
@@ -32,13 +32,16 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "example_calendar_to_gcs"
+DAG_ID = "calendar_to_gcs"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 CALENDAR_ID = os.environ.get("CALENDAR_ID", "primary")
 API_VERSION = "v3"
 
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"
+
+
+log = logging.getLogger(__name__)
 
 
 with DAG(
@@ -53,9 +56,9 @@ with DAG(
     )
 
     @task
-    def create_temp_gcp_connection():
+    def create_connection(connection_id: str):
         conn = Connection(
-            conn_id=CONNECTION_ID,
+            conn_id=connection_id,
             conn_type="google_cloud_platform",
         )
         conn_extra = {
@@ -67,10 +70,15 @@ with DAG(
         conn.set_extra(conn_extra_json)
 
         session = Session()
+        log.info("Removing connection %s if it exists", connection_id)
+        query = session.query(Connection).filter(Connection.conn_id == connection_id)
+        query.delete()
+
         session.add(conn)
         session.commit()
+        log.info("Connection created: '%s'", connection_id)
 
-    create_temp_gcp_connection_task = create_temp_gcp_connection()
+    create_connection_task = create_connection(connection_id=CONNECTION_ID)
 
     # [START upload_calendar_to_gcs]
     upload_calendar_to_gcs = GoogleCalendarToGCSOperator(
@@ -82,10 +90,15 @@ with DAG(
     )
     # [END upload_calendar_to_gcs]
 
-    delete_temp_gcp_connection_task = BashOperator(
-        task_id="delete_temp_gcp_connection",
-        bash_command=f"airflow connections delete {CONNECTION_ID}",
-    )
+    @task(task_id="delete_connection")
+    def delete_connection(connection_id: str) -> None:
+        session = Session()
+        log.info("Removing connection %s", connection_id)
+        query = session.query(Connection).filter(Connection.conn_id == connection_id)
+        query.delete()
+        session.commit()
+
+    delete_connection_task = delete_connection(connection_id=CONNECTION_ID)
 
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
@@ -94,11 +107,11 @@ with DAG(
     (
         # TEST SETUP
         create_bucket
-        >> create_temp_gcp_connection_task
+        >> create_connection_task
         # TEST BODY
         >> upload_calendar_to_gcs
         # TEST TEARDOWN
-        >> delete_temp_gcp_connection_task
+        >> delete_connection_task
         >> delete_bucket
     )
 

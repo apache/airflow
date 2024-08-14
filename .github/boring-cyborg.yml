@@ -170,6 +170,11 @@ labelPRBasedOnFilePath:
     - tests/providers/cohere/**/*
     - tests/system/providers/cohere/**/*
 
+  provider:common-compat:
+    - airflow/providers/common/compat/**/*
+    - docs/apache-airflow-providers-common-compat/**/*
+    - tests/providers/common/compat/**/*
+
   provider:common-io:
     - airflow/providers/common/io/**/*
     - docs/apache-airflow-providers-common-io/**/*

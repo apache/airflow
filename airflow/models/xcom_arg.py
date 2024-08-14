@@ -135,12 +135,12 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     @property
     def roots(self) -> list[DAGNode]:
-        """Required by TaskMixin."""
+        """Required by DependencyMixin."""
         return [op for op, _ in self.iter_references()]
 
     @property
     def leaves(self) -> list[DAGNode]:
-        """Required by TaskMixin."""
+        """Required by DependencyMixin."""
         return [op for op, _ in self.iter_references()]
 
     def set_upstream(
@@ -148,7 +148,7 @@ class XComArg(ResolveMixin, DependencyMixin):
         task_or_task_list: DependencyMixin | Sequence[DependencyMixin],
         edge_modifier: EdgeModifier | None = None,
     ):
-        """Proxy to underlying operator set_upstream method. Required by TaskMixin."""
+        """Proxy to underlying operator set_upstream method. Required by DependencyMixin."""
         for operator, _ in self.iter_references():
             operator.set_upstream(task_or_task_list, edge_modifier)
 
@@ -157,7 +157,7 @@ class XComArg(ResolveMixin, DependencyMixin):
         task_or_task_list: DependencyMixin | Sequence[DependencyMixin],
         edge_modifier: EdgeModifier | None = None,
     ):
-        """Proxy to underlying operator set_downstream method. Required by TaskMixin."""
+        """Proxy to underlying operator set_downstream method. Required by DependencyMixin."""
         for operator, _ in self.iter_references():
             operator.set_downstream(task_or_task_list, edge_modifier)
 
@@ -725,7 +725,7 @@ _XCOM_ARG_TYPES: Mapping[str, type[XComArg]] = {
 
 def serialize_xcom_arg(value: XComArg) -> dict[str, Any]:
     """DAG serialization interface."""
-    key = next(k for k, v in _XCOM_ARG_TYPES.items() if v == type(value))
+    key = next(k for k, v in _XCOM_ARG_TYPES.items() if isinstance(value, v))
     if key:
         return {"type": key, **value._serialize()}
     return value._serialize()

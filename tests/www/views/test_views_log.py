@@ -139,8 +139,8 @@ def dags(log_app, create_dummy_dag, session):
     )
 
     bag = DagBag(include_examples=False)
-    bag.bag_dag(dag=dag, root_dag=dag)
-    bag.bag_dag(dag=dag_removed, root_dag=dag_removed)
+    bag.bag_dag(dag=dag)
+    bag.bag_dag(dag=dag_removed)
     bag.sync_to_db(session=session)
     log_app.dag_bag = bag
 

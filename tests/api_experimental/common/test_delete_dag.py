@@ -35,7 +35,7 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.compat import ParseImportError as IE
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestDeleteDAGCatchError:
@@ -67,10 +67,7 @@ class TestDeleteDAGSuccessfulDelete:
     dag_file_path = "/usr/local/airflow/dags/test_dag_8.py"
     key = "test_dag_id"
 
-    def setup_dag_models(self, for_sub_dag=False):
-        if for_sub_dag:
-            self.key = "test_dag_id.test_subdag"
-
+    def setup_dag_models(self):
         task = EmptyOperator(
             task_id="dummy",
             dag=DAG(dag_id=self.key, default_args={"start_date": timezone.datetime(2022, 1, 1)}),
@@ -79,7 +76,7 @@ class TestDeleteDAGSuccessfulDelete:
 
         test_date = timezone.datetime(2022, 1, 1)
         with create_session() as session:
-            session.add(DagModel(dag_id=self.key, fileloc=self.dag_file_path, is_subdag=for_sub_dag))
+            session.add(DagModel(dag_id=self.key, fileloc=self.dag_file_path))
             dr = DR(dag_id=self.key, run_type=DagRunType.MANUAL, run_id="test", execution_date=test_date)
             ti = TI(task=task, state=State.SUCCESS)
             ti.dag_run = dr
@@ -158,21 +155,16 @@ class TestDeleteDAGSuccessfulDelete:
         delete_dag(dag_id=self.key, keep_records_in_log=False)
         self.check_dag_models_removed(expect_logs=0)
 
-    def test_delete_subdag_successful_delete(self):
-        self.setup_dag_models(for_sub_dag=True)
-        self.check_dag_models_exists()
-        delete_dag(dag_id=self.key, keep_records_in_log=False)
-        self.check_dag_models_removed(expect_logs=0)
-
     def test_delete_dag_preserves_other_dags(self):
         self.setup_dag_models()
 
         with create_session() as session:
             session.add(DagModel(dag_id=self.key + ".other_dag", fileloc=self.dag_file_path))
-            session.add(DagModel(dag_id=self.key + ".subdag", fileloc=self.dag_file_path, is_subdag=True))
+            session.add(DagModel(dag_id=self.key + ".other_dag2", fileloc=self.dag_file_path))
 
         delete_dag(self.key)
 
         with create_session() as session:
             assert session.query(DagModel).filter(DagModel.dag_id == self.key + ".other_dag").count() == 1
-            assert session.query(DagModel).filter(DagModel.dag_id.like(self.key + "%")).count() == 1
+            assert session.query(DagModel).filter(DagModel.dag_id == self.key + ".other_dag2").count() == 1
+            assert session.query(DagModel).filter(DagModel.dag_id == self.key).count() == 0

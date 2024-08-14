@@ -432,18 +432,19 @@ def delete_model_group(group_name, model_version_arn):
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_experiment(name):
+def delete_experiments(experiment_names):
     sgmk_client = boto3.client("sagemaker")
-    trials = sgmk_client.list_trials(ExperimentName=name)
-    trials_names = [s["TrialName"] for s in trials["TrialSummaries"]]
-    for trial in trials_names:
-        components = sgmk_client.list_trial_components(TrialName=trial)
-        components_names = [s["TrialComponentName"] for s in components["TrialComponentSummaries"]]
-        for component in components_names:
-            sgmk_client.disassociate_trial_component(TrialComponentName=component, TrialName=trial)
-            sgmk_client.delete_trial_component(TrialComponentName=component)
-        sgmk_client.delete_trial(TrialName=trial)
-    sgmk_client.delete_experiment(ExperimentName=name)
+    for experiment in experiment_names:
+        trials = sgmk_client.list_trials(ExperimentName=experiment)
+        trials_names = [s["TrialName"] for s in trials["TrialSummaries"]]
+        for trial in trials_names:
+            components = sgmk_client.list_trial_components(TrialName=trial)
+            components_names = [s["TrialComponentName"] for s in components["TrialComponentSummaries"]]
+            for component in components_names:
+                sgmk_client.disassociate_trial_component(TrialComponentName=component, TrialName=trial)
+                sgmk_client.delete_trial_component(TrialComponentName=component)
+            sgmk_client.delete_trial(TrialName=trial)
+        sgmk_client.delete_experiment(ExperimentName=experiment)
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -637,7 +638,13 @@ with DAG(
         delete_model_group(test_setup["model_package_group_name"], register_model.output),
         delete_model,
         delete_bucket,
-        delete_experiment(test_setup["experiment_name"]),
+        delete_experiments(
+            [
+                test_setup["experiment_name"],
+                f"{test_setup['auto_ml_job_name']}-aws-auto-ml-job",
+                f"{test_setup['tuning_job_name']}-aws-tuning-job",
+            ]
+        ),
         delete_docker_image(test_setup["docker_image"]),
         log_cleanup,
     )

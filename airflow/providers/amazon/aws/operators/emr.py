@@ -1382,30 +1382,30 @@ class EmrServerlessStartJobOperator(BaseOperator):
 
         self.persist_links(context)
 
-        if self.deferrable:
-            self.defer(
-                trigger=EmrServerlessStartJobTrigger(
-                    application_id=self.application_id,
-                    job_id=self.job_id,
-                    waiter_delay=self.waiter_delay,
-                    waiter_max_attempts=self.waiter_max_attempts,
-                    aws_conn_id=self.aws_conn_id,
-                ),
-                method_name="execute_complete",
-                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
-            )
-
         if self.wait_for_completion:
-            waiter = self.hook.get_waiter("serverless_job_completed")
-            wait(
-                waiter=waiter,
-                waiter_max_attempts=self.waiter_max_attempts,
-                waiter_delay=self.waiter_delay,
-                args={"applicationId": self.application_id, "jobRunId": self.job_id},
-                failure_message="Serverless Job failed",
-                status_message="Serverless Job status is",
-                status_args=["jobRun.state", "jobRun.stateDetails"],
-            )
+            if self.deferrable:
+                self.defer(
+                    trigger=EmrServerlessStartJobTrigger(
+                        application_id=self.application_id,
+                        job_id=self.job_id,
+                        waiter_delay=self.waiter_delay,
+                        waiter_max_attempts=self.waiter_max_attempts,
+                        aws_conn_id=self.aws_conn_id,
+                    ),
+                    method_name="execute_complete",
+                    timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
+                )
+            else:
+                waiter = self.hook.get_waiter("serverless_job_completed")
+                wait(
+                    waiter=waiter,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    waiter_delay=self.waiter_delay,
+                    args={"applicationId": self.application_id, "jobRunId": self.job_id},
+                    failure_message="Serverless Job failed",
+                    status_message="Serverless Job status is",
+                    status_args=["jobRun.state", "jobRun.stateDetails"],
+                )
 
         return self.job_id
 

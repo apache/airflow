@@ -34,6 +34,7 @@ RUNS_ON_PUBLIC_RUNNER = '["ubuntu-22.04"]'
 # we use self airflow, vm-based, amd hosted runner as a default
 # TODO: temporarily we need to switch to public runners to avoid issues with self-hosted runners
 RUNS_ON_SELF_HOSTED_RUNNER = '["ubuntu-22.04"]'
+RUNS_ON_SELF_HOSTED_ASF_RUNNER = '["self-hosted", "asf-runner"]'
 # TODO: when we have it properly set-up with labels we should change it to
 # RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "airflow-runner", "vm-runner", "X64"]'
 # RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "Linux", "X64"]'
@@ -421,6 +422,8 @@ PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "provider
 with Path(AIRFLOW_SOURCES_ROOT, "generated", "provider_dependencies.json").open() as f:
     PROVIDER_DEPENDENCIES = json.load(f)
 
+DEVEL_DEPS_PATH = AIRFLOW_SOURCES_ROOT / "generated" / "devel_deps.txt"
+
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [
     "pyproject.toml",
@@ -500,12 +503,6 @@ CHICKEN_EGG_PROVIDERS = " ".join([])
 
 
 BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
-    {
-        "python-version": "3.8",
-        "airflow-version": "2.7.3",
-        "remove-providers": "common.io fab",
-        "run-tests": "true",
-    },
     {
         "python-version": "3.8",
         "airflow-version": "2.8.4",

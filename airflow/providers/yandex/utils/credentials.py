@@ -18,16 +18,23 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import TypedDict
 
 log = logging.getLogger(__name__)
+
+
+class CredentialsType(TypedDict, total=False):
+    """Credentials dict description."""
+
+    token: str
+    service_account_key: dict[str, str]
 
 
 def get_credentials(
     oauth_token: str | None = None,
     service_account_json: dict | str | None = None,
     service_account_json_path: str | None = None,
-) -> dict[str, Any]:
+) -> CredentialsType:
     """
     Return credentials JSON for Yandex Cloud SDK based on credentials.
 

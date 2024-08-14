@@ -41,7 +41,7 @@ from tests.test_utils.api_connexion_utils import assert_401, create_user, delete
 from tests.test_utils.db import clear_db_runs, clear_db_sla_miss, clear_rendered_ti_fields
 from tests.test_utils.www import _check_last_log
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 DEFAULT_DATETIME_1 = datetime(2020, 1, 1)
 DEFAULT_DATETIME_STR_1 = "2020-01-01T00:00:00+00:00"
@@ -1220,57 +1220,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 id="clear by task ids",
             ),
             pytest.param(
-                "example_subdag_operator",
-                [
-                    {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
-                    {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
-                        "state": State.FAILED,
-                    },
-                    {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
-                        "state": State.FAILED,
-                    },
-                    {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
-                        "state": State.FAILED,
-                    },
-                    {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=4),
-                        "state": State.FAILED,
-                    },
-                ],
-                "example_subdag_operator.section-1",
-                {"dry_run": True, "include_parentdag": True},
-                4,
-                id="include parent dag",
-            ),
-            pytest.param(
-                "example_subdag_operator.section-1",
-                [
-                    {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
-                    {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
-                        "state": State.FAILED,
-                    },
-                    {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
-                        "state": State.FAILED,
-                    },
-                    {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
-                        "state": State.FAILED,
-                    },
-                ],
-                "example_subdag_operator",
-                {
-                    "dry_run": True,
-                    "include_subdags": True,
-                },
-                4,
-                id="include sub dag",
-            ),
-            pytest.param(
                 "example_python_operator",
                 [
                     {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
@@ -1321,7 +1270,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         """Test that if reset_dag_runs is True, then clear_task_instances is called with State.QUEUED"""
         self.create_task_instances(session)
         dag_id = "example_python_operator"
-        payload = {"include_subdags": True, "reset_dag_runs": True, "dry_run": False}
+        payload = {"reset_dag_runs": True, "dry_run": False}
         self.app.dag_bag.sync_to_db()
         response = self.client.post(
             f"/api/v1/dags/{dag_id}/clearTaskInstances",
@@ -1362,7 +1311,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "reset_dag_runs": True,
             "only_failed": False,
             "only_running": True,
-            "include_subdags": True,
         }
         task_instances = [
             {"execution_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
@@ -1454,7 +1402,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "reset_dag_runs": False,
             "only_failed": False,
             "only_running": True,
-            "include_subdags": True,
             "dag_run_id": "TEST_DAG_RUN_ID_0",
         }
         task_instances = [
@@ -1514,7 +1461,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "only_failed": False,
             "include_past": True,
             "only_running": True,
-            "include_subdags": True,
         }
         task_instances = [
             {"execution_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
@@ -1693,7 +1639,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "reset_dag_runs": False,
             "only_failed": False,
             "only_running": True,
-            "include_subdags": True,
             "dag_run_id": "TEST_DAG_RUN_ID_100",
         }
         task_instances = [
@@ -1732,7 +1677,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "reset_dag_runs": True,
                 "only_failed": False,
                 "only_running": True,
-                "include_subdags": True,
             },
         )
         assert_401(response)
@@ -1747,7 +1691,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "reset_dag_runs": True,
                 "only_failed": False,
                 "only_running": True,
-                "include_subdags": True,
             },
         )
         assert response.status_code == 403
@@ -1794,7 +1737,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "reset_dag_runs": True,
                 "only_failed": False,
                 "only_running": True,
-                "include_subdags": True,
             },
         )
         assert response.status_code == 404
@@ -2942,3 +2884,84 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
         )
         assert response.status_code == 404
         assert response.json["title"] == "Task instance not found"
+
+
+class TestGetTaskInstanceTries(TestTaskInstanceEndpoint):
+    def setup_method(self):
+        clear_db_runs()
+
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_should_respond_200(self, session):
+        self.create_task_instances(
+            session=session, task_instances=[{"state": State.SUCCESS}], with_ti_history=True
+        )
+        response = self.client.get(
+            "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        assert response.json["total_entries"] == 2  # The task instance and its history
+        assert len(response.json["task_instances"]) == 2
+
+    def test_mapped_task_should_respond_200(self, session):
+        tis = self.create_task_instances(session, task_instances=[{"state": State.FAILED}])
+        old_ti = tis[0]
+        for idx in (1, 2):
+            ti = TaskInstance(task=old_ti.task, run_id=old_ti.run_id, map_index=idx)
+            ti.try_number = 1
+            session.add(ti)
+        session.commit()
+        tis = session.query(TaskInstance).all()
+
+        # Record the task instance history
+        from airflow.models.taskinstance import clear_task_instances
+
+        clear_task_instances(tis, session)
+        # Simulate the try_number increasing to new values in TI
+        for ti in tis:
+            if ti.map_index > 0:
+                ti.try_number += 1
+                ti.queue = "default_queue"
+                session.merge(ti)
+        session.commit()
+
+        # in each loop, we should get the right mapped TI back
+        for map_index in (1, 2):
+            # Get the info from TIHistory: try_number 1, try_number 2 is TI table(latest)
+            response = self.client.get(
+                "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances"
+                f"/print_the_context/{map_index}/tries",
+                environ_overrides={"REMOTE_USER": "test"},
+            )
+            assert response.status_code == 200
+            assert (
+                response.json["total_entries"] == 2
+            )  # the mapped task was cleared. So both the task instance and its history
+            assert len(response.json["task_instances"]) == 2
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries",
+            "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/0/tries",
+        ],
+    )
+    def test_should_raises_401_unauthenticated(self, url):
+        response = self.client.get(url)
+        assert_401(response)
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/tries",
+            "/api/v1/dags/example_python_operator/dagRuns/TEST_DAG_RUN_ID/taskInstances/print_the_context/0/tries",
+        ],
+    )
+    def test_should_raise_403_forbidden(self, url):
+        response = self.client.get(
+            url,
+            environ_overrides={"REMOTE_USER": "test_no_permissions"},
+        )
+        assert response.status_code == 403

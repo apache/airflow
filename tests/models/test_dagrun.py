@@ -51,7 +51,7 @@ from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import MockOperator
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 if TYPE_CHECKING:

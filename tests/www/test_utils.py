@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import itertools
+import os
 import re
 import time
 from datetime import datetime
@@ -210,6 +211,7 @@ class TestUtils:
 
         assert epoch_time == expected_epoch_time
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     def test_make_cache_key(self):
         from airflow.www.app import cached_app
@@ -222,6 +224,7 @@ class TestUtils:
             result_cache_key = utils.make_cache_key()
             assert result_cache_key == expected_cache_key
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     def test_task_instance_link(self):
         from airflow.www.app import cached_app
@@ -251,6 +254,7 @@ class TestUtils:
         assert "<a&1>" not in html_map_index_none
         assert "<b2>" not in html_map_index_none
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     def test_dag_link(self):
         from airflow.www.app import cached_app
@@ -261,6 +265,7 @@ class TestUtils:
         assert "%3Ca%261%3E" in html
         assert "<a&1>" not in html
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     def test_dag_link_when_dag_is_none(self):
         """Test that when there is no dag_id, dag_link does not contain hyperlink"""
@@ -272,6 +277,7 @@ class TestUtils:
         assert "None" in html
         assert "<a href=" not in html
 
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.db_test
     def test_dag_run_link(self):
         from airflow.www.app import cached_app
@@ -664,6 +670,7 @@ def test_get_col_default_not_existing(session):
     assert default_value is None
 
 
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 def test_dag_run_custom_sqla_interface_delete_no_collateral_damage(dag_maker, session):
     interface = DagRunCustomSQLAInterface(obj=DagRun, session=session)
@@ -755,3 +762,7 @@ class TestWidgets:
 
         assert 'readonly="true"' in html_output
         assert "form-control" in html_output
+
+
+def is_db_isolation_mode():
+    return os.environ.get("RUN_TESTS_WITH_DATABASE_ISOLATION", "false").lower() == "true"

@@ -47,6 +47,7 @@ from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import _PRODUCER, OpenLineageAdapter
 from airflow.providers.openlineage.plugins.facets import (
     AirflowDagRunFacet,
+    AirflowDebugRunFacet,
     AirflowStateRunFacet,
 )
 from airflow.providers.openlineage.utils.utils import get_airflow_job_facet
@@ -527,10 +528,11 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
     mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
+@mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
 @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
-def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_static_uuid):
+def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_static_uuid, mock_debug_mode):
     random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -587,6 +589,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
                                 "schedule_interval": "86400.0 seconds",
                                 "start_date": "2024-06-01T00:00:00+00:00",
                                 "tags": [],
+                                "fileloc": pathlib.Path(__file__).resolve().as_posix(),
                             },
                             dagRun={
                                 "conf": {},
@@ -599,6 +602,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
                                 "start_date": event_time.isoformat(),
                             },
                         ),
+                        "debug": AirflowDebugRunFacet(packages=ANY),
                     },
                 ),
                 job=Job(
@@ -629,11 +633,14 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
     mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
+@mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
 @mock.patch.object(DagRun, "get_task_instances")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
-def test_emit_dag_complete_event(mock_stats_incr, mock_stats_timer, generate_static_uuid, mocked_get_tasks):
+def test_emit_dag_complete_event(
+    mock_stats_incr, mock_stats_timer, generate_static_uuid, mocked_get_tasks, mock_debug_mode
+):
     random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -683,7 +690,8 @@ def test_emit_dag_complete_event(mock_stats_incr, mock_stats_timer, generate_sta
                                 task_1.task_id: TaskInstanceState.SKIPPED,
                                 task_2.task_id: TaskInstanceState.FAILED,
                             },
-                        )
+                        ),
+                        "debug": AirflowDebugRunFacet(packages=ANY),
                     },
                 ),
                 job=Job(
@@ -707,11 +715,14 @@ def test_emit_dag_complete_event(mock_stats_incr, mock_stats_timer, generate_sta
     mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
+@mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
 @mock.patch.object(DagRun, "get_task_instances")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
-def test_emit_dag_failed_event(mock_stats_incr, mock_stats_timer, generate_static_uuid, mocked_get_tasks):
+def test_emit_dag_failed_event(
+    mock_stats_incr, mock_stats_timer, generate_static_uuid, mocked_get_tasks, mock_debug_mode
+):
     random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -763,6 +774,7 @@ def test_emit_dag_failed_event(mock_stats_incr, mock_stats_timer, generate_stati
                                 task_2.task_id: TaskInstanceState.FAILED,
                             },
                         ),
+                        "debug": AirflowDebugRunFacet(packages=ANY),
                     },
                 ),
                 job=Job(
