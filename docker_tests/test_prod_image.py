@@ -68,7 +68,7 @@ class TestCommands:
     def test_airflow_version(self, default_docker_image):
         """Checking 'airflow version' command. It should return zero exit code."""
         output = run_airflow_cmd_in_docker(["version"], image=default_docker_image)
-        assert "2." in output
+        assert "3." in output
 
     def test_python_version(self, default_docker_image):
         """Checking 'python --version' command. It should return zero exit code."""
