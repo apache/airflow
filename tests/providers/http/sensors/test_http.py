@@ -289,7 +289,7 @@ class FakeSession:
 class TestHttpOpSensor:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE_ISO}
-        dag = DAG(TEST_DAG_ID, default_args=args)
+        dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
         self.dag = dag
 
     @mock.patch("requests.Session", FakeSession)

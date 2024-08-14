@@ -34,7 +34,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
 from airflow.stats import Stats
 from airflow.traces import NO_TRACE_ID
-from airflow.traces.tracer import Trace, gen_context, span
+from airflow.traces.tracer import Trace, add_span, gen_context
 from airflow.traces.utils import gen_span_id_from_ti_key, gen_trace_id
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
@@ -228,7 +228,7 @@ class BaseExecutor(LoggingMixin):
         Executors should override this to perform gather statuses.
         """
 
-    @span
+    @add_span
     def heartbeat(self) -> None:
         """Heartbeat sent to trigger new jobs."""
         if not self.parallelism:
@@ -321,7 +321,7 @@ class BaseExecutor(LoggingMixin):
             reverse=True,
         )
 
-    @span
+    @add_span
     def trigger_tasks(self, open_slots: int) -> None:
         """
         Initiate async execution of the queued tasks, up to the number of available slots.
@@ -381,7 +381,7 @@ class BaseExecutor(LoggingMixin):
         if task_tuples:
             self._process_tasks(task_tuples)
 
-    @span
+    @add_span
     def _process_tasks(self, task_tuples: list[TaskTuple]) -> None:
         for key, command, queue, executor_config in task_tuples:
             task_instance = self.queued_tasks[key][3]  # TaskInstance in fourth element

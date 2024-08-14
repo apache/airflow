@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import datetime
 from typing import TYPE_CHECKING
 
 import pendulum
@@ -63,6 +64,7 @@ def create_test_pipeline(suffix, trigger_rule):
 
 with DAG(
     dag_id="example_skip_dag",
+    schedule=datetime.timedelta(days=1),
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],

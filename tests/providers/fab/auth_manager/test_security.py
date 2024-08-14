@@ -226,8 +226,8 @@ def mock_dag_models(request, session, security_manager):
 @pytest.fixture
 def sample_dags(security_manager):
     dags = [
-        DAG("has_access_control", access_control={"Public": {permissions.ACTION_CAN_READ}}),
-        DAG("no_access_control"),
+        DAG("has_access_control", schedule=None, access_control={"Public": {permissions.ACTION_CAN_READ}}),
+        DAG("no_access_control", schedule=None),
     ]
 
     yield dags
@@ -1006,46 +1006,6 @@ def test_prefixed_dag_id_is_deprecated(security_manager):
         ),
     ):
         security_manager.prefixed_dag_id("hello")
-
-
-def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_has_dag_perms, session):
-    username = "dag_permission_user"
-    role_name = "dag_permission_role"
-    parent_dag_name = "parent_dag"
-    subdag_name = parent_dag_name + ".subdag"
-    subsubdag_name = parent_dag_name + ".subdag.subsubdag"
-    with app.app_context():
-        mock_roles = [
-            {
-                "role": role_name,
-                "perms": [
-                    (permissions.ACTION_CAN_READ, f"DAG:{parent_dag_name}"),
-                    (permissions.ACTION_CAN_EDIT, f"DAG:{parent_dag_name}"),
-                ],
-            }
-        ]
-        with create_user_scope(
-            app,
-            username=username,
-            role_name=role_name,
-        ) as user:
-            dag1 = DagModel(dag_id=parent_dag_name)
-            dag2 = DagModel(dag_id=subdag_name, is_subdag=True, root_dag_id=parent_dag_name)
-            dag3 = DagModel(dag_id=subsubdag_name, is_subdag=True, root_dag_id=parent_dag_name)
-            session.add_all([dag1, dag2, dag3])
-            session.commit()
-            security_manager.bulk_sync_roles(mock_roles)
-            for _ in [dag1, dag2, dag3]:
-                security_manager._sync_dag_view_permissions(
-                    parent_dag_name, access_control={role_name: READ_WRITE}
-                )
-
-            assert_user_has_dag_perms(perms=["GET", "PUT"], dag_id=parent_dag_name, user=user)
-            assert_user_has_dag_perms(perms=["GET", "PUT"], dag_id=parent_dag_name + ".subdag", user=user)
-            assert_user_has_dag_perms(
-                perms=["GET", "PUT"], dag_id=parent_dag_name + ".subdag.subsubdag", user=user
-            )
-            session.query(DagModel).delete()
 
 
 def test_permissions_work_for_dags_with_dot_in_dagname(
