@@ -2472,11 +2472,8 @@ scheduler:
       default: "True"
     max_tis_per_query:
       description: |
-        This changes the batch size of queries in the scheduling main loop.
-        This should not be greater than ``[core] parallelism``.
-        If this is too high, SQL query performance may be impacted by
-        complexity of query predicate, and/or excessive locking.
-        Additionally, you may hit the maximum allowable query length for your db.
+        This determines the number of task instances to be evaluated for scheduling
+        during each scheduler loop.
         Set this to 0 to use the value of ``[core] parallelism``
       version_added: ~
       type: integer
