@@ -1405,12 +1405,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         and_(
                             DatasetDagRunQueue.dataset_id == DatasetEvent.dataset_id,
                             DatasetDagRunQueue.created_at <= DatasetEvent.timestamp,
+                            DatasetDagRunQueue.target_dag_id == dag.dag_id,
                         ),
                     )
-                    .where(
-                        DatasetDagRunQueue.target_dag_id == dag.dag_id,
-                        DatasetEvent.timestamp <= exec_date,
-                    )
+                    .where(DatasetEvent.timestamp <= exec_date)
                 ).all()
 
                 data_interval = dag.timetable.data_interval_for_events(exec_date, dataset_events)
