@@ -386,6 +386,7 @@ combine-as-imports = true
 "airflow/api/auth/backend/kerberos_auth.py" = ["E402"]
 "airflow/security/kerberos.py" = ["E402"]
 "airflow/security/utils.py" = ["E402"]
+"tests/providers/amazon/aws/auth_manager/security_manager/test_aws_security_manager_override.py" = ["E402"]
 "tests/providers/common/io/xcom/test_backend.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/__init__.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/utilities/__init__.py" = ["E402"]
