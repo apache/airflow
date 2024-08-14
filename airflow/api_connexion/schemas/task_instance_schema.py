@@ -133,6 +133,20 @@ class TaskInstanceCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
+class TaskInstanceHistoryCollection(NamedTuple):
+    """List of task instances history with metadata."""
+
+    task_instances: list[TaskInstanceHistory | None]
+    total_entries: int
+
+
+class TaskInstanceHistoryCollectionSchema(Schema):
+    """Task instance collection schema."""
+
+    task_instances = fields.List(fields.Nested(TaskInstanceHistorySchema))
+    total_entries = fields.Int()
+
+
 class TaskInstanceBatchFormSchema(Schema):
     """Schema for the request form passed to Task Instance Batch endpoint."""
 
@@ -163,8 +177,6 @@ class ClearTaskInstanceFormSchema(Schema):
     end_date = fields.DateTime(load_default=None, validate=validate_istimezone)
     only_failed = fields.Boolean(load_default=True)
     only_running = fields.Boolean(load_default=False)
-    include_subdags = fields.Boolean(load_default=False)
-    include_parentdag = fields.Boolean(load_default=False)
     reset_dag_runs = fields.Boolean(load_default=False)
     task_ids = fields.List(fields.String(), validate=validate.Length(min=1))
     dag_run_id = fields.Str(load_default=None)
@@ -279,3 +291,4 @@ task_instance_reference_schema = TaskInstanceReferenceSchema()
 task_instance_reference_collection_schema = TaskInstanceReferenceCollectionSchema()
 set_task_instance_note_form_schema = SetTaskInstanceNoteFormSchema()
 task_instance_history_schema = TaskInstanceHistorySchema()
+task_instance_history_collection_schema = TaskInstanceHistoryCollectionSchema()

@@ -37,7 +37,7 @@ from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import perform_heartbeat
 from airflow.models.trigger import Trigger
 from airflow.stats import Stats
-from airflow.traces.tracer import Trace, span
+from airflow.traces.tracer import Trace, add_span
 from airflow.triggers.base import TriggerEvent
 from airflow.typing_compat import TypedDict
 from airflow.utils import timezone
@@ -392,14 +392,14 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             # Idle sleep
             time.sleep(1)
 
-    @span
+    @add_span
     def load_triggers(self):
         """Query the database for the triggers we're supposed to be running and update the runner."""
         Trigger.assign_unassigned(self.job.id, self.capacity, self.health_check_threshold)
         ids = Trigger.ids_for_triggerer(self.job.id)
         self.trigger_runner.update_triggers(set(ids))
 
-    @span
+    @add_span
     def handle_events(self):
         """Dispatch outbound events to the Trigger model which pushes them to the relevant task instances."""
         while self.trigger_runner.events:
@@ -410,7 +410,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             # Emit stat event
             Stats.incr("triggers.succeeded")
 
-    @span
+    @add_span
     def handle_failed_triggers(self):
         """
         Handle "failed" triggers. - ones that errored or exited before they sent an event.
@@ -424,7 +424,7 @@ class TriggererJobRunner(BaseJobRunner, LoggingMixin):
             # Emit stat event
             Stats.incr("triggers.failed")
 
-    @span
+    @add_span
     def emit_metrics(self):
         Stats.gauge(f"triggers.running.{self.job.hostname}", len(self.trigger_runner.triggers))
         Stats.gauge(

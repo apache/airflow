@@ -61,7 +61,7 @@ sql_sensor = DatabricksPartitionSensor(
 class TestDatabricksPartitionSensor:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
         self.partition_sensor = DatabricksPartitionSensor(
             task_id=TASK_ID,

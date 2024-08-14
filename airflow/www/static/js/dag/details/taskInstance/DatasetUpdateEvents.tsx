@@ -32,7 +32,7 @@ interface Props {
 }
 
 const cardDef: CardDef<DatasetEvent> = {
-  card: ({ row }) => <DatasetEventCard datasetEvent={row} />,
+  card: ({ row }) => <DatasetEventCard datasetEvent={row} showSource={false} />,
 };
 
 const dagId = getMetaValue("dag_id") || undefined;
@@ -56,10 +56,6 @@ const DatasetUpdateEvents = ({ runId, taskId }: Props) => {
       {
         Header: "Dataset",
         accessor: "datasetUri",
-      },
-      {
-        Header: "Source Task Instance",
-        accessor: "sourceTaskId",
       },
       {
         Header: "Triggered Runs",

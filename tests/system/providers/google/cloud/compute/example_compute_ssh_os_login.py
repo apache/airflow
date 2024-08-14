@@ -63,7 +63,7 @@ GCE_INSTANCE_BODY = {
             "initialize_params": {
                 "disk_size_gb": "10",
                 "disk_type": f"zones/{LOCATION}/diskTypes/pd-balanced",
-                "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621",
+                "source_image": "projects/debian-cloud/global/images/debian-12-bookworm-v20240611",
             },
         }
     ],
@@ -79,7 +79,7 @@ GCE_INSTANCE_BODY = {
 
 with DAG(
     DAG_ID,
-    schedule_interval="@once",
+    schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=["example", "compute-ssh", "os-login"],

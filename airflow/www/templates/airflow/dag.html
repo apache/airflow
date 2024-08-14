@@ -60,7 +60,7 @@
   <meta name="calendar_data_url" content="{{ url_for('Airflow.calendar_data') }}">
   <meta name="next_run_datasets_url" content="{{ url_for('Airflow.next_run_datasets', dag_id=dag.dag_id) }}">
   <meta name="grid_url" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id) }}">
-  <meta name="ti_history_url" content="{{ url_for('Airflow.ti_history') }}">
+  <meta name="task_tries_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_get_task_instance_tries', dag_id='_DAG_ID_', dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_') }}">
   <meta name="datasets_url" content="{{ url_for('Airflow.datasets') }}">
   <meta name="grid_url_no_root" content="{{ url_for('Airflow.grid', dag_id=dag.dag_id, num_runs=num_runs_arg, base_date=base_date_arg) }}">
   <meta name="graph_url" content="{{ url_for('Airflow.graph', dag_id=dag.dag_id, root=root) }}">
@@ -110,35 +110,25 @@
 {% endblock %}
 
 {% block content %}
-  {% if dag.parent_dag is defined and dag.parent_dag %}
-    <a href="{{ url_for('Airflow.' + dag.default_view, dag_id=dag.parent_dag.dag_id, base_date=base_date_arg, execution_date=execution_date_arg) }}" title="Go to parent DAG">
-      <span class="material-icons" aria-hidden="true">keyboard_arrow_up</span>
-      DAG: <span title="{{ dag.parent_dag.dag_id }}">{{ dag.parent_dag.dag_display_name }}</span></a>
-  {% endif %}
-
   <div style="display: flex; align-items: center; justify-content: space-between;">
     <div>
       <h3>
-        {% if dag.parent_dag is defined and dag.parent_dag %}
-          <span class="text-muted">SUBDAG:</span> {{ dag.dag_id }}
+        {% if can_edit_dag %}
+          {% set switch_tooltip = 'Pause/Unpause DAG' %}
         {% else %}
-          {% if can_edit_dag %}
-            {% set switch_tooltip = 'Pause/Unpause DAG' %}
-          {% else %}
-            {% set switch_tooltip = 'DAG is Paused' if dag_is_paused else 'DAG is Active' %}
-          {% endif %}
-          <label class="switch-label{{' disabled' if not can_edit_dag else ''  }} js-tooltip" title="{{ switch_tooltip }}">
-            <input class="switch-input" id="pause_resume" data-dag-id="{{ dag.dag_id }}"
-                   data-require-confirmation="{{ appbuilder.require_confirmation_dag_change }}"
-                   type="checkbox"{{ " checked" if not dag_is_paused else "" }}
-                   {{ " disabled" if not can_edit_dag else "" }}>
-            <span class="switch" aria-hidden="true"></span>
-          </label>
-          <span class="text-muted">DAG:</span> <span title="{{ dag.dag_id }}">{{ dag.dag_display_name }}</span>
-          <small class="text-muted">{{ dag.description[0:150] + '…' if dag.description and dag.description|length > 150 else dag.description|default('', true) }}</small>
-          {% if dag_model is defined and dag_model.max_consecutive_failed_dag_runs is defined and  dag_model.max_consecutive_failed_dag_runs > 0  %}
-           <span class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="Auto Pauses: After {{ dag_model.max_consecutive_failed_dag_runs|string }} consecutive failures">motion_photos_paused</span>
-            {% endif %}
+          {% set switch_tooltip = 'DAG is Paused' if dag_is_paused else 'DAG is Active' %}
+        {% endif %}
+        <label class="switch-label{{' disabled' if not can_edit_dag else ''  }} js-tooltip" title="{{ switch_tooltip }}">
+          <input class="switch-input" id="pause_resume" data-dag-id="{{ dag.dag_id }}"
+                  data-require-confirmation="{{ appbuilder.require_confirmation_dag_change }}"
+                  type="checkbox"{{ " checked" if not dag_is_paused else "" }}
+                  {{ " disabled" if not can_edit_dag else "" }}>
+          <span class="switch" aria-hidden="true"></span>
+        </label>
+        <span class="text-muted">DAG:</span> <span title="{{ dag.dag_id }}">{{ dag.dag_display_name }}</span>
+        <small class="text-muted">{{ dag.description[0:150] + '…' if dag.description and dag.description|length > 150 else dag.description|default('', true) }}</small>
+        {% if dag_model is defined and dag_model.max_consecutive_failed_dag_runs is defined and  dag_model.max_consecutive_failed_dag_runs > 0  %}
+          <span class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="Auto Pauses: After {{ dag_model.max_consecutive_failed_dag_runs|string }} consecutive failures">motion_photos_paused</span>
         {% endif %}
       </h3>
     </div>

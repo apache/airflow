@@ -44,6 +44,7 @@ from airflow_breeze.global_constants import (
     HELM_VERSION,
     KIND_VERSION,
     RUNS_ON_PUBLIC_RUNNER,
+    RUNS_ON_SELF_HOSTED_ASF_RUNNER,
     RUNS_ON_SELF_HOSTED_RUNNER,
     TESTABLE_INTEGRATIONS,
     GithubEvents,
@@ -67,6 +68,7 @@ from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related
 from airflow_breeze.utils.run_utils import run_command
 
 ALL_VERSIONS_LABEL = "all versions"
+CANARY_LABEL = "canary"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
 DEFAULT_VERSIONS_ONLY_LABEL = "default versions only"
 DISABLE_IMAGE_CACHE_LABEL = "disable image cache"
@@ -1102,8 +1104,7 @@ class SelectiveChecks:
     @cached_property
     def runs_on_as_json_default(self) -> str:
         if self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY:
-            if self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]:
-                # Canary and Scheduled runs
+            if self._is_canary_run():
                 return RUNS_ON_SELF_HOSTED_RUNNER
             if self._pr_labels and USE_PUBLIC_RUNNERS_LABEL in self._pr_labels:
                 # Forced public runners
@@ -1141,6 +1142,17 @@ class SelectiveChecks:
     @cached_property
     def runs_on_as_json_self_hosted(self) -> str:
         return RUNS_ON_SELF_HOSTED_RUNNER
+
+    @cached_property
+    def runs_on_as_json_self_hosted_asf(self) -> str:
+        return RUNS_ON_SELF_HOSTED_ASF_RUNNER
+
+    @cached_property
+    def runs_on_as_json_docs_build(self) -> str:
+        if self._is_canary_run():
+            return RUNS_ON_SELF_HOSTED_ASF_RUNNER
+        else:
+            return RUNS_ON_PUBLIC_RUNNER
 
     @cached_property
     def runs_on_as_json_public(self) -> str:
@@ -1303,3 +1315,9 @@ class SelectiveChecks:
                 get_related_providers(provider, upstream_dependencies=True, downstream_dependencies=True)
             )
         return sorted(all_providers)
+
+    def _is_canary_run(self):
+        return (
+            self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]
+            and self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY
+        ) or CANARY_LABEL in self._pr_labels

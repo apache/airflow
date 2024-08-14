@@ -158,6 +158,9 @@ def internal_api_call(func: Callable[PS, RT]) -> Callable[PS, RT]:
         result = make_jsonrpc_request(method_name, args_dict)
         if result is None or result == b"":
             return None
-        return BaseSerialization.deserialize(json.loads(result), use_pydantic_models=True)
+        result = BaseSerialization.deserialize(json.loads(result), use_pydantic_models=True)
+        if isinstance(result, (KeyError, AttributeError, AirflowException)):
+            raise result
+        return result
 
     return wrapper

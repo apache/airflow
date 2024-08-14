@@ -54,7 +54,7 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools, clear_db_runs
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 if TYPE_CHECKING:
@@ -691,22 +691,6 @@ class TestCliTasks:
                     ]
                 )
             )
-
-    def test_subdag_clear(self):
-        args = self.parser.parse_args(["tasks", "clear", "example_subdag_operator", "--yes"])
-        task_command.task_clear(args)
-        args = self.parser.parse_args(
-            ["tasks", "clear", "example_subdag_operator", "--yes", "--exclude-subdags"]
-        )
-        task_command.task_clear(args)
-
-    def test_parentdag_downstream_clear(self):
-        args = self.parser.parse_args(["tasks", "clear", "example_subdag_operator.section-1", "--yes"])
-        task_command.task_clear(args)
-        args = self.parser.parse_args(
-            ["tasks", "clear", "example_subdag_operator.section-1", "--yes", "--exclude-parentdag"]
-        )
-        task_command.task_clear(args)
 
 
 def _set_state_and_try_num(ti, session):

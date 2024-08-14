@@ -41,6 +41,7 @@ with DAG(
     dag_id=DAG_ID,
     default_args={"database_name": "airflow_example_db"},
     start_date=datetime(2021, 1, 1),
+    schedule=None,
     catchup=False,
     doc_md=__doc__,
     tags=["example"],

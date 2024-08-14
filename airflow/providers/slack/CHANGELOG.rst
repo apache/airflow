@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+8.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat(slack): add unfurl options to slack notifier (#40694)``
+
+Misc
+~~~~
+
+* ``docs(SlackNotifier): add newly added unfurl args to the docstring (#40709)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave July 2024 (#40644)``
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
 8.7.1
 .....
 

@@ -45,7 +45,7 @@ class TestPythonSensor(BasePythonTest):
             self.run_as_task(lambda: 1 / 0)
 
     def test_python_sensor_xcom(self):
-        with self.dag:
+        with self.dag_non_serialized:
             task = self.opcls(
                 task_id=self.task_id,
                 python_callable=lambda: PokeReturnValue(True, "xcom"),

@@ -34,7 +34,7 @@ class TestPrestoToMySqlTransfer:
             task_id="test_presto_to_mysql_transfer",
         )
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_presto_to_mysql_transfer", default_args=args)
+        self.dag = DAG("test_presto_to_mysql_transfer", schedule=None, default_args=args)
 
     @patch("airflow.providers.mysql.transfers.presto_to_mysql.MySqlHook")
     @patch("airflow.providers.mysql.transfers.presto_to_mysql.PrestoHook")
