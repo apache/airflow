@@ -53,7 +53,9 @@ class TestEmptyCors(BaseTestAuth):
         old_auth = getattr(minimal_app_for_api, "api_auth")
 
         try:
-            with conf_vars({("api", "auth_backends"): "airflow.api.auth.backend.basic_auth"}):
+            with conf_vars(
+                {("api", "auth_backends"): "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"}
+            ):
                 init_api_auth(minimal_app_for_api)
                 yield
         finally:
@@ -81,7 +83,10 @@ class TestCorsOrigin(BaseTestAuth):
         try:
             with conf_vars(
                 {
-                    ("api", "auth_backends"): "airflow.api.auth.backend.basic_auth",
+                    (
+                        "api",
+                        "auth_backends",
+                    ): "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth",
                     ("api", "access_control_allow_origins"): "http://apache.org http://example.com",
                 }
             ):
@@ -122,7 +127,10 @@ class TestCorsWildcard(BaseTestAuth):
         try:
             with conf_vars(
                 {
-                    ("api", "auth_backends"): "airflow.api.auth.backend.basic_auth",
+                    (
+                        "api",
+                        "auth_backends",
+                    ): "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth",
                     ("api", "access_control_allow_origins"): "*",
                 }
             ):
