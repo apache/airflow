@@ -2149,7 +2149,7 @@ class RunDBManager:
         # validate tables are not airflow tables in metadata
         for table_ in external_metadata.tables:
             if table_ in airflow_m.tables:
-                raise AirflowException(f"Table {table_} already exists in Airflow metadata")
+                raise AirflowException(f"Table '{table_}' already exists in the Airflow metadata")
         # validate the version table schema is set appropriately in env.py
         migration_dir = manager.migration_dir
         env_file = os.path.join(migration_dir, "env.py")

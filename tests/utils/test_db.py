@@ -34,9 +34,11 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import MetaData, Table
 from sqlalchemy.sql import Select
 
+from airflow.exceptions import AirflowException
 from airflow.models import Base as airflow_base
 from airflow.settings import engine
 from airflow.utils.db import (
+    RunDBManager,
     _get_alembic_config,
     check_bad_references,
     check_migrations,
@@ -57,12 +59,20 @@ pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 class TestDb:
     def test_database_schema_and_sqlalchemy_model_are_in_sync(self):
+        external_db_managers = RunDBManager()
+
         import airflow.models
+        from airflow.utils.db import _get_flask_db
 
         airflow.models.import_all_models()
         all_meta_data = MetaData()
+        # Airflow DB
         for table_name, table in airflow_base.metadata.tables.items():
             all_meta_data._add_table(table_name, table.schema, table)
+        # External DB Managers
+        for dbmanager in external_db_managers._managers:
+            for table_name, table in dbmanager.metadata.tables.items():
+                all_meta_data._add_table(table_name, table.schema, table)
 
         # create diff between database schema and SQLAlchemy model
         mctx = MigrationContext.configure(
@@ -70,6 +80,7 @@ class TestDb:
             opts={"compare_type": compare_type, "compare_server_default": compare_server_default},
         )
         diff = compare_metadata(mctx, all_meta_data)
+
         # known diffs to ignore
         ignores = [
             # ignore tables created by celery
@@ -307,3 +318,24 @@ class TestDb:
             mock_session, task_fail_table, mock_select, dangling_task_fail_table_name
         )
         mock_session.rollback.assert_called_once()
+
+
+class TestRunDBManager:
+    def test_fab_db_manager_is_default(self):
+        from airflow.providers.fab.auth_manager.models.db import FABDBManager
+
+        run_db_manager = RunDBManager()
+        assert run_db_manager._managers == [FABDBManager]
+
+    def test_defining_table_same_name_as_airflow_table_name_raises(self):
+        from sqlalchemy import Column, Integer, String
+
+        run_db_manager = RunDBManager()
+        manager = run_db_manager._managers[0]
+        # Add dag_run table to metadata
+        mytable = Table(
+            "dag_run", manager.metadata, Column("id", Integer, primary_key=True), Column("name", String(50))
+        )
+        manager.metadata._add_table("dag_run", None, mytable)
+        with pytest.raises(AirflowException, match="Table 'dag_run' already exists in the Airflow metadata"):
+            run_db_manager.validate()

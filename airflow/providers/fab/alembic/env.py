@@ -74,6 +74,7 @@ def run_migrations_offline():
         compare_server_default=True,
         render_as_batch=True,
         version_table=version_table,
+        include_object=include_object,
     )
 
     with context.begin_transaction():
