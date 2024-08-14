@@ -237,7 +237,7 @@ class TestTaskStateTrigger:
         reaches an allowed state (i.e. SUCCESS).
         """
         trigger_start_time = utcnow()
-        dag = DAG(self.DAG_ID, start_date=timezone.datetime(2022, 1, 1))
+        dag = DAG(self.DAG_ID, schedule=None, start_date=timezone.datetime(2022, 1, 1))
         dag_run = DagRun(
             dag_id=dag.dag_id,
             run_type="manual",
@@ -426,7 +426,7 @@ class TestDagStateTrigger:
         Assert that the DagStateTrigger only goes off on or after a DagRun
         reaches an allowed state (i.e. SUCCESS).
         """
-        dag = DAG(self.DAG_ID, start_date=timezone.datetime(2022, 1, 1))
+        dag = DAG(self.DAG_ID, schedule=None, start_date=timezone.datetime(2022, 1, 1))
         dag_run = DagRun(
             dag_id=dag.dag_id,
             run_type="manual",

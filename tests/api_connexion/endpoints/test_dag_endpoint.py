@@ -86,6 +86,7 @@ def configured_app(minimal_app_for_api):
 
     with DAG(
         DAG_ID,
+        schedule=None,
         start_date=datetime(2020, 6, 15),
         doc_md="details",
         params={"foo": 1},
@@ -93,10 +94,10 @@ def configured_app(minimal_app_for_api):
     ) as dag:
         EmptyOperator(task_id=TASK_ID)
 
-    with DAG(DAG2_ID, start_date=datetime(2020, 6, 15)) as dag2:  # no doc_md
+    with DAG(DAG2_ID, schedule=None, start_date=datetime(2020, 6, 15)) as dag2:  # no doc_md
         EmptyOperator(task_id=TASK_ID)
 
-    with DAG(DAG3_ID) as dag3:  # DAG start_date set to None
+    with DAG(DAG3_ID, schedule=None) as dag3:  # DAG start_date set to None
         EmptyOperator(task_id=TASK_ID, start_date=datetime(2019, 6, 12))
 
     dag_bag = DagBag(os.devnull, include_examples=False)
@@ -962,10 +963,10 @@ class TestGetDags(TestDagEndpoint):
     )
     def test_filter_dags_by_tags_works(self, url, expected_dag_ids):
         # test filter by tags
-        dag1 = DAG(dag_id="TEST_DAG_1", tags=["t1"])
-        dag2 = DAG(dag_id="TEST_DAG_2", tags=["t2"])
-        dag3 = DAG(dag_id="TEST_DAG_3", tags=["t1", "t2"])
-        dag4 = DAG(dag_id="TEST_DAG_4")
+        dag1 = DAG(dag_id="TEST_DAG_1", schedule=None, tags=["t1"])
+        dag2 = DAG(dag_id="TEST_DAG_2", schedule=None, tags=["t2"])
+        dag3 = DAG(dag_id="TEST_DAG_3", schedule=None, tags=["t1", "t2"])
+        dag4 = DAG(dag_id="TEST_DAG_4", schedule=None)
         dag1.sync_to_db()
         dag2.sync_to_db()
         dag3.sync_to_db()
@@ -990,10 +991,10 @@ class TestGetDags(TestDagEndpoint):
     )
     def test_filter_dags_by_dag_id_works(self, url, expected_dag_ids):
         # test filter by tags
-        dag1 = DAG(dag_id="TEST_DAG_1")
-        dag2 = DAG(dag_id="TEST_DAG_2")
-        dag3 = DAG(dag_id="SAMPLE_DAG_1")
-        dag4 = DAG(dag_id="SAMPLE_DAG_2")
+        dag1 = DAG(dag_id="TEST_DAG_1", schedule=None)
+        dag2 = DAG(dag_id="TEST_DAG_2", schedule=None)
+        dag3 = DAG(dag_id="SAMPLE_DAG_1", schedule=None)
+        dag4 = DAG(dag_id="SAMPLE_DAG_2", schedule=None)
         dag1.sync_to_db()
         dag2.sync_to_db()
         dag3.sync_to_db()
@@ -1886,10 +1887,10 @@ class TestPatchDags(TestDagEndpoint):
     )
     def test_filter_dags_by_tags_works(self, url, expected_dag_ids):
         # test filter by tags
-        dag1 = DAG(dag_id="TEST_DAG_1", tags=["t1"])
-        dag2 = DAG(dag_id="TEST_DAG_2", tags=["t2"])
-        dag3 = DAG(dag_id="TEST_DAG_3", tags=["t1", "t2"])
-        dag4 = DAG(dag_id="TEST_DAG_4")
+        dag1 = DAG(dag_id="TEST_DAG_1", schedule=None, tags=["t1"])
+        dag2 = DAG(dag_id="TEST_DAG_2", schedule=None, tags=["t2"])
+        dag3 = DAG(dag_id="TEST_DAG_3", schedule=None, tags=["t1", "t2"])
+        dag4 = DAG(dag_id="TEST_DAG_4", schedule=None)
         dag1.sync_to_db()
         dag2.sync_to_db()
         dag3.sync_to_db()
@@ -1919,10 +1920,10 @@ class TestPatchDags(TestDagEndpoint):
     )
     def test_filter_dags_by_dag_id_works(self, url, expected_dag_ids):
         # test filter by tags
-        dag1 = DAG(dag_id="TEST_DAG_1")
-        dag2 = DAG(dag_id="TEST_DAG_2")
-        dag3 = DAG(dag_id="SAMPLE_DAG_1")
-        dag4 = DAG(dag_id="SAMPLE_DAG_2")
+        dag1 = DAG(dag_id="TEST_DAG_1", schedule=None)
+        dag2 = DAG(dag_id="TEST_DAG_2", schedule=None)
+        dag3 = DAG(dag_id="SAMPLE_DAG_1", schedule=None)
+        dag4 = DAG(dag_id="SAMPLE_DAG_2", schedule=None)
         dag1.sync_to_db()
         dag2.sync_to_db()
         dag3.sync_to_db()

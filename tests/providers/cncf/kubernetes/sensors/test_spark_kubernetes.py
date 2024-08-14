@@ -565,7 +565,7 @@ class TestSparkKubernetesSensor:
             )
         )
         args = {"owner": "airflow", "start_date": timezone.datetime(2020, 2, 1)}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     def test_init(self, mock_kubernetes_hook):
         sensor = SparkKubernetesSensor(task_id="task", application_name="application")

@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 import shutil
 import tempfile
+from datetime import timedelta
 
 import pytest
 
@@ -43,7 +44,7 @@ class TestFileSensor:
 
         hook = FSHook()
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG(TEST_DAG_ID + "test_schedule_dag_once", default_args=args)
+        dag = DAG(TEST_DAG_ID + "test_schedule_dag_once", schedule=timedelta(days=1), default_args=args)
         self.hook = hook
         self.dag = dag
 
