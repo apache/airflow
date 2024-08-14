@@ -86,10 +86,7 @@ class BatchSensor(BaseSensorOperator):
         if state in BatchClientHook.INTERMEDIATE_STATES:
             return False
 
-        if state == BatchClientHook.FAILURE_STATE:
-            raise AirflowException(f"Batch sensor failed. AWS Batch job status: {state}")
-
-        raise AirflowException(f"Batch sensor failed. Unknown AWS Batch job status: {state}")
+        raise AirflowException(f"Batch sensor failed. AWS Batch job status: {state}")
 
     def execute(self, context: Context) -> None:
         if not self.deferrable:
