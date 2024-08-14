@@ -808,6 +808,7 @@ exit 0
                 dag=self.dag,
             )
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_external_task_sensor_waits_for_task_check_existence(self):
         op = ExternalTaskSensor(
             task_id="test_external_task_sensor_check",
@@ -820,6 +821,7 @@ exit 0
         with pytest.raises(AirflowException):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_external_task_sensor_waits_for_dag_check_existence(self):
         op = ExternalTaskSensor(
             task_id="test_external_task_sensor_check",
@@ -1205,7 +1207,7 @@ def dag_bag_ext():
     task_a_3 >> task_b_3
 
     for dag in [dag_0, dag_1, dag_2, dag_3]:
-        dag_bag.bag_dag(dag=dag, root_dag=dag)
+        dag_bag.bag_dag(dag=dag)
 
     yield dag_bag
 
@@ -1254,7 +1256,7 @@ def dag_bag_parent_child():
         )
 
     for dag in [dag_0, dag_1]:
-        dag_bag.bag_dag(dag=dag, root_dag=dag)
+        dag_bag.bag_dag(dag=dag)
 
     yield dag_bag
 
@@ -1479,7 +1481,7 @@ def dag_bag_cyclic():
             task_a >> task_b
 
         for dag in dags:
-            dag_bag.bag_dag(dag=dag, root_dag=dag)
+            dag_bag.bag_dag(dag=dag)
 
         return dag_bag
 
@@ -1531,8 +1533,8 @@ def dag_bag_multiple():
     dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
     daily_dag = DAG("daily_dag", start_date=DEFAULT_DATE, schedule="@daily")
     agg_dag = DAG("agg_dag", start_date=DEFAULT_DATE, schedule="@daily")
-    dag_bag.bag_dag(dag=daily_dag, root_dag=daily_dag)
-    dag_bag.bag_dag(dag=agg_dag, root_dag=agg_dag)
+    dag_bag.bag_dag(dag=daily_dag)
+    dag_bag.bag_dag(dag=agg_dag)
 
     daily_task = EmptyOperator(task_id="daily_tas", dag=daily_dag)
 
@@ -1603,7 +1605,7 @@ def dag_bag_head_tail():
         )
         head >> body >> tail
 
-    dag_bag.bag_dag(dag=dag, root_dag=dag)
+    dag_bag.bag_dag(dag=dag)
 
     return dag_bag
 
@@ -1687,7 +1689,7 @@ def dag_bag_head_tail_mapped_tasks():
         )
         head >> body >> tail
 
-    dag_bag.bag_dag(dag=dag, root_dag=dag)
+    dag_bag.bag_dag(dag=dag)
 
     return dag_bag
 

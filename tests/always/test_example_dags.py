@@ -33,7 +33,6 @@ from tests.test_utils.asserts import assert_queries_count
 AIRFLOW_SOURCES_ROOT = Path(__file__).resolve().parents[2]
 AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
-NO_DB_QUERY_EXCEPTION = ("/airflow/example_dags/example_subdag_operator.py",)
 PROVIDERS_PREFIXES = ("airflow/providers/", "tests/system/providers/")
 OPTIONAL_PROVIDERS_DEPENDENCIES: dict[str, dict[str, str | None]] = {
     # Some examples or system tests may depend on additional packages
@@ -162,10 +161,6 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
                         result, reason = match_optional_dependencies(distribution_name, specifier)
                         if not result:
                             param_marks.append(pytest.mark.skip(reason=reason))
-
-            if xfail_db_exception and candidate.endswith(NO_DB_QUERY_EXCEPTION):
-                # Use strict XFAIL for excluded tests. So if it is not failed, we should remove from the list.
-                param_marks.append(pytest.mark.xfail(reason="Expected DB call", strict=True))
 
             if candidate.startswith(providers_folders):
                 # Do not raise an error for airflow.exceptions.RemovedInAirflow3Warning.

@@ -49,19 +49,23 @@ from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.models.variable import Variable
 from airflow.operators.branch import BranchMixIn
+from airflow.settings import _ENABLE_AIP_44
 from airflow.typing_compat import Literal
 from airflow.utils import hashlib_wrapper
 from airflow.utils.context import context_copy_partial, context_get_outlet_events, context_merge
 from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import ExecutionCallableRunner, KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
+from airflow.utils.pydantic import is_pydantic_2_installed
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
+from airflow.utils.session import create_session
 
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from pendulum.datetime import DateTime
 
+    from airflow.serialization.enums import Encoding
     from airflow.utils.context import Context
 
 
@@ -442,6 +446,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
         use_dill: bool = False,
+        use_airflow_context: bool = False,
         **kwargs,
     ):
         if (
@@ -481,6 +486,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 f"Expected one of {', '.join(map(repr, _SERIALIZERS))}"
             )
             raise AirflowException(msg)
+
         self.pickling_library = _SERIALIZERS[serializer]
         self.serializer: _SerializerTypeDef = serializer
 
@@ -494,6 +500,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         )
         self.env_vars = env_vars
         self.inherit_env = inherit_env
+        self.use_airflow_context = use_airflow_context
 
     @abstractmethod
     def _iter_serializable_context_keys(self):
@@ -540,9 +547,14 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             string_args_path = tmp_dir / "string_args.txt"
             script_path = tmp_dir / "script.py"
             termination_log_path = tmp_dir / "termination.log"
+            airflow_context_path = tmp_dir / "airflow_context.json"
 
             self._write_args(input_path)
             self._write_string_args(string_args_path)
+
+            if self.use_airflow_context and (not is_pydantic_2_installed() or not _ENABLE_AIP_44):
+                error_msg = "`get_current_context()` needs to be used with Pydantic 2 and AIP-44 enabled."
+                raise AirflowException(error_msg)
 
             jinja_context = {
                 "op_args": self.op_args,
@@ -551,6 +563,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 "pickling_library": self.serializer,
                 "python_callable": self.python_callable.__name__,
                 "python_callable_source": self.get_python_source(),
+                "use_airflow_context": self.use_airflow_context,
             }
 
             if inspect.getfile(self.python_callable) == self.dag.fileloc:
@@ -561,6 +574,19 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 filename=os.fspath(script_path),
                 render_template_as_native_obj=self.dag.render_template_as_native_obj,
             )
+            if self.use_airflow_context:
+                from airflow.serialization.serialized_objects import BaseSerialization
+
+                context = get_current_context()
+                with create_session() as session:
+                    # FIXME: DetachedInstanceError
+                    dag_run, task_instance = context["dag_run"], context["task_instance"]
+                    session.add_all([dag_run, task_instance])
+                    serializable_context: dict[Encoding, Any] = BaseSerialization.serialize(
+                        context, use_pydantic_models=True
+                    )
+                with airflow_context_path.open("w+") as file:
+                    json.dump(serializable_context, file)
 
             env_vars = dict(os.environ) if self.inherit_env else {}
             if self.env_vars:
@@ -575,6 +601,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                         os.fspath(output_path),
                         os.fspath(string_args_path),
                         os.fspath(termination_log_path),
+                        os.fspath(airflow_context_path),
                     ],
                     env=env_vars,
                 )
@@ -666,6 +693,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
     :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
         the args and result (pickle is default). This allows more complex types
         but requires you to include dill in your requirements.
+    :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
     """
 
     template_fields: Sequence[str] = tuple(
@@ -694,6 +722,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
         use_dill: bool = False,
+        use_airflow_context: bool = False,
         **kwargs,
     ):
         if (
@@ -715,6 +744,9 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             )
         if not is_venv_installed():
             raise AirflowException("PythonVirtualenvOperator requires virtualenv, please install it.")
+        if use_airflow_context and (not expect_airflow and not system_site_packages):
+            error_msg = "use_airflow_context is set to True, but expect_airflow and system_site_packages are set to False."
+            raise AirflowException(error_msg)
         if not requirements:
             self.requirements: list[str] = []
         elif isinstance(requirements, str):
@@ -744,6 +776,7 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             env_vars=env_vars,
             inherit_env=inherit_env,
             use_dill=use_dill,
+            use_airflow_context=use_airflow_context,
             **kwargs,
         )
 
@@ -962,6 +995,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
     :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
         the args and result (pickle is default). This allows more complex types
         but requires you to include dill in your requirements.
+    :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
     """
 
     template_fields: Sequence[str] = tuple({"python"}.union(PythonOperator.template_fields))
@@ -983,10 +1017,14 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
         use_dill: bool = False,
+        use_airflow_context: bool = False,
         **kwargs,
     ):
         if not python:
             raise ValueError("Python Path must be defined in ExternalPythonOperator")
+        if use_airflow_context and not expect_airflow:
+            error_msg = "use_airflow_context is set to True, but expect_airflow is set to False."
+            raise AirflowException(error_msg)
         self.python = python
         self.expect_pendulum = expect_pendulum
         super().__init__(
@@ -1002,6 +1040,7 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             env_vars=env_vars,
             inherit_env=inherit_env,
             use_dill=use_dill,
+            use_airflow_context=use_airflow_context,
             **kwargs,
         )
 

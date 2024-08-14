@@ -61,7 +61,7 @@ class TestMarkTasks:
     @classmethod
     def create_dags(cls, dagbag):
         cls.dag1 = dagbag.get_dag("miscellaneous_test_dag")
-        cls.dag2 = dagbag.get_dag("example_subdag_operator")
+        cls.dag2 = dagbag.get_dag("example_python_operator")
         cls.dag3 = dagbag.get_dag("example_trigger_target_dag")
         cls.dag4 = dagbag.get_dag("test_mapped_classic")
         cls.execution_dates = [timezone.datetime(2022, 1, 1), timezone.datetime(2022, 1, 2)]
@@ -408,33 +408,6 @@ class TestMarkTasks:
             self.dag1, [task.task_id for task in tasks], [self.execution_dates[0]], State.SUCCESS, snapshot
         )
 
-    # TODO: this backend should be removed once a fixing solution is found later
-    #       We skip it here because this test case is working with Postgres & SQLite
-    #       but not with MySQL
-    @pytest.mark.backend("sqlite", "postgres")
-    def test_mark_tasks_subdag(self):
-        # set one task to success towards end of scheduled dag runs
-        snapshot = TestMarkTasks.snapshot_state(self.dag2, self.execution_dates)
-        task = self.dag2.get_task("section-1")
-        relatives = task.get_flat_relatives(upstream=False)
-        task_ids = [t.task_id for t in relatives]
-        task_ids.append(task.task_id)
-        dr = DagRun.find(dag_id=self.dag2.dag_id, execution_date=self.execution_dates[0])[0]
-
-        altered = set_state(
-            tasks=[task],
-            run_id=dr.run_id,
-            upstream=False,
-            downstream=True,
-            future=False,
-            past=False,
-            state=State.SUCCESS,
-            commit=True,
-        )
-        assert len(altered) == 14
-
-        self.verify_state(self.dag2, task_ids, [self.execution_dates[0]], State.SUCCESS, snapshot)
-
     def test_mark_mapped_task_instance_state(self, session):
         # set mapped task instance to success
         mapped = self.dag4.get_task("consumer")
@@ -481,7 +454,7 @@ class TestMarkDAGRun:
         dagbag = models.DagBag(include_examples=True, read_dags_from_db=False)
         cls.dag1 = dagbag.dags["miscellaneous_test_dag"]
         cls.dag1.sync_to_db()
-        cls.dag2 = dagbag.dags["example_subdag_operator"]
+        cls.dag2 = dagbag.dags["example_python_operator"]
         cls.dag2.sync_to_db()
         cls.execution_dates = [
             timezone.datetime(2022, 1, 1),
@@ -766,14 +739,7 @@ class TestMarkDAGRun:
 
         altered = set_dag_run_state_to_success(dag=self.dag2, run_id=dr2.run_id, commit=True)
 
-        # Recursively count number of tasks in the dag
-        def count_dag_tasks(dag):
-            count = len(dag.tasks)
-            subdag_counts = [count_dag_tasks(subdag) for subdag in dag.subdags]
-            count += sum(subdag_counts)
-            return count
-
-        assert len(altered) == count_dag_tasks(self.dag2)
+        assert len(altered) == len(self.dag2.tasks)
         self._verify_dag_run_state(self.dag2, self.execution_dates[1], State.SUCCESS)
 
         # Make sure other dag status are not changed

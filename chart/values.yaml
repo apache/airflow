@@ -863,6 +863,9 @@ scheduler:
   # container level lifecycle hooks
   containerLifecycleHooks: {}
 
+  # Grace period for tasks to finish after SIGTERM is sent from kubernetes
+  terminationGracePeriodSeconds: 10
+
   # Create ServiceAccount
   serviceAccount:
     # default value is true
@@ -1323,6 +1326,9 @@ webserver:
   command: ~
   # Args to use when running the Airflow webserver (templated).
   args: ["bash", "-c", "exec airflow webserver"]
+
+  # Grace period for webserver to finish after SIGTERM is sent from kubernetes
+  terminationGracePeriodSeconds: 30
 
   # Create ServiceAccount
   serviceAccount:
@@ -1991,6 +1997,9 @@ statsd:
 
   # Annotations to add to the StatsD Deployment.
   annotations: {}
+
+  # Grace period for statsd to finish after SIGTERM is sent from kubernetes
+  terminationGracePeriodSeconds: 30
 
   # Create ServiceAccount
   serviceAccount:
