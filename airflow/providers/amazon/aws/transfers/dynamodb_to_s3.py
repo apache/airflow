@@ -96,7 +96,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
     :param export_format: The format for the exported data. Valid values for ExportFormat are DYNAMODB_JSON
      or ION.
     :param export_table_to_point_in_time_kwargs: extra parameters for the boto3
-    `export_table_to_point_in_time` function all. e.g. `ExportType`, `IncrementalExportSpecification`
+        `export_table_to_point_in_time` function all. e.g. `ExportType`, `IncrementalExportSpecification`
     :param check_interval: The amount of time in seconds to wait between attempts. Only if ``export_time`` is
         provided.
     :param max_attempts: The maximum number of attempts to be made. Only if ``export_time`` is provided.
