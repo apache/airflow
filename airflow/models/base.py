@@ -117,6 +117,8 @@ class BaseDBManager(LoggingMixin, metaclass=AttributeCheckerMeta):
     migration_dir: str = ""
     alembic_file: str = ""
     version_table_name: str = ""
+    # Whether the database supports dropping tables when airflow tables are dropped
+    supports_table_dropping: bool = False
 
     def __init__(self, session):
         super().__init__()

@@ -767,7 +767,7 @@ def _create_db_from_orm(session):
 @provide_session
 def initdb(session: Session = NEW_SESSION, load_connections: bool = True):
     """Initialize Airflow database."""
-    external_db_manager = ExternalDBManager()
+    external_db_manager = RunDBManager()
     external_db_manager.validate()
     import_all_models()
 
@@ -1683,6 +1683,8 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS), connection.begin():
         drop_airflow_models(connection)
         drop_airflow_moved_tables(connection)
+        external_db_manager = RunDBManager()
+        external_db_manager.drop_tables(connection)
 
     if not skip_init:
         initdb(session=session)
@@ -2116,9 +2118,9 @@ def _coerce_slice(key: slice) -> tuple[int, int | None, bool]:
     return _coerce_index(key.start) or 0, _coerce_index(key.stop), reverse
 
 
-class ExternalDBManager:
+class RunDBManager:
     """
-    External DB Managers.
+    Run External DB Managers.
 
     This class is a container for external database managers.
     """
@@ -2133,7 +2135,7 @@ class ExternalDBManager:
     def validate(self):
         """Validate the external database managers."""
         for manager in self._managers:
-            ExternalDBManager._validate(manager)
+            RunDBManager._validate(manager)
 
     @staticmethod
     def _validate(manager: type[BaseDBManager]):
@@ -2183,3 +2185,8 @@ class ExternalDBManager:
         for manager in self._managers:
             m = manager(session)
             m.downgradedb()
+
+    def drop_tables(self, connection):
+        """Drop the external database managers."""
+        for manager in self._managers:
+            manager.metadata.drop_all(connection)
