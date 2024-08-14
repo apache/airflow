@@ -49,7 +49,7 @@ PRs should target `main` branch.
 
 PR should target `v-2-10-test` branch. When cutting a new release for 2.10 release manager
 will sync `v-2-10-test`  branch to `v-2-10-stable` and cut the release from the stable branch.
-PR should never target `v-2-10-stable` unless specificly instructed by release manager.
+PR should never target `v-2-10-stable` unless specifically instructed by release manager.
 
 # Developing for Airflow 3 and 2.10.x / 2.11.x
 
