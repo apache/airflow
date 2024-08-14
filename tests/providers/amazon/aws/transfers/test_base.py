@@ -32,7 +32,7 @@ DEFAULT_DATE = timezone.datetime(2020, 1, 1)
 class TestAwsToAwsBaseOperator:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     @pytest.mark.db_test
     def test_render_template(self, session, clean_dags_and_dagruns):

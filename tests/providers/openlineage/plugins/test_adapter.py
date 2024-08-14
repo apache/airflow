@@ -540,7 +540,12 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
     dag_id = "dag_id"
     run_id = str(uuid.uuid4())
 
-    with DAG(dag_id=dag_id, description="dag desc", start_date=datetime.datetime(2024, 6, 1)) as dag:
+    with DAG(
+        dag_id=dag_id,
+        schedule=datetime.timedelta(days=1),
+        start_date=datetime.datetime(2024, 6, 1),
+        description="dag desc",
+    ) as dag:
         tg = TaskGroup(group_id="tg1")
         tg2 = TaskGroup(group_id="tg2", parent_group=tg)
         task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")  # noqa: F841
@@ -648,7 +653,7 @@ def test_emit_dag_complete_event(
     dag_id = "dag_id"
     run_id = str(uuid.uuid4())
 
-    with DAG(dag_id=dag_id, start_date=datetime.datetime(2024, 6, 1)):
+    with DAG(dag_id=dag_id, schedule=None, start_date=datetime.datetime(2024, 6, 1)):
         task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
         task_1 = BashOperator(task_id="task_1", bash_command="exit 0;")
         task_2 = EmptyOperator(
@@ -730,7 +735,7 @@ def test_emit_dag_failed_event(
     dag_id = "dag_id"
     run_id = str(uuid.uuid4())
 
-    with DAG(dag_id=dag_id, start_date=datetime.datetime(2024, 6, 1)):
+    with DAG(dag_id=dag_id, schedule=None, start_date=datetime.datetime(2024, 6, 1)):
         task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
         task_1 = BashOperator(task_id="task_1", bash_command="exit 0;")
         task_2 = EmptyOperator(task_id="task_2.test")
