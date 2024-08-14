@@ -29,7 +29,7 @@ import subprocess
 from typing import TYPE_CHECKING, Any
 
 from airflow.executors.base_executor import BaseExecutor
-from airflow.traces.tracer import Trace, span
+from airflow.traces.tracer import Trace, add_span
 
 if TYPE_CHECKING:
     from airflow.executors.base_executor import CommandType
@@ -60,7 +60,7 @@ class SequentialExecutor(BaseExecutor):
         super().__init__()
         self.commands_to_run = []
 
-    @span
+    @add_span
     def execute_async(
         self,
         key: TaskInstanceKey,

@@ -1,0 +1,12 @@
+Support for deprecated core imports removed
+
+Support for importing classes etc from the following locations was deprecated at various times during Airflow 2s lifecycle, and has been removed:
+
+- ``airflow.executors``
+- ``airflow.hooks``
+- ``airflow.macros``
+- ``airflow.operators``
+- ``airflow.sensors``
+
+Instead, import from the right provider or more specific module instead.
+For example, instead of ``from airflow.sensors import TimeDeltaSensor``, use ``from airflow.sensors.time_delta import TimeDeltaSensor``.

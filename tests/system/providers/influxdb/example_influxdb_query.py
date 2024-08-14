@@ -28,6 +28,7 @@ DAG_ID = "example_influxdb_operator"
 with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
+    schedule=None,
     tags=["example"],
     catchup=False,
 ) as dag:
