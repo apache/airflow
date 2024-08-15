@@ -68,7 +68,7 @@ from sqlalchemy.sql.expression import case, select
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
 from airflow.assets import Dataset, DatasetAlias
-from airflow.assets.manager import dataset_manager
+from airflow.assets.manager import asset_manager
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import (
@@ -2898,7 +2898,7 @@ class TaskInstance(Base, LoggingMixin):
             self.log.debug("outlet obj %s", obj)
             # Lineage can have other types of objects besides datasets
             if isinstance(obj, Dataset):
-                dataset_manager.register_asset_change(
+                asset_manager.register_asset_change(
                     task_instance=self,
                     asset=obj,
                     extra=events[obj].extra,
@@ -2920,7 +2920,7 @@ class TaskInstance(Base, LoggingMixin):
         if missing_datasets := [Dataset(uri=u) for u, _ in dataset_alias_names if u not in dataset_models]:
             dataset_models.update(
                 (dataset_obj.uri, dataset_obj)
-                for dataset_obj in dataset_manager.create_assets(missing_datasets, session=session)
+                for dataset_obj in asset_manager.create_assets(missing_datasets, session=session)
             )
             self.log.warning("Created new datasets for alias reference: %s", missing_datasets)
             session.flush()  # Needed because we need the id for fk.
@@ -2932,7 +2932,7 @@ class TaskInstance(Base, LoggingMixin):
                 dataset_obj,
                 ", ".join(alias_names),
             )
-            dataset_manager.register_asset_change(
+            asset_manager.register_asset_change(
                 task_instance=self,
                 asset=dataset_obj,
                 aliases=[DatasetAlias(name) for name in alias_names],

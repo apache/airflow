@@ -293,4 +293,4 @@ def resolve_asset_manager() -> AssetManager:
     return _asset_manager_class(**_asset_manager_kwargs)
 
 
-dataset_manager = resolve_asset_manager()
+asset_manager = resolve_asset_manager()

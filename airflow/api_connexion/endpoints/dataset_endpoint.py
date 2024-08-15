@@ -44,7 +44,7 @@ from airflow.api_connexion.schemas.dataset_schema import (
     queued_event_schema,
 )
 from airflow.assets import Dataset
-from airflow.assets.manager import dataset_manager
+from airflow.assets.manager import asset_manager
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.utils import timezone
 from airflow.utils.db import get_query_count
@@ -344,14 +344,14 @@ def create_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
     timestamp = timezone.utcnow()
     extra = json_body.get("extra", {})
     extra["from_rest_api"] = True
-    dataset_event = dataset_manager.register_asset_change(
+    asset_event = asset_manager.register_asset_change(
         asset=Dataset(uri),
         timestamp=timestamp,
         extra=extra,
         session=session,
     )
-    if not dataset_event:
+    if not asset_event:
         raise NotFound(title="Dataset not found", detail=f"Dataset with uri: '{uri}' not found")
     session.flush()  # So we can dump the timestamp.
-    event = dataset_event_schema.dump(dataset_event)
+    event = dataset_event_schema.dump(asset_event)
     return event
