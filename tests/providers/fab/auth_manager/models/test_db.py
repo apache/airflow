@@ -40,7 +40,7 @@ class TestFABDBManager:
         assert self.db_manager.version_table_name == "fab_alembic_version"
 
     def test_migration_dir_set(self):
-        assert self.db_manager.migration_dir == f"{self.airflow_dir}/providers/fab/alembic"
+        assert self.db_manager.migration_dir == f"{self.airflow_dir}/providers/fab/migrations"
 
     def test_alembic_file_set(self):
         assert self.db_manager.alembic_file == f"{self.airflow_dir}/providers/fab/alembic.ini"

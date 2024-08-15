@@ -30,6 +30,6 @@ class FABDBManager(BaseDBManager):
 
     metadata = metadata
     version_table_name = "fab_alembic_version"
-    migration_dir = os.path.join(PACKAGE_DIR, "providers/fab/alembic")
+    migration_dir = os.path.join(PACKAGE_DIR, "providers/fab/migrations")
     alembic_file = os.path.join(PACKAGE_DIR, "providers/fab/alembic.ini")
     supports_table_dropping = True

@@ -26,6 +26,19 @@ from alembic import context
 from airflow import models, settings
 from airflow.utils.db import compare_server_default, compare_type
 
+
+def include_object(_, name, type_, *args):
+    """Filter objects for autogenerating revisions."""
+    # Ignore the sqlite_sequence table, which is an internal SQLite construct
+    if name == "sqlite_sequence":
+        return False
+    # Ignore _anything_ to do with Celery, or FlaskSession's tables
+    if type_ == "table" and name not in target_metadata.tables:
+        return False
+    else:
+        return True
+
+
 # Make sure everything is imported so that alembic can find it all
 models.import_all_models()
 
@@ -50,18 +63,6 @@ target_metadata = models.base.Base.metadata
 
 # version table
 version_table = "alembic_version"
-
-
-def include_object(_, name, type_, *args):
-    """Filter objects for autogenerating revisions."""
-    # Ignore the sqlite_sequence table, which is an internal SQLite construct
-    if name == "sqlite_sequence":
-        return False
-    # Ignore _anything_ to do with Celery, or FlaskSession's tables
-    if type_ == "table" and name not in target_metadata.tables:
-        return False
-    else:
-        return True
 
 
 def run_migrations_offline():
