@@ -188,7 +188,7 @@ class AssetManager(LoggingMixin):
         Stats.incr("dataset.updates")
 
         dags_to_queue = dags_to_queue_from_asset | dags_to_queue_from_asset_alias
-        cls._queue_dagruns(dataset_id=asset_model.id, dags_to_queue=dags_to_queue, session=session)
+        cls._queue_dagruns(asset_id=asset_model.id, dags_to_queue=dags_to_queue, session=session)
         return asset_event
 
     @staticmethod
@@ -207,9 +207,9 @@ class AssetManager(LoggingMixin):
         get_listener_manager().hook.on_dataset_changed(dataset=asset)
 
     @classmethod
-    def _queue_dagruns(cls, dataset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
+    def _queue_dagruns(cls, asset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
         # Possible race condition: if multiple dags or multiple (usually
-        # mapped) tasks update the same dataset, this can fail with a unique
+        # mapped) tasks update the same asset, this can fail with a unique
         # constraint violation.
         #
         # If we support it, use ON CONFLICT to do nothing, otherwise
@@ -220,15 +220,13 @@ class AssetManager(LoggingMixin):
             return
 
         if session.bind.dialect.name == "postgresql":
-            return cls._postgres_queue_dagruns(dataset_id, dags_to_queue, session)
-        return cls._slow_path_queue_dagruns(dataset_id, dags_to_queue, session)
+            return cls._postgres_queue_dagruns(asset_id, dags_to_queue, session)
+        return cls._slow_path_queue_dagruns(asset_id, dags_to_queue, session)
 
     @classmethod
-    def _slow_path_queue_dagruns(
-        cls, dataset_id: int, dags_to_queue: set[DagModel], session: Session
-    ) -> None:
+    def _slow_path_queue_dagruns(cls, asset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
         def _queue_dagrun_if_needed(dag: DagModel) -> str | None:
-            item = DatasetDagRunQueue(target_dag_id=dag.dag_id, dataset_id=dataset_id)
+            item = DatasetDagRunQueue(target_dag_id=dag.dag_id, dataset_id=asset_id)
             # Don't error whole transaction when a single RunQueue item conflicts.
             # https://docs.sqlalchemy.org/en/14/orm/session_transaction.html#using-savepoint
             try:
@@ -243,11 +241,11 @@ class AssetManager(LoggingMixin):
             cls.logger().debug("consuming dag ids %s", queued_dag_ids)
 
     @classmethod
-    def _postgres_queue_dagruns(cls, dataset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
+    def _postgres_queue_dagruns(cls, asset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
         from sqlalchemy.dialects.postgresql import insert
 
         values = [{"target_dag_id": dag.dag_id} for dag in dags_to_queue]
-        stmt = insert(DatasetDagRunQueue).values(dataset_id=dataset_id).on_conflict_do_nothing()
+        stmt = insert(DatasetDagRunQueue).values(dataset_id=asset_id).on_conflict_do_nothing()
         session.execute(stmt, values)
 
     @classmethod
