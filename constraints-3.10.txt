@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-14T17:37:21.621046
+# This constraints file was automatically generated on 2024-08-15T14:41:29.715832
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -201,7 +201,7 @@ asyncssh==2.15.0
 atlasclient==1.0.0
 atlassian-python-api==3.41.14
 attrs==24.2.0
-aws-sam-translator==1.89.0
+aws-sam-translator==1.90.0
 aws-xray-sdk==2.14.0
 azure-batch==14.2.0
 azure-common==1.1.28
@@ -318,7 +318,7 @@ gitdb==4.0.11
 google-ads==25.0.0
 google-analytics-admin==0.23.0
 google-api-core==2.19.1
-google-api-python-client==2.140.0
+google-api-python-client==2.141.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.33.0
@@ -399,7 +399,7 @@ idna==3.7
 ijson==3.3.0
 imagesize==1.4.1
 importlib-metadata==6.11.0
-importlib_resources==6.4.0
+importlib_resources==6.4.2
 impyla==0.19.0
 incremental==24.7.2
 inflection==0.5.1
