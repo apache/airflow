@@ -77,38 +77,6 @@ def is_venv_installed() -> bool:
     return False
 
 
-def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
-    """
-    Use :func:`airflow.decorators.task` instead, this is deprecated.
-
-    Calls ``@task.python`` and allows users to turn a Python function into
-    an Airflow task.
-
-    :param python_callable: A reference to an object that is callable
-    :param op_kwargs: a dictionary of keyword arguments that will get unpacked
-        in your function (templated)
-    :param op_args: a list of positional arguments that will get unpacked when
-        calling your callable (templated)
-    :param multiple_outputs: if set, function return value will be
-        unrolled to multiple XCom values. Dict will unroll to xcom values with keys as keys.
-        Defaults to False.
-    """
-    # To maintain backwards compatibility, we import the task object into this file
-    # This prevents breakages in dags that use `from airflow.operators.python import task`
-    from airflow.decorators.python import python_task
-
-    warnings.warn(
-        """airflow.operators.python.task is deprecated. Please use the following instead
-
-        from airflow.decorators import task
-        @task
-        def my_task()""",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    return python_task(python_callable=python_callable, multiple_outputs=multiple_outputs, **kwargs)
-
-
 @cache
 def _parse_version_info(text: str) -> tuple[int, int, int, str, int]:
     """Parse python version info from a text."""
@@ -213,13 +181,6 @@ class PythonOperator(BaseOperator):
         show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> None:
-        if kwargs.get("provide_context"):
-            warnings.warn(
-                "provide_context is deprecated as of 2.0 and is no longer required",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            kwargs.pop("provide_context", None)
         super().__init__(**kwargs)
         if not callable(python_callable):
             raise AirflowException("`python_callable` param must be callable")
@@ -441,7 +402,6 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         skip_on_exit_code: int | Container[int] | None = None,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
-        use_dill: bool = False,
         use_airflow_context: bool = False,
         **kwargs,
     ):
@@ -462,19 +422,6 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             **kwargs,
         )
         self.string_args = string_args or []
-
-        if use_dill:
-            warnings.warn(
-                "`use_dill` is deprecated and will be removed in a future version. "
-                "Please provide serializer='dill' instead.",
-                RemovedInAirflow3Warning,
-                stacklevel=3,
-            )
-            if serializer:
-                raise AirflowException(
-                    "Both 'use_dill' and 'serializer' parameters are set. Please set only one of them"
-                )
-            serializer = "dill"
         serializer = serializer or "pickle"
         if serializer not in _SERIALIZERS:
             msg = (
@@ -686,9 +633,6 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         environment. If set to ``True``, the virtual environment will inherit the environment variables
         of the parent process (``os.environ``). If set to ``False``, the virtual environment will be
         executed with a clean environment.
-    :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
-        the args and result (pickle is default). This allows more complex types
-        but requires you to include dill in your requirements.
     :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
     """
 
@@ -717,7 +661,6 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
         venv_cache_path: None | os.PathLike[str] = None,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
-        use_dill: bool = False,
         use_airflow_context: bool = False,
         **kwargs,
     ):
@@ -771,7 +714,6 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
             skip_on_exit_code=skip_on_exit_code,
             env_vars=env_vars,
             inherit_env=inherit_env,
-            use_dill=use_dill,
             use_airflow_context=use_airflow_context,
             **kwargs,
         )
@@ -988,9 +930,6 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         environment. If set to ``True``, the virtual environment will inherit the environment variables
         of the parent process (``os.environ``). If set to ``False``, the virtual environment will be
         executed with a clean environment.
-    :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
-        the args and result (pickle is default). This allows more complex types
-        but requires you to include dill in your requirements.
     :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
     """
 
@@ -1012,7 +951,6 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
         skip_on_exit_code: int | Container[int] | None = None,
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
-        use_dill: bool = False,
         use_airflow_context: bool = False,
         **kwargs,
     ):
@@ -1035,7 +973,6 @@ class ExternalPythonOperator(_BasePythonVirtualenvOperator):
             skip_on_exit_code=skip_on_exit_code,
             env_vars=env_vars,
             inherit_env=inherit_env,
-            use_dill=use_dill,
             use_airflow_context=use_airflow_context,
             **kwargs,
         )

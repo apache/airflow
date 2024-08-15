@@ -292,7 +292,8 @@ class TestPythonOperator(BasePythonTest):
             assert 1 == custom, "custom should be 1"
             assert dag is not None, "dag should be set"
 
-        with pytest.warns(RemovedInAirflow3Warning):
+        error_message = "Invalid arguments were passed to PythonOperator \\(task_id: task_test-provide-context-does-not-fail\\). Invalid arguments were:\n\\*\\*kwargs: {'provide_context': True}"
+        with pytest.raises(AirflowException, match=error_message):
             self.run_as_task(func, op_kwargs={"custom": 1}, provide_context=True)
 
     def test_context_with_conflicting_op_args(self):
@@ -1156,16 +1157,21 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             """Ensure dill is correctly installed."""
             import dill  # noqa: F401
 
-        with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
+        with pytest.raises(
+            AirflowException,
+            match="Invalid arguments were passed to PythonVirtualenvOperator \\(task_id: task_test-add-dill-use-dill\\). Invalid arguments were:\n\\*\\*kwargs: {'use_dill': True}",
+        ):
             self.run_as_task(f, use_dill=True, system_site_packages=False)
 
     def test_ambiguous_serializer(self):
         def f():
             pass
 
-        with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
-            with pytest.raises(AirflowException, match="Both 'use_dill' and 'serializer' parameters are set"):
-                self.run_as_task(f, use_dill=True, serializer="dill")
+        with pytest.raises(
+            AirflowException,
+            match="Invalid arguments were passed to PythonVirtualenvOperator \\(task_id: task_test-ambiguous-serializer\\). Invalid arguments were:\n\\*\\*kwargs: {'use_dill': True}",
+        ):
+            self.run_as_task(f, use_dill=True, serializer="dill")
 
     def test_invalid_serializer(self):
         def f():
