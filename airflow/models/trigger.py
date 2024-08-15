@@ -312,7 +312,7 @@ class Trigger(Base):
     @classmethod
     @internal_api_call
     @provide_session
-    def filter_out_reassigned_triggers(
+    def get_reassigned_triggers(
         cls, triggerer_id: int, local_trigger_ids: set[int], session: Session = NEW_SESSION
     ) -> set[int]:
         """

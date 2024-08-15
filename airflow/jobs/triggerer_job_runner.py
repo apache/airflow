@@ -775,7 +775,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             return [(trigger_id, reason) for trigger_id in ids]
 
         # find out reassigned triggers
-        reassigned_trigger_ids = Trigger.filter_out_reassigned_triggers(triggerer_id, cancel_trigger_ids)
+        reassigned_trigger_ids = Trigger.get_reassigned_triggers(triggerer_id, cancel_trigger_ids)
 
         other_reasons_trigger_ids = cancel_trigger_ids - reassigned_trigger_ids
 
