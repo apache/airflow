@@ -324,6 +324,9 @@ class DagParam(ResolveMixin):
         if default is not NOTSET:
             current_dag.params[name] = default
         self._name = name
+        if isinstance(default, Param):
+            # If default is a Param, we need to "unwrap" the actual default value
+            default = default.value
         self._default = default
 
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
