@@ -75,12 +75,8 @@ def gen_dag_span_id(dag_run: DagRun, as_int: bool = False) -> str | int:
 def gen_span_id(ti: TaskInstance, as_int: bool = False) -> str | int:
     """Generate span id from the task instance."""
     dag_run = ti.dag_run
-    if ti.state == TaskInstanceState.SUCCESS or ti.state == TaskInstanceState.FAILED:
-        try_number = ti.try_number - 1
-    else:
-        try_number = ti.try_number
     return _gen_id(
-        [dag_run.dag_id, dag_run.run_id, ti.task_id, str(try_number)],
+        [dag_run.dag_id, dag_run.run_id, ti.task_id, str(ti.try_number)],
         as_int,
         SPAN_ID,
     )
