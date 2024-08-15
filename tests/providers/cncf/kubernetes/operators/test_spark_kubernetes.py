@@ -166,7 +166,7 @@ TEST_APPLICATION_DICT = {
 
 
 def create_context(task):
-    dag = DAG(dag_id="dag")
+    dag = DAG(dag_id="dag", schedule=None)
     tzinfo = pendulum.timezone("Europe/Amsterdam")
     execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
     dag_run = DagRun(
@@ -187,6 +187,7 @@ def create_context(task):
     }
 
 
+@pytest.mark.db_test
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_requested_container_logs")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_start")
@@ -197,7 +198,7 @@ def create_context(task):
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object_status")
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
 class TestSparkKubernetesOperator:
-    def setUp(self):
+    def setup_method(self):
         db.merge_conn(
             Connection(conn_id="kubernetes_default_kube_config", conn_type="kubernetes", extra=json.dumps({}))
         )
@@ -209,7 +210,7 @@ class TestSparkKubernetesOperator:
             )
         )
         args = {"owner": "airflow", "start_date": timezone.datetime(2020, 2, 1)}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     def execute_operator(self, task_name, mock_create_job_name, job_spec):
         mock_create_job_name.return_value = task_name
