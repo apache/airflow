@@ -57,7 +57,7 @@ class DagAttributeTypes(str, Enum):
     XCOM_REF = "xcomref"
     DATASET = "dataset"
     DATASET_ALIAS = "dataset_alias"
-    DATASET_ANY = "dataset_any"
+    ASSET_ANY = "asset_any"
     DATASET_ALL = "dataset_all"
     SIMPLE_TASK_INSTANCE = "simple_task_instance"
     BASE_JOB = "Job"

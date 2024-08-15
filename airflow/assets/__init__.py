@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
 from airflow.configuration import conf
 
-__all__ = ["Dataset", "DatasetAll", "DatasetAny"]
+__all__ = ["Dataset", "DatasetAll", "AssetAny"]
 
 
 def normalize_noop(parts: SplitResult) -> SplitResult:
@@ -168,7 +168,7 @@ class BaseAsset:
     def __or__(self, other: BaseAsset) -> BaseAsset:
         if not isinstance(other, BaseAsset):
             return NotImplemented
-        return DatasetAny(self, other)
+        return AssetAny(self, other)
 
     def __and__(self, other: BaseAsset) -> BaseAsset:
         if not isinstance(other, BaseAsset):
@@ -358,8 +358,8 @@ class _AssetBooleanCondition(BaseAsset):
             yield from obj.iter_dag_dependencies(source=source, target=target)
 
 
-class DatasetAny(_AssetBooleanCondition):
-    """Use to combine datasets schedule references in an "and" relationship."""
+class AssetAny(_AssetBooleanCondition):
+    """Use to combine assets schedule references in an "and" relationship."""
 
     agg_func = any
 
@@ -367,23 +367,23 @@ class DatasetAny(_AssetBooleanCondition):
         if not isinstance(other, BaseAsset):
             return NotImplemented
         # Optimization: X | (Y | Z) is equivalent to X | Y | Z.
-        return DatasetAny(*self.objects, other)
+        return AssetAny(*self.objects, other)
 
     def __repr__(self) -> str:
-        return f"DatasetAny({', '.join(map(str, self.objects))})"
+        return f"AssetAny({', '.join(map(str, self.objects))})"
 
     def as_expression(self) -> dict[str, Any]:
         """
-        Serialize the dataset into its scheduling expression.
+        Serialize the asset into its scheduling expression.
 
         :meta private:
         """
         return {"any": [o.as_expression() for o in self.objects]}
 
 
-class _DatasetAliasCondition(DatasetAny):
+class _DatasetAliasCondition(AssetAny):
     """
-    Use to expand DataAlias as DatasetAny of its resolved Datasets.
+    Use to expand DataAlias as AssetAny of its resolved Datasets.
 
     :meta private:
     """
