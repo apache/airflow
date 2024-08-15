@@ -47,7 +47,7 @@ const JsonParse = (content: string | object) => {
       contentJson = content;
     }
     contentFormatted = JSON.stringify(contentJson, null, 4);
-    isJson = true;
+    isJson = Number.isNaN(contentJson); // ensure numbers/bool are not treated as JSON
   } catch (e) {
     // skip
   }
