@@ -3052,7 +3052,7 @@ class DAG(LoggingMixin):
                 stored_datasets[stored_dataset.uri] = stored_dataset
             else:
                 new_datasets.append(dataset)
-        dataset_manager.create_datasets(dataset_models=new_datasets, session=session)
+        dataset_manager.create_assets(asset_models=new_datasets, session=session)
         stored_datasets.update({dataset.uri: dataset for dataset in new_datasets})
 
         del new_datasets

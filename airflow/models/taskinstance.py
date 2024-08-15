@@ -3034,7 +3034,7 @@ class TaskInstance(Base, LoggingMixin):
 
             if not dataset_obj:
                 dataset_obj = DatasetModel(uri=uri)
-                dataset_manager.create_datasets(dataset_models=[dataset_obj], session=session)
+                dataset_manager.create_assets(asset_models=[dataset_obj], session=session)
                 self.log.warning("Created a new %r as it did not exist.", dataset_obj)
                 dataset_objs_cache[uri] = dataset_obj
 

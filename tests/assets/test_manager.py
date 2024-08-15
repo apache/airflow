@@ -164,14 +164,14 @@ class TestAssetManager:
         assert dataset_listener.changed[0].uri == ds.uri
 
     @pytest.mark.skip_if_database_isolation_mode
-    def test_create_datasets_notifies_dataset_listener(self, session):
+    def test_create_assets_notifies_dataset_listener(self, session):
         dsem = AssetManager()
         dataset_listener.clear()
         get_listener_manager().add_listener(dataset_listener)
 
         dsm = DatasetModel(uri="test_dataset_uri_3")
 
-        dsem.create_datasets([dsm], session)
+        dsem.create_assets([dsm], session)
 
         # Ensure the listener was notified
         assert len(dataset_listener.created) == 1
