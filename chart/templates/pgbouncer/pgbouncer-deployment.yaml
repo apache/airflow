@@ -119,6 +119,8 @@ spec:
             tcpSocket:
               port: {{ .Values.ports.pgbouncer }}
           volumeMounts:
+            - name: tmp
+              mountPath: /tmp
             - name: pgbouncer-config
               subPath: pgbouncer.ini
               mountPath: /etc/pgbouncer/pgbouncer.ini
