@@ -1146,6 +1146,10 @@ class DAG(LoggingMixin):
         self._dag_id = value
 
     @property
+    def timetable_summary(self) -> str:
+        return self.timetable.summary
+
+    @property
     def max_active_tasks(self) -> int:
         return self._max_active_tasks
 
