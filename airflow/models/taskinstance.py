@@ -4036,6 +4036,14 @@ class TaskInstance(Base, LoggingMixin):
                 )
             )
 
+    def get_upstream_task_ids_by_state(self, state: list[TaskInstanceState], session: Session) -> list[str]:
+        """Get direct relative IDs to the current task, upstream or downstream."""
+        task_instances = self.dag_run.get_task_instances(state=state, session=session)
+        filtered_task_ids = [
+            task.task_id for task in task_instances if task.task_id in self.task.upstream_task_ids
+        ]
+        return filtered_task_ids
+
 
 def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:
     """Given two operators, find their innermost common mapped task group."""

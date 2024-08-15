@@ -5281,3 +5281,48 @@ def test_swallow_mini_scheduler_exceptions(_schedule_downstream_mock, create_tas
     ti.schedule_downstream_tasks()
     assert "Error scheduling downstream tasks." in caplog.text
     assert "To be swallowed" in caplog.text
+
+
+def test_get_upstream_task_ids_by_state(dag_maker, session):
+    with dag_maker(session=session) as dag:
+
+        @dag.task
+        def op0():
+            pass
+
+        @dag.task
+        def op1():
+            pass
+
+        @dag.task
+        def op2():
+            raise AirflowFailException
+
+        @dag.task
+        def op3():
+            pass
+
+        @dag.task
+        def op4():
+            pass
+
+        @dag.task
+        def op5():
+            pass
+
+        op0() >> [op1(), op2(), op3()] >> op4() >> op5()
+
+    dr = dag_maker.create_dagrun()
+    tis = dr.get_task_instances(session=session)
+    for ti in tis:
+        try:
+            ti.run()
+        except AirflowFailException:
+            pass
+
+    success_upstream_tasks = tis[4].get_upstream_task_ids_by_state(
+        [TaskInstanceState.SUCCESS], session=session
+    )
+
+    assert len(success_upstream_tasks) == 2
+    assert success_upstream_tasks == ["op1", "op3"]
