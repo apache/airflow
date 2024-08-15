@@ -70,34 +70,34 @@ class AssetManager(LoggingMixin):
     @classmethod
     @internal_api_call
     @provide_session
-    def register_dataset_change(
+    def register_asset_change(
         cls,
         *,
         task_instance: TaskInstance | None = None,
-        dataset: Dataset,
+        asset: Dataset,
         extra=None,
         session: Session = NEW_SESSION,
         source_alias_names: Iterable[str] | None = None,
         **kwargs,
     ) -> DatasetEvent | None:
         """
-        Register dataset related changes.
+        Register asset related changes.
 
-        For local datasets, look them up, record the dataset event, queue dagruns, and broadcast
-        the dataset event
+        For local assets, look them up, record the asset event, queue dagruns, and broadcast
+        the asset event
         """
         # todo: add test so that all usages of internal_api_call are added to rpc endpoint
-        dataset_model = session.scalar(
+        asset_model = session.scalar(
             select(DatasetModel)
-            .where(DatasetModel.uri == dataset.uri)
+            .where(DatasetModel.uri == asset.uri)
             .options(joinedload(DatasetModel.consuming_dags).joinedload(DagScheduleDatasetReference.dag))
         )
-        if not dataset_model:
-            cls.logger().warning("DatasetModel %s not found", dataset)
+        if not asset_model:
+            cls.logger().warning("AssetModel %s not found", asset)
             return None
 
         event_kwargs = {
-            "dataset_id": dataset_model.id,
+            "dataset_id": asset_model.id,
             "extra": extra,
         }
         if task_instance:
@@ -110,15 +110,15 @@ class AssetManager(LoggingMixin):
                 }
             )
 
-        dataset_event = DatasetEvent(**event_kwargs)
-        session.add(dataset_event)
+        asset_event = DatasetEvent(**event_kwargs)
+        session.add(asset_event)
 
-        dags_to_queue_from_dataset = {
-            ref.dag for ref in dataset_model.consuming_dags if ref.dag.is_active and not ref.dag.is_paused
+        dags_to_queue_from_asset = {
+            ref.dag for ref in asset_model.consuming_dags if ref.dag.is_active and not ref.dag.is_paused
         }
-        dags_to_queue_from_dataset_alias = set()
+        dags_to_queue_from_asset_alias = set()
         if source_alias_names:
-            dataset_alias_models = session.scalars(
+            asset_alias_models = session.scalars(
                 select(DatasetAliasModel)
                 .where(DatasetAliasModel.name.in_(source_alias_names))
                 .options(
@@ -128,30 +128,30 @@ class AssetManager(LoggingMixin):
                 )
             ).unique()
 
-            for dsa in dataset_alias_models:
-                dsa.dataset_events.append(dataset_event)
-                session.add(dsa)
+            for asset_alias_model in asset_alias_models:
+                asset_alias_model.dataset_events.append(asset_event)
+                session.add(asset_alias_model)
 
-                dags_to_queue_from_dataset_alias |= {
+                dags_to_queue_from_asset_alias |= {
                     alias_ref.dag
-                    for alias_ref in dsa.consuming_dags
+                    for alias_ref in asset_alias_model.consuming_dags
                     if alias_ref.dag.is_active and not alias_ref.dag.is_paused
                 }
 
-        dags_to_reparse = dags_to_queue_from_dataset_alias - dags_to_queue_from_dataset
+        dags_to_reparse = dags_to_queue_from_asset_alias - dags_to_queue_from_asset
         if dags_to_reparse:
             file_locs = {dag.fileloc for dag in dags_to_reparse}
             cls._send_dag_priority_parsing_request(file_locs, session)
         session.flush()
 
-        cls.notify_dataset_changed(dataset=dataset)
+        cls.notify_dataset_changed(dataset=asset)
 
         Stats.incr("dataset.updates")
 
-        dags_to_queue = dags_to_queue_from_dataset | dags_to_queue_from_dataset_alias
-        cls._queue_dagruns(dataset_id=dataset_model.id, dags_to_queue=dags_to_queue, session=session)
+        dags_to_queue = dags_to_queue_from_asset | dags_to_queue_from_asset_alias
+        cls._queue_dagruns(dataset_id=asset_model.id, dags_to_queue=dags_to_queue, session=session)
         session.flush()
-        return dataset_event
+        return asset_event
 
     def notify_dataset_created(self, dataset: Dataset):
         """Run applicable notification actions when a dataset is created."""
