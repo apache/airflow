@@ -62,7 +62,7 @@ class AssetManager(LoggingMixin):
         def _add_one(asset: Dataset) -> DatasetModel:
             model = DatasetModel.from_public(asset)
             session.add(model)
-            cls.notify_dataset_created(dataset=asset)
+            cls.notify_asset_created(asset=asset)
             return model
 
         return [_add_one(a) for a in assets]
@@ -192,9 +192,9 @@ class AssetManager(LoggingMixin):
         return asset_event
 
     @staticmethod
-    def notify_dataset_created(dataset: Dataset):
-        """Run applicable notification actions when a dataset is created."""
-        get_listener_manager().hook.on_dataset_created(dataset=dataset)
+    def notify_asset_created(self, asset: Dataset):
+        """Run applicable notification actions when an asset is created."""
+        get_listener_manager().hook.on_dataset_created(dataset=asset)
 
     @staticmethod
     def notify_dataset_alias_created(dataset_alias: DatasetAlias):
