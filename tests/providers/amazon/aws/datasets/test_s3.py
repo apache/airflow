@@ -20,13 +20,13 @@ import urllib.parse
 
 import pytest
 
-from airflow.assets import Dataset
 from airflow.providers.amazon.aws.datasets.s3 import (
     convert_dataset_to_openlineage,
     create_dataset,
     sanitize_uri,
 )
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.common.compat.assets import Dataset
 
 
 def test_sanitize_uri():
