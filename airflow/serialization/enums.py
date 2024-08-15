@@ -58,7 +58,7 @@ class DagAttributeTypes(str, Enum):
     DATASET = "dataset"
     DATASET_ALIAS = "dataset_alias"
     ASSET_ANY = "asset_any"
-    DATASET_ALL = "dataset_all"
+    ASSET_ALL = "asset_all"
     SIMPLE_TASK_INSTANCE = "simple_task_instance"
     BASE_JOB = "Job"
     TASK_INSTANCE = "task_instance"

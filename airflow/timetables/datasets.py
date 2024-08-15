@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import typing
 
-from airflow.assets import BaseAsset, DatasetAll
+from airflow.assets import AssetAll, BaseAsset
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.timetables.simple import DatasetTriggeredTimetable as DatasetTriggeredSchedule
 from airflow.utils.types import DagRunType
@@ -46,7 +46,7 @@ class DatasetOrTimeSchedule(DatasetTriggeredSchedule):
         if isinstance(datasets, BaseAsset):
             self.dataset_condition = datasets
         else:
-            self.dataset_condition = DatasetAll(*datasets)
+            self.dataset_condition = AssetAll(*datasets)
 
         self.description = f"Triggered by datasets or {timetable.description}"
         self.periodic = timetable.periodic

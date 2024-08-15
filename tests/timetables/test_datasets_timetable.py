@@ -133,7 +133,7 @@ def test_serialization(dataset_timetable: DatasetOrTimeSchedule, monkeypatch: An
     assert serialized == {
         "timetable": "mock_serialized_timetable",
         "dataset_condition": {
-            "__type": "dataset_all",
+            "__type": "asset_all",
             "objects": [{"__type": "dataset", "uri": "test_dataset", "extra": {}}],
         },
     }
@@ -151,7 +151,7 @@ def test_deserialization(monkeypatch: Any) -> None:
     mock_serialized_data = {
         "timetable": "mock_serialized_timetable",
         "dataset_condition": {
-            "__type": "dataset_all",
+            "__type": "asset_all",
             "objects": [{"__type": "dataset", "uri": "test_dataset", "extra": None}],
         },
     }

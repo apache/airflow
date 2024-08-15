@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
 from airflow.configuration import conf
 
-__all__ = ["Dataset", "DatasetAll", "AssetAny"]
+__all__ = ["Dataset", "AssetAll", "AssetAny"]
 
 
 def normalize_noop(parts: SplitResult) -> SplitResult:
@@ -173,7 +173,7 @@ class BaseAsset:
     def __and__(self, other: BaseAsset) -> BaseAsset:
         if not isinstance(other, BaseAsset):
             return NotImplemented
-        return DatasetAll(self, other)
+        return AssetAll(self, other)
 
     def as_expression(self) -> Any:
         """
@@ -439,8 +439,8 @@ class _DatasetAliasCondition(AssetAny):
             )
 
 
-class DatasetAll(_AssetBooleanCondition):
-    """Use to combine datasets schedule references in an "or" relationship."""
+class AssetAll(_AssetBooleanCondition):
+    """Use to combine assets schedule references in an "or" relationship."""
 
     agg_func = all
 
@@ -448,14 +448,14 @@ class DatasetAll(_AssetBooleanCondition):
         if not isinstance(other, BaseAsset):
             return NotImplemented
         # Optimization: X & (Y & Z) is equivalent to X & Y & Z.
-        return DatasetAll(*self.objects, other)
+        return AssetAll(*self.objects, other)
 
     def __repr__(self) -> str:
-        return f"DatasetAll({', '.join(map(str, self.objects))})"
+        return f"AssetAll({', '.join(map(str, self.objects))})"
 
     def as_expression(self) -> Any:
         """
-        Serialize the dataset into its scheduling expression.
+        Serialize the assets into its scheduling expression.
 
         :meta private:
         """

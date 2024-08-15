@@ -38,7 +38,7 @@ import time_machine
 from sqlalchemy import inspect, select
 
 from airflow import settings
-from airflow.assets import AssetAny, Dataset, DatasetAlias, DatasetAll
+from airflow.assets import AssetAll, AssetAny, Dataset, DatasetAlias
 from airflow.configuration import conf
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.exceptions import (
@@ -2713,7 +2713,7 @@ class TestDagModel:
             dag_id="test_dag_dataset_expression",
             schedule=AssetAny(
                 Dataset("s3://dag1/output_1.txt", {"hi": "bye"}),
-                DatasetAll(
+                AssetAll(
                     Dataset("s3://dag2/output_1.txt", {"hi": "bye"}),
                     Dataset("s3://dag3/output_3.txt", {"hi": "bye"}),
                 ),
