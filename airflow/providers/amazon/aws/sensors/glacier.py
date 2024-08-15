@@ -20,7 +20,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glacier import GlacierHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
@@ -93,10 +93,6 @@ class GlacierJobOperationSensor(AwsBaseSensor[GlacierHook]):
             self.log.warning("Code status: %s", response["StatusCode"])
             return False
         else:
-            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
-            message = (
+            raise AirflowException(
                 f'Sensor failed. Job status: {response["Action"]}, code status: {response["StatusCode"]}'
             )
-            if self.soft_fail:
-                raise AirflowSkipException(message)
-            raise AirflowException(message)

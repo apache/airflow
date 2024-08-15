@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.aws.sensors.sqs import SqsSensor
 
@@ -418,31 +418,17 @@ class TestSqsSensor:
         with pytest.raises(TaskDeferred):
             sensor.execute({})
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        [
-            pytest.param(True, AirflowSkipException, id="soft-fail"),
-            pytest.param(False, AirflowException, id="non-soft-fail"),
-        ],
-    )
-    def test_fail_execute_complete(self, soft_fail, expected_exception):
-        sensor = SqsSensor(**self.default_op_kwargs, deferrable=True, soft_fail=soft_fail)
+    def test_fail_execute_complete(self):
+        sensor = SqsSensor(**self.default_op_kwargs, deferrable=True)
         event = {"status": "failed"}
         message = f"Trigger error: event is {event}"
-        with pytest.raises(expected_exception, match=message):
+        with pytest.raises(AirflowException, match=message):
             sensor.execute_complete(context={}, event=event)
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        [
-            pytest.param(True, AirflowSkipException, id="soft-fail"),
-            pytest.param(False, AirflowException, id="non-soft-fail"),
-        ],
-    )
     @mock.patch("airflow.providers.amazon.aws.sensors.sqs.SqsSensor.poll_sqs")
     @mock.patch("airflow.providers.amazon.aws.sensors.sqs.process_response")
     @mock.patch("airflow.providers.amazon.aws.hooks.sqs.SqsHook.conn")
-    def test_fail_poke(self, mocked_client, process_response, poll_sqs, soft_fail, expected_exception):
+    def test_fail_poke(self, mocked_client, process_response, poll_sqs):
         response = "error message"
         messages = [{"MessageId": "1", "ReceiptHandle": "test"}]
         poll_sqs.return_value = response
@@ -450,6 +436,6 @@ class TestSqsSensor:
         mocked_client.delete_message_batch.return_value = response
         error_message = f"Delete SQS Messages failed {response} for messages"
 
-        sensor = SqsSensor(**self.default_op_kwargs, soft_fail=soft_fail)
-        with pytest.raises(expected_exception, match=error_message):
+        sensor = SqsSensor(**self.default_op_kwargs)
+        with pytest.raises(AirflowException, match=error_message):
             sensor.poke(context={})
