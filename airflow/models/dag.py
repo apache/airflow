@@ -81,7 +81,7 @@ from sqlalchemy.sql import Select, expression
 import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.assets import BaseDataset, Dataset, DatasetAlias, DatasetAll
+from airflow.assets import BaseAsset, Dataset, DatasetAlias, DatasetAll
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
 from airflow.exceptions import (
     AirflowException,
@@ -163,7 +163,7 @@ ScheduleInterval = Union[None, str, timedelta, relativedelta]
 ScheduleArg = Union[
     ScheduleInterval,
     Timetable,
-    BaseDataset,
+    BaseAsset,
     Collection[Union["Dataset", "DatasetAlias"]],
 ]
 
@@ -595,7 +595,7 @@ class DAG(LoggingMixin):
 
         if isinstance(schedule, Timetable):
             self.timetable = schedule
-        elif isinstance(schedule, BaseDataset):
+        elif isinstance(schedule, BaseAsset):
             self.timetable = DatasetTriggeredTimetable(schedule)
         elif isinstance(schedule, Collection) and not isinstance(schedule, str):
             if not all(isinstance(x, (Dataset, DatasetAlias)) for x in schedule):
@@ -3155,7 +3155,7 @@ class DagModel(Base):
         """
         from airflow.models.serialized_dag import SerializedDagModel
 
-        def dag_ready(dag_id: str, cond: BaseDataset, statuses: dict) -> bool | None:
+        def dag_ready(dag_id: str, cond: BaseAsset, statuses: dict) -> bool | None:
             # if dag was serialized before 2.9 and we *just* upgraded,
             # we may be dealing with old version.  In that case,
             # just wait for the dag to be reserialized.

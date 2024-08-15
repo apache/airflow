@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Iterator, NamedTuple, Sequence
 
-from airflow.assets import BaseDataset
+from airflow.assets import BaseAsset
 from airflow.typing_compat import Protocol, runtime_checkable
 
 if TYPE_CHECKING:
@@ -29,9 +29,9 @@ if TYPE_CHECKING:
     from airflow.utils.types import DagRunType
 
 
-class _NullDataset(BaseDataset):
+class _NullDataset(BaseAsset):
     """
-    Sentinel type that represents "no datasets".
+    Sentinel type that represents "no assets".
 
     This is only implemented to make typing easier in timetables, and not
     expected to be used anywhere else.
@@ -42,10 +42,10 @@ class _NullDataset(BaseDataset):
     def __bool__(self) -> bool:
         return False
 
-    def __or__(self, other: BaseDataset) -> BaseDataset:
+    def __or__(self, other: BaseAsset) -> BaseAsset:
         return NotImplemented
 
-    def __and__(self, other: BaseDataset) -> BaseDataset:
+    def __and__(self, other: BaseAsset) -> BaseAsset:
         return NotImplemented
 
     def as_expression(self) -> Any:
@@ -189,7 +189,7 @@ class Timetable(Protocol):
     as for :class:`~airflow.timetable.simple.ContinuousTimetable`.
     """
 
-    dataset_condition: BaseDataset = _NullDataset()
+    dataset_condition: BaseAsset = _NullDataset()
     """The dataset condition that triggers a DAG using this timetable.
 
     If this is not *None*, this should be a dataset, or a combination of, that

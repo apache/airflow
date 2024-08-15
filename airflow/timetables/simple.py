@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from pendulum import DateTime
     from sqlalchemy import Session
 
-    from airflow.assets import BaseDataset
+    from airflow.assets import BaseAsset
     from airflow.models.dataset import DatasetEvent
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
@@ -165,9 +165,9 @@ class DatasetTriggeredTimetable(_TrivialTimetable):
 
     description: str = "Triggered by datasets"
 
-    def __init__(self, datasets: BaseDataset) -> None:
+    def __init__(self, assets: BaseAsset) -> None:
         super().__init__()
-        self.dataset_condition = datasets
+        self.dataset_condition = assets
         if isinstance(self.dataset_condition, DatasetAlias):
             self.dataset_condition = _DatasetAliasCondition(self.dataset_condition.name)
 

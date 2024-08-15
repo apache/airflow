@@ -26,7 +26,7 @@ import pytest
 from sqlalchemy.sql import select
 
 from airflow.assets import (
-    BaseDataset,
+    BaseAsset,
     Dataset,
     DatasetAlias,
     DatasetAll,
@@ -371,19 +371,19 @@ def test_dag_with_complex_dataset_condition(session, dag_maker):
     ), "Serialized 'dataset_condition' should be a dict"
 
 
-def datasets_equal(d1: BaseDataset, d2: BaseDataset) -> bool:
-    if type(d1) is not type(d2):
+def datasets_equal(a1: BaseAsset, a2: BaseAsset) -> bool:
+    if type(a1) is not type(a2):
         return False
 
-    if isinstance(d1, Dataset) and isinstance(d2, Dataset):
-        return d1.uri == d2.uri
+    if isinstance(a1, Dataset) and isinstance(a2, Dataset):
+        return a1.uri == a2.uri
 
-    elif isinstance(d1, (DatasetAny, DatasetAll)) and isinstance(d2, (DatasetAny, DatasetAll)):
-        if len(d1.objects) != len(d2.objects):
+    elif isinstance(a1, (DatasetAny, DatasetAll)) and isinstance(a2, (DatasetAny, DatasetAll)):
+        if len(a1.objects) != len(a2.objects):
             return False
 
         # Compare each pair of objects
-        for obj1, obj2 in zip(d1.objects, d2.objects):
+        for obj1, obj2 in zip(a1.objects, a2.objects):
             # If obj1 or obj2 is a Dataset, DatasetAny, or DatasetAll instance,
             # recursively call datasets_equal
             if not datasets_equal(obj1, obj2):
@@ -452,12 +452,12 @@ def test_evaluate_datasets_expression(expression, expected):
         ),
         pytest.param(
             lambda: DatasetAll(1, dataset1),  # type: ignore[arg-type]
-            "expect dataset expressions in condition",
+            "expect asset expressions in condition",
             id="DatasetAll",
         ),
         pytest.param(
             lambda: DatasetAny(1, dataset1),  # type: ignore[arg-type]
-            "expect dataset expressions in condition",
+            "expect asset expressions in condition",
             id="DatasetAny",
         ),
     ],

@@ -35,7 +35,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow import macros
 from airflow.assets import (
-    BaseDataset,
+    BaseAsset,
     Dataset,
     DatasetAlias,
     DatasetAll,
@@ -246,7 +246,7 @@ class _PriorityWeightStrategyNotRegistered(AirflowException):
         )
 
 
-def encode_dataset_condition(var: BaseDataset) -> dict[str, Any]:
+def encode_dataset_condition(var: BaseAsset) -> dict[str, Any]:
     """
     Encode a dataset condition.
 
@@ -263,7 +263,7 @@ def encode_dataset_condition(var: BaseDataset) -> dict[str, Any]:
     raise ValueError(f"serialization not implemented for {type(var).__name__!r}")
 
 
-def decode_dataset_condition(var: dict[str, Any]) -> BaseDataset:
+def decode_dataset_condition(var: dict[str, Any]) -> BaseAsset:
     """
     Decode a previously serialized dataset condition.
 
@@ -744,7 +744,7 @@ class BaseSerialization:
             return cls._encode(serialize_xcom_arg(var), type_=DAT.XCOM_REF)
         elif isinstance(var, LazySelectSequence):
             return cls.serialize(list(var))
-        elif isinstance(var, BaseDataset):
+        elif isinstance(var, BaseAsset):
             serialized_dataset = encode_dataset_condition(var)
             return cls._encode(serialized_dataset, type_=serialized_dataset.pop("__type"))
         elif isinstance(var, SimpleTaskInstance):

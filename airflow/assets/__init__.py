@@ -141,9 +141,7 @@ def extract_event_key(value: str | Dataset | DatasetAlias) -> str:
 
 @internal_api_call
 @provide_session
-def expand_alias_to_datasets(
-    alias: str | DatasetAlias, *, session: Session = NEW_SESSION
-) -> list[BaseDataset]:
+def expand_alias_to_datasets(alias: str | DatasetAlias, *, session: Session = NEW_SESSION) -> list[BaseAsset]:
     """Expand dataset alias to resolved datasets."""
     from airflow.models.dataset import DatasetAliasModel
 
@@ -157,9 +155,9 @@ def expand_alias_to_datasets(
     return []
 
 
-class BaseDataset:
+class BaseAsset:
     """
-    Protocol for all dataset triggers to use in ``DAG(schedule=...)``.
+    Protocol for all asset triggers to use in ``DAG(schedule=...)``.
 
     :meta private:
     """
@@ -167,19 +165,19 @@ class BaseDataset:
     def __bool__(self) -> bool:
         return True
 
-    def __or__(self, other: BaseDataset) -> BaseDataset:
-        if not isinstance(other, BaseDataset):
+    def __or__(self, other: BaseAsset) -> BaseAsset:
+        if not isinstance(other, BaseAsset):
             return NotImplemented
         return DatasetAny(self, other)
 
-    def __and__(self, other: BaseDataset) -> BaseDataset:
-        if not isinstance(other, BaseDataset):
+    def __and__(self, other: BaseAsset) -> BaseAsset:
+        if not isinstance(other, BaseAsset):
             return NotImplemented
         return DatasetAll(self, other)
 
     def as_expression(self) -> Any:
         """
-        Serialize the dataset into its scheduling expression.
+        Serialize the asset into its scheduling expression.
 
         The return value is stored in DagModel for display purposes. It must be
         JSON-compatible.
@@ -207,7 +205,7 @@ class BaseDataset:
 
 
 @attr.define(unsafe_hash=False)
-class DatasetAlias(BaseDataset):
+class DatasetAlias(BaseAsset):
     """A represeation of dataset alias which is used to create dataset during the runtime."""
 
     name: str
@@ -253,7 +251,7 @@ def _set_extra_default(extra: dict | None) -> dict:
 
 
 @attr.define(unsafe_hash=False)
-class Dataset(os.PathLike, BaseDataset):
+class Dataset(os.PathLike, BaseAsset):
     """A representation of data dependencies between workflows."""
 
     uri: str = attr.field(
@@ -320,14 +318,14 @@ class Dataset(os.PathLike, BaseDataset):
         )
 
 
-class _DatasetBooleanCondition(BaseDataset):
+class _DatasetBooleanCondition(BaseAsset):
     """Base class for dataset boolean logic."""
 
     agg_func: Callable[[Iterable], bool]
 
-    def __init__(self, *objects: BaseDataset) -> None:
-        if not all(isinstance(o, BaseDataset) for o in objects):
-            raise TypeError("expect dataset expressions in condition")
+    def __init__(self, *objects: BaseAsset) -> None:
+        if not all(isinstance(o, BaseAsset) for o in objects):
+            raise TypeError("expect asset expressions in condition")
 
         self.objects = [
             _DatasetAliasCondition(obj.name) if isinstance(obj, DatasetAlias) else obj for obj in objects
@@ -365,8 +363,8 @@ class DatasetAny(_DatasetBooleanCondition):
 
     agg_func = any
 
-    def __or__(self, other: BaseDataset) -> BaseDataset:
-        if not isinstance(other, BaseDataset):
+    def __or__(self, other: BaseAsset) -> BaseAsset:
+        if not isinstance(other, BaseAsset):
             return NotImplemented
         # Optimization: X | (Y | Z) is equivalent to X | Y | Z.
         return DatasetAny(*self.objects, other)
@@ -446,8 +444,8 @@ class DatasetAll(_DatasetBooleanCondition):
 
     agg_func = all
 
-    def __and__(self, other: BaseDataset) -> BaseDataset:
-        if not isinstance(other, BaseDataset):
+    def __and__(self, other: BaseAsset) -> BaseAsset:
+        if not isinstance(other, BaseAsset):
             return NotImplemented
         # Optimization: X & (Y & Z) is equivalent to X & Y & Z.
         return DatasetAll(*self.objects, other)
