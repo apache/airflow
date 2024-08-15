@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING
 
 from airflow.traces import NO_TRACE_ID
 from airflow.utils.hashlib_wrapper import md5
-from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.models import DagRun, TaskInstance
