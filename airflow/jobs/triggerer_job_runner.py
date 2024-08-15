@@ -758,7 +758,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         return self.trigger_cache[classpath]
 
     @staticmethod
-    def add_trigger_cancel_reasons(
+    def _add_trigger_cancel_reasons(
         triggerer_id, cancel_trigger_ids: set[int]
     ) -> list[tuple[int, TriggerTerminationReason]]:
         """
