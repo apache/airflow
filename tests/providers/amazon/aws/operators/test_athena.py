@@ -286,9 +286,10 @@ class TestAthenaOperator:
         assert operator.query_execution_id is None
 
         query_execution_id = "123456"
-        operator.execute_complete(
+        operator.execute_next_query(
             context=None,
             event={"status": "success", "value": query_execution_id},
+            query_list=["SELECT * FROM TEST_TABLE"],
         )
         assert operator.query_execution_id == query_execution_id
 
