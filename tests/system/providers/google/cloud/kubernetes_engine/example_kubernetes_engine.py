@@ -44,7 +44,7 @@ CLUSTER_NAME_FULL = CLUSTER_NAME_BASE + f"-{ENV_ID}".replace("_", "-")
 CLUSTER_NAME = CLUSTER_NAME_BASE if len(CLUSTER_NAME_FULL) >= 33 else CLUSTER_NAME_FULL
 
 # [START howto_operator_gcp_gke_create_cluster_definition]
-CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1, "autopilot": {"enabled": True}}
+CLUSTER = {"name": CLUSTER_NAME, "node_pools": [{"initial_node_count": 1}], "autopilot": {"enabled": True}}
 # [END howto_operator_gcp_gke_create_cluster_definition]
 
 
@@ -117,7 +117,6 @@ with DAG(
     # This test needs watcher in order to properly mark success/failure
     # when "teardown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
-
 
 from tests.system.utils import get_test_run  # noqa: E402
 

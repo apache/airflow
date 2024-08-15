@@ -371,7 +371,7 @@ class GKECreateClusterOperator(GoogleCloudBaseOperator):
             if not self._body_field("node_pools"):
                 error_messages.append(
                     "Field body['node_pools'] is required if none of fields "
-                    "body['initial_node_count'] or body['node_pools'] are specified."
+                    "body['initial_node_count'] or body['node_config'] are specified."
                 )
 
         for message in error_messages:
