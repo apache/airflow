@@ -648,9 +648,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             # allow triggers a chance to cleanup, either in that case or if
             # they exit cleanly. Exception from cleanup methods are ignored.
             with suppress(Exception):
-                trigger_details = self.triggers[trigger_id]
-                if trigger.should_cleanup(trigger_details["termination_reason"]):
-                    await trigger.cleanup()
+                await trigger.cleanup(self.triggers[trigger_id]["termination_reason"])
             if SEND_TRIGGER_END_MARKER:
                 self.mark_trigger_end(trigger)
 

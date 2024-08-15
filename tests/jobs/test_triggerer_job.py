@@ -878,9 +878,10 @@ class RemoteJobTrigger(BaseTrigger):
         self.finished = True
         yield TriggerEvent(self.remote_job_id)
 
-    async def cleanup(self) -> None:
-        RemoteService().kill_job(self, self.remote_job_id)
-        self.cleanup_done = True
+    async def cleanup(self, termination_reason: TriggerTerminationReason | None = None) -> None:
+        if self.should_cleanup(termination_reason):
+            RemoteService().kill_job(self, self.remote_job_id)
+            self.cleanup_done = True
 
     def should_cleanup(self, termination_reason: TriggerTerminationReason | None) -> bool:
         return termination_reason != TriggerTerminationReason.REASSIGNED or self.cleanup_on_reassignment

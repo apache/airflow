@@ -406,9 +406,9 @@ Clean up Trigger on termination
 
 The ``cleanup`` is called when the trigger is no longer needed due to normal completion, task cancellation, triggerer restart, reassignment of the trigger, etc.
 
-Typically, this method is always invoked after the run method, regardless of whether the trigger exits cleanly or otherwise. It can be used to clean up any resources that the trigger may have acquired during its execution.
+This method is invoked after the ``run`` method and can be used to clean up any resources the trigger may have acquired during execution.
 
-Specially, you will have a change to decide to cleanup the resource or not base on the termination context, for example, the trigger is reassigned to another triggerer, you can use ``should_cleanup`` to decide whether to cleanup the resource or not in this case.
+Specifically, you have the option to decide whether to clean up the resources based on the termination context. For example, if the trigger is reassigned to another triggerer, you can use ``TriggerTerminationReason`` to determine whether or not to clean up the resources in that case.
 
 .. code-block:: python
 
@@ -435,16 +435,17 @@ Specially, you will have a change to decide to cleanup the resource or not base 
                 await asyncio.sleep(1)
             yield TriggerEvent(self.remote_job_id)
 
-        async def cleanup(self) -> None:
-            # Clean up the resource by shutting down a remote process.
-            kill_remote_job()
+        async def cleanup(self, termination_reason: TriggerTerminationReason | None) -> None:
+            if self.should_cleanup(termination_reason):
+                # Clean up the resource by shutting down a remote process.
+                self.kill_remote_job()
 
         def should_cleanup(self, termination_reason: TriggerTerminationReason | None) -> bool:
             # Does not clean up the resource if the trigger is reassigned to another triggerer.
             return termination_reason != TriggerTerminationReason.REASSIGNED
 
 
-The ``cleanup`` is defined to clean up resources, such as killing a remote job if it is still running, upon termination. However, there are other cases where the trigger might be canceled due to reassignment, and in such cases, we may not want to clean up the resource. The ``should_cleanup`` is used to determine whether to call cleanup based on the termination context.
+The ``cleanup`` is defined to clean up resources, such as killing a remote job if it is still running, upon termination. However, there are other cases where the trigger might be canceled due to reassignment, and in such cases, we may not want to clean up the resource. The ``termination_reason`` can be used to determine whether to apply the clean up based on the termination context.
 
 Currently, the termination Reasons are defined as follows:
 

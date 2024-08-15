@@ -102,7 +102,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         raise NotImplementedError("Triggers must implement run()")
         yield  # To convince Mypy this is an async iterator.
 
-    async def cleanup(self) -> None:
+    async def cleanup(self, termination_reason: TriggerTerminationReason | None = None) -> None:
         """
         Cleanup the trigger.
 
@@ -114,20 +114,13 @@ class BaseTrigger(abc.ABC, LoggingMixin):
         are ignored, so if you would like to be able to debug them and be notified
         that cleanup method failed, you should wrap your code with try/except block
         and handle it appropriately (in async-compatible way).
-        """
 
-    def should_cleanup(self, termination_reason: TriggerTerminationReason | None) -> bool:
-        """
-        Check the trigger should be cleaned up or not base on the context.
+        Since the trigger could be terminated for various reasons, like triggerer restart
+        or reassigned to another triggerer, the termination reason will be provided to
+        allows the trigger to decide whether it should be cleaned up under the current circumstances.
 
         :param termination_reason: The reason for terminating the trigger.
-        Since the trigger could be terminated for various reasons, like triggerer restart or reassigned to
-        another triggerer, this method allows the trigger to decide whether it should be cleaned up under the
-        current circumstances.
-
-        The cleanup will always be applied, override this method based on custom requirements.
         """
-        return True
 
     def __repr__(self) -> str:
         classpath, kwargs = self.serialize()
