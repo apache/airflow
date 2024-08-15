@@ -27,6 +27,7 @@ from sqlalchemy import select
 
 from airflow.auth.managers.models.resource_details import AccessView
 from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
 from airflow.models.taskinstance import TaskInstanceState
 from airflow.plugins_manager import AirflowPlugin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -102,7 +103,10 @@ class RemoteWorkerHosts(BaseView):
 
 
 # Check if RemoteExecutor is actually loaded
-REMOTE_EXECUTOR_ACTIVE = conf.getboolean("remote", "api_enabled")
+try:
+    REMOTE_EXECUTOR_ACTIVE = conf.getboolean("remote", "api_enabled")
+except AirflowConfigException:
+    REMOTE_EXECUTOR_ACTIVE = False
 
 
 class RemoteExecutorPlugin(AirflowPlugin):
