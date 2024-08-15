@@ -189,7 +189,7 @@ class BaseAsset:
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         raise NotImplementedError
 
-    def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
+    def iter_assets(self) -> Iterator[tuple[str, Dataset]]:
         raise NotImplementedError
 
     def iter_dataset_aliases(self) -> Iterator[tuple[str, DatasetAlias]]:
@@ -295,7 +295,7 @@ class Dataset(os.PathLike, BaseAsset):
         """
         return self.uri
 
-    def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
+    def iter_assets(self) -> Iterator[tuple[str, Dataset]]:
         yield self.uri, self
 
     def iter_dataset_aliases(self) -> Iterator[tuple[str, DatasetAlias]]:
@@ -334,10 +334,10 @@ class _AssetBooleanCondition(BaseAsset):
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return self.agg_func(x.evaluate(statuses=statuses) for x in self.objects)
 
-    def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
+    def iter_assets(self) -> Iterator[tuple[str, Dataset]]:
         seen = set()  # We want to keep the first instance.
         for o in self.objects:
-            for k, v in o.iter_datasets():
+            for k, v in o.iter_assets():
                 if k in seen:
                     continue
                 yield k, v

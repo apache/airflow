@@ -127,8 +127,8 @@ def test_dataset_logic_operations():
     assert isinstance(result_and, AssetAll)
 
 
-def test_dataset_iter_datasets():
-    assert list(dataset1.iter_datasets()) == [("s3://bucket1/data1", dataset1)]
+def test_dataset_iter_assets():
+    assert list(dataset1.iter_assets()) == [("s3://bucket1/data1", dataset1)]
 
 
 @pytest.mark.db_test
@@ -171,7 +171,7 @@ def test_asset_all_operations():
 
 def test_assset_boolean_condition_evaluate_iter():
     """
-    Tests _AssetBooleanCondition's evaluate and iter_datasets methods through AssetAny and AssetAll.
+    Tests _AssetBooleanCondition's evaluate and iter_assets methods through AssetAny and AssetAll.
     Ensures AssetAny evaluate returns True with any true condition, AssetAll evaluate returns False if
     any condition is false, and both classes correctly iterate over datasets without duplication.
     """
@@ -181,8 +181,8 @@ def test_assset_boolean_condition_evaluate_iter():
     assert all_condition.evaluate({"s3://bucket1/data1": True, "s3://bucket2/data2": False}) is False
 
     # Testing iter_datasets indirectly through the subclasses
-    datasets_any = dict(any_condition.iter_datasets())
-    datasets_all = dict(all_condition.iter_datasets())
+    datasets_any = dict(any_condition.iter_assets())
+    datasets_all = dict(all_condition.iter_assets())
     assert datasets_any == {"s3://bucket1/data1": dataset1, "s3://bucket2/data2": dataset2}
     assert datasets_all == {"s3://bucket1/data1": dataset1, "s3://bucket2/data2": dataset2}
 
