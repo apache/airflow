@@ -278,19 +278,19 @@ class AssetManager(LoggingMixin):
         session.execute(stmt, {"fileloc": fileloc for fileloc in file_locs})
 
 
-def resolve_dataset_manager() -> AssetManager:
-    """Retrieve the dataset manager."""
-    _dataset_manager_class = conf.getimport(
+def resolve_asset_manager() -> AssetManager:
+    """Retrieve the asset manager."""
+    _asset_manager_class = conf.getimport(
         section="core",
-        key="dataset_manager_class",
+        key="asset_manager_class",
         fallback="airflow.assets.manager.AssetManager",
     )
-    _dataset_manager_kwargs = conf.getjson(
+    _asset_manager_kwargs = conf.getjson(
         section="core",
-        key="dataset_manager_kwargs",
+        key="asset_manager_kwargs",
         fallback={},
     )
-    return _dataset_manager_class(**_dataset_manager_kwargs)
+    return _asset_manager_class(**_asset_manager_kwargs)
 
 
-dataset_manager = resolve_dataset_manager()
+dataset_manager = resolve_asset_manager()

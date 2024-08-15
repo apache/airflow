@@ -470,15 +470,15 @@ core:
       type: string
       default: "0o077"
       example: ~
-    dataset_manager_class:
-      description: Class to use as dataset manager.
-      version_added: 2.4.0
+    asset_manager_class:
+      description: Class to use as asset manager.
+      version_added: 3.0.0
       type: string
       default: ~
       example: 'airflow.datasets.manager.AssetManager'
-    dataset_manager_kwargs:
-      description: Kwargs to supply to dataset manager.
-      version_added: 2.4.0
+    asset_manager_kwargs:
+      description: Kwargs to supply to asset manager.
+      version_added: 3.0.0
       type: string
       sensitive: true
       default: ~
