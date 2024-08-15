@@ -475,7 +475,7 @@ core:
       version_added: 2.4.0
       type: string
       default: ~
-      example: 'airflow.datasets.manager.DatasetManager'
+      example: 'airflow.datasets.manager.AssetManager'
     dataset_manager_kwargs:
       description: Kwargs to supply to dataset manager.
       version_added: 2.4.0

@@ -37,7 +37,7 @@ from sqlalchemy import func, select, update
 import airflow.example_dags
 from airflow import settings
 from airflow.assets import Dataset
-from airflow.assets.manager import DatasetManager
+from airflow.assets.manager import AssetManager
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
@@ -4204,7 +4204,7 @@ class TestSchedulerJob:
             pass
         with dag_maker(dag_id="producer", schedule="@daily", session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=ds)
-        dsm = DatasetManager()
+        dsm = AssetManager()
 
         ds_id = session.scalars(select(DatasetModel.id).filter_by(uri=ds.uri)).one()
 

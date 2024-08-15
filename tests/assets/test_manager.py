@@ -25,7 +25,7 @@ import pytest
 from sqlalchemy import delete
 
 from airflow.assets import Dataset
-from airflow.assets.manager import DatasetManager
+from airflow.assets.manager import AssetManager
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DagModel
 from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
@@ -90,9 +90,9 @@ def create_mock_dag():
         yield mock_dag
 
 
-class TestDatasetManager:
+class TestAssetManager:
     def test_register_dataset_change_dataset_doesnt_exist(self, mock_task_instance):
-        dsem = DatasetManager()
+        dsem = AssetManager()
 
         dataset = Dataset(uri="dataset_doesnt_exist")
 
@@ -108,7 +108,7 @@ class TestDatasetManager:
         mock_session.merge.assert_not_called()
 
     def test_register_dataset_change(self, session, dag_maker, mock_task_instance):
-        dsem = DatasetManager()
+        dsem = AssetManager()
 
         ds = Dataset(uri="test_dataset_uri")
         dag1 = DagModel(dag_id="dag1", is_active=True)
@@ -129,7 +129,7 @@ class TestDatasetManager:
         assert session.query(DatasetDagRunQueue).count() == 2
 
     def test_register_dataset_change_no_downstreams(self, session, mock_task_instance):
-        dsem = DatasetManager()
+        dsem = AssetManager()
 
         ds = Dataset(uri="never_consumed")
         dsm = DatasetModel(uri="never_consumed")
@@ -146,7 +146,7 @@ class TestDatasetManager:
 
     @pytest.mark.skip_if_database_isolation_mode
     def test_register_dataset_change_notifies_dataset_listener(self, session, mock_task_instance):
-        dsem = DatasetManager()
+        dsem = AssetManager()
         dataset_listener.clear()
         get_listener_manager().add_listener(dataset_listener)
 
@@ -168,7 +168,7 @@ class TestDatasetManager:
 
     @pytest.mark.skip_if_database_isolation_mode
     def test_create_datasets_notifies_dataset_listener(self, session):
-        dsem = DatasetManager()
+        dsem = AssetManager()
         dataset_listener.clear()
         get_listener_manager().add_listener(dataset_listener)
 

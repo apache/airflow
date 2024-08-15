@@ -47,7 +47,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
 
-class DatasetManager(LoggingMixin):
+class AssetManager(LoggingMixin):
     """
     A pluggable class that manages operations for datasets.
 
@@ -280,12 +280,12 @@ class DatasetManager(LoggingMixin):
         session.execute(stmt, {"fileloc": fileloc for fileloc in file_locs})
 
 
-def resolve_dataset_manager() -> DatasetManager:
+def resolve_dataset_manager() -> AssetManager:
     """Retrieve the dataset manager."""
     _dataset_manager_class = conf.getimport(
         section="core",
         key="dataset_manager_class",
-        fallback="airflow.assets.manager.DatasetManager",
+        fallback="airflow.assets.manager.AssetManager",
     )
     _dataset_manager_kwargs = conf.getjson(
         section="core",
