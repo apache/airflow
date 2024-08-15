@@ -32,7 +32,7 @@ def include_object(_, name, type_, *args):
     # Ignore the sqlite_sequence table, which is an internal SQLite construct
     if name == "sqlite_sequence":
         return False
-    # Ignore _anything_ to do with Celery, or FlaskSession's tables
+    # Only create migrations for objects that are in the target metadata
     if type_ == "table" and name not in target_metadata.tables:
         return False
     else:
@@ -85,6 +85,7 @@ def run_migrations_offline():
         compare_type=compare_type,
         compare_server_default=compare_server_default,
         render_as_batch=True,
+        include_object=include_object,
         version_table=version_table,
     )
 

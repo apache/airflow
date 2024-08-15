@@ -97,6 +97,8 @@ class TestDb:
             lambda t: (t[0] == "remove_index" and t[1].name == "session_session_id_uq"),
             # sqlite sequence is used for autoincrementing columns created with `sqlite_autoincrement` option
             lambda t: (t[0] == "remove_table" and t[1].name == "sqlite_sequence"),
+            # fab version table
+            lambda t: (t[0] == "remove_table" and t[1].name == "fab_alembic_version"),
         ]
 
         for ignore in ignores:
