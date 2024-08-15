@@ -43,7 +43,7 @@ Airflow 2.10.x releases will be cut from `v-2-10-stable` branch.
 
 # Contributors
 
-The following section explains which branch you should target your PR
+The following section explains which branches you should target your PR to
 
 ## Developing for providers and Helm chart
 
@@ -92,7 +92,9 @@ Note: tracking that the PRs merged as expected is the responsibility of committe
 
 ## Merging PRs 2.10.x
 
+Suggested change
 Make sure PR target `v-2-10-test` branch and merge it when ready.
+Make sure your PRs target the `v-2-10-test` branch and it can be merged when ready.
 All regular protocols of merging considerations are applied.
 
 ## Merging PRs for Airflow 3
