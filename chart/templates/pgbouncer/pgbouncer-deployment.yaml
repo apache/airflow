@@ -125,6 +125,8 @@ spec:
               subPath: pgbouncer.ini
               mountPath: /etc/pgbouncer/pgbouncer.ini
               readOnly: true
+            - name: tmp
+              mountPath: /tmp              
             - name: pgbouncer-config
               subPath: users.txt
               mountPath: /etc/pgbouncer/users.txt
