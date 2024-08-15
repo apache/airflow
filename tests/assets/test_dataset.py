@@ -132,7 +132,7 @@ def test_dataset_iter_assets():
 
 
 @pytest.mark.db_test
-def test_dataset_iter_dataset_aliases():
+def test_dataset_iter_asset_aliases():
     base_dataset = AssetAll(
         DatasetAlias("example-alias-1"),
         Dataset("1"),
@@ -144,7 +144,7 @@ def test_dataset_iter_dataset_aliases():
         ),
         AssetAll(DatasetAlias("example-alias-5"), Dataset("5")),
     )
-    assert list(base_dataset.iter_dataset_aliases()) == [
+    assert list(base_dataset.iter_asset_aliases()) == [
         (f"example-alias-{i}", DatasetAlias(f"example-alias-{i}")) for i in range(1, 6)
     ]
 
