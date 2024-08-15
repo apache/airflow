@@ -600,7 +600,7 @@ class TestSnowflakeSqlApiHook:
         assert hook.role == hook_params.get("role", None)
 
     @pytest.mark.parametrize(
-        "test_hook_params,sql,statement_count,expected_payload,expected_response",
+        "test_hook_params, sql, statement_count, expected_payload, expected_response",
         [
             (
                 {},
