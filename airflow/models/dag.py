@@ -83,7 +83,7 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.assets import BaseDataset, Dataset, DatasetAlias, DatasetAll
-from airflow.assets.manager import dataset_manager
+from airflow.assets.manager import asset_manager
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
 from airflow.exceptions import (
     AirflowDagInconsistent,
@@ -3052,7 +3052,7 @@ class DAG(LoggingMixin):
                 stored_datasets[stored_dataset.uri] = stored_dataset
             else:
                 new_datasets.append(dataset)
-        dataset_manager.create_assets(asset_models=new_datasets, session=session)
+        asset_manager.create_assets(asset_models=new_datasets, session=session)
         stored_datasets.update({dataset.uri: dataset for dataset in new_datasets})
 
         del new_datasets
