@@ -1157,21 +1157,16 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             """Ensure dill is correctly installed."""
             import dill  # noqa: F401
 
-        with pytest.raises(
-            AirflowException,
-            match="Invalid arguments were passed to PythonVirtualenvOperator \\(task_id: task_test-add-dill-use-dill\\). Invalid arguments were:\n\\*\\*kwargs: {'use_dill': True}",
-        ):
+        with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
             self.run_as_task(f, use_dill=True, system_site_packages=False)
 
     def test_ambiguous_serializer(self):
         def f():
             pass
 
-        with pytest.raises(
-            AirflowException,
-            match="Invalid arguments were passed to PythonVirtualenvOperator \\(task_id: task_test-ambiguous-serializer\\). Invalid arguments were:\n\\*\\*kwargs: {'use_dill': True}",
-        ):
-            self.run_as_task(f, use_dill=True, serializer="dill")
+        with pytest.warns(RemovedInAirflow3Warning, match="`use_dill` is deprecated and will be removed"):
+            with pytest.raises(AirflowException, match="Both 'use_dill' and 'serializer' parameters are set"):
+                self.run_as_task(f, use_dill=True, serializer="dill")
 
     def test_invalid_serializer(self):
         def f():
