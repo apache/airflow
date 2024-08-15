@@ -161,10 +161,10 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             # If database, schema, warehouse, role parameters have been provided set them accordingly
             # If either of them has been not (Parent class initializes them to None in that case)
             # set them to what in the Airflow connection configuration
-            "database": self.database if self.database else conn_config["database"],
-            "schema": self.schema if self.schema else conn_config["schema"],
-            "warehouse": self.warehouse if self.warehouse else conn_config["warehouse"],
-            "role": self.role if self.role else conn_config["role"],
+            "database": self.database or conn_config["database"],
+            "schema": self.schema or conn_config["schema"],
+            "warehouse": self.warehouse or conn_config["warehouse"],
+            "role": self.role or conn_config["role"],
             "bindings": bindings,
             "parameters": {
                 "MULTI_STATEMENT_COUNT": statement_count,
