@@ -31,9 +31,9 @@ from openlineage.client.utils import RedactMixin
 from packaging.version import Version
 
 from airflow import __version__ as AIRFLOW_VERSION
-from airflow.datasets import Dataset
 from airflow.exceptions import AirflowProviderDeprecationWarning  # TODO: move this maybe to Airflow's logic?
 from airflow.models import DAG, BaseOperator, DagRun, MappedOperator
+from airflow.providers.common.compat.assets import Dataset
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.facets import (
     AirflowDagRunFacet,
