@@ -31,8 +31,8 @@ created: list[Dataset] = []
 
 
 @hookimpl
-def on_dataset_changed(dataset):
-    changed.append(copy.deepcopy(dataset))
+def on_asset_changed(asset):
+    changed.append(copy.deepcopy(asset))
 
 
 @hookimpl

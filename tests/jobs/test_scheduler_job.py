@@ -4220,7 +4220,7 @@ class TestSchedulerJob:
         dr1: DagRun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
         dsm.register_asset_change(
             task_instance=dr1.get_task_instance("task", session=session),
-            dataset=ds,
+            asset=ds,
             session=session,
         )
         session.flush()
@@ -4234,7 +4234,7 @@ class TestSchedulerJob:
         dr2: DagRun = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
         dsm.register_asset_change(
             task_instance=dr2.get_task_instance("task", session=session),
-            dataset=ds,
+            asset=ds,
             session=session,
         )
         session.flush()

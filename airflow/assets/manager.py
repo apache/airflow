@@ -204,7 +204,7 @@ class AssetManager(LoggingMixin):
     @staticmethod
     def notify_asset_changed(cls, asset: Dataset):
         """Run applicable notification actions when an asset is changed."""
-        get_listener_manager().hook.on_dataset_changed(dataset=asset)
+        get_listener_manager().hook.on_asset_changed(asset=asset)
 
     @classmethod
     def _queue_dagruns(cls, asset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
