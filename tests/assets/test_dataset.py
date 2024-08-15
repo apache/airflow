@@ -169,9 +169,9 @@ def test_dataset_all_operations():
     assert isinstance(result_and, DatasetAll)
 
 
-def test_datasetbooleancondition_evaluate_iter():
+def test_assset_boolean_condition_evaluate_iter():
     """
-    Tests _DatasetBooleanCondition's evaluate and iter_datasets methods through DatasetAny and DatasetAll.
+    Tests _AssetBooleanCondition's evaluate and iter_datasets methods through DatasetAny and DatasetAll.
     Ensures DatasetAny evaluate returns True with any true condition, DatasetAll evaluate returns False if
     any condition is false, and both classes correctly iterate over datasets without duplication.
     """

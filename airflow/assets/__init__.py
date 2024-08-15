@@ -318,8 +318,8 @@ class Dataset(os.PathLike, BaseAsset):
         )
 
 
-class _DatasetBooleanCondition(BaseAsset):
-    """Base class for dataset boolean logic."""
+class _AssetBooleanCondition(BaseAsset):
+    """Base class for asset boolean logic."""
 
     agg_func: Callable[[Iterable], bool]
 
@@ -358,7 +358,7 @@ class _DatasetBooleanCondition(BaseAsset):
             yield from obj.iter_dag_dependencies(source=source, target=target)
 
 
-class DatasetAny(_DatasetBooleanCondition):
+class DatasetAny(_AssetBooleanCondition):
     """Use to combine datasets schedule references in an "and" relationship."""
 
     agg_func = any
@@ -439,7 +439,7 @@ class _DatasetAliasCondition(DatasetAny):
             )
 
 
-class DatasetAll(_DatasetBooleanCondition):
+class DatasetAll(_AssetBooleanCondition):
     """Use to combine datasets schedule references in an "or" relationship."""
 
     agg_func = all
