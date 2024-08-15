@@ -767,11 +767,6 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         Currently, we only distinguish between reassigned and other reasons.
         """
 
-        def add_reason(
-            ids: set[int], reason: TriggerTerminationReason
-        ) -> list[tuple[int, TriggerTerminationReason]]:
-            return [(trigger_id, reason) for trigger_id in ids]
-
         # find out reassigned triggers
         reassigned_trigger_ids = Trigger.get_reassigned_triggers(triggerer_id, cancel_trigger_ids)
 
