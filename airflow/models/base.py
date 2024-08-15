@@ -40,18 +40,13 @@ naming_convention = {
 }
 
 
-def get_schema():
+def _get_schema():
     if not SQL_ALCHEMY_SCHEMA or SQL_ALCHEMY_SCHEMA.isspace():
         return None
     return SQL_ALCHEMY_SCHEMA
 
 
-def _get_schema():
-    # Backcompat
-    return get_schema()
-
-
-metadata = MetaData(schema=get_schema(), naming_convention=naming_convention)
+metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
 mapper_registry = registry(metadata=metadata)
 _sentinel = object()
 

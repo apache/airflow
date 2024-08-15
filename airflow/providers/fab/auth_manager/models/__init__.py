@@ -43,13 +43,13 @@ from sqlalchemy import (
 from sqlalchemy.orm import backref, declared_attr, registry, relationship
 
 from airflow.auth.managers.models.base_user import BaseUser
-from airflow.models.base import get_schema, naming_convention
+from airflow.models.base import _get_schema, naming_convention
 
 """
 Compatibility note: The models in this file are duplicated from Flask AppBuilder.
 """
 
-metadata = MetaData(schema=get_schema(), naming_convention=naming_convention)
+metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
 mapper_registry = registry(metadata=metadata)
 
 Model.metadata = metadata
