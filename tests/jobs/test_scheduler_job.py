@@ -4218,7 +4218,7 @@ class TestSchedulerJob:
 
         # A DDRQ is not scheduled although an event is emitted.
         dr1: DagRun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
-        dsm.register_dataset_change(
+        dsm.register_asset_change(
             task_instance=dr1.get_task_instance("task", session=session),
             dataset=ds,
             session=session,
@@ -4232,7 +4232,7 @@ class TestSchedulerJob:
 
         # A DDRQ should be scheduled for the new event, but not the previous one.
         dr2: DagRun = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
-        dsm.register_dataset_change(
+        dsm.register_asset_change(
             task_instance=dr2.get_task_instance("task", session=session),
             dataset=ds,
             session=session,

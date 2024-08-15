@@ -366,7 +366,7 @@ def _run_raw_task(
         if not test_mode:
             _add_log(event=ti.state, task_instance=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
-                ti._register_dataset_changes(events=context["outlet_events"], session=session)
+                ti._register_asset_changes(events=context["outlet_events"], session=session)
 
             TaskInstance.save_to_db(ti=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
@@ -2886,7 +2886,7 @@ class TaskInstance(Base, LoggingMixin):
             session=session,
         )
 
-    def _register_dataset_changes(self, *, events: OutletEventAccessors, session: Session) -> None:
+    def _register_asset_changes(self, *, events: OutletEventAccessors, session: Session) -> None:
         if TYPE_CHECKING:
             assert self.task
 
@@ -2898,9 +2898,9 @@ class TaskInstance(Base, LoggingMixin):
             self.log.debug("outlet obj %s", obj)
             # Lineage can have other types of objects besides datasets
             if isinstance(obj, Dataset):
-                dataset_manager.register_dataset_change(
+                dataset_manager.register_asset_change(
                     task_instance=self,
-                    dataset=obj,
+                    asset=obj,
                     extra=events[obj].extra,
                     session=session,
                 )
@@ -2932,9 +2932,9 @@ class TaskInstance(Base, LoggingMixin):
                 dataset_obj,
                 ", ".join(alias_names),
             )
-            dataset_manager.register_dataset_change(
+            dataset_manager.register_asset_change(
                 task_instance=self,
-                dataset=dataset_obj.to_public(),
+                asset=dataset_obj,
                 aliases=[DatasetAlias(name) for name in alias_names],
                 extra=dict(extra_items),
                 session=session,

@@ -110,7 +110,7 @@ def initialize_method_map() -> dict[str, Callable]:
         DagFileProcessorManager.deactivate_stale_dags,
         DagWarning.purge_inactive_dag_warnings,
         expand_alias_to_datasets,
-        AssetManager.register_dataset_change,
+        AssetManager.register_asset_change,
         FileTaskHandler._render_filename_db_access,
         Job._add_to_db,
         Job._fetch_from_db,
