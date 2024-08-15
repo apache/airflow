@@ -574,9 +574,7 @@
       "kerberos>=1.3.0"
     ],
     "plugins": [],
-    "cross-providers-deps": [
-      "common.compat"
-    ],
+    "cross-providers-deps": [],
     "excluded-python-versions": [],
     "state": "ready"
   },
