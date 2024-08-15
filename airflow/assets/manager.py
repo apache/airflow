@@ -65,7 +65,7 @@ class AssetManager(LoggingMixin):
         session.flush()
 
         for asset_model in asset_models:
-            self.notify_dataset_created(dataset=Dataset(uri=asset_model.uri, extra=asset_model.extra))
+            self.notify_asset_created(asset=Dataset(uri=asset_model.uri, extra=asset_model.extra))
 
     @classmethod
     @internal_api_call
@@ -153,9 +153,9 @@ class AssetManager(LoggingMixin):
         session.flush()
         return asset_event
 
-    def notify_dataset_created(self, dataset: Dataset):
-        """Run applicable notification actions when a dataset is created."""
-        get_listener_manager().hook.on_dataset_created(dataset=dataset)
+    def notify_asset_created(self, asset: Dataset):
+        """Run applicable notification actions when an asset is created."""
+        get_listener_manager().hook.on_dataset_created(dataset=asset)
 
     @classmethod
     def notify_dataset_changed(cls, dataset: Dataset):
