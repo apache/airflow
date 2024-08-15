@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 
+import pytest
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import MetaData
@@ -29,6 +30,8 @@ from airflow.utils.db import (
     compare_server_default,
     compare_type,
 )
+
+pytestmark = [pytest.mark.db_test]
 
 
 class TestFABDBManager:
