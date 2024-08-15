@@ -303,7 +303,7 @@ class DatasetModelOperation(NamedTuple):
             model.is_orphaned = expression.false()
         orm_datasets.update(
             (model.uri, model)
-            for model in dataset_manager.create_datasets(
+            for model in dataset_manager.create_assets(
                 [dataset for uri, dataset in self.datasets.items() if uri not in orm_datasets],
                 session=session,
             )

@@ -49,23 +49,23 @@ if TYPE_CHECKING:
 
 class AssetManager(LoggingMixin):
     """
-    A pluggable class that manages operations for datasets.
+    A pluggable class that manages operations for assets.
 
-    The intent is to have one place to handle all Dataset-related operations, so different
-    Airflow deployments can use plugins that broadcast dataset events to each other.
+    The intent is to have one place to handle all Asset-related operations, so different
+    Airflow deployments can use plugins that broadcast Asset events to each other.
     """
 
     @classmethod
-    def create_datasets(cls, datasets: list[Dataset], *, session: Session) -> list[DatasetModel]:
-        """Create new datasets."""
+    def create_assets(cls, assets: list[Dataset], *, session: Session) -> list[DatasetModel]:
+        """Create new assets."""
 
-        def _add_one(dataset: Dataset) -> DatasetModel:
-            model = DatasetModel.from_public(dataset)
+        def _add_one(asset: Dataset) -> DatasetModel:
+            model = DatasetModel.from_public(asset)
             session.add(model)
-            cls.notify_dataset_created(dataset=dataset)
+            cls.notify_dataset_created(dataset=asset)
             return model
 
-        return [_add_one(d) for d in datasets]
+        return [_add_one(a) for a in assets]
 
     @classmethod
     def create_dataset_aliases(

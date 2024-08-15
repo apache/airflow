@@ -2920,7 +2920,7 @@ class TaskInstance(Base, LoggingMixin):
         if missing_datasets := [Dataset(uri=u) for u, _ in dataset_alias_names if u not in dataset_models]:
             dataset_models.update(
                 (dataset_obj.uri, dataset_obj)
-                for dataset_obj in dataset_manager.create_datasets(missing_datasets, session=session)
+                for dataset_obj in dataset_manager.create_assets(missing_datasets, session=session)
             )
             self.log.warning("Created new datasets for alias reference: %s", missing_datasets)
             session.flush()  # Needed because we need the id for fk.
