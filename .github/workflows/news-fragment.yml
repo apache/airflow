@@ -1,0 +1,53 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: CI
+
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+    types: [labeled, unlabeled, opened, reopened, synchronize]
+
+jobs:
+  check-news-fragment:
+    name: Check News Fragment
+    runs-on: ubuntu-20.04
+    if: "contains(github.event.pull_request.labels.*.name, 'airflow3.0:breaking')"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          # `towncrier check` runs `git diff --name-only origin/main...`, which
+          # needs a non-shallow clone.
+          fetch-depth: 0
+
+      - name: Check news fragment
+        run: >
+          pipx run towncrier check
+          --dir .
+          --config newsfragments/config.toml
+          --compare-with origin/${{ github.base_ref }}
+          ||
+          {
+          printf "\033[1;33mMissing significant newsfragment for PR labeled with
+          'airflow3.0:breaking'.\nCheck
+          https://github.com/apache/airflow/blob/main/contributing-docs/16_contribution_workflow.rst
+          for guidance.\033[m\n"
+          &&
+          false
+          ; }

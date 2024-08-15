@@ -67,6 +67,7 @@ def task_group_function(value: int) -> None:
 # Executing Tasks and TaskGroups
 with DAG(
     dag_id="example_task_group_decorator",
+    schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],

@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
+
 import pytest
 
 from airflow.exceptions import AirflowSensorTimeout
@@ -62,7 +64,7 @@ class TestDayOfWeekSensor:
         self.clean_db()
         self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=True)
         self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG(TEST_DAG_ID, default_args=self.args)
+        dag = DAG(TEST_DAG_ID, schedule=timedelta(days=1), default_args=self.args)
         self.dag = dag
 
     def teardwon_method(self):

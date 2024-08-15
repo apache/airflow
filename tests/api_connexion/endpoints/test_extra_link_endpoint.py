@@ -95,7 +95,7 @@ class TestGetExtraLinks:
         clear_db_xcom()
 
     def _create_dag(self):
-        with DAG(dag_id="TEST_DAG_ID", default_args={"start_date": self.default_time}) as dag:
+        with DAG(dag_id="TEST_DAG_ID", schedule=None, default_args={"start_date": self.default_time}) as dag:
             CustomOperator(task_id="TEST_SINGLE_LINK", bash_command="TEST_LINK_VALUE")
             CustomOperator(
                 task_id="TEST_MULTIPLE_LINK", bash_command=["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"]

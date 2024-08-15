@@ -82,13 +82,15 @@ class TestKiotaRequestAdapterHook:
 
     def test_get_host_when_connection_has_scheme_and_host(self):
         connection = mock_connection(schema="https", host="graph.microsoft.de")
-        actual = KiotaRequestAdapterHook.get_host(connection)
+        hook = KiotaRequestAdapterHook()
+        actual = hook.get_host(connection)
 
         assert actual == NationalClouds.Germany.value
 
     def test_get_host_when_connection_has_no_scheme_or_host(self):
         connection = mock_connection()
-        actual = KiotaRequestAdapterHook.get_host(connection)
+        hook = KiotaRequestAdapterHook()
+        actual = hook.get_host(connection)
 
         assert actual == NationalClouds.Global.value
 
