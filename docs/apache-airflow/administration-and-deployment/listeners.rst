@@ -94,7 +94,7 @@ You can use these events to react to ``LocalTaskJob`` state changes.
 Dataset Events
 --------------
 
-- ``on_dataset_created``
+- ``on_asset_created``
 - ``on_dataset_alias_created``
 - ``on_dataset_changed``
 

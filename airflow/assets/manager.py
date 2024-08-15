@@ -194,7 +194,7 @@ class AssetManager(LoggingMixin):
     @staticmethod
     def notify_asset_created(self, asset: Dataset):
         """Run applicable notification actions when an asset is created."""
-        get_listener_manager().hook.on_dataset_created(dataset=asset)
+        get_listener_manager().hook.on_asset_created(asset=asset)
 
     @staticmethod
     def notify_dataset_alias_created(dataset_alias: DatasetAlias):

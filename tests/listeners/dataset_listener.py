@@ -36,8 +36,8 @@ def on_dataset_changed(dataset):
 
 
 @hookimpl
-def on_dataset_created(dataset):
-    created.append(copy.deepcopy(dataset))
+def on_asset_created(asset):
+    created.append(copy.deepcopy(asset))
 
 
 def clear():
