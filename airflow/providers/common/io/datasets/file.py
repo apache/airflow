@@ -19,7 +19,7 @@ from __future__ import annotations
 import urllib.parse
 from typing import TYPE_CHECKING
 
-from airflow.datasets import Dataset
+from airflow.providers.common.compat.assets import Dataset
 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
