@@ -58,7 +58,7 @@ def include_object(_, name, type_, *args):
     if name == "sqlite_sequence":
         return False
     # Ignore _anything_ to do with Celery, or FlaskSession's tables
-    if type_ == "table" and (name.startswith("celery_") or name == "session"):
+    if type_ == "table" and name not in target_metadata.tables:
         return False
     else:
         return True

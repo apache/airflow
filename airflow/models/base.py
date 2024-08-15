@@ -158,12 +158,12 @@ class BaseDBManager(LoggingMixin, metaclass=AttributeCheckerMeta):
         else:
             self._create_db_from_orm()
 
-    def upgradedb(self):
+    def upgradedb(self, to_version=None, from_version=None, show_sql_only=False):
         """Upgrade the database."""
         from alembic import command
 
         config = self.get_alembic_config()
-        command.upgrade(config, "heads")
+        command.upgrade(config, revision=to_version or "heads", sql=show_sql_only)
 
-    def downgradedb(self):
+    def downgradedb(self, to_version, from_version=None, show_sql_only=False):
         """Downgrade the database."""
