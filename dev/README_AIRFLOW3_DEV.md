@@ -80,7 +80,7 @@ The following section explains the protocol for merging PRs.
 
 Make sure PR target `main` branch.
 Avoid merging PRs that involves providers + core / helm chart + core
-Core part should be extracted to seperated PR.
+Core part should be extracted to separated PR.
 Exclusions should be pre-approved specifically with a comment by release manager.
 Do not treat PR approval (Green V) as exclusion approval.
 
