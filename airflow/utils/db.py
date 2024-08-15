@@ -1639,7 +1639,6 @@ def upgradedb(
         # New DB; initialize and exit
         initdb(session=session, load_connections=False)
         return
-
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         import sqlalchemy.pool
 

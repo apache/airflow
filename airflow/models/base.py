@@ -46,6 +46,11 @@ def get_schema():
     return SQL_ALCHEMY_SCHEMA
 
 
+def _get_schema():
+    # Backcompat
+    return get_schema()
+
+
 metadata = MetaData(schema=get_schema(), naming_convention=naming_convention)
 mapper_registry = registry(metadata=metadata)
 _sentinel = object()
