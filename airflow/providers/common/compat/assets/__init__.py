@@ -44,17 +44,18 @@ else:
         from packaging.version import Version
 
         _IS_AIRFLOW_2_10_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.10.0")
+        _IS_AIRFLOW_2_9_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.9.0")
 
         # dataset is renamed to asset since Airflow 3.0
         from airflow.datasets import (
             Dataset,
             DatasetAlias,
             DatasetAliasEvent,
-            DatasetAll,
-            DatasetAny,
             expand_alias_to_datasets,
         )
 
+        if _IS_AIRFLOW_2_9_OR_HIGHER:
+            from airflow.datasets import DatasetAll, DatasetAny
         if _IS_AIRFLOW_2_10_OR_HIGHER:
             from airflow.datasets import DatasetAlias, DatasetAliasEvent, expand_alias_to_datasets
 
