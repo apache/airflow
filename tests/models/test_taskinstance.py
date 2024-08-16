@@ -5324,5 +5324,6 @@ def test_get_upstream_task_ids_by_state(dag_maker, session):
         [TaskInstanceState.SUCCESS], session=session
     )
 
+    print(f"bla: {success_upstream_tasks}")
     assert len(success_upstream_tasks) == 2
-    assert success_upstream_tasks == ["op1", "op3"]
+    assert success_upstream_tasks == {"op1", "op3"}
