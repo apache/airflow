@@ -380,7 +380,8 @@ class CustomJobHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @deprecated(
-        reason="Please use `PipelineJobHook.cancel_pipeline_job`",
+        reason="The cancel_pipeline_job method is deprecated and will be removed after 01.03.2025. "
+        "Please use PipelineJobHook.cancel_pipeline_job method instead.",
         category=AirflowProviderDeprecationWarning,
     )
     def cancel_pipeline_job(
@@ -509,7 +510,8 @@ class CustomJobHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @deprecated(
-        reason="Please use `PipelineJobHook.create_pipeline_job`",
+        reason="The create_pipeline_job method is deprecated and will be removed after 01.03.2025. "
+        "Please use PipelineJobHook.create_pipeline_job method instead.",
         category=AirflowProviderDeprecationWarning,
     )
     def create_pipeline_job(
@@ -2980,7 +2982,8 @@ class CustomJobHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @deprecated(
-        reason="Please use `PipelineJobHook.get_pipeline_job`",
+        reason="The get_pipeline_job method is deprecated and will be removed after 01.03.2025. "
+        "Please use PipelineJobHook.get_pipeline_job method instead.",
         category=AirflowProviderDeprecationWarning,
     )
     def get_pipeline_job(
@@ -3085,7 +3088,8 @@ class CustomJobHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @deprecated(
-        reason="Please use `PipelineJobHook.list_pipeline_jobs`",
+        reason="The list_pipeline_jobs method is deprecated and will be removed after 01.03.2025. "
+        "Please use PipelineJobHook.list_pipeline_jobs method instead",
         category=AirflowProviderDeprecationWarning,
     )
     def list_pipeline_jobs(
@@ -3301,7 +3305,8 @@ class CustomJobHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @deprecated(
-        reason="Please use `PipelineJobHook.delete_pipeline_job`",
+        reason="The delete_pipeline_job method is deprecated and will be removed after 01.03.2025. "
+        "Please use PipelineJobHook.delete_pipeline_job method instead",
         category=AirflowProviderDeprecationWarning,
     )
     def delete_pipeline_job(

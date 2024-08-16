@@ -53,7 +53,8 @@ class DataFusionPipelineLinkHelper:
 
     @staticmethod
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.utils.helpers.resource_path_to_dict` instead.",
+        reason="The get_project_id method is deprecated and will be removed after 01.03.2025. "
+        "Please use airflow.providers.google.cloud.utils.helpers.resource_path_to_dict method instead.",
         category=AirflowProviderDeprecationWarning,
     )
     def get_project_id(instance):

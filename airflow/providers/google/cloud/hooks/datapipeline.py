@@ -34,7 +34,8 @@ DEFAULT_DATAPIPELINE_LOCATION = "us-central1"
 
 
 @deprecated(
-    reason="This hook is deprecated and will be removed after 01.12.2024. Please use `DataflowHook`.",
+    reason="The DataPipelineHook is deprecated and will be removed after 01.12.2024. "
+    "Please use DataflowHook instead.",
     category=AirflowProviderDeprecationWarning,
 )
 class DataPipelineHook(DataflowHook):

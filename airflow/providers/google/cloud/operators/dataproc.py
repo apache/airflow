@@ -882,7 +882,8 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
 
 # TODO: Remove one day
 @deprecated(
-    reason="Please use `DataprocUpdateClusterOperator` instead.",
+    reason="The DataprocScaleClusterOperator is deprecated and will be removed after 01.03.2025. "
+    "Please use DataprocUpdateClusterOperator class instead.",
     category=AirflowProviderDeprecationWarning,
 )
 class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
@@ -1505,11 +1506,10 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
 
 # TODO: Remove one day
 @deprecated(
-    reason=(
-        "Please use `DataprocSubmitJobOperator` instead. "
-        "You can use `generate_job` method to generate dictionary representing your job "
-        "and use it with the new operator."
-    ),
+    reason="The DataprocSubmitPigJobOperator is deprecated and will be removed after 01.11.2024. "
+    "Please use DataprocSubmitJobOperator class instead. "
+    "You can use `generate_job` method to generate dictionary representing your job "
+    "and use it with the new operator.",
     category=AirflowProviderDeprecationWarning,
 )
 class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
@@ -1632,11 +1632,10 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
 
 # TODO: Remove one day
 @deprecated(
-    reason=(
-        "Please use `DataprocSubmitJobOperator` instead. "
-        "You can use `generate_job` method to generate dictionary representing your job "
-        "and use it with the new operator."
-    ),
+    reason="The DataprocSubmitHiveJobOperator is deprecated and will be removed after 01.11.2024. "
+    "Please use DataprocSubmitJobOperator class instead. "
+    "You can use `generate_job` method to generate dictionary representing your job "
+    "and use it with the new operator.",
     category=AirflowProviderDeprecationWarning,
 )
 class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
@@ -1725,11 +1724,10 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
 
 # TODO: Remove one day
 @deprecated(
-    reason=(
-        "Please use `DataprocSubmitJobOperator` instead. "
-        "You can use `generate_job` method to generate dictionary representing your job "
-        "and use it with the new operator."
-    ),
+    reason="The DataprocSubmitSparkSqlJobOperator is deprecated and will be removed after 01.11.2024. "
+    "Please use DataprocSubmitJobOperator class instead. "
+    "You can use `generate_job` method to generate dictionary representing your job "
+    "and use it with the new operator.",
     category=AirflowProviderDeprecationWarning,
 )
 class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
@@ -1817,11 +1815,10 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
 
 # TODO: Remove one day
 @deprecated(
-    reason=(
-        "Please use `DataprocSubmitJobOperator` instead. "
-        "You can use `generate_job` method to generate dictionary representing your job "
-        "and use it with the new operator."
-    ),
+    reason="The DataprocSubmitSparkJobOperator is deprecated and will be removed after 01.11.2024. "
+    "Please use DataprocSubmitJobOperator class instead. "
+    "You can use `generate_job` method to generate dictionary representing your job "
+    "and use it with the new operator.",
     category=AirflowProviderDeprecationWarning,
 )
 class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
@@ -1909,11 +1906,10 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
 
 # TODO: Remove one day
 @deprecated(
-    reason=(
-        "Please use `DataprocSubmitJobOperator` instead. "
-        "You can use `generate_job` method to generate dictionary representing your job "
-        "and use it with the new operator."
-    ),
+    reason="The DataprocSubmitHadoopJobOperator is deprecated and will be removed after 01.11.2024. "
+    "Please use DataprocSubmitJobOperator class instead. "
+    "You can use `generate_job` method to generate dictionary representing your job "
+    "and use it with the new operator.",
     category=AirflowProviderDeprecationWarning,
 )
 class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
@@ -2001,11 +1997,10 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
 
 # TODO: Remove one day
 @deprecated(
-    reason=(
-        "Please use `DataprocSubmitJobOperator` instead. "
-        "You can use `generate_job` method to generate dictionary representing your job "
-        "and use it with the new operator."
-    ),
+    reason="The DataprocSubmitPySparkJobOperator is deprecated and will be removed after 01.11.2024. "
+    "Please use DataprocSubmitJobOperator class instead. "
+    "You can use `generate_job` method to generate dictionary representing your job "
+    "and use it with the new operator.",
     category=AirflowProviderDeprecationWarning,
 )
 class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):

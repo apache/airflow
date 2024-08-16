@@ -67,9 +67,10 @@ class GenerativeModelHook(GoogleBaseHook):
         return model
 
     @deprecated(
-        reason=(
-            "The `get_generative_model_part` method is deprecated and will be removed after 01.01.2025, please include `Part` objects in `contents` parameter of `airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.generative_model_generate_content`"
-        ),
+        reason="The get_generative_model_part method is deprecated and will be removed after 01.01.2025. "
+        "Please use Part objects included in contents parameter of "
+        "airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.generative_model_generate_content "
+        "instead",
         category=AirflowProviderDeprecationWarning,
     )
     def get_generative_model_part(self, content_gcs_path: str, content_mime_type: str | None = None) -> Part:
@@ -78,9 +79,9 @@ class GenerativeModelHook(GoogleBaseHook):
         return part
 
     @deprecated(
-        reason=(
-            "The `prompt_language_model` method is deprecated and will be removed after 01.01.2025, please use `airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.text_generation_model_predict` method."
-        ),
+        reason="The prompt_language_model method is deprecated and will be removed after 01.01.2025. "
+        "Please use airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.text_generation_model_predict "
+        "method instead.",
         category=AirflowProviderDeprecationWarning,
     )
     @GoogleBaseHook.fallback_to_default_project_id
@@ -132,9 +133,9 @@ class GenerativeModelHook(GoogleBaseHook):
         return response.text
 
     @deprecated(
-        reason=(
-            "The `generate_text_embeddings` method is deprecated and will be removed after 01.01.2025, please use `airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.text_embedding_model_get_embeddings` method."
-        ),
+        reason="The generate_text_embeddings method is deprecated and will be removed after 01.01.2025. "
+        "Please use airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.text_embedding_model_get_embeddings "
+        "method instead.",
         category=AirflowProviderDeprecationWarning,
     )
     @GoogleBaseHook.fallback_to_default_project_id
@@ -162,9 +163,9 @@ class GenerativeModelHook(GoogleBaseHook):
         return response.values
 
     @deprecated(
-        reason=(
-            "The `prompt_multimodal_model` method is deprecated and will be removed after 01.01.2025, please use `airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.generative_model_generate_content` method."
-        ),
+        reason="The prompt_multimodal_model method is deprecated and will be removed after 01.01.2025. "
+        "Please use airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.generative_model_generate_content "
+        "method instead.",
         category=AirflowProviderDeprecationWarning,
     )
     @GoogleBaseHook.fallback_to_default_project_id
@@ -201,9 +202,10 @@ class GenerativeModelHook(GoogleBaseHook):
         return response.text
 
     @deprecated(
-        reason=(
-            "The `prompt_multimodal_model_with_media` method is deprecated and will be removed after 01.01.2025, please use `airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.generative_model_generate_content` method."
-        ),
+        reason="The prompt_multimodal_model_with_media method is deprecated "
+        "and will be removed after 01.01.2025. Please use "
+        "airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.generative_model_generate_content "
+        "method instead.",
         category=AirflowProviderDeprecationWarning,
     )
     @GoogleBaseHook.fallback_to_default_project_id

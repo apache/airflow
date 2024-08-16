@@ -143,10 +143,8 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
 
 
 @deprecated(
-    reason=(
-        "Class `GCSObjectExistenceAsyncSensor` is deprecated and will be removed in a future release. "
-        "Please use `GCSObjectExistenceSensor` and set `deferrable` attribute to `True` instead"
-    ),
+    reason="The GCSObjectExistenceAsyncSensor is deprecated and will be removed after 01.11.2024. "
+    "Please use GCSObjectExistenceSensor and set deferrable attribute to True instead.",
     category=AirflowProviderDeprecationWarning,
 )
 class GCSObjectExistenceAsyncSensor(GCSObjectExistenceSensor):

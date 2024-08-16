@@ -34,12 +34,10 @@ TIME_TO_SLEEP_IN_SECONDS = 5
 
 
 @deprecated(
-    reason=(
-        "This hook is deprecated. Consider using "
-        "Google Cloud Batch Operators' hook instead. "
-        "The Life Sciences API (beta) will be discontinued "
-        "on July 8, 2025 in favor of Google Cloud Batch."
-    ),
+    reason="The LifeSciencesHook is deprecated and will be removed after 08.07.2024. "
+    "Please use  Google Cloud Batch Operators' hook instead. "
+    "The Life Sciences API (beta) will be discontinued "
+    "on July 8, 2025 in favor of Google Cloud Batch.",
     category=AirflowProviderDeprecationWarning,
 )
 class LifeSciencesHook(GoogleBaseHook):

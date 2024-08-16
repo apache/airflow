@@ -451,7 +451,8 @@ class GoogleBaseHook(BaseHook):
 
     @property
     @deprecated(
-        reason="Please use `airflow.providers.google.common.consts.CLIENT_INFO`.",
+        reason="The client_info method is deprecated and will be removed after 01.03.2025. "
+        "Please use airflow.providers.google.common.consts.CLIENT_INFO instead.",
         category=AirflowProviderDeprecationWarning,
     )
     def client_info(self) -> ClientInfo:

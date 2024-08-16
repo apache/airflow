@@ -1633,8 +1633,8 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
 
     @property
     @deprecated(
-        reason="`training_pipeline` is deprecated and will be removed in the future. "
-        "Please use `training_pipeline_id` instead.",
+        reason="The training_pipeline method is deprecated and will be removed after 01.03.2025. "
+        "Please use training_pipeline_id method instead.",
         category=AirflowProviderDeprecationWarning,
     )
     def training_pipeline(self):
@@ -1643,8 +1643,8 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
 
     @property
     @deprecated(
-        reason="`custom_job` is deprecated and will be removed in the future. "
-        "Please use `custom_job_id` instead.",
+        reason="The custom_job method is deprecated and will be removed after 01.03.2025. "
+        "Please use custom_job_id method instead.",
         category=AirflowProviderDeprecationWarning,
     )
     def custom_job(self):

@@ -174,7 +174,8 @@ class DataflowConfiguration:
 
 # TODO: Remove one day
 @deprecated(
-    reason="Please use `providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator` instead.",
+    reason="The DataflowCreateJavaJobOperator class is deprecated and will be removed after 01.11.2024. "
+    "Please use providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator class instead.",
     category=AirflowProviderDeprecationWarning,
 )
 class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
@@ -1052,7 +1053,8 @@ class DataflowStartSqlJobOperator(GoogleCloudBaseOperator):
 
 # TODO: Remove one day
 @deprecated(
-    reason="Please use `providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator` instead.",
+    reason="The DataflowCreatePythonJobOperator class is deprecated and will be removed after 01.11.2024. "
+    "Please use providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator class instead.",
     category=AirflowProviderDeprecationWarning,
 )
 class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):

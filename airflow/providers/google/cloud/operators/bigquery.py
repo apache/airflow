@@ -1203,7 +1203,8 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
 
 
 @deprecated(
-    reason="This operator is deprecated. Please use `BigQueryInsertJobOperator`.",
+    reason="The BigQueryExecuteQueryOperator is deprecated and will be removed after 01.11.2024. "
+    "Please use BigQueryInsertJobOperator instead.",
     category=AirflowProviderDeprecationWarning,
 )
 class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
@@ -2298,7 +2299,8 @@ class BigQueryGetDatasetTablesOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason="This operator is deprecated. Please use BigQueryUpdateDatasetOperator.",
+    reason="The BigQueryPatchDatasetOperator is deprecated and will be removed after 01.11.2024. "
+    "Please use BigQueryUpdateDatasetOperator instead.",
     category=AirflowProviderDeprecationWarning,
 )
 class BigQueryPatchDatasetOperator(GoogleCloudBaseOperator):

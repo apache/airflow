@@ -725,7 +725,8 @@ class GKEStartPodOperator(KubernetesPodOperator):
 
     @staticmethod
     @deprecated(
-        reason="Please use `fetch_cluster_info` instead to get the cluster info for connecting to it.",
+        reason="The get_gke_config_file method is deprecated and will be removed after 01.11.2024. "
+        "Please use `fetch_cluster_info` instead to get the cluster info for connecting to it.",
         category=AirflowProviderDeprecationWarning,
     )
     def get_gke_config_file():

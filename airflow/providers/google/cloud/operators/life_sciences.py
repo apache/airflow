@@ -34,11 +34,10 @@ if TYPE_CHECKING:
 
 
 @deprecated(
-    reason=(
-        "Consider using Google Cloud Batch Operators instead."
-        "The Life Sciences API (beta) will be discontinued "
-        "on July 8, 2025 in favor of Google Cloud Batch."
-    ),
+    reason="The LifeSciencesRunPipelineOperator class is deprecated and will be removed after 08.07.2025. "
+    "Please use Google Cloud Batch Operators instead. "
+    "The Life Sciences API (beta) will be discontinued "
+    "on July 8, 2025 in favor of Google Cloud Batch.",
     category=AirflowProviderDeprecationWarning,
 )
 class LifeSciencesRunPipelineOperator(GoogleCloudBaseOperator):

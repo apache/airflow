@@ -80,11 +80,9 @@ def _normalize_mlengine_job_id(job_id: str) -> str:
 
 
 @deprecated(
-    reason=(
-        "This operator is deprecated. All the functionality of legacy "
-        "MLEngine and new features are available on the Vertex AI platform. "
-        "Please use `CreateBatchPredictionJobOperator`"
-    ),
+    reason="The MLEngineStartBatchPredictionJobOperator is deprecated and will be removed after 01.03.2025. "
+    "Please use CreateBatchPredictionJobOperator class instead."
+    "All the functionality of legacy MLEngine and new features are available on the Vertex AI platform.",
     category=AirflowProviderDeprecationWarning,
 )
 class MLEngineStartBatchPredictionJobOperator(GoogleCloudBaseOperator):
@@ -297,10 +295,9 @@ class MLEngineStartBatchPredictionJobOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason=(
-        "This operator is deprecated. Consider using operators for specific operations: "
-        "MLEngineCreateModelOperator, MLEngineGetModelOperator."
-    ),
+    reason="The MLEngineManageModelOperator is deprecated and will be removed after 01.03.2025. "
+    "Please use one of the following operators for specific operations: "
+    "MLEngineCreateModelOperator, MLEngineGetModelOperator.",
     category=AirflowProviderDeprecationWarning,
 )
 class MLEngineManageModelOperator(GoogleCloudBaseOperator):
@@ -372,11 +369,9 @@ class MLEngineManageModelOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason=(
-        "This operator is deprecated. All the functionality of legacy "
-        "MLEngine and new features are available on the Vertex AI platform. "
-        "Please use appropriate VertexAI operator."
-    ),
+    reason="The MLEngineCreateModelOperator is deprecated and will be removed after 01.11.2025. "
+    "Please use appropriate VertexAI operator instead. "
+    "All the functionality of legacy MLEngine and new features are available on the Vertex AI platform.",
     category=AirflowProviderDeprecationWarning,
 )
 class MLEngineCreateModelOperator(GoogleCloudBaseOperator):
@@ -448,11 +443,9 @@ class MLEngineCreateModelOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason=(
-        "This operator is deprecated. All the functionality of legacy "
-        "MLEngine and new features are available on the Vertex AI platform. "
-        "Please use `GetModelOperator`"
-    ),
+    reason="The MLEngineGetModelOperator is deprecated and will be removed after 01.03.2025. "
+    "Please use GetModelOperator class instead. "
+    "All the functionality of legacy MLEngine and new features are available on the Vertex AI platform.",
     category=AirflowProviderDeprecationWarning,
 )
 class MLEngineGetModelOperator(GoogleCloudBaseOperator):
@@ -523,11 +516,9 @@ class MLEngineGetModelOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason=(
-        "This operator is deprecated. All the functionality of legacy "
-        "MLEngine and new features are available on the Vertex AI platform. "
-        "Please use `DeleteModelOperator`"
-    ),
+    reason="The MLEngineDeleteModelOperator is deprecated and will be removed after 01.03.2025. "
+    "Please use DeleteModelOperator class instead. "
+    "All the functionality of legacy MLEngine and new features are available on the Vertex AI platform.",
     category=AirflowProviderDeprecationWarning,
 )
 class MLEngineDeleteModelOperator(GoogleCloudBaseOperator):
@@ -606,11 +597,9 @@ class MLEngineDeleteModelOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason=(
-        "This operator is deprecated. Consider using operators for specific operations: "
-        "MLEngineCreateVersion, MLEngineSetDefaultVersion, "
-        "MLEngineListVersions, MLEngineDeleteVersion."
-    ),
+    reason="The MLEngineManageVersionOperator is deprecated and will be removed after 01.03.2025. "
+    "Please use the following operators instead: "
+    "MLEngineCreateVersion, MLEngineSetDefaultVersion, MLEngineListVersions, MLEngineDeleteVersion.",
     category=AirflowProviderDeprecationWarning,
 )
 class MLEngineManageVersionOperator(GoogleCloudBaseOperator):
@@ -725,11 +714,9 @@ class MLEngineManageVersionOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason=(
-        "This operator is deprecated. All the functionality of legacy "
-        "MLEngine and new features are available on the Vertex AI platform. "
-        "Please use parent_model parameter for VertexAI operators instead."
-    ),
+    reason="The MLEngineCreateVersionOperator is deprecated and will be removed after 01.03.2025. "
+    "Please use parent_model parameter for VertexAI operators instead. "
+    "All the functionality of legacy MLEngine and new features are available on the Vertex AI platform.",
     category=AirflowProviderDeprecationWarning,
 )
 class MLEngineCreateVersionOperator(GoogleCloudBaseOperator):
@@ -816,11 +803,9 @@ class MLEngineCreateVersionOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason=(
-        "This operator is deprecated. All the functionality of legacy "
-        "MLEngine and new features are available on the Vertex AI platform. "
-        "Please use `SetDefaultVersionOnModelOperator`"
-    ),
+    reason="The MLEngineSetDefaultVersionOperator is deprecated and will be removed after 01.03.2025. "
+    "Please use SetDefaultVersionOnModelOperator class instead. "
+    "All the functionality of legacy MLEngine and new features are available on the Vertex AI platform.",
     category=AirflowProviderDeprecationWarning,
 )
 class MLEngineSetDefaultVersionOperator(GoogleCloudBaseOperator):
@@ -909,11 +894,9 @@ class MLEngineSetDefaultVersionOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason=(
-        "This operator is deprecated. All the functionality of legacy "
-        "MLEngine and new features are available on the Vertex AI platform. "
-        "Please use `ListModelVersionsOperator`"
-    ),
+    reason="The MLEngineListVersionsOperator is deprecated and will be removed after 01.03.2025. "
+    "Please use ListModelVersionsOperator class instead. "
+    "All the functionality of legacy MLEngine and new features are available on the Vertex AI platform.",
     category=AirflowProviderDeprecationWarning,
 )
 class MLEngineListVersionsOperator(GoogleCloudBaseOperator):
@@ -995,11 +978,9 @@ class MLEngineListVersionsOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason=(
-        "This operator is deprecated. All the functionality of legacy "
-        "MLEngine and new features are available on the Vertex AI platform. "
-        "Please use `DeleteModelVersionOperator`"
-    ),
+    reason="The MLEngineDeleteVersionOperator is deprecated and will be removed after 01.03.2025. "
+    "Please use DeleteModelVersionOperator class instead. "
+    "All the functionality of legacy MLEngine and new features are available on the Vertex AI platform.",
     category=AirflowProviderDeprecationWarning,
 )
 class MLEngineDeleteVersionOperator(GoogleCloudBaseOperator):
@@ -1087,11 +1068,9 @@ class MLEngineDeleteVersionOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason=(
-        "This operator is deprecated. All the functionality of legacy "
-        "MLEngine and new features are available on the Vertex AI platform. "
-        "Please use `CreateCustomPythonPackageTrainingJobOperator`"
-    ),
+    reason="The MLEngineStartTrainingJobOperator is deprecated and will be removed after 01.03.2025. "
+    "Please use CreateCustomPythonPackageTrainingJobOperator class instead. "
+    "All the functionality of legacy MLEngine and new features are available on the Vertex AI platform.",
     category=AirflowProviderDeprecationWarning,
 )
 class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
@@ -1426,11 +1405,9 @@ class MLEngineStartTrainingJobOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason=(
-        "This operator is deprecated. All the functionality of legacy "
-        "MLEngine and new features are available on the Vertex AI platform. "
-        "Please use `CancelCustomTrainingJobOperator`"
-    ),
+    reason="The MLEngineTrainingCancelJobOperator is deprecated and will be removed after 01.03.2025. "
+    "Please use CancelCustomTrainingJobOperator class instead. "
+    "All the functionality of legacy MLEngine and new features are available on the Vertex AI platform.",
     category=AirflowProviderDeprecationWarning,
 )
 class MLEngineTrainingCancelJobOperator(GoogleCloudBaseOperator):
@@ -1481,8 +1458,8 @@ class MLEngineTrainingCancelJobOperator(GoogleCloudBaseOperator):
 
     @property
     @deprecated(
-        reason="`_project_id` is deprecated and will be removed in the future. Please use `project_id`"
-        " instead.",
+        reason="The _project_id method is deprecated and will be removed after 01.03.2025. "
+        "Please use project_id method instead.",
         category=AirflowProviderDeprecationWarning,
     )
     def _project_id(self):
@@ -1491,7 +1468,8 @@ class MLEngineTrainingCancelJobOperator(GoogleCloudBaseOperator):
 
     @property
     @deprecated(
-        reason="`_job_id` is deprecated and will be removed in the future. Please use `job_id` instead.",
+        reason="The _job_id method is deprecated and will be removed after 01.03.2025. "
+        "Please use job_id method instead.",
         category=AirflowProviderDeprecationWarning,
     )
     def _job_id(self):
@@ -1500,8 +1478,8 @@ class MLEngineTrainingCancelJobOperator(GoogleCloudBaseOperator):
 
     @property
     @deprecated(
-        reason="`_impersonation_chain` is deprecated and will be removed in the future."
-        " Please use `impersonation_chain` instead.",
+        reason="The _impersonation_chain method is deprecated and will be removed after 01.03.2025. "
+        "Please use impersonation_chain method instead.",
         category=AirflowProviderDeprecationWarning,
     )
     def _impersonation_chain(self):

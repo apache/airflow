@@ -35,10 +35,9 @@ if TYPE_CHECKING:
 
 
 @deprecated(
-    reason=(
-        "The `GoogleAnalyticsListAccountsOperator` class is deprecated, please use "
-        "`GoogleAnalyticsAdminListAccountsOperator` instead."
-    ),
+    reason="The GoogleAnalyticsListAccountsOperator class is deprecated "
+    "and will be removed after 01.11.2024. Please use GoogleAnalyticsAdminListAccountsOperator instead. "
+    "The Google Analytics API v3 has sunset and is no longer available as of July 1, 2024.",
     category=AirflowProviderDeprecationWarning,
 )
 class GoogleAnalyticsListAccountsOperator(BaseOperator):
@@ -102,10 +101,9 @@ class GoogleAnalyticsListAccountsOperator(BaseOperator):
 
 
 @deprecated(
-    reason=(
-        "The `GoogleAnalyticsGetAdsLinkOperator` class is deprecated, please use "
-        "`GoogleAnalyticsAdminGetGoogleAdsLinkOperator` instead."
-    ),
+    reason="The GoogleAnalyticsGetAdsLinkOperator class is deprecated and will be removed after 01.11.2024. "
+    "Please use GoogleAnalyticsAdminGetGoogleAdsLinkOperator instead. "
+    "The Google Analytics API v3 has sunset and is no longer available as of July 1, 2024.",
     category=AirflowProviderDeprecationWarning,
 )
 class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
@@ -181,10 +179,10 @@ class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
 
 
 @deprecated(
-    reason=(
-        "The `GoogleAnalyticsRetrieveAdsLinksListOperator` class is deprecated, please use "
-        "`GoogleAnalyticsAdminListGoogleAdsLinksOperator` instead."
-    ),
+    reason="The GoogleAnalyticsRetrieveAdsLinksListOperator is deprecated "
+    "and will be removed after 01.11.2024. "
+    "Please use GoogleAnalyticsAdminListGoogleAdsLinksOperator` instead. "
+    "The Google Analytics API v3 has sunset and is no longer available as of July 1, 2024.",
     category=AirflowProviderDeprecationWarning,
 )
 class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
@@ -255,10 +253,9 @@ class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
 
 
 @deprecated(
-    reason=(
-        "The `GoogleAnalyticsDataImportUploadOperator` class is deprecated, please use "
-        "`GoogleAnalyticsAdminCreateDataStreamOperator` instead."
-    ),
+    reason="The GoogleAnalyticsDataImportUploadOperator class is deprecated "
+    "and will be removed after 01.11.2024. Please use GoogleAnalyticsAdminCreateDataStreamOperator instead. "
+    "The Google Analytics API v3 has sunset and is no longer available as of July 1, 2024.",
     category=AirflowProviderDeprecationWarning,
 )
 class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
@@ -362,10 +359,9 @@ class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
 
 
 @deprecated(
-    reason=(
-        "The `GoogleAnalyticsDeletePreviousDataUploadsOperator` class is deprecated, please use "
-        "`GoogleAnalyticsAdminDeleteDataStreamOperator` instead."
-    ),
+    reason="The GoogleAnalyticsDeletePreviousDataUploadsOperator is deprecated "
+    "and will be removed after 01.11.2024. Please use GoogleAnalyticsAdminDeleteDataStreamOperator instead. "
+    "The Google Analytics API v3 has sunset and is no longer available as of July 1, 2024.",
     category=AirflowProviderDeprecationWarning,
 )
 class GoogleAnalyticsDeletePreviousDataUploadsOperator(BaseOperator):

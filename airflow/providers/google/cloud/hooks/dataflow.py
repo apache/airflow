@@ -594,12 +594,10 @@ class DataflowHook(GoogleBaseHook):
     @_fallback_to_project_id_from_variables
     @GoogleBaseHook.fallback_to_default_project_id
     @deprecated(
-        reason=(
-            "This method is deprecated. "
-            "Please use `airflow.providers.apache.beam.hooks.beam.start.start_java_pipeline` "
-            "to start pipeline and `providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done` "
-            "to wait for the required pipeline state."
-        ),
+        reason="The start_java_dataflow method is deprecated and will be removed after 01.03.2025. "
+        "Please use airflow.providers.apache.beam.hooks.beam.start.start_java_pipeline method "
+        "to start pipeline and providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done method "
+        "to wait for the required pipeline state instead.",
         category=AirflowProviderDeprecationWarning,
     )
     def start_java_dataflow(
@@ -951,12 +949,10 @@ class DataflowHook(GoogleBaseHook):
     @_fallback_to_project_id_from_variables
     @GoogleBaseHook.fallback_to_default_project_id
     @deprecated(
-        reason=(
-            "This method is deprecated. "
-            "Please use `airflow.providers.apache.beam.hooks.beam.start.start_python_pipeline` "
-            "to start pipeline and `providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done` "
-            "to wait for the required pipeline state."
-        ),
+        reason="The start_python_dataflow method is deprecated and will be removed after 01.03.2025. "
+        "Please use airflow.providers.apache.beam.hooks.beam.start.start_python_pipeline method "
+        "to start pipeline and providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done method "
+        "to wait for the required pipeline state instead.",
         category=AirflowProviderDeprecationWarning,
     )
     def start_python_dataflow(

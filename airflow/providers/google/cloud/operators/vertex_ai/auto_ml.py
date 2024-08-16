@@ -642,8 +642,8 @@ class DeleteAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
 
     @property
     @deprecated(
-        reason="`training_pipeline` is deprecated and will be removed in the future. "
-        "Please use `training_pipeline_id` instead.",
+        reason="The training_pipeline method is deprecated and will be removed after 01.03.2025. "
+        "Please use training_pipeline_id instead.",
         category=AirflowProviderDeprecationWarning,
     )
     def training_pipeline(self):

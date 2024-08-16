@@ -139,10 +139,8 @@ class GKEHook(GoogleBaseHook):
     # To preserve backward compatibility
     # TODO: remove one day
     @deprecated(
-        reason=(
-            "The get_conn method has been deprecated. "
-            "You should use the get_cluster_manager_client method."
-        ),
+        reason="The get_conn method is deprecated and will be removed after 01.11.2024. "
+        "Please use the get_cluster_manager_client method instead.",
         category=AirflowProviderDeprecationWarning,
     )
     def get_conn(self) -> container_v1.ClusterManagerClient:
@@ -151,7 +149,8 @@ class GKEHook(GoogleBaseHook):
     # To preserve backward compatibility
     # TODO: remove one day
     @deprecated(
-        reason="The get_client method has been deprecated. You should use the get_conn method.",
+        reason="The get_client method is deprecated and will be removed after 01.11.2024. "
+        "Please use the get_conn method instead.",
         category=AirflowProviderDeprecationWarning,
     )
     def get_client(self) -> ClusterManagerClient:
@@ -580,10 +579,8 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
 
 
 @deprecated(
-    reason=(
-        "The `GKEDeploymentHook` class is deprecated and will be removed after 01.10.2024, please use "
-        "`GKEKubernetesHook` instead."
-    ),
+    reason="The GKEDeploymentHook class is deprecated and will be removed after 01.10.2024. "
+    "Please use GKEKubernetesHook instead.",
     category=AirflowProviderDeprecationWarning,
 )
 class GKEDeploymentHook(GKEKubernetesHook):
@@ -591,10 +588,8 @@ class GKEDeploymentHook(GKEKubernetesHook):
 
 
 @deprecated(
-    reason=(
-        "The `GKECustomResourceHook` class is deprecated and will be removed after 01.10.2024, please use "
-        "`GKEKubernetesHook` instead."
-    ),
+    reason="The GKECustomResourceHook class is deprecated and will be removed after 01.10.2024. "
+    "Please use GKEKubernetesHook instead.",
     category=AirflowProviderDeprecationWarning,
 )
 class GKECustomResourceHook(GKEKubernetesHook):
@@ -602,10 +597,8 @@ class GKECustomResourceHook(GKEKubernetesHook):
 
 
 @deprecated(
-    reason=(
-        "The `GKEPodHook` class is deprecated and will be removed after 01.10.2024, please use "
-        "`GKEKubernetesHook` instead."
-    ),
+    reason="The GKEPodHook class is deprecated and will be removed after 01.10.2024. "
+    "Please use GKEKubernetesHook instead.",
     category=AirflowProviderDeprecationWarning,
 )
 class GKEPodHook(GKEKubernetesHook):
@@ -631,10 +624,8 @@ class GKEPodHook(GKEKubernetesHook):
 
 
 @deprecated(
-    reason=(
-        "The `GKEJobHook` class is deprecated and will be removed after 01.10.2024, please use "
-        "`GKEKubernetesHook` instead."
-    ),
+    reason="The GKEJobHook class is deprecated and will be removed after 01.10.2024. "
+    "Please use GKEKubernetesHook instead.",
     category=AirflowProviderDeprecationWarning,
 )
 class GKEJobHook(GKEKubernetesHook):
@@ -642,10 +633,8 @@ class GKEJobHook(GKEKubernetesHook):
 
 
 @deprecated(
-    reason=(
-        "The `GKEPodAsyncHook` class is deprecated and will be removed after 01.10.2024, please use "
-        "`GKEKubernetesAsyncHook` instead."
-    ),
+    reason="The GKEPodAsyncHook class is deprecated and will be removed after 01.10.2024. "
+    "Please use GKEKubernetesAsyncHook instead.",
     category=AirflowProviderDeprecationWarning,
 )
 class GKEPodAsyncHook(GKEKubernetesAsyncHook):

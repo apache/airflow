@@ -31,8 +31,8 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 
 @deprecated(
-    reason="This operator is deprecated and will be removed after 01.12.2024. "
-    "Please use `DataflowCreatePipelineOperator`.",
+    reason="The CreateDataPipelineOperator is deprecated and will be removed after 01.12.2024. "
+    "Please use DataflowCreatePipelineOperator class instead.",
     category=AirflowProviderDeprecationWarning,
 )
 class CreateDataPipelineOperator(DataflowCreatePipelineOperator):
@@ -40,8 +40,8 @@ class CreateDataPipelineOperator(DataflowCreatePipelineOperator):
 
 
 @deprecated(
-    reason="This operator is deprecated and will be removed after 01.12.2024. "
-    "Please use `DataflowRunPipelineOperator`.",
+    reason="The RunDataPipelineOperator is deprecated and will be removed after 01.12.2024. "
+    "Please use DataflowRunPipelineOperator class instead.",
     category=AirflowProviderDeprecationWarning,
 )
 class RunDataPipelineOperator(DataflowRunPipelineOperator):

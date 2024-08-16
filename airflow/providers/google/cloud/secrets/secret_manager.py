@@ -162,10 +162,8 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         return self._get_secret(self.connections_prefix, conn_id)
 
     @deprecated(
-        reason=(
-            "Method `CloudSecretManagerBackend.get_conn_uri` is deprecated and will be removed "
-            "in a future release.  Please use method `get_conn_value` instead."
-        ),
+        reason="The method get_conn_uri is deprecated and will be removed after 01.11.2024. "
+        "Please use get_conn_value method instead.",
         category=AirflowProviderDeprecationWarning,
     )
     def get_conn_uri(self, conn_id: str) -> str | None:

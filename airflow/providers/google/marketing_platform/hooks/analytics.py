@@ -28,7 +28,9 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 @deprecated(
-    reason="The `GoogleAnalyticsHook` class is deprecated, please use `GoogleAnalyticsAdminHook` instead.",
+    reason="The GoogleAnalyticsHook class is deprecated and will be removed after 01.11.2024. "
+    "Please use GoogleAnalyticsAdminHook instead. "
+    "The Google Analytics API v3 has sunset and is no longer available as of July 1, 2024.",
     category=AirflowProviderDeprecationWarning,
 )
 class GoogleAnalyticsHook(GoogleBaseHook):

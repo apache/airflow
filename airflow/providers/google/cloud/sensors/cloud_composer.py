@@ -44,10 +44,11 @@ if TYPE_CHECKING:
 
 @deprecated(
     reason=(
-        "The `CloudComposerEnvironmentSensor` operator is deprecated. "
-        "You can achieve the same functionality "
-        "by using operators in deferrable or non-deferrable mode, since every operator for Cloud "
-        "Composer will wait for the operation to complete."
+        "The CloudComposerEnvironmentSensor operator is deprecated and will be removed after 01.11.2024. "
+        "Please use CloudComposerCreateEnvironmentOperator, CloudComposerDeleteEnvironmentOperator or "
+        "CloudComposerUpdateEnvironmentOperator in deferrable or non-deferrable mode, "
+        "since since every operator gives user a possibility to wait (asynchronously or synchronously) "
+        "until the Operation is finished."
     ),
     category=AirflowProviderDeprecationWarning,
 )

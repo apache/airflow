@@ -191,7 +191,8 @@ class CloudBuildHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @deprecated(
-        reason="Please use `create_build_without_waiting_for_result`",
+        reason="The create_build method is deprecated and will be removed after 01.03.2025. "
+        "Please use create_build_without_waiting_for_result method instead.",
         category=AirflowProviderDeprecationWarning,
     )
     def create_build(

@@ -33,7 +33,8 @@ if TYPE_CHECKING:
 
 
 @deprecated(
-    reason="This operator is deprecated and will be removed after 01.01.2025, please use `TextGenerationModelPredictOperator`.",
+    reason="The PromptLanguageModelOperator is deprecated and will be removed after 01.01.2025. "
+    "Please use TextGenerationModelPredictOperator instead.",
     category=AirflowProviderDeprecationWarning,
 )
 class PromptLanguageModelOperator(GoogleCloudBaseOperator):
@@ -122,7 +123,8 @@ class PromptLanguageModelOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason="This operator is deprecated and will be removed after 01.01.2025, please use `TextEmbeddingModelGetEmbeddingsOperator`.",
+    reason="The GenerateTextEmbeddingsOperator is deprecated and will be removed after 01.01.2025. "
+    "Please use TextEmbeddingModelGetEmbeddingsOperator instead.",
     category=AirflowProviderDeprecationWarning,
 )
 class GenerateTextEmbeddingsOperator(GoogleCloudBaseOperator):
@@ -190,7 +192,8 @@ class GenerateTextEmbeddingsOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason="This operator is deprecated and will be removed after 01.01.2025, please use `GenerativeModelGenerateContentOperator`.",
+    reason="The PromptMultimodalModelOperator is deprecated and will be removed after 01.01.2025. "
+    "Please use GenerativeModelGenerateContentOperator instead.",
     category=AirflowProviderDeprecationWarning,
 )
 class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
@@ -266,7 +269,8 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason="This operator is deprecated and will be removed after 01.01.2025, please use `GenerativeModelGenerateContentOperator`.",
+    reason="The PromptMultimodalModelWithMediaOperator is deprecated and will be removed after 01.01.2025. "
+    "Please use GenerativeModelGenerateContentOperator instead.",
     category=AirflowProviderDeprecationWarning,
 )
 class PromptMultimodalModelWithMediaOperator(GoogleCloudBaseOperator):
