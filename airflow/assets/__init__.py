@@ -230,11 +230,11 @@ class DatasetAlias(BaseAsset):
         )
 
 
-class DatasetAliasEvent(TypedDict):
-    """A represeation of dataset event to be triggered by a dataset alias."""
+class AssetAliasEvent(TypedDict):
+    """A represeation of asset event to be triggered by an asset alias."""
 
     source_alias_name: str
-    dest_dataset_uri: str
+    dest_asset_uri: str
     extra: dict[str, Any]
 
 

@@ -285,23 +285,18 @@ def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
     raw_key = var.raw_key
     return {
         "extra": var.extra,
-        "dataset_alias_events": var.dataset_alias_events,
+        "asset_alias_events": var.asset_alias_events,
         "raw_key": BaseSerialization.serialize(raw_key),
     }
 
 
 def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
-    # This is added for compatibility. The attribute used to be dataset_alias_event and
-    # is now dataset_alias_events.
-    if dataset_alias_event := var.get("dataset_alias_event", None):
-        dataset_alias_events = [dataset_alias_event]
-    else:
-        dataset_alias_events = var.get("dataset_alias_events", [])
+    asset_alias_events = var.get("asset_alias_events", [])
 
     outlet_event_accessor = OutletEventAccessor(
         extra=var["extra"],
         raw_key=BaseSerialization.deserialize(var["raw_key"]),
-        dataset_alias_events=dataset_alias_events,
+        asset_alias_events=asset_alias_events,
     )
     return outlet_event_accessor
 

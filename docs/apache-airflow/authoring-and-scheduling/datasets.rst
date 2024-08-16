@@ -517,7 +517,7 @@ As mentioned in :ref:`Fetching information from previously emitted dataset event
     with DAG(dag_id="dataset-alias-consumer", schedule=None):
 
         @task(inlets=[DatasetAlias("example-alias")])
-        def consume_dataset_alias_events(*, inlet_events):
+        def consume_asset_alias_events(*, inlet_events):
             events = inlet_events[DatasetAlias("example-alias")]
             last_row_count = events[-1].extra["row_count"]
 

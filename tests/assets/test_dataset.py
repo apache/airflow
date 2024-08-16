@@ -88,7 +88,7 @@ def test_uri_with_auth() -> None:
         dataset = Dataset("ftp://user@localhost/foo.txt")
     assert len(record) == 1
     assert str(record[0].message) == (
-        "A dataset URI should not contain auth info (e.g. username or "
+        "An Asset URI should not contain auth info (e.g. username or "
         "password). It has been automatically dropped."
     )
     EmptyOperator(task_id="task1", outlets=[dataset])

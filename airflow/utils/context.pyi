@@ -32,7 +32,7 @@ from pendulum import DateTime
 from sqlalchemy.orm import Session
 
 from airflow.configuration import AirflowConfigParser
-from airflow.datasets import Dataset, DatasetAlias, DatasetAliasEvent
+from airflow.datasets import AssetAliasEvent, Dataset, DatasetAlias
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
@@ -63,12 +63,12 @@ class OutletEventAccessor:
         *,
         extra: dict[str, Any],
         raw_key: str | Dataset | DatasetAlias,
-        dataset_alias_events: list[DatasetAliasEvent],
+        asset_alias_events: list[AssetAliasEvent],
     ) -> None: ...
     def add(self, dataset: Dataset | str, extra: dict[str, Any] | None = None) -> None: ...
     extra: dict[str, Any]
     raw_key: str | Dataset | DatasetAlias
-    dataset_alias_events: list[DatasetAliasEvent]
+    asset_alias_events: list[AssetAliasEvent]
 
 class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
     def __iter__(self) -> Iterator[str]: ...
