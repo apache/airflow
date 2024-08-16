@@ -19,6 +19,10 @@ from __future__ import annotations
 import json
 from unittest import mock
 
+import pytest
+
+yandexlcloud = pytest.importorskip("yandexcloud")
+
 from airflow.models import Connection
 from airflow.providers.yandex.hooks.dataproc import DataprocHook
 

@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pendulum
 import pytest
@@ -37,10 +37,8 @@ UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UT
 def test_serialize_test_dag_schema(url_safe_serializer):
     dag_model = DagModel(
         dag_id="test_dag_id",
-        root_dag_id="test_root_dag_id",
         is_paused=True,
         is_active=True,
-        is_subdag=False,
         fileloc="/root/airflow/dags/my_dag.py",
         owners="airflow1,airflow2",
         description="The description",
@@ -57,9 +55,7 @@ def test_serialize_test_dag_schema(url_safe_serializer):
         "file_token": url_safe_serializer.dumps("/root/airflow/dags/my_dag.py"),
         "is_paused": True,
         "is_active": True,
-        "is_subdag": False,
         "owners": ["airflow1", "airflow2"],
-        "root_dag_id": "test_root_dag_id",
         "schedule_interval": {"__type": "CronExpression", "value": "5 4 * * *"},
         "tags": [{"name": "tag-1"}, {"name": "tag-2"}],
         "next_dagrun": None,
@@ -95,10 +91,8 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
                 "fileloc": "/tmp/a.py",
                 "file_token": url_safe_serializer.dumps("/tmp/a.py"),
                 "is_paused": None,
-                "is_subdag": None,
                 "is_active": None,
                 "owners": [],
-                "root_dag_id": None,
                 "schedule_interval": None,
                 "tags": [],
                 "next_dagrun": None,
@@ -126,9 +120,7 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
                 "file_token": url_safe_serializer.dumps("/tmp/a.py"),
                 "is_active": None,
                 "is_paused": None,
-                "is_subdag": None,
                 "owners": [],
-                "root_dag_id": None,
                 "schedule_interval": None,
                 "tags": [],
                 "next_dagrun": None,
@@ -158,6 +150,7 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
 def test_serialize_test_dag_detail_schema(url_safe_serializer):
     dag = DAG(
         dag_id="test_dag",
+        schedule=timedelta(days=1),
         start_date=datetime(2020, 6, 19),
         doc_md="docs",
         orientation="LR",
@@ -181,7 +174,6 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
         "file_token": url_safe_serializer.dumps(__file__),
         "is_active": None,
         "is_paused": None,
-        "is_subdag": False,
         "orientation": "LR",
         "owners": [],
         "params": {
@@ -240,7 +232,6 @@ def test_serialize_test_dag_with_dataset_schedule_detail_schema(url_safe_seriali
         "file_token": url_safe_serializer.dumps(__file__),
         "is_active": None,
         "is_paused": None,
-        "is_subdag": False,
         "orientation": "LR",
         "owners": [],
         "params": {

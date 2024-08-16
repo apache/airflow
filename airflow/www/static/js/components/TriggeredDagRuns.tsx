@@ -35,7 +35,7 @@ type CardProps = {
 };
 
 const gridUrl = getMetaValue("grid_url");
-const dagId = getMetaValue("dag_id");
+const dagId = getMetaValue("dag_id") || "__DAG_ID__";
 
 const TriggeredDagRuns = ({ createdDagRuns, showLink = true }: CardProps) => {
   const containerRef = useContainerRef();

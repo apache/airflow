@@ -505,12 +505,6 @@ CHICKEN_EGG_PROVIDERS = " ".join([])
 BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.8",
-        "airflow-version": "2.7.3",
-        "remove-providers": "common.io fab",
-        "run-tests": "true",
-    },
-    {
-        "python-version": "3.8",
         "airflow-version": "2.8.4",
         "remove-providers": "fab",
         "run-tests": "true",

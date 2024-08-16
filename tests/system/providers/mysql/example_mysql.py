@@ -33,6 +33,7 @@ DAG_ID = "example_mysql"
 with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
+    schedule=None,
     default_args={"conn_id": "mysql_conn_id"},
     tags=["example"],
     catchup=False,

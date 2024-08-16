@@ -48,6 +48,7 @@ from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
 pytestmark = [
     pytest.mark.db_test,
     pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Tests for Airflow 2.8.0+ only"),
+    pytest.mark.skip_if_database_isolation_mode,
 ]
 
 
@@ -62,7 +63,12 @@ def _get_mock_db_hook():
 
 class TestBaseSQLOperator:
     def _construct_operator(self, **kwargs):
-        dag = DAG("test_dag", start_date=datetime.datetime(2017, 1, 1), render_template_as_native_obj=True)
+        dag = DAG(
+            "test_dag",
+            schedule=None,
+            start_date=datetime.datetime(2017, 1, 1),
+            render_template_as_native_obj=True,
+        )
         return BaseSQLOperator(
             task_id="test_task",
             conn_id="{{ conn_id }}",
@@ -84,7 +90,7 @@ class TestBaseSQLOperator:
 
 class TestSQLExecuteQueryOperator:
     def _construct_operator(self, sql, **kwargs):
-        dag = DAG("test_dag", start_date=datetime.datetime(2017, 1, 1))
+        dag = DAG("test_dag", schedule=None, start_date=datetime.datetime(2017, 1, 1))
         return SQLExecuteQueryOperator(
             task_id="test_task",
             conn_id="default_conn",
@@ -707,7 +713,7 @@ class TestValueCheckOperator:
         self.conn_id = "default_conn"
 
     def _construct_operator(self, sql, pass_value, tolerance=None):
-        dag = DAG("test_dag", start_date=datetime.datetime(2017, 1, 1))
+        dag = DAG("test_dag", schedule=None, start_date=datetime.datetime(2017, 1, 1))
 
         return SQLValueCheckOperator(
             dag=dag,
@@ -881,7 +887,7 @@ class TestIntervalCheckOperator:
 
 class TestThresholdCheckOperator:
     def _construct_operator(self, sql, min_threshold, max_threshold):
-        dag = DAG("test_dag", start_date=datetime.datetime(2017, 1, 1))
+        dag = DAG("test_dag", schedule=None, start_date=datetime.datetime(2017, 1, 1))
 
         return SQLThresholdCheckOperator(
             task_id="test_task",

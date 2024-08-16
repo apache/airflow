@@ -30,6 +30,7 @@ from tests.test_utils.compat import AIRFLOW_V_2_9_PLUS
 
 pytestmark = [
     pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Tests for Airflow 2.8.0+ only"),
+    pytest.mark.skip_if_database_isolation_mode,
 ]
 
 DEFAULT_DATE = datetime(2015, 1, 1)
@@ -39,7 +40,7 @@ TEST_DAG_ID = "unit_test_sql_dag"
 class TestSqlSensor:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG(TEST_DAG_ID, default_args=args)
+        self.dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
 
     @pytest.mark.db_test
     def test_unsupported_conn_type(self):

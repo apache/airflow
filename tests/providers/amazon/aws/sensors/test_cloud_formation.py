@@ -23,7 +23,6 @@ import boto3
 import pytest
 from moto import mock_aws
 
-from airflow.exceptions import AirflowSkipException
 from airflow.providers.amazon.aws.sensors.cloud_formation import (
     CloudFormationCreateStackSensor,
     CloudFormationDeleteStackSensor,
@@ -76,17 +75,10 @@ class TestCloudFormationCreateStackSensor:
         op = CloudFormationCreateStackSensor(task_id="task", stack_name="foo")
         assert not op.poke({})
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        [
-            pytest.param(True, AirflowSkipException, id="soft-fail"),
-            pytest.param(False, ValueError, id="non-soft-fail"),
-        ],
-    )
-    def test_poke_stack_in_unsuccessful_state(self, mocked_hook_client, soft_fail, expected_exception):
+    def test_poke_stack_in_unsuccessful_state(self, mocked_hook_client):
         mocked_hook_client.describe_stacks.return_value = {"Stacks": [{"StackStatus": "bar"}]}
-        op = CloudFormationCreateStackSensor(task_id="task", stack_name="foo", soft_fail=soft_fail)
-        with pytest.raises(expected_exception, match="Stack foo in bad state: bar"):
+        op = CloudFormationCreateStackSensor(task_id="task", stack_name="foo")
+        with pytest.raises(ValueError, match="Stack foo in bad state: bar"):
             op.poke({})
 
 
@@ -132,17 +124,10 @@ class TestCloudFormationDeleteStackSensor:
         op = CloudFormationDeleteStackSensor(task_id="task", stack_name="foo")
         assert not op.poke({})
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        [
-            pytest.param(True, AirflowSkipException, id="soft-fail"),
-            pytest.param(False, ValueError, id="non-soft-fail"),
-        ],
-    )
-    def test_poke_stack_in_unsuccessful_state(self, mocked_hook_client, soft_fail, expected_exception):
+    def test_poke_stack_in_unsuccessful_state(self, mocked_hook_client):
         mocked_hook_client.describe_stacks.return_value = {"Stacks": [{"StackStatus": "bar"}]}
-        op = CloudFormationDeleteStackSensor(task_id="task", stack_name="foo", soft_fail=soft_fail)
-        with pytest.raises(expected_exception, match="Stack foo in bad state: bar"):
+        op = CloudFormationDeleteStackSensor(task_id="task", stack_name="foo")
+        with pytest.raises(ValueError, match="Stack foo in bad state: bar"):
             op.poke({})
 
     @mock_aws

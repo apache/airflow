@@ -682,7 +682,7 @@ database:
         Improper configuration of sql_alchemy_session_maker can lead to serious issues,
         including data corruption, unrecoverable application crashes. Please review the SQLAlchemy
         documentation for detailed guidance on proper configuration and best practices.
-      version_added: 2.9.4
+      version_added: 2.10.0
       type: string
       example: 'airflow_local_settings._sessionmaker'
       default: ~
@@ -1348,27 +1348,6 @@ secrets:
       type: integer
       example: ~
       default: "900"
-cli:
-  description: ~
-  options:
-    api_client:
-      description: |
-        In what way should the cli access the API. The LocalClient will use the
-        database directly, while the json_client will use the api running on the
-        webserver
-      version_added: ~
-      type: string
-      example: ~
-      default: "airflow.api.client.local_client"
-    endpoint_url:
-      description: |
-        If you set web_server_url_prefix, do NOT forget to append it here, ex:
-        ``endpoint_url = http://localhost:8080/myroot``
-        So api will look like: ``http://localhost:8080/myroot/api/experimental/...``
-      version_added: ~
-      type: string
-      example: ~
-      default: "http://localhost:8080"
 debug:
   description: ~
   options:
@@ -1383,24 +1362,6 @@ debug:
 api:
   description: ~
   options:
-    enable_experimental_api:
-      description: |
-        Enables the deprecated experimental API. Please note that these API endpoints do not have
-        access control. An authenticated user has full access.
-
-        .. warning::
-
-          This `Experimental REST API
-          <https://airflow.apache.org/docs/apache-airflow/stable/deprecated-rest-api-ref.html>`__ is
-          deprecated since version 2.0. Please consider using
-          `the Stable REST API
-          <https://airflow.apache.org/docs/apache-airflow/stable/stable-rest-api-ref.html>`__.
-          For more information on migration, see
-          `RELEASE_NOTES.rst <https://github.com/apache/airflow/blob/main/RELEASE_NOTES.rst>`_
-      version_added: 2.0.0
-      type: boolean
-      example: ~
-      default: "False"
     auth_backends:
       description: |
         Comma separated list of auth backends to authenticate users of the API. See
@@ -2472,11 +2433,8 @@ scheduler:
       default: "True"
     max_tis_per_query:
       description: |
-        This changes the batch size of queries in the scheduling main loop.
-        This should not be greater than ``[core] parallelism``.
-        If this is too high, SQL query performance may be impacted by
-        complexity of query predicate, and/or excessive locking.
-        Additionally, you may hit the maximum allowable query length for your db.
+        This determines the number of task instances to be evaluated for scheduling
+        during each scheduler loop.
         Set this to 0 to use the value of ``[core] parallelism``
       version_added: ~
       type: integer

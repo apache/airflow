@@ -74,6 +74,7 @@ class TestSerializedDagModel:
             SDM.write_dag(dag)
         return example_dags
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_write_dag(self):
         """DAGs can be written into database"""
         example_dags = self._write_example_dags()
@@ -87,6 +88,7 @@ class TestSerializedDagModel:
                 # Verifies JSON schema.
                 SerializedDAG.validate_schema(result.data)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_serialized_dag_is_updated_if_dag_is_changed(self):
         """Test Serialized DAG is updated if DAG is changed"""
         example_dags = make_example_dags(example_dags_module)
@@ -118,6 +120,7 @@ class TestSerializedDagModel:
             assert s_dag_2.data["dag"]["tags"] == ["example", "example2", "new_tag"]
             assert dag_updated is True
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_serialized_dag_is_updated_if_processor_subdir_changed(self):
         """Test Serialized DAG is updated if processor_subdir is changed"""
         example_dags = make_example_dags(example_dags_module)
@@ -145,6 +148,7 @@ class TestSerializedDagModel:
             assert s_dag.processor_subdir != s_dag_2.processor_subdir
             assert dag_updated is True
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_read_dags(self):
         """DAGs can be read from database."""
         example_dags = self._write_example_dags()
@@ -156,40 +160,38 @@ class TestSerializedDagModel:
             assert serialized_dag.dag_id == dag.dag_id
             assert set(serialized_dag.task_dict) == set(dag.task_dict)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_remove_dags_by_id(self):
         """DAGs can be removed from database."""
         example_dags_list = list(self._write_example_dags().values())
-        # Remove SubDags from the list as they are not stored in DB in a separate row
-        # and are directly added in Json blob of the main DAG
-        filtered_example_dags_list = [dag for dag in example_dags_list if not dag.is_subdag]
         # Tests removing by dag_id.
-        dag_removed_by_id = filtered_example_dags_list[0]
+        dag_removed_by_id = example_dags_list[0]
         SDM.remove_dag(dag_removed_by_id.dag_id)
         assert not SDM.has_dag(dag_removed_by_id.dag_id)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_remove_dags_by_filepath(self):
         """DAGs can be removed from database."""
         example_dags_list = list(self._write_example_dags().values())
-        # Remove SubDags from the list as they are not stored in DB in a separate row
-        # and are directly added in Json blob of the main DAG
-        filtered_example_dags_list = [dag for dag in example_dags_list if not dag.is_subdag]
         # Tests removing by file path.
-        dag_removed_by_file = filtered_example_dags_list[0]
+        dag_removed_by_file = example_dags_list[0]
         # remove repeated files for those DAGs that define multiple dags in the same file (set comprehension)
-        example_dag_files = list({dag.fileloc for dag in filtered_example_dags_list})
+        example_dag_files = list({dag.fileloc for dag in example_dags_list})
         example_dag_files.remove(dag_removed_by_file.fileloc)
         SDM.remove_deleted_dags(example_dag_files, processor_subdir="/tmp/test")
         assert not SDM.has_dag(dag_removed_by_file.dag_id)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_bulk_sync_to_db(self):
         dags = [
-            DAG("dag_1"),
-            DAG("dag_2"),
-            DAG("dag_3"),
+            DAG("dag_1", schedule=None),
+            DAG("dag_2", schedule=None),
+            DAG("dag_3", schedule=None),
         ]
         with assert_queries_count(10):
             SDM.bulk_sync_to_db(dags)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.parametrize("dag_dependencies_fields", [{"dag_dependencies": None}, {}])
     def test_get_dag_dependencies_default_to_empty(self, dag_dependencies_fields):
         """Test a pre-2.1.0 serialized DAG can deserialize DAG dependencies."""
@@ -206,6 +208,7 @@ class TestSerializedDagModel:
         expected_dependencies = {dag_id: [] for dag_id in example_dags}
         assert SDM.get_dag_dependencies() == expected_dependencies
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_order_of_dag_params_is_stable(self):
         """
         This asserts that we have logic in place which guarantees the order
