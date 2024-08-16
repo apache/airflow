@@ -2213,21 +2213,6 @@ smtp:
       type: string
       example: ~
       default: "False"
-    smtp_user:
-      description: |
-        Username to authenticate when connecting to smtp server.
-      version_added: ~
-      type: string
-      example: "airflow"
-      default: ~
-    smtp_password:
-      description: |
-        Password to authenticate when connecting to smtp server.
-      version_added: ~
-      type: string
-      sensitive: true
-      example: "airflow"
-      default: ~
     smtp_port:
       description: |
         Defines the port number on which Airflow connects to the SMTP server to send email notifications.
