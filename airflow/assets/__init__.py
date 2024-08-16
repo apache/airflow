@@ -65,17 +65,17 @@ def _get_normalized_scheme(uri: str) -> str:
 
 def _sanitize_uri(uri: str) -> str:
     """
-    Sanitize a dataset URI.
+    Sanitize an asset URI.
 
     This checks for URI validity, and normalizes the URI if needed. A fully
     normalized URI is returned.
     """
     if not uri:
-        raise ValueError("Dataset URI cannot be empty")
+        raise ValueError("Asset URI cannot be empty")
     if uri.isspace():
-        raise ValueError("Dataset URI cannot be just whitespace")
+        raise ValueError("Asset URI cannot be just whitespace")
     if not uri.isascii():
-        raise ValueError("Dataset URI must only consist of ASCII characters")
+        raise ValueError("Asset URI must only consist of ASCII characters")
     parsed = urllib.parse.urlsplit(uri)
     if not parsed.scheme and not parsed.netloc:  # Does not look like a URI.
         return uri
@@ -84,12 +84,12 @@ def _sanitize_uri(uri: str) -> str:
     if normalized_scheme.startswith("x-"):
         return uri
     if normalized_scheme == "airflow":
-        raise ValueError("Dataset scheme 'airflow' is reserved")
+        raise ValueError("Asset scheme 'airflow' is reserved")
     _, auth_exists, normalized_netloc = parsed.netloc.rpartition("@")
     if auth_exists:
         # TODO: Collect this into a DagWarning.
         warnings.warn(
-            "A dataset URI should not contain auth info (e.g. username or "
+            "An Asset URI should not contain auth info (e.g. username or "
             "password). It has been automatically dropped.",
             UserWarning,
             stacklevel=3,
