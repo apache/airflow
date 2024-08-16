@@ -1,0 +1,15 @@
+**Breaking Change**
+
+The ``get_conn_uri`` method has been removed from the ``AzureKeyVaultBackend`` class.
+This method was previously deprecated in favor of ``get_conn_value``.
+
+If your code still uses ``get_conn_uri``, you should update it to use ``get_conn_value``
+instead to ensure compatibility with future Airflow versions.
+
+Example update:
+
+.. code-block:: python
+
+    connection_by_conn_id = AzureKeyVaultBackend(
+        vault_url="https://example-akv-resource-name.vault.azure.net/"
+    ).get_conn_value(conn_id="conn_id")
