@@ -20,7 +20,12 @@ pd.options.display.max_rows = 9999
 fileName = 'reporttest.csv'
 # Read test report
 df = pd.read_csv(fileName, delimiter=',', header=None)
-
+# the code for running locally - start
+# origdir = os.getcwd()
+# os.chdir("../../..")
+# directory = os.getcwd() + '/tests/system/providers/teradata'
+# os.chdir(origdir)
+# the code for running locally - end
 # Read system test files under system tests directory
 directory = 'tests/system/providers/teradata'
 
