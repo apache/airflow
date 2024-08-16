@@ -329,6 +329,19 @@ def test_pytest_args_for_helm_test_types(helm_test_package: str, pytest_args: li
             ],
             True,
         ),
+        (
+            "Core Providers[-amazon,google] Providers[amazon] Providers[google]",
+            [
+                "tests/core",
+                "tests/executors",
+                "tests/jobs",
+                "tests/models",
+                "tests/ti_deps",
+                "tests/utils",
+                "tests/providers",
+            ],
+            False,
+        ),
     ],
 )
 def test_folders_for_parallel_test_types(

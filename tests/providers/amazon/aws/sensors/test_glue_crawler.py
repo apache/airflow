@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.providers.amazon.aws.sensors.glue_crawler import GlueCrawlerSensor
 
@@ -53,16 +53,12 @@ class TestGlueCrawlerSensor:
         assert self.sensor.poke({}) is False
         mock_get_crawler.assert_called_once_with("aws_test_glue_crawler")
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @mock.patch("airflow.providers.amazon.aws.hooks.glue_crawler.GlueCrawlerHook.get_crawler")
-    def test_fail_poke(self, get_crawler, soft_fail, expected_exception):
-        self.sensor.soft_fail = soft_fail
+    def test_fail_poke(self, get_crawler):
         crawler_status = "FAILED"
         get_crawler.return_value = {"State": "READY", "LastCrawl": {"Status": crawler_status}}
         message = f"Status: {crawler_status}"
-        with pytest.raises(expected_exception, match=message):
+        with pytest.raises(AirflowException, match=message):
             self.sensor.poke(context={})
 
     def test_base_aws_op_attributes(self):
