@@ -421,8 +421,6 @@ class TestBaseChartTest:
             }
             if component:
                 expected_labels["component"] = component
-            if k8s_object_name == f"{release_name}-scheduler":
-                expected_labels["executor"] = "CeleryExecutor"
             actual_labels = kind_k8s_obj_labels_tuples.pop((k8s_object_name, kind))
             assert actual_labels == expected_labels
 
@@ -538,6 +536,8 @@ class TestBaseChartTest:
             "CeleryKubernetesExecutor",
             "airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor",
             "airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor",
+            # Hybrid executors
+            "CeleryExecutor,airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor:AwsEcsExecutor",
         ],
     )
     def test_supported_executor(self, executor):
@@ -546,22 +546,6 @@ class TestBaseChartTest:
             {
                 "executor": executor,
             },
-        )
-
-    def test_unsupported_executor(self):
-        with pytest.raises(CalledProcessError) as ex_ctx:
-            render_chart(
-                "test-basic",
-                {
-                    "executor": "SequentialExecutor",
-                },
-            )
-        assert (
-            'executor must be one of the following: "LocalExecutor", '
-            '"LocalKubernetesExecutor", "CeleryExecutor", '
-            '"KubernetesExecutor", "CeleryKubernetesExecutor", '
-            '"airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor", '
-            '"airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor"' in ex_ctx.value.stderr.decode()
         )
 
     @pytest.mark.parametrize(

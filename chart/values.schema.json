@@ -516,16 +516,7 @@
             "description": "Airflow executor.",
             "type": "string",
             "x-docsSection": "Common",
-            "default": "CeleryExecutor",
-            "enum": [
-                "LocalExecutor",
-                "LocalKubernetesExecutor",
-                "CeleryExecutor",
-                "KubernetesExecutor",
-                "CeleryKubernetesExecutor",
-                "airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor",
-                "airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor"
-            ]
+            "default": "CeleryExecutor"
         },
         "allowPodLaunching": {
             "description": "Whether various Airflow components launch pods.",
