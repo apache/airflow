@@ -827,7 +827,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 span.set_attribute("hostname", ti.hostname)
                 span.set_attribute("log_url", ti.log_url)
                 span.set_attribute("operator", str(ti.operator))
-                span.set_attribute("try_number", ti.try_number - 1)
+                span.set_attribute("try_number", ti.try_number)
                 span.set_attribute("executor_state", state)
                 span.set_attribute("job_id", ti.job_id)
                 span.set_attribute("pool", ti.pool)

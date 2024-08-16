@@ -225,6 +225,7 @@ with DAG(
         backup_db_segment_1,
         backup_db_segment_2,
         export_time,
+        latest_export_time,
         backup_db_to_point_in_time_full_export,
         backup_db_to_point_in_time_incremental_export,
         # TEST TEARDOWN
