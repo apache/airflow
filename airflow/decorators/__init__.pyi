@@ -23,6 +23,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Any, Callable, Collection, Container, Iterable, Mapping, TypeVar, overload
 
+from docker.types import Mount
 from kubernetes.client import models as k8s
 
 from airflow.decorators.base import FParams, FReturn, Task, TaskDecorator, _TaskDecorator
@@ -405,7 +406,7 @@ class TaskDecoratorCollection:
         mount_tmp_dir: bool = True,
         tmp_dir: str = "/tmp/airflow",
         user: str | int | None = None,
-        mounts: list[str] | None = None,
+        mounts: list[Mount] | None = None,
         entrypoint: str | list[str] | None = None,
         working_dir: str | None = None,
         xcom_all: bool = False,
