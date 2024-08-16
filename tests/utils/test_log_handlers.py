@@ -98,7 +98,7 @@ class TestFileTaskLogHandler:
         def task_callable(ti):
             ti.log.info("test")
 
-        dag = DAG("dag_for_testing_file_task_handler", start_date=DEFAULT_DATE)
+        dag = DAG("dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE)
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
@@ -151,7 +151,7 @@ class TestFileTaskLogHandler:
         def task_callable(ti):
             ti.log.info("test")
 
-        dag = DAG("dag_for_testing_file_task_handler", start_date=DEFAULT_DATE)
+        dag = DAG("dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE)
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
@@ -206,7 +206,7 @@ class TestFileTaskLogHandler:
         def task_callable(ti):
             ti.log.info("test")
 
-        dag = DAG("dag_for_testing_file_task_handler", start_date=DEFAULT_DATE)
+        dag = DAG("dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE)
         task = PythonOperator(
             task_id="task_for_testing_file_log_handler",
             python_callable=task_callable,
@@ -406,7 +406,7 @@ class TestFileTaskLogHandler:
         def task_callable(ti):
             ti.log.info("test")
 
-        with DAG("dag_for_testing_file_task_handler", start_date=DEFAULT_DATE) as dag:
+        with DAG("dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE) as dag:
             task = PythonOperator(
                 task_id="task_for_testing_file_log_handler",
                 python_callable=task_callable,

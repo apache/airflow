@@ -1285,8 +1285,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 continue
             elif k == "downstream_task_ids":
                 v = set(v)
-            elif k == "subdag":
-                v = SerializedDAG.deserialize_dag(v)
             elif k in {"retry_delay", "execution_timeout", "sla", "max_retry_delay"}:
                 v = cls._deserialize_timedelta(v)
             elif k in encoded_op["template_fields"]:
@@ -1370,9 +1368,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         for date_attr in ("start_date", "end_date"):
             if getattr(task, date_attr, None) is None:
                 setattr(task, date_attr, getattr(dag, date_attr, None))
-
-        if task.subdag is not None:
-            task.subdag.parent_dag = dag
 
         # Dereference expand_input and op_kwargs_expand_input.
         for k in ("expand_input", "op_kwargs_expand_input"):
@@ -1675,7 +1670,7 @@ class SerializedDAG(DAG, BaseSerialization):
     @classmethod
     def deserialize_dag(cls, encoded_dag: dict[str, Any]) -> SerializedDAG:
         """Deserializes a DAG from a JSON object."""
-        dag = SerializedDAG(dag_id=encoded_dag["_dag_id"])
+        dag = SerializedDAG(dag_id=encoded_dag["_dag_id"], schedule=None)
 
         for k, v in encoded_dag.items():
             if k == "_downstream_task_ids":

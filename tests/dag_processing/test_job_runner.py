@@ -62,7 +62,13 @@ from tests.core.test_logging_config import SETTINGS_FILE_VALID, settings_context
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.compat import ParseImportError
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_callbacks, clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests.test_utils.db import (
+    clear_db_callbacks,
+    clear_db_dags,
+    clear_db_import_errors,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -148,7 +154,12 @@ class TestDagProcessorJobRunner:
                     return results
             raise RuntimeError("Shouldn't get here - nothing to read, but manager not finished!")
 
+    @pytest.fixture
+    def clear_parse_import_errors(self):
+        clear_db_import_errors()
+
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
+    @pytest.mark.usefixtures("clear_parse_import_errors")
     @conf_vars({("core", "load_examples"): "False"})
     def test_remove_file_clears_import_error(self, tmp_path):
         path_to_parse = tmp_path / "temp_dag.py"

@@ -2098,12 +2098,7 @@ class TaskInstance(Base, LoggingMixin):
         should_pass_filepath = not pickle_id and dag
         path: PurePath | None = None
         if should_pass_filepath:
-            if dag.is_subdag:
-                if TYPE_CHECKING:
-                    assert dag.parent_dag is not None
-                path = dag.parent_dag.relative_fileloc
-            else:
-                path = dag.relative_fileloc
+            path = dag.relative_fileloc
 
             if path:
                 if not path.is_absolute():

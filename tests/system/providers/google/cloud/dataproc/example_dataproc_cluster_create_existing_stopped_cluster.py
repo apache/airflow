@@ -24,6 +24,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from google.api_core.retry import Retry
+
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateClusterOperator,
@@ -69,6 +71,7 @@ with DAG(
         region=REGION,
         cluster_name=CLUSTER_NAME,
         use_if_exists=True,
+        retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
     )
 
     start_cluster = DataprocStartClusterOperator(
@@ -76,6 +79,7 @@ with DAG(
         project_id=PROJECT_ID,
         region=REGION,
         cluster_name=CLUSTER_NAME,
+        retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
     )
 
     stop_cluster = DataprocStopClusterOperator(
@@ -92,6 +96,7 @@ with DAG(
         region=REGION,
         cluster_name=CLUSTER_NAME,
         use_if_exists=True,
+        retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
     )
 
     delete_cluster = DataprocDeleteClusterOperator(

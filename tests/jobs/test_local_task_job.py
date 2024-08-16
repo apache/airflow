@@ -863,7 +863,7 @@ class TestLocalTaskJob:
 
             scheduler_job = Job()
             scheduler_job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
-            scheduler_job_runner.dagbag.bag_dag(dag, root_dag=dag)
+            scheduler_job_runner.dagbag.bag_dag(dag)
 
             dag_run = dag.create_dagrun(run_id="test_dagrun_fast_follow", state=State.RUNNING)
 

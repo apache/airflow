@@ -449,12 +449,6 @@ ARG_UPSTREAM = Arg(("-u", "--upstream"), help="Include upstream tasks", action="
 ARG_ONLY_FAILED = Arg(("-f", "--only-failed"), help="Only failed jobs", action="store_true")
 ARG_ONLY_RUNNING = Arg(("-r", "--only-running"), help="Only running jobs", action="store_true")
 ARG_DOWNSTREAM = Arg(("-d", "--downstream"), help="Include downstream tasks", action="store_true")
-ARG_EXCLUDE_SUBDAGS = Arg(("-x", "--exclude-subdags"), help="Exclude subdags", action="store_true")
-ARG_EXCLUDE_PARENTDAG = Arg(
-    ("-X", "--exclude-parentdag"),
-    help="Exclude ParentDAGS if the task cleared is a part of a SubDAG",
-    action="store_true",
-)
 ARG_DAG_REGEX = Arg(
     ("-R", "--dag-regex"), help="Search dag_id as regex instead of exact string", action="store_true"
 )
@@ -1330,8 +1324,6 @@ TASKS_COMMANDS = (
             ARG_YES,
             ARG_ONLY_FAILED,
             ARG_ONLY_RUNNING,
-            ARG_EXCLUDE_SUBDAGS,
-            ARG_EXCLUDE_PARENTDAG,
             ARG_DAG_REGEX,
             ARG_VERBOSE,
         ),
