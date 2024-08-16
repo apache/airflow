@@ -4030,13 +4030,11 @@ class TaskInstance(Base, LoggingMixin):
                 )
             )
 
-    def get_upstream_task_ids_by_state(self, state: list[TaskInstanceState], session: Session) -> list[str]:
+    def get_upstream_task_ids_by_state(self, state: list[TaskInstanceState], session: Session) -> set[str]:
         """Get direct upstream tasks ids by state."""
         task_instances = self.dag_run.get_task_instances(state=state, session=session)
-        filtered_task_ids = [
-            task.task_id for task in task_instances if task.task_id in self.task.upstream_task_ids
-        ]
-        return filtered_task_ids
+        dag_task_instances = set(task_instance.task_id for task_instance in task_instances)
+        return dag_task_instances & self.task.upstream_task_ids
 
 
 def _find_common_ancestor_mapped_group(node1: Operator, node2: Operator) -> MappedTaskGroup | None:
