@@ -258,7 +258,10 @@ class DockerSwarmOperator(DockerOperator):
             for container in self.containers:
                 file_content = self._copy_from_docker(container["Id"], self.retrieve_output_path)
                 file_contents.append(file_content)
-            return file_contents
+            if len(file_contents) == 1:
+                return file_contents[0]
+            else:
+                return file_contents
         except APIError:
             return None
 
