@@ -144,7 +144,7 @@ def get_excluded_provider_args(python_version: str) -> list[str]:
 
 TEST_TYPE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "Always": ["tests/always"],
-    "API": ["tests/api", "tests/api_experimental", "tests/api_connexion", "tests/api_internal"],
+    "API": ["tests/api", "tests/api_connexion", "tests/api_internal"],
     "BranchPythonVenv": [
         "tests/operators/test_python.py::TestBranchPythonVirtualenvOperator",
     ],
@@ -252,7 +252,6 @@ def convert_test_type_to_pytest_args(
     if test_type == "Integration":
         if skip_provider_tests:
             return [
-                "tests/integration/api_experimental",
                 "tests/integration/cli",
                 "tests/integration/executors",
                 "tests/integration/security",
