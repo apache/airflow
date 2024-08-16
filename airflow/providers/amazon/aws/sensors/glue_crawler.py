@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Sequence
 
 from deprecated import deprecated
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
@@ -75,11 +75,7 @@ class GlueCrawlerSensor(AwsBaseSensor[GlueCrawlerHook]):
                 self.log.info("Status: %s", crawler_status)
                 return True
             else:
-                # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
-                message = f"Status: {crawler_status}"
-                if self.soft_fail:
-                    raise AirflowSkipException(message)
-                raise AirflowException(message)
+                raise AirflowException(f"Status: {crawler_status}")
         else:
             return False
 

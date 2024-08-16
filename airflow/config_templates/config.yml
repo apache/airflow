@@ -682,7 +682,7 @@ database:
         Improper configuration of sql_alchemy_session_maker can lead to serious issues,
         including data corruption, unrecoverable application crashes. Please review the SQLAlchemy
         documentation for detailed guidance on proper configuration and best practices.
-      version_added: 2.9.4
+      version_added: 2.10.0
       type: string
       example: 'airflow_local_settings._sessionmaker'
       default: ~
