@@ -121,6 +121,7 @@ jobs:
       - name: "Generate Teradata Airflow Provider System Tests Report"
         if: always()
         run:  |
+              cat report_test.xml
               python report_parse_xml.py
               python report_generate_index_html.py
               mkdir teradata_report
