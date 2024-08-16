@@ -53,28 +53,30 @@ class AirbyteHook(BaseHook):
         super().__init__()
         self.api_version: str = api_version
         self.airbyte_conn_id = airbyte_conn_id
-        self.conn = self.get_connection(self.airbyte_conn_id)
-        self.server_url: str = self.get_server_url()
-        self.airbyte_api = self.create_airbyte_api_session()
+        self.conn = self.get_conn(self.airbyte_conn_id)
+        self.airbyte_api = self.create_api_session()
 
-    def get_server_url(self) -> str:
-        schema = self.conn.schema if self.conn.schema else "https"
-        server_url = f"{schema}://{self.conn.host}"
-        if self.conn.port:
-            server_url += f":{self.conn.port}/"
+    def get_conn(self, conn_id: str) -> Any:
+        conn = self.get_connection(conn_id)
 
-        return urljoin(server_url, self.api_version)
+        conn_params: dict = {}
+        conn_params["host"] = conn.host
+        conn_params["client_id"] = conn.login
+        conn_params["client_secret"] = conn.password
+        conn_params["token_url"] = conn.schema or "v1/applications/token"
 
-    def create_airbyte_api_session(self) -> AirbyteAPI:
+        return conn_params
+
+    def create_api_session(self) -> AirbyteAPI:
         """Create Airbyte API session."""
         credentials = SchemeClientCredentials(
-            client_id=self.conn.login,
-            client_secret=self.conn.password,
-            TOKEN_URL="v1/applications/token",
+            client_id=self.conn["client_id"],
+            client_secret=self.conn["client_secret"],
+            TOKEN_URL=self.conn["token_url"],
         )
 
         return AirbyteAPI(
-            server_url=self.server_url,
+            server_url=self.conn["host"],
             security=Security(client_credentials=credentials),
         )
 
@@ -82,8 +84,11 @@ class AirbyteHook(BaseHook):
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom field behaviour."""
         return {
-            "hidden_fields": ["extra"],
-            "relabeling": {"login": "Client ID", "password": "Client Secret"},
+            "hidden_fields": [
+                "extra",
+                "port",
+            ],
+            "relabeling": {"login": "Client ID", "password": "Client Secret", "schema": "Token URL"},
             "placeholders": {},
         }
 

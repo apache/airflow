@@ -52,7 +52,10 @@ class TestAirbyteHook:
     def setup_method(self):
         db.merge_conn(
             Connection(
-                conn_id="airbyte_conn_id_test", conn_type="airbyte", host="http://test-airbyte", port=8001
+                conn_id="airbyte_conn_id_test",
+                conn_type="airbyte",
+                host="http://test-airbyte:8000/public/v1/api/",
+                port=8001,
             )
         )
         self.hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id)
@@ -76,22 +79,6 @@ class TestAirbyteHook:
 
         resp = self.hook.submit_sync_connection(connection_id=self.connection_id)
         assert resp == self._mock_sync_conn_success_response_body
-
-    @pytest.mark.parametrize(
-        "host, port, schema, expected_base_url, description",
-        [
-            ("test-airbyte", 8001, "http", "http://test-airbyte:8001/v1", "uri_with_port_and_schema"),
-            ("test-airbyte", None, "https", "https://test-airbyte/v1", "uri_with_schema"),
-            ("test-airbyte", None, None, "https://test-airbyte/v1", "uri_without_port_and_schema"),
-        ],
-    )
-    def test_get_base_url(self, host, port, schema, expected_base_url, description):
-        conn_id = f"test_conn_{description}"
-        conn = Connection(conn_id=conn_id, conn_type="airbyte", host=host, port=port, schema=schema)
-        db.merge_conn(conn)
-        hook = AirbyteHook(airbyte_conn_id=conn_id)
-        base_url = hook.get_server_url()
-        assert base_url == expected_base_url
 
     @mock.patch("airbyte_api.jobs.Jobs.get_job")
     def test_get_job_status(self, get_job_mock):
