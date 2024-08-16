@@ -79,9 +79,6 @@ CORE_EXTRAS: dict[str, list[str]] = {
     "cloudpickle": [
         "cloudpickle",
     ],
-    "deprecated-api": [
-        "requests>=2.27.0,<3",
-    ],
     "github-enterprise": [
         "apache-airflow[fab]",
         "authlib>=1.0.0",
