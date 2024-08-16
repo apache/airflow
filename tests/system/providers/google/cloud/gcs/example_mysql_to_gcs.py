@@ -55,32 +55,49 @@ try:
 except ImportError:
     pytest.skip("MySQL not available", allow_module_level=True)
 
-DAG_ID = "example_mysql_to_gcs"
+DAG_ID = "mysql_to_gcs"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "example-project")
 
 REGION = "europe-west2"
 ZONE = REGION + "-a"
 NETWORK = "default"
+CONNECTION_ID = f"mysql_{DAG_ID}_{ENV_ID}".replace("-", "_")
+CONNECTION_TYPE = "mysql"
+
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+FILE_NAME = "result.json"
 
 DB_NAME = "testdb"
 DB_PORT = 3306
 DB_USER_NAME = "root"
 DB_USER_PASSWORD = "demo_password"
+SETUP_MYSQL_COMMAND = f"""
+sudo apt update &&
+sudo apt install -y docker.io &&
+sudo docker run -d -p {DB_PORT}:{DB_PORT} --name {DB_NAME} \
+    -e MYSQL_ROOT_PASSWORD={DB_USER_PASSWORD} \
+    -e MYSQL_DATABASE={DB_NAME} \
+    mysql:8.1.0
+"""
+SQL_TABLE = "test_table"
+SQL_CREATE = f"CREATE TABLE IF NOT EXISTS {DB_NAME}.{SQL_TABLE} (col_1 INT, col_2 VARCHAR(8))"
+SQL_INSERT = f"INSERT INTO {DB_NAME}.{SQL_TABLE} (col_1, col_2) VALUES (1, 'one'), (2, 'two')"
+SQL_SELECT = f"SELECT * FROM {DB_NAME}.{SQL_TABLE}"
 
-SHORT_MACHINE_TYPE_NAME = "n1-standard-1"
-DB_INSTANCE_NAME = f"instance-{DAG_ID}-{ENV_ID}".replace("_", "-")
+GCE_MACHINE_TYPE = "n1-standard-1"
+GCE_INSTANCE_NAME = f"instance-{DAG_ID}-{ENV_ID}".replace("_", "-")
 GCE_INSTANCE_BODY = {
-    "name": DB_INSTANCE_NAME,
-    "machine_type": f"zones/{ZONE}/machineTypes/{SHORT_MACHINE_TYPE_NAME}",
+    "name": GCE_INSTANCE_NAME,
+    "machine_type": f"zones/{ZONE}/machineTypes/{GCE_MACHINE_TYPE}",
     "disks": [
         {
             "boot": True,
-            "device_name": DB_INSTANCE_NAME,
+            "device_name": GCE_INSTANCE_NAME,
             "initialize_params": {
                 "disk_size_gb": "10",
                 "disk_type": f"zones/{ZONE}/diskTypes/pd-balanced",
-                "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621",
+                "source_image": "projects/debian-cloud/global/images/debian-12-bookworm-v20240611",
             },
         }
     ],
@@ -92,55 +109,40 @@ GCE_INSTANCE_BODY = {
         }
     ],
 }
-DELETE_PERSISTENT_DISK = f"""
+FIREWALL_RULE_NAME = f"allow-http-{DB_PORT}-{DAG_ID}-{ENV_ID}".replace("_", "-")
+CREATE_FIREWALL_RULE_COMMAND = f"""
 if [ $AIRFLOW__API__GOOGLE_KEY_PATH ]; then \
  gcloud auth activate-service-account --key-file=$AIRFLOW__API__GOOGLE_KEY_PATH; \
 fi;
 
-gcloud compute disks delete {DB_INSTANCE_NAME} --project={PROJECT_ID} --zone={ZONE} --quiet
+if [ -z $(gcloud compute firewall-rules list --filter=name:{FIREWALL_RULE_NAME} --format="value(name)" --project={PROJECT_ID}) ]; then \
+    gcloud compute firewall-rules create {FIREWALL_RULE_NAME} \
+      --project={PROJECT_ID} \
+      --direction=INGRESS \
+      --priority=100 \
+      --network={NETWORK} \
+      --action=ALLOW \
+      --rules=tcp:{DB_PORT} \
+      --source-ranges=0.0.0.0/0
+else
+    echo "Firewall rule {FIREWALL_RULE_NAME} already exists."
+fi
 """
-
-SETUP_MYSQL = f"""
-sudo apt update &&
-sudo apt install -y docker.io &&
-sudo docker run -d -p {DB_PORT}:{DB_PORT} --name {DB_NAME} \
-    -e MYSQL_ROOT_PASSWORD={DB_USER_PASSWORD} \
-    -e MYSQL_DATABASE={DB_NAME} \
-    mysql:8.1.0
+DELETE_FIREWALL_RULE_COMMAND = f"""
+if [ $AIRFLOW__API__GOOGLE_KEY_PATH ]; then \
+ gcloud auth activate-service-account --key-file=$AIRFLOW__API__GOOGLE_KEY_PATH; \
+fi; \
+if [ $(gcloud compute firewall-rules list --filter=name:{FIREWALL_RULE_NAME} --format="value(name)" --project={PROJECT_ID}) ]; then \
+    gcloud compute firewall-rules delete {FIREWALL_RULE_NAME} --project={PROJECT_ID} --quiet; \
+fi;
 """
-
-FIREWALL_RULE_NAME = f"allow-http-{DB_PORT}"
-CREATE_FIREWALL_RULE = f"""
+DELETE_PERSISTENT_DISK_COMMAND = f"""
 if [ $AIRFLOW__API__GOOGLE_KEY_PATH ]; then \
  gcloud auth activate-service-account --key-file=$AIRFLOW__API__GOOGLE_KEY_PATH; \
 fi;
 
-gcloud compute firewall-rules create {FIREWALL_RULE_NAME} \
-  --project={PROJECT_ID} \
-  --direction=INGRESS \
-  --priority=100 \
-  --network={NETWORK} \
-  --action=ALLOW \
-  --rules=tcp:{DB_PORT} \
-  --source-ranges=0.0.0.0/0
+gcloud compute disks delete {GCE_INSTANCE_NAME} --project={PROJECT_ID} --zone={ZONE} --quiet
 """
-DELETE_FIREWALL_RULE = f"""
-if [ $AIRFLOW__API__GOOGLE_KEY_PATH ]; then \
- gcloud auth activate-service-account --key-file=$AIRFLOW__API__GOOGLE_KEY_PATH; \
-fi;
-
-gcloud compute firewall-rules delete {FIREWALL_RULE_NAME} --project={PROJECT_ID} --quiet
-"""
-
-CONNECTION_ID = f"mysql_{DAG_ID}_{ENV_ID}".replace("-", "_")
-
-BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
-FILE_NAME = "result.json"
-
-SQL_TABLE = "test_table"
-SQL_CREATE = f"CREATE TABLE IF NOT EXISTS {SQL_TABLE} (col_1 INT, col_2 VARCHAR(8))"
-SQL_INSERT = f"INSERT INTO {SQL_TABLE} (col_1, col_2) VALUES (1, 'one'), (2, 'two')"
-SQL_SELECT = f"SELECT * FROM {SQL_TABLE}"
 
 
 log = logging.getLogger(__name__)
@@ -153,8 +155,8 @@ with DAG(
     catchup=False,
     tags=["example", "mysql", "gcs"],
 ) as dag:
-    create_instance = ComputeEngineInsertInstanceOperator(
-        task_id="create_instance",
+    create_gce_instance = ComputeEngineInsertInstanceOperator(
+        task_id="create_gce_instance",
         project_id=PROJECT_ID,
         zone=ZONE,
         body=GCE_INSTANCE_BODY,
@@ -162,127 +164,136 @@ with DAG(
 
     create_firewall_rule = BashOperator(
         task_id="create_firewall_rule",
-        bash_command=CREATE_FIREWALL_RULE,
+        bash_command=CREATE_FIREWALL_RULE_COMMAND,
     )
 
     setup_mysql = SSHOperator(
         task_id="setup_mysql",
         ssh_hook=ComputeEngineSSHHook(
             user="username",
-            instance_name=DB_INSTANCE_NAME,
+            instance_name=GCE_INSTANCE_NAME,
             zone=ZONE,
             project_id=PROJECT_ID,
             use_oslogin=False,
             use_iap_tunnel=False,
             cmd_timeout=180,
         ),
-        command=SETUP_MYSQL,
+        command=SETUP_MYSQL_COMMAND,
         retries=2,
     )
 
     @task
     def get_public_ip() -> str:
         hook = ComputeEngineHook()
-        address = hook.get_instance_address(resource_id=DB_INSTANCE_NAME, zone=ZONE, project_id=PROJECT_ID)
+        address = hook.get_instance_address(resource_id=GCE_INSTANCE_NAME, zone=ZONE, project_id=PROJECT_ID)
         return address
 
     get_public_ip_task = get_public_ip()
 
     @task
-    def setup_mysql_connection(**kwargs) -> None:
-        public_ip = kwargs["ti"].xcom_pull(task_ids="get_public_ip")
+    def create_connection(connection_id: str, ip_address: str) -> None:
         connection = Connection(
-            conn_id=CONNECTION_ID,
-            description="Example MySQL connection",
-            conn_type="mysql",
-            host=public_ip,
+            conn_id=connection_id,
+            description="Example connection",
+            conn_type=CONNECTION_TYPE,
+            host=ip_address,
             login=DB_USER_NAME,
             password=DB_USER_PASSWORD,
-            schema=DB_NAME,
+            port=DB_PORT,
         )
         session = Session()
-        if session.query(Connection).filter(Connection.conn_id == CONNECTION_ID).first():
-            log.warning("Connection %s already exists", CONNECTION_ID)
-            return None
+        log.info("Removing connection %s if it exists", connection_id)
+        query = session.query(Connection).filter(Connection.conn_id == connection_id)
+        query.delete()
 
         session.add(connection)
         session.commit()
+        log.info("Connection %s created", connection_id)
 
-    setup_mysql_connection_task = setup_mysql_connection()
-
-    create_bucket = GCSCreateBucketOperator(
-        task_id="create_bucket",
-        bucket_name=BUCKET_NAME,
-    )
+    create_connection_task = create_connection(connection_id=CONNECTION_ID, ip_address=get_public_ip_task)
 
     create_sql_table = SQLExecuteQueryOperator(
         task_id="create_sql_table",
         conn_id=CONNECTION_ID,
         sql=SQL_CREATE,
+        retries=4,
     )
 
-    insert_data = SQLExecuteQueryOperator(
-        task_id="insert_data",
+    insert_sql_data = SQLExecuteQueryOperator(
+        task_id="insert_sql_data",
         conn_id=CONNECTION_ID,
         sql=SQL_INSERT,
     )
 
+    create_gcs_bucket = GCSCreateBucketOperator(
+        task_id="create_gcs_bucket",
+        bucket_name=BUCKET_NAME,
+    )
+
     # [START howto_operator_mysql_to_gcs]
-    upload_mysql_to_gcs = MySQLToGCSOperator(
-        task_id="mysql_to_gcs", sql=SQL_SELECT, bucket=BUCKET_NAME, filename=FILE_NAME, export_format="csv"
+    mysql_to_gcs = MySQLToGCSOperator(
+        task_id="mysql_to_gcs",
+        mysql_conn_id=CONNECTION_ID,
+        sql=SQL_SELECT,
+        bucket=BUCKET_NAME,
+        filename=FILE_NAME,
+        export_format="csv",
     )
     # [END howto_operator_mysql_to_gcs]
 
-    delete_mysql_connection = BashOperator(
-        task_id="delete_mysql_connection",
-        bash_command=f"airflow connections delete {CONNECTION_ID}",
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
-
-    delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket",
+    delete_gcs_bucket = GCSDeleteBucketOperator(
+        task_id="delete_gcs_bucket",
         bucket_name=BUCKET_NAME,
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
-
-    delete_instance = ComputeEngineDeleteInstanceOperator(
-        task_id="delete_instance",
-        resource_id=DB_INSTANCE_NAME,
-        zone=ZONE,
-        project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_firewall_rule = BashOperator(
         task_id="delete_firewall_rule",
-        bash_command=DELETE_FIREWALL_RULE,
+        bash_command=DELETE_FIREWALL_RULE_COMMAND,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
+    delete_gce_instance = ComputeEngineDeleteInstanceOperator(
+        task_id="delete_gce_instance",
+        resource_id=GCE_INSTANCE_NAME,
+        zone=ZONE,
+        project_id=PROJECT_ID,
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_persistent_disk = BashOperator(
         task_id="delete_persistent_disk",
-        bash_command=DELETE_PERSISTENT_DISK,
+        bash_command=DELETE_PERSISTENT_DISK_COMMAND,
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
+    @task(task_id="delete_connection")
+    def delete_connection(connection_id: str) -> None:
+        session = Session()
+        log.info("Removing connection %s", connection_id)
+        query = session.query(Connection).filter(Connection.conn_id == connection_id)
+        query.delete()
+        session.commit()
+
+    delete_connection_task = delete_connection(connection_id=CONNECTION_ID)
+
     (
         # TEST SETUP
-        create_instance
+        create_gce_instance
         >> setup_mysql
-        >> get_public_ip_task
-        >> setup_mysql_connection_task
         >> create_firewall_rule
+        >> get_public_ip_task
+        >> create_connection_task
         >> create_sql_table
-        >> insert_data
-    )
-    (
-        [insert_data, create_bucket]
+        >> insert_sql_data
+        >> create_gcs_bucket
         # TEST BODY
-        >> upload_mysql_to_gcs
-        # TEST TEARDOWN
-        >> [delete_instance, delete_bucket, delete_mysql_connection, delete_firewall_rule]
+        >> mysql_to_gcs
     )
-    delete_instance >> delete_persistent_disk
+
+    # TEST TEARDOWN
+    mysql_to_gcs >> [delete_gcs_bucket, delete_firewall_rule, delete_gce_instance, delete_connection_task]
+    delete_gce_instance >> delete_persistent_disk
 
     from tests.system.utils.watcher import watcher
 

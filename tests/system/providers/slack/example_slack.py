@@ -41,7 +41,7 @@ with DAG(
         task_id="slack_post_text",
         channel=SLACK_CHANNEL,
         text=(
-            "Apache Airflow™ is an open-source platform for developing, "
+            "Apache Airflow® is an open-source platform for developing, "
             "scheduling, and monitoring batch-oriented workflows."
         ),
     )
@@ -57,7 +57,7 @@ with DAG(
                 "text": {
                     "type": "mrkdwn",
                     "text": (
-                        "*<https://github.com/apache/airflow|Apache Airflow™>* "
+                        "*<https://github.com/apache/airflow|Apache Airflow®>* "
                         "is an open-source platform for developing, scheduling, "
                         "and monitoring batch-oriented workflows."
                     ),
@@ -83,7 +83,6 @@ with DAG(
         task_id="slack_file_upload_2",
         channels=SLACK_CHANNEL,
         content="file content in txt",
-        method_version="v2",
     )
     # [END slack_api_file_operator_content_howto_guide]
 

@@ -245,6 +245,12 @@ class TestRedshiftToS3Transfer:
                 "SELECT 'Single Quotes Break this Operator'",
             ],
             [False, "key", "SELECT ''", "SELECT ''"],
+            [
+                False,
+                "key",
+                "SELECT ''Single Quotes '' || ''Break this Operator''",
+                "SELECT 'Single Quotes ' || 'Break this Operator'",
+            ],
         ],
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
@@ -357,17 +363,6 @@ class TestRedshiftToS3Transfer:
         assert mock_run.call_count == 1
         assert extra["role_arn"] in unload_query
         assert_equal_ignore_multiple_spaces(mock_run.call_args.args[0], unload_query)
-
-    def test_template_fields_overrides(self):
-        assert RedshiftToS3Operator.template_fields == (
-            "s3_bucket",
-            "s3_key",
-            "schema",
-            "table",
-            "unload_options",
-            "select_query",
-            "redshift_conn_id",
-        )
 
     @pytest.mark.parametrize("param", ["sql", "parameters"])
     def test_invalid_param_in_redshift_data_api_kwargs(self, param):

@@ -94,10 +94,12 @@ class TestSecretsMasker:
         assert caplog.text == "INFO Cannot connect to user:***\n"
 
     def test_extra(self, logger, caplog):
-        logger.handlers[0].formatter = ShortExcFormatter("%(levelname)s %(message)s %(conn)s")
-        logger.info("Cannot connect", extra={"conn": "user:password"})
+        with patch.object(
+            logger.handlers[0], "formatter", ShortExcFormatter("%(levelname)s %(message)s %(conn)s")
+        ):
+            logger.info("Cannot connect", extra={"conn": "user:password"})
 
-        assert caplog.text == "INFO Cannot connect user:***\n"
+            assert caplog.text == "INFO Cannot connect user:***\n"
 
     def test_exception(self, logger, caplog):
         try:

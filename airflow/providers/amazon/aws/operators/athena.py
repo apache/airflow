@@ -30,9 +30,7 @@ from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
-    from openlineage.client.facet import BaseFacet
-    from openlineage.client.run import Dataset
-
+    from airflow.providers.common.compat.openlineage.facet import BaseFacet, Dataset, DatasetFacet
     from airflow.providers.openlineage.extractors.base import OperatorLineage
     from airflow.utils.context import Context
 
@@ -175,9 +173,6 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
                 f"query_execution_id is {self.query_execution_id}."
             )
 
-        # Save output location from API response for later use in OpenLineage.
-        self.output_location = self.hook.get_output_location(self.query_execution_id)
-
         return self.query_execution_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
@@ -185,6 +180,9 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
 
         if event["status"] != "success":
             raise AirflowException(f"Error while waiting for operation on cluster to complete: {event}")
+
+        # Save query_execution_id to be later used by listeners
+        self.query_execution_id = event["value"]
         return event["value"]
 
     def on_kill(self) -> None:
@@ -208,21 +206,28 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
                     )
                     self.hook.poll_query_status(self.query_execution_id, sleep_time=self.sleep_time)
 
-    def get_openlineage_facets_on_start(self) -> OperatorLineage:
-        """Retrieve OpenLineage data by parsing SQL queries and enriching them with Athena API.
+    def get_openlineage_facets_on_complete(self, _) -> OperatorLineage:
+        """
+        Retrieve OpenLineage data by parsing SQL queries and enriching them with Athena API.
 
         In addition to CTAS query, query and calculation results are stored in S3 location.
-        For that reason additional output is attached with this location.
+        For that reason additional output is attached with this location. Instead of using the complete
+        path where the results are saved (user's prefix + some UUID), we are creating a dataset with the
+        user-provided path only. This should make it easier to match this dataset across different processes.
         """
-        from openlineage.client.facet import ExtractionError, ExtractionErrorRunFacet, SqlJobFacet
-        from openlineage.client.run import Dataset
-
+        from airflow.providers.common.compat.openlineage.facet import (
+            Dataset,
+            Error,
+            ExternalQueryRunFacet,
+            ExtractionErrorRunFacet,
+            SQLJobFacet,
+        )
         from airflow.providers.openlineage.extractors.base import OperatorLineage
         from airflow.providers.openlineage.sqlparser import SQLParser
 
         sql_parser = SQLParser(dialect="generic")
 
-        job_facets: dict[str, BaseFacet] = {"sql": SqlJobFacet(query=sql_parser.normalize_sql(self.query))}
+        job_facets: dict[str, BaseFacet] = {"sql": SQLJobFacet(query=sql_parser.normalize_sql(self.query))}
         parse_result = sql_parser.parse(sql=self.query)
 
         if not parse_result:
@@ -234,7 +239,7 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
                 totalTasks=len(self.query) if isinstance(self.query, list) else 1,
                 failedTasks=len(parse_result.errors),
                 errors=[
-                    ExtractionError(
+                    Error(
                         errorMessage=error.message,
                         stackTrace=None,
                         task=error.origin_statement,
@@ -264,20 +269,25 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
             )
         )
 
+        if self.query_execution_id:
+            run_facets["externalQuery"] = ExternalQueryRunFacet(
+                externalQueryId=self.query_execution_id, source="awsathena"
+            )
+
         if self.output_location:
             parsed = urlparse(self.output_location)
-            outputs.append(Dataset(namespace=f"{parsed.scheme}://{parsed.netloc}", name=parsed.path))
+            outputs.append(Dataset(namespace=f"{parsed.scheme}://{parsed.netloc}", name=parsed.path or "/"))
 
         return OperatorLineage(job_facets=job_facets, run_facets=run_facets, inputs=inputs, outputs=outputs)
 
     def get_openlineage_dataset(self, database, table) -> Dataset | None:
-        from openlineage.client.facet import (
+        from airflow.providers.common.compat.openlineage.facet import (
+            Dataset,
+            Identifier,
             SchemaDatasetFacet,
-            SchemaField,
+            SchemaDatasetFacetFields,
             SymlinksDatasetFacet,
-            SymlinksDatasetFacetIdentifiers,
         )
-        from openlineage.client.run import Dataset
 
         client = self.hook.get_conn()
         try:
@@ -288,10 +298,10 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
             # Dataset has also its' physical location which we can add in symlink facet.
             s3_location = table_metadata["TableMetadata"]["Parameters"]["location"]
             parsed_path = urlparse(s3_location)
-            facets: dict[str, BaseFacet] = {
+            facets: dict[str, DatasetFacet] = {
                 "symlinks": SymlinksDatasetFacet(
                     identifiers=[
-                        SymlinksDatasetFacetIdentifiers(
+                        Identifier(
                             namespace=f"{parsed_path.scheme}://{parsed_path.netloc}",
                             name=str(parsed_path.path),
                             type="TABLE",
@@ -300,7 +310,9 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
                 )
             }
             fields = [
-                SchemaField(name=column["Name"], type=column["Type"], description=column["Comment"])
+                SchemaDatasetFacetFields(
+                    name=column["Name"], type=column["Type"], description=column["Comment"]
+                )
                 for column in table_metadata["TableMetadata"]["Columns"]
             ]
             if fields:

@@ -155,8 +155,3 @@ class DebugExecutor(BaseExecutor):
 
     def terminate(self) -> None:
         self._terminated.set()
-
-    def change_state(self, key: TaskInstanceKey, state: TaskInstanceState, info=None) -> None:
-        self.log.debug("Popping %s from executor task queue.", key)
-        self.running.remove(key)
-        self.event_buffer[key] = state, info

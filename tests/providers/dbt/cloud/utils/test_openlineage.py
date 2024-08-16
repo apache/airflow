@@ -17,8 +17,14 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+from openlineage.common import __version__
+from packaging.version import parse
+
+from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers.dbt.cloud.hooks.dbt import DbtCloudHook
 from airflow.providers.dbt.cloud.operators.dbt import DbtCloudRunJobOperator
 from airflow.providers.dbt.cloud.utils.openlineage import generate_openlineage_events_from_dbt_cloud_run
@@ -38,8 +44,13 @@ class MockResponse:
 
 
 def emit_event(event):
-    assert event.run.facets["parent"].run["runId"] == TASK_UUID
-    assert event.run.facets["parent"].job["name"] == f"{DAG_ID}.{TASK_ID}"
+    # since 1.15.0 there was v2 facets introduced
+    if parse(__version__) >= parse("1.15.0"):
+        assert event.run.facets["parent"].run.runId == TASK_UUID
+        assert event.run.facets["parent"].job.name == f"{DAG_ID}.{TASK_ID}"
+    else:
+        assert event.run.facets["parent"].run["runId"] == TASK_UUID
+        assert event.run.facets["parent"].job["name"] == f"{DAG_ID}.{TASK_ID}"
     assert event.job.namespace == "default"
     assert event.job.name.startswith("SANDBOX.TEST_SCHEMA.test_project")
 
@@ -66,15 +77,35 @@ def read_file_json(file):
 def get_dbt_artifact(*args, **kwargs):
     json_file = None
     if "catalog" in kwargs["path"]:
-        json_file = "tests/providers/dbt/cloud/test_data/catalog.json"
+        json_file = Path(__file__).parents[1] / "test_data" / "catalog.json"
     elif "manifest" in kwargs["path"]:
-        json_file = "tests/providers/dbt/cloud/test_data/manifest.json"
+        json_file = Path(__file__).parents[1] / "test_data" / "manifest.json"
     elif "run_results" in kwargs["path"]:
-        json_file = "tests/providers/dbt/cloud/test_data/run_results.json"
+        json_file = Path(__file__).parents[1] / "test_data" / "run_results.json"
 
     if json_file is not None:
         return MockResponse(read_file_json(json_file))
     return None
+
+
+def test_previous_version_openlineage_provider():
+    """When using OpenLineage, the dbt-cloud provider now depends on openlineage provider >= 1.7"""
+    original_import = __import__
+
+    def custom_import(name, *args, **kwargs):
+        if name == "airflow.providers.openlineage.conf":
+            raise ModuleNotFoundError("No module named 'airflow.providers.openlineage.conf")
+        else:
+            return original_import(name, *args, **kwargs)
+
+    mock_operator = MagicMock()
+    mock_task_instance = MagicMock()
+
+    with patch("builtins.__import__", side_effect=custom_import):
+        with pytest.raises(AirflowOptionalProviderFeatureException) as exc:
+            generate_openlineage_events_from_dbt_cloud_run(mock_operator, mock_task_instance)
+    assert str(exc.value.args[0]) == "No module named 'airflow.providers.openlineage.conf"
+    assert str(exc.value.args[1]) == "Please install `apache-airflow-providers-openlineage>=1.7.0`"
 
 
 class TestGenerateOpenLineageEventsFromDbtCloudRun:
@@ -98,7 +129,7 @@ class TestGenerateOpenLineageEventsFromDbtCloudRun:
         mock_operator.hook = mock_hook
 
         mock_get_job_run.return_value.json.return_value = read_file_json(
-            "tests/providers/dbt/cloud/test_data/job_run.json"
+            Path(__file__).parents[1] / "test_data" / "job_run.json"
         )
         mock_get_project.return_value.json.return_value = {
             "data": {

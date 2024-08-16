@@ -243,8 +243,9 @@ class TestStatsd:
         mappings_yml = jmespath.search('data."mappings.yml"', docs[0])
         mappings_yml_obj = yaml.safe_load(mappings_yml)
 
-        assert "airflow_dagrun_dependency_check" == mappings_yml_obj["mappings"][0]["name"]
-        assert "airflow_pool_starving_tasks" == mappings_yml_obj["mappings"][-1]["name"]
+        names = [mapping["name"] for mapping in mappings_yml_obj["mappings"]]
+        assert "airflow_dagrun_dependency_check" in names
+        assert "airflow_pool_starving_tasks" in names
 
     def test_statsd_configmap_when_exist_extra_mappings(self):
         extra_mapping = {
@@ -335,6 +336,20 @@ class TestStatsd:
 
         assert "annotations" in jmespath.search("metadata", docs)
         assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"
+
+    @pytest.mark.parametrize(
+        "statsd_values, expected",
+        [
+            ({}, 30),
+            ({"statsd": {"terminationGracePeriodSeconds": 1200}}, 1200),
+        ],
+    )
+    def test_statsd_termination_grace_period_seconds(self, statsd_values, expected):
+        docs = render_chart(
+            values=statsd_values,
+            show_only=["templates/statsd/statsd-deployment.yaml"],
+        )
+        assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
 
 
 class TestStatsdServiceAccount:

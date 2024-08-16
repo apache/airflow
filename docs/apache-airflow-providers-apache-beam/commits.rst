@@ -35,14 +35,54 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.7.2
+.....
+
+Latest change: 2024-07-16
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`519b0d028c <https://github.com/apache/airflow/commit/519b0d028c4bd8a27dbd10785139a260fb98154b>`_  2024-07-16   ``Fix BeamRunJavaPipelineOperator fails without job_name set (#40645)``
+=================================================================================================  ===========  =======================================================================
+
+5.7.1
+.....
+
+Latest change: 2024-05-26
+
+=================================================================================================  ===========  ================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`1489cf7a03 <https://github.com/apache/airflow/commit/1489cf7a0372898ab5f905fa7b56f3b1327d2cfe>`_  2024-05-14   ``Fix deferrable mode for BeamRunJavaPipelineOperator (#39371)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+=================================================================================================  ===========  ================================================================
+
+5.7.0
+.....
+
+Latest change: 2024-05-01
+
+=================================================================================================  ===========  =============================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+`fd8a05739f <https://github.com/apache/airflow/commit/fd8a05739f945643b5023db15d51a97459109a02>`_  2024-04-19   ``Bugfix to correct GCSHook being called even when not required with BeamRunPythonPipelineOperator (#38716)``
+=================================================================================================  ===========  =============================================================================================================
+
 5.6.3
 .....
 
-Latest change: 2024-04-07
+Latest change: 2024-04-10
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
 `472b646acb <https://github.com/apache/airflow/commit/472b646acb67162c2b45f0ce9c93c89d9d7c35ae>`_  2024-04-07   ``fix: skip apache beam pipeline options if value is set to false (#38496)``
 `a022d7b70c <https://github.com/apache/airflow/commit/a022d7b70c4a9daae7911c3d04cd6e62fab17dc8>`_  2024-04-06   ``fix: try002 for provider apache beam (#38790)``
 `4506e7afe5 <https://github.com/apache/airflow/commit/4506e7afe57afde8f57afe1a944093298a8c3800>`_  2024-03-19   ``Avoid to use subprocess in asyncio loop (#38292)``

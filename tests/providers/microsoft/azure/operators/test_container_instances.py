@@ -18,6 +18,8 @@
 from __future__ import annotations
 
 from collections import namedtuple
+from collections.abc import MutableMapping
+from typing import Any
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -32,6 +34,7 @@ from azure.mgmt.containerinstance.models import (
 
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.operators.container_instances import AzureContainerInstancesOperator
+from airflow.utils.context import Context
 
 
 def make_mock_cg(container_state, events=None):
@@ -248,6 +251,85 @@ class TestACIOperator:
 
         assert aci_mock.return_value.delete.call_count == 1
 
+    @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
+    def test_execute_with_messages_all_logs_in_xcom_logs(self, aci_mock):
+        event1 = Event()
+        event1.message = "test"
+        event2 = Event()
+        event2.message = "messages"
+        events = [event1, event2]
+        expected_cg1 = make_mock_container(
+            state="Succeeded", exit_code=0, detail_status="test", events=events
+        )
+        expected_cg2 = make_mock_container(state="Running", exit_code=0, detail_status="test", events=events)
+        expected_cg3 = make_mock_container(
+            state="Terminated", exit_code=0, detail_status="test", events=events
+        )
+
+        aci_mock.return_value.get_state.side_effect = [expected_cg1, expected_cg2, expected_cg3]
+        aci_mock.return_value.get_logs.return_value = ["test", "logs"]
+        aci_mock.return_value.exists.return_value = False
+
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id=None,
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            xcom_all=True,
+        )
+        context = Context(ti=XcomMock())
+        aci.execute(context)
+
+        assert aci_mock.return_value.create_or_update.call_count == 1
+        assert aci_mock.return_value.get_state.call_count == 3
+        assert aci_mock.return_value.get_logs.call_count == 4
+
+        assert aci_mock.return_value.delete.call_count == 1
+        assert context["ti"].xcom_pull(key="logs") == aci_mock.return_value.get_logs.return_value
+
+    @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
+    def test_execute_with_messages_last_log_in_xcom_logs(self, aci_mock):
+        event1 = Event()
+        event1.message = "test"
+        event2 = Event()
+        event2.message = "messages"
+        events = [event1, event2]
+        expected_cg1 = make_mock_container(
+            state="Succeeded", exit_code=0, detail_status="test", events=events
+        )
+        expected_cg2 = make_mock_container(state="Running", exit_code=0, detail_status="test", events=events)
+        expected_cg3 = make_mock_container(
+            state="Terminated", exit_code=0, detail_status="test", events=events
+        )
+
+        aci_mock.return_value.get_state.side_effect = [expected_cg1, expected_cg2, expected_cg3]
+        aci_mock.return_value.get_logs.return_value = ["test", "logs"]
+        aci_mock.return_value.exists.return_value = False
+
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id=None,
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            xcom_all=False,
+        )
+        context = Context(ti=XcomMock())
+        aci.execute(context)
+
+        assert aci_mock.return_value.create_or_update.call_count == 1
+        assert aci_mock.return_value.get_state.call_count == 3
+        assert aci_mock.return_value.get_logs.call_count == 4
+
+        assert aci_mock.return_value.delete.call_count == 1
+        assert context["ti"].xcom_pull(key="logs") == aci_mock.return_value.get_logs.return_value[-1:]
+        assert context["ti"].xcom_pull(key="logs") == ["logs"]
+
     def test_name_checker(self):
         valid_names = ["test-dash", "name-with-length---63" * 3]
 
@@ -410,3 +492,101 @@ class TestACIOperator:
         aci.execute(None)
 
         assert log_mock.call_count == 0
+
+    @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
+    def test_execute_with_dnsconfig(self, aci_mock):
+        dns_config = MagicMock()
+
+        aci_mock.return_value.get_state.return_value = make_mock_container(
+            state="Terminated", exit_code=0, detail_status="test"
+        )
+        aci_mock.return_value.exists.return_value = False
+
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id=None,
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            dns_config=dns_config,
+        )
+        aci.execute(None)
+        assert aci_mock.return_value.create_or_update.call_count == 1
+        (_, _, called_cg), _ = aci_mock.return_value.create_or_update.call_args
+
+        assert called_cg.dns_config == dns_config
+
+    @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
+    def test_execute_with_diagnostics(self, aci_mock):
+        diagnostics = MagicMock()
+
+        aci_mock.return_value.get_state.return_value = make_mock_container(
+            state="Terminated", exit_code=0, detail_status="test"
+        )
+        aci_mock.return_value.exists.return_value = False
+
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id=None,
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            diagnostics=diagnostics,
+        )
+        aci.execute(None)
+        assert aci_mock.return_value.create_or_update.call_count == 1
+        (_, _, called_cg), _ = aci_mock.return_value.create_or_update.call_args
+
+        assert called_cg.diagnostics == diagnostics
+
+    @mock.patch("airflow.providers.microsoft.azure.operators.container_instances.AzureContainerInstanceHook")
+    def test_execute_with_spot_discount(self, aci_mock):
+        expected_cg = make_mock_container(state="Terminated", exit_code=0, detail_status="test")
+        aci_mock.return_value.get_state.return_value = expected_cg
+
+        aci_mock.return_value.exists.return_value = False
+
+        aci = AzureContainerInstancesOperator(
+            ci_conn_id=None,
+            registry_conn_id=None,
+            resource_group="resource-group",
+            name="container-name",
+            image="container-image",
+            region="region",
+            task_id="task",
+            priority="Spot",
+        )
+        aci.execute(None)
+
+        assert aci_mock.return_value.create_or_update.call_count == 1
+        (called_rg, called_cn, called_cg), _ = aci_mock.return_value.create_or_update.call_args
+
+        assert called_rg == "resource-group"
+        assert called_cn == "container-name"
+
+        assert called_cg.location == "region"
+        assert called_cg.image_registry_credentials is None
+        assert called_cg.restart_policy == "Never"
+        assert called_cg.os_type == "Linux"
+        assert called_cg.priority == "Spot"
+
+        called_cg_container = called_cg.containers[0]
+        assert called_cg_container.name == "container-name"
+        assert called_cg_container.image == "container-image"
+
+        assert aci_mock.return_value.delete.call_count == 1
+
+
+class XcomMock:
+    def __init__(self) -> None:
+        self.values: MutableMapping[str, Any | None] = {}
+
+    def xcom_push(self, key: str, value: Any | None) -> None:
+        self.values[key] = value
+
+    def xcom_pull(self, key: str) -> Any:
+        return self.values[key]

@@ -21,7 +21,7 @@ import json
 import uuid
 from json import JSONEncoder
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from attrs import define
@@ -30,10 +30,14 @@ from pkg_resources import parse_version
 
 from airflow.models import DAG as AIRFLOW_DAG, DagModel
 from airflow.operators.bash import BashOperator
+from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.utils.utils import (
     InfoJsonEncodable,
     OpenLineageRedactor,
+    _get_all_packages_installed,
     _is_name_redactable,
+    get_airflow_debug_facet,
+    get_airflow_run_facet,
     get_fully_qualified_class_name,
     is_operator_disabled,
 )
@@ -54,11 +58,32 @@ class SafeStrDict(dict):
         return str(dict(castable))
 
 
+@patch("airflow.providers.openlineage.utils.utils.metadata.distributions")
+def test_get_all_packages_installed(mock_distributions):
+    mock_distributions.return_value = [MagicMock(metadata={"Name": "package1"}, version="1.0.0")]
+    assert _get_all_packages_installed() == {"package1": "1.0.0"}
+
+
+@patch("airflow.providers.openlineage.utils.utils.conf.debug_mode", return_value=False)
+def test_get_airflow_debug_facet_not_in_debug_mode(mock_debug_mode):
+    assert get_airflow_debug_facet() == {}
+
+
+@patch("airflow.providers.openlineage.utils.utils._get_all_packages_installed")
+@patch("airflow.providers.openlineage.utils.utils.conf.debug_mode")
+def test_get_airflow_debug_facet_logging_set_to_debug(mock_debug_mode, mock_get_packages):
+    mock_debug_mode.return_value = True
+    mock_get_packages.return_value = {"package1": "1.0.0"}
+    result = get_airflow_debug_facet()
+    expected_result = {"debug": AirflowDebugRunFacet(packages={"package1": "1.0.0"})}
+    assert result == expected_result
+
+
 @pytest.mark.db_test
 def test_get_dagrun_start_end():
     start_date = datetime.datetime(2022, 1, 1)
     end_date = datetime.datetime(2022, 1, 1, hour=2)
-    dag = AIRFLOW_DAG("test", start_date=start_date, end_date=end_date, schedule_interval="@once")
+    dag = AIRFLOW_DAG("test", start_date=start_date, end_date=end_date, schedule="@once")
     AIRFLOW_DAG.bulk_write_to_db([dag])
     dag_model = DagModel.get_dagmodel(dag.dag_id)
     run_id = str(uuid.uuid1())
@@ -101,6 +126,28 @@ def test_info_json_encodable():
         casts = {"iwanttobeint": lambda x: int(x.imastring)}
         renames = {"_faulty_name": "goody_name"}
 
+    @define
+    class Test:
+        exclude_1: str
+        imastring: str
+        _faulty_name: str
+        donotcare: str
+
+    obj = Test("val", "123", "not_funny", "abc")
+
+    assert json.loads(json.dumps(TestInfo(obj))) == {
+        "iwanttobeint": 123,
+        "goody_name": "not_funny",
+        "donotcare": "abc",
+    }
+
+
+def test_info_json_encodable_without_slots():
+    class TestInfo(InfoJsonEncodable):
+        excludes = ["exclude_1", "exclude_2", "imastring"]
+        casts = {"iwanttobeint": lambda x: int(x.imastring)}
+        renames = {"_faulty_name": "goody_name"}
+
     @define(slots=False)
     class Test:
         exclude_1: str
@@ -115,6 +162,32 @@ def test_info_json_encodable():
         "goody_name": "not_funny",
         "donotcare": "abc",
     }
+
+
+def test_info_json_encodable_list_does_not_flatten():
+    class TestInfo(InfoJsonEncodable):
+        includes = ["alist"]
+
+    @define
+    class Test:
+        alist: list[str]
+
+    obj = Test(["a", "b", "c"])
+
+    assert json.loads(json.dumps(TestInfo(obj))) == {"alist": ["a", "b", "c"]}
+
+
+def test_info_json_encodable_list_does_include_nonexisting():
+    class TestInfo(InfoJsonEncodable):
+        includes = ["exists", "doesnotexist"]
+
+    @define
+    class Test:
+        exists: str
+
+    obj = Test("something")
+
+    assert json.loads(json.dumps(TestInfo(obj))) == {"exists": "something"}
 
 
 def test_is_name_redactable():
@@ -164,7 +237,7 @@ def test_redact_with_exclusions(monkeypatch):
             self.password = "passwd"
             self.transparent = "123"
 
-    @define(slots=False)
+    @define
     class NestedMixined(RedactMixin):
         _skip_redact = ["nested_field"]
         password: str
@@ -201,3 +274,39 @@ def test_is_operator_disabled(mock_disabled_operators):
         "airflow.operators.python.PythonOperator",
     }
     assert is_operator_disabled(op) is True
+
+
+@patch("airflow.providers.openlineage.conf.include_full_task_info")
+def test_includes_full_task_info(mock_include_full_task_info):
+    mock_include_full_task_info.return_value = True
+    # There should be no 'bash_command' in excludes and it's not in includes - so
+    # it's a good choice for checking TaskInfo vs TaskInfoComplete
+    assert (
+        "bash_command"
+        in get_airflow_run_facet(
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            BashOperator(task_id="bash_op", bash_command="sleep 1"),
+            MagicMock(),
+        )["airflow"].task
+    )
+
+
+@patch("airflow.providers.openlineage.conf.include_full_task_info")
+def test_does_not_include_full_task_info(mock_include_full_task_info):
+    from airflow.operators.bash import BashOperator
+
+    mock_include_full_task_info.return_value = False
+    # There should be no 'bash_command' in excludes and it's not in includes - so
+    # it's a good choice for checking TaskInfo vs TaskInfoComplete
+    assert (
+        "bash_command"
+        not in get_airflow_run_facet(
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            BashOperator(task_id="bash_op", bash_command="sleep 1"),
+            MagicMock(),
+        )["airflow"].task
+    )

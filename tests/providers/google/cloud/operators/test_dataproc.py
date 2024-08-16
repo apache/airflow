@@ -19,6 +19,7 @@ from __future__ import annotations
 import inspect
 from unittest import mock
 from unittest.mock import MagicMock, Mock, call
+from uuid import UUID
 
 import pytest
 from google.api_core.exceptions import AlreadyExists, NotFound
@@ -78,12 +79,12 @@ from airflow.providers.google.cloud.triggers.dataproc import (
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.timezone import datetime
-from airflow.version import version as airflow_version
+from tests.test_utils.compat import AIRFLOW_VERSION
 from tests.test_utils.db import clear_db_runs, clear_db_xcom
 
-cluster_params = inspect.signature(ClusterGenerator.__init__).parameters
+AIRFLOW_VERSION_LABEL = "v" + str(AIRFLOW_VERSION).replace(".", "-").replace("+", "-")
 
-AIRFLOW_VERSION = "v" + airflow_version.replace(".", "-").replace("+", "-")
+cluster_params = inspect.signature(ClusterGenerator.__init__).parameters
 
 DATAPROC_PATH = "airflow.providers.google.cloud.operators.dataproc.{}"
 DATAPROC_TRIGGERS_PATH = "airflow.providers.google.cloud.triggers.dataproc.{}"
@@ -324,9 +325,9 @@ CONFIG_WITH_GPU_ACCELERATOR = {
     "endpoint_config": {},
 }
 
-LABELS = {"labels": "data", "airflow-version": AIRFLOW_VERSION}
+LABELS = {"labels": "data", "airflow-version": AIRFLOW_VERSION_LABEL}
 
-LABELS.update({"airflow-version": "v" + airflow_version.replace(".", "-").replace("+", "-")})
+LABELS.update({"airflow-version": AIRFLOW_VERSION_LABEL})
 
 CLUSTER = {"project_id": "project_id", "cluster_name": CLUSTER_NAME, "config": CONFIG, "labels": LABELS}
 
@@ -412,7 +413,11 @@ class DataprocTestBase:
     @classmethod
     def setup_class(cls):
         cls.dagbag = DagBag(dag_folder="/dev/null", include_examples=False)
-        cls.dag = DAG(TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id=TEST_DAG_ID,
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
 
     def setup_method(self):
         self.mock_ti = MagicMock()
@@ -1063,11 +1068,10 @@ def test_create_cluster_operator_extra_links(dag_maker, create_task_instance_of_
     serialized_dag = dag_maker.get_serialized_data()
     deserialized_dag = SerializedDAG.from_dict(serialized_dag)
     deserialized_task = deserialized_dag.task_dict[TASK_ID]
-
     # Assert operator links for serialized DAG
-    assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
-        {"airflow.providers.google.cloud.links.dataproc.DataprocClusterLink": {}}
-    ]
+    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+    operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
+    assert operator_extra_link.name == "Dataproc Cluster"
 
     # Assert operator link types are preserved during deserialization
     assert isinstance(deserialized_task.operator_extra_links[0], DataprocClusterLink)
@@ -1167,9 +1171,9 @@ def test_scale_cluster_operator_extra_links(dag_maker, create_task_instance_of_o
     deserialized_task = deserialized_dag.task_dict[TASK_ID]
 
     # Assert operator links for serialized DAG
-    assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
-        {"airflow.providers.google.cloud.links.dataproc.DataprocLink": {}}
-    ]
+    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+    operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
+    assert operator_extra_link.name == "Dataproc resource"
 
     # Assert operator link types are preserved during deserialization
     assert isinstance(deserialized_task.operator_extra_links[0], DataprocLink)
@@ -1561,10 +1565,10 @@ def test_submit_job_operator_extra_links(mock_hook, dag_maker, create_task_insta
     deserialized_dag = SerializedDAG.from_dict(serialized_dag)
     deserialized_task = deserialized_dag.task_dict[TASK_ID]
 
-    # Assert operator links for serialized_dag
-    assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
-        {"airflow.providers.google.cloud.links.dataproc.DataprocJobLink": {}}
-    ]
+    # Assert operator links for serialized DAG
+    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+    operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
+    assert operator_extra_link.name == "Dataproc Job"
 
     # Assert operator link types are preserved during deserialization
     assert isinstance(deserialized_task.operator_extra_links[0], DataprocJobLink)
@@ -1766,10 +1770,10 @@ def test_update_cluster_operator_extra_links(dag_maker, create_task_instance_of_
     deserialized_dag = SerializedDAG.from_dict(serialized_dag)
     deserialized_task = deserialized_dag.task_dict[TASK_ID]
 
-    # Assert operator links for serialized_dag
-    assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
-        {"airflow.providers.google.cloud.links.dataproc.DataprocClusterLink": {}}
-    ]
+    # Assert operator links for serialized DAG
+    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+    operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
+    assert operator_extra_link.name == "Dataproc Cluster"
 
     # Assert operator link types are preserved during deserialization
     assert isinstance(deserialized_task.operator_extra_links[0], DataprocClusterLink)
@@ -1988,10 +1992,10 @@ def test_instantiate_workflow_operator_extra_links(mock_hook, dag_maker, create_
     deserialized_dag = SerializedDAG.from_dict(serialized_dag)
     deserialized_task = deserialized_dag.task_dict[TASK_ID]
 
-    # Assert operator links for serialized_dag
-    assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
-        {"airflow.providers.google.cloud.links.dataproc.DataprocWorkflowLink": {}}
-    ]
+    # Assert operator links for serialized DAG
+    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+    operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
+    assert operator_extra_link.name == "Dataproc Workflow"
 
     # Assert operator link types are preserved during deserialization
     assert isinstance(deserialized_task.operator_extra_links[0], DataprocWorkflowLink)
@@ -2150,10 +2154,10 @@ def test_instantiate_inline_workflow_operator_extra_links(
     deserialized_dag = SerializedDAG.from_dict(serialized_dag)
     deserialized_task = deserialized_dag.task_dict[TASK_ID]
 
-    # Assert operator links for serialized_dag
-    assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
-        {"airflow.providers.google.cloud.links.dataproc.DataprocWorkflowLink": {}}
-    ]
+    # Assert operator links for serialized DAG
+    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+    operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
+    assert operator_extra_link.name == "Dataproc Workflow"
 
     # Assert operator link types are preserved during deserialization
     assert isinstance(deserialized_task.operator_extra_links[0], DataprocWorkflowLink)
@@ -2181,7 +2185,7 @@ class TestDataProcHiveOperator:
     job = {
         "reference": {"project_id": GCP_PROJECT, "job_id": f"{job_name}_{job_id}"},
         "placement": {"cluster_name": "cluster-1"},
-        "labels": {"airflow-version": AIRFLOW_VERSION},
+        "labels": {"airflow-version": AIRFLOW_VERSION_LABEL},
         "hive_job": {"query_list": {"queries": [query]}, "script_variables": variables},
     }
 
@@ -2243,7 +2247,7 @@ class TestDataProcPigOperator:
     job = {
         "reference": {"project_id": GCP_PROJECT, "job_id": f"{job_name}_{job_id}"},
         "placement": {"cluster_name": "cluster-1"},
-        "labels": {"airflow-version": AIRFLOW_VERSION},
+        "labels": {"airflow-version": AIRFLOW_VERSION_LABEL},
         "pig_job": {"query_list": {"queries": [query]}, "script_variables": variables},
     }
 
@@ -2305,13 +2309,13 @@ class TestDataProcSparkSqlOperator:
     job = {
         "reference": {"project_id": GCP_PROJECT, "job_id": f"{job_name}_{job_id}"},
         "placement": {"cluster_name": "cluster-1"},
-        "labels": {"airflow-version": AIRFLOW_VERSION},
+        "labels": {"airflow-version": AIRFLOW_VERSION_LABEL},
         "spark_sql_job": {"query_list": {"queries": [query]}, "script_variables": variables},
     }
     other_project_job = {
         "reference": {"project_id": "other-project", "job_id": f"{job_name}_{job_id}"},
         "placement": {"cluster_name": "cluster-1"},
-        "labels": {"airflow-version": AIRFLOW_VERSION},
+        "labels": {"airflow-version": AIRFLOW_VERSION_LABEL},
         "spark_sql_job": {"query_list": {"queries": [query]}, "script_variables": variables},
     }
 
@@ -2409,7 +2413,7 @@ class TestDataProcSparkOperator(DataprocJobTestBase):
             "job_id": f"{job_name}_{TEST_JOB_ID}",
         },
         "placement": {"cluster_name": "cluster-1"},
-        "labels": {"airflow-version": AIRFLOW_VERSION},
+        "labels": {"airflow-version": AIRFLOW_VERSION_LABEL},
         "spark_job": {"jar_file_uris": jars, "main_class": main_class},
     }
 
@@ -2472,9 +2476,9 @@ def test_submit_spark_job_operator_extra_links(mock_hook, dag_maker, create_task
     deserialized_task = deserialized_dag.task_dict[TASK_ID]
 
     # Assert operator links for serialized DAG
-    assert serialized_dag["dag"]["tasks"][0]["__var"]["_operator_extra_links"] == [
-        {"airflow.providers.google.cloud.links.dataproc.DataprocLink": {}}
-    ]
+    deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+    operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
+    assert operator_extra_link.name == "Dataproc resource"
 
     # Assert operator link types are preserved during deserialization
     assert isinstance(deserialized_task.operator_extra_links[0], DataprocLink)
@@ -2503,7 +2507,7 @@ class TestDataProcHadoopOperator:
     job = {
         "reference": {"project_id": GCP_PROJECT, "job_id": f"{job_name}_{job_id}"},
         "placement": {"cluster_name": "cluster-1"},
-        "labels": {"airflow-version": AIRFLOW_VERSION},
+        "labels": {"airflow-version": AIRFLOW_VERSION_LABEL},
         "hadoop_job": {"main_jar_file_uri": jar, "args": args},
     }
 
@@ -2541,7 +2545,7 @@ class TestDataProcPySparkOperator:
     job = {
         "reference": {"project_id": GCP_PROJECT, "job_id": f"{job_name}_{job_id}"},
         "placement": {"cluster_name": "cluster-1"},
-        "labels": {"airflow-version": AIRFLOW_VERSION},
+        "labels": {"airflow-version": AIRFLOW_VERSION_LABEL},
         "pyspark_job": {"main_python_file_uri": uri},
     }
 
@@ -2566,6 +2570,25 @@ class TestDataProcPySparkOperator:
         )
         job = op.generate_job()
         assert self.job == job
+
+    @pytest.mark.parametrize(
+        "filename",
+        [
+            pytest.param("/foo/bar/baz.py", id="absolute"),
+            pytest.param("foo/bar/baz.py", id="relative"),
+            pytest.param("baz.py", id="base-filename"),
+            pytest.param(r"C:\foo\bar\baz.py", id="windows-path"),
+        ],
+    )
+    def test_generate_temp_filename(self, filename, time_machine):
+        time_machine.move_to(datetime(2024, 2, 29, 1, 2, 3), tick=False)
+        with mock.patch(
+            DATAPROC_PATH.format("uuid.uuid4"), return_value=UUID("12345678-0000-4000-0000-000000000000")
+        ):
+            assert (
+                DataprocSubmitPySparkJobOperator._generate_temp_filename(filename)
+                == "20240229010203_12345678_baz.py"
+            )
 
 
 class TestDataprocCreateWorkflowTemplateOperator:

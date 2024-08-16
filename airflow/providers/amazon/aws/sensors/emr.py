@@ -24,7 +24,10 @@ from typing import TYPE_CHECKING, Any, Iterable, Sequence
 from deprecated import deprecated
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import (
+    AirflowException,
+    AirflowProviderDeprecationWarning,
+)
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink, EmrLogsLink, get_log_uri
 from airflow.providers.amazon.aws.triggers.emr import (
@@ -87,11 +90,7 @@ class EmrBaseSensor(BaseSensorOperator):
             return True
 
         if state in self.failed_states:
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-            message = f"EMR job failed: {self.failure_message_from_response(response)}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
-            raise AirflowException(message)
+            raise AirflowException(f"EMR job failed: {self.failure_message_from_response(response)}")
 
         return False
 
@@ -168,11 +167,9 @@ class EmrServerlessJobSensor(BaseSensorOperator):
         state = response["jobRun"]["state"]
 
         if state in EmrServerlessHook.JOB_FAILURE_STATES:
-            failure_message = f"EMR Serverless job failed: {self.failure_message_from_response(response)}"
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-            if self.soft_fail:
-                raise AirflowSkipException(failure_message)
-            raise AirflowException(failure_message)
+            raise AirflowException(
+                f"EMR Serverless job failed: {self.failure_message_from_response(response)}"
+            )
 
         return state in self.target_states
 
@@ -230,11 +227,9 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
         state = response["application"]["state"]
 
         if state in EmrServerlessHook.APPLICATION_FAILURE_STATES:
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-            failure_message = f"EMR Serverless job failed: {self.failure_message_from_response(response)}"
-            if self.soft_fail:
-                raise AirflowSkipException(failure_message)
-            raise AirflowException(failure_message)
+            raise AirflowException(
+                f"EMR Serverless application failed: {self.failure_message_from_response(response)}"
+            )
 
         return state in self.target_states
 
@@ -322,11 +317,7 @@ class EmrContainerSensor(BaseSensorOperator):
         )
 
         if state in self.FAILURE_STATES:
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-            message = "EMR Containers sensor failed"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
-            raise AirflowException(message)
+            raise AirflowException("EMR Containers sensor failed")
 
         if state in self.INTERMEDIATE_STATES:
             return False
@@ -348,6 +339,14 @@ class EmrContainerSensor(BaseSensorOperator):
                     job_id=self.job_id,
                     aws_conn_id=self.aws_conn_id,
                     waiter_delay=self.poll_interval,
+                    waiter_max_attempts=self.max_retries,
+                )
+                if self.max_retries
+                else EmrContainerTrigger(
+                    virtual_cluster_id=self.virtual_cluster_id,
+                    job_id=self.job_id,
+                    aws_conn_id=self.aws_conn_id,
+                    waiter_delay=self.poll_interval,
                 ),
                 method_name="execute_complete",
             )
@@ -356,11 +355,7 @@ class EmrContainerSensor(BaseSensorOperator):
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-            message = f"Error while running job: {event}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
-            raise AirflowException(message)
+            raise AirflowException(f"Error while running job: {event}")
 
         self.log.info("Job completed.")
 
@@ -549,11 +544,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-            message = f"Error while running job: {event}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
-            raise AirflowException(message)
+            raise AirflowException(f"Error while running job: {event}")
         self.log.info("Job completed.")
 
 
@@ -682,10 +673,6 @@ class EmrStepSensor(EmrBaseSensor):
         event = validate_execute_complete_event(event)
 
         if event["status"] != "success":
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-            message = f"Error while running job: {event}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
-            raise AirflowException(message)
+            raise AirflowException(f"Error while running job: {event}")
 
         self.log.info("Job %s completed.", self.job_flow_id)

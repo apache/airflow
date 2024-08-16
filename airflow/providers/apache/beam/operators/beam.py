@@ -92,7 +92,8 @@ class BeamDataflowMixin(metaclass=ABCMeta):
 
     def __get_dataflow_job_name(self) -> str:
         return DataflowHook.build_dataflow_job_name(
-            self.dataflow_config.job_name, self.dataflow_config.append_job_name
+            self.dataflow_config.job_name,  # type: ignore
+            self.dataflow_config.append_job_name,
         )
 
     def __get_dataflow_pipeline_options(
@@ -193,6 +194,9 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
             self.dataflow_config = DataflowConfiguration(**self.dataflow_config)
         else:
             self.dataflow_config = self.dataflow_config or DataflowConfiguration()
+
+        if not self.dataflow_config.job_name:
+            self.dataflow_config.job_name = self.task_id
 
         if self.dataflow_config and self.runner.lower() != BeamRunnerType.DataflowRunner.lower():
             self.log.warning(
@@ -546,7 +550,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
         if not self.beam_hook:
             raise AirflowException("Beam hook is not defined.")
         if self.deferrable:
-            asyncio.run(self.execute_async(context))
+            self.execute_async(context)
         else:
             return self.execute_sync(context)
 
@@ -605,23 +609,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                     process_line_callback=self.process_line_callback,
                 )
 
-    async def execute_async(self, context: Context):
-        # Creating a new event loop to manage I/O operations asynchronously
-        loop = asyncio.get_event_loop()
-        if self.jar.lower().startswith("gs://"):
-            gcs_hook = GCSHook(self.gcp_conn_id)
-            # Running synchronous `enter_context()` method in a separate
-            # thread using the default executor `None`. The `run_in_executor()` function returns the
-            # file object, which is created using gcs function `provide_file()`, asynchronously.
-            # This means we can perform asynchronous operations with this file.
-            create_tmp_file_call = gcs_hook.provide_file(object_url=self.jar)
-            tmp_gcs_file: IO[str] = await loop.run_in_executor(
-                None,
-                contextlib.ExitStack().enter_context,  # type: ignore[arg-type]
-                create_tmp_file_call,
-            )
-            self.jar = tmp_gcs_file.name
-
+    def execute_async(self, context: Context):
         if self.is_dataflow and self.dataflow_hook:
             DataflowJobLink.persist(
                 self,
@@ -657,6 +645,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                     job_class=self.job_class,
                     runner=self.runner,
                     check_if_running=self.dataflow_config.check_if_running == CheckJobRunning.WaitForRun,
+                    gcp_conn_id=self.gcp_conn_id,
                 ),
                 method_name="execute_complete",
             )

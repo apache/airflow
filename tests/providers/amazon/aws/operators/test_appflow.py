@@ -54,12 +54,14 @@ AppflowBaseOperator.UPDATE_PROPAGATION_TIME = 0  # avoid wait
 
 @pytest.mark.db_test
 @pytest.fixture
-def ctx(create_task_instance):
+def ctx(create_task_instance, session):
     ti = create_task_instance(
         dag_id=DAG_ID,
         task_id=TASK_ID,
         schedule="0 12 * * *",
     )
+    session.add(ti)
+    session.commit()
     return {"task_instance": ti}
 
 
@@ -114,7 +116,9 @@ def run_assertions_base(appflow_conn, tasks):
 
 @pytest.mark.db_test
 def test_run(appflow_conn, ctx, waiter_mock):
-    operator = AppflowRunOperator(**DUMP_COMMON_ARGS)
+    args = DUMP_COMMON_ARGS.copy()
+    args.pop("source")
+    operator = AppflowRunOperator(**args)
     operator.execute(ctx)  # type: ignore
     appflow_conn.start_flow.assert_called_once_with(flowName=FLOW_NAME)
     appflow_conn.describe_flow_execution_records.assert_called_once()
@@ -224,7 +228,11 @@ def test_short_circuit(appflow_conn, ctx):
             id="run-daily-op",
         ),
         pytest.param(AppflowRunFullOperator, DUMP_COMMON_ARGS, id="run-full-op"),
-        pytest.param(AppflowRunOperator, DUMP_COMMON_ARGS, id="run-op"),
+        pytest.param(
+            AppflowRunOperator,
+            dict((i, DUMP_COMMON_ARGS[i]) for i in DUMP_COMMON_ARGS if i != "source"),
+            id="run-op",
+        ),
         pytest.param(
             AppflowRecordsShortCircuitOperator,
             dict(task_id=SHORT_CIRCUIT_TASK_ID, flow_name=FLOW_NAME, appflow_run_task_id=TASK_ID),

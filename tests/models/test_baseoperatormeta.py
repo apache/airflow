@@ -24,9 +24,10 @@ from unittest.mock import patch
 import pytest
 
 from airflow.configuration import conf
+from airflow.decorators import task
 from airflow.exceptions import AirflowException, AirflowRescheduleException, AirflowSkipException
 from airflow.models.baseoperator import BaseOperator, ExecutorSafeguard
-from airflow.operators.python import PythonOperator, task
+from airflow.operators.python import PythonOperator
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, State
 
@@ -46,6 +47,7 @@ class TestExecutorSafeguard:
     def teardown_method(self, method):
         ExecutorSafeguard.test_mode = conf.getboolean("core", "unit_test_mode")
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.db_test
     def test_executor_when_classic_operator_called_from_dag(self, dag_maker):
         with dag_maker() as dag:
@@ -54,6 +56,7 @@ class TestExecutorSafeguard:
         dag_run = dag.test()
         assert dag_run.state == DagRunState.SUCCESS
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.parametrize(
         "state, exception, retries",
         [
@@ -100,6 +103,7 @@ class TestExecutorSafeguard:
         assert ti.next_kwargs is None
         assert ti.state == state
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.db_test
     def test_executor_when_classic_operator_called_from_decorated_task_with_allow_nested_operators_false(
         self, dag_maker
@@ -116,6 +120,7 @@ class TestExecutorSafeguard:
         dag_run = dag.test()
         assert dag_run.state == DagRunState.FAILED
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.db_test
     @patch.object(HelloWorldOperator, "log")
     def test_executor_when_classic_operator_called_from_decorated_task_without_allow_nested_operators(
@@ -138,6 +143,7 @@ class TestExecutorSafeguard:
             "HelloWorldOperator.execute cannot be called outside TaskInstance!"
         )
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.db_test
     def test_executor_when_classic_operator_called_from_python_operator_with_allow_nested_operators_false(
         self,
@@ -158,6 +164,7 @@ class TestExecutorSafeguard:
         dag_run = dag.test()
         assert dag_run.state == DagRunState.FAILED
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.db_test
     @patch.object(HelloWorldOperator, "log")
     def test_executor_when_classic_operator_called_from_python_operator_without_allow_nested_operators(

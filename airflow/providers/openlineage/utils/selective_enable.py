@@ -32,7 +32,8 @@ log = logging.getLogger(__name__)
 
 
 def enable_lineage(obj: T) -> T:
-    """Set selective enable OpenLineage parameter to True.
+    """
+    Set selective enable OpenLineage parameter to True.
 
     The method also propagates param to tasks if the object is DAG.
     """
@@ -48,7 +49,8 @@ def enable_lineage(obj: T) -> T:
 
 
 def disable_lineage(obj: T) -> T:
-    """Set selective enable OpenLineage parameter to False.
+    """
+    Set selective enable OpenLineage parameter to False.
 
     The method also propagates param to tasks if the object is DAG.
     """
@@ -73,7 +75,8 @@ def is_task_lineage_enabled(task: Operator) -> bool:
 
 
 def is_dag_lineage_enabled(dag: DAG) -> bool:
-    """Check if DAG is selectively enabled to emit OpenLineage events.
+    """
+    Check if DAG is selectively enabled to emit OpenLineage events.
 
     The method also checks if selective enable parameter is set to True
     or if any of the tasks in DAG is selectively enabled.

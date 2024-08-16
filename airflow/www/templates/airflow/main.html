@@ -114,7 +114,6 @@
 
 {% block tail_js %}
   {{ super() }}
-
   <script>
     // below variables are used in main.js
     // keep as var, changing to const or let breaks other code
@@ -130,6 +129,7 @@
   <script src="{{ url_for_asset('main.js') }}"></script>
   <script src="{{ url_for_asset('bootstrap-datetimepicker.min.js') }}"></script>
   <script src="{{ url_for_asset('bootstrap3-typeahead.min.js') }}"></script>
+  <script src="{{ url_for_asset('toggleTheme.js') }}"></script>
 
   {% if analytics_tool is defined and analytics_tool %}
     {% include "analytics/" + analytics_tool + ".html" %}

@@ -21,14 +21,17 @@ import contextlib
 import os
 import sys
 import tempfile
+from argparse import Namespace
 from unittest import mock
 from unittest.mock import MagicMock, call, patch
 
 import pytest
 
+from airflow.__main__ import configure_internal_api
 from airflow.api_internal.internal_api_call import InternalApiConfig
+from airflow.configuration import conf
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowConfigException
-from airflow.settings import _ENABLE_AIP_44, TracebackSession
+from airflow.settings import _ENABLE_AIP_44, TracebackSession, is_usage_data_collection_enabled
 from airflow.utils.session import create_session
 from tests.test_utils.config import conf_vars
 
@@ -67,12 +70,21 @@ def task_must_have_owners(task: BaseOperator):
 
 @pytest.fixture
 def clear_internal_api():
+    InternalApiConfig._use_internal_api = False
+    InternalApiConfig._internal_api_endpoint = ""
+    from airflow import settings
+
+    old_engine = settings.engine
+    old_session = settings.Session
+    old_conn = settings.SQL_ALCHEMY_CONN
     try:
         yield
     finally:
-        InternalApiConfig._initialized = False
-        InternalApiConfig._use_internal_api = None
-        InternalApiConfig._internal_api_endpoint = None
+        InternalApiConfig._use_internal_api = False
+        InternalApiConfig._internal_api_endpoint = ""
+        settings.engine = old_engine
+        settings.Session = old_session
+        settings.SQL_ALCHEMY_CONN = old_conn
 
 
 class SettingsContext:
@@ -230,14 +242,24 @@ class TestUpdatedConfigNames:
         assert session_lifetime_config == default_timeout_minutes
 
 
+_local_db_path_error = pytest.raises(AirflowConfigException, match=r"Cannot use relative path:")
+
+
 @pytest.mark.parametrize(
     ["value", "expectation"],
     [
-        (
-            "sqlite:///./relative_path.db",
-            pytest.raises(AirflowConfigException, match=r"Cannot use relative path:"),
+        ("sqlite:///./relative_path.db", _local_db_path_error),
+        ("sqlite:///relative/path.db", _local_db_path_error),
+        pytest.param(
+            "sqlite:///C:/path/to/db",
+            _local_db_path_error,
+            marks=pytest.mark.skipif(sys.platform.startswith("win"), reason="Skip on Windows"),
         ),
-        # Should not raise an exception
+        pytest.param(
+            r"sqlite:///C:\path\to\db",
+            _local_db_path_error,
+            marks=pytest.mark.skipif(sys.platform.startswith("win"), reason="Skip on Windows"),
+        ),
         ("sqlite://", contextlib.nullcontext()),
     ],
 )
@@ -284,11 +306,11 @@ class TestEngineArgs:
     {
         ("core", "database_access_isolation"): "true",
         ("core", "internal_api_url"): "http://localhost:8888",
+        ("database", "sql_alchemy_conn"): "none://",
     }
 )
 def test_get_traceback_session_if_aip_44_enabled(clear_internal_api):
-    # ensure we take the database_access_isolation config
-    InternalApiConfig._init_values()
+    configure_internal_api(Namespace(subcommand="worker"), conf)
     assert InternalApiConfig.get_use_internal_api() is True
 
     with create_session() as session:
@@ -309,14 +331,15 @@ def test_get_traceback_session_if_aip_44_enabled(clear_internal_api):
     {
         ("core", "database_access_isolation"): "true",
         ("core", "internal_api_url"): "http://localhost:8888",
+        ("database", "sql_alchemy_conn"): "none://",
     }
 )
 @patch("airflow.utils.session.TracebackSession.__new__")
 def test_create_session_ctx_mgr_no_call_methods(mock_new, clear_internal_api):
+    configure_internal_api(Namespace(subcommand="worker"), conf)
     m = MagicMock()
     mock_new.return_value = m
-    # ensure we take the database_access_isolation config
-    InternalApiConfig._init_values()
+
     assert InternalApiConfig.get_use_internal_api() is True
 
     with create_session() as session:
@@ -324,3 +347,26 @@ def test_create_session_ctx_mgr_no_call_methods(mock_new, clear_internal_api):
         assert session == m
     method_calls = [x[0] for x in m.method_calls]
     assert method_calls == []  # commit and close not called when using internal API
+
+
+@pytest.mark.parametrize(
+    "env_var, conf_setting, is_enabled",
+    [
+        ("false", "True", False),  # env forces disable
+        ("false", "False", False),  # Both force disable
+        ("False ", "False", False),  # Both force disable
+        ("true", "True", True),  # Both enable
+        ("true", "False", False),  # Conf forces disable
+        (None, "True", True),  # Default env, conf enables
+        (None, "False", False),  # Default env, conf disables
+    ],
+)
+def test_usage_data_collection_disabled(env_var, conf_setting, is_enabled, clear_internal_api):
+    conf_patch = conf_vars({("usage_data_collection", "enabled"): conf_setting})
+
+    if env_var is not None:
+        with conf_patch, patch.dict(os.environ, {"SCARF_ANALYTICS": env_var}):
+            assert is_usage_data_collection_enabled() == is_enabled
+    else:
+        with conf_patch:
+            assert is_usage_data_collection_enabled() == is_enabled

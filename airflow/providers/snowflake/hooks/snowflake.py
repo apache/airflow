@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 from contextlib import closing, contextmanager
+from functools import cached_property
 from io import StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, TypeVar, overload
@@ -33,6 +34,7 @@ from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
+from airflow.providers.snowflake.utils.openlineage import fix_snowflake_sqlalchemy_uri
 from airflow.utils.strings import to_boolean
 
 T = TypeVar("T")
@@ -48,7 +50,8 @@ def _try_to_boolean(value: Any):
 
 
 class SnowflakeHook(DbApiHook):
-    """A client to interact with Snowflake.
+    """
+    A client to interact with Snowflake.
 
     This hook requires the snowflake_conn_id connection. The snowflake account, login,
     and, password field must be setup in the connection. Other inputs can be defined
@@ -126,6 +129,7 @@ class SnowflakeHook(DbApiHook):
                         "authenticator": "snowflake oauth",
                         "private_key_file": "private key",
                         "session_parameters": "session parameters",
+                        "client_request_mfa_token": "client request mfa token",
                     },
                     indent=1,
                 ),
@@ -153,6 +157,7 @@ class SnowflakeHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self.authenticator = kwargs.pop("authenticator", None)
         self.session_parameters = kwargs.pop("session_parameters", None)
+        self.client_request_mfa_token = kwargs.pop("client_request_mfa_token", None)
         self.query_ids: list[str] = []
 
     def _get_field(self, extra_dict, field_name):
@@ -177,8 +182,10 @@ class SnowflakeHook(DbApiHook):
             return extra_dict[field_name] or None
         return extra_dict.get(backcompat_key) or None
 
+    @cached_property
     def _get_conn_params(self) -> dict[str, str | None]:
-        """Fetch connection params as a dict.
+        """
+        Fetch connection params as a dict.
 
         This is used in ``get_uri()`` and ``get_connection()``.
         """
@@ -191,6 +198,7 @@ class SnowflakeHook(DbApiHook):
         role = self._get_field(extra_dict, "role") or ""
         insecure_mode = _try_to_boolean(self._get_field(extra_dict, "insecure_mode"))
         schema = conn.schema or ""
+        client_request_mfa_token = _try_to_boolean(self._get_field(extra_dict, "client_request_mfa_token"))
 
         # authenticator and session_parameters never supported long name so we don't use _get_field
         authenticator = extra_dict.get("authenticator", "snowflake")
@@ -212,6 +220,9 @@ class SnowflakeHook(DbApiHook):
         }
         if insecure_mode:
             conn_config["insecure_mode"] = insecure_mode
+
+        if client_request_mfa_token:
+            conn_config["client_request_mfa_token"] = client_request_mfa_token
 
         # If private_key_file is specified in the extra json, load the contents of the file as a private key.
         # If private_key_content is specified in the extra json, use it as a private key.
@@ -269,7 +280,7 @@ class SnowflakeHook(DbApiHook):
 
     def get_uri(self) -> str:
         """Override DbApiHook get_uri method for get_sqlalchemy_engine()."""
-        conn_params = self._get_conn_params()
+        conn_params = self._get_conn_params
         return self._conn_params_to_sqlalchemy_uri(conn_params)
 
     def _conn_params_to_sqlalchemy_uri(self, conn_params: dict) -> str:
@@ -277,24 +288,27 @@ class SnowflakeHook(DbApiHook):
             **{
                 k: v
                 for k, v in conn_params.items()
-                if v and k not in ["session_parameters", "insecure_mode", "private_key"]
+                if v
+                and k
+                not in ["session_parameters", "insecure_mode", "private_key", "client_request_mfa_token"]
             }
         )
 
     def get_conn(self) -> SnowflakeConnection:
         """Return a snowflake.connection object."""
-        conn_config = self._get_conn_params()
+        conn_config = self._get_conn_params
         conn = connector.connect(**conn_config)
         return conn
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
-        """Get an sqlalchemy_engine object.
+        """
+        Get an sqlalchemy_engine object.
 
         :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
         :return: the created engine.
         """
         engine_kwargs = engine_kwargs or {}
-        conn_params = self._get_conn_params()
+        conn_params = self._get_conn_params
         if "insecure_mode" in conn_params:
             engine_kwargs.setdefault("connect_args", {})
             engine_kwargs["connect_args"]["insecure_mode"] = True
@@ -345,7 +359,8 @@ class SnowflakeHook(DbApiHook):
         return_last: bool = True,
         return_dictionaries: bool = False,
     ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
-        """Run a command or list of commands.
+        """
+        Run a command or list of commands.
 
         Pass a list of SQL statements to the SQL parameter to get them to
         execute sequentially. The result of the queries is returned if the
@@ -458,38 +473,21 @@ class SnowflakeHook(DbApiHook):
         return "snowflake"
 
     def get_openlineage_default_schema(self) -> str | None:
-        """
-        Attempt to get current schema.
+        return self._get_conn_params["schema"]
 
-        Usually ``SELECT CURRENT_SCHEMA();`` should work.
-        However, apparently you may set ``database`` without ``schema``
-        and get results from ``SELECT CURRENT_SCHEMAS();`` but not
-        from ``SELECT CURRENT_SCHEMA();``.
-        It still may return nothing if no database is set in connection.
-        """
-        schema = self._get_conn_params()["schema"]
-        if not schema:
-            current_schemas = self.get_first("SELECT PARSE_JSON(CURRENT_SCHEMAS())[0]::string;")[0]
-            if current_schemas:
-                _, schema = current_schemas.split(".")
-        return schema
-
-    def _get_openlineage_authority(self, _) -> str:
-        from openlineage.common.provider.snowflake import fix_snowflake_sqlalchemy_uri
-
+    def _get_openlineage_authority(self, _) -> str | None:
         uri = fix_snowflake_sqlalchemy_uri(self.get_uri())
         return urlparse(uri).hostname
 
     def get_openlineage_database_specific_lineage(self, _) -> OperatorLineage | None:
-        from openlineage.client.facet import ExternalQueryRunFacet
-
+        from airflow.providers.common.compat.openlineage.facet import ExternalQueryRunFacet
         from airflow.providers.openlineage.extractors import OperatorLineage
         from airflow.providers.openlineage.sqlparser import SQLParser
 
-        connection = self.get_connection(getattr(self, self.conn_name_attr))
-        namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
-
         if self.query_ids:
+            self.log.debug("openlineage: getting connection to get database info")
+            connection = self.get_connection(self.get_conn_id())
+            namespace = SQLParser.create_namespace(self.get_openlineage_database_info(connection))
             return OperatorLineage(
                 run_facets={
                     "externalQuery": ExternalQueryRunFacet(

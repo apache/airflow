@@ -26,6 +26,12 @@ from airflow.models.dag import DAG
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.sensors.sql import SqlSensor
 from airflow.utils.timezone import datetime
+from tests.test_utils.compat import AIRFLOW_V_2_9_PLUS
+
+pytestmark = [
+    pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Tests for Airflow 2.8.0+ only"),
+    pytest.mark.skip_if_database_isolation_mode,
+]
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = "unit_test_sql_dag"
@@ -34,7 +40,7 @@ TEST_DAG_ID = "unit_test_sql_dag"
 class TestSqlSensor:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG(TEST_DAG_ID, default_args=args)
+        self.dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
 
     @pytest.mark.db_test
     def test_unsupported_conn_type(self):
@@ -98,25 +104,25 @@ class TestSqlSensor:
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = []
-        assert not op.poke(None)
+        assert not op.poke({})
 
         mock_get_records.return_value = [[None]]
-        assert not op.poke(None)
+        assert not op.poke({})
 
         mock_get_records.return_value = [["None"]]
-        assert op.poke(None)
+        assert op.poke({})
 
         mock_get_records.return_value = [[0.0]]
-        assert not op.poke(None)
+        assert not op.poke({})
 
         mock_get_records.return_value = [[0]]
-        assert not op.poke(None)
+        assert not op.poke({})
 
         mock_get_records.return_value = [["0"]]
-        assert op.poke(None)
+        assert op.poke({})
 
         mock_get_records.return_value = [["1"]]
-        assert op.poke(None)
+        assert op.poke({})
 
     @pytest.mark.parametrize(
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
@@ -138,7 +144,7 @@ class TestSqlSensor:
 
         mock_get_records.return_value = []
         with pytest.raises(expected_exception):
-            op.poke(None)
+            op.poke({})
 
     @mock.patch("airflow.providers.common.sql.sensors.sql.BaseHook")
     def test_sql_sensor_postgres_poke_success(self, mock_hook):
@@ -150,13 +156,13 @@ class TestSqlSensor:
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = []
-        assert not op.poke(None)
+        assert not op.poke({})
 
         mock_get_records.return_value = [[1]]
-        assert op.poke(None)
+        assert op.poke({})
 
         mock_get_records.return_value = [["1"]]
-        assert not op.poke(None)
+        assert not op.poke({})
 
     @pytest.mark.parametrize(
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
@@ -177,11 +183,11 @@ class TestSqlSensor:
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = []
-        assert not op.poke(None)
+        assert not op.poke({})
 
         mock_get_records.return_value = [[1]]
         with pytest.raises(expected_exception):
-            op.poke(None)
+            op.poke({})
 
     @pytest.mark.parametrize(
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
@@ -203,14 +209,14 @@ class TestSqlSensor:
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = []
-        assert not op.poke(None)
+        assert not op.poke({})
 
         mock_get_records.return_value = [[1]]
         with pytest.raises(expected_exception):
-            op.poke(None)
+            op.poke({})
 
         mock_get_records.return_value = [[2]]
-        assert op.poke(None)
+        assert op.poke({})
 
     @pytest.mark.parametrize(
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
@@ -232,11 +238,11 @@ class TestSqlSensor:
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = []
-        assert not op.poke(None)
+        assert not op.poke({})
 
         mock_get_records.return_value = [[1]]
         with pytest.raises(expected_exception):
-            op.poke(None)
+            op.poke({})
 
     @pytest.mark.parametrize(
         "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
@@ -249,7 +255,7 @@ class TestSqlSensor:
             task_id="sql_sensor_check",
             conn_id="postgres_default",
             sql="SELECT 1",
-            failure=[1],
+            failure=[1],  # type: ignore[arg-type]
             soft_fail=soft_fail,
         )
 
@@ -258,7 +264,7 @@ class TestSqlSensor:
 
         mock_get_records.return_value = [[1]]
         with pytest.raises(expected_exception) as ctx:
-            op.poke(None)
+            op.poke({})
         assert "self.failure is present, but not callable -> [1]" == str(ctx.value)
 
     @pytest.mark.parametrize(
@@ -272,7 +278,7 @@ class TestSqlSensor:
             task_id="sql_sensor_check",
             conn_id="postgres_default",
             sql="SELECT 1",
-            success=[1],
+            success=[1],  # type: ignore[arg-type]
             soft_fail=soft_fail,
         )
 
@@ -281,7 +287,7 @@ class TestSqlSensor:
 
         mock_get_records.return_value = [[1]]
         with pytest.raises(expected_exception) as ctx:
-            op.poke(None)
+            op.poke({})
         assert "self.success is present, but not callable -> [1]" == str(ctx.value)
 
     @pytest.mark.db_test
@@ -296,3 +302,18 @@ class TestSqlSensor:
         )
         hook = op._get_hook()
         assert hook.log_sql == op.hook_params["log_sql"]
+
+    @mock.patch("airflow.providers.common.sql.sensors.sql.BaseHook")
+    def test_sql_sensor_templated_parameters(self, mock_base_hook):
+        op = SqlSensor(
+            task_id="sql_sensor_templated_parameters",
+            conn_id="snowflake_default",
+            sql="SELECT %(something)s",
+            parameters={"something": "{{ logical_date }}"},
+        )
+        op.render_template_fields(context={"logical_date": "1970-01-01"})
+        mock_base_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
+        mock_get_records = mock_base_hook.get_connection.return_value.get_hook.return_value.get_records
+        op.execute(context=mock.MagicMock())
+
+        mock_get_records.assert_called_once_with("SELECT %(something)s", {"something": "1970-01-01"})

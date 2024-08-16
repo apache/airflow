@@ -29,6 +29,7 @@ from airflow.models import Connection, DagRun, TaskInstance as TI, XCom
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
+    BaseSQLOperator,
     BranchSQLOperator,
     SQLCheckOperator,
     SQLColumnCheckOperator,
@@ -42,8 +43,13 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
-pytestmark = pytest.mark.db_test
+pytestmark = [
+    pytest.mark.db_test,
+    pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Tests for Airflow 2.8.0+ only"),
+    pytest.mark.skip_if_database_isolation_mode,
+]
 
 
 class MockHook:
@@ -55,9 +61,36 @@ def _get_mock_db_hook():
     return MockHook()
 
 
+class TestBaseSQLOperator:
+    def _construct_operator(self, **kwargs):
+        dag = DAG(
+            "test_dag",
+            schedule=None,
+            start_date=datetime.datetime(2017, 1, 1),
+            render_template_as_native_obj=True,
+        )
+        return BaseSQLOperator(
+            task_id="test_task",
+            conn_id="{{ conn_id }}",
+            database="{{ database }}",
+            hook_params="{{ hook_params }}",
+            **kwargs,
+            dag=dag,
+        )
+
+    def test_templated_fields(self):
+        operator = self._construct_operator()
+        operator.render_template_fields(
+            {"conn_id": "my_conn_id", "database": "my_database", "hook_params": {"key": "value"}}
+        )
+        assert operator.conn_id == "my_conn_id"
+        assert operator.database == "my_database"
+        assert operator.hook_params == {"key": "value"}
+
+
 class TestSQLExecuteQueryOperator:
     def _construct_operator(self, sql, **kwargs):
-        dag = DAG("test_dag", start_date=datetime.datetime(2017, 1, 1))
+        dag = DAG("test_dag", schedule=None, start_date=datetime.datetime(2017, 1, 1))
         return SQLExecuteQueryOperator(
             task_id="test_task",
             conn_id="default_conn",
@@ -680,7 +713,7 @@ class TestValueCheckOperator:
         self.conn_id = "default_conn"
 
     def _construct_operator(self, sql, pass_value, tolerance=None):
-        dag = DAG("test_dag", start_date=datetime.datetime(2017, 1, 1))
+        dag = DAG("test_dag", schedule=None, start_date=datetime.datetime(2017, 1, 1))
 
         return SQLValueCheckOperator(
             dag=dag,
@@ -854,7 +887,7 @@ class TestIntervalCheckOperator:
 
 class TestThresholdCheckOperator:
     def _construct_operator(self, sql, min_threshold, max_threshold):
-        dag = DAG("test_dag", start_date=datetime.datetime(2017, 1, 1))
+        dag = DAG("test_dag", schedule=None, start_date=datetime.datetime(2017, 1, 1))
 
         return SQLThresholdCheckOperator(
             task_id="test_task",
@@ -1093,6 +1126,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1133,6 +1167,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1174,6 +1209,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1216,6 +1252,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1255,6 +1292,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1285,6 +1323,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1324,6 +1363,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first

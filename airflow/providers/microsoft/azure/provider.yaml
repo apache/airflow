@@ -20,9 +20,14 @@ name: Microsoft Azure
 description: |
   `Microsoft Azure <https://azure.microsoft.com/>`__
 state: ready
-source-date-epoch: 1709555852
+source-date-epoch: 1722664136
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 10.3.0
+  - 10.2.0
+  - 10.1.2
+  - 10.1.1
+  - 10.1.0
   - 10.0.0
   - 9.0.1
   - 9.0.0
@@ -76,11 +81,11 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.7.0
+  - apache-airflow>=2.8.0
   - adlfs>=2023.10.0
   - azure-batch>=8.0.0
   - azure-cosmos>=4.6.0
-  - azure-mgmt-cosmosdb
+  - azure-mgmt-cosmosdb>=3.0.0
   - azure-datalake-store>=0.0.45
   - azure-identity>=1.3.1
   - azure-keyvault-secrets>=4.1.0
@@ -88,16 +93,16 @@ dependencies:
   - azure-mgmt-resource>=2.2.0
   - azure-storage-blob>=12.14.0
   - azure-mgmt-storage>=16.0.0
-  - azure-storage-file-share
+  - azure-storage-file-share>=12.7.0
   - azure-servicebus>=7.12.1
-  - azure-synapse-spark
+  - azure-synapse-spark>=0.2.0
   - azure-synapse-artifacts>=0.17.0
   - adal>=1.2.7
   - azure-storage-file-datalake>=12.9.1
   - azure-kusto-data>=4.1.0
   - azure-mgmt-datafactory>=2.0.0
   - azure-mgmt-containerregistry>=8.0.0
-  - azure-mgmt-containerinstance>=9.0.0
+  - azure-mgmt-containerinstance>=10.1.0
   - msgraph-core>=1.0.0
 
 devel-dependencies:
@@ -171,6 +176,9 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-microsoft-azure/operators/msgraph.rst
     tags: [azure]
+  - integration-name: Microsoft Power BI
+    external-doc-url: https://learn.microsoft.com/en-us/rest/api/power-bi/
+    tags: [azure]
 
 operators:
   - integration-name: Microsoft Azure Data Lake Storage
@@ -203,6 +211,9 @@ operators:
   - integration-name: Microsoft Graph API
     python-modules:
       - airflow.providers.microsoft.azure.operators.msgraph
+  - integration-name: Microsoft Power BI
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.powerbi
 
 sensors:
   - integration-name: Microsoft Azure Cosmos DB
@@ -263,6 +274,9 @@ hooks:
   - integration-name: Microsoft Graph API
     python-modules:
       - airflow.providers.microsoft.azure.hooks.msgraph
+  - integration-name: Microsoft Power BI
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.powerbi
 
 triggers:
   - integration-name: Microsoft Azure Data Factory
@@ -274,6 +288,9 @@ triggers:
   - integration-name: Microsoft Graph API
     python-modules:
       - airflow.providers.microsoft.azure.triggers.msgraph
+  - integration-name: Microsoft Power BI
+    python-modules:
+      - airflow.providers.microsoft.azure.triggers.powerbi
 
 transfers:
   - source-integration-name: Local
@@ -291,6 +308,10 @@ transfers:
     target-integration-name: Microsoft Azure Blob Storage
     how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/sftp_to_wasb.rst
     python-module: airflow.providers.microsoft.azure.transfers.sftp_to_wasb
+  - source-integration-name: Amazon Simple Storage Service (S3)
+    target-integration-name: Microsoft Azure Blob Storage
+    how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/s3_to_wasb.rst
+    python-module: airflow.providers.microsoft.azure.transfers.s3_to_wasb
   - source-integration-name: Microsoft Azure Blob Storage
     target-integration-name: Google Cloud Storage (GCS)
     how-to-guide: /docs/apache-airflow-providers-microsoft-azure/transfer/azure_blob_to_gcs.rst
@@ -325,6 +346,8 @@ connection-types:
     connection-type: azure_synapse
   - hook-class-name: airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeStorageV2Hook
     connection-type: adls
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.powerbi.PowerBIHook
+    connection-type: powerbi
 
 secrets-backends:
   - airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
@@ -335,6 +358,7 @@ logging:
 extra-links:
   - airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryPipelineRunLink
   - airflow.providers.microsoft.azure.operators.synapse.AzureSynapsePipelineRunLink
+  - airflow.providers.microsoft.azure.operators.powerbi.PowerBILink
 
 config:
   azure_remote_logging:

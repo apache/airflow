@@ -19,17 +19,10 @@ from __future__ import annotations
 import itertools
 import os
 import re
-from unittest import mock
 
 import pytest
 
 REQUIRED_ENV_VARS = ("SYSTEM_TESTS_ENV_ID",)
-
-
-@pytest.fixture(scope="package", autouse=True)
-def use_debug_executor():
-    with mock.patch.dict("os.environ", AIRFLOW__CORE__EXECUTOR="DebugExecutor"):
-        yield
 
 
 @pytest.fixture

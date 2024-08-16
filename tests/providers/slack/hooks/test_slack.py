@@ -26,7 +26,7 @@ from slack_sdk.errors import SlackApiError
 from slack_sdk.http_retry.builtin_handlers import ConnectionErrorRetryHandler, RateLimitErrorRetryHandler
 from slack_sdk.web.slack_response import SlackResponse
 
-from airflow.exceptions import AirflowNotFoundException
+from airflow.exceptions import AirflowNotFoundException, AirflowProviderDeprecationWarning
 from airflow.models.connection import Connection
 from airflow.providers.slack.hooks.slack import SlackHook
 
@@ -307,9 +307,11 @@ class TestSlackHook:
     )
     def test_send_file_wrong_parameters(self, file, content):
         hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
+        warning_message = "use `send_file_v2` or `send_file_v1_to_v2"
         error_message = r"Either `file` or `content` must be provided, not both\."
-        with pytest.raises(ValueError, match=error_message):
-            hook.send_file(file=file, content=content)
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
+            with pytest.raises(ValueError, match=error_message):
+                hook.send_file(file=file, content=content)
 
     @pytest.mark.parametrize("initial_comment", [None, "test comment"])
     @pytest.mark.parametrize("title", [None, "test title"])
@@ -324,14 +326,16 @@ class TestSlackHook:
         file.write_text('{"foo": "bar"}')
 
         hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
-        hook.send_file(
-            channels=channels,
-            file=file,
-            filename="filename.mock",
-            initial_comment=initial_comment,
-            title=title,
-            filetype=filetype,
-        )
+        warning_message = "use `send_file_v2` or `send_file_v1_to_v2"
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
+            hook.send_file(
+                channels=channels,
+                file=file,
+                filename="filename.mock",
+                initial_comment=initial_comment,
+                title=title,
+                filetype=filetype,
+            )
 
         mocked_client.files_upload.assert_called_once_with(
             channels=channels,
@@ -355,7 +359,9 @@ class TestSlackHook:
         file.write_text('{"foo": "bar"}')
 
         hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
-        hook.send_file(file=file)
+        warning_message = "use `send_file_v2` or `send_file_v1_to_v2"
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
+            hook.send_file(file=file)
 
         assert mocked_client.files_upload.call_count == 1
         call_args = mocked_client.files_upload.call_args.kwargs
@@ -370,14 +376,16 @@ class TestSlackHook:
     def test_send_file_content(self, mocked_client, initial_comment, title, filetype, channels, filename):
         """Test send file by providing content."""
         hook = SlackHook(slack_conn_id=SLACK_API_DEFAULT_CONN_ID)
-        hook.send_file(
-            channels=channels,
-            content='{"foo": "bar"}',
-            filename=filename,
-            initial_comment=initial_comment,
-            title=title,
-            filetype=filetype,
-        )
+        warning_message = "use `send_file_v2` or `send_file_v1_to_v2"
+        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
+            hook.send_file(
+                channels=channels,
+                content='{"foo": "bar"}',
+                filename=filename,
+                initial_comment=initial_comment,
+                title=title,
+                filetype=filetype,
+            )
         mocked_client.files_upload.assert_called_once_with(
             channels=channels,
             content='{"foo": "bar"}',

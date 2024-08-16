@@ -14,16 +14,35 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+This module provides functions for safely retrieving and handling OpenLineage configurations.
+
+For the legacy boolean env variables `OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE` and `OPENLINEAGE_DISABLED`,
+any string not equal to "true", "1", or "t" should be treated as False, to maintain backward compatibility.
+Support for legacy variables will be removed in Airflow 3.
+"""
 
 from __future__ import annotations
 
 import os
 from typing import Any
 
-from airflow.compat.functools import cache
+# Disable caching if we're inside tests - this makes config easier to mock.
+if os.getenv("PYTEST_VERSION"):
+
+    def decorator(func):
+        return func
+
+    cache = decorator
+else:
+    from airflow.compat.functools import cache
 from airflow.configuration import conf
 
 _CONFIG_SECTION = "openlineage"
+
+
+def _is_true(arg: Any) -> bool:
+    return str(arg).lower().strip() in ("true", "1", "t")
 
 
 @cache
@@ -38,10 +57,11 @@ def config_path(check_legacy_env_var: bool = True) -> str:
 @cache
 def is_source_enabled() -> bool:
     """[openlineage] disable_source_code."""
-    option = conf.get(_CONFIG_SECTION, "disable_source_code", fallback="")
-    if not option:
-        option = os.getenv("OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE", "")
-    return option.lower() not in ("true", "1", "t")
+    option = conf.getboolean(_CONFIG_SECTION, "disable_source_code", fallback="False")
+    if option is False:  # Check legacy variable
+        option = _is_true(os.getenv("OPENLINEAGE_AIRFLOW_DISABLE_SOURCE_CODE", ""))
+    # when disable_source_code is True, is_source_enabled() should be False; hence the "not"
+    return not option
 
 
 @cache
@@ -53,7 +73,8 @@ def disabled_operators() -> set[str]:
 
 @cache
 def selective_enable() -> bool:
-    return conf.getboolean(_CONFIG_SECTION, "selective_enable", fallback=False)
+    """[openlineage] selective_enable."""
+    return conf.getboolean(_CONFIG_SECTION, "selective_enable", fallback="False")
 
 
 @cache
@@ -63,6 +84,17 @@ def custom_extractors() -> set[str]:
     if not option:
         option = os.getenv("OPENLINEAGE_EXTRACTORS", "")
     return set(extractor.strip() for extractor in option.split(";") if extractor.strip())
+
+
+@cache
+def custom_run_facets() -> set[str]:
+    """[openlineage] custom_run_facets."""
+    option = conf.get(_CONFIG_SECTION, "custom_run_facets", fallback="")
+    return set(
+        custom_facet_function.strip()
+        for custom_facet_function in option.split(";")
+        if custom_facet_function.strip()
+    )
 
 
 @cache
@@ -85,19 +117,37 @@ def transport() -> dict[str, Any]:
 
 @cache
 def is_disabled() -> bool:
-    """[openlineage] disabled + some extra checks."""
-
-    def _is_true(val):
-        return str(val).lower().strip() in ("true", "1", "t")
-
-    option = conf.get(_CONFIG_SECTION, "disabled", fallback="")
-    if _is_true(option):
+    """[openlineage] disabled + check if any configuration is present."""
+    if conf.getboolean(_CONFIG_SECTION, "disabled", fallback="False"):
         return True
 
-    option = os.getenv("OPENLINEAGE_DISABLED", "")
-    if _is_true(option):
+    if _is_true(os.getenv("OPENLINEAGE_DISABLED", "")):  # Check legacy variable
         return True
 
     # Check if both 'transport' and 'config_path' are not present and also
     # if legacy 'OPENLINEAGE_URL' environment variables is not set
     return transport() == {} and config_path(True) == "" and os.getenv("OPENLINEAGE_URL", "") == ""
+
+
+@cache
+def dag_state_change_process_pool_size() -> int:
+    """[openlineage] dag_state_change_process_pool_size."""
+    return conf.getint(_CONFIG_SECTION, "dag_state_change_process_pool_size", fallback="1")
+
+
+@cache
+def execution_timeout() -> int:
+    """[openlineage] execution_timeout."""
+    return conf.getint(_CONFIG_SECTION, "execution_timeout", fallback="10")
+
+
+@cache
+def include_full_task_info() -> bool:
+    """[openlineage] include_full_task_info."""
+    return conf.getboolean(_CONFIG_SECTION, "include_full_task_info", fallback="False")
+
+
+@cache
+def debug_mode() -> bool:
+    """[openlineage] debug_mode."""
+    return conf.getboolean(_CONFIG_SECTION, "debug_mode", fallback="False")

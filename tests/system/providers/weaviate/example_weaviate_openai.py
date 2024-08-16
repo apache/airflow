@@ -26,6 +26,8 @@ from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator
 from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
 
+COLLECTION_NAME = "Weaviate_openai_example_collection"
+
 
 @dag(
     schedule=None,
@@ -40,17 +42,13 @@ def example_weaviate_openai():
 
     @setup
     @task
-    def create_weaviate_class():
+    def create_weaviate_collection():
         """
-        Example task to create class without any Vectorizer. You're expected to provide custom vectors for your data.
+        Example task to create collection without any Vectorizer. You're expected to provide custom vectors for your data.
         """
         weaviate_hook = WeaviateHook()
-        # Class definition object. Weaviate's autoschema feature will infer properties when importing.
-        class_obj = {
-            "class": "Weaviate_example_class",
-            "vectorizer": "none",
-        }
-        weaviate_hook.create_class(class_obj)
+        # collection definition object. Weaviate's autoschema feature will infer properties when importing.
+        weaviate_hook.create_collection(COLLECTION_NAME)
 
     @setup
     @task
@@ -59,6 +57,7 @@ def example_weaviate_openai():
         return [item["Question"] for item in data]
 
     data_to_embed = get_data_to_embed()
+
     embed_data = OpenAIEmbeddingOperator.partial(
         task_id="embedding_using_xcom_data",
         conn_id="openai_default",
@@ -79,8 +78,8 @@ def example_weaviate_openai():
     perform_ingestion = WeaviateIngestOperator(
         task_id="perform_ingestion",
         conn_id="weaviate_default",
-        class_name="Weaviate_example_class",
-        input_json=update_vector_data_in_json["return_value"],
+        collection_name=COLLECTION_NAME,
+        input_data=update_vector_data_in_json["return_value"],
     )
 
     embed_query = OpenAIEmbeddingOperator(
@@ -96,31 +95,28 @@ def example_weaviate_openai():
         query_vector = ti.xcom_pull(task_ids="embed_query", key="return_value")
         weaviate_hook = WeaviateHook()
         properties = ["question", "answer", "category"]
-        response = weaviate_hook.query_with_vector(query_vector, "Weaviate_example_class", *properties)
-        assert (
-            "In 1953 Watson & Crick built a model"
-            in response["data"]["Get"]["Weaviate_example_class"][0]["question"]
-        )
+        response = weaviate_hook.query_with_vector(query_vector, COLLECTION_NAME, properties)
+        assert "In 1953 Watson & Crick built a model" in response.objects[0].properties["question"]
 
     @teardown
     @task
-    def delete_weaviate_class():
+    def delete_weaviate_collection():
         """
-        Example task to delete a weaviate class
+        Example task to delete a weaviate collection
         """
         weaviate_hook = WeaviateHook()
-        # Class definition object. Weaviate's autoschema feature will infer properties when importing.
+        # collection definition object. Weaviate's autoschema feature will infer properties when importing.
 
-        weaviate_hook.delete_classes(["Weaviate_example_class"])
+        weaviate_hook.delete_collections([COLLECTION_NAME])
 
     (
-        create_weaviate_class()
+        create_weaviate_collection()
         >> embed_data
         >> update_vector_data_in_json
         >> perform_ingestion
         >> embed_query
         >> query_weaviate()
-        >> delete_weaviate_class()
+        >> delete_weaviate_collection()
     )
 
 

@@ -37,10 +37,6 @@ class DrillOperator(SQLExecuteQueryOperator):
 
     Please use :class:`airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator`.
 
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:DrillOperator`
-
     :param sql: the SQL code to be executed as a single string, or
         a list of str (sql statements), or a reference to a template file.
         Template references are recognized by str ending in '.sql'

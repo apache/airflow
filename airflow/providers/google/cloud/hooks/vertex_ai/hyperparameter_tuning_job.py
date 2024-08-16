@@ -126,7 +126,7 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
             base_output_dir=base_output_dir,
             project=project,
             location=location,
-            credentials=self.get_credentials,
+            credentials=self.get_credentials(),
             labels=labels,
             encryption_spec_key_name=encryption_spec_key_name,
             staging_bucket=staging_bucket,

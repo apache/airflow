@@ -86,8 +86,8 @@ def setup_connections(create_mock_connections):
                 "factory_name": DEFAULT_FACTORY,
             },
         ),
+        # connection_missing_subscription_id
         Connection(
-            # connection_missing_subscription_id
             conn_id="azure_data_factory_missing_subscription_id",
             conn_type="azure_data_factory",
             login="clientId",
@@ -108,6 +108,18 @@ def setup_connections(create_mock_connections):
                 "subscriptionId": "subscriptionId",
                 "resource_group_name": DEFAULT_RESOURCE_GROUP,
                 "factory_name": DEFAULT_FACTORY,
+            },
+        ),
+        # connection_workload_identity
+        Connection(
+            conn_id="azure_data_factory_workload_identity",
+            conn_type="azure_data_factory",
+            extra={
+                "subscriptionId": "subscriptionId",
+                "resource_group_name": DEFAULT_RESOURCE_GROUP,
+                "factory_name": DEFAULT_FACTORY,
+                "workload_identity_tenant_id": "workload_tenant_id",
+                "managed_identity_client_id": "workload_client_id",
             },
         ),
     )
@@ -195,6 +207,21 @@ def test_get_conn_by_default_azure_credential(mock_credential):
         assert args.kwargs["managed_identity_client_id"] is None
         assert args.kwargs["workload_identity_tenant_id"] is None
 
+        mock_create_client.assert_called_with(mock_credential(), "subscriptionId")
+
+
+@mock.patch(f"{MODULE}.get_sync_default_azure_credential")
+def test_get_conn_with_workload_identity(mock_credential):
+    hook = AzureDataFactoryHook("azure_data_factory_workload_identity")
+    with patch.object(hook, "_create_client") as mock_create_client:
+        mock_create_client.return_value = MagicMock()
+
+        connection = hook.get_conn()
+        assert connection is not None
+        mock_credential.assert_called_once_with(
+            managed_identity_client_id="workload_client_id",
+            workload_identity_tenant_id="workload_tenant_id",
+        )
         mock_create_client.assert_called_with(mock_credential(), "subscriptionId")
 
 

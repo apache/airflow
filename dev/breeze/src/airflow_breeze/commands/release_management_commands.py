@@ -636,32 +636,41 @@ def prepare_provider_documentation(
     for provider_id in provider_packages:
         provider_metadata = basic_provider_checks(provider_id)
         if os.environ.get("GITHUB_ACTIONS", "false") != "true":
-            get_console().print("-" * get_console().width)
+            if not only_min_version_update:
+                get_console().print("-" * get_console().width)
         try:
             with_breaking_changes = False
             maybe_with_new_features = False
-            with ci_group(f"Update release notes for package '{provider_id}' "):
-                get_console().print("Updating documentation for the latest release version.")
+            with ci_group(
+                f"Update release notes for package '{provider_id}' ",
+                skip_printing_title=only_min_version_update,
+            ):
                 if not only_min_version_update:
+                    get_console().print("Updating documentation for the latest release version.")
                     with_breaking_changes, maybe_with_new_features = update_release_notes(
                         provider_id,
                         reapply_templates_only=reapply_templates_only,
                         base_branch=base_branch,
                         regenerate_missing_docs=reapply_templates_only,
                         non_interactive=non_interactive,
+                        only_min_version_update=only_min_version_update,
                     )
                 update_min_airflow_version(
                     provider_package_id=provider_id,
                     with_breaking_changes=with_breaking_changes,
                     maybe_with_new_features=maybe_with_new_features,
                 )
-            with ci_group(f"Updates changelog for last release of package '{provider_id}'"):
+            with ci_group(
+                f"Updates changelog for last release of package '{provider_id}'",
+                skip_printing_title=only_min_version_update,
+            ):
                 update_changelog(
                     package_id=provider_id,
                     base_branch=base_branch,
                     reapply_templates_only=reapply_templates_only,
                     with_breaking_changes=with_breaking_changes,
                     maybe_with_new_features=maybe_with_new_features,
+                    only_min_version_update=only_min_version_update,
                 )
         except PrepareReleaseDocsNoChangesException:
             no_changes_packages.append(provider_id)
@@ -682,10 +691,18 @@ def prepare_provider_documentation(
                 success_packages.append(provider_id)
     get_console().print()
     get_console().print("\n[info]Summary of prepared documentation:\n")
-    provider_action_summary("Success", MessageType.SUCCESS, success_packages)
+    provider_action_summary(
+        "Success" if not only_min_version_update else "Min Version Bumped",
+        MessageType.SUCCESS,
+        success_packages,
+    )
     provider_action_summary("Scheduled for removal", MessageType.SUCCESS, removed_packages)
     provider_action_summary("Docs only", MessageType.SUCCESS, doc_only_packages)
-    provider_action_summary("Skipped on no changes", MessageType.WARNING, no_changes_packages)
+    provider_action_summary(
+        "Skipped on no changes" if not only_min_version_update else "Min Version Not Bumped",
+        MessageType.WARNING,
+        no_changes_packages,
+    )
     provider_action_summary("Suspended", MessageType.WARNING, suspended_packages)
     provider_action_summary("Skipped by user", MessageType.SPECIAL, user_skipped_packages)
     provider_action_summary("Errors", MessageType.ERROR, error_packages)
@@ -753,7 +770,7 @@ def basic_provider_checks(provider_package_id: str) -> dict[str, Any]:
     "--package-list",
     envvar="PACKAGE_LIST",
     type=str,
-    help="Optional, contains comma-seperated list of package ids that are processed for documentation "
+    help="Optional, contains comma-separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
@@ -1524,7 +1541,7 @@ def run_publish_docs_in_parallel(
     "--package-list",
     envvar="PACKAGE_LIST",
     type=str,
-    help="Optional, contains comma-seperated list of package ids that are processed for documentation "
+    help="Optional, contains comma-separated list of package ids that are processed for documentation "
     "building, and document publishing. It is an easier alternative to adding individual packages as"
     " arguments to every command. This overrides the packages passed as arguments.",
 )
@@ -2074,6 +2091,13 @@ def generate_issue_content_providers(
                         int(issue_match.group(1)) for issue_match in ISSUE_MATCH_IN_BODY.finditer(body)
                     }
                     for linked_issue_number in linked_issue_numbers:
+                        try:
+                            _ = repo.get_issue(linked_issue_number)
+                        except UnknownObjectException:
+                            progress.console.print(
+                                f"Failed to retrieve linked issue #{linked_issue_number}: is not a issue,"
+                                f"likely a discussion is linked."
+                            )
                         progress.console.print(
                             f"Retrieving Linked issue PR#{linked_issue_number}: "
                             f"https://github.com/apache/airflow/issues/{linked_issue_number}"
@@ -2128,7 +2152,8 @@ def generate_issue_content_providers(
         users: set[str] = set()
         for provider_info in providers.values():
             for pr in provider_info.pr_list:
-                users.add("@" + pr.user.login)
+                if pr.user.login:
+                    users.add("@" + pr.user.login)
         issue_content += f"All users involved in the PRs:\n{' '.join(users)}"
         syntax = Syntax(issue_content, "markdown", theme="ansi_dark")
         get_console().print(syntax)
@@ -2702,7 +2727,11 @@ SOURCE_API_YAML_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "api_connexion" / "ope
 TARGET_API_YAML_PATH = PYTHON_CLIENT_DIR_PATH / "v1.yaml"
 OPENAPI_GENERATOR_CLI_VER = "5.4.0"
 
-GENERATED_CLIENT_DIRECTORIES_TO_COPY = ["airflow_client", "docs", "test"]
+GENERATED_CLIENT_DIRECTORIES_TO_COPY: list[Path] = [
+    Path("airflow_client") / "client",
+    Path("docs"),
+    Path("test"),
+]
 FILES_TO_COPY_TO_CLIENT_REPO = [
     ".gitignore",
     ".openapi-generator-ignore",
@@ -3328,7 +3357,7 @@ def generate_issue_content(
                 continue
             # Ignore doc-only and skipped PRs
             label_names = [label.name for label in pr.labels]
-            if "type:doc-only" in label_names or "changelog:skip" in label_names:
+            if not is_helm_chart and ("type:doc-only" in label_names or "changelog:skip" in label_names):
                 continue
 
             pull_requests[pr_number] = pr

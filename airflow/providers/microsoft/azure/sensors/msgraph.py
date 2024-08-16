@@ -17,31 +17,23 @@
 # under the License.
 from __future__ import annotations
 
-import asyncio
-import json
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
+from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
 from airflow.providers.microsoft.azure.triggers.msgraph import MSGraphTrigger, ResponseSerializer
-from airflow.sensors.base import BaseSensorOperator, PokeReturnValue
+from airflow.sensors.base import BaseSensorOperator
+from airflow.triggers.temporal import TimeDeltaTrigger
 
 if TYPE_CHECKING:
+    from datetime import timedelta
     from io import BytesIO
 
     from kiota_abstractions.request_information import QueryParams
-    from kiota_abstractions.response_handler import NativeResponseType
-    from kiota_abstractions.serialization import ParsableFactory
     from kiota_http.httpx_request_adapter import ResponseType
     from msgraph_core import APIVersion
 
-    from airflow.triggers.base import TriggerEvent
     from airflow.utils.context import Context
-
-
-def default_event_processor(context: Context, event: TriggerEvent) -> bool:
-    if event.payload["status"] == "success":
-        return json.loads(event.payload["response"])["status"] == "Succeeded"
-    return False
 
 
 class MSGraphSensor(BaseSensorOperator):
@@ -51,9 +43,6 @@ class MSGraphSensor(BaseSensorOperator):
     :param url: The url being executed on the Microsoft Graph API (templated).
     :param response_type: The expected return type of the response as a string. Possible value are: `bytes`,
         `str`, `int`, `float`, `bool` and `datetime` (default is None).
-    :param response_handler: Function to convert the native HTTPX response returned by the hook (default is
-        lambda response, error_map: response.json()).  The default expression will convert the native response
-        to JSON.  If response_type parameter is specified, then the response_handler will be ignored.
     :param method: The HTTP method being used to do the REST call (default is GET).
     :param conn_id: The HTTP Connection ID to run the operator against (templated).
     :param proxies: A dict defining the HTTP proxies to be used (default is None).
@@ -85,9 +74,6 @@ class MSGraphSensor(BaseSensorOperator):
         self,
         url: str,
         response_type: ResponseType | None = None,
-        response_handler: Callable[
-            [NativeResponseType, dict[str, ParsableFactory | None] | None], Any
-        ] = lambda response, error_map: response.json(),
         path_parameters: dict[str, Any] | None = None,
         url_template: str | None = None,
         method: str = "GET",
@@ -97,15 +83,15 @@ class MSGraphSensor(BaseSensorOperator):
         conn_id: str = KiotaRequestAdapterHook.default_conn_name,
         proxies: dict | None = None,
         api_version: APIVersion | None = None,
-        event_processor: Callable[[Context, TriggerEvent], bool] = default_event_processor,
+        event_processor: Callable[[Context, Any], bool] = lambda context, e: e.get("status") == "Succeeded",
         result_processor: Callable[[Context, Any], Any] = lambda context, result: result,
         serializer: type[ResponseSerializer] = ResponseSerializer,
+        retry_delay: timedelta | float = 60,
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        super().__init__(retry_delay=retry_delay, **kwargs)
         self.url = url
         self.response_type = response_type
-        self.response_handler = response_handler
         self.path_parameters = path_parameters
         self.url_template = url_template
         self.method = method
@@ -119,45 +105,73 @@ class MSGraphSensor(BaseSensorOperator):
         self.result_processor = result_processor
         self.serializer = serializer()
 
-    @property
-    def trigger(self):
-        return MSGraphTrigger(
-            url=self.url,
-            response_type=self.response_type,
-            response_handler=self.response_handler,
-            path_parameters=self.path_parameters,
-            url_template=self.url_template,
-            method=self.method,
-            query_parameters=self.query_parameters,
-            headers=self.headers,
-            data=self.data,
-            conn_id=self.conn_id,
-            timeout=self.timeout,
-            proxies=self.proxies,
-            api_version=self.api_version,
-            serializer=type(self.serializer),
+    def execute(self, context: Context):
+        self.defer(
+            trigger=MSGraphTrigger(
+                url=self.url,
+                response_type=self.response_type,
+                path_parameters=self.path_parameters,
+                url_template=self.url_template,
+                method=self.method,
+                query_parameters=self.query_parameters,
+                headers=self.headers,
+                data=self.data,
+                conn_id=self.conn_id,
+                timeout=self.timeout,
+                proxies=self.proxies,
+                api_version=self.api_version,
+                serializer=type(self.serializer),
+            ),
+            method_name=self.execute_complete.__name__,
         )
 
-    async def async_poke(self, context: Context) -> bool | PokeReturnValue:
-        self.log.info("Sensor triggered")
+    def retry_execute(
+        self,
+        context: Context,
+    ) -> Any:
+        self.execute(context=context)
 
-        async for event in self.trigger.run():
-            self.log.debug("event: %s", event)
+    def execute_complete(
+        self,
+        context: Context,
+        event: dict[Any, Any] | None = None,
+    ) -> Any:
+        """
+        Execute callback when MSGraphSensor finishes execution.
 
-            is_done = self.event_processor(context, event)
+        This method gets executed automatically when MSGraphTrigger completes its execution.
+        """
+        self.log.debug("context: %s", context)
 
-            self.log.debug("is_done: %s", is_done)
+        if event:
+            self.log.debug("%s completed with %s: %s", self.task_id, event.get("status"), event)
 
-            response = self.serializer.deserialize(event.payload["response"])
+            if event.get("status") == "failure":
+                raise AirflowException(event.get("message"))
 
-            self.log.debug("deserialize event: %s", response)
+            response = event.get("response")
 
-            result = self.result_processor(context, response)
+            self.log.debug("response: %s", response)
 
-            self.log.debug("result: %s", result)
+            if response:
+                response = self.serializer.deserialize(response)
 
-            return PokeReturnValue(is_done=is_done, xcom_value=result)
-        return PokeReturnValue(is_done=True)
+                self.log.debug("deserialize response: %s", response)
 
-    def poke(self, context) -> bool | PokeReturnValue:
-        return asyncio.run(self.async_poke(context))
+                is_done = self.event_processor(context, response)
+
+                self.log.debug("is_done: %s", is_done)
+
+                if is_done:
+                    result = self.result_processor(context, response)
+
+                    self.log.debug("processed response: %s", result)
+
+                    return result
+
+                self.defer(
+                    trigger=TimeDeltaTrigger(self.retry_delay),
+                    method_name=self.retry_execute.__name__,
+                )
+
+        return None

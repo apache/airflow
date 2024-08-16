@@ -17,13 +17,20 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, AsyncIterator, Sequence, SupportsAbs
+from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence, SupportsAbs
 
 from aiohttp import ClientSession
 from aiohttp.client_exceptions import ClientResponseError
 
+from airflow.exceptions import AirflowException
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryAsyncHook, BigQueryTableAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.utils.session import provide_session
+from airflow.utils.state import TaskInstanceState
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
 
 
 class BigQueryInsertJobTrigger(BaseTrigger):
@@ -89,6 +96,36 @@ class BigQueryInsertJobTrigger(BaseTrigger):
             },
         )
 
+    @provide_session
+    def get_task_instance(self, session: Session) -> TaskInstance:
+        query = session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.task_instance.dag_id,
+            TaskInstance.task_id == self.task_instance.task_id,
+            TaskInstance.run_id == self.task_instance.run_id,
+            TaskInstance.map_index == self.task_instance.map_index,
+        )
+        task_instance = query.one_or_none()
+        if task_instance is None:
+            raise AirflowException(
+                "TaskInstance with dag_id: %s, task_id: %s, run_id: %s and map_index: %s is not found",
+                self.task_instance.dag_id,
+                self.task_instance.task_id,
+                self.task_instance.run_id,
+                self.task_instance.map_index,
+            )
+        return task_instance
+
+    def safe_to_cancel(self) -> bool:
+        """
+        Whether it is safe to cancel the external job which is being executed by this trigger.
+
+        This is to avoid the case that `asyncio.CancelledError` is called because the trigger itself is stopped.
+        Because in those cases, we should NOT cancel the external job.
+        """
+        # Database query is needed to get the latest state of the task instance.
+        task_instance = self.get_task_instance()  # type: ignore[call-arg]
+        return task_instance.state != TaskInstanceState.DEFERRED
+
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Get current job execution status and yields a TriggerEvent."""
         hook = self._get_async_hook()
@@ -117,13 +154,27 @@ class BigQueryInsertJobTrigger(BaseTrigger):
                     )
                     await asyncio.sleep(self.poll_interval)
         except asyncio.CancelledError:
-            self.log.info("Task was killed.")
-            if self.job_id and self.cancel_on_kill:
+            if self.job_id and self.cancel_on_kill and self.safe_to_cancel():
+                self.log.info(
+                    "The job is safe to cancel the as airflow TaskInstance is not in deferred state."
+                )
+                self.log.info(
+                    "Cancelling job. Project ID: %s, Location: %s, Job ID: %s",
+                    self.project_id,
+                    self.location,
+                    self.job_id,
+                )
                 await hook.cancel_job(  # type: ignore[union-attr]
                     job_id=self.job_id, project_id=self.project_id, location=self.location
                 )
             else:
-                self.log.info("Skipping to cancel job: %s:%s.%s", self.project_id, self.location, self.job_id)
+                self.log.info(
+                    "Trigger may have shutdown. Skipping to cancel job because the airflow "
+                    "task is not cancelled yet: Project ID: %s, Location:%s, Job ID:%s",
+                    self.project_id,
+                    self.location,
+                    self.job_id,
+                )
         except Exception as e:
             self.log.exception("Exception occurred while checking for query completion")
             yield TriggerEvent({"status": "error", "message": str(e)})
@@ -148,6 +199,7 @@ class BigQueryCheckTrigger(BigQueryInsertJobTrigger):
                 "table_id": self.table_id,
                 "poll_interval": self.poll_interval,
                 "impersonation_chain": self.impersonation_chain,
+                "cancel_on_kill": self.cancel_on_kill,
             },
         )
 
@@ -205,9 +257,10 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
         (default: False).
     """
 
-    def __init__(self, as_dict: bool = False, **kwargs):
+    def __init__(self, as_dict: bool = False, selected_fields: str | None = None, **kwargs):
         super().__init__(**kwargs)
         self.as_dict = as_dict
+        self.selected_fields = selected_fields
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize BigQueryInsertJobTrigger arguments and classpath."""
@@ -223,6 +276,7 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
                 "poll_interval": self.poll_interval,
                 "impersonation_chain": self.impersonation_chain,
                 "as_dict": self.as_dict,
+                "selected_fields": self.selected_fields,
             },
         )
 
@@ -235,7 +289,11 @@ class BigQueryGetDataTrigger(BigQueryInsertJobTrigger):
                 job_status = await hook.get_job_status(job_id=self.job_id, project_id=self.project_id)
                 if job_status["status"] == "success":
                     query_results = await hook.get_job_output(job_id=self.job_id, project_id=self.project_id)
-                    records = hook.get_records(query_results=query_results, as_dict=self.as_dict)
+                    records = hook.get_records(
+                        query_results=query_results,
+                        as_dict=self.as_dict,
+                        selected_fields=self.selected_fields,
+                    )
                     self.log.debug("Response from hook: %s", job_status["status"])
                     yield TriggerEvent(
                         {

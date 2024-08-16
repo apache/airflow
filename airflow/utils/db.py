@@ -17,8 +17,10 @@
 # under the License.
 from __future__ import annotations
 
+import collections.abc
 import contextlib
 import enum
+import itertools
 import json
 import logging
 import os
@@ -27,8 +29,20 @@ import time
 import warnings
 from dataclasses import dataclass
 from tempfile import gettempdir
-from typing import TYPE_CHECKING, Callable, Generator, Iterable
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Generator,
+    Iterable,
+    Iterator,
+    Protocol,
+    Sequence,
+    TypeVar,
+    overload,
+)
 
+import attrs
 from sqlalchemy import (
     Table,
     and_,
@@ -54,43 +68,34 @@ from airflow.utils import helpers
 
 # TODO: remove create_session once we decide to break backward compatibility
 from airflow.utils.session import NEW_SESSION, create_session, provide_session  # noqa: F401
+from airflow.utils.task_instance_session import get_current_task_instance_session
 
 if TYPE_CHECKING:
     from alembic.runtime.environment import EnvironmentContext
     from alembic.script import ScriptDirectory
+    from sqlalchemy.engine import Row
     from sqlalchemy.orm import Query, Session
-    from sqlalchemy.sql.elements import ClauseElement
+    from sqlalchemy.sql.elements import ClauseElement, TextClause
     from sqlalchemy.sql.selectable import Select
 
-    from airflow.models.base import Base
     from airflow.models.connection import Connection
+    from airflow.typing_compat import Self
+
+    # TODO: Import this from sqlalchemy.orm instead when switching to SQLA 2.
+    # https://docs.sqlalchemy.org/en/20/orm/mapping_api.html#sqlalchemy.orm.MappedClassProtocol
+    class MappedClassProtocol(Protocol):
+        """Protocol for SQLALchemy model base."""
+
+        __tablename__: str
+
+
+T = TypeVar("T")
 
 log = logging.getLogger(__name__)
 
 _REVISION_HEADS_MAP = {
-    "2.0.0": "e959f08ac86c",
-    "2.0.1": "82b7c48c147f",
-    "2.0.2": "2e42bb497a22",
-    "2.1.0": "a13f7613ad25",
-    "2.1.3": "97cdd93827b8",
-    "2.1.4": "ccde3e26fe78",
-    "2.2.0": "7b2661a43ba3",
-    "2.2.3": "be2bfac3da23",
-    "2.2.4": "587bdf053233",
-    "2.3.0": "b1b348e02d07",
-    "2.3.1": "1de7bc13c950",
-    "2.3.2": "3c94c427fdf6",
-    "2.3.3": "f5fcbda3e651",
-    "2.4.0": "ecb43d2a1842",
-    "2.4.2": "b0d31815b5a6",
-    "2.4.3": "e07f49787c9d",
-    "2.5.0": "290244fb8b83",
-    "2.6.0": "98ae134e6fff",
-    "2.6.2": "c804e5c76e3e",
-    "2.7.0": "405de8318b3a",
-    "2.8.0": "10b52ebd31f7",
-    "2.8.1": "88344c1d9134",
-    "2.9.0": "1949afb29106",
+    "2.10.0": "22ed7efa9da2",
+    "3.0.0": "d0f1c55954fa",
 }
 
 
@@ -383,12 +388,20 @@ def create_default_connections(session: Session = NEW_SESSION):
         ),
         session,
     )
+    merge_conn(
+        Connection(
+            conn_id="iceberg_default",
+            conn_type="iceberg",
+            host="https://api.iceberg.io/ws/v1",
+        ),
+        session,
+    )
     merge_conn(Connection(conn_id="impala_default", conn_type="impala", host="localhost", port=21050))
     merge_conn(
         Connection(
             conn_id="kafka_default",
             conn_type="kafka",
-            extra=json.dumps({"bootstrap.servers": "broker:29092"}),
+            extra=json.dumps({"bootstrap.servers": "broker:29092", "group.id": "my-group"}),
         ),
         session,
     )
@@ -705,6 +718,16 @@ def create_default_connections(session: Session = NEW_SESSION):
         ),
         session,
     )
+    merge_conn(
+        Connection(
+            conn_id="ydb_default",
+            conn_type="ydb",
+            host="grpc://localhost",
+            port=2135,
+            extra={"database": "/local"},
+        ),
+        session,
+    )
 
 
 def _get_flask_db(sql_database_uri):
@@ -899,7 +922,8 @@ def _reserialize_dags(*, session: Session) -> None:
 
 @provide_session
 def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
-    """Synchronize log template configs with table.
+    """
+    Synchronize log template configs with table.
 
     This checks if the last row fully matches the current config values, and
     insert a new row if not.
@@ -972,33 +996,6 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
         session.add(LogTemplate(filename=filename, elasticsearch_id=elasticsearch_id))
 
 
-def encrypt_trigger_kwargs(*, session: Session) -> None:
-    """Encrypt trigger kwargs."""
-    from airflow.models.trigger import Trigger
-    from airflow.serialization.serialized_objects import BaseSerialization
-
-    for trigger in session.query(Trigger):
-        # convert serialized dict to string and encrypt it
-        trigger.kwargs = BaseSerialization.deserialize(json.loads(trigger.encrypted_kwargs))
-    session.commit()
-
-
-def decrypt_trigger_kwargs(*, session: Session) -> None:
-    """Decrypt trigger kwargs."""
-    from airflow.models.trigger import Trigger
-    from airflow.serialization.serialized_objects import BaseSerialization
-
-    if not inspect(session.bind).has_table(Trigger.__tablename__):
-        # table does not exist, nothing to do
-        # this can happen when we downgrade to an old version before the Trigger table was added
-        return
-
-    for trigger in session.scalars(select(Trigger.encrypted_kwargs)):
-        # decrypt the string and convert it to serialized dict
-        trigger.encrypted_kwargs = json.dumps(BaseSerialization.serialize(trigger.kwargs))
-    session.commit()
-
-
 def check_conn_id_duplicates(session: Session) -> Iterable[str]:
     """
     Check unique conn_id in connection table.
@@ -1053,7 +1050,7 @@ def check_username_duplicates(session: Session) -> Iterable[str]:
             )
 
 
-def reflect_tables(tables: list[Base | str] | None, session):
+def reflect_tables(tables: list[MappedClassProtocol | str] | None, session):
     """
     When running checks prior to upgrades, we use reflection to determine current state of the database.
 
@@ -1441,7 +1438,7 @@ def check_bad_references(session: Session) -> Iterable[str]:
         ref_table="task_instance",
     )
 
-    models_list: list[tuple[Base, str, BadReferenceConfig]] = [
+    models_list: list[tuple[MappedClassProtocol, str, BadReferenceConfig]] = [
         (TaskInstance, "2.2", missing_dag_run_config),
         (TaskReschedule, "2.2", missing_ti_config),
         (RenderedTaskInstanceFields, "2.3", missing_ti_config),
@@ -1560,8 +1557,8 @@ def _revisions_above_min_for_offline(config, revisions) -> None:
     """
     dbname = settings.engine.dialect.name
     if dbname == "sqlite":
-        raise AirflowException("Offline migration not supported for SQLite.")
-    min_version, min_revision = ("2.2.0", "7b2661a43ba3") if dbname == "mssql" else ("2.0.0", "e959f08ac86c")
+        raise SystemExit("Offline migration not supported for SQLite.")
+    min_version, min_revision = ("3.0.0", "22ed7efa9da2")
 
     # Check if there is history between the revisions and the start revision
     # This ensures that the revisions are above `min_revision`
@@ -1619,11 +1616,6 @@ def upgradedb(
             print_happy_cat("No migrations to apply; nothing to do.")
             return
 
-        if not _revision_greater(config, to_revision, from_revision):
-            raise ValueError(
-                f"Requested *to* revision {to_revision} is older than *from* revision {from_revision}. "
-                "Please check your requested versions / revisions."
-            )
         _revisions_above_min_for_offline(config=config, revisions=[from_revision, to_revision])
 
         _offline_migration(command.upgrade, config, f"{from_revision}:{to_revision}")
@@ -1639,13 +1631,16 @@ def upgradedb(
     if errors_seen:
         exit(1)
 
-    if not to_revision and not _get_current_revision(session=session):
+    if not _get_current_revision(session=session):
         # Don't load default connections
         # New DB; initialize and exit
         initdb(session=session, load_connections=False)
         return
+
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         import sqlalchemy.pool
+
+        previous_revision = _get_current_revision(session=session)
 
         log.info("Creating tables")
         val = os.environ.get("AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE")
@@ -1662,16 +1657,12 @@ def upgradedb(
                 os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE"] = val
             settings.reconfigure_orm()
 
-    if reserialize_dags:
-        _reserialize_dags(session=session)
-    add_default_pool_if_not_exists(session=session)
-    synchronize_log_template(session=session)
-    if _revision_greater(
-        config,
-        _REVISION_HEADS_MAP["2.9.0"],
-        _get_current_revision(session=session),
-    ):
-        encrypt_trigger_kwargs(session=session)
+        current_revision = _get_current_revision(session=session)
+
+        if reserialize_dags and current_revision != previous_revision:
+            _reserialize_dags(session=session)
+        add_default_pool_if_not_exists(session=session)
+        synchronize_log_template(session=session)
 
 
 @provide_session
@@ -1744,12 +1735,6 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
         else:
             log.info("Applying downgrade migrations.")
             command.downgrade(config, revision=to_revision, sql=show_sql_only)
-            if _revision_greater(
-                config,
-                _REVISION_HEADS_MAP["2.9.0"],
-                to_revision,
-            ):
-                decrypt_trigger_kwargs(session=session)
 
 
 def drop_airflow_models(connection):
@@ -1911,7 +1896,8 @@ def get_sqla_model_classes():
 
 
 def get_query_count(query_stmt: Select, *, session: Session) -> int:
-    """Get count of query.
+    """
+    Get count of a query.
 
     A SELECT COUNT() FROM is issued against the subquery built from the
     given statement. The ORDER BY clause is stripped from the statement
@@ -1924,8 +1910,23 @@ def get_query_count(query_stmt: Select, *, session: Session) -> int:
     return session.scalar(count_stmt)
 
 
+def check_query_exists(query_stmt: Select, *, session: Session) -> bool:
+    """
+    Check whether there is at least one row matching a query.
+
+    A SELECT 1 FROM is issued against the subquery built from the given
+    statement. The ORDER BY clause is stripped from the statement since it's
+    unnecessary, and can impact query planning and degrade performance.
+
+    :meta private:
+    """
+    count_stmt = select(literal(True)).select_from(query_stmt.order_by(None).subquery())
+    return session.scalar(count_stmt)
+
+
 def exists_query(*where: ClauseElement, session: Session) -> bool:
-    """Check whether there is at least one row matching given clause.
+    """
+    Check whether there is at least one row matching given clauses.
 
     This does a SELECT 1 WHERE ... LIMIT 1 and check the result.
 
@@ -1933,3 +1934,181 @@ def exists_query(*where: ClauseElement, session: Session) -> bool:
     """
     stmt = select(literal(True)).where(*where).limit(1)
     return session.scalar(stmt) is not None
+
+
+@attrs.define(slots=True)
+class LazySelectSequence(Sequence[T]):
+    """
+    List-like interface to lazily access a database model query.
+
+    The intended use case is inside a task execution context, where we manage an
+    active SQLAlchemy session in the background.
+
+    This is an abstract base class. Each use case should subclass, and implement
+    the following static methods:
+
+    * ``_rebuild_select`` is called when a lazy sequence is unpickled. Since it
+      is not easy to pickle SQLAlchemy constructs, this class serializes the
+      SELECT statements into plain text to storage. This method is called on
+      deserialization to convert the textual clause back into an ORM SELECT.
+    * ``_process_row`` is called when an item is accessed. The lazy sequence
+      uses ``session.execute()`` to fetch rows from the database, and this
+      method should know how to process each row into a value.
+
+    :meta private:
+    """
+
+    _select_asc: ClauseElement
+    _select_desc: ClauseElement
+    _session: Session = attrs.field(kw_only=True, factory=get_current_task_instance_session)
+    _len: int | None = attrs.field(init=False, default=None)
+
+    @classmethod
+    def from_select(
+        cls,
+        select: Select,
+        *,
+        order_by: Sequence[ClauseElement],
+        session: Session | None = None,
+    ) -> Self:
+        s1 = select
+        for col in order_by:
+            s1 = s1.order_by(col.asc())
+        s2 = select
+        for col in order_by:
+            s2 = s2.order_by(col.desc())
+        return cls(s1, s2, session=session or get_current_task_instance_session())
+
+    @staticmethod
+    def _rebuild_select(stmt: TextClause) -> Select:
+        """
+        Rebuild a textual statement into an ORM-configured SELECT statement.
+
+        This should do something like ``select(field).from_statement(stmt)`` to
+        reconfigure ORM information to the textual SQL statement.
+        """
+        raise NotImplementedError
+
+    @staticmethod
+    def _process_row(row: Row) -> T:
+        """Process a SELECT-ed row into the end value."""
+        raise NotImplementedError
+
+    def __repr__(self) -> str:
+        counter = "item" if (length := len(self)) == 1 else "items"
+        return f"LazySelectSequence([{length} {counter}])"
+
+    def __str__(self) -> str:
+        counter = "item" if (length := len(self)) == 1 else "items"
+        return f"LazySelectSequence([{length} {counter}])"
+
+    def __getstate__(self) -> Any:
+        # We don't want to go to the trouble of serializing SQLAlchemy objects.
+        # Converting the statement into a SQL string is the best we can get.
+        # The literal_binds compile argument inlines all the values into the SQL
+        # string to simplify cross-process commuinication as much as possible.
+        # Theoratically we can do the same for count(), but I think it should be
+        # performant enough to calculate only that eagerly.
+        s1 = str(self._select_asc.compile(self._session.get_bind(), compile_kwargs={"literal_binds": True}))
+        s2 = str(self._select_desc.compile(self._session.get_bind(), compile_kwargs={"literal_binds": True}))
+        return (s1, s2, len(self))
+
+    def __setstate__(self, state: Any) -> None:
+        s1, s2, self._len = state
+        self._select_asc = self._rebuild_select(text(s1))
+        self._select_desc = self._rebuild_select(text(s2))
+        self._session = get_current_task_instance_session()
+
+    def __bool__(self) -> bool:
+        return check_query_exists(self._select_asc, session=self._session)
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, collections.abc.Sequence):
+            return NotImplemented
+        z = itertools.zip_longest(iter(self), iter(other), fillvalue=object())
+        return all(x == y for x, y in z)
+
+    def __reversed__(self) -> Iterator[T]:
+        return iter(self._process_row(r) for r in self._session.execute(self._select_desc))
+
+    def __iter__(self) -> Iterator[T]:
+        return iter(self._process_row(r) for r in self._session.execute(self._select_asc))
+
+    def __len__(self) -> int:
+        if self._len is None:
+            self._len = get_query_count(self._select_asc, session=self._session)
+        return self._len
+
+    @overload
+    def __getitem__(self, key: int) -> T: ...
+
+    @overload
+    def __getitem__(self, key: slice) -> Sequence[T]: ...
+
+    def __getitem__(self, key: int | slice) -> T | Sequence[T]:
+        if isinstance(key, int):
+            if key >= 0:
+                stmt = self._select_asc.offset(key)
+            else:
+                stmt = self._select_desc.offset(-1 - key)
+            if (row := self._session.execute(stmt.limit(1)).one_or_none()) is None:
+                raise IndexError(key)
+            return self._process_row(row)
+        elif isinstance(key, slice):
+            # This implements the slicing syntax. We want to optimize negative
+            # slicing (e.g. seq[-10:]) by not doing an additional COUNT query
+            # if possible. We can do this unless the start and stop have
+            # different signs (i.e. one is positive and another negative).
+            start, stop, reverse = _coerce_slice(key)
+            if start >= 0:
+                if stop is None:
+                    stmt = self._select_asc.offset(start)
+                elif stop >= 0:
+                    stmt = self._select_asc.slice(start, stop)
+                else:
+                    stmt = self._select_asc.slice(start, len(self) + stop)
+                rows = [self._process_row(row) for row in self._session.execute(stmt)]
+                if reverse:
+                    rows.reverse()
+            else:
+                if stop is None:
+                    stmt = self._select_desc.limit(-start)
+                elif stop < 0:
+                    stmt = self._select_desc.slice(-stop, -start)
+                else:
+                    stmt = self._select_desc.slice(len(self) - stop, -start)
+                rows = [self._process_row(row) for row in self._session.execute(stmt)]
+                if not reverse:
+                    rows.reverse()
+            return rows
+        raise TypeError(f"Sequence indices must be integers or slices, not {type(key).__name__}")
+
+
+def _coerce_index(value: Any) -> int | None:
+    """
+    Check slice attribute's type and convert it to int.
+
+    See CPython documentation on this:
+    https://docs.python.org/3/reference/datamodel.html#object.__index__
+    """
+    if value is None or isinstance(value, int):
+        return value
+    if (index := getattr(value, "__index__", None)) is not None:
+        return index()
+    raise TypeError("slice indices must be integers or None or have an __index__ method")
+
+
+def _coerce_slice(key: slice) -> tuple[int, int | None, bool]:
+    """
+    Check slice content and convert it for SQL.
+
+    See CPython documentation on this:
+    https://docs.python.org/3/reference/datamodel.html#slice-objects
+    """
+    if key.step is None or key.step == 1:
+        reverse = False
+    elif key.step == -1:
+        reverse = True
+    else:
+        raise ValueError("non-trivial slice step not supported")
+    return _coerce_index(key.start) or 0, _coerce_index(key.stop), reverse

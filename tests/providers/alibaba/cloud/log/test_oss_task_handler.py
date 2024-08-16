@@ -47,7 +47,7 @@ class TestOSSTaskHandler:
         self.oss_task_handler = OSSTaskHandler(self.base_log_folder, self.oss_log_folder)
 
     @pytest.fixture(autouse=True)
-    def task_instance(self, create_task_instance):
+    def task_instance(self, create_task_instance, dag_maker):
         self.ti = ti = create_task_instance(
             dag_id="dag_for_testing_oss_task_handler",
             task_id="task_for_testing_oss_task_handler",
@@ -56,6 +56,8 @@ class TestOSSTaskHandler:
         )
         ti.try_number = 1
         ti.raw = False
+        dag_maker.session.merge(ti)
+        dag_maker.session.commit()
         yield
         clear_db_runs()
         clear_db_dags()
@@ -98,7 +100,7 @@ class TestOSSTaskHandler:
         # Then
         assert mock_service.call_count == 2
         mock_service.return_value.head_key.assert_called_once_with(MOCK_BUCKET_NAME, "airflow/logs/1.log")
-        mock_oss_log_exists.assert_called_once_with("airflow/logs/1.log")
+        mock_oss_log_exists.assert_called_once_with("1.log")
         mock_service.return_value.append_string.assert_called_once_with(
             MOCK_BUCKET_NAME, MOCK_CONTENT, "airflow/logs/1.log", 1
         )
@@ -115,7 +117,7 @@ class TestOSSTaskHandler:
         # Then
         assert mock_service.call_count == 1
         mock_service.return_value.head_key.assert_not_called()
-        mock_oss_log_exists.assert_called_once_with("airflow/logs/1.log")
+        mock_oss_log_exists.assert_called_once_with("1.log")
         mock_service.return_value.append_string.assert_called_once_with(
             MOCK_BUCKET_NAME, MOCK_CONTENT, "airflow/logs/1.log", 0
         )

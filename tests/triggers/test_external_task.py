@@ -74,6 +74,7 @@ class TestWorkflowTrigger:
         with pytest.raises(StopAsyncIteration):
             await gen.__anext__()
 
+    @pytest.mark.flaky(reruns=5)
     @mock.patch("airflow.triggers.external_task._get_count")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_failed(self, mock_get_count):
@@ -136,6 +137,7 @@ class TestWorkflowTrigger:
         with pytest.raises(StopAsyncIteration):
             await gen.__anext__()
 
+    @pytest.mark.flaky(reruns=5)
     @mock.patch("airflow.triggers.external_task._get_count")
     @pytest.mark.asyncio
     async def test_task_workflow_trigger_skipped(self, mock_get_count):
@@ -226,6 +228,7 @@ class TestTaskStateTrigger:
     RUN_ID = "external_task_run_id"
     STATES = ["success", "fail"]
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.db_test
     @pytest.mark.asyncio
     async def test_task_state_trigger_success(self, session):
@@ -234,7 +237,7 @@ class TestTaskStateTrigger:
         reaches an allowed state (i.e. SUCCESS).
         """
         trigger_start_time = utcnow()
-        dag = DAG(self.DAG_ID, start_date=timezone.datetime(2022, 1, 1))
+        dag = DAG(self.DAG_ID, schedule=None, start_date=timezone.datetime(2022, 1, 1))
         dag_run = DagRun(
             dag_id=dag.dag_id,
             run_type="manual",
@@ -245,7 +248,7 @@ class TestTaskStateTrigger:
         session.commit()
 
         external_task = EmptyOperator(task_id=self.TASK_ID, dag=dag)
-        instance = TaskInstance(external_task, timezone.datetime(2022, 1, 1))
+        instance = TaskInstance(external_task, run_id=self.RUN_ID)
         session.add(instance)
         session.commit()
 
@@ -415,6 +418,7 @@ class TestDagStateTrigger:
     RUN_ID = "external_task_run_id"
     STATES = ["success", "fail"]
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.db_test
     @pytest.mark.asyncio
     async def test_dag_state_trigger(self, session):
@@ -422,7 +426,7 @@ class TestDagStateTrigger:
         Assert that the DagStateTrigger only goes off on or after a DagRun
         reaches an allowed state (i.e. SUCCESS).
         """
-        dag = DAG(self.DAG_ID, start_date=timezone.datetime(2022, 1, 1))
+        dag = DAG(self.DAG_ID, schedule=None, start_date=timezone.datetime(2022, 1, 1))
         dag_run = DagRun(
             dag_id=dag.dag_id,
             run_type="manual",

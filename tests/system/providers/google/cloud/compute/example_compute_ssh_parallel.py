@@ -26,7 +26,6 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.hooks.compute_ssh import ComputeEngineSSHHook
 from airflow.providers.google.cloud.operators.compute import (
@@ -35,10 +34,11 @@ from airflow.providers.google.cloud.operators.compute import (
 )
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 # [START howto_operator_gce_args_common]
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "cloud_compute_ssh_parallel"
 LOCATION = "europe-west1-b"
@@ -55,7 +55,7 @@ GCE_INSTANCE_BODY = {
             "initialize_params": {
                 "disk_size_gb": "10",
                 "disk_type": f"zones/{LOCATION}/diskTypes/pd-balanced",
-                "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621",
+                "source_image": "projects/debian-cloud/global/images/debian-12-bookworm-v20240611",
             },
         }
     ],
@@ -123,14 +123,17 @@ with DAG(
         task_id="gcp_compute_delete_instance_task",
         zone=LOCATION,
         resource_id=GCE_INSTANCE_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_gce_delete_no_project_id]
-    gce_instance_delete.trigger_rule = TriggerRule.ALL_DONE
 
-    chain(
-        gce_instance_insert,
-        [metadata_without_iap_tunnel, metadata_with_iap_tunnel],
-        gce_instance_delete,
+    (
+        # TEST SETUP
+        gce_instance_insert
+        # TEST BODY
+        >> [metadata_without_iap_tunnel, metadata_with_iap_tunnel]
+        # TEST TEARDOWN
+        >> gce_instance_delete
     )
 
     # ### Everything below this line is not part of example ###

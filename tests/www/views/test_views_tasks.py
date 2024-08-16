@@ -43,7 +43,7 @@ from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
-from airflow.www.views import TaskInstanceModelView
+from airflow.www.views import TaskInstanceModelView, _safe_parse_datetime
 from tests.test_utils.api_connexion_utils import create_user, delete_roles, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs, clear_db_xcom
@@ -66,9 +66,17 @@ def reset_dagruns():
 
 
 @pytest.fixture(autouse=True)
-def init_dagruns(app, reset_dagruns):
+def init_dagruns(app):
     with time_machine.travel(DEFAULT_DATE, tick=False):
         app.dag_bag.get_dag("example_bash_operator").create_dagrun(
+            run_id=DEFAULT_DAGRUN,
+            run_type=DagRunType.SCHEDULED,
+            execution_date=DEFAULT_DATE,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            start_date=timezone.utcnow(),
+            state=State.RUNNING,
+        )
+        app.dag_bag.get_dag("example_python_operator").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
@@ -81,15 +89,7 @@ def init_dagruns(app, reset_dagruns):
             value="{'x':1}",
             task_id="runme_0",
             dag_id="example_bash_operator",
-            execution_date=DEFAULT_DATE,
-        )
-        app.dag_bag.get_dag("example_subdag_operator").create_dagrun(
             run_id=DEFAULT_DAGRUN,
-            run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
-            start_date=timezone.utcnow(),
-            state=State.RUNNING,
         )
         app.dag_bag.get_dag("example_xcom").create_dagrun(
             run_id=DEFAULT_DAGRUN,
@@ -161,13 +161,28 @@ def client_ti_without_dag_edit(app):
         ),
         pytest.param(
             f"task?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}",
+            ["Grid"],
+            id="task-grid-button",
+        ),
+        pytest.param(
+            f"task?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}",
             ["Task Instance Details"],
             id="task",
+        ),
+        pytest.param(
+            f"log?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}",
+            ["Grid"],
+            id="log-grid-button",
         ),
         pytest.param(
             f"xcom?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}",
             ["XCom"],
             id="xcom",
+        ),
+        pytest.param(
+            f"xcom?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}",
+            ["Grid"],
+            id="xcom-grid-button",
         ),
         pytest.param("xcom/list", ["List XComs"], id="xcom-list"),
         pytest.param(
@@ -176,24 +191,19 @@ def client_ti_without_dag_edit(app):
             id="rendered-templates",
         ),
         pytest.param(
+            f"rendered-templates?task_id=runme_0&dag_id=example_bash_operator&execution_date={DEFAULT_VAL}",
+            ["Grid"],
+            id="rendered-templates-grid-button",
+        ),
+        pytest.param(
             "object/graph_data?dag_id=example_bash_operator",
             ["runme_1"],
             id="graph-data",
         ),
         pytest.param(
-            "object/graph_data?dag_id=example_subdag_operator.section-1",
-            ["section-1-task-1"],
-            id="graph-data-subdag",
-        ),
-        pytest.param(
             "object/grid_data?dag_id=example_bash_operator",
             ["runme_1"],
             id="grid-data",
-        ),
-        pytest.param(
-            "object/grid_data?dag_id=example_subdag_operator.section-1",
-            ["section-1-task-1"],
-            id="grid-data-subdag",
         ),
         pytest.param(
             "duration?days=30&dag_id=example_bash_operator",
@@ -439,22 +449,21 @@ def test_last_dagruns(admin_client):
 
 def test_last_dagruns_success_when_selecting_dags(admin_client):
     resp = admin_client.post(
-        "last_dagruns", data={"dag_ids": ["example_subdag_operator"]}, follow_redirects=True
+        "last_dagruns", data={"dag_ids": ["example_python_operator"]}, follow_redirects=True
     )
     assert resp.status_code == 200
     stats = json.loads(resp.data.decode("utf-8"))
     assert "example_bash_operator" not in stats
-    assert "example_subdag_operator" in stats
+    assert "example_python_operator" in stats
 
     # Multiple
     resp = admin_client.post(
         "last_dagruns",
-        data={"dag_ids": ["example_subdag_operator", "example_bash_operator"]},
+        data={"dag_ids": ["example_python_operator", "example_bash_operator"]},
         follow_redirects=True,
     )
     stats = json.loads(resp.data.decode("utf-8"))
     assert "example_bash_operator" in stats
-    assert "example_subdag_operator" in stats
     check_content_not_in_response("example_xcom", resp)
 
 
@@ -605,7 +614,9 @@ def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, new_id_exampl
 
 @pytest.fixture
 def new_dag_to_delete():
-    dag = DAG("new_dag_to_delete", is_paused_upon_creation=True)
+    dag = DAG(
+        "new_dag_to_delete", is_paused_upon_creation=True, schedule="0 * * * *", start_date=DEFAULT_DATE
+    )
     session = settings.Session()
     dag.sync_to_db(session=session)
     return dag
@@ -952,15 +963,8 @@ def test_task_instance_set_state_failure(admin_client, action):
     check_content_in_response("Failed to set state", resp)
 
 
-@pytest.mark.parametrize(
-    "task_search_tuples",
-    [
-        [("example_xcom", "bash_push"), ("example_bash_operator", "run_this_last")],
-        [("example_subdag_operator", "some-other-task")],
-    ],
-    ids=["multiple_tasks", "one_task"],
-)
-def test_action_muldelete_task_instance(session, admin_client, task_search_tuples):
+def test_action_muldelete_task_instance(session, admin_client):
+    task_search_tuples = [("example_xcom", "bash_push"), ("example_bash_operator", "run_this_last")]
     # get task instances to delete
     tasks_to_delete = []
     for task_search_tuple in task_search_tuples:
@@ -974,7 +978,8 @@ def test_action_muldelete_task_instance(session, admin_client, task_search_tuple
     # add task reschedules for those tasks to make sure that the delete cascades to the required tables
     trs = [
         TaskReschedule(
-            task=task,
+            task_id=task.task_id,
+            dag_id=task.dag_id,
             run_id=task.run_id,
             try_number=1,
             start_date=timezone.datetime(2021, 1, 1),
@@ -1029,6 +1034,35 @@ def test_graph_view_doesnt_fail_on_recursion_error(app, dag_maker, admin_client)
         assert resp.status_code == 200
 
 
+def test_get_date_time_num_runs_dag_runs_form_data_graph_view(app, dag_maker, admin_client):
+    """Test the get_date_time_num_runs_dag_runs_form_data function."""
+    from airflow.www.views import get_date_time_num_runs_dag_runs_form_data
+
+    execution_date = pendulum.now(tz="UTC")
+    with dag_maker(
+        dag_id="test_get_date_time_num_runs_dag_runs_form_data",
+        start_date=execution_date,
+    ) as dag:
+        BashOperator(task_id="task_1", bash_command="echo test")
+
+    with unittest.mock.patch.object(app, "dag_bag") as mocked_dag_bag:
+        mocked_dag_bag.get_dag.return_value = dag
+        url = f"/dags/{dag.dag_id}/graph"
+        resp = admin_client.get(url, follow_redirects=True)
+        assert resp.status_code == 200
+
+    with create_session() as session:
+        data = get_date_time_num_runs_dag_runs_form_data(resp.request, session, dag)
+
+        dttm = pendulum.parse(data["dttm"].isoformat())
+        base_date = pendulum.parse(data["base_date"].isoformat())
+
+        assert dttm.date() == execution_date.date()
+        assert dttm.time().hour == _safe_parse_datetime(execution_date.time().isoformat()).time().hour
+        assert dttm.time().minute == _safe_parse_datetime(execution_date.time().isoformat()).time().minute
+        assert base_date.date() == execution_date.date()
+
+
 def test_task_instances(admin_client):
     """Test task_instances view."""
     resp = admin_client.get(
@@ -1068,7 +1102,7 @@ def test_task_instances(admin_client):
             "task_id": "also_run_this",
             "trigger_id": None,
             "trigger_timeout": None,
-            "try_number": 1,
+            "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
@@ -1103,7 +1137,7 @@ def test_task_instances(admin_client):
             "task_id": "run_after_loop",
             "trigger_id": None,
             "trigger_timeout": None,
-            "try_number": 1,
+            "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
@@ -1138,7 +1172,7 @@ def test_task_instances(admin_client):
             "task_id": "run_this_last",
             "trigger_id": None,
             "trigger_timeout": None,
-            "try_number": 1,
+            "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
@@ -1173,7 +1207,7 @@ def test_task_instances(admin_client):
             "task_id": "runme_0",
             "trigger_id": None,
             "trigger_timeout": None,
-            "try_number": 1,
+            "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
@@ -1208,7 +1242,7 @@ def test_task_instances(admin_client):
             "task_id": "runme_1",
             "trigger_id": None,
             "trigger_timeout": None,
-            "try_number": 1,
+            "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
@@ -1243,7 +1277,7 @@ def test_task_instances(admin_client):
             "task_id": "runme_2",
             "trigger_id": None,
             "trigger_timeout": None,
-            "try_number": 1,
+            "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },
@@ -1278,7 +1312,7 @@ def test_task_instances(admin_client):
             "task_id": "this_will_skip",
             "trigger_id": None,
             "trigger_timeout": None,
-            "try_number": 1,
+            "try_number": 0,
             "unixname": getuser(),
             "updated_at": DEFAULT_DATE.isoformat(),
         },

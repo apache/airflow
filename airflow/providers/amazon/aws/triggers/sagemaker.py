@@ -25,8 +25,9 @@ from functools import cached_property
 from typing import Any, AsyncIterator
 
 from botocore.exceptions import WaiterError
+from deprecated import deprecated
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -121,7 +122,7 @@ class SageMakerTrigger(BaseTrigger):
                 status_message=f"{self.job_type} job not done yet",
                 status_args=[self._get_response_status_key(self.job_type)],
             )
-            yield TriggerEvent({"status": "success", "message": "Job completed."})
+            yield TriggerEvent({"status": "success", "message": "Job completed.", "job_name": self.job_name})
 
 
 class SageMakerPipelineTrigger(BaseTrigger):
@@ -199,6 +200,13 @@ class SageMakerPipelineTrigger(BaseTrigger):
             raise AirflowException("Waiter error: max attempts reached")
 
 
+@deprecated(
+    reason=(
+        "`airflow.providers.amazon.aws.triggers.sagemaker.SageMakerTrainingPrintLogTrigger` "
+        "has been deprecated and will be removed in future. Please use ``SageMakerTrigger`` instead."
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class SageMakerTrainingPrintLogTrigger(BaseTrigger):
     """
     SageMakerTrainingPrintLogTrigger is fired as deferred class with params to run the task in triggerer.

@@ -73,6 +73,7 @@ const config = {
     task: `${JS_DIR}/task.js`,
     taskInstances: `${JS_DIR}/task_instances.js`,
     tiLog: `${JS_DIR}/ti_log.js`,
+    toggleTheme: `${JS_DIR}/toggle_theme.js`,
     grid: `${JS_DIR}/dag/index.tsx`,
     clusterActivity: `${JS_DIR}/cluster-activity/index.tsx`,
     datasets: `${JS_DIR}/datasets/index.tsx`,
@@ -96,14 +97,6 @@ const config = {
   },
   module: {
     rules: [
-      {
-        test: /datatables\.net.*/,
-        use: [
-          {
-            loader: "imports-loader?define=>false",
-          },
-        ],
-      },
       {
         test: /\.(js|jsx|tsx|ts)$/,
         exclude: /node_modules/,
@@ -219,14 +212,6 @@ const config = {
         },
         {
           from: "node_modules/bootstrap-3-typeahead/*min.*",
-          flatten: true,
-        },
-        {
-          from: "node_modules/datatables.net/**/**.min.*",
-          flatten: true,
-        },
-        {
-          from: "node_modules/datatables.net-bs/**/**.min.*",
           flatten: true,
         },
         {

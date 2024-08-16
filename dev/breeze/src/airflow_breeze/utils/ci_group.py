@@ -31,7 +31,12 @@ _in_ci_group = False
 
 
 @contextmanager
-def ci_group(title: str, message_type: MessageType | None = MessageType.INFO, output: Output | None = None):
+def ci_group(
+    title: str,
+    message_type: MessageType | None = MessageType.INFO,
+    output: Output | None = None,
+    skip_printing_title: bool = False,
+):
     """
     If used in GitHub Action, creates an expandable group in the GitHub Action log.
     Otherwise, display simple text groups.
@@ -44,19 +49,21 @@ def ci_group(title: str, message_type: MessageType | None = MessageType.INFO, ou
         yield
         return
     if os.environ.get("GITHUB_ACTIONS", "false") != "true":
-        if message_type is not None:
-            get_console(output=output).print(f"\n[{message_type.value}]{title}\n")
-        else:
-            get_console(output=output).print(f"\n{title}\n")
+        if not skip_printing_title:
+            if message_type is not None:
+                get_console(output=output).print(f"\n[{message_type.value}]{title}\n")
+            else:
+                get_console(output=output).print(f"\n{title}\n")
         yield
         return
     _in_ci_group = True
-    if message_type is not None:
-        get_console().print(f"::group::[{message_type.value}]{title}[/]")
-    else:
-        get_console().print(f"::group::{title}")
-    try:
-        yield
-    finally:
-        get_console().print("::endgroup::")
-        _in_ci_group = False
+    if not skip_printing_title:
+        if message_type is not None:
+            get_console().print(f"::group::[{message_type.value}]{title}[/]")
+        else:
+            get_console().print(f"::group::{title}")
+        try:
+            yield
+        finally:
+            get_console().print("::endgroup::")
+            _in_ci_group = False

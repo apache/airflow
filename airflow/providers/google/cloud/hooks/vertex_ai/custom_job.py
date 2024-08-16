@@ -262,7 +262,7 @@ class CustomJobHook(GoogleBaseHook):
 
     @staticmethod
     def extract_model_id_from_training_pipeline(training_pipeline: dict[str, Any]) -> str:
-        """Return a unique Model id from a serialized TrainingPipeline proto."""
+        """Return a unique Model ID from a serialized TrainingPipeline proto."""
         return training_pipeline["model_to_upload"]["name"].rpartition("/")[-1]
 
     @staticmethod

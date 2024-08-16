@@ -27,6 +27,7 @@ import pytest
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.mongo.hooks.mongo import MongoHook
+from tests.test_utils.compat import connection_as_json
 
 pytestmark = pytest.mark.db_test
 
@@ -59,7 +60,7 @@ def mongo_connections():
 
     with pytest.MonkeyPatch.context() as mp:
         for conn in connections:
-            mp.setenv(f"AIRFLOW_CONN_{conn.conn_id.upper()}", conn.as_json())
+            mp.setenv(f"AIRFLOW_CONN_{conn.conn_id.upper()}", connection_as_json(conn))
         yield
 
 

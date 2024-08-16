@@ -17,19 +17,25 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from unittest import mock
 
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.datapipeline import DataPipelineHook
 
 pytestmark = pytest.mark.db_test
 
 
 TASK_ID = "test-datapipeline-operators"
-TEST_NAME = "projects/test-project-id/locations/test-location"
+TEST_PARENT_NAME = "projects/test-project-id/locations/test-location"
+TEST_LOCATION = "test-location"
+TEST_PROJECT_ID = "test-project-id"
+TEST_DATA_PIPELINE_NAME = "test-data-pipeline-name"
+TEST_JOB_ID = "test-job-id"
 TEST_BODY = {
-    "name": "projects/test-project-id/locations/test-location/pipelines/test-pipeline",
+    "name": f"{TEST_PARENT_NAME}/pipelines/{TEST_DATA_PIPELINE_NAME}",
     "type": "PIPELINE_TYPE_BATCH",
     "workload": {
         "dataflowFlexTemplateRequest": {
@@ -42,17 +48,11 @@ TEST_BODY = {
                     "output": "gs://test/output/my_output",
                 },
             },
-            "projectId": "test-project-id",
-            "location": "test-location",
+            "projectId": TEST_PROJECT_ID,
+            "location": TEST_LOCATION,
         }
     },
 }
-TEST_LOCATION = "test-location"
-TEST_PROJECTID = "test-project-id"
-TEST_DATA_PIPELINE_NAME = "test-data-pipeline-name"
-TEST_PARENT = "projects/test-project-id/locations/test-location"
-TEST_JOB_ID = "test-job-id"
-TEST_NAME = "projects/test-project-id/locations/test-location/pipelines/test-data-pipeline-name"
 
 
 class TestDataPipelineHook:
@@ -61,10 +61,12 @@ class TestDataPipelineHook:
     """
 
     def setup_method(self):
-        self.datapipeline_hook = DataPipelineHook(gcp_conn_id="google_cloud_default")
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
+            self.datapipeline_hook = DataPipelineHook(gcp_conn_id="google_cloud_default")
 
-    @mock.patch("airflow.providers.google.cloud.hooks.datapipeline.DataPipelineHook._authorize")
-    @mock.patch("airflow.providers.google.cloud.hooks.datapipeline.build")
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook._authorize")
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.build")
     def test_get_conn(self, mock_build, mock_authorize):
         """
         Test that get_conn is called with the correct params and
@@ -76,23 +78,7 @@ class TestDataPipelineHook:
         )
         assert mock_build.return_value == connection
 
-    @mock.patch("airflow.providers.google.cloud.hooks.datapipeline.DataPipelineHook.build_parent_name")
-    def test_build_parent_name(self, mock_build_parent_name):
-        """
-        Test that build_parent_name is called with the correct params and
-        returns the correct parent string
-        """
-        result = self.datapipeline_hook.build_parent_name(
-            project_id=TEST_PROJECTID,
-            location=TEST_LOCATION,
-        )
-        mock_build_parent_name.assert_called_with(
-            project_id=TEST_PROJECTID,
-            location=TEST_LOCATION,
-        )
-        assert mock_build_parent_name.return_value == result
-
-    @mock.patch("airflow.providers.google.cloud.hooks.datapipeline.DataPipelineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook.get_pipelines_conn")
     def test_create_data_pipeline(self, mock_connection):
         """
         Test that request are called with the correct params
@@ -100,21 +86,21 @@ class TestDataPipelineHook:
         """
         mock_locations = mock_connection.return_value.projects.return_value.locations
         mock_request = mock_locations.return_value.pipelines.return_value.create
-        mock_request.return_value.execute.return_value = {"name": TEST_PARENT}
+        mock_request.return_value.execute.return_value = {"name": TEST_PARENT_NAME}
 
         result = self.datapipeline_hook.create_data_pipeline(
             body=TEST_BODY,
-            project_id=TEST_PROJECTID,
+            project_id=TEST_PROJECT_ID,
             location=TEST_LOCATION,
         )
 
         mock_request.assert_called_once_with(
-            parent=TEST_PARENT,
+            parent=TEST_PARENT_NAME,
             body=TEST_BODY,
         )
-        assert result == {"name": TEST_PARENT}
+        assert result == {"name": TEST_PARENT_NAME}
 
-    @mock.patch("airflow.providers.google.cloud.hooks.datapipeline.DataPipelineHook.get_conn")
+    @mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook.get_pipelines_conn")
     def test_run_data_pipeline(self, mock_connection):
         """
         Test that run_data_pipeline is called with correct parameters and
@@ -125,12 +111,12 @@ class TestDataPipelineHook:
 
         result = self.datapipeline_hook.run_data_pipeline(
             data_pipeline_name=TEST_DATA_PIPELINE_NAME,
-            project_id=TEST_PROJECTID,
+            project_id=TEST_PROJECT_ID,
             location=TEST_LOCATION,
         )
 
         mock_request.assert_called_once_with(
-            name=TEST_NAME,
+            name=f"{TEST_PARENT_NAME}/pipelines/{TEST_DATA_PIPELINE_NAME}",
             body={},
         )
         assert result == {"job": {"id": TEST_JOB_ID}}

@@ -19,57 +19,23 @@ from __future__ import annotations
 import asyncio
 from contextlib import contextmanager
 from copy import deepcopy
-from datetime import datetime
-from typing import TYPE_CHECKING, Any, Iterable
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 
 from airflow.exceptions import TaskDeferred
-from airflow.models import Operator, TaskInstance
 from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
-from airflow.utils.session import NEW_SESSION
-from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.providers.microsoft.conftest import get_airflow_connection, mock_context
 
 if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
+    from airflow.models import Operator
     from airflow.triggers.base import BaseTrigger, TriggerEvent
-
-
-class MockedTaskInstance(TaskInstance):
-    values = {}
-
-    def xcom_pull(
-        self,
-        task_ids: Iterable[str] | str | None = None,
-        dag_id: str | None = None,
-        key: str = XCOM_RETURN_KEY,
-        include_prior_dates: bool = False,
-        session: Session = NEW_SESSION,
-        *,
-        map_indexes: Iterable[int] | int | None = None,
-        default: Any | None = None,
-    ) -> Any:
-        self.task_id = task_ids
-        self.dag_id = dag_id
-        return self.values.get(f"{task_ids}_{dag_id}_{key}")
-
-    def xcom_push(
-        self,
-        key: str,
-        value: Any,
-        execution_date: datetime | None = None,
-        session: Session = NEW_SESSION,
-    ) -> None:
-        self.values[f"{self.task_id}_{self.dag_id}_{key}"] = value
 
 
 class Base:
     def teardown_method(self, method):
         KiotaRequestAdapterHook.cached_request_adapters.clear()
-        MockedTaskInstance.values.clear()
 
     @contextmanager
     def patch_hook_and_request_adapter(self, response):

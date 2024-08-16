@@ -49,7 +49,7 @@ TIMESTAMP_TEST = datetime.now() - timedelta(days=30)
 class TestDatabricksSqlSensor:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
         self.sensor = DatabricksSqlSensor(
             task_id=TASK_ID,
@@ -61,6 +61,7 @@ class TestDatabricksSqlSensor:
             catalog=DEFAULT_CATALOG,
             timeout=30,
             poke_interval=15,
+            hook_params={"return_tuple": True},
         )
 
     def test_init(self):

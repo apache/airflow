@@ -19,7 +19,7 @@
 
 /* global moment */
 
-import { Box, Button, Flex, Input, Select } from "@chakra-ui/react";
+import { Box, Button, Flex, Select } from "@chakra-ui/react";
 import MultiSelect from "src/components/MultiSelect";
 import React from "react";
 import type { DagRun, RunState, TaskState } from "src/types";
@@ -30,6 +30,7 @@ import { useChakraSelectProps } from "chakra-react-select";
 import { useTimezone } from "src/context/timezone";
 import { isoFormatWithoutTZ } from "src/datetime_utils";
 import useFilters from "src/dag/useFilters";
+import DateTimeInput from "src/components/DateTimeInput";
 
 declare const filtersOptions: {
   dagStates: RunState[];
@@ -124,9 +125,8 @@ const FilterBar = () => {
     <Flex backgroundColor="blackAlpha.200" p={4} justifyContent="space-between">
       <Flex>
         <Box px={2}>
-          <Input
+          <DateTimeInput
             {...inputStyles}
-            type="datetime-local"
             value={formattedTime || ""}
             onChange={(e) => onBaseDateChange(e.target.value)}
             {...(isBaseDateDefault ? {} : filteredStyles)}

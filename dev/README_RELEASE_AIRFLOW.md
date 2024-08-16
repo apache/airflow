@@ -317,7 +317,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
   ```shell script
   cat <<EOF
-  Status of testing of Apache Airflow {VERSION}
+  Status of testing of Apache Airflow ${VERSION}
   EOF
   ```
 
@@ -401,7 +401,7 @@ are encouraged to test the release and vote with "(non-binding)".
 The test procedure for PMC members is described in:
 https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOW.md#verify-the-release-candidate-by-pmc-members
 
-The test procedure for and Contributors who would like to test this RC is described in:
+The test procedure for contributors and members of the community who would like to test this RC is described in:
 https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOW.md#verify-the-release-candidate-by-contributors
 
 
@@ -533,7 +533,7 @@ The following files should be present (9 files):
 * .tar.gz + .asc + .sha512
 * -py3-none-any.whl + .asc + .sha512
 
-As a PMC you should be able to clone the SVN repository:
+As a PMC member, you should be able to clone the SVN repository:
 
 ```shell script
 svn co https://dist.apache.org/repos/dist/dev/airflow
@@ -549,7 +549,7 @@ Optionally you can use `check_files.py` script to verify that all expected files
 present in SVN. This script may help also with verifying installation of the packages.
 
 ```shell script
-python check_files.py airflow -v {VERSION} -p {PATH_TO_SVN}
+python check_files.py airflow -v ${VERSION} -p {PATH_TO_SVN}
 ```
 
 ## Licence check
@@ -881,13 +881,17 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
     ```shell script
     breeze release-management publish-docs apache-airflow docker-stack
     breeze release-management add-back-references apache-airflow --airflow-site-directory "${AIRFLOW_SITE_DIRECTORY}"
-    breeze sbom update-sbom-information --airflow-version ${VERSION} --airflow-site-directory ${AIRFLOW_SITE_DIRECTORY} --force
+    breeze sbom update-sbom-information --airflow-version ${VERSION} --airflow-site-directory ${AIRFLOW_SITE_DIRECTORY} --force --all-combinations --run-in-parallel
     cd "${AIRFLOW_SITE_DIRECTORY}"
     git add .
     git commit -m "Add documentation for Apache Airflow ${VERSION}"
     git push
     # and finally open a PR
     ```
+
+The `--run-in-parallell` switch allows to speed up SBOM generation significantly, but it might take a lot
+of memory - if you are running into memory issues you can limit parallelism by setting `--parallelism N`
+where N is a number of parallel `cdxgen` servers that should be started.
 
 ## Wait and make sure documentation is published on the website before proceeding
 
@@ -1007,7 +1011,7 @@ Announcement is done from official Apache-Airflow accounts.
 * Fosstodon: https://fosstodon.org/@airflow
 
 Make sure attach the release image generated with Figma to the post.
-If you don't have access to the account ask PMC to post.
+If you don't have access to the account ask a PMC member to post.
 
 ------------------------------------------------------------------------------------------------------------
 
@@ -1091,5 +1095,5 @@ According to the policy above, if we have to release clients:
 
 - Follow the specific release process for each API client:
 
-    - [Python client](https://github.com/apache/airflow-client-python/blob/master/dev/README_RELEASE_CLIENT.md)
-    - [Go client](https://github.com/apache/airflow-client-go/blob/master/dev/README_RELEASE_CLIENT.md)
+    - [Python client](https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PYTHON_CLIENT.md)
+    - [Go client](https://github.com/apache/airflow-client-go/blob/main/dev/README_RELEASE_CLIENT.md)

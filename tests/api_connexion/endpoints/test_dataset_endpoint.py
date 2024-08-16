@@ -43,7 +43,7 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_datasets, clear_db_runs
 from tests.test_utils.www import _check_last_log
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.fixture(scope="module")
@@ -109,7 +109,7 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
         self._create_dataset(session)
         assert session.query(DatasetModel).count() == 1
 
-        with assert_queries_count(5):
+        with assert_queries_count(6):
             response = self.client.get(
                 f"/api/v1/datasets/{urllib.parse.quote('s3://bucket/key', safe='')}",
                 environ_overrides={"REMOTE_USER": "test"},
@@ -123,6 +123,7 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
             "updated_at": self.default_time,
             "consuming_dags": [],
             "producing_tasks": [],
+            "aliases": [],
         }
 
     def test_should_respond_404(self):
@@ -176,7 +177,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         session.commit()
         assert session.query(DatasetModel).count() == 2
 
-        with assert_queries_count(8):
+        with assert_queries_count(10):
             response = self.client.get("/api/v1/datasets", environ_overrides={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
@@ -191,6 +192,7 @@ class TestGetDatasets(TestDatasetEndpoint):
                     "updated_at": self.default_time,
                     "consuming_dags": [],
                     "producing_tasks": [],
+                    "aliases": [],
                 },
                 {
                     "id": 2,
@@ -200,6 +202,7 @@ class TestGetDatasets(TestDatasetEndpoint):
                     "updated_at": self.default_time,
                     "consuming_dags": [],
                     "producing_tasks": [],
+                    "aliases": [],
                 },
             ],
             "total_entries": 2,

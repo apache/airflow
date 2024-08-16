@@ -54,6 +54,7 @@ def parse_boolean(val: str) -> str | bool: ...
 
 class BaseSQLOperator(BaseOperator):
     conn_id_field: str
+    template_fields: Sequence[str]
     conn_id: Incomplete
     database: Incomplete
     hook_params: Incomplete

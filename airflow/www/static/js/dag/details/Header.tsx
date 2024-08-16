@@ -30,8 +30,7 @@ import useSelection from "src/dag/useSelection";
 import Time from "src/components/Time";
 import { useGridData } from "src/api";
 import RunTypeIcon from "src/components/RunTypeIcon";
-
-import BreadcrumbText from "./BreadcrumbText";
+import BreadcrumbText from "src/components/BreadcrumbText";
 
 const dagDisplayName = getMetaValue("dag_display_name");
 
@@ -41,7 +40,7 @@ interface Props {
 
 const Header = ({ mapIndex }: Props) => {
   const {
-    data: { dagRuns, groups, ordering },
+    data: { dagRuns, groups },
   } = useGridData();
 
   const {
@@ -68,7 +67,7 @@ const Header = ({ mapIndex }: Props) => {
       runId.includes("scheduled__") ||
       runId.includes("backfill__") ||
       runId.includes("dataset_triggered__") ? (
-        <Time dateTime={getDagRunLabel({ dagRun, ordering })} />
+        <Time dateTime={getDagRunLabel({ dagRun })} />
       ) : (
         runId
       );
@@ -124,7 +123,7 @@ const Header = ({ mapIndex }: Props) => {
           </BreadcrumbLink>
         </BreadcrumbItem>
       )}
-      {mapIndex !== undefined && (
+      {mapIndex !== undefined && mapIndex !== -1 && (
         <BreadcrumbItem isCurrentPage mt={4}>
           <BreadcrumbLink
             _hover={isMappedTaskDetails ? { cursor: "default" } : undefined}

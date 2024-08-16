@@ -28,7 +28,7 @@ import pytest
 import sqlalchemy
 from cryptography.fernet import Fernet
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection, crypto
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
@@ -112,18 +112,18 @@ class TestConnection:
         is set to a non-base64-encoded string and the extra is stored without
         encryption.
         """
-        test_connection = Connection(extra="testextra")
+        test_connection = Connection(extra='{"apache": "airflow"}')
         assert not test_connection.is_extra_encrypted
-        assert test_connection.extra == "testextra"
+        assert test_connection.extra == '{"apache": "airflow"}'
 
     @conf_vars({("core", "fernet_key"): Fernet.generate_key().decode()})
     def test_connection_extra_with_encryption(self):
         """
         Tests extras on a new connection with encryption.
         """
-        test_connection = Connection(extra="testextra")
+        test_connection = Connection(extra='{"apache": "airflow"}')
         assert test_connection.is_extra_encrypted
-        assert test_connection.extra == "testextra"
+        assert test_connection.extra == '{"apache": "airflow"}'
 
     def test_connection_extra_with_encryption_rotate_fernet_key(self):
         """
@@ -133,21 +133,21 @@ class TestConnection:
         key2 = Fernet.generate_key()
 
         with conf_vars({("core", "fernet_key"): key1.decode()}):
-            test_connection = Connection(extra="testextra")
+            test_connection = Connection(extra='{"apache": "airflow"}')
             assert test_connection.is_extra_encrypted
-            assert test_connection.extra == "testextra"
-            assert Fernet(key1).decrypt(test_connection._extra.encode()) == b"testextra"
+            assert test_connection.extra == '{"apache": "airflow"}'
+            assert Fernet(key1).decrypt(test_connection._extra.encode()) == b'{"apache": "airflow"}'
 
         # Test decrypt of old value with new key
         with conf_vars({("core", "fernet_key"): f"{key2.decode()},{key1.decode()}"}):
             crypto._fernet = None
-            assert test_connection.extra == "testextra"
+            assert test_connection.extra == '{"apache": "airflow"}'
 
             # Test decrypt of new value with new key
             test_connection.rotate_fernet_key()
             assert test_connection.is_extra_encrypted
-            assert test_connection.extra == "testextra"
-            assert Fernet(key2).decrypt(test_connection._extra.encode()) == b"testextra"
+            assert test_connection.extra == '{"apache": "airflow"}'
+            assert Fernet(key2).decrypt(test_connection._extra.encode()) == b'{"apache": "airflow"}'
 
     test_from_uri_params = [
         UriTestCaseConfig(
@@ -176,47 +176,6 @@ class TestConnection:
                 extra_dejson={"extra1": "a value", "extra2": "/path/"},
             ),
             description="with extras",
-        ),
-        UriTestCaseConfig(
-            test_conn_uri="scheme://user:password@host%2Flocation:1234/schema?__extra__=single+value",
-            test_conn_attributes=dict(
-                conn_type="scheme",
-                host="host/location",
-                schema="schema",
-                login="user",
-                password="password",
-                port=1234,
-                extra="single value",
-            ),
-            description="with extras single value",
-        ),
-        UriTestCaseConfig(
-            test_conn_uri="scheme://user:password@host%2Flocation:1234/schema?"
-            "__extra__=arbitrary+string+%2A%29%2A%24",
-            test_conn_attributes=dict(
-                conn_type="scheme",
-                host="host/location",
-                schema="schema",
-                login="user",
-                password="password",
-                port=1234,
-                extra="arbitrary string *)*$",
-            ),
-            description="with extra non-json",
-        ),
-        UriTestCaseConfig(
-            test_conn_uri="scheme://user:password@host%2Flocation:1234/schema?"
-            "__extra__=%5B%22list%22%2C+%22of%22%2C+%22values%22%5D",
-            test_conn_attributes=dict(
-                conn_type="scheme",
-                host="host/location",
-                schema="schema",
-                login="user",
-                password="password",
-                port=1234,
-                extra_dejson=["list", "of", "values"],
-            ),
-            description="with extras list",
         ),
         UriTestCaseConfig(
             test_conn_uri="scheme://user:password@host%2Flocation:1234/schema?"
@@ -382,12 +341,83 @@ class TestConnection:
             description="login only",
         ),
     ]
+    test_from_uri_params_deprecated = [
+        UriTestCaseConfig(
+            test_conn_uri="scheme://user:password@host%2Flocation:1234/schema?__extra__=single+value",
+            test_conn_attributes=dict(
+                conn_type="scheme",
+                host="host/location",
+                schema="schema",
+                login="user",
+                password="password",
+                port=1234,
+                extra="single value",
+            ),
+            description="with extras single value",
+        ),
+        UriTestCaseConfig(
+            test_conn_uri="scheme://user:password@host%2Flocation:1234/schema?"
+            "__extra__=arbitrary+string+%2A%29%2A%24",
+            test_conn_attributes=dict(
+                conn_type="scheme",
+                host="host/location",
+                schema="schema",
+                login="user",
+                password="password",
+                port=1234,
+                extra="arbitrary string *)*$",
+            ),
+            description="with extra non-json",
+        ),
+        UriTestCaseConfig(
+            test_conn_uri="scheme://user:password@host%2Flocation:1234/schema?"
+            "__extra__=%5B%22list%22%2C+%22of%22%2C+%22values%22%5D",
+            test_conn_attributes=dict(
+                conn_type="scheme",
+                host="host/location",
+                schema="schema",
+                login="user",
+                password="password",
+                port=1234,
+                extra_dejson=["list", "of", "values"],
+            ),
+            description="with extras list",
+        ),
+    ]
 
     @pytest.mark.parametrize("test_config", test_from_uri_params)
     def test_connection_from_uri(self, test_config: UriTestCaseConfig):
         connection = Connection(uri=test_config.test_uri)
         for conn_attr, expected_val in test_config.test_conn_attributes.items():
             actual_val = getattr(connection, conn_attr)
+            if expected_val is None:
+                assert expected_val is None
+            if isinstance(expected_val, dict):
+                assert expected_val == actual_val
+            else:
+                assert expected_val == actual_val
+
+        expected_calls = []
+        if test_config.test_conn_attributes.get("password"):
+            expected_calls.append(mock.call(test_config.test_conn_attributes["password"]))
+            expected_calls.append(mock.call(quote(test_config.test_conn_attributes["password"])))
+
+        if test_config.test_conn_attributes.get("extra_dejson"):
+            expected_calls.append(mock.call(test_config.test_conn_attributes["extra_dejson"]))
+
+        self.mask_secret.assert_has_calls(expected_calls)
+
+    @pytest.mark.parametrize("test_config", test_from_uri_params_deprecated)
+    def test_connection_from_uri_deprecated_extra_type(self, test_config: UriTestCaseConfig):
+        with pytest.warns(RemovedInAirflow3Warning):
+            connection = Connection(uri=test_config.test_uri)
+        for conn_attr, expected_val in test_config.test_conn_attributes.items():
+            if conn_attr in ("extra", "extra_dejson"):
+                with pytest.warns(RemovedInAirflow3Warning):
+                    actual_val = getattr(connection, conn_attr)
+            else:
+                actual_val = getattr(connection, conn_attr)
+
             if expected_val is None:
                 assert expected_val is None
             if isinstance(expected_val, dict):
@@ -426,6 +456,23 @@ class TestConnection:
         assert connection.schema == new_conn.schema
         assert connection.extra_dejson == new_conn.extra_dejson
 
+    @pytest.mark.parametrize("test_config", test_from_uri_params_deprecated)
+    def test_connection_get_uri_from_uri_deprecated_extra_type(self, test_config: UriTestCaseConfig):
+        with pytest.warns(RemovedInAirflow3Warning):
+            connection = Connection(uri=test_config.test_uri)
+        with pytest.warns(RemovedInAirflow3Warning):
+            generated_uri = connection.get_uri()
+        with pytest.warns(RemovedInAirflow3Warning):
+            new_conn = Connection(uri=generated_uri)
+        assert connection.conn_type == new_conn.conn_type
+        assert connection.login == new_conn.login
+        assert connection.password == new_conn.password
+        assert connection.host == new_conn.host
+        assert connection.port == new_conn.port
+        assert connection.schema == new_conn.schema
+        with pytest.warns(RemovedInAirflow3Warning):
+            assert connection.extra_dejson == new_conn.extra_dejson
+
     @pytest.mark.parametrize("test_config", test_from_uri_params)
     def test_connection_get_uri_from_conn(self, test_config: UriTestCaseConfig):
         """
@@ -449,6 +496,41 @@ class TestConnection:
         new_conn = Connection(conn_id="test_conn", uri=gen_uri)
         for conn_attr, expected_val in test_config.test_conn_attributes.items():
             actual_val = getattr(new_conn, conn_attr)
+            if expected_val is None:
+                assert actual_val is None
+            else:
+                assert actual_val == expected_val
+
+    @pytest.mark.parametrize("test_config", test_from_uri_params_deprecated)
+    def test_connection_get_uri_from_conn_deprecated_extra_type(self, test_config: UriTestCaseConfig):
+        """
+        This test verifies that if we create conn_1 from attributes (rather than from URI), and we generate a
+        URI, that when we create conn_2 from this URI, we get an equivalent conn.
+        1. Build conn init params using `test_conn_attributes` and store in `conn_kwargs`
+        2. Instantiate conn `connection` from `conn_kwargs`.
+        3. Generate uri `get_uri` from this conn.
+        4. Create conn `new_conn` from this uri.
+        5. Verify `new_conn` has same attributes as `connection`.
+        """
+        conn_kwargs = {}
+        for k, v in test_config.test_conn_attributes.items():
+            if k == "extra_dejson":
+                conn_kwargs.update({"extra": json.dumps(v)})
+            else:
+                conn_kwargs.update({k: v})
+
+        with pytest.warns(RemovedInAirflow3Warning):
+            connection = Connection(conn_id="test_conn", **conn_kwargs)  # type: ignore
+        with pytest.warns(RemovedInAirflow3Warning):
+            gen_uri = connection.get_uri()
+        with pytest.warns(RemovedInAirflow3Warning):
+            new_conn = Connection(conn_id="test_conn", uri=gen_uri)
+        for conn_attr, expected_val in test_config.test_conn_attributes.items():
+            if conn_attr in ("extra", "extra_dejson"):
+                with pytest.warns(RemovedInAirflow3Warning):
+                    actual_val = getattr(new_conn, conn_attr)
+            else:
+                actual_val = getattr(new_conn, conn_attr)
             if expected_val is None:
                 assert actual_val is None
             else:
@@ -577,17 +659,20 @@ class TestConnection:
         assert connection.schema == uri_parts.schema
 
     @pytest.mark.parametrize(
-        "extra,expected",
+        "extra, expected",
         [
             ('{"extra": null}', None),
-            ('{"extra": "hi"}', "hi"),
             ('{"extra": {"yo": "hi"}}', '{"yo": "hi"}'),
             ('{"extra": "{\\"yo\\": \\"hi\\"}"}', '{"yo": "hi"}'),
         ],
     )
     def test_from_json_extra(self, extra, expected):
-        """json serialization should support extra stored as object _or_ as string"""
+        """json serialization should support extra stored as object _or_ as object string representation"""
         assert Connection.from_json(extra).extra == expected
+
+    def test_from_json_extra_string(self):
+        with pytest.warns(RemovedInAirflow3Warning, match="Support for non-JSON `extra` will be removed"):
+            assert Connection.from_json('{"extra": "hi"}').extra == "hi"
 
     @pytest.mark.parametrize(
         "val,expected",

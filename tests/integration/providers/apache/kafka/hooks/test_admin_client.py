@@ -25,7 +25,7 @@ from airflow.models import Connection
 from airflow.providers.apache.kafka.hooks.client import KafkaAdminClientHook
 from airflow.utils import db
 
-client_config = {"socket.timeout.ms": 1000, "bootstrap.servers": "broker:29092"}
+client_config = {"socket.timeout.ms": 1000, "bootstrap.servers": "broker:29092", "group.id": "my-group"}
 
 
 @pytest.mark.integration("kafka")
@@ -49,3 +49,4 @@ class TestKafkaAdminClientHook:
         kadmin = hook.get_conn
         t = kadmin.list_topics(timeout=10).topics
         assert t.get("test_2")
+        hook.delete_topic(topics=["test_1", "test_2"])

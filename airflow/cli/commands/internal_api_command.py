@@ -222,7 +222,12 @@ def create_app(config=None, testing=False):
     if "SQLALCHEMY_ENGINE_OPTIONS" not in flask_app.config:
         flask_app.config["SQLALCHEMY_ENGINE_OPTIONS"] = settings.prepare_engine_args()
 
-    InternalApiConfig.force_database_direct_access()
+    if conf.getboolean("core", "database_access_isolation", fallback=False):
+        InternalApiConfig.set_use_database_access("Gunicorn worker initialization")
+    else:
+        raise AirflowConfigException(
+            "The internal-api component should only be run when database_access_isolation is enabled."
+        )
 
     csrf = CSRFProtect()
     csrf.init_app(flask_app)

@@ -63,9 +63,7 @@ dependencies = [
     "psutil>=5.9.6",
     "pygithub>=2.1.1",
     "pytest-xdist>=3.3.1",
-    # Temporary upper limmit to <8, not all dependencies at that moment ready to use 8.0
-    # Internal meta-task for track https://github.com/apache/airflow/issues/37156
-    "pytest>=7.4.4,<8.0",
+    "pytest>=8.2,<9",
     "pyyaml>=6.0.1",
     "requests>=2.31.0",
     "rich-click>=1.7.1",

@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import textwrap
 import time
 from typing import TYPE_CHECKING, Any, Callable, Sequence
@@ -67,6 +68,8 @@ if TYPE_CHECKING:
 
 TI = TaskInstance
 
+logger = logging.getLogger(__name__)
+
 
 def datetime_to_string(value: DateTime | None) -> str | None:
     if value is None:
@@ -94,12 +97,6 @@ def get_instance_with_map(task_instance, session):
         return data
     mapped_instances = get_mapped_instances(task_instance, session)
     return get_mapped_summary(task_instance, mapped_instances)
-
-
-def get_try_count(try_number: int, state: State):
-    if state in (TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE):
-        return try_number + 1
-    return try_number
 
 
 priority: list[None | TaskInstanceState] = [
@@ -147,7 +144,7 @@ def get_mapped_summary(parent_instance, task_instances):
         "start_date": group_start_date,
         "end_date": group_end_date,
         "mapped_states": mapped_states,
-        "try_number": get_try_count(parent_instance._try_number, parent_instance.state),
+        "try_number": parent_instance.try_number,
         "execution_date": parent_instance.execution_date,
     }
 
@@ -169,28 +166,39 @@ def get_dag_run_conf(
 
 def encode_dag_run(
     dag_run: DagRun | None, *, json_encoder: type[json.JSONEncoder] = json.JSONEncoder
-) -> dict[str, Any] | None:
+) -> tuple[dict[str, Any] | None, None | str]:
     if not dag_run:
-        return None
+        return None, None
 
-    dag_run_conf, conf_is_json = get_dag_run_conf(dag_run.conf, json_encoder=json_encoder)
+    try:
+        dag_run_conf, conf_is_json = get_dag_run_conf(dag_run.conf, json_encoder=json_encoder)
+        encoded_dag_run = {
+            "run_id": dag_run.run_id,
+            "queued_at": datetime_to_string(dag_run.queued_at),
+            "start_date": datetime_to_string(dag_run.start_date),
+            "end_date": datetime_to_string(dag_run.end_date),
+            "state": dag_run.state,
+            "execution_date": datetime_to_string(dag_run.execution_date),
+            "data_interval_start": datetime_to_string(dag_run.data_interval_start),
+            "data_interval_end": datetime_to_string(dag_run.data_interval_end),
+            "run_type": dag_run.run_type,
+            "last_scheduling_decision": datetime_to_string(dag_run.last_scheduling_decision),
+            "external_trigger": dag_run.external_trigger,
+            "conf": dag_run_conf,
+            "conf_is_json": conf_is_json,
+            "note": dag_run.note,
+        }
+    except ValueError as e:
+        logger.error("Error while encoding the DAG Run!", exc_info=e)
+        if str(e) == "Circular reference detected":
+            return None, (
+                f"Circular reference detected in the DAG Run config (#{dag_run.run_id}). "
+                f"You should check your webserver logs for more details."
+            )
+        else:
+            raise e
 
-    return {
-        "run_id": dag_run.run_id,
-        "queued_at": datetime_to_string(dag_run.queued_at),
-        "start_date": datetime_to_string(dag_run.start_date),
-        "end_date": datetime_to_string(dag_run.end_date),
-        "state": dag_run.state,
-        "execution_date": datetime_to_string(dag_run.execution_date),
-        "data_interval_start": datetime_to_string(dag_run.data_interval_start),
-        "data_interval_end": datetime_to_string(dag_run.data_interval_end),
-        "run_type": dag_run.run_type,
-        "last_scheduling_decision": datetime_to_string(dag_run.last_scheduling_decision),
-        "external_trigger": dag_run.external_trigger,
-        "conf": dag_run_conf,
-        "conf_is_json": conf_is_json,
-        "note": dag_run.note,
-    }
+    return encoded_dag_run, None
 
 
 def check_import_errors(fileloc, session):
@@ -533,7 +541,12 @@ def dag_run_link(attr):
     dag_id = attr.get("dag_id")
     run_id = attr.get("run_id")
 
-    url = url_for("Airflow.graph", dag_id=dag_id, dag_run_id=run_id)
+    url = url_for(
+        "Airflow.grid",
+        dag_id=dag_id,
+        dag_run_id=run_id,
+        tab="graph",
+    )
     return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
 
 
@@ -552,7 +565,8 @@ def _get_run_ordering_expr(name: str) -> ColumnOperators:
 def sorted_dag_runs(
     query: Select, *, ordering: Sequence[str], limit: int, session: Session
 ) -> Sequence[DagRun]:
-    """Produce DAG runs sorted by specified columns.
+    """
+    Produce DAG runs sorted by specified columns.
 
     :param query: An ORM select object against *DagRun*.
     :param ordering: Column names to sort the runs. should generally come from a
@@ -851,7 +865,8 @@ class CustomSQLAInterface(SQLAInterface):
 
 
 class DagRunCustomSQLAInterface(CustomSQLAInterface):
-    """Custom interface to allow faster deletion.
+    """
+    Custom interface to allow faster deletion.
 
     The ``delete`` and ``delete_all`` methods are overridden to speed up
     deletion when a DAG run has a lot of related task instances. Relying on
@@ -930,7 +945,8 @@ class UIAlert:
         self.message = Markup(message) if html else message
 
     def should_show(self, appbuilder: AirflowAppBuilder) -> bool:
-        """Determine if the user should see the message.
+        """
+        Determine if the user should see the message.
 
         The decision is based on the user's role. If ``AUTH_ROLE_PUBLIC`` is
         set in ``webserver_config.py``, An anonymous user would have the

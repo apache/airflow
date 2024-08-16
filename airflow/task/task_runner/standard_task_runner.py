@@ -21,14 +21,17 @@ from __future__ import annotations
 
 import logging
 import os
+import signal
+import threading
+import time
 from typing import TYPE_CHECKING
 
 import psutil
 from setproctitle import setproctitle
 
-from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.models.taskinstance import TaskReturnCode
 from airflow.settings import CAN_FORK
+from airflow.stats import Stats
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils.dag_parsing_context import _airflow_parsing_context_manager
 from airflow.utils.process_utils import reap_process_group, set_new_process_group
@@ -53,6 +56,11 @@ class StandardTaskRunner(BaseTaskRunner):
         else:
             self.process = self._start_by_exec()
 
+        if self.process:
+            resource_monitor = threading.Thread(target=self._read_task_utilization)
+            resource_monitor.daemon = True
+            resource_monitor.start()
+
     def _start_by_exec(self) -> psutil.Process:
         subprocess = self.run_command()
         self.process = psutil.Process(subprocess.pid)
@@ -64,9 +72,13 @@ class StandardTaskRunner(BaseTaskRunner):
             self.log.info("Started process %d to run task", pid)
             return psutil.Process(pid)
         else:
+            from airflow.api_internal.internal_api_call import InternalApiConfig
+            from airflow.configuration import conf
+
+            if conf.getboolean("core", "database_access_isolation", fallback=False):
+                InternalApiConfig.set_use_internal_api("Forked task runner")
             # Start a new process group
             set_new_process_group()
-            import signal
 
             signal.signal(signal.SIGINT, signal.SIG_DFL)
             signal.signal(signal.SIGTERM, signal.SIG_DFL)
@@ -172,13 +184,14 @@ class StandardTaskRunner(BaseTaskRunner):
 
         if self._rc is None:
             # Something else reaped it before we had a chance, so let's just "guess" at an error code.
-            self._rc = -9
+            self._rc = -signal.SIGKILL
 
-        if self._rc == -9:
-            # If either we or psutil gives out a -9 return code, it likely means
-            # an OOM happened
+        if self._rc == -signal.SIGKILL:
             self.log.error(
-                "Job %s was killed before it finished (likely due to running out of memory)",
+                (
+                    "Job %s was killed before it finished (likely due to running out of memory)",
+                    "For more information, see https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#LocalTaskJob-killed",
+                ),
                 self._task_instance.job_id,
             )
 
@@ -186,3 +199,20 @@ class StandardTaskRunner(BaseTaskRunner):
         if self.process is None:
             raise RuntimeError("Process is not started yet")
         return self.process.pid
+
+    def _read_task_utilization(self):
+        dag_id = self._task_instance.dag_id
+        task_id = self._task_instance.task_id
+
+        try:
+            while True:
+                with self.process.oneshot():
+                    mem_usage = self.process.memory_percent()
+                    cpu_usage = self.process.cpu_percent()
+
+                    Stats.gauge(f"task.mem_usage.{dag_id}.{task_id}", mem_usage)
+                    Stats.gauge(f"task.cpu_usage.{dag_id}.{task_id}", cpu_usage)
+                    time.sleep(5)
+        except (psutil.NoSuchProcess, psutil.AccessDenied, AttributeError):
+            self.log.info("Process not found (most likely exited), stop collecting metrics")
+            return

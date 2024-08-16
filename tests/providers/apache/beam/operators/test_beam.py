@@ -184,9 +184,7 @@ class TestBeamRunPythonPipelineOperator:
             runner="DataflowRunner",
             **self.default_op_kwargs,
         )
-        # dataflow_config = DataflowConfiguration(impersonation_chain=TEST_IMPERSONATION_ACCOUNT)
-        # self.operator.runner = "DataflowRunner"
-        # self.operator.dataflow_config = dataflow_config
+
         op.execute({})
 
         assert op.dataflow_config.gcp_conn_id == "google_cloud_default"
@@ -230,6 +228,22 @@ class TestBeamRunPythonPipelineOperator:
             check_job_status_callback=mock.ANY,
         )
         dataflow_hook_mock.return_value.provide_authorized_gcloud.assert_called_once_with()
+
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_exec_dataflow_runner__no_dataflow_job_name(
+        self, gcs_hook, dataflow_hook_mock, beam_hook_mock, persist_link_mock
+    ):
+        """Test that the task_id is passed as the Dataflow job name if not set in dataflow_config."""
+        dataflow_config = DataflowConfiguration(impersonation_chain="test@impersonation.com")
+        op = BeamRunPythonPipelineOperator(
+            **self.default_op_kwargs, dataflow_config=dataflow_config, runner="DataflowRunner"
+        )
+        dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
+        op.execute({})
+        assert op.dataflow_config.job_name == op.task_id
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
@@ -421,6 +435,22 @@ class TestBeamRunJavaPipelineOperator:
             job_class=JOB_CLASS,
             process_line_callback=mock.ANY,
         )
+
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
+    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
+    def test_exec_dataflow_runner__no_dataflow_job_name(
+        self, gcs_hook, dataflow_hook_mock, beam_hook_mock, persist_link_mock
+    ):
+        """Test that the task_id is passed as the Dataflow job name if not set in dataflow_config."""
+        dataflow_config = DataflowConfiguration(impersonation_chain="test@impersonation.com")
+        op = BeamRunJavaPipelineOperator(
+            **self.default_op_kwargs, dataflow_config=dataflow_config, runner="DataflowRunner"
+        )
+        dataflow_hook_mock.return_value.is_job_dataflow_running.return_value = False
+        op.execute({})
+        assert op.dataflow_config.job_name == op.task_id
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
@@ -1013,24 +1043,20 @@ class TestBeamRunJavaPipelineOperatorAsync:
         ), "Trigger is not a BeamPJavaPipelineTrigger"
 
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
-    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
-    def test_async_execute_direct_runner(self, gcs_hook, beam_hook_mock):
+    def test_async_execute_direct_runner(self, beam_hook_mock):
         """
         Test BeamHook is created and the right args are passed to
         start_java_pipeline when executing direct runner.
         """
-        gcs_provide_file = gcs_hook.return_value.provide_file
         op = BeamRunJavaPipelineOperator(**self.default_op_kwargs)
         with pytest.raises(TaskDeferred):
             op.execute(context=mock.MagicMock())
         beam_hook_mock.assert_called_once_with(runner=DEFAULT_RUNNER)
-        gcs_provide_file.assert_called_once_with(object_url=JAR_FILE)
 
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowJobLink.persist"))
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
-    @mock.patch(BEAM_OPERATOR_PATH.format("GCSHook"))
-    def test_exec_dataflow_runner(self, gcs_hook, dataflow_hook_mock, beam_hook_mock, persist_link_mock):
+    def test_exec_dataflow_runner(self, dataflow_hook_mock, beam_hook_mock, persist_link_mock):
         """
         Test DataflowHook is created and the right args are passed to
         start_java_pipeline when executing Dataflow runner.
@@ -1039,7 +1065,6 @@ class TestBeamRunJavaPipelineOperatorAsync:
         op = BeamRunJavaPipelineOperator(
             runner="DataflowRunner", dataflow_config=dataflow_config, **self.default_op_kwargs
         )
-        gcs_provide_file = gcs_hook.return_value.provide_file
         magic_mock = mock.MagicMock()
         with pytest.raises(TaskDeferred):
             op.execute(context=magic_mock)
@@ -1062,7 +1087,6 @@ class TestBeamRunJavaPipelineOperatorAsync:
             "region": "us-central1",
             "impersonate_service_account": TEST_IMPERSONATION_ACCOUNT,
         }
-        gcs_provide_file.assert_called_once_with(object_url=JAR_FILE)
         persist_link_mock.assert_called_once_with(
             op,
             magic_mock,

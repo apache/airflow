@@ -22,6 +22,8 @@ from airflow.decorators import dag, setup, task, teardown
 from airflow.providers.cohere.operators.embedding import CohereEmbeddingOperator
 from airflow.providers.weaviate.operators.weaviate import WeaviateIngestOperator
 
+COLLECTION_NAME = "weaviate_cohere_example_collection"
+
 
 @dag(
     schedule=None,
@@ -36,19 +38,15 @@ def example_weaviate_cohere():
 
     @setup
     @task
-    def create_weaviate_class():
+    def create_weaviate_collection():
         """
-        Example task to create class without any Vectorizer. You're expected to provide custom vectors for your data.
+        Example task to create collection without any Vectorizer. You're expected to provide custom vectors for your data.
         """
         from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 
         weaviate_hook = WeaviateHook()
-        # Class definition object. Weaviate's autoschema feature will infer properties when importing.
-        class_obj = {
-            "class": "Weaviate_example_class",
-            "vectorizer": "none",
-        }
-        weaviate_hook.create_class(class_obj)
+        # Collection definition object. Weaviate's autoschema feature will infer properties when importing.
+        weaviate_hook.create_collection(name=COLLECTION_NAME, vectorizer_config=None)
 
     @setup
     @task
@@ -60,6 +58,7 @@ def example_weaviate_cohere():
         return [[item["Question"]] for item in data]
 
     data_to_embed = get_data_to_embed()
+
     embed_data = CohereEmbeddingOperator.partial(
         task_id="embedding_using_xcom_data",
     ).expand(input_text=data_to_embed["return_value"])
@@ -81,8 +80,8 @@ def example_weaviate_cohere():
     perform_ingestion = WeaviateIngestOperator(
         task_id="perform_ingestion",
         conn_id="weaviate_default",
-        class_name="Weaviate_example_class",
-        input_json=update_vector_data_in_json["return_value"],
+        collection_name=COLLECTION_NAME,
+        input_data=update_vector_data_in_json["return_value"],
     )
 
     embed_query = CohereEmbeddingOperator(
@@ -92,24 +91,24 @@ def example_weaviate_cohere():
 
     @teardown
     @task
-    def delete_weaviate_class():
+    def delete_weaviate_collections():
         """
-        Example task to delete a weaviate class
+        Example task to delete a weaviate collection
         """
         from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
 
         weaviate_hook = WeaviateHook()
-        # Class definition object. Weaviate's autoschema feature will infer properties when importing.
+        # collection definition object. Weaviate's autoschema feature will infer properties when importing.
 
-        weaviate_hook.delete_classes(["Weaviate_example_class"])
+        weaviate_hook.delete_collections([COLLECTION_NAME])
 
     (
-        create_weaviate_class()
+        create_weaviate_collection()
         >> embed_data
         >> update_vector_data_in_json
         >> perform_ingestion
         >> embed_query
-        >> delete_weaviate_class()
+        >> delete_weaviate_collections()
     )
 
 

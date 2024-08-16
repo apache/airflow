@@ -102,6 +102,8 @@ class BatchProtocol(Protocol):
         arrayProperties: dict,
         parameters: dict,
         containerOverrides: dict,
+        ecsPropertiesOverride: dict,
+        eksPropertiesOverride: dict,
         tags: dict,
     ) -> dict:
         """
@@ -118,6 +120,10 @@ class BatchProtocol(Protocol):
         :param parameters: the same parameter that boto3 will receive
 
         :param containerOverrides: the same parameter that boto3 will receive
+
+        :param ecsPropertiesOverride: the same parameter that boto3 will receive
+
+        :param eksPropertiesOverride: the same parameter that boto3 will receive
 
         :param tags: the same parameter that boto3 will receive
 
@@ -397,6 +403,8 @@ class BatchClientHook(AwsBaseHook):
             try:
                 response = self.get_conn().describe_jobs(jobs=[job_id])
                 return self.parse_job_description(job_id, response)
+            except AirflowException as err:
+                self.log.warning(err)
             except botocore.exceptions.ClientError as err:
                 # Allow it to retry in case of exceeded quota limit of requests to AWS API
                 if err.response.get("Error", {}).get("Code") != "TooManyRequestsException":

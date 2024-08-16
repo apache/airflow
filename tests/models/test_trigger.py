@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import datetime
+import json
 from typing import Any, AsyncIterator
 
 import pytest
@@ -25,12 +26,20 @@ from cryptography.fernet import Fernet
 
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
-from airflow.models import TaskInstance, Trigger
+from airflow.models import TaskInstance, Trigger, XCom
 from airflow.operators.empty import EmptyOperator
-from airflow.triggers.base import BaseTrigger, TriggerEvent
+from airflow.serialization.serialized_objects import BaseSerialization
+from airflow.triggers.base import (
+    BaseTrigger,
+    TaskFailedEvent,
+    TaskSkippedEvent,
+    TaskSuccessEvent,
+    TriggerEvent,
+)
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
@@ -90,6 +99,7 @@ def test_clean_unused(session, create_task_instance):
     assert session.query(Trigger).one().id == trigger1.id
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_submit_event(session, create_task_instance):
     """
     Tests that events submitted to a trigger re-wake their dependent
@@ -111,17 +121,17 @@ def test_submit_event(session, create_task_instance):
     Trigger.submit_event(trigger.id, TriggerEvent(42), session=session)
     # commit changes made by submit event and expire all cache to read from db.
     session.flush()
-    session.expunge_all()
     # Check that the task instance is now scheduled
     updated_task_instance = session.query(TaskInstance).one()
     assert updated_task_instance.state == State.SCHEDULED
     assert updated_task_instance.next_kwargs == {"event": 42, "cheesecake": True}
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_submit_failure(session, create_task_instance):
     """
     Tests that failures submitted to a trigger fail their dependent
-    task instances.
+    task instances if not using a TaskEndEvent.
     """
     # Make a trigger
     trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
@@ -140,6 +150,57 @@ def test_submit_failure(session, create_task_instance):
     updated_task_instance = session.query(TaskInstance).one()
     assert updated_task_instance.state == State.SCHEDULED
     assert updated_task_instance.next_method == "__fail__"
+
+
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
+@pytest.mark.parametrize(
+    "event_cls, expected",
+    [
+        (TaskSuccessEvent, "success"),
+        (TaskFailedEvent, "failed"),
+        (TaskSkippedEvent, "skipped"),
+    ],
+)
+def test_submit_event_task_end(session, create_task_instance, event_cls, expected):
+    """
+    Tests that events inheriting BaseTaskEndEvent *don't* re-wake their dependent
+    but mark them in the appropriate terminal state and send xcom
+    """
+    # Make a trigger
+    trigger = Trigger(classpath="does.not.matter", kwargs={})
+    trigger.id = 1
+    session.add(trigger)
+    session.commit()
+    # Make a TaskInstance that's deferred and waiting on it
+    task_instance = create_task_instance(
+        session=session, execution_date=timezone.utcnow(), state=State.DEFERRED
+    )
+    task_instance.trigger_id = trigger.id
+    session.commit()
+
+    def get_xcoms(ti):
+        return XCom.get_many(dag_ids=[ti.dag_id], task_ids=[ti.task_id], run_id=ti.run_id).all()
+
+    # now for the real test
+    # first check initial state
+    ti: TaskInstance = session.query(TaskInstance).one()
+    assert ti.state == "deferred"
+    assert get_xcoms(ti) == []
+
+    session.flush()
+    # now, for each type, submit event
+    # verify that (1) task ends in right state and (2) xcom is pushed
+    Trigger.submit_event(
+        trigger.id, event_cls(xcoms={XCOM_RETURN_KEY: "xcomret", "a": "b", "c": "d"}), session=session
+    )
+    # commit changes made by submit event and expire all cache to read from db.
+    session.flush()
+    # Check that the task instance is now correct
+    ti = session.query(TaskInstance).one()
+    assert ti.state == expected
+    assert ti.next_kwargs is None
+    actual_xcoms = {x.key: x.value for x in get_xcoms(ti)}
+    assert actual_xcoms == {"return_value": "xcomret", "a": "b", "c": "d"}
 
 
 def test_assign_unassigned(session, create_task_instance):
@@ -242,6 +303,7 @@ def test_assign_unassigned(session, create_task_instance):
     )
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_get_sorted_triggers_same_priority_weight(session, create_task_instance):
     """
     Tests that triggers are sorted by the creation_date if they have the same priority.
@@ -292,6 +354,7 @@ def test_get_sorted_triggers_same_priority_weight(session, create_task_instance)
     assert trigger_ids_query == [(1,), (2,)]
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_get_sorted_triggers_different_priority_weights(session, create_task_instance):
     """
     Tests that triggers are sorted by the priority_weight.
@@ -378,3 +441,18 @@ def test_serialize_sensitive_kwargs():
     assert isinstance(trigger_row.encrypted_kwargs, str)
     assert "value1" not in trigger_row.encrypted_kwargs
     assert "value2" not in trigger_row.encrypted_kwargs
+
+
+def test_kwargs_not_encrypted():
+    """
+    Tests that we don't decrypt kwargs if they aren't encrypted.
+    We weren't able to encrypt the kwargs in all migration paths.
+    """
+    trigger = Trigger(classpath="airflow.triggers.testing.SuccessTrigger", kwargs={})
+    # force the `encrypted_kwargs` to be unencrypted, like they would be after an offline upgrade
+    trigger.encrypted_kwargs = json.dumps(
+        BaseSerialization.serialize({"param1": "value1", "param2": "value2"})
+    )
+
+    assert trigger.kwargs["param1"] == "value1"
+    assert trigger.kwargs["param2"] == "value2"

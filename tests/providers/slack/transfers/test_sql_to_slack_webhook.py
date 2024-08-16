@@ -43,7 +43,7 @@ def mocked_hook():
 @pytest.mark.db_test
 class TestSqlToSlackWebhookOperator:
     def setup_method(self):
-        self.example_dag = DAG(TEST_DAG_ID, start_date=DEFAULT_DATE)
+        self.example_dag = DAG(TEST_DAG_ID, schedule=None, start_date=DEFAULT_DATE)
         self.default_hook_parameters = {"timeout": None, "proxy": None, "retry_handlers": None}
 
     @staticmethod
@@ -285,7 +285,7 @@ class TestSqlToSlackWebhookOperator:
                 slack_conn_id=slack_conn_id,
                 slack_webhook_conn_id=slack_webhook_conn_id,
                 sql_conn_id="fake-sql-conn-id",
-                slack_message="<https://github.com/apache/airflow|Apache Airflow™>",
+                slack_message="<https://github.com/apache/airflow|Apache Airflow®>",
             ).expand(sql=["SELECT 1", "SELECT 2"])
 
         dr = dag_maker.create_dagrun()
@@ -304,7 +304,7 @@ class TestSqlToSlackWebhookOperator:
                 slack_conn_id="slack_conn_id",
                 slack_webhook_conn_id="slack_webhook_conn_id",
                 sql_conn_id="fake-sql-conn-id",
-                slack_message="<https://github.com/apache/airflow|Apache Airflow™>",
+                slack_message="<https://github.com/apache/airflow|Apache Airflow®>",
             ).expand(sql=["SELECT 1", "SELECT 2"])
 
         dr = dag_maker.create_dagrun(session=session)

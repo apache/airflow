@@ -25,7 +25,7 @@ import { SimpleStatus } from "src/dag/StatusBox";
 import useSelection from "src/dag/useSelection";
 import { getGroupAndMapSummary, hoverDelay } from "src/utils";
 import Tooltip from "src/components/Tooltip";
-import InstanceTooltip from "src/dag/InstanceTooltip";
+import InstanceTooltip from "src/components/InstanceTooltip";
 import { useContainerRef } from "src/context/containerRef";
 import TaskName from "src/dag/TaskName";
 

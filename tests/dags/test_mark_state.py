@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import time
 from datetime import datetime
 from time import sleep
 
@@ -24,6 +25,7 @@ from airflow.models.dag import DAG
 from airflow.operators.python import PythonOperator
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from airflow.utils.timezone import utcnow
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 
@@ -34,11 +36,21 @@ args = {
 
 
 dag_id = "test_mark_state"
-dag = DAG(dag_id=dag_id, default_args=args)
+dag = DAG(dag_id=dag_id, schedule=None, default_args=args)
 
 
 def success_callback(context):
     assert context["dag_run"].dag_id == dag_id
+
+
+def sleep_execution():
+    time.sleep(1)
+
+
+def slow_execution():
+    import re
+
+    re.match(r"(a?){30}a{30}", "a" * 30)
 
 
 def test_mark_success_no_kill(ti):
@@ -46,6 +58,7 @@ def test_mark_success_no_kill(ti):
     # Simulate marking this successful in the UI
     with create_session() as session:
         ti.state = State.SUCCESS
+        ti.end_date = utcnow()
         session.merge(ti)
         session.commit()
         # The below code will not run as heartbeat will detect change of state
@@ -103,3 +116,7 @@ def test_mark_skipped_externally(ti):
 PythonOperator(task_id="test_mark_skipped_externally", python_callable=test_mark_skipped_externally, dag=dag)
 
 PythonOperator(task_id="dummy", python_callable=lambda: True, dag=dag)
+
+PythonOperator(task_id="slow_execution", python_callable=slow_execution, dag=dag)
+
+PythonOperator(task_id="sleep_execution", python_callable=sleep_execution, dag=dag)

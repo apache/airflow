@@ -46,7 +46,8 @@ def _url_from_endpoint(base_url: str | None, endpoint: str | None) -> str:
 
 
 class HttpHook(BaseHook):
-    """Interact with HTTP servers.
+    """
+    Interact with HTTP servers.
 
     :param method: the API method to be called
     :param http_conn_id: :ref:`http connection<howto/connection:http>` that has the base
@@ -98,7 +99,8 @@ class HttpHook(BaseHook):
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
     def get_conn(self, headers: dict[Any, Any] | None = None) -> requests.Session:
-        """Create a Requests HTTP session.
+        """
+        Create a Requests HTTP session.
 
         :param headers: additional headers to be passed through as a dictionary
         """
@@ -132,6 +134,7 @@ class HttpHook(BaseHook):
                 session.verify = extra.pop("verify", extra.pop("verify_ssl", True))
                 session.cert = extra.pop("cert", None)
                 session.max_redirects = extra.pop("max_redirects", DEFAULT_REDIRECT_LIMIT)
+                session.trust_env = extra.pop("trust_env", True)
 
                 try:
                     session.headers.update(extra)
@@ -150,7 +153,8 @@ class HttpHook(BaseHook):
         extra_options: dict[str, Any] | None = None,
         **request_kwargs: Any,
     ) -> Any:
-        r"""Perform the request.
+        r"""
+        Perform the request.
 
         :param endpoint: the endpoint to be called i.e. resource/v1/query?
         :param data: payload to be uploaded or request parameters
@@ -187,7 +191,8 @@ class HttpHook(BaseHook):
         return self.run_and_check(session, prepped_request, extra_options)
 
     def check_response(self, response: requests.Response) -> None:
-        """Check the status code and raise on failure.
+        """
+        Check the status code and raise on failure.
 
         :param response: A requests response object.
         :raise AirflowException: If the response contains a status code not
@@ -206,7 +211,8 @@ class HttpHook(BaseHook):
         prepped_request: requests.PreparedRequest,
         extra_options: dict[Any, Any],
     ) -> Any:
-        """Grab extra options, actually run the request, and check the result.
+        """
+        Grab extra options, actually run the request, and check the result.
 
         :param session: the session to be used to execute the request
         :param prepped_request: the prepared request generated in run()
@@ -243,7 +249,8 @@ class HttpHook(BaseHook):
             raise ex
 
     def run_with_advanced_retry(self, _retry_args: dict[Any, Any], *args: Any, **kwargs: Any) -> Any:
-        """Run the hook with retry.
+        """
+        Run the hook with retry.
 
         This is useful for connectors which might be disturbed by intermittent
         issues and should not instantly fail.
@@ -282,7 +289,8 @@ class HttpHook(BaseHook):
 
 
 class HttpAsyncHook(BaseHook):
-    """Interact with HTTP servers asynchronously.
+    """
+    Interact with HTTP servers asynchronously.
 
     :param method: the API method to be called
     :param http_conn_id: http connection id that has the base
@@ -322,7 +330,8 @@ class HttpAsyncHook(BaseHook):
         headers: dict[str, Any] | None = None,
         extra_options: dict[str, Any] | None = None,
     ) -> ClientResponse:
-        """Perform an asynchronous HTTP request call.
+        """
+        Perform an asynchronous HTTP request call.
 
         :param endpoint: Endpoint to be called, i.e. ``resource/v1/query?``.
         :param data: Payload to be uploaded or request parameters.
@@ -425,6 +434,7 @@ class HttpAsyncHook(BaseHook):
         verify_ssl = extra.pop("verify", extra.pop("verify_ssl", None))
         allow_redirects = extra.pop("allow_redirects", None)
         max_redirects = extra.pop("max_redirects", None)
+        trust_env = extra.pop("trust_env", None)
 
         if proxies is not None and "proxy" not in extra_options:
             extra_options["proxy"] = proxies
@@ -436,10 +446,13 @@ class HttpAsyncHook(BaseHook):
             extra_options["allow_redirects"] = allow_redirects
         if max_redirects is not None and "max_redirects" not in extra_options:
             extra_options["max_redirects"] = max_redirects
+        if trust_env is not None and "trust_env" not in extra_options:
+            extra_options["trust_env"] = trust_env
         return extra
 
     def _retryable_error_async(self, exception: ClientResponseError) -> bool:
-        """Determine whether an exception may successful on a subsequent attempt.
+        """
+        Determine whether an exception may successful on a subsequent attempt.
 
         It considers the following to be retryable:
             - requests_exceptions.ConnectionError

@@ -89,7 +89,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
         self.object = object
         self.use_glob = use_glob
         self.google_cloud_conn_id = google_cloud_conn_id
-        self._matches: list[str] = []
+        self._matches: bool = False
         self.impersonation_chain = impersonation_chain
         self.retry = retry
 
@@ -101,17 +101,16 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
             gcp_conn_id=self.google_cloud_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
-        if self.use_glob:
-            self._matches = hook.list(self.bucket, match_glob=self.object)
-            return bool(self._matches)
-        else:
-            return hook.exists(self.bucket, self.object, self.retry)
+        self._matches = (
+            bool(hook.list(self.bucket, match_glob=self.object))
+            if self.use_glob
+            else hook.exists(self.bucket, self.object, self.retry)
+        )
+        return self._matches
 
-    def execute(self, context: Context) -> None:
+    def execute(self, context: Context):
         """Airflow runs this method on the worker and defers using the trigger."""
-        if not self.deferrable:
-            super().execute(context)
-        else:
+        if self.deferrable:
             if not self.poke(context=context):
                 self.defer(
                     timeout=timedelta(seconds=self.timeout),
@@ -127,8 +126,11 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
                     ),
                     method_name="execute_complete",
                 )
+        else:
+            super().execute(context)
+        return self._matches
 
-    def execute_complete(self, context: Context, event: dict[str, str]) -> str:
+    def execute_complete(self, context: Context, event: dict[str, str]) -> bool:
         """
         Act as a callback for when the trigger fires - returns immediately.
 
@@ -140,7 +142,7 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
                 raise AirflowSkipException(event["message"])
             raise AirflowException(event["message"])
         self.log.info("File %s was found in bucket %s.", self.object, self.bucket)
-        return event["message"]
+        return True
 
 
 @deprecated(
@@ -186,7 +188,15 @@ def ts_function(context):
     try:
         return context["data_interval_end"]
     except KeyError:
-        return context["dag"].following_schedule(context["execution_date"])
+        from airflow.utils import timezone
+
+        data_interval = context["dag"].infer_automated_data_interval(
+            timezone.coerce_datetime(context["execution_date"])
+        )
+        next_info = context["dag"].next_dagrun_info(data_interval, restricted=False)
+        if next_info is None:
+            return None
+        return next_info.data_interval.start
 
 
 class GCSObjectUpdateSensor(BaseSensorOperator):
@@ -573,7 +583,8 @@ class GCSUploadSessionCompleteSensor(BaseSensorOperator):
             )
 
     def execute_complete(self, context: dict[str, Any], event: dict[str, str] | None = None) -> str:
-        """Rely on trigger to throw an exception, otherwise it assumes execution was successful.
+        """
+        Rely on trigger to throw an exception, otherwise it assumes execution was successful.
 
         Callback for when the trigger fires - returns immediately.
 

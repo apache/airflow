@@ -27,7 +27,7 @@ from botocore.exceptions import ClientError
 from dateutil.tz import tzlocal
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.hooks.sagemaker import (
@@ -737,7 +737,11 @@ class TestSageMakerHook:
         ]
 
         hook = SageMakerHook(aws_conn_id="aws_default")
-        hook.start_pipeline(pipeline_name="test_name", wait_for_completion=True, check_interval=0)
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="parameter `wait_for_completion` and `check_interval` are deprecated, remove them and call check_status yourself if you want to wait for completion",
+        ):
+            hook.start_pipeline(pipeline_name="test_name", wait_for_completion=True, check_interval=0)
 
         assert mock_conn().describe_pipeline_execution.call_count == 3
 
@@ -760,9 +764,13 @@ class TestSageMakerHook:
         ]
 
         hook = SageMakerHook(aws_conn_id="aws_default")
-        pipeline_status = hook.stop_pipeline(
-            pipeline_exec_arn="test", wait_for_completion=True, check_interval=0
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="parameter `wait_for_completion` and `check_interval` are deprecated, remove them and call check_status yourself if you want to wait for completion",
+        ):
+            pipeline_status = hook.stop_pipeline(
+                pipeline_exec_arn="test", wait_for_completion=True, check_interval=0
+            )
 
         assert pipeline_status == "Stopped"
         assert mock_conn().describe_pipeline_execution.call_count == 3
@@ -781,9 +789,13 @@ class TestSageMakerHook:
         ]
 
         hook = SageMakerHook(aws_conn_id="aws_default")
-        pipeline_status = hook.stop_pipeline(
-            pipeline_exec_arn="test", wait_for_completion=True, check_interval=0
-        )
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="parameter `wait_for_completion` and `check_interval` are deprecated, remove them and call check_status yourself if you want to wait for completion",
+        ):
+            pipeline_status = hook.stop_pipeline(
+                pipeline_exec_arn="test", wait_for_completion=True, check_interval=0
+            )
 
         assert pipeline_status == "Stopped"
 

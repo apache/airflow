@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import datetime
 import functools
 import json
@@ -30,14 +31,13 @@ from subprocess import check_output
 from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, TypeVar, cast
 
 import google.auth
-import google.auth.credentials
 import google.oauth2.service_account
 import google_auth_httplib2
 import requests
 import tenacity
 from asgiref.sync import sync_to_async
 from deprecated import deprecated
-from gcloud.aio.auth.token import Token
+from gcloud.aio.auth.token import Token, TokenResponse
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
 from google.auth import _cloud_sdk, compute_engine  # type: ignore[attr-defined]
 from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
@@ -223,7 +223,7 @@ class GoogleBaseHook(BaseHook):
         """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import IntegerField, PasswordField, StringField
+        from wtforms import BooleanField, IntegerField, PasswordField, StringField
         from wtforms.validators import NumberRange
 
         return {
@@ -249,6 +249,23 @@ class GoogleBaseHook(BaseHook):
             "impersonation_chain": StringField(
                 lazy_gettext("Impersonation Chain"), widget=BS3TextFieldWidget()
             ),
+            "idp_issuer_url": StringField(
+                lazy_gettext("IdP Token Issue URL (Client Credentials Grant Flow)"),
+                widget=BS3TextFieldWidget(),
+            ),
+            "client_id": StringField(
+                lazy_gettext("Client ID (Client Credentials Grant Flow)"), widget=BS3TextFieldWidget()
+            ),
+            "client_secret": StringField(
+                lazy_gettext("Client Secret (Client Credentials Grant Flow)"),
+                widget=BS3PasswordFieldWidget(),
+            ),
+            "idp_extra_parameters": StringField(
+                lazy_gettext("IdP Extra Request Parameters"), widget=BS3TextFieldWidget()
+            ),
+            "is_anonymous": BooleanField(
+                lazy_gettext("Anonymous credentials (ignores all other settings)"), default=False
+            ),
         }
 
     @classmethod
@@ -270,10 +287,10 @@ class GoogleBaseHook(BaseHook):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.extras: dict = self.get_connection(self.gcp_conn_id).extra_dejson
-        self._cached_credentials: google.auth.credentials.Credentials | None = None
+        self._cached_credentials: Credentials | None = None
         self._cached_project_id: str | None = None
 
-    def get_credentials_and_project_id(self) -> tuple[google.auth.credentials.Credentials, str | None]:
+    def get_credentials_and_project_id(self) -> tuple[Credentials, str | None]:
         """Return the Credentials object for Google API and the associated project_id."""
         if self._cached_credentials is not None:
             return self._cached_credentials, self._cached_project_id
@@ -301,6 +318,19 @@ class GoogleBaseHook(BaseHook):
                 self.impersonation_chain = [s.strip() for s in self.impersonation_chain.split(",")]
 
         target_principal, delegates = _get_target_principal_and_delegates(self.impersonation_chain)
+        is_anonymous = self._get_field("is_anonymous")
+
+        idp_issuer_url: str | None = self._get_field("idp_issuer_url", None)
+        client_id: str | None = self._get_field("client_id", None)
+        client_secret: str | None = self._get_field("client_secret", None)
+        idp_extra_params: str | None = self._get_field("idp_extra_params", None)
+
+        idp_extra_params_dict: dict[str, str] | None = None
+        if idp_extra_params:
+            try:
+                idp_extra_params_dict = json.loads(idp_extra_params)
+            except json.decoder.JSONDecodeError:
+                raise AirflowException("Invalid JSON.")
 
         credentials, project_id = get_credentials_and_project_id(
             key_path=key_path,
@@ -312,6 +342,11 @@ class GoogleBaseHook(BaseHook):
             delegate_to=self.delegate_to,
             target_principal=target_principal,
             delegates=delegates,
+            is_anonymous=is_anonymous,
+            idp_issuer_url=idp_issuer_url,
+            client_id=client_id,
+            client_secret=client_secret,
+            idp_extra_params_dict=idp_extra_params_dict,
         )
 
         overridden_project_id = self._get_field("project")
@@ -323,7 +358,7 @@ class GoogleBaseHook(BaseHook):
 
         return credentials, project_id
 
-    def get_credentials(self) -> google.auth.credentials.Credentials:
+    def get_credentials(self) -> Credentials:
         """Return the Credentials object for Google API."""
         credentials, _ = self.get_credentials_and_project_id()
         return credentials
@@ -655,6 +690,8 @@ class GoogleBaseHook(BaseHook):
     def test_connection(self):
         """Test the Google cloud connectivity from UI."""
         status, message = False, ""
+        if self._get_field("is_anonymous"):
+            return True, "Credentials are anonymous"
         try:
             token = self._get_access_token()
             url = f"https://www.googleapis.com/oauth2/v3/tokeninfo?access_token={token}"
@@ -670,7 +707,8 @@ class GoogleBaseHook(BaseHook):
 
 
 class _CredentialsToken(Token):
-    """A token implementation which makes Google credentials objects accessible to [gcloud-aio](https://talkiq.github.io/gcloud-aio/) clients.
+    """
+    A token implementation which makes Google credentials objects accessible to [gcloud-aio](https://talkiq.github.io/gcloud-aio/) clients.
 
     This class allows us to create token instances from credentials objects and thus supports a variety of use cases for Google
     credentials in Airflow (i.e. impersonation chain). By relying on a existing credentials object we leverage functionality provided by the GoogleBaseHook
@@ -708,16 +746,40 @@ class _CredentialsToken(Token):
     async def get_project(self) -> str | None:
         return self.project
 
-    async def acquire_access_token(self, timeout: int = 10) -> None:
+    async def refresh(self, *, timeout: int) -> TokenResponse:
         await sync_to_async(self.credentials.refresh)(google.auth.transport.requests.Request())
 
         self.access_token = cast(str, self.credentials.token)
         self.access_token_duration = 3600
-        # access_token_acquired_at is specific to gcloud-aio's Token. On subsequent calls of `get` it will be used
-        # with `datetime.datetime.utcnow()`. Therefore we have to use an offset-naive datetime.
-        # https://github.com/talkiq/gcloud-aio/blob/f1132b005ba35d8059229a9ca88b90f31f77456d/auth/gcloud/aio/auth/token.py#L204
-        self.access_token_acquired_at = datetime.datetime.now(tz=datetime.timezone.utc).replace(tzinfo=None)
+        self.access_token_acquired_at = self._now()
+        return TokenResponse(value=self.access_token, expires_in=self.access_token_duration)
+
+    async def acquire_access_token(self, timeout: int = 10) -> None:
+        await self.refresh(timeout=timeout)
         self.acquiring = None
+
+    async def ensure_token(self) -> None:
+        if self.acquiring and not self.acquiring.done():
+            await self.acquiring
+            return
+
+        if self.access_token:
+            delta = (self._now() - self.access_token_acquired_at).total_seconds()
+            if delta <= self.access_token_duration / 2:
+                return
+
+        self.acquiring = asyncio.ensure_future(  # pylint: disable=used-before-assignment
+            self.acquire_access_token()
+        )
+        await self.acquiring
+
+    @staticmethod
+    def _now():
+        # access_token_acquired_at is specific to gcloud-aio's Token.
+        # On subsequent calls of `get` it will be used with `datetime.datetime.utcnow()`.
+        # Therefore we have to use an offset-naive datetime.
+        # https://github.com/talkiq/gcloud-aio/blob/f1132b005ba35d8059229a9ca88b90f31f77456d/auth/gcloud/aio/auth/token.py#L204
+        return datetime.datetime.now(tz=datetime.timezone.utc).replace(tzinfo=None)
 
 
 class GoogleBaseAsyncHook(BaseHook):
@@ -725,7 +787,11 @@ class GoogleBaseAsyncHook(BaseHook):
 
     sync_hook_class: Any = None
 
-    def __init__(self, **kwargs: Any):
+    def __init__(self, **kwargs: Any) -> None:
+        # add default value to gcp_conn_id
+        if "gcp_conn_id" not in kwargs:
+            kwargs["gcp_conn_id"] = "google_cloud_default"
+
         self._hook_kwargs = kwargs
         self._sync_hook = None
 

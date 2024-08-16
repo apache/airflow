@@ -116,7 +116,7 @@ To check if the local scheduler is still working properly, run:
 
 .. code-block:: bash
 
-    airflow jobs check --job-type SchedulerJob --hostname "$(hostname)"
+    airflow jobs check --job-type SchedulerJob --local
 
 To check if any scheduler is running when you are using high availability, run:
 
@@ -142,6 +142,11 @@ CLI Check for Celery Workers
 
 To verify that the Celery workers are working correctly, you can use the ``celery inspect ping`` command. On failure, the command will exit
 with a non-zero error code.
+
+.. note::
+
+  For this check to work, ``[celery]worker_enable_remote_control`` must be ``True``.
+  If the parameter is set to ``False``, the command will exit with a non-zero error code.
 
 To check if the worker running on the local host is working correctly, run:
 

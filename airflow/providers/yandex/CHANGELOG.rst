@@ -27,6 +27,52 @@
 Changelog
 ---------
 
+3.11.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Exclude yandex versions 0.289.0, 0.290.0 (#39974)``
+
+Misc
+~~~~
+
+* ``Fix typos in Providers docs and Yandex hook (#40277)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Limit yandex provider to avoid mypy errors (#39990)``
+   * ``Workaround new yandexcloud breaking dataproc integration (#39964)``
+
+3.11.1
+......
+
+Misc
+~~~~
+
+* `` AIP-21: yandexcloud: rename files, emit deprecation warning (#39618)``
+* ``yandex provider: bump version for yq http client package (#39548)``
+* ``Faster 'airflow_version' imports (#39552)``
+* ``add doc about Yandex Query operator (#39445)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
+3.11.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+
 3.10.0
 ......
 

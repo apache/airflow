@@ -19,9 +19,9 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-from openlineage.client.facet import SchemaDatasetFacet, SchemaField, set_producer
-from openlineage.client.run import Dataset
-from openlineage.common.models import DbColumn, DbTableSchema
+from openlineage.client import set_producer
+from openlineage.client.event_v2 import Dataset
+from openlineage.client.facet_v2 import schema_dataset
 from openlineage.common.sql import DbTableMeta
 from sqlalchemy import Column, MetaData, Table
 
@@ -38,24 +38,14 @@ set_producer(_PRODUCER)
 DB_NAME = "FOOD_DELIVERY"
 DB_SCHEMA_NAME = "PUBLIC"
 DB_TABLE_NAME = DbTableMeta("DISCOUNTS")
-DB_TABLE_COLUMNS = [
-    DbColumn(name="ID", type="int4", ordinal_position=1),
-    DbColumn(name="AMOUNT_OFF", type="int4", ordinal_position=2),
-    DbColumn(name="CUSTOMER_EMAIL", type="varchar", ordinal_position=3),
-    DbColumn(name="STARTS_ON", type="timestamp", ordinal_position=4),
-    DbColumn(name="ENDS_ON", type="timestamp", ordinal_position=5),
-]
-DB_TABLE_SCHEMA = DbTableSchema(
-    schema_name=DB_SCHEMA_NAME, table_name=DB_TABLE_NAME, columns=DB_TABLE_COLUMNS
-)
 
-SCHEMA_FACET = SchemaDatasetFacet(
+SCHEMA_FACET = schema_dataset.SchemaDatasetFacet(
     fields=[
-        SchemaField(name="ID", type="int4"),
-        SchemaField(name="AMOUNT_OFF", type="int4"),
-        SchemaField(name="CUSTOMER_EMAIL", type="varchar"),
-        SchemaField(name="STARTS_ON", type="timestamp"),
-        SchemaField(name="ENDS_ON", type="timestamp"),
+        schema_dataset.SchemaDatasetFacetFields(name="ID", type="int4"),
+        schema_dataset.SchemaDatasetFacetFields(name="AMOUNT_OFF", type="int4"),
+        schema_dataset.SchemaDatasetFacetFields(name="CUSTOMER_EMAIL", type="varchar"),
+        schema_dataset.SchemaDatasetFacetFields(name="STARTS_ON", type="timestamp"),
+        schema_dataset.SchemaDatasetFacetFields(name="ENDS_ON", type="timestamp"),
     ]
 )
 

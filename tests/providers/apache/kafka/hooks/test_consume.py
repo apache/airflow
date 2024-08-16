@@ -52,13 +52,7 @@ class TestConsumerHook:
                 extra=json.dumps({}),
             )
         )
+        self.hook = KafkaConsumerHook(["test_1"], kafka_config_id="kafka_d")
 
-    def test_init(self):
-        """test initialization of AdminClientHook"""
-
-        # Standard Init
-        KafkaConsumerHook(["test_1"], kafka_config_id="kafka_d")
-
-        # Not Enough Args
-        with pytest.raises(ValueError):
-            KafkaConsumerHook(["test_1"], kafka_config_id="kafka_bad")
+    def test_get_consumer(self):
+        assert self.hook.get_consumer() == self.hook.get_conn

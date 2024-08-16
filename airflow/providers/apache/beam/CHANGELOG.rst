@@ -26,6 +26,49 @@
 Changelog
 ---------
 
+5.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix BeamRunJavaPipelineOperator fails without job_name set (#40645)``
+
+5.7.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deferrable mode for BeamRunJavaPipelineOperator (#39371)``
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
+5.7.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bugfix to correct GCSHook being called even when not required with BeamRunPythonPipelineOperator (#38716)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+
 5.6.3
 .....
 

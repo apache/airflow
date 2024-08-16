@@ -318,13 +318,12 @@ class EksCreateNodegroupTrigger(AwsBaseWaiterTrigger):
     The trigger will asynchronously poll the boto3 API and wait for the
     nodegroup to be in the state specified by the waiter.
 
-    :param waiter_name: Name of the waiter to use, for instance 'nodegroup_active' or 'nodegroup_deleted'
     :param cluster_name: The name of the EKS cluster associated with the node group.
     :param nodegroup_name: The name of the nodegroup to check.
     :param waiter_delay: The amount of time in seconds to wait between attempts.
     :param waiter_max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-    :param region: Which AWS region the connection should use. (templated)
+    :param region_name: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
     """
 
@@ -366,13 +365,12 @@ class EksDeleteNodegroupTrigger(AwsBaseWaiterTrigger):
     The trigger will asynchronously poll the boto3 API and wait for the
     nodegroup to be in the state specified by the waiter.
 
-    :param waiter_name: Name of the waiter to use, for instance 'nodegroup_active' or 'nodegroup_deleted'
     :param cluster_name: The name of the EKS cluster associated with the node group.
     :param nodegroup_name: The name of the nodegroup to check.
     :param waiter_delay: The amount of time in seconds to wait between attempts.
     :param waiter_max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-    :param region: Which AWS region the connection should use. (templated)
+    :param region_name: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
     """
 

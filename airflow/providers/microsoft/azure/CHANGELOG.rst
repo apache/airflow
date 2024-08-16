@@ -27,6 +27,95 @@
 Changelog
 ---------
 
+10.3.0
+......
+
+Features
+~~~~~~~~
+
+* ``Added priority to Azure Container Instances (#40616)``
+
+Misc
+~~~~
+
+* ``Bump minimum version for azure containerinstance. (#40767)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+10.2.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add S3ToAzureBlobStorageOperator (#40511)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+10.1.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Switch AzureDataLakeStorageV2Hook to use DefaultAzureCredential for managed identity/workload auth (#38497)``
+* ``BUGFIX: Make sure XComs work correctly in MSGraphAsyncOperator with paged results and dynamic task mapping (#40301)``
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Revert "refactor: Make sure xcoms work correctly in multi-threaded environmen…" (#40300)``
+   * ``refactor: Make sure xcoms work correctly in multi-threaded environment by taking the map_index into account (#40297)``
+
+10.1.1
+......
+
+Misc
+~~~~
+
+* ``Remove unused backward compatibility _read function in WasbTaskHandler (#39827)``
+* ``Update example AzureContainerInstancesOperator (#39466)``
+
+10.1.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``add dns_config and diagnostics parameters to AzureContainerInstancesOperator (#39156)``
+* ``Add stacklevel into the 'AzureSynapsePipelineHook' deprecation warnings (#39192)``
+* ``Adding MSGraphOperator in Microsoft Azure provider (#38111)``
+* ``Make handling of connection by fs/adls.py closer to that of WasbHook and add unit tests. (#38747)``
+* ``Implement run-method on KiotaRequestAdapterHook and move logic away from triggerer to hook (#39237)``
+* ``Implemented MSGraphSensor as a deferrable sensor (#39304)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Only quote the keys of the query_parameters in MSGraphOperator (#39207)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+* ``Reapply templates for all providers (#39554)``
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs 1st wave May 2024 (#39328)``
+
 10.0.0
 ......
 

@@ -23,6 +23,10 @@ Building a Running Pipeline
 
 Lets look at another example: we need to get some data from a file which is hosted online and insert it into our local database. We also need to look at removing duplicate rows while inserting.
 
+*Be advised:* The operator used in this tutorial is `deprecated <https://airflow.apache.org/docs/apache-airflow-providers-postgres/stable/_api/airflow/providers/postgres/operators/postgres/index.html>`_.
+Its recommended successor, `SQLExecuteQueryOperator <https://airflow.apache.org/docs/apache-airflow-providers-common-sql/stable/_api/airflow/providers/common/sql/operators/sql/index.html#airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator>`_ works similarly.
+You might find `this guide <https://airflow.apache.org/docs/apache-airflow-providers-postgres/stable/operators/postgres_operator_howto_guide.html#creating-a-postgres-database-table>`_ helpful.
+
 Initial setup
 -------------
 
@@ -39,10 +43,10 @@ The steps below should be sufficient, but see the quick-start documentation for 
   echo -e "AIRFLOW_UID=$(id -u)" > .env
 
   # Initialize the database
-  docker-compose up airflow-init
+  docker compose up airflow-init
 
   # Start up all services
-  docker-compose up
+  docker compose up
 
 After all services have started up, the web UI will be available at: ``http://localhost:8080``. The default account has the username ``airflow`` and the password ``airflow``.
 

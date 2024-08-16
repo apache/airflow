@@ -31,6 +31,7 @@ import pytest
 import yaml
 from botocore.exceptions import ClientError
 from inflection import camelize
+from semver import VersionInfo
 
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
@@ -54,9 +55,14 @@ from airflow.providers.amazon.aws.hooks.ecs import EcsHook
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import utcnow
+from airflow.version import version as airflow_version_str
+from tests.conftest import RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
+
+airflow_version = VersionInfo(*map(int, airflow_version_str.split(".")[:3]))
 
 ARN1 = "arn1"
 ARN2 = "arn2"
@@ -367,7 +373,9 @@ class TestEcsExecutorTask:
 class TestAwsEcsExecutor:
     """Tests the AWS ECS Executor."""
 
-    def test_execute(self, mock_airflow_key, mock_executor):
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Test requires Airflow 2.10+")
+    @mock.patch("airflow.providers.amazon.aws.executors.ecs.ecs_executor.AwsEcsExecutor.change_state")
+    def test_execute(self, change_state_mock, mock_airflow_key, mock_executor):
         """Test execution from end-to-end."""
         airflow_key = mock_airflow_key()
 
@@ -393,6 +401,9 @@ class TestAwsEcsExecutor:
         # Task is stored in active worker.
         assert 1 == len(mock_executor.active_workers)
         assert ARN1 in mock_executor.active_workers.task_by_key(airflow_key).task_arn
+        change_state_mock.assert_called_once_with(
+            airflow_key, TaskInstanceState.RUNNING, ARN1, remove_running=False
+        )
 
     @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
     def test_success_execute_api_exception(self, mock_backoff, mock_executor):
@@ -456,7 +467,7 @@ class TestAwsEcsExecutor:
             assert len(mock_executor.active_workers) == 0
 
     @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
-    def test_attempt_task_runs_attempts_when_tasks_fail(self, _, mock_executor, caplog):
+    def test_attempt_task_runs_attempts_when_tasks_fail(self, _, mock_executor):
         """
         Test case when all tasks fail to run.
 
@@ -464,10 +475,12 @@ class TestAwsEcsExecutor:
         It should preserve the order of tasks, and attempt each task up to
         `MAX_RUN_TASK_ATTEMPTS` times before dropping the task.
         """
-        airflow_keys = [mock.Mock(spec=tuple), mock.Mock(spec=tuple)]
+        airflow_keys = [
+            TaskInstanceKey("a", "task_a", "c", 1, -1),
+            TaskInstanceKey("a", "task_b", "c", 1, -1),
+        ]
         airflow_cmd1 = mock.Mock(spec=list)
         airflow_cmd2 = mock.Mock(spec=list)
-        caplog.set_level("ERROR")
         commands = [airflow_cmd1, airflow_cmd2]
 
         failures = [Exception("Failure 1"), Exception("Failure 2")]
@@ -484,11 +497,9 @@ class TestAwsEcsExecutor:
         for i in range(2):
             RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["command"] = commands[i]
             assert mock_executor.ecs.run_task.call_args_list[i].kwargs == RUN_TASK_KWARGS
-        assert "Pending ECS tasks failed to launch for the following reasons: " in caplog.messages[0]
         assert len(mock_executor.pending_tasks) == 2
         assert len(mock_executor.active_workers.get_all_arns()) == 0
 
-        caplog.clear()
         mock_executor.ecs.run_task.call_args_list.clear()
 
         mock_executor.ecs.run_task.side_effect = failures
@@ -497,11 +508,9 @@ class TestAwsEcsExecutor:
         for i in range(2):
             RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["command"] = commands[i]
             assert mock_executor.ecs.run_task.call_args_list[i].kwargs == RUN_TASK_KWARGS
-        assert "Pending ECS tasks failed to launch for the following reasons: " in caplog.messages[0]
         assert len(mock_executor.pending_tasks) == 2
         assert len(mock_executor.active_workers.get_all_arns()) == 0
 
-        caplog.clear()
         mock_executor.ecs.run_task.call_args_list.clear()
 
         mock_executor.ecs.run_task.side_effect = failures
@@ -510,15 +519,15 @@ class TestAwsEcsExecutor:
         assert len(mock_executor.active_workers.get_all_arns()) == 0
         assert len(mock_executor.pending_tasks) == 0
 
-        assert len(caplog.messages) == 3
-        for i in range(2):
-            assert (
-                f"ECS task {airflow_keys[i]} has failed a maximum of 3 times. Marking as failed"
-                == caplog.messages[i]
-            )
+        if airflow_version >= (2, 10, 0):
+            events = [(x.event, x.task_id, x.try_number) for x in mock_executor._task_event_logs]
+            assert events == [
+                ("ecs task submit failure", "task_a", 1),
+                ("ecs task submit failure", "task_b", 1),
+            ]
 
     @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
-    def test_attempt_task_runs_attempts_when_some_tasks_fal(self, _, mock_executor, caplog):
+    def test_attempt_task_runs_attempts_when_some_tasks_fal(self, _, mock_executor):
         """
         Test case when one task fail to run, and a new task gets queued.
 
@@ -527,10 +536,12 @@ class TestAwsEcsExecutor:
         `MAX_RUN_TASK_ATTEMPTS` times before dropping the task. If a task succeeds, the task
         should be removed from pending_jobs and into active_workers.
         """
-        airflow_keys = [mock.Mock(spec=tuple), mock.Mock(spec=tuple)]
+        airflow_keys = [
+            TaskInstanceKey("a", "task_a", "c", 1, -1),
+            TaskInstanceKey("a", "task_b", "c", 1, -1),
+        ]
         airflow_cmd1 = mock.Mock(spec=list)
         airflow_cmd2 = mock.Mock(spec=list)
-        caplog.set_level("ERROR")
         airflow_commands = [airflow_cmd1, airflow_cmd2]
         task = {
             "taskArn": ARN1,
@@ -557,7 +568,6 @@ class TestAwsEcsExecutor:
         assert len(mock_executor.pending_tasks) == 1
         assert len(mock_executor.active_workers.get_all_arns()) == 1
 
-        caplog.clear()
         mock_executor.ecs.run_task.call_args_list.clear()
 
         # queue new task
@@ -583,7 +593,6 @@ class TestAwsEcsExecutor:
         assert len(mock_executor.pending_tasks) == 1
         assert len(mock_executor.active_workers.get_all_arns()) == 2
 
-        caplog.clear()
         mock_executor.ecs.run_task.call_args_list.clear()
 
         responses = [Exception("Failure 1")]
@@ -593,12 +602,9 @@ class TestAwsEcsExecutor:
         RUN_TASK_KWARGS["overrides"]["containerOverrides"][0]["command"] = airflow_commands[0]
         assert mock_executor.ecs.run_task.call_args_list[0].kwargs == RUN_TASK_KWARGS
 
-        assert len(caplog.messages) == 2
-
-        assert (
-            f"ECS task {airflow_keys[0]} has failed a maximum of 3 times. Marking as failed"
-            == caplog.messages[0]
-        )
+        if airflow_version >= (2, 10, 0):
+            events = [(x.event, x.task_id, x.try_number) for x in mock_executor._task_event_logs]
+            assert events == [("ecs task submit failure", "task_a", 1)]
 
     @mock.patch.object(ecs_executor, "calculate_next_attempt_delay", return_value=dt.timedelta(seconds=0))
     def test_task_retry_on_api_failure_all_tasks_fail(self, _, mock_executor, caplog):
@@ -1175,7 +1181,7 @@ class TestAwsEcsExecutor:
         orphaned_tasks[1].external_executor_id = "002"  # Matches a running task_arn
         orphaned_tasks[2].external_executor_id = None  # One orphaned task has no external_executor_id
         for task in orphaned_tasks:
-            task.prev_attempted_tries = 1
+            task.try_number = 1
 
         not_adopted_tasks = mock_executor.try_adopt_task_instances(orphaned_tasks)
 
@@ -1201,8 +1207,18 @@ class TestEcsExecutorConfig:
         nested_dict = {"a": "a", "b": "b", "c": {"d": "d"}}
         assert _recursive_flatten_dict(nested_dict) == {"a": "a", "b": "b", "d": "d"}
 
+    @pytest.mark.skipif(
+        RUNNING_TESTS_AGAINST_AIRFLOW_PACKAGES,
+        reason="Config defaults are validated against provider.yaml so this test "
+        "should only run when tests are run from sources",
+    )
     def test_validate_config_defaults(self):
-        """Assert that the defaults stated in the config.yml file match those in utils.CONFIG_DEFAULTS."""
+        """Assert that the defaults stated in the config.yml file match those in utils.CONFIG_DEFAULTS.
+
+        This test should only be run to verify configuration defaults are the same when it is run from
+        airflow sources, not when airflow is installed from packages, because airflow installed from packages
+        will not have the provider.yml file.
+        """
         curr_dir = os.path.dirname(os.path.abspath(__file__))
         executor_path = "aws/executors/ecs"
         config_filename = curr_dir.replace("tests", "airflow").replace(executor_path, "provider.yaml")

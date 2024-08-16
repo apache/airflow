@@ -74,7 +74,8 @@ class WasbBlobSensor(BaseSensorOperator):
         return hook.check_for_blob(self.container_name, self.blob_name, **self.check_options)
 
     def execute(self, context: Context) -> None:
-        """Poll for state of the job run.
+        """
+        Poll for state of the job run.
 
         In deferrable mode, the polling is deferred to the triggerer. Otherwise
         the sensor waits synchronously.
@@ -184,7 +185,8 @@ class WasbPrefixSensor(BaseSensorOperator):
         return hook.check_for_prefix(self.container_name, self.prefix, **self.check_options)
 
     def execute(self, context: Context) -> None:
-        """Poll for state of the job run.
+        """
+        Poll for state of the job run.
 
         In deferrable mode, the polling is deferred to the triggerer. Otherwise
         the sensor waits synchronously.
