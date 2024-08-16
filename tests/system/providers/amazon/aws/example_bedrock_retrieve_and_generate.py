@@ -450,7 +450,7 @@ with DAG(
 
     create_bucket = S3CreateBucketOperator(task_id="create_bucket", bucket_name=bucket_name)
 
-    create_opensearch_policies = create_opensearch_policies(
+    opensearch_policies = create_opensearch_policies(
         bedrock_role_arn=test_context[ROLE_ARN_KEY],
         collection_name=vector_store_name,
         policy_name_suffix=env_id,
@@ -563,7 +563,7 @@ with DAG(
         # TEST SETUP
         test_context,
         create_bucket,
-        create_opensearch_policies,
+        opensearch_policies,
         collection,
         await_collection,
         create_vector_index(index_name=index_name, collection_id=collection, region=region_name),
