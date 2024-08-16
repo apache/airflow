@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from cloudant import cloudant  # type: ignore[attr-defined]
+from cloudant import cloudant
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
