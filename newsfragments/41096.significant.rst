@@ -1,0 +1,1 @@
+Rmoved deprecated ``processor_poll_interval`` parameter. Please use ``scheduler_idle_sleep_time`` parameter.
