@@ -1,46 +1,122 @@
 <!DOCTYPE html>
 <html>
 <head>
-<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
-<script src="https://www.w3schools.com/lib/w3.js"></script>
-<style>
-table, th, td {
-  border: 1px solid black;
-  border-collapse: collapse;
-}
-th {
-  cursor: pointer;
-  background-color: coral;
-}
-</style>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <script src="https://www.w3schools.com/lib/w3.js"></script>
+  <style>
+    table, th, td {
+      border: 1px solid black;
+      border-collapse: collapse;
+    }
+    th {
+      cursor: pointer;
+      background-color: coral;
+    }
+    .icon {
+        width: 20px;
+        height: 20px;
+    }
+    .circle-success {
+        fill: green;
+    }
+    .circle-failure {
+        fill: red;
+    }
+    .failure-list {
+        margin-top: 20px;
+        padding: 15px;
+        border: 2px solid #d9534f;
+        background-color: #f8d7da;
+        color: #721c24;
+        border-radius: 5px;
+    }
+    footer {
+        text-align: left;
+        padding: 10px;
+        border-top: 1px solid #ddd;
+        font-size: 14px;
+        color: #555;
+        position: absolute;
+        bottom: 0;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    body {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        position: relative;
+        padding-bottom: 40px; /* Space for footer */
+    }
+
+  </style>
 </head>
 <body style="margin:10px;padding:10px">
 <h2>Apache Airflow - Teradata Provider Package Health </h2>
 
-<div >View the health of Teradata system tests for Apache Airflow.
+<div>View the health of Teradata system tests for Apache Airflow.
 </div>
 <div style="margin-bottom: 50px;">
-This live dashboard displays the current health of Teradata system tests available in the Teradata Provider package of <a href="https://github.com/Teradata/airflow/tree/main">Apache Airflow</a>.
+  This live dashboard displays the current health of Teradata system tests available in the Teradata Provider package of
+  <a href="https://github.com/Teradata/airflow/tree/main">Apache Airflow</a>.
 </div>
 
-<table style="width:100%"  id="myTable" class="w3-table-all">
 
-<tr>
+<table style="width:100%" id="myTable" class="w3-table-all">
+
+  <tr>
     <th onclick="w3.sortHTML('#myTable','.item', 'td:nth-child(1)')">SystemName</th>
     <th onclick="w3.sortHTML('#myTable','.item', 'td:nth-child(2)')">Successes</th>
     <th onclick="w3.sortHTML('#myTable','.item', 'td:nth-child(3)')">Failures</th>
-	  <th onclick="w3.sortHTML('#myTable','.item', 'td:nth-child(4)')">Duration</th>
-    <th onclick="w3.sortHTML('#myTable','.item', 'td:nth-child(4)')">Last Run Date (MM-DD-YYYY)</th>
+    <th onclick="w3.sortHTML('#myTable','.item', 'td:nth-child(4)')">Duration</th>
     <th onclick="w3.sortHTML('#myTable','.item', 'td:nth-child(5)')">Last 10 runs (latest on the right)</th>
   </tr>
 
-{% for item in items %}
-<TR class="item">
-  <TD>{{item.classname}}</TD>
-  <TD>{{item.successre}}</TD>
-  <TD>{{item.failurere}}</TD>
-  <TD>{{item.time}}</TD>
-  <TD>{{item.lastrundate}}</TD>
-  <TD>{{item.status}}</TD>
-</TR>
-{% endfor %}
+  {% for item in items %}
+  <TR class="item">
+    <TD>{{item.classname}}</TD>
+    <TD>{{item.successre}}</TD>
+    <TD>{{item.failurere}}</TD>
+    <TD>{{item.time}}</TD>
+    <TD>
+      {% for run in item.status %}
+      {% if run == 'S' %}
+      <svg class="icon circle-success" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/>
+      </svg>
+      {% else %}
+      <svg class="icon circle-failure" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10"/>
+      </svg>
+      {% endif %}
+      {% endfor %}
+    </TD>
+  </TR>
+  {% endfor %}
+</table>
+
+
+<div class="failure-list">
+  The test failures listed are due to the unavailability of necessary infrastructure resources in the CI/CD environment.
+  The tests that failed in the CI/CD environment have passed successfully in a local environment, confirming that the
+  code is functioning correctly.
+  <ul>
+    <li><strong>example_s3_to_teradata_transfer</strong></li>
+    <li><strong>example_teradata_compute_cluster</strong></li>
+  </ul>
+</div>
+
+
+<footer id="footer">
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var currentDate = new Date();
+        var options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' };
+        var formattedDate = currentDate.toLocaleDateString('en-US', options);
+        document.getElementById('footer').innerText += ' The last CI run was on: ' + formattedDate;
+    });
+  </script>
+</footer>
+
+
+
