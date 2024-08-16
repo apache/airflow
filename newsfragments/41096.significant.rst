@@ -1,1 +1,2 @@
-Rmoved deprecated ``processor_poll_interval`` parameter. Please use ``scheduler_idle_sleep_time`` parameter.
+Removed deprecated ``processor_poll_interval`` configuration parameter.
+Please use ``scheduler_idle_sleep_time`` configuration parameter.
