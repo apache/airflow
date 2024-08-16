@@ -108,14 +108,7 @@
 
 
 <footer id="footer">
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        var currentDate = new Date();
-        var options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' };
-        var formattedDate = currentDate.toLocaleDateString('en-US', options);
-        document.getElementById('footer').innerText += ' The last CI run was on: ' + formattedDate;
-    });
-  </script>
+  The last CI run was on: {{items[0].lastrundate}}
 </footer>
 
 

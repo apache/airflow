@@ -4,6 +4,7 @@ from datetime import datetime
 
 import pandas as pd
 from jinja2 import Template
+import pytz
 
 
 class Record:
@@ -20,15 +21,15 @@ pd.options.display.max_rows = 9999
 fileName = 'reporttest.csv'
 # Read test report
 df = pd.read_csv(fileName, delimiter=',', header=None)
-# the code for running locally - start
-# origdir = os.getcwd()
-# os.chdir("../../..")
-# directory = os.getcwd() + '/tests/system/providers/teradata'
-# os.chdir(origdir)
-# the code for running locally - end
+"""
+# the code for running locally
+origdir = os.getcwd()
+os.chdir("../../..")
+directory = os.getcwd() + '/tests/system/providers/teradata'
+os.chdir(origdir)
+"""
 # Read system test files under system tests directory
 directory = 'tests/system/providers/teradata'
-
 # List all file names in the directory
 file_names = os.listdir(directory)
 
@@ -38,6 +39,11 @@ system_test_files = [file_name for file_name in file_names if
 
 liRecords = []
 items = []
+
+tz = pytz.timezone('Asia/Kolkata')
+now = datetime.now(tz)
+# Format the date and time
+formatted_date = now.strftime('%B %d, %Y at %I:%M:%S %p GMT%z')
 
 # Getting each system test history from report and preparing UI for github page
 for system_test_file in system_test_files:
@@ -49,13 +55,7 @@ for system_test_file in system_test_files:
     for index, row in df.iterrows():
         if row[0].strip() == system_test_file:
             record.time = row[2]
-            record.rundate = row[3] # Got Date in str format - YYYY-MM-DD
-            if row[3] is not None:
-                try:
-                    datetime_object = datetime.strptime(row[3], '%Y-%m-%d') # Getting date object from date str
-                    record.rundate = datetime_object.strftime('%m-%d-%Y') # Converting to US - MM-DD-YYYY format
-                except ValueError:
-                    print(ValueError)
+            record.rundate = formatted_date
             if row[1] == 'S':
                 record.successcount += 1
                 record.result.append('S')
