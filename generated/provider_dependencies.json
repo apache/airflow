@@ -352,7 +352,7 @@
   "cloudant": {
     "deps": [
       "apache-airflow>=2.8.0",
-      "cloudant>=2.13.0"
+      "ibmcloudant>=0.9.1"
     ],
     "devel-deps": [],
     "plugins": [],
