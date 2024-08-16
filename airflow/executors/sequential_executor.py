@@ -76,7 +76,7 @@ class SequentialExecutor(BaseExecutor):
             span.set_attribute("dag_id", key.dag_id)
             span.set_attribute("run_id", key.run_id)
             span.set_attribute("task_id", key.task_id)
-            span.set_attribute("try_number", key.try_number - 1)
+            span.set_attribute("try_number", key.try_number)
             span.set_attribute("commands_to_run", str(self.commands_to_run))
 
     def sync(self) -> None:
