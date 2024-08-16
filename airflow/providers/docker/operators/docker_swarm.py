@@ -180,11 +180,14 @@ class DockerSwarmOperator(DockerOperator):
                 self.log.info("Service status before exiting: %s", self._service_status())
                 break
 
-        self.tasks = self.cli.tasks(filters={"service": self.service["ID"]})
-        for task in self.tasks:
-            container_id = task["Status"]["ContainerStatus"]["ContainerID"]
-            container = self.cli.inspect_container(container_id)
-            self.containers.append(container)
+        if self.service and self._service_status() == "complete":
+            self.tasks = self.cli.tasks(filters={"service": self.service["ID"]})
+            for task in self.tasks:
+                container_id = task["Status"]["ContainerStatus"]["ContainerID"]
+                container = self.cli.inspect_container(container_id)
+                self.containers.append(container)
+        else:
+            raise AirflowException(f"Service did not complete: {self.service!r}")
 
         if self.retrieve_output:
             return self._attempt_to_retrieve_results()
