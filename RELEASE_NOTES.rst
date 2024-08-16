@@ -3963,8 +3963,6 @@ Details in the `SQLAlchemy Changelog <https://docs.sqlalchemy.org/en/14/changelo
 
 Previously, only one backend was used to authorize use of the REST API. In 2.3 this was changed to support multiple backends, separated by comma. Each will be tried in turn until a successful response is returned.
 
-This setting is also used for the deprecated experimental API, which only uses the first option even if multiple are given.
-
 ``airflow.models.base.Operator`` is removed (#21505)
 """"""""""""""""""""""""""""""""""""""""""""""""""""
 
