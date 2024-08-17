@@ -46,14 +46,13 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
 
     def __init__(
         self,
+        *,
         base_log_folder: str,
         wasb_log_folder: str,
         wasb_container: str,
-        *,
-        filename_template: str | None = None,
         **kwargs,
     ) -> None:
-        super().__init__(base_log_folder, filename_template)
+        super().__init__(base_log_folder)
         self.handler: logging.FileHandler | None = None
         self.wasb_container = wasb_container
         self.remote_base = wasb_log_folder
