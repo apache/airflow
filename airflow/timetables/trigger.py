@@ -43,6 +43,15 @@ class CronTriggerTimetable(CronMixin, Timetable):
     for one data interval to pass.
 
     Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
+
+    :param cron: cron string that defines when to run
+    :param timezone: Which timezone to use to interpret the cron string
+    :param interval: timedelta that defines the data interval start. Default 0.
+    :param run_immediately: If no start_time is given, use this to determine when to schedule the first run of the DAG. Has no effect if there already exist runs for this DAG.
+                            If True, always run immediately the most recent possible DAG Run.
+                            If False, wait to run until the next scheduled time in the future. If this is passed a timedelta, will run the most recent possible DAG Run if that Run's data_interval_end is within timedelta of now.
+                            If None, the timedelta is calculated as 10% of the time between the most recent past scheduled time and the next scheduled time. E.g. if running every hour, this would run the previous time if less than 6 minutes had past since the previous run time, otherwise it would wait until the next hour.
+
     """
 
     def __init__(
@@ -51,9 +60,11 @@ class CronTriggerTimetable(CronMixin, Timetable):
         *,
         timezone: str | Timezone | FixedTimezone,
         interval: datetime.timedelta | relativedelta = datetime.timedelta(),
+        run_immediately: bool | datetime.timedelta | None = None,
     ) -> None:
         super().__init__(cron, timezone)
         self._interval = interval
+        self.run_immediately = run_immediately
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
@@ -95,13 +106,15 @@ class CronTriggerTimetable(CronMixin, Timetable):
             if last_automated_data_interval is not None:
                 next_start_time = self._get_next(last_automated_data_interval.end)
             elif restriction.earliest is None:
-                return None  # Don't know where to catch up from, give up.
+                next_start_time = self._calc_first_run()
             else:
                 next_start_time = self._align_to_next(restriction.earliest)
         else:
             start_time_candidates = [self._align_to_prev(timezone.coerce_datetime(timezone.utcnow()))]
             if last_automated_data_interval is not None:
                 start_time_candidates.append(self._get_next(last_automated_data_interval.end))
+            else:
+                start_time_candidates.append(self._calc_first_run())
             if restriction.earliest is not None:
                 start_time_candidates.append(self._align_to_next(restriction.earliest))
             next_start_time = max(start_time_candidates)
@@ -113,3 +126,30 @@ class CronTriggerTimetable(CronMixin, Timetable):
             next_start_time - self._interval,  # type: ignore[arg-type]
             next_start_time,
         )
+
+    def _calc_first_run(self):
+        """
+        If no start_time is set, determine the start.
+
+        If True, always prefer past run, if False, never. If None, if within 10% of next run,
+        if timedelta, if within that timedelta from past run.
+        """
+        now = timezone.coerce_datetime(timezone.utcnow())
+        past_run_time = self._align_to_prev(now)
+        next_run_time = self._align_to_next(now)
+        if self.run_immediately is True:  # not truthy, actually set to True
+            return past_run_time
+        elif self.run_immediately is False:
+            return next_run_time
+        gap_between_runs = next_run_time - past_run_time
+        gap_to_past = now - past_run_time
+        if self.run_immediately is None:
+            if gap_between_runs > gap_to_past * 10:
+                return past_run_time
+            else:
+                return next_run_time
+        else:
+            if gap_to_past < self.run_immediately:
+                return past_run_time
+            else:
+                return next_run_time
