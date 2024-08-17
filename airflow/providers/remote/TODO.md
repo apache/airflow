@@ -29,12 +29,12 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
   - [ ] Start Remote Worker panel
   - [x] Hatch dynamically load plugin(s)
 - [x] Bootstrap Provider Package
-- [ ] Executor class
+- [x] Executor class
   - [x] Writes new jobs
   - [x] Acknowledge success/fail
-  - [ ] Can terminate a job
+  - [x] Can terminate a job
   - [x] Archiving of job table
-- [ ] Plugin
+- [x] Plugin
   - [x] REST API
   - [x] REST API Authentication
   - [x] Expose jobs via UI
@@ -48,12 +48,12 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
   - [x] Retry on connection loss
   - [x] Send logs (basic)
   - [ ] Send logs also to TaskFileHandler + Archive logs on completions (DB)
-  - [ ] Can terminate job
+  - [x] Can terminate job
   - [ ] Check version match
   - [ ] Handle SIG-INT/CTRL+C and gracefully terminate and complete job
   - [ ] Add a stop command
-- [ ] Web UI
-  - [ ] Show logs while executing
+- [x] Web UI
+  - [x] Show logs while executing
   - [x] Show logs after completion
 - [x] Configurability
 - [x] Documentation
