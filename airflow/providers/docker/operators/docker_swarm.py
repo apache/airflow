@@ -22,7 +22,7 @@ import re
 import shlex
 from datetime import datetime
 from time import sleep
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from docker import types
 
@@ -126,7 +126,7 @@ class DockerSwarmOperator(DockerOperator):
         networks: list[str | types.NetworkAttachmentConfig] | None = None,
         placement: types.Placement | list[types.Placement] | None = None,
         container_resources: types.Resources | None = None,
-        logging_driver: str | None = None,
+        logging_driver: Literal["json-path", "gelf"] | None = None,
         logging_driver_opts: dict | None = None,
         **kwargs,
     ) -> None:
@@ -144,13 +144,12 @@ class DockerSwarmOperator(DockerOperator):
         self.logging_driver_opts = logging_driver_opts
 
         if self.logging_driver:
-            logging_driver = self.logging_driver.lower()
-            supported_logging_drivers = ["json-file", "gelf"]
-            if logging_driver not in supported_logging_drivers:
+            supported_logging_drivers = ("json-file", "gelf")
+            if self.logging_driver not in supported_logging_drivers:
                 raise AirflowException(
-                    f"Unsupported logging driver provided: {logging_driver}. Must be one of: [{', '.join(supported_logging_drivers)}]"
+                    f"Invalid logging driver provided: {self.logging_driver}. Must be one of: [{', '.join(supported_logging_drivers)}]"
                 )
-            self.log_driver_config = types.DriverConfig(logging_driver, self.logging_driver_opts)
+            self.log_driver_config = types.DriverConfig(self.logging_driver, self.logging_driver_opts)
         else:
             self.log_driver_config = None
 
