@@ -20,6 +20,7 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.cloudant.hooks.cloudant import CloudantHook

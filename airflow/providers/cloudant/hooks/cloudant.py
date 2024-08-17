@@ -19,12 +19,15 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+from ibmcloudant import CloudantV1, CouchDbSessionAuthenticator
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import Connection
-from ibmcloudant import CloudantV1, CouchDbSessionAuthenticator
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 
 class CloudantHook(BaseHook):
