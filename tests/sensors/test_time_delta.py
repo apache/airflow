@@ -25,7 +25,7 @@ import pytest
 
 from airflow.models import DagBag
 from airflow.models.dag import DAG
-from airflow.sensors.time_delta import TimeDeltaSensor, TimeDeltaSensorAsync
+from airflow.sensors.time_delta import TimeDeltaSensor, TimeDeltaSensorAsync, WaitSensor
 from airflow.utils.timezone import datetime
 
 pytestmark = pytest.mark.db_test
@@ -67,6 +67,20 @@ class TestTimeDeltaSensorAsync:
         else:
             data_interval_end = pendulum.now("UTC").replace(microsecond=0, second=0, minute=0).add(hours=-1)
         op.execute({"data_interval_end": data_interval_end})
+        if should_defer:
+            defer_mock.assert_called_once()
+        else:
+            defer_mock.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "should_defer",
+        [False, True],
+    )
+    @mock.patch("airflow.models.baseoperator.BaseOperator.defer")
+    def test_wait_sensor(self, defer_mock, should_defer):
+        delta = timedelta(hours=1)
+        op = WaitSensor(task_id="wait_sensor_check", delta=delta, dag=self.dag)
+        op.execute({})
         if should_defer:
             defer_mock.assert_called_once()
         else:
