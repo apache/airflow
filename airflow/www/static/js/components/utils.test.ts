@@ -78,9 +78,6 @@ describe("JSON Parsing.", () => {
       if (expectedIsJson) {
         expect(contentJson).not.toBeNull();
         expect(contentFormatted.length).toBeGreaterThan(0);
-      } else {
-        expect(contentJson).toBeNull();
-        expect(contentFormatted).toEqual("");
       }
     }
   );

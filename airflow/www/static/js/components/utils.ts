@@ -28,7 +28,7 @@ const jsonParse = (content: any) => {
       contentJson = content;
     }
     contentFormatted = JSON.stringify(contentJson, null, 4);
-    isJson = typeof contentJson === "object"; // ensure numbers/bool are not treated as JSON
+    isJson = contentJson != null && typeof contentJson === "object"; // ensure numbers/bool are not treated as JSON
   } catch (e) {
     // skip
   }
