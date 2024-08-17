@@ -17,11 +17,14 @@
 # under the License.
 from __future__ import annotations
 
+import time
+from datetime import timedelta
 from typing import TYPE_CHECKING, Any, NoReturn
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowSkipException
 from airflow.sensors.base import BaseSensorOperator
-from airflow.triggers.temporal import DateTimeTrigger
+from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.utils import timezone
 
 if TYPE_CHECKING:
@@ -89,3 +92,37 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
     def execute_complete(self, context: Context, event: Any = None) -> None:
         """Handle the event when the trigger fires and return immediately."""
         return None
+
+
+class WaitSensor(BaseSensorOperator):
+    """
+    A sensor that waits a specified period of time before completing.
+
+    This differs from TimeDeltaSensor because the time to wait is measured from the start of the task, not
+    the data_interval_end of the DAG run.
+
+    :param delta: time length to wait after the task starts before succeeding.
+    :param deferrable: Run sensor in deferrable mode
+    """
+
+    def __init__(
+        self,
+        delta: timedelta | int,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.deferrable = deferrable
+        if isinstance(delta, int):
+            self.delta = timedelta(minutes=delta)
+        else:
+            self.delta = delta
+
+    def execute(self, context: Context) -> None:
+        if self.deferrable:
+            self.defer(
+                trigger=TimeDeltaTrigger(self.delta, end_from_trigger=True),
+                method_name="execute_complete",
+            )
+        else:
+            time.sleep(self.delta.total_seconds())
