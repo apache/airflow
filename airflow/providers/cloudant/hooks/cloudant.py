@@ -48,8 +48,8 @@ class CloudantHook(BaseHook):
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom field behaviour."""
         return {
-            "hidden_fields": ["port", "extra"],
-            "relabeling": {"host": "Account", "login": "Username (or API Key)", "schema": "Database"},
+            "hidden_fields": ["schema", "port", "extra"],
+            "relabeling": {"host": "Account", "login": "Username (or API Key)"},
         }
 
     def __init__(self, cloudant_conn_id: str = default_conn_name) -> None:
@@ -87,4 +87,5 @@ class CloudantHook(BaseHook):
 
         if missing_params:
             raise AirflowException(
-                f"Missing connection parameter{'s' if len(missing_params) > 1 else ''}: {', '.join(missing_params)}")
+                f"Missing connection parameter{'s' if len(missing_params) > 1 else ''}: {', '.join(missing_params)}"
+            )
