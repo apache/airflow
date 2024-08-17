@@ -1,1 +1,1 @@
-Fix ``on_success_callback`` will not run if task is skipped.
+Fix: ``on_success_callback`` will no longer execute if a task is skipped. Previously, this callback was triggered even when the task was skipped.
