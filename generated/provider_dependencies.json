@@ -777,6 +777,16 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "magento": {
+    "deps": [
+      "apache-airflow>=2.8.0"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "ready"
+  },
   "microsoft.azure": {
     "deps": [
       "adal>=1.2.7",
