@@ -93,6 +93,16 @@ class RemoteJobModel(Base, LoggingMixin):
 
     __table_args__ = (Index("rj_order", state, queued_dttm, queue),)
 
+    @property
+    def key(self):
+        return TaskInstanceKey(
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            run_id=self.run_id,
+            try_number=self.try_number,
+            map_index=self.map_index,
+        )
+
 
 class RemoteJob(BaseModelPydantic, LoggingMixin):
     """Accessor for remote jobs as logical model."""
