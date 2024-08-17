@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from airflow.cli.cli_config import GroupCommand
@@ -75,10 +76,26 @@ class RemoteExecutor(BaseExecutor):
                 command=str(command),
             )
         )
+        self.queued(key)
 
-    def sync(self) -> None:
+    @provide_session
+    def sync(self, session: Session = NEW_SESSION) -> None:
         """Sync will get called periodically by the heartbeat method."""
-        # TODO This might be used to clean the task table and upload completed logs
+        jobs: list[RemoteJobModel] = session.query(RemoteJobModel).all()
+        for job in jobs:
+            if job.state == TaskInstanceState.QUEUED:
+                self.queued(job.key)
+            elif job.state == TaskInstanceState.RUNNING:
+                self.running_state(job.key)
+            elif job.state == TaskInstanceState.SUCCESS:
+                self.success(job.key)
+                if job.last_update.timestamp() < (datetime.now() - timedelta(minutes=5)).timestamp():
+                    session.delete(job)
+            elif job.state == TaskInstanceState.FAILED:
+                self.fail(job.key)
+                if job.last_update.timestamp() < (datetime.now() - timedelta(hours=1)).timestamp():
+                    session.delete(job)
+        session.commit()
 
     def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
         """
