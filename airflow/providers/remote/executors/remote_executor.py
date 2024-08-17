@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from airflow.cli.cli_config import GroupCommand
+from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.abstractoperator import DEFAULT_QUEUE
 from airflow.models.taskinstance import TaskInstanceState
@@ -40,9 +41,15 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
+PARALLELISM: int = conf.getint("core", "PARALLELISM")
+
 
 class RemoteExecutor(BaseExecutor):
     """Implementation of the remote executor to distribute work to remote workers via HTTP."""
+
+    def __init__(self, parallelism: int = PARALLELISM):
+        super().__init__(parallelism=parallelism)
+        self.last_reported_state: dict[TaskInstanceKey, TaskInstanceState] = {}
 
     @provide_session
     def start(self, session: Session = NEW_SESSION):
@@ -83,17 +90,33 @@ class RemoteExecutor(BaseExecutor):
         """Sync will get called periodically by the heartbeat method."""
         jobs: list[RemoteJobModel] = session.query(RemoteJobModel).all()
         for job in jobs:
-            if job.state == TaskInstanceState.QUEUED:
-                self.queued(job.key)
-            elif job.state == TaskInstanceState.RUNNING:
-                self.running_state(job.key)
-            elif job.state == TaskInstanceState.SUCCESS:
-                self.success(job.key)
+            if job.key in self.running:
+                if job.state == TaskInstanceState.RUNNING:
+                    if (
+                        job.key not in self.last_reported_state
+                        or self.last_reported_state[job.key] != job.state
+                    ):
+                        self.running_state(job.key)
+                    self.last_reported_state[job.key] = job.state
+                elif job.state == TaskInstanceState.SUCCESS:
+                    if job.key in self.last_reported_state:
+                        del self.last_reported_state[job.key]
+                    self.success(job.key)
+                elif job.state == TaskInstanceState.FAILED:
+                    if job.key in self.last_reported_state:
+                        del self.last_reported_state[job.key]
+                    self.fail(job.key)
+                else:
+                    self.last_reported_state[job.key] = job.state
+            if job.state == TaskInstanceState.SUCCESS:
                 if job.last_update.timestamp() < (datetime.now() - timedelta(minutes=5)).timestamp():
+                    if job.key in self.last_reported_state:
+                        del self.last_reported_state[job.key]
                     session.delete(job)
             elif job.state == TaskInstanceState.FAILED:
-                self.fail(job.key)
                 if job.last_update.timestamp() < (datetime.now() - timedelta(hours=1)).timestamp():
+                    if job.key in self.last_reported_state:
+                        del self.last_reported_state[job.key]
                     session.delete(job)
         session.commit()
 
