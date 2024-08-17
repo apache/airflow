@@ -48,13 +48,13 @@
             <td><a href="/dags/{{ job.dag_id }}/grid">{{ job.dag_id }}</a></td>
             <td><a href="/dags/{{ job.dag_id }}/grid?dag_run_id={{ job.run_id | urlencode }}&task_id={{ job.task_id }}">{{ job.task_id }}</a></td>
             <td><a href="/dags/{{ job.dag_id }}/grid?dag_run_id={{ job.run_id | urlencode }}">{{ job.run_id }}</a></td>
-            <td>{{ job.map_index }}</td>
+            <td>{% if job.map_index >= 0 %}{{ job.map_index }}{% else %}-{% endif %}</td>
             <td>{{ job.try_number }}</td>
             <td>{{ html_states[job.state] }}</td>
             <td>{{ job.queue }}</td>
             <td><time datetime="{{ job.queued_dttm }}">{{ job.queued_dttm }}</time></td>
-            <td>{{ job.remote_worker }}</td>
-            <td><time datetime="{{ job.last_update }}">{{ job.last_update }}</time></td>
+            <td>{% if job.remote_worker %}{{ job.remote_worker }}{% endif %}</td>
+            <td>{% if job.last_update %}<time datetime="{{ job.last_update }}">{{ job.last_update | string | truncate(20, False, "") }}</time>{% endif %}</td>
           </tr>
         {% endfor %}
       </table>
