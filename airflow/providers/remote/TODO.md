@@ -31,9 +31,9 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
 - [x] Bootstrap Provider Package
 - [ ] Executor class
   - [x] Writes new jobs
-  - [ ] Acknowledge success/fail
+  - [x] Acknowledge success/fail
   - [ ] Can terminate a job
-  - [ ] Archiving of job table
+  - [x] Archiving of job table
 - [ ] Plugin
   - [x] REST API
   - [x] REST API Authentication
@@ -69,10 +69,10 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
     - [x] RenderedTaskinstanceFields
     - [x] Templated Fields?
     - [x] AIP-44 Integration Tests
-- [ ] AIP-69
+- [x] AIP-69
   - [x] Draft
   - [x] Update specs
-  - [ ] Vote
+  - [x] Vote
 
 ## Future Feature Collection
 
