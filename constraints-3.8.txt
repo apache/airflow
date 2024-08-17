@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-16T13:47:13.798602
+# This constraints file was automatically generated on 2024-08-17T07:46:18.436338
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -51,7 +51,7 @@ JayDeBeApi==1.2.3
 Jinja2==3.1.4
 Js2Py==0.74
 Mako==1.3.5
-Markdown==3.6
+Markdown==3.7
 MarkupSafe==2.1.5
 PyAthena==3.9.0
 PyGithub==2.3.0
@@ -249,7 +249,7 @@ celery==5.4.0
 certifi==2024.7.4
 cffi==1.17.0
 cfgv==3.4.0
-cfn-lint==1.10.2
+cfn-lint==1.10.3
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -378,7 +378,7 @@ grpcio-gcp==0.2.2
 grpcio-health-checking==1.62.3
 grpcio-status==1.62.3
 grpcio-tools==1.62.3
-grpcio==1.65.4
+grpcio==1.65.5
 gssapi==1.8.3
 gunicorn==23.0.0
 h11==0.14.0
@@ -469,10 +469,10 @@ msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.0.5
-mypy-boto3-appflow==1.34.0
-mypy-boto3-rds==1.34.152
-mypy-boto3-redshift-data==1.34.0
-mypy-boto3-s3==1.34.162
+mypy-boto3-appflow==1.35.0
+mypy-boto3-rds==1.35.0
+mypy-boto3-redshift-data==1.35.0
+mypy-boto3-s3==1.35.0
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.0.0
@@ -487,7 +487,7 @@ nodeenv==1.9.1
 numpy==1.24.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.40.8
+openai==1.41.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.19.0
