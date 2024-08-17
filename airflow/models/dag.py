@@ -938,8 +938,16 @@ class DAG(LoggingMixin):
         for role, perms in access_control.items():
             updated_access_control[role] = updated_access_control.get(role, {})
             if isinstance(perms, (set, list)):
-                # Support for old-style access_control where only the actions are specified
-                updated_access_control[role][permissions.RESOURCE_DAG] = set(perms)
+                if hasattr(permissions, "resource_name"):
+                    # Support old versions of FAB provider
+                    updated_access_control[role] = {update_old_perm(perm) for perm in perms}
+                else:
+                    # Support for old-style access_control where only the actions are specified
+                    updated_access_control[role][permissions.RESOURCE_DAG] = set(perms)
+            elif isinstance(perms, dict) and hasattr(permissions, "resource_name"):
+                raise AirflowException(
+                    f"Please update FAB provider to use new-style access_control: {access_control}"
+                )
             else:
                 updated_access_control[role] = perms
             if permissions.RESOURCE_DAG in updated_access_control[role]:
