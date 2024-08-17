@@ -21,10 +21,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from cloudant import cloudant
+from ibmcloudant import CloudantV1, CouchDbSessionAuthenticator
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.models import Connection
 
 
 class CloudantHook(BaseHook):
@@ -53,27 +54,30 @@ class CloudantHook(BaseHook):
         super().__init__()
         self.cloudant_conn_id = cloudant_conn_id
 
-    def get_conn(self) -> cloudant:
+    def get_conn(self) -> CloudantV1:
         """
         Open a connection to the cloudant service and close it automatically if used as context manager.
 
         .. note::
             In the connection form:
-            - 'host' equals the 'Account' (optional)
+            - 'host' equals the 'Account' (required)
             - 'login' equals the 'Username (or API Key)' (required)
             - 'password' equals the 'Password' (required)
 
-        :return: an authorized cloudant session context manager object.
+        :return: a CloudantV1 service object backed by a session-based user/password authenticator.
         """
         conn = self.get_connection(self.cloudant_conn_id)
 
         self._validate_connection(conn)
 
-        cloudant_session = cloudant(user=conn.login, passwd=conn.password, account=conn.host)
+        authenticator = CouchDbSessionAuthenticator(username=conn.login, password=conn.password)
+        service = CloudantV1(authenticator=authenticator)
+        service.set_service_url(f"https://{conn.host}.cloudant.com")
 
-        return cloudant_session
+        return service
 
-    def _validate_connection(self, conn: cloudant) -> None:
-        for conn_param in ["login", "password"]:
+    @staticmethod
+    def _validate_connection(conn: Connection) -> None:
+        for conn_param in ["host", "login", "password"]:
             if not getattr(conn, conn_param):
                 raise AirflowException(f"missing connection parameter {conn_param}")

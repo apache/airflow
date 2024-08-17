@@ -34,20 +34,50 @@ class TestCloudantHook:
 
     @patch(
         "airflow.providers.cloudant.hooks.cloudant.CloudantHook.get_connection",
-        return_value=Connection(login="user", password="password", host="account"),
+        return_value=Connection(login="the_user", password="the_password", host="the_account"),
     )
-    @patch("airflow.providers.cloudant.hooks.cloudant.cloudant")
-    def test_get_conn(self, mock_cloudant, mock_get_connection):
+    @patch("airflow.providers.cloudant.hooks.cloudant.CouchDbSessionAuthenticator")
+    @patch("airflow.providers.cloudant.hooks.cloudant.CloudantV1")
+    def test_get_conn_passes_expected_params_and_returns_cloudant_object(
+        self, mock_cloudant_v1, mock_session_authenticator, mock_get_connection
+    ):
         cloudant_session = self.cloudant_hook.get_conn()
 
         conn = mock_get_connection.return_value
-        mock_cloudant.assert_called_once_with(user=conn.login, passwd=conn.password, account=conn.host)
-        assert cloudant_session == mock_cloudant.return_value
+
+        mock_session_authenticator.assert_called_once_with(username=conn.login, password=conn.password)
+        mock_cloudant_v1.assert_called_once_with(authenticator=mock_session_authenticator.return_value)
+
+        cloudant_service = mock_cloudant_v1.return_value
+        cloudant_service.set_service_url.assert_called_once_with(f"https://{conn.host}.cloudant.com")
+
+        assert cloudant_session == cloudant_service
 
     @patch(
         "airflow.providers.cloudant.hooks.cloudant.CloudantHook.get_connection",
-        return_value=Connection(login="user"),
+        return_value=Connection(login="user", password="password"),
     )
-    def test_get_conn_invalid_connection(self, mock_get_connection):
+    def test_get_conn_2(self, mock_get_connection):
+        cloudant_session = self.cloudant_hook.get_conn()
+
+        conn = mock_get_connection.return_value
+        with cloudant_session as cs:
+            assert cs
+
+    @pytest.mark.parametrize(
+        "conn",
+        [
+            Connection(),
+            Connection(host="acct"),
+            Connection(login="user"),
+            Connection(password="pwd"),
+            Connection(host="acct", login="user"),
+            Connection(host="acct", password="pwd"),
+            Connection(login="user", password="pwd"),
+        ],
+    )
+    @patch("airflow.providers.cloudant.hooks.cloudant.CloudantHook.get_connection")
+    def test_get_conn_invalid_connection(self, mock_get_connection, conn):
+        mock_get_connection.return_value = conn
         with pytest.raises(AirflowException):
             self.cloudant_hook.get_conn()
