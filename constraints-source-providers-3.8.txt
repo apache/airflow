@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-17T07:38:52.383331
+# This constraints file was automatically generated on 2024-08-17T19:39:15.886439
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -50,7 +50,7 @@ adal==1.2.7
 adlfs==2024.7.0
 aiobotocore==2.13.2
 aiofiles==23.2.1
-aiohappyeyeballs==2.3.6
+aiohappyeyeballs==2.3.7
 aiohttp==3.10.3
 aioitertools==0.11.0
 aioresponses==0.7.6
@@ -288,7 +288,7 @@ idna==3.7
 ijson==3.3.0
 imagesize==1.4.1
 importlib-metadata==6.11.0
-importlib_resources==6.4.2
+importlib_resources==6.4.3
 impyla==0.19.0
 incremental==24.7.2
 inflection==0.5.1
