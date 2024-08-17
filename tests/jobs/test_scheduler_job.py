@@ -5231,7 +5231,7 @@ class TestSchedulerJob:
         """
         Tests that it will retry on DB error like deadlock when updating timeout triggers.
         """
-        from sqlalchemy.exc import InternalError
+        from sqlalchemy.exc import OperationalError
 
         retry_times = 3
 
@@ -5254,7 +5254,7 @@ class TestSchedulerJob:
                 calls = side_effect.call_count
                 side_effect.call_count += 1
                 if calls < retry_times - 1:
-                    raise InternalError("any_statement", "any_params", "any_orig")
+                    raise OperationalError("any_statement", "any_params", "any_orig")
                 else:
                     return session.execute(*args, **kwargs)
 
@@ -5296,7 +5296,7 @@ class TestSchedulerJob:
         check_if_trigger_timeout(retry_times)
 
         # Negative case: no retries, execute only once.
-        with pytest.raises(InternalError):
+        with pytest.raises(OperationalError):
             check_if_trigger_timeout(1)
 
     def test_find_zombies_nothing(self):
