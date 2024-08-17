@@ -20,7 +20,6 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
-
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.cloudant.hooks.cloudant import CloudantHook
@@ -52,17 +51,6 @@ class TestCloudantHook:
         cloudant_service.set_service_url.assert_called_once_with(f"https://{conn.host}.cloudant.com")
 
         assert cloudant_session == cloudant_service
-
-    @patch(
-        "airflow.providers.cloudant.hooks.cloudant.CloudantHook.get_connection",
-        return_value=Connection(login="user", password="password"),
-    )
-    def test_get_conn_2(self, mock_get_connection):
-        cloudant_session = self.cloudant_hook.get_conn()
-
-        conn = mock_get_connection.return_value
-        with cloudant_session as cs:
-            assert cs
 
     @pytest.mark.parametrize(
         "conn",

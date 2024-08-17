@@ -21,11 +21,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from ibmcloudant import CloudantV1, CouchDbSessionAuthenticator
-
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
+from ibmcloudant import CloudantV1, CouchDbSessionAuthenticator
 
 
 class CloudantHook(BaseHook):
@@ -78,6 +77,11 @@ class CloudantHook(BaseHook):
 
     @staticmethod
     def _validate_connection(conn: Connection) -> None:
+        missing_params = []
         for conn_param in ["host", "login", "password"]:
             if not getattr(conn, conn_param):
-                raise AirflowException(f"missing connection parameter {conn_param}")
+                missing_params.append(conn_param)
+
+        if missing_params:
+            raise AirflowException(
+                f"Missing connection parameter{'s' if len(missing_params) > 1 else ''}: {', '.join(missing_params)}")
