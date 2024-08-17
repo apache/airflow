@@ -80,7 +80,7 @@ class RemoteWorkerJobs(BaseView):
     def jobs(self, session: Session = NEW_SESSION):
         from airflow.providers.remote.models.remote_job import RemoteJobModel
 
-        jobs = session.scalars(select(RemoteJobModel)).all()
+        jobs = session.scalars(select(RemoteJobModel).order_by(RemoteJobModel.queued_dttm)).all()
         html_states = {
             str(state): wwwutils.state_token(str(state)) for state in TaskInstanceState.__members__.values()
         }
@@ -98,7 +98,7 @@ class RemoteWorkerHosts(BaseView):
     def status(self, session: Session = NEW_SESSION):
         from airflow.providers.remote.models.remote_worker import RemoteWorkerModel
 
-        hosts = session.scalars(select(RemoteWorkerModel)).all()
+        hosts = session.scalars(select(RemoteWorkerModel).order_by(RemoteWorkerModel.worker_name)).all()
         return self.render_template("remote_worker_hosts.html", hosts=hosts)
 
 
