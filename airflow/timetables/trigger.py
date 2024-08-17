@@ -75,7 +75,17 @@ class CronTriggerTimetable(CronMixin, Timetable):
             interval = decode_relativedelta(data["interval"])
         else:
             interval = datetime.timedelta(seconds=data["interval"])
-        return cls(data["expression"], timezone=decode_timezone(data["timezone"]), interval=interval)
+        immediate: bool | datetime.timedelta | None
+        if isinstance(data["immediate"], float):
+            immediate = datetime.timedelta(seconds=data["interval"])
+        else:
+            immediate = data["immediate"] if isinstance(data["immediate"], bool) else None
+        return cls(
+            data["expression"],
+            timezone=decode_timezone(data["timezone"]),
+            interval=interval,
+            run_immediately=immediate,
+        )
 
     def serialize(self) -> dict[str, Any]:
         from airflow.serialization.serialized_objects import encode_relativedelta, encode_timezone
@@ -86,7 +96,17 @@ class CronTriggerTimetable(CronMixin, Timetable):
         else:
             interval = encode_relativedelta(self._interval)
         timezone = encode_timezone(self._timezone)
-        return {"expression": self._expression, "timezone": timezone, "interval": interval}
+        immediate: bool | float | None
+        if isinstance(self.run_immediately, datetime.timedelta):
+            immediate = self.run_immediately.total_seconds()
+        else:
+            immediate = self.run_immediately
+        return {
+            "expression": self._expression,
+            "timezone": timezone,
+            "interval": interval,
+            "run_immediately": immediate,
+        }
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         return DataInterval(
