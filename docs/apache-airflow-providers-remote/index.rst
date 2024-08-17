@@ -58,3 +58,37 @@
     :caption: Commits
 
     Detailed list of commits <commits>
+
+
+apache-airflow-providers-remote package
+------------------------------------------------------
+
+Handle remote workers via HTTP(s) connection and distribute work over distributed sites
+
+
+Release: 0.1.0pre0
+
+Provider package
+----------------
+
+This package is for the ``remote`` provider.
+All classes for this package are included in the ``airflow.providers.remote`` python package.
+
+Installation
+------------
+
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-remote``.
+For the minimum Airflow version supported, see ``Requirements`` below.
+
+Requirements
+------------
+
+The minimum Apache Airflow version supported by this provider package is ``2.10.0``.
+
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.10.0``
+``pydantic``
+==================  ==================
