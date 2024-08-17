@@ -57,7 +57,7 @@ from airflow.models.dataset import (
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.stats import Stats
-from airflow.ti_deps.dependencies_states import EXECUTION_STATES
+from airflow.ti_deps.dependencies_states import DEFERRED_STATES, EXECUTION_STATES
 from airflow.timetables.simple import DatasetTriggeredTimetable
 from airflow.traces import utils as trace_utils
 from airflow.traces.tracer import Trace, add_span
@@ -325,6 +325,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
         concurrency_map = self.__get_concurrency_maps(states=EXECUTION_STATES, session=session)
+        concurrency_map_deferred = self.__get_concurrency_maps(states=DEFERRED_STATES, session=session)
 
         # Number of tasks that cannot be scheduled because of no open slot in pool
         num_starving_tasks_total = 0
@@ -469,16 +470,32 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 current_active_tasks_per_dag = concurrency_map.dag_active_tasks_map[dag_id]
                 max_active_tasks_per_dag_limit = task_instance.dag_model.max_active_tasks
+
+                msg_description_0 = "DAG %s has %s/%s running and queued tasks"
+                msg_description_1 = (
+                    "Not executing %s since the number of tasks running or queued from DAG "
+                    "%s is >= to the DAG's max_active_tasks limit of %s"
+                )
+
+                if task_instance.dag_model.max_active_tasks_include_deferred:
+                    current_active_tasks_per_dag += concurrency_map_deferred.dag_active_tasks_map[dag_id]
+
+                    msg_description_0 = "DAG %s has %s/%s running, queued and deferred tasks"
+                    msg_description_1 = (
+                        "Not executing %s since the number of tasks running or queued or "
+                        "deferred from DAG"
+                        "%s is >= to the DAG's max_active_tasks limit of %s"
+                    )
+
                 self.log.info(
-                    "DAG %s has %s/%s running and queued tasks",
+                    msg_description_0,
                     dag_id,
                     current_active_tasks_per_dag,
                     max_active_tasks_per_dag_limit,
                 )
                 if current_active_tasks_per_dag >= max_active_tasks_per_dag_limit:
                     self.log.info(
-                        "Not executing %s since the number of tasks running or queued "
-                        "from DAG %s is >= to the DAG's max_active_tasks limit of %s",
+                        msg_description_1,
                         task_instance,
                         dag_id,
                         max_active_tasks_per_dag_limit,

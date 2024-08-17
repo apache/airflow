@@ -107,6 +107,17 @@ core:
       type: string
       example: ~
       default: "16"
+    max_active_tasks_include_deferred:
+      description: |
+        It includes the active deferred task count in the calculation for max_active_tasks. To calculate
+        the number of tasks that is running concurrently for a DAG with this config, add up the number of
+        running and deferred tasks for all DAG runs of the DAG. This is configurable at the DAG level with
+        ``max_active_tasks_include_deferred``, which is defaulted as
+        ``[core] max_active_tasks_include_deferred``.
+      version_added: tbd
+      type: boolean
+      example: ~
+      default: "False"
     dags_are_paused_at_creation:
       description: |
         Are DAGs paused by default at creation

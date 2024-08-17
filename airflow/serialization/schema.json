@@ -161,6 +161,7 @@
         "_description": { "type" : "string"},
         "_concurrency": { "type" : "number"},
         "_max_active_tasks": { "type" : "number"},
+        "max_active_tasks_include_deferred": {"type": "boolean"},
         "max_active_runs": { "type" : "number"},
         "max_consecutive_failed_dag_runs": { "type" : "number"},
         "default_args": { "$ref": "#/definitions/dict" },

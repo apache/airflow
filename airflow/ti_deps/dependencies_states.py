@@ -23,6 +23,10 @@ EXECUTION_STATES = {
     TaskInstanceState.QUEUED,
 }
 
+DEFERRED_STATES = {
+    TaskInstanceState.DEFERRED,
+}
+
 # In order to be able to get queued a task must have one of these states
 SCHEDULEABLE_STATES = {
     None,

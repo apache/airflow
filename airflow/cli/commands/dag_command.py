@@ -336,6 +336,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "timetable_description": dag.timetable.description,
         "tags": dag.tags,
         "max_active_tasks": dag.max_active_tasks,
+        "max_active_tasks_include_deferred": dag.max_active_tasks_include_deferred,
         "max_active_runs": dag.max_active_runs,
         "max_consecutive_failed_dag_runs": dag.max_consecutive_failed_dag_runs,
         "has_task_concurrency_limits": any(

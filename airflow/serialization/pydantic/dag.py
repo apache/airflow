@@ -95,6 +95,7 @@ class DagModelPydantic(BaseModelPydantic):
     dag_owner_links: List[DagOwnerAttributesPydantic]  # noqa: UP006
 
     max_active_tasks: int
+    max_active_tasks_include_deferred: Optional[bool] = False
     max_active_runs: Optional[int]
     max_consecutive_failed_dag_runs: Optional[int]
 
