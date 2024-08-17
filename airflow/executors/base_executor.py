@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import logging
 import sys
-import warnings
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, List, Optional, Sequence, Tuple
@@ -29,7 +28,6 @@ import pendulum
 
 from airflow.cli.cli_config import DefaultHelpParser
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models import Log
 from airflow.stats import Stats
@@ -583,22 +581,6 @@ class BaseExecutor(LoggingMixin):
     def slots_occupied(self):
         """Number of tasks this executor instance is currently managing."""
         return len(self.running) + len(self.queued_tasks)
-
-    @staticmethod
-    def validate_command(command: list[str]) -> None:
-        """
-        Back-compat method to Check if the command to execute is airflow command.
-
-        :param command: command to check
-        """
-        warnings.warn(
-            """
-            The `validate_command` method is deprecated. Please use ``validate_airflow_tasks_run_command``
-            """,
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        BaseExecutor.validate_airflow_tasks_run_command(command)
 
     @staticmethod
     def validate_airflow_tasks_run_command(command: list[str]) -> tuple[str | None, str | None]:
