@@ -27,6 +27,13 @@
 Changelog
 ---------
 
+0.1.0pre0
+.........
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 0.1.0
 .....
 

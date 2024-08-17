@@ -25,7 +25,10 @@
  .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 Package apache-airflow-providers-remote
----------------------------------------
+------------------------------------------------------
+
+Handle remote workers via HTTP(s) connection and distribute work over distributed sites
+
 
 This is detailed commit list of changes for versions provider package: ``remote``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
