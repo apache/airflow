@@ -26,7 +26,7 @@ openai = pytest.importorskip("openai")
 from unittest.mock import mock_open
 
 from openai.pagination import SyncCursorPage
-from openai.types import CreateEmbeddingResponse, Embedding, FileDeleted, FileObject
+from openai.types import Batch, CreateEmbeddingResponse, Embedding, FileDeleted, FileObject
 from openai.types.beta import (
     Assistant,
     AssistantDeleted,
@@ -55,6 +55,7 @@ METADATA = {"modified": "true", "user": "abc123"}
 VECTOR_STORE_ID = "test_vs_abc123"
 VECTOR_STORE_NAME = "Test Vector Store"
 VECTOR_FILE_STORE_BATCH_ID = "test_vfsb_abc123"
+BATCH_ID = "test_br_abc123"
 
 
 @pytest.fixture
@@ -258,6 +259,19 @@ def mock_vector_file_store_list():
                 last_error=None,
             ),
         ]
+    )
+
+
+@pytest.fixture
+def mock_batch():
+    return Batch(
+        id=BATCH_ID,
+        object="batch",
+        completion_window="24",
+        created_at=1699061776,
+        endpoint="/v1/chat/completions",
+        input_file_id=FILE_ID,
+        status="completed",
     )
 
 
@@ -493,6 +507,24 @@ def test_delete_vector_store_file(mock_openai_hook):
     )
     assert vector_store_file_deleted.id == FILE_ID
     assert vector_store_file_deleted.deleted
+
+
+def test_create_batch(mock_openai_hook, mock_batch):
+    mock_openai_hook.conn.batches.create.return_value = mock_batch
+    batch = mock_openai_hook.create_batch(endpoint="/v1/chat/completions", file_id=FILE_ID)
+    assert batch.id == mock_batch.id
+
+
+def test_get_batch(mock_openai_hook, mock_batch):
+    mock_openai_hook.conn.batches.retrieve.return_value = mock_batch
+    batch = mock_openai_hook.get_batch(batch_id=BATCH_ID)
+    assert batch.id == mock_batch.id
+
+
+def test_cancel_batch(mock_openai_hook, mock_batch):
+    mock_openai_hook.conn.batches.cancel.return_value = mock_batch
+    batch = mock_openai_hook.cancel_batch(batch_id=BATCH_ID)
+    assert batch.id == mock_batch.id
 
 
 def test_openai_hook_test_connection(mock_openai_hook):
