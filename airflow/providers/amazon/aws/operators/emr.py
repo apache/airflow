@@ -824,7 +824,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
                 job_flow_id=self._job_flow_id,
                 log_uri=get_log_uri(emr_client=self._emr_hook.conn, job_flow_id=self._job_flow_id),
             )
-        if self.deferrable:
+        if self.deferrable and self.wait_for_completion:
             self.defer(
                 trigger=EmrCreateJobFlowTrigger(
                     job_flow_id=self._job_flow_id,
@@ -833,11 +833,9 @@ class EmrCreateJobFlowOperator(BaseOperator):
                     waiter_max_attempts=self.waiter_max_attempts,
                 ),
                 method_name="execute_complete",
-                # timeout is set to ensure that if a trigger dies, the timeout does not restart
-                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
                 timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
             )
-        if self.wait_for_completion:
+        if self.wait_for_completion and not self.deferrable:
             self._emr_hook.get_waiter("job_flow_waiting").wait(
                 ClusterId=self._job_flow_id,
                 WaiterConfig=prune_dict(
