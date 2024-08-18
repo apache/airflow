@@ -34,17 +34,14 @@ integrations:
   - integration-name: Magento
     external-doc-url: https://www.magento.com/
     how-to-guide:
-      - /docs/apache-airflow-providers-magento/operators/magento_apex_rest.rst
-      - /docs/apache-airflow-providers-magento/operators/catalog_product.rst
+      - /docs/apache-airflow-providers-magento/operators/sales_order.rst
     logo: /integration-logos/magento/Magento.png
     tags: [service]
 
 operators:
   - integration-name: Magento
     python-modules:
-      - airflow.providers.magento.operators.catalog_product
-      - airflow.providers.magento.operators.sales_order
-      - airflow.providers.magento.operators.csv_export
+      - airflow.providers.magento.operators.sales
 
 hooks:
   - integration-name: Magento

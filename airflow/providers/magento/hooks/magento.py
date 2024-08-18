@@ -109,8 +109,12 @@ class MagentoHook(BaseHook):
 
         return auth_header
 
-    def get_request(self, endpoint, method="GET", data=None):
+    def get_request(self, endpoint, search_criteria=None, method="GET", data=None):
         """Perform an API request to Magento."""
+        if search_criteria:
+            # Convert search criteria dictionary to URL parameters
+            query_string = urlencode(search_criteria, doseq=True)
+            endpoint = f"{endpoint}?{query_string}"
         url = f"https://{self.connection.host}/rest/default/V1/{endpoint}"
         headers = {
             "Content-Type": "application/json",
@@ -141,20 +145,3 @@ class MagentoHook(BaseHook):
             raise AirflowException(f"Request failed: {str(e)}")
 
         return response.json()
-
-    def get_orders(self, search_criteria=None):
-        """
-        Fetch orders from Magento.
-
-        :param search_criteria: Dictionary containing search criteria to filter orders
-        :return: List of orders
-        """
-        endpoint = "orders"
-
-        if search_criteria:
-            # Convert search criteria dictionary to URL parameters
-            query_string = urlencode(search_criteria, doseq=True)
-            endpoint = f"{endpoint}?{query_string}"
-
-        self.log.info("Requesting orders from Magento: %s", endpoint)
-        return self.get_request(endpoint)
