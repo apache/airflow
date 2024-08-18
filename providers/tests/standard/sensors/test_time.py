@@ -25,7 +25,11 @@ import time_machine
 
 from airflow.exceptions import TaskDeferred
 from airflow.models.dag import DAG
+<<<<<<<< HEAD:tests/providers/standard/sensors/test_time.py
 from airflow.providers.standard.sensors.time import TimeSensor, TimeSensorAsync
+========
+from airflow.providers.core.time.sensors.time_sensor import TimeSensor, TimeSensorAsync
+>>>>>>>> 6f86e128e4 (add core.time provider):tests/providers/core/time/sensors/test_time_sensor.py
 from airflow.triggers.temporal import DateTimeTrigger
 from airflow.utils import timezone
 
