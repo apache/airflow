@@ -71,6 +71,10 @@ class RemoteWorkerModel(Base, LoggingMixin):
         self.last_update = last_update
         super().__init__()
 
+    @property
+    def sysinfo_json(self) -> dict:
+        return json.loads(self.sysinfo) if self.sysinfo else None
+
 
 class RemoteWorkerState(str, Enum):
     """Status of a remote worker instance."""
