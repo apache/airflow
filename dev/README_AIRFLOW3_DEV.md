@@ -86,15 +86,18 @@ Do not treat PR approval (Green V) as exclusion approval.
 
 ## Merging PR for Airflow 3 and 2.10.x / 2.11.x
 
-The committer who merge the PR is responsible for back-porting the PR to `v-2-10-test` (opening a new PR where original change gets cherry-picked and conflicts resolved).
+The committer who merge the PR is responsible for back-porting the PR to `v-2-10-test`.
+This means start a new PR where the original commit from main is cherry-picked and conflicts resolved.
 If cherry-pick is too complex then ask the PR author / start your own PR against `v-2-10-test` directly with the change.
 Note: tracking that the PRs merged as expected is the responsibility of committer who merged the PR.
+
+Committer may also request from PR author to raise 2 PRs one against `main` branch and one against `v-2-10-test` prior to accepting the code change.
 
 ## Merging PRs 2.10.x
 
 Suggested change
 Make sure PR target `v-2-10-test` branch and merge it when ready.
-Make sure your PRs target the `v-2-10-test` branch and it can be merged when ready.
+Make sure your PRs target the `v-2-10-test` branch, and it can be merged when ready.
 All regular protocols of merging considerations are applied.
 
 ## Merging PRs for Airflow 3
