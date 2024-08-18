@@ -69,7 +69,13 @@
             <td>{{ host.jobs_taken }}</td>
             <td>{{ host.jobs_success }}</td>
             <td>{{ host.jobs_failed }}</td>
-            <td>{{ host.sysinfo }}</td>
+            <td>
+              <ul>
+                {% for item in host.sysinfo_json %}
+                  <li>{{ item }}: {{ host.sysinfo_json[item] }}</li>
+                {% endfor %}
+              </ul>
+            </td>
           </tr>
         {% endfor %}
       </table>
