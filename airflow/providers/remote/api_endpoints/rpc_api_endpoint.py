@@ -35,6 +35,7 @@ from jwt import (
 
 from airflow.api_connexion.exceptions import PermissionDenied
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.session import create_session
@@ -83,9 +84,11 @@ def remote_worker_api(body: dict[str, Any]) -> APIResponse:
     if accept != "application/json":
         raise PermissionDenied("Expected Accept: application/json")
     auth = request.headers.get("Authorization", "")
+    clock_grace = conf.getint("core", "internal_api_clock_grace", fallback=30)
     signer = JWTSigner(
         secret_key=conf.get("core", "internal_api_secret_key"),
-        expiration_time_in_seconds=conf.getint("core", "internal_api_clock_grace", fallback=30),
+        expiration_time_in_seconds=clock_grace,
+        leeway_in_seconds=clock_grace,
         audience="api",
     )
     try:
@@ -140,6 +143,13 @@ def remote_worker_api(body: dict[str, Any]) -> APIResponse:
             output = handler(**params, session=session)
             output_json = BaseSerialization.serialize(output, use_pydantic_models=True)
             response = json.dumps(output_json) if output_json is not None else None
+            log.debug("Sending response: %s", response)
             return Response(response=response, headers={"Content-Type": "application/json"})
+    # In case of AirflowException or other selective known types, transport the exception class back to caller
+    except (KeyError, AttributeError, AirflowException) as e:
+        exception_json = BaseSerialization.serialize(e, use_pydantic_models=True)
+        response = json.dumps(exception_json)
+        log.debug("Sending exception response: %s", response)
+        return Response(response=response, headers={"Content-Type": "application/json"})
     except Exception:
         return log_and_build_error_response(message=f"Error executing method '{method_name}'.", status=500)
