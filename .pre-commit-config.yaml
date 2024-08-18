@@ -937,7 +937,10 @@ repos:
         entry: ./scripts/ci/pre_commit/check_system_tests.py
         language: python
         files: ^tests/system/.*/example_[^/]*\.py$
-        exclude: ^tests/system/providers/google/cloud/bigquery/example_bigquery_queries\.py$
+        exclude: >
+          (?x)
+          ^tests/system/providers/google/cloud/bigquery/example_bigquery_queries\.py$ |
+          ^tests/system/providers/core/time/operators/example_branch_datetime_operator.py
         pass_filenames: true
         additional_dependencies: ['rich>=12.4.4']
       - id: generate-pypi-readme

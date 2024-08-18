@@ -25,7 +25,7 @@ import pendulum
 
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.weekday import BranchDayOfWeekOperator
+from airflow.providers.core.time.operators.weekday import BranchDayOfWeekOperator
 from airflow.utils.weekday import WeekDay
 
 with DAG(
@@ -59,3 +59,9 @@ with DAG(
     # Run empty_task_3 if it's a weekend, empty_task_4 otherwise
     empty_task_2 >> branch_weekend >> [empty_task_3, empty_task_4]
     # [END howto_operator_day_of_week_branch]
+
+
+from tests.system.utils import get_test_run
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
