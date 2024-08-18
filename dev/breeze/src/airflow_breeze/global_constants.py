@@ -68,7 +68,7 @@ TESTABLE_INTEGRATIONS = [
     "ydb",
 ]
 OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
-ALLOWED_DEBIAN_VERSIONS = ["bookworm", "bullseye"]
+ALLOWED_DEBIAN_VERSIONS = ["bookworm"]
 ALL_INTEGRATIONS = sorted(
     [
         *TESTABLE_INTEGRATIONS,

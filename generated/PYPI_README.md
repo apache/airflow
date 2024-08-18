@@ -79,9 +79,7 @@ The work to add Windows support is tracked via [#10388](https://github.com/apach
 it is not a high priority. You should only use Linux-based distros as "Production" execution environment
 as this is the only environment that is supported. The only distro that is used in our CI tests and that
 is used in the [Community managed DockerHub image](https://hub.docker.com/p/apache/airflow) is
-`Debian Bookworm`. We also have support for legacy ``Debian Bullseye`` base image if you want to build a
-custom image but it is deprecated and option to do it will be removed in the Dockerfile that
-will accompany Airflow 2.9.3 so you are advised to switch to ``Debian Bookworm`` for your custom images.
+`Debian Bookworm`.
 
 ## Getting started
 
