@@ -52,6 +52,7 @@ body:
         - common-compat
         - common-io
         - common-sql
+        - core
         - databricks
         - datadog
         - dbt-cloud
