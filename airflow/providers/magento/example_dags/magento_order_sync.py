@@ -40,7 +40,7 @@ dag = DAG(
     schedule_interval="@daily",
 )
 
-get_orders_task = GetOrdersOperator(task_id="get_orders_task", dag=dag, status="tt")
+get_orders_task = GetOrdersOperator(task_id="get_orders_task", dag=dag, status="pending")
 
 process_orders_task = PythonOperator(
     task_id="process_orders_task",
