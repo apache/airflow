@@ -27,10 +27,12 @@ from pathlib import Path
 from subprocess import Popen
 from time import sleep
 
+from airflow import __version__ as airflow_version
 from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.cli.cli_config import ARG_VERBOSE, ActionCommand, Arg
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
+from airflow.providers.remote import __version__ as remote_provider_version
 from airflow.providers.remote.models.remote_job import RemoteJob
 from airflow.providers.remote.models.remote_logs import RemoteLogs
 from airflow.providers.remote.models.remote_worker import RemoteWorker, RemoteWorkerState
@@ -119,7 +121,11 @@ def _heartbeat(hostname: str, jobs: list[Job], drain_worker: bool) -> None:
         if jobs
         else RemoteWorkerState.IDLE
     )
-    RemoteWorker.set_state(hostname, state, len(jobs), {})
+    sysinfo = {
+        "airflow_version": airflow_version,
+        "remote_provider_version": remote_provider_version,
+    }
+    RemoteWorker.set_state(hostname, state, len(jobs), sysinfo)
 
 
 @cli_utils.action_cli(check_db=False)
