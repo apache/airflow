@@ -1226,6 +1226,12 @@ Running provider compatibility tests in CI
 In CI those tests are run in a slightly more complex way because we want to run them against the build
 provider packages, rather than mounted from sources.
 
+In case of canary runs we add ``--clean-airflow-installation`` flag that removes all packages before
+installing older airflow version, and then installs development dependencies
+from latest airflow - in order to avoid case where a provider depends on a new dependency added in latest
+version of Airflow. This clean removal and re-installation takes quite some time though and in order to
+speed up the tests in regular PRs we only do that in the canary runs.
+
 The exact way CI tests are run can be reproduced locally building providers from selected tag/commit and
 using them to install and run tests against the selected airflow version.
 
@@ -1261,6 +1267,14 @@ Herr id how to reproduce it.
 
   breeze shell --use-packages-from-dist --package-format wheel --use-airflow-version 2.9.1  \
    --install-airflow-with-constraints --providers-skip-constraints --mount-sources tests
+
+In case you want to reproduce canary run, you need to add ``--clean-airflow-installation`` flag:
+
+.. code-block:: bash
+
+  breeze shell --use-packages-from-dist --package-format wheel --use-airflow-version 2.9.1  \
+   --install-airflow-with-constraints --providers-skip-constraints --mount-sources tests --clean-airflow-installation
+
 
 6. You can then run tests as usual:
 

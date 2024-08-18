@@ -27,6 +27,7 @@ from click import IntRange
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
     option_backend,
+    option_clean_airflow_installation,
     option_database_isolation,
     option_db_reset,
     option_debug_resources,
@@ -505,6 +506,7 @@ option_force_sa_warnings = click.option(
 @option_airflow_constraints_reference
 @option_backend
 @option_collect_only
+@option_clean_airflow_installation
 @option_database_isolation
 @option_db_reset
 @option_debug_resources
@@ -566,6 +568,7 @@ def command_for_tests(**kwargs):
 @option_airflow_constraints_reference
 @option_backend
 @option_collect_only
+@option_clean_airflow_installation
 @option_database_isolation
 @option_debug_resources
 @option_downgrade_pendulum
@@ -628,6 +631,7 @@ def command_for_db_tests(**kwargs):
 )
 @option_airflow_constraints_reference
 @option_collect_only
+@option_clean_airflow_installation
 @option_debug_resources
 @option_downgrade_sqlalchemy
 @option_downgrade_pendulum
@@ -682,6 +686,7 @@ def _run_test_command(
     airflow_constraints_reference: str,
     backend: str,
     collect_only: bool,
+    clean_airflow_installation: bool,
     db_reset: bool,
     database_isolation: bool,
     debug_resources: bool,
@@ -740,6 +745,7 @@ def _run_test_command(
         airflow_constraints_reference=airflow_constraints_reference,
         backend=backend,
         collect_only=collect_only,
+        clean_airflow_installation=clean_airflow_installation,
         database_isolation=database_isolation,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         downgrade_pendulum=downgrade_pendulum,
