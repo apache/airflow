@@ -1236,6 +1236,120 @@ class TestSchedulerJob:
         assert res[0].key == ti3.key
         session.rollback()
 
+    def test_find_executable_task_instances_concurrency_queued_with_zero_deferred_active_tasks(
+        self, dag_maker
+    ):
+        dag_id = "SchedulerJobTest.test_find_executable_task_instances_concurrency_queued"
+        with dag_maker(dag_id=dag_id, max_active_tasks=3, max_active_tasks_include_deferred=True):
+            task1 = EmptyOperator(task_id="dummy1")
+            task2 = EmptyOperator(task_id="dummy2")
+            task3 = EmptyOperator(task_id="dummy3")
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+        session = settings.Session()
+
+        dag_run = dag_maker.create_dagrun()
+
+        ti1 = dag_run.get_task_instance(task1.task_id)
+        ti2 = dag_run.get_task_instance(task2.task_id)
+        ti3 = dag_run.get_task_instance(task3.task_id)
+        ti1.state = State.RUNNING
+        ti2.state = State.QUEUED
+        ti3.state = State.SCHEDULED
+
+        session.merge(ti1)
+        session.merge(ti2)
+        session.merge(ti3)
+
+        session.flush()
+
+        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+
+        assert 1 == len(res)
+        assert res[0].key == ti3.key
+        session.rollback()
+
+    def test_find_executable_task_instances_concurrency_queued_with_deferred_active_tasks(self, dag_maker):
+        dag_id = "SchedulerJobTest.test_find_executable_task_instances_concurrency_queued"
+
+        # max_active_tasks_include_deferred includes deferred tasks count into max_active_tasks
+
+        with dag_maker(dag_id=dag_id, max_active_tasks=3, max_active_tasks_include_deferred=True):
+            task1 = EmptyOperator(task_id="dummy1")
+            task2 = EmptyOperator(task_id="dummy2")
+            task3 = EmptyOperator(task_id="dummy3")
+            task4 = EmptyOperator(task_id="dummy4")
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+        session = settings.Session()
+
+        dag_run = dag_maker.create_dagrun()
+
+        ti1 = dag_run.get_task_instance(task1.task_id)
+        ti2 = dag_run.get_task_instance(task2.task_id)
+        ti3 = dag_run.get_task_instance(task3.task_id)
+        ti4 = dag_run.get_task_instance(task4.task_id)
+        ti1.state = State.RUNNING
+        ti2.state = State.QUEUED
+        ti3.state = State.SCHEDULED
+        ti4.state = State.DEFERRED
+
+        session.merge(ti1)
+        session.merge(ti2)
+        session.merge(ti3)
+        session.merge(ti4)
+
+        session.flush()
+
+        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+
+        assert 0 == len(res)
+        # assert res[0].key == ti3.key
+        session.rollback()
+
+    def test_find_executable_task_instances_concurrency_queued_when_all_tasks_are_in_deferred_state(
+        self, dag_maker
+    ):
+        dag_id = "SchedulerJobTest.test_find_executable_task_instances_concurrency_queued"
+
+        # max_active_tasks_include_deferred includes deferred tasks count into max_active_tasks
+
+        with dag_maker(dag_id=dag_id, max_active_tasks=3, max_active_tasks_include_deferred=True):
+            task1 = EmptyOperator(task_id="dummy1")
+            task2 = EmptyOperator(task_id="dummy2")
+            task3 = EmptyOperator(task_id="dummy3")
+            task4 = EmptyOperator(task_id="dummy4")
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+        session = settings.Session()
+
+        dag_run = dag_maker.create_dagrun()
+
+        ti1 = dag_run.get_task_instance(task1.task_id)
+        ti2 = dag_run.get_task_instance(task2.task_id)
+        ti3 = dag_run.get_task_instance(task3.task_id)
+        ti4 = dag_run.get_task_instance(task4.task_id)
+        ti1.state = State.DEFERRED
+        ti2.state = State.DEFERRED
+        ti3.state = State.DEFERRED
+        ti4.state = State.SCHEDULED
+
+        session.merge(ti1)
+        session.merge(ti2)
+        session.merge(ti3)
+        session.merge(ti4)
+
+        session.flush()
+
+        res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
+
+        assert 0 == len(res)
+        # assert res[0].key == ti3.key
+        session.rollback()
+
     # TODO: This is a hack, I think I need to just remove the setting and have it on always
     def test_find_executable_task_instances_max_active_tis_per_dag(self, dag_maker):
         dag_id = "SchedulerJobTest.test_find_executable_task_instances_max_active_tis_per_dag"
