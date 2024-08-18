@@ -68,7 +68,11 @@ def test_daily_cron_trigger_no_catchup_first_starts_at_next_schedule(
     next_start_time: pendulum.DateTime,
 ) -> None:
     """If ``catchup=False`` and start_date is a day before"""
-    timetable = CronTriggerTimetable("30 16 * * *", timezone=utc)
+    timetable = CronTriggerTimetable(
+        "30 16 * * *",
+        timezone=utc,
+        run_immediately=False,  # Should have no effect since earliest is not None
+    )
     next_info = timetable.next_dagrun_info(
         last_automated_data_interval=last_automated_data_interval,
         restriction=TimeRestriction(earliest=YESTERDAY, latest=None, catchup=False),
@@ -230,3 +234,35 @@ def test_serialization(timetable: CronTriggerTimetable, data: dict[str, typing.A
     assert tt._expression == timetable._expression
     assert tt._timezone == timetable._timezone
     assert tt._interval == timetable._interval
+
+
+JUST_AFTER = pendulum.datetime(year=2024, month=8, day=15, hour=3, minute=5)
+WAY_AFTER = pendulum.datetime(year=2024, month=8, day=15, hour=12, minute=5)
+PREVIOUS = DagRunInfo.exact(pendulum.datetime(year=2024, month=8, day=15, hour=3))
+NEXT = DagRunInfo.exact(pendulum.datetime(year=2024, month=8, day=16, hour=3))
+
+
+@pytest.mark.parametrize("catchup", [True, False])
+@pytest.mark.parametrize(
+    "run_immediately, current_time, correct_interval",
+    [
+        (True, WAY_AFTER, PREVIOUS),
+        (False, JUST_AFTER, NEXT),
+        (None, WAY_AFTER, NEXT),
+        (None, JUST_AFTER, PREVIOUS),
+        (datetime.timedelta(minutes=10), JUST_AFTER, PREVIOUS),
+        (datetime.timedelta(minutes=10), WAY_AFTER, NEXT),
+    ],
+)
+def test_run_immediately(catchup, run_immediately, current_time, correct_interval):
+    timetable = CronTriggerTimetable(
+        "0 3 * * *",
+        timezone=utc,
+        run_immediately=run_immediately,
+    )
+    with time_machine.travel(current_time):
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=None,
+            restriction=TimeRestriction(earliest=None, latest=None, catchup=catchup),
+        )
+        assert next_info == correct_interval
