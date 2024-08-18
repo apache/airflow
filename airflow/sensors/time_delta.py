@@ -125,4 +125,5 @@ class WaitSensor(BaseSensorOperator):
                 method_name="execute_complete",
             )
         else:
-            time.sleep(self.delta.total_seconds())
+            for _ in range(int(self.delta.total_seconds())):
+                time.sleep(1)  # prolonged sleep tasks block timeout
