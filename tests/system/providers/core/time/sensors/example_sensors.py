@@ -23,12 +23,12 @@ import pendulum
 
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
+from airflow.providers.core.time.sensors.time_delta import TimeDeltaSensor, TimeDeltaSensorAsync
+from airflow.providers.core.time.sensors.time_sensor import TimeSensor, TimeSensorAsync
+from airflow.providers.core.time.sensors.weekday import DayOfWeekSensor
 from airflow.sensors.bash import BashSensor
 from airflow.sensors.filesystem import FileSensor
 from airflow.sensors.python import PythonSensor
-from airflow.sensors.time_delta import TimeDeltaSensor, TimeDeltaSensorAsync
-from airflow.sensors.time_sensor import TimeSensor, TimeSensorAsync
-from airflow.sensors.weekday import DayOfWeekSensor
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weekday import WeekDay
 
@@ -130,3 +130,9 @@ with DAG(
     t8 >> tx
     [t9, t10] >> tx
     t11 >> tx
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

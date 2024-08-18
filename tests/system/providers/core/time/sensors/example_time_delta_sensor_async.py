@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,21 +15,34 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Example DAG demonstrating ``TimeDeltaSensorAsync``, a drop in replacement for ``TimeDeltaSensor`` that
+defers and doesn't occupy a worker slot while it waits
+"""
+
 from __future__ import annotations
 
 import datetime
 
-from airflow.decorators import task
+import pendulum
+
 from airflow.models.dag import DAG
-from airflow.providers.core.time.sensors.date_time import DateTimeSensor
-from airflow.utils import timezone
+from airflow.operators.empty import EmptyOperator
+from airflow.providers.core.time.sensors.time_delta import TimeDeltaSensorAsync
 
 with DAG(
-    dag_id="test_sensor", start_date=datetime.datetime(2022, 1, 1), catchup=False, schedule="@once"
+    dag_id="example_time_delta_sensor_async",
+    schedule=None,
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    catchup=False,
+    tags=["example"],
 ) as dag:
+    wait = TimeDeltaSensorAsync(task_id="wait", delta=datetime.timedelta(seconds=30))
+    finish = EmptyOperator(task_id="finish")
+    wait >> finish
 
-    @task
-    def get_date():
-        return str(timezone.utcnow() + datetime.timedelta(seconds=3))
 
-    DateTimeSensor(task_id="dts", target_time=str(get_date()), poke_interval=1, mode="reschedule")
+from tests.system.utils import get_test_run
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
