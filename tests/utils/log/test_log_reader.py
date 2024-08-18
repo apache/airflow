@@ -130,10 +130,10 @@ class TestLogView:
                 "localhost",
                 "*** Found local files:\n"
                 f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-                "try_number=1.",
+                "try_number=1.\n",
             )
         ]
-        assert metadatas == {"end_of_log": True, "log_pos": 13}
+        assert metadatas == {"end_of_log": True, "log_pos": 14}
 
     def test_test_read_log_chunks_should_read_all_files(self):
         task_log_reader = TaskLogReader()
@@ -147,7 +147,7 @@ class TestLogView:
                     "localhost",
                     "*** Found local files:\n"
                     f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-                    "try_number=1.",
+                    "try_number=1.\n",
                 )
             ],
             [
@@ -155,7 +155,7 @@ class TestLogView:
                     "localhost",
                     "*** Found local files:\n"
                     f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
-                    f"try_number=2.",
+                    f"try_number=2.\n",
                 )
             ],
             [
@@ -163,11 +163,11 @@ class TestLogView:
                     "localhost",
                     "*** Found local files:\n"
                     f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
-                    f"try_number=3.",
+                    f"try_number=3.\n",
                 )
             ],
         ]
-        assert metadatas == {"end_of_log": True, "log_pos": 13}
+        assert metadatas == {"end_of_log": True, "log_pos": 14}
 
     def test_test_test_read_log_stream_should_read_one_try(self):
         task_log_reader = TaskLogReader()
@@ -178,24 +178,26 @@ class TestLogView:
             "localhost\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
             "try_number=1.\n"
+            "\n"  # read_log_stream add \n after each try file
         ]
 
     def test_test_test_read_log_stream_should_read_all_logs(self):
         task_log_reader = TaskLogReader()
         self.ti.state = TaskInstanceState.SUCCESS  # Ensure mocked instance is completed to return stream
         stream = task_log_reader.read_log_stream(ti=self.ti, try_number=None, metadata={})
+        # read_log_stream add \n after each try file
         assert list(stream) == [
             "localhost\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/1.log\n"
-            "try_number=1."
+            "try_number=1.\n"
             "\n",
             "localhost\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/2.log\n"
-            "try_number=2."
+            "try_number=2.\n"
             "\n",
             "localhost\n*** Found local files:\n"
             f"***   * {self.log_dir}/dag_log_reader/task_log_reader/2017-09-01T00.00.00+00.00/3.log\n"
-            "try_number=3."
+            "try_number=3.\n"
             "\n",
         ]
 
