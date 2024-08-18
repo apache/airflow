@@ -38,19 +38,18 @@ class MagentoHook(BaseHook):
     conn_type = "magento"
     hook_name = "Magento"
 
-    def __init__(self, magento_conn_id="magento_default", *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, magento_conn_id=default_conn_name):
+        super().__init__()
         self.magento_conn_id = magento_conn_id
         self.connection = self.get_connection(self.magento_conn_id)
         self._configure_oauth()
 
     def _configure_oauth(self):
         """Configure OAuth authentication for Magento API."""
-        conn = self.get_connection(self.magento_conn_id)
-        self.consumer_key = conn.extra_dejson.get("consumer_key")
-        self.consumer_secret = conn.extra_dejson.get("consumer_secret")
-        self.access_token = conn.extra_dejson.get("access_token")
-        self.access_token_secret = conn.extra_dejson.get("access_token_secret")
+        self.consumer_key = self.connection.extra_dejson.get("consumer_key")
+        self.consumer_secret = self.connection.extra_dejson.get("consumer_secret")
+        self.access_token = self.connection.extra_dejson.get("access_token")
+        self.access_token_secret = self.connection.extra_dejson.get("access_token_secret")
 
         if not all([self.consumer_key, self.consumer_secret, self.access_token, self.access_token_secret]):
             raise AirflowException("Magento OAuth credentials are not set properly in Airflow connection")
