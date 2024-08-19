@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-core``
+``apache-airflow-providers-essentials``
 ===========================================
 
 
@@ -34,7 +34,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/core/index>
+    System Tests <_api/tests/system/providers/essentials/index>
 
 .. toctree::
     :hidden:
@@ -48,10 +48,10 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-core/|version|/tests/system/providers/core/iceberg>
-    PyPI Repository <https://pypi.org/project/apache-airflow-providers-core/>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-essentials/|version|/tests/system/providers/essentials>
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-essentials/>
     Installing from sources <installing-providers-from-sources>
-    Python API <_api/airflow/providers/core/index>
+    Python API <_api/airflow/providers/essentials/index>
 
 
 
@@ -66,7 +66,7 @@
     Detailed list of commits <commits>
 
 
-apache-airflow-providers-core package
+apache-airflow-providers-essentials package
 ------------------------------------------------------
 
 
@@ -75,23 +75,23 @@ Release: 1.0.0
 Provider package
 ----------------
 
-This package is for the ``core`` provider.
-All classes for this package are included in the ``airflow.providers.core`` python package.
+This package is for the ``essentials`` provider.
+All classes for this package are included in the ``airflow.providers.essentials`` python package.
 
 Installation
 ------------
 
 You can install this package on top of an existing Airflow 2 installation via
-``pip install apache-airflow-providers-core``.
+``pip install apache-airflow-providers-essentials``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.7.0``
+``apache-airflow``  ``>=2.8.0``
 ==================  ==================

@@ -25,7 +25,7 @@ import time_machine
 
 from airflow.exceptions import TaskDeferred
 from airflow.models.dag import DAG
-from airflow.providers.core.time.sensors.time_sensor import TimeSensor, TimeSensorAsync
+from airflow.providers.essentials.time.sensors.time_sensor import TimeSensor, TimeSensorAsync
 from airflow.triggers.temporal import DateTimeTrigger
 from airflow.utils import timezone
 
