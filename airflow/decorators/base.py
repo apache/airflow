@@ -43,7 +43,6 @@ import typing_extensions
 from airflow.datasets import Dataset
 from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
 from airflow.models.baseoperator import (
-    _PARTIAL_DEFAULTS,
     BaseOperator,
     coerce_resources,
     coerce_timedelta,
@@ -443,7 +442,54 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             "is_teardown": self.is_teardown,
             "on_failure_fail_dagrun": self.on_failure_fail_dagrun,
         }
-        partial_kwargs.update({key: value for key, value in default_args.items() if key in _PARTIAL_DEFAULTS})
+        partial_keys: set[str] = {
+            "dag",
+            "task_group",
+            "task_id",
+            "map_index_template",
+            "start_date",
+            "end_date",
+            "owner",
+            "email",
+            "trigger_rule",
+            "depends_on_past",
+            "ignore_first_depends_on_past",
+            "wait_for_past_depends_before_skipping",
+            "wait_for_downstream",
+            "retries",
+            "queue",
+            "pool",
+            "pool_slots",
+            "execution_timeout",
+            "max_retry_delay",
+            "retry_delay",
+            "retry_exponential_backoff",
+            "priority_weight",
+            "weight_rule",
+            "sla",
+            "max_active_tis_per_dag",
+            "max_active_tis_per_dagrun",
+            "on_execute_callback",
+            "on_failure_callback",
+            "on_retry_callback",
+            "on_success_callback",
+            "on_skipped_callback",
+            "run_as_user",
+            "executor",
+            "executor_config",
+            "inlets",
+            "outlets",
+            "resources",
+            "doc",
+            "doc_json",
+            "doc_md",
+            "doc_rst",
+            "doc_yaml",
+            "task_display_name",
+            "logger_name",
+            "allow_nested_operators",
+        }
+        partial_kwargs.update({key: value for key, value in default_args.items() if key in partial_keys})
         partial_kwargs.update(task_kwargs)
 
         task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
@@ -455,28 +501,22 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             raise TypeError("unexpected argument: task_concurrency")
         if partial_kwargs.get("wait_for_downstream"):
             partial_kwargs["depends_on_past"] = True
-        start_date = default_args.pop("start_date", None)
-        start_date = partial_kwargs.pop("start_date", start_date)
-        start_date = timezone.convert_to_utc(start_date)
-        end_date = default_args.pop("end_date", None)
-        end_date = partial_kwargs.pop("end_date", end_date)
-        end_date = timezone.convert_to_utc(end_date)
-        pool = partial_kwargs.get("pool", default_args.get("pool"))
-        partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME if pool is None else pool
+        start_date = timezone.convert_to_utc(partial_kwargs.pop("start_date", None))
+        end_date = timezone.convert_to_utc(partial_kwargs.pop("end_date", None))
+        if partial_kwargs.get("pool") is None:
+            partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME
         partial_kwargs["retries"] = parse_retries(partial_kwargs.get("retries", DEFAULT_RETRIES))
         partial_kwargs["retry_delay"] = coerce_timedelta(
             partial_kwargs.get("retry_delay", DEFAULT_RETRY_DELAY),
             key="retry_delay",
         )
-        max_retry_delay = partial_kwargs.get("max_retry_delay", default_args.get("max_retry_delay"))
+        max_retry_delay = partial_kwargs.get("max_retry_delay", None)
         partial_kwargs["max_retry_delay"] = (
             max_retry_delay
             if max_retry_delay is None
             else coerce_timedelta(max_retry_delay, key="max_retry_delay")
         )
-        partial_kwargs["resources"] = coerce_resources(
-            partial_kwargs.get("resources", default_args.get("resources"))
-        )
+        partial_kwargs["resources"] = coerce_resources(partial_kwargs.get("resources", None))
         partial_kwargs.setdefault("executor_config", {})
         partial_kwargs.setdefault("op_args", [])
         partial_kwargs.setdefault("op_kwargs", {})
