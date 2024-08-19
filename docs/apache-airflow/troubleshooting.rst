@@ -20,6 +20,19 @@
 Troubleshooting
 ===============
 
+Obscure scheduling failures
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+State mismatch between Airflow database and executor
+----------------------------------------------------
+
+This indicates that when the scheduler queried the Airflow database, it observed that the task instance had one status according to the Airflow metadata database,
+but a different status according to the executor. A common example is when the query returned to the scheduler, the task instance was in the ``queued`` status,
+but the status according to the executor was ``running``.
+
+This mismatch must have persisted for multiple attempts. When this happens, Airflow will not attempt to queue the task. It's possible that something has gone wrong
+in the executor, and the task may need to be cleared.
+
 Obscure task failures
 ^^^^^^^^^^^^^^^^^^^^^
 
