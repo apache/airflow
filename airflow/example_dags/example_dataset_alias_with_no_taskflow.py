@@ -15,20 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example DAG for demonstrating the behavior of the DatasetAlias feature in Airflow, including conditional and
+Example DAG for demonstrating the behavior of the AssetAlias feature in Airflow, including conditional and
 dataset expression-based scheduling.
 
 Notes on usage:
 
 Turn on all the DAGs.
 
-Before running any DAG, the schedule of the "dataset_alias_example_alias_consumer_with_no_taskflow" DAG will show as "unresolved DatasetAlias".
-This is expected because the dataset alias has not been resolved into any dataset yet.
+Before running any DAG, the schedule of the "asset_alias_example_alias_consumer_with_no_taskflow" DAG will show as "unresolved AssetAlias".
+This is expected because the asset alias has not been resolved into any dataset yet.
 
 Once the "dataset_s3_bucket_producer_with_no_taskflow" DAG is triggered, the "dataset_s3_bucket_consumer_with_no_taskflow" DAG should be triggered upon completion.
-This is because the dataset alias "example-alias-no-taskflow" is used to add a dataset event to the dataset "s3://bucket/my-task-with-no-taskflow"
-during the "produce_dataset_events_through_dataset_alias_with_no_taskflow" task. Also, the schedule of the "dataset_alias_example_alias_consumer_with_no_taskflow" DAG should change to "Dataset" as
-the dataset alias "example-alias-no-taskflow" is now resolved to the dataset "s3://bucket/my-task-with-no-taskflow" and this DAG should also be triggered.
+This is because the asset alias "example-alias-no-taskflow" is used to add a dataset event to the dataset "s3://bucket/my-task-with-no-taskflow"
+during the "produce_dataset_events_through_asset_alias_with_no_taskflow" task. Also, the schedule of the "asset_alias_example_alias_consumer_with_no_taskflow" DAG should change to "Dataset" as
+the asset alias "example-alias-no-taskflow" is now resolved to the dataset "s3://bucket/my-task-with-no-taskflow" and this DAG should also be triggered.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ from __future__ import annotations
 import pendulum
 
 from airflow import DAG
-from airflow.assets import Dataset, DatasetAlias
+from airflow.assets import AssetAlias, Dataset
 from airflow.operators.python import PythonOperator
 
 with DAG(
@@ -58,22 +58,22 @@ with DAG(
 
 
 with DAG(
-    dag_id="dataset_alias_example_alias_producer_with_no_taskflow",
+    dag_id="asset_alias_example_alias_producer_with_no_taskflow",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=None,
     catchup=False,
-    tags=["producer", "dataset-alias"],
+    tags=["producer", "asset-alias"],
 ):
 
-    def produce_dataset_events_through_dataset_alias_with_no_taskflow(*, outlet_events=None):
+    def produce_dataset_events_through_asset_alias_with_no_taskflow(*, outlet_events=None):
         bucket_name = "bucket"
         object_path = "my-task"
         outlet_events["example-alias-no-taskflow"].add(Dataset(f"s3://{bucket_name}/{object_path}"))
 
     PythonOperator(
-        task_id="produce_dataset_events_through_dataset_alias_with_no_taskflow",
-        outlets=[DatasetAlias("example-alias-no-taskflow")],
-        python_callable=produce_dataset_events_through_dataset_alias_with_no_taskflow,
+        task_id="produce_dataset_events_through_asset_alias_with_no_taskflow",
+        outlets=[AssetAlias("example-alias-no-taskflow")],
+        python_callable=produce_dataset_events_through_asset_alias_with_no_taskflow,
     )
 
 with DAG(
@@ -90,19 +90,19 @@ with DAG(
     PythonOperator(task_id="consume_dataset_event", python_callable=consume_dataset_event)
 
 with DAG(
-    dag_id="dataset_alias_example_alias_consumer_with_no_taskflow",
+    dag_id="asset_alias_example_alias_consumer_with_no_taskflow",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    schedule=[DatasetAlias("example-alias-no-taskflow")],
+    schedule=[AssetAlias("example-alias-no-taskflow")],
     catchup=False,
-    tags=["consumer", "dataset-alias"],
+    tags=["consumer", "asset-alias"],
 ):
 
-    def consume_dataset_event_from_dataset_alias(*, inlet_events=None):
-        for event in inlet_events[DatasetAlias("example-alias-no-taskflow")]:
+    def consume_dataset_event_from_asset_alias(*, inlet_events=None):
+        for event in inlet_events[AssetAlias("example-alias-no-taskflow")]:
             print(event)
 
     PythonOperator(
-        task_id="consume_dataset_event_from_dataset_alias",
-        python_callable=consume_dataset_event_from_dataset_alias,
-        inlets=[DatasetAlias("example-alias-no-taskflow")],
+        task_id="consume_dataset_event_from_asset_alias",
+        python_callable=consume_dataset_event_from_asset_alias,
+        inlets=[AssetAlias("example-alias-no-taskflow")],
     )

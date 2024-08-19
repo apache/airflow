@@ -67,7 +67,7 @@ from sqlalchemy.sql.expression import case, select
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
-from airflow.assets import Dataset, DatasetAlias
+from airflow.assets import AssetAlias, Dataset
 from airflow.assets.manager import asset_manager
 from airflow.compat.functools import cache
 from airflow.configuration import conf
@@ -2893,7 +2893,7 @@ class TaskInstance(Base, LoggingMixin):
         # One task only triggers one dataset event for each dataset with the same extra.
         # This tuple[dataset uri, extra] to sets alias names mapping is used to find whether
         # there're datasets with same uri but different extra that we need to emit more than one dataset events.
-        dataset_alias_names: dict[tuple[str, frozenset], set[str]] = defaultdict(set)
+        asset_alias_names: dict[tuple[str, frozenset], set[str]] = defaultdict(set)
         for obj in self.task.outlets or []:
             self.log.debug("outlet obj %s", obj)
             # Lineage can have other types of objects besides datasets
@@ -2904,20 +2904,20 @@ class TaskInstance(Base, LoggingMixin):
                     extra=events[obj].extra,
                     session=session,
                 )
-            elif isinstance(obj, DatasetAlias):
-                for dataset_alias_event in events[obj].dataset_alias_events:
-                    dataset_alias_name = dataset_alias_event["source_alias_name"]
-                    dataset_uri = dataset_alias_event["dest_dataset_uri"]
-                    frozen_extra = frozenset(dataset_alias_event["extra"].items())
-                    dataset_alias_names[(dataset_uri, frozen_extra)].add(dataset_alias_name)
+            elif isinstance(obj, AssetAlias):
+                for asset_alias_event in events[obj].asset_alias_events:
+                    asset_alias_name = asset_alias_event["source_alias_name"]
+                    asset_uri = asset_alias_event["dest_asset_uri"]
+                    frozen_extra = frozenset(asset_alias_event["extra"].items())
+                    asset_alias_names[(asset_uri, frozen_extra)].add(asset_alias_name)
 
         dataset_models: dict[str, DatasetModel] = {
             dataset_obj.uri: dataset_obj
             for dataset_obj in session.scalars(
-                select(DatasetModel).where(DatasetModel.uri.in_(uri for uri, _ in dataset_alias_names))
+                select(DatasetModel).where(DatasetModel.uri.in_(uri for uri, _ in asset_alias_names))
             )
         }
-        if missing_datasets := [Dataset(uri=u) for u, _ in dataset_alias_names if u not in dataset_models]:
+        if missing_datasets := [Dataset(uri=u) for u, _ in asset_alias_names if u not in dataset_models]:
             dataset_models.update(
                 (dataset_obj.uri, dataset_obj)
                 for dataset_obj in asset_manager.create_assets(missing_datasets, session=session)
@@ -2925,7 +2925,7 @@ class TaskInstance(Base, LoggingMixin):
             self.log.warning("Created new datasets for alias reference: %s", missing_datasets)
             session.flush()  # Needed because we need the id for fk.
 
-        for (uri, extra_items), alias_names in dataset_alias_names.items():
+        for (uri, extra_items), alias_names in asset_alias_names.items():
             dataset_obj = dataset_models[uri]
             self.log.info(
                 'Creating event for %r through aliases "%s"',
@@ -2935,7 +2935,7 @@ class TaskInstance(Base, LoggingMixin):
             asset_manager.register_asset_change(
                 task_instance=self,
                 asset=dataset_obj,
-                aliases=[DatasetAlias(name) for name in alias_names],
+                aliases=[AssetAlias(name) for name in alias_names],
                 extra=dict(extra_items),
                 session=session,
                 source_alias_names=alias_names,

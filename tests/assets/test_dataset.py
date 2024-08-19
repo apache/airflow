@@ -26,11 +26,11 @@ import pytest
 from sqlalchemy.sql import select
 
 from airflow.assets import (
+    AssetAlias,
     AssetAll,
     AssetAny,
     BaseAsset,
     Dataset,
-    DatasetAlias,
     _AssetAliasCondition,
     _get_normalized_scheme,
     _sanitize_uri,
@@ -134,18 +134,18 @@ def test_dataset_iter_assets():
 @pytest.mark.db_test
 def test_dataset_iter_asset_aliases():
     base_dataset = AssetAll(
-        DatasetAlias("example-alias-1"),
+        AssetAlias("example-alias-1"),
         Dataset("1"),
         AssetAny(
             Dataset("2"),
-            DatasetAlias("example-alias-2"),
+            AssetAlias("example-alias-2"),
             Dataset("3"),
-            AssetAll(DatasetAlias("example-alias-3"), Dataset("4"), DatasetAlias("example-alias-4")),
+            AssetAll(AssetAlias("example-alias-3"), Dataset("4"), AssetAlias("example-alias-4")),
         ),
-        AssetAll(DatasetAlias("example-alias-5"), Dataset("5")),
+        AssetAll(AssetAlias("example-alias-5"), Dataset("5")),
     )
     assert list(base_dataset.iter_asset_aliases()) == [
-        (f"example-alias-{i}", DatasetAlias(f"example-alias-{i}")) for i in range(1, 6)
+        (f"example-alias-{i}", AssetAlias(f"example-alias-{i}")) for i in range(1, 6)
     ]
 
 
@@ -536,7 +536,7 @@ def test_normalize_uri_valid_uri():
 class Test_AssetAliasCondition:
     @pytest.fixture
     def ds_1(self, session):
-        """Example dataset links to dataset alias resolved_asset_alias_2."""
+        """Example dataset links to asset alias resolved_asset_alias_2."""
         ds_uri = "test_uri"
         ds_1 = DatasetModel(id=1, uri=ds_uri)
 
@@ -558,7 +558,7 @@ class Test_AssetAliasCondition:
 
     @pytest.fixture
     def resolved_asset_alias_2(self, session, ds_1):
-        """Example dataset alias links to no dataset asset_alias_1."""
+        """Example asset alias links to dataset asset_alias_1."""
         asset_name = "test_name_2"
         asset_alias_2 = AssetAliasModel(name=asset_name)
         asset_alias_2.datasets.append(ds_1)

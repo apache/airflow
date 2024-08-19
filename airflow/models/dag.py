@@ -81,7 +81,7 @@ from sqlalchemy.sql import Select, expression
 import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.assets import AssetAll, BaseAsset, Dataset, DatasetAlias
+from airflow.assets import AssetAlias, AssetAll, BaseAsset, Dataset
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
 from airflow.exceptions import (
     AirflowException,
@@ -167,7 +167,7 @@ ScheduleArg = Union[
     ScheduleInterval,
     Timetable,
     BaseAsset,
-    Collection[Union["Dataset", "DatasetAlias"]],
+    Collection[Union["Dataset", "AssetAlias"]],
 ]
 
 
@@ -601,8 +601,8 @@ class DAG(LoggingMixin):
         elif isinstance(schedule, BaseAsset):
             self.timetable = DatasetTriggeredTimetable(schedule)
         elif isinstance(schedule, Collection) and not isinstance(schedule, str):
-            if not all(isinstance(x, (Dataset, DatasetAlias)) for x in schedule):
-                raise ValueError("All elements in 'schedule' should be datasets or dataset aliases")
+            if not all(isinstance(x, (Dataset, AssetAlias)) for x in schedule):
+                raise ValueError("All elements in 'schedule' should be datasets or asset aliases")
             self.timetable = DatasetTriggeredTimetable(AssetAll(*schedule))
         else:
             self.timetable = create_timetable(schedule, self.timezone)

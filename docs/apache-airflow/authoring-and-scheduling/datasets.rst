@@ -412,14 +412,14 @@ For scenarios requiring more intricate conditions, such as triggering a DAG when
         ...
 
 
-Dynamic data events emitting and dataset creation through DatasetAlias
+Dynamic data events emitting and dataset creation through AssetAlias
 -----------------------------------------------------------------------
-A dataset alias can be used to emit dataset events of datasets with association to the aliases. Downstreams can depend on resolved dataset. This feature allows you to define complex dependencies for DAG executions based on dataset updates.
+An asset alias can be used to emit dataset events of datasets with association to the aliases. Downstreams can depend on resolved dataset. This feature allows you to define complex dependencies for DAG executions based on dataset updates.
 
-How to use DatasetAlias
+How to use AssetAlias
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-``DatasetAlias`` has one single argument ``name`` that uniquely identifies the dataset. The task must first declare the alias as an outlet, and use ``outlet_events`` or yield ``Metadata`` to add events to it.
+``AssetAlias`` has one single argument ``name`` that uniquely identifies the dataset. The task must first declare the alias as an outlet, and use ``outlet_events`` or yield ``Metadata`` to add events to it.
 
 The following example creates a dataset event against the S3 URI ``f"s3://bucket/my-task"``  with optional extra information ``extra``. If the dataset does not exist, Airflow will dynamically create it and log a warning message.
 
@@ -427,10 +427,10 @@ The following example creates a dataset event against the S3 URI ``f"s3://bucket
 
 .. code-block:: python
 
-    from airflow.datasets import DatasetAlias
+    from airflow.datasets import AssetAlias
 
 
-    @task(outlets=[DatasetAlias("my-task-outputs")])
+    @task(outlets=[AssetAlias("my-task-outputs")])
     def my_task_with_outlet_events(*, outlet_events):
         outlet_events["my-task-outputs"].add(Dataset("s3://bucket/my-task"), extra={"k": "v"})
 
@@ -442,7 +442,7 @@ The following example creates a dataset event against the S3 URI ``f"s3://bucket
     from airflow.datasets.metadata import Metadata
 
 
-    @task(outlets=[DatasetAlias("my-task-outputs")])
+    @task(outlets=[AssetAlias("my-task-outputs")])
     def my_task_with_metadata():
         s3_dataset = Dataset("s3://bucket/my-task")
         yield Metadata(s3_dataset, extra={"k": "v"}, alias="my-task-outputs")
@@ -451,14 +451,14 @@ Only one dataset event is emitted for an added dataset, even if it is added to t
 
 .. code-block:: python
 
-    from airflow.datasets import DatasetAlias
+    from airflow.datasets import AssetAlias
 
 
     @task(
         outlets=[
-            DatasetAlias("my-task-outputs-1"),
-            DatasetAlias("my-task-outputs-2"),
-            DatasetAlias("my-task-outputs-3"),
+            AssetAlias("my-task-outputs-1"),
+            AssetAlias("my-task-outputs-2"),
+            AssetAlias("my-task-outputs-3"),
         ]
     )
     def my_task_with_outlet_events(*, outlet_events):
@@ -468,11 +468,11 @@ Only one dataset event is emitted for an added dataset, even if it is added to t
         # This line will emit an additional dataset event as the extra is different.
         outlet_events["my-task-outputs-3"].add(Dataset("s3://bucket/my-task"), extra={"k2": "v2"})
 
-Scheduling based on dataset aliases
+Scheduling based on asset aliases
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-Since dataset events added to an alias are just simple dataset events, a downstream DAG depending on the actual dataset can read dataset events of it normally, without considering the associated aliases. A downstream DAG can also depend on a dataset alias. The authoring syntax is referencing the ``DatasetAlias`` by name, and the associated dataset events are picked up for scheduling. Note that a DAG can be triggered by a task with ``outlets=DatasetAlias("xxx")`` if and only if the alias is resolved into ``Dataset("s3://bucket/my-task")``. The DAG runs whenever a task with outlet ``DatasetAlias("out")`` gets associated with at least one dataset at runtime, regardless of the dataset's identity. The downstream DAG is not triggered if no datasets are associated to the alias for a particular given task run. This also means we can do conditional dataset-triggering.
+Since dataset events added to an alias are just simple dataset events, a downstream DAG depending on the actual dataset can read dataset events of it normally, without considering the associated aliases. A downstream DAG can also depend on an asset alias. The authoring syntax is referencing the ``AssetAlias`` by name, and the associated dataset events are picked up for scheduling. Note that a DAG can be triggered by a task with ``outlets=AssetAlias("xxx")`` if and only if the alias is resolved into ``Dataset("s3://bucket/my-task")``. The DAG runs whenever a task with outlet ``AssetAlias("out")`` gets associated with at least one dataset at runtime, regardless of the dataset's identity. The downstream DAG is not triggered if no datasets are associated to the alias for a particular given task run. This also means we can do conditional dataset-triggering.
 
-The dataset alias is resolved to the datasets during DAG parsing. Thus, if the "min_file_process_interval" configuration is set to a high value, there is a possibility that the dataset alias may not be resolved. To resolve this issue, you can trigger DAG parsing.
+The asset alias is resolved to the datasets during DAG parsing. Thus, if the "min_file_process_interval" configuration is set to a high value, there is a possibility that the asset alias may not be resolved. To resolve this issue, you can trigger DAG parsing.
 
 .. code-block:: python
 
@@ -483,9 +483,9 @@ The dataset alias is resolved to the datasets during DAG parsing. Thus, if the "
             pass
 
 
-    with DAG(dag_id="dataset-alias-producer"):
+    with DAG(dag_id="asset-alias-producer"):
 
-        @task(outlets=[DatasetAlias("example-alias")])
+        @task(outlets=[AssetAlias("example-alias")])
         def produce_dataset_events(*, outlet_events):
             outlet_events["example-alias"].add(Dataset("s3://bucket/my-task"))
 
@@ -493,32 +493,32 @@ The dataset alias is resolved to the datasets during DAG parsing. Thus, if the "
     with DAG(dag_id="dataset-consumer", schedule=Dataset("s3://bucket/my-task")):
         ...
 
-    with DAG(dag_id="dataset-alias-consumer", schedule=DatasetAlias("example-alias")):
+    with DAG(dag_id="asset-alias-consumer", schedule=AssetAlias("example-alias")):
         ...
 
 
-In the example provided, once the DAG ``dataset-alias-producer`` is executed, the dataset alias ``DatasetAlias("example-alias")`` will be resolved to ``Dataset("s3://bucket/my-task")``. However, the DAG ``dataset-alias-consumer`` will have to wait for the next DAG re-parsing to update its schedule. To address this, Airflow will re-parse the DAGs relying on the dataset alias ``DatasetAlias("example-alias")`` when it's resolved into datasets that these DAGs did not previously depend on. As a result, both the "dataset-consumer" and "dataset-alias-consumer" DAGs will be triggered after the execution of DAG ``dataset-alias-producer``.
+In the example provided, once the DAG ``asset-alias-producer`` is executed, the asset alias ``AssetAlias("example-alias")`` will be resolved to ``Dataset("s3://bucket/my-task")``. However, the DAG ``asset-alias-consumer`` will have to wait for the next DAG re-parsing to update its schedule. To address this, Airflow will re-parse the DAGs relying on the asset alias ``AssetAlias("example-alias")`` when it's resolved into datasets that these DAGs did not previously depend on. As a result, both the "dataset-consumer" and "asset-alias-consumer" DAGs will be triggered after the execution of DAG ``asset-alias-producer``.
 
 
-Fetching information from previously emitted dataset events through resolved dataset aliases
+Fetching information from previously emitted dataset events through resolved asset aliases
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-As mentioned in :ref:`Fetching information from previously emitted dataset events<fetching_information_from_previously_emitted_dataset_events>`, inlet dataset events can be read with the ``inlet_events`` accessor in the execution context, and you can also use dataset aliases to access the dataset events triggered by them.
+As mentioned in :ref:`Fetching information from previously emitted dataset events<fetching_information_from_previously_emitted_dataset_events>`, inlet dataset events can be read with the ``inlet_events`` accessor in the execution context, and you can also use asset aliases to access the dataset events triggered by them.
 
 .. code-block:: python
 
-    with DAG(dag_id="dataset-alias-producer"):
+    with DAG(dag_id="asset-alias-producer"):
 
-        @task(outlets=[DatasetAlias("example-alias")])
+        @task(outlets=[AssetAlias("example-alias")])
         def produce_dataset_events(*, outlet_events):
             outlet_events["example-alias"].add(Dataset("s3://bucket/my-task"), extra={"row_count": 1})
 
 
-    with DAG(dag_id="dataset-alias-consumer", schedule=None):
+    with DAG(dag_id="asset-alias-consumer", schedule=None):
 
-        @task(inlets=[DatasetAlias("example-alias")])
+        @task(inlets=[AssetAlias("example-alias")])
         def consume_asset_alias_events(*, inlet_events):
-            events = inlet_events[DatasetAlias("example-alias")]
+            events = inlet_events[AssetAlias("example-alias")]
             last_row_count = events[-1].extra["row_count"]
 
 

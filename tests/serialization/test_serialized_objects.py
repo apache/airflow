@@ -31,7 +31,7 @@ from kubernetes.client import models as k8s
 from pendulum.tz.timezone import Timezone
 from pydantic import BaseModel
 
-from airflow.assets import AssetAliasEvent, Dataset, DatasetAlias
+from airflow.assets import AssetAlias, AssetAliasEvent, Dataset
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -246,7 +246,7 @@ class MockLazySelectSequence(LazySelectSequence):
         ),
         (
             OutletEventAccessor(
-                raw_key=DatasetAlias(name="test_alias"),
+                raw_key=AssetAlias(name="test_alias"),
                 extra={"key": "value"},
                 asset_alias_events=[
                     AssetAliasEvent(source_alias_name="test_alias", dest_asset_uri="test_uri", extra={})

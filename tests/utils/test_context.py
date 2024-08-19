@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.assets import AssetAliasEvent, Dataset, DatasetAlias
+from airflow.assets import AssetAlias, AssetAliasEvent, Dataset
 from airflow.models.dataset import AssetAliasModel, DatasetModel
 from airflow.utils.context import OutletEventAccessor, OutletEventAccessors
 
@@ -30,7 +30,7 @@ class TestOutletEventAccessor:
         "raw_key, asset_alias_events",
         (
             (
-                DatasetAlias("test_alias"),
+                AssetAlias("test_alias"),
                 [AssetAliasEvent(source_alias_name="test_alias", dest_asset_uri="test_uri", extra={})],
             ),
             (Dataset("test_uri"), []),
@@ -46,7 +46,7 @@ class TestOutletEventAccessor:
         "raw_key, asset_alias_events",
         (
             (
-                DatasetAlias("test_alias"),
+                AssetAlias("test_alias"),
                 [AssetAliasEvent(source_alias_name="test_alias", dest_dataset_uri="test_uri", extra={})],
             ),
             (
@@ -68,7 +68,7 @@ class TestOutletEventAccessor:
 
 
 class TestOutletEventAccessors:
-    @pytest.mark.parametrize("key", ("test", Dataset("test"), DatasetAlias("test_alias")))
+    @pytest.mark.parametrize("key", ("test", Dataset("test"), AssetAlias("test_alias")))
     def test____get_item___dict_key_not_exists(self, key):
         outlet_event_accessors = OutletEventAccessors()
         assert len(outlet_event_accessors) == 0

@@ -17,13 +17,13 @@
 
 from __future__ import annotations
 
-from airflow.assets import DatasetAlias
+from airflow.assets import AssetAlias
 from airflow.models.dataset import AssetAliasModel
 
 
 class TestAssetAliasModel:
     def test_from_public(self):
-        asset_alias = DatasetAlias(name="test_alias")
+        asset_alias = AssetAlias(name="test_alias")
         asset_alias_model = AssetAliasModel.from_public(asset_alias)
 
         assert asset_alias_model.name == "test_alias"

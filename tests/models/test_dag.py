@@ -38,7 +38,7 @@ import time_machine
 from sqlalchemy import inspect, select
 
 from airflow import settings
-from airflow.assets import AssetAll, AssetAny, Dataset, DatasetAlias
+from airflow.assets import AssetAlias, AssetAll, AssetAny, Dataset
 from airflow.configuration import conf
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.exceptions import (
@@ -1118,32 +1118,32 @@ class TestDag:
             orphaned_dataset_count = session.query(DatasetModel).filter(DatasetModel.is_orphaned).count()
             assert orphaned_dataset_count == 0
 
-    def test_bulk_write_to_db_dataset_aliases(self):
+    def test_bulk_write_to_db_asset_aliases(self):
         """
-        Ensure that dataset aliases referenced in a dag are correctly loaded into the database.
+        Ensure that asset aliases referenced in a dag are correctly loaded into the database.
         """
         dag_id1 = "test_dataset_alias_dag1"
         dag_id2 = "test_dataset_alias_dag2"
         task_id = "test_dataset_task"
-        da1 = DatasetAlias(name="da1")
-        da2 = DatasetAlias(name="da2")
-        da2_2 = DatasetAlias(name="da2")
-        da3 = DatasetAlias(name="da3")
+        asset_alias_1 = AssetAlias(name="asset_alias_1")
+        asset_alias_2 = AssetAlias(name="asset_alias_2")
+        asset_alias_2_2 = AssetAlias(name="asset_alias_2")
+        asset_alias_3 = AssetAlias(name="asset_alias_3")
         dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=None)
-        EmptyOperator(task_id=task_id, dag=dag1, outlets=[da1, da2, da3])
+        EmptyOperator(task_id=task_id, dag=dag1, outlets=[asset_alias_1, asset_alias_2, asset_alias_3])
         dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE, schedule=None)
-        EmptyOperator(task_id=task_id, dag=dag2, outlets=[da2_2, da3])
+        EmptyOperator(task_id=task_id, dag=dag2, outlets=[asset_alias_2_2, asset_alias_3])
         session = settings.Session()
         DAG.bulk_write_to_db([dag1, dag2], session=session)
         session.commit()
 
         stored_asset_alias_models = {x.name: x for x in session.query(AssetAliasModel).all()}
-        asset_alias_1_orm = stored_asset_alias_models[da1.name]
-        asset_alias_2_orm = stored_asset_alias_models[da2.name]
-        asset_alias_3_orm = stored_asset_alias_models[da3.name]
-        assert asset_alias_1_orm.name == "da1"
-        assert asset_alias_2_orm.name == "da2"
-        assert asset_alias_3_orm.name == "da3"
+        asset_alias_1_orm = stored_asset_alias_models[asset_alias_1.name]
+        asset_alias_2_orm = stored_asset_alias_models[asset_alias_2.name]
+        asset_alias_3_orm = stored_asset_alias_models[asset_alias_3.name]
+        assert asset_alias_1_orm.name == "asset_alias_1"
+        assert asset_alias_2_orm.name == "asset_alias_2"
+        assert asset_alias_3_orm.name == "asset_alias_3"
         assert len(stored_asset_alias_models) == 3
 
     def test_sync_to_db(self):
@@ -2474,7 +2474,7 @@ class TestDagModel:
         dag_models = query.all()
         assert dag_models == [dag_model]
 
-    def test_dags_needing_dagruns_dataset_aliases(self, dag_maker, session):
+    def test_dags_needing_dagruns_asset_aliases(self, dag_maker, session):
         # link dataset_alias hello_alias to dataset hello
         dataset_model = DatasetModel(uri="hello")
         asset_alias_model = AssetAliasModel(name="hello_alias")
@@ -2486,7 +2486,7 @@ class TestDagModel:
             session=session,
             dag_id="my_dag",
             max_active_runs=1,
-            schedule=[DatasetAlias(name="hello_alias")],
+            schedule=[AssetAlias(name="hello_alias")],
             start_date=pendulum.now().add(days=-2),
         ):
             EmptyOperator(task_id="dummy")
@@ -2717,7 +2717,7 @@ class TestDagModel:
                     Dataset("s3://dag2/output_1.txt", {"hi": "bye"}),
                     Dataset("s3://dag3/output_3.txt", {"hi": "bye"}),
                 ),
-                DatasetAlias(name="test_name"),
+                AssetAlias(name="test_name"),
             ),
             start_date=datetime.datetime.min,
         )
@@ -3475,7 +3475,7 @@ def test_get_dataset_triggered_next_run_info(dag_maker, clear_datasets):
 
 @pytest.mark.need_serialized_dag
 def test_get_dataset_triggered_next_run_info_with_unresolved_dataset_alias(dag_maker, clear_datasets):
-    dataset_alias1 = DatasetAlias(name="alias")
+    dataset_alias1 = AssetAlias(name="alias")
     with dag_maker(dag_id="dag-1", schedule=[dataset_alias1]):
         pass
     dag1 = dag_maker.dag

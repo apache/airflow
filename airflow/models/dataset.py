@@ -34,7 +34,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from airflow.assets import Dataset, DatasetAlias
+from airflow.assets import AssetAlias, Dataset
 from airflow.models.base import Base, StringID
 from airflow.settings import json
 from airflow.utils import timezone
@@ -85,9 +85,9 @@ dataset_alias_dataset_event_assocation_table = Table(
 
 class AssetAliasModel(Base):
     """
-    A table to store dataset alias.
+    A table to store asset alias.
 
-    :param uri: a string that uniquely identifies the dataset alias
+    :param uri: a string that uniquely identifies the asset alias
     """
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -123,7 +123,7 @@ class AssetAliasModel(Base):
     consuming_dags = relationship("DagScheduleDatasetAliasReference", back_populates="dataset_alias")
 
     @classmethod
-    def from_public(cls, obj: DatasetAlias) -> AssetAliasModel:
+    def from_public(cls, obj: AssetAlias) -> AssetAliasModel:
         return cls(name=obj.name)
 
     def __repr__(self):
@@ -133,13 +133,13 @@ class AssetAliasModel(Base):
         return hash(self.name)
 
     def __eq__(self, other):
-        if isinstance(other, (self.__class__, DatasetAlias)):
+        if isinstance(other, (self.__class__, AssetAlias)):
             return self.name == other.name
         else:
             return NotImplemented
 
-    def to_public(self) -> DatasetAlias:
-        return DatasetAlias(name=self.name)
+    def to_public(self) -> AssetAlias:
+        return AssetAlias(name=self.name)
 
 
 class DatasetModel(Base):

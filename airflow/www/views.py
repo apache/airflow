@@ -87,7 +87,7 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
     set_state,
 )
-from airflow.assets import Dataset, DatasetAlias
+from airflow.assets import AssetAlias, Dataset
 from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
 from airflow.compat.functools import cache
 from airflow.configuration import AIRFLOW_CONFIG, conf
@@ -470,7 +470,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
                 "extra_links": item.extra_links,
                 "is_mapped": item_is_mapped,
                 "has_outlet_datasets": any(
-                    isinstance(i, (Dataset, DatasetAlias)) for i in (item.outlets or [])
+                    isinstance(i, (Dataset, AssetAlias)) for i in (item.outlets or [])
                 ),
                 "operator": item.operator_name,
                 "trigger_rule": item.trigger_rule,

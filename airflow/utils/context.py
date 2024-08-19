@@ -41,9 +41,9 @@ import lazy_object_proxy
 from sqlalchemy import select
 
 from airflow.assets import (
+    AssetAlias,
     AssetAliasEvent,
     Dataset,
-    DatasetAlias,
     extract_event_key,
 )
 from airflow.exceptions import RemovedInAirflow3Warning
@@ -170,7 +170,7 @@ class OutletEventAccessor:
     :meta private:
     """
 
-    raw_key: str | Dataset | DatasetAlias
+    raw_key: str | Dataset | AssetAlias
     extra: dict[str, Any] = attrs.Factory(dict)
     asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
 
@@ -185,7 +185,7 @@ class OutletEventAccessor:
 
         if isinstance(self.raw_key, str):
             asset_alias_name = self.raw_key
-        elif isinstance(self.raw_key, DatasetAlias):
+        elif isinstance(self.raw_key, AssetAlias):
             asset_alias_name = self.raw_key.name
         else:
             return
@@ -215,7 +215,7 @@ class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
     def __len__(self) -> int:
         return len(self._dict)
 
-    def __getitem__(self, key: str | Dataset | DatasetAlias) -> OutletEventAccessor:
+    def __getitem__(self, key: str | Dataset | AssetAlias) -> OutletEventAccessor:
         event_key = extract_event_key(key)
         if event_key not in self._dict:
             self._dict[event_key] = OutletEventAccessor(extra={}, raw_key=key)
@@ -248,20 +248,20 @@ class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
 
     _inlets: list[Any]
     _datasets: dict[str, Dataset]
-    _dataset_aliases: dict[str, DatasetAlias]
+    _asset_aliases: dict[str, AssetAlias]
     _session: Session
 
     def __init__(self, inlets: list, *, session: Session) -> None:
         self._inlets = inlets
         self._session = session
         self._datasets = {}
-        self._dataset_aliases = {}
+        self._asset_aliases = {}
 
         for inlet in inlets:
             if isinstance(inlet, Dataset):
                 self._datasets[inlet.uri] = inlet
-            elif isinstance(inlet, DatasetAlias):
-                self._dataset_aliases[inlet.name] = inlet
+            elif isinstance(inlet, AssetAlias):
+                self._asset_aliases[inlet.name] = inlet
 
     def __iter__(self) -> Iterator[str]:
         return iter(self._inlets)
@@ -269,18 +269,18 @@ class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
     def __len__(self) -> int:
         return len(self._inlets)
 
-    def __getitem__(self, key: int | str | Dataset | DatasetAlias) -> LazyDatasetEventSelectSequence:
+    def __getitem__(self, key: int | str | Dataset | AssetAlias) -> LazyDatasetEventSelectSequence:
         if isinstance(key, int):  # Support index access; it's easier for trivial cases.
             obj = self._inlets[key]
-            if not isinstance(obj, (Dataset, DatasetAlias)):
+            if not isinstance(obj, (Dataset, AssetAlias)):
                 raise IndexError(key)
         else:
             obj = key
 
-        if isinstance(obj, DatasetAlias):
-            dataset_alias = self._dataset_aliases[obj.name]
+        if isinstance(obj, AssetAlias):
+            asset_alias = self._asset_aliases[obj.name]
             join_clause = DatasetEvent.source_aliases
-            where_clause = AssetAliasModel.name == dataset_alias.name
+            where_clause = AssetAliasModel.name == asset_alias.name
         elif isinstance(obj, (Dataset, str)):
             dataset = self._datasets[extract_event_key(obj)]
             join_clause = DatasetEvent.dataset

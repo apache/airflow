@@ -35,11 +35,11 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow import macros
 from airflow.assets import (
+    AssetAlias,
     AssetAll,
     AssetAny,
     BaseAsset,
     Dataset,
-    DatasetAlias,
     _AssetAliasCondition,
 )
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
@@ -254,8 +254,8 @@ def encode_dataset_condition(var: BaseAsset) -> dict[str, Any]:
     """
     if isinstance(var, Dataset):
         return {"__type": DAT.DATASET, "uri": var.uri, "extra": var.extra}
-    if isinstance(var, DatasetAlias):
-        return {"__type": DAT.DATASET_ALIAS, "name": var.name}
+    if isinstance(var, AssetAlias):
+        return {"__type": DAT.ASSET_ALIAS, "name": var.name}
     if isinstance(var, AssetAll):
         return {"__type": DAT.ASSET_ALL, "objects": [encode_dataset_condition(x) for x in var.objects]}
     if isinstance(var, AssetAny):
@@ -276,8 +276,8 @@ def decode_dataset_condition(var: dict[str, Any]) -> BaseAsset:
         return AssetAll(*(decode_dataset_condition(x) for x in var["objects"]))
     if dat == DAT.ASSET_ANY:
         return AssetAny(*(decode_dataset_condition(x) for x in var["objects"]))
-    if dat == DAT.DATASET_ALIAS:
-        return DatasetAlias(name=var["name"])
+    if dat == DAT.ASSET_ALIAS:
+        return AssetAlias(name=var["name"])
     raise ValueError(f"deserialization not implemented for DAT {dat!r}")
 
 
@@ -869,8 +869,8 @@ class BaseSerialization:
             return _XComRef(var)  # Delay deserializing XComArg objects until we have the entire DAG.
         elif type_ == DAT.DATASET:
             return Dataset(**var)
-        elif type_ == DAT.DATASET_ALIAS:
-            return DatasetAlias(**var)
+        elif type_ == DAT.ASSET_ALIAS:
+            return AssetAlias(**var)
         elif type_ == DAT.ASSET_ANY:
             return AssetAny(*(decode_dataset_condition(x) for x in var["objects"]))
         elif type_ == DAT.ASSET_ALL:
@@ -1045,7 +1045,7 @@ class DependencyDetector:
                         dependency_id=obj.uri,
                     )
                 )
-            elif isinstance(obj, DatasetAlias):
+            elif isinstance(obj, AssetAlias):
                 cond = _AssetAliasCondition(obj.name)
 
                 deps.extend(cond.iter_dag_dependencies(source=task.dag_id, target=""))

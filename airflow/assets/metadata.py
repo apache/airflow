@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 
 import attrs
 
-from airflow.assets import DatasetAlias, extract_event_key
+from airflow.assets import AssetAlias, extract_event_key
 
 if TYPE_CHECKING:
     from airflow.assets import Dataset
@@ -36,11 +36,11 @@ class Metadata:
     alias_name: str | None = None
 
     def __init__(
-        self, target: str | Dataset, extra: dict[str, Any], alias: DatasetAlias | str | None = None
+        self, target: str | Dataset, extra: dict[str, Any], alias: AssetAlias | str | None = None
     ) -> None:
         self.uri = extract_event_key(target)
         self.extra = extra
-        if isinstance(alias, DatasetAlias):
+        if isinstance(alias, AssetAlias):
             self.alias_name = alias.name
         else:
             self.alias_name = alias
