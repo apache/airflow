@@ -2,7 +2,7 @@
   "airbyte": {
     "deps": [
       "airbyte-api>=0.51.0",
-      "apache-airflow>=2.8.0"
+      "apache-airflow>=2.7.0"
     ],
     "devel-deps": [],
     "plugins": [],
