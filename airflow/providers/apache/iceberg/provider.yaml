@@ -22,9 +22,10 @@ description: |
     `Iceberg <https://iceberg.apache.org/>`__
 
 state: ready
-source-date-epoch: 1715384402
+source-date-epoch: 1723969223
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.1.0
   - 1.0.0
 
 dependencies:
