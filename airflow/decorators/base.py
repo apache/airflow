@@ -442,6 +442,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             "is_teardown": self.is_teardown,
             "on_failure_fail_dagrun": self.on_failure_fail_dagrun,
         }
+        # should be kept in sync with BaseOperatorMeta.partial().partial_kwargs.
         partial_keys: set[str] = {
             "dag",
             "task_group",
