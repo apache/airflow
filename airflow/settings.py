@@ -428,7 +428,8 @@ def _is_sqlite_db_path_relative(sqla_conn_str: str) -> bool:
 
 
 def _json_serializer(o):
-    """JSON serializer for the SQLAlchemy engine.
+    """
+    JSON serializer for the SQLAlchemy engine.
 
     This serializes XComArgs properly.
     """
@@ -453,11 +454,7 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
     global engine
     from airflow.api_internal.internal_api_call import InternalApiConfig
 
-    if InternalApiConfig.get_use_internal_api():
-        Session = TracebackSession
-        engine = None
-        return
-    elif os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
+    if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Skip DB initialization in unit tests, if DB tests are skipped
         Session = SkipDBTestsSession
         engine = None
