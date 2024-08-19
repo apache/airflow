@@ -60,8 +60,8 @@ class DagScheduleAssetReferenceSchema(SQLAlchemySchema):
     updated_at = auto_field()
 
 
-class DatasetAliasSchema(SQLAlchemySchema):
-    """DatasetAlias DB schema."""
+class AssetAliasSchema(SQLAlchemySchema):
+    """AssetAlias DB schema."""
 
     class Meta:
         """Meta."""
@@ -87,7 +87,7 @@ class DatasetSchema(SQLAlchemySchema):
     updated_at = auto_field()
     producing_tasks = fields.List(fields.Nested(TaskOutletAssetReferenceSchema))
     consuming_dags = fields.List(fields.Nested(DagScheduleAssetReferenceSchema))
-    aliases = fields.List(fields.Nested(DatasetAliasSchema))
+    aliases = fields.List(fields.Nested(AssetAliasSchema))
 
 
 class DatasetCollection(NamedTuple):
