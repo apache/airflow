@@ -43,6 +43,7 @@ import typing_extensions
 from airflow.datasets import Dataset
 from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
 from airflow.models.baseoperator import (
+    _PARTIAL_DEFAULTS,
     BaseOperator,
     coerce_resources,
     coerce_timedelta,
@@ -444,6 +445,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             is_teardown=self.is_teardown,
             on_failure_fail_dagrun=self.on_failure_fail_dagrun,
         )
+        partial_kwargs.update({key: value for key, value in default_args.items() if key in _PARTIAL_DEFAULTS})
 
         task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
         if task_group:
@@ -458,18 +460,22 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         end_date = timezone.convert_to_utc(default_args.pop("end_date", None))
         if default_args.get("pool") is None:
             partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME
-        partial_kwargs["retries"] = parse_retries(default_args.get("retries", DEFAULT_RETRIES))
-        partial_kwargs["retry_delay"] = coerce_timedelta(
+        default_args["retries"] = partial_kwargs["retries"] = parse_retries(
+            default_args.get("retries", DEFAULT_RETRIES)
+        )
+        default_args["retry_delay"] = partial_kwargs["retry_delay"] = coerce_timedelta(
             default_args.get("retry_delay", DEFAULT_RETRY_DELAY),
             key="retry_delay",
         )
         max_retry_delay = default_args.get("max_retry_delay")
-        partial_kwargs["max_retry_delay"] = (
+        default_args["max_retry_delay"] = partial_kwargs["max_retry_delay"] = (
             max_retry_delay
             if max_retry_delay is None
             else coerce_timedelta(max_retry_delay, key="max_retry_delay")
         )
-        partial_kwargs["resources"] = coerce_resources(default_args.get("resources"))
+        default_args["resources"] = partial_kwargs["resources"] = coerce_resources(
+            default_args.get("resources")
+        )
         partial_kwargs.setdefault("executor_config", {})
         partial_kwargs.setdefault("op_args", [])
         partial_kwargs.setdefault("op_kwargs", {})
