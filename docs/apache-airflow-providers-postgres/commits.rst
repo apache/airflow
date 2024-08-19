@@ -35,14 +35,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.12.0
+......
+
+Latest change: 2024-08-12
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+=================================================================================================  ===========  =======================================================================
+
 5.11.3
 ......
 
-Latest change: 2024-07-19
+Latest change: 2024-08-03
 
 =================================================================================================  ===========  ============================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
 `bef82d6ab3 <https://github.com/apache/airflow/commit/bef82d6ab38d627dc1b42981c90b9f8d36852f4c>`_  2024-07-19   ``Clean up remaining getattr connection DbApiHook (#40665)``
 `09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``
 `a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``

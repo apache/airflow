@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook
 from airflow.providers.amazon.aws.sensors.glue import (
     GlueDataQualityRuleRecommendationRunSensor,
@@ -133,16 +133,9 @@ class TestGlueDataQualityRuleSetEvaluationRunSensor:
 
         assert self.sensor.poke({}) is False
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        [
-            pytest.param(False, AirflowException, id="not-soft-fail"),
-            pytest.param(True, AirflowSkipException, id="soft-fail"),
-        ],
-    )
     @pytest.mark.parametrize("state", SENSOR.FAILURE_STATES)
     @mock.patch.object(GlueDataQualityHook, "conn")
-    def test_poke_failure_states(self, mock_conn, state, soft_fail, expected_exception):
+    def test_poke_failure_states(self, mock_conn, state):
         mock_conn.get_data_quality_ruleset_evaluation_run.return_value = {
             "RunId": "12345",
             "Status": state,
@@ -150,11 +143,11 @@ class TestGlueDataQualityRuleSetEvaluationRunSensor:
             "ErrorString": "unknown error",
         }
 
-        sensor = self.SENSOR(**self.default_args, aws_conn_id=None, soft_fail=soft_fail)
+        sensor = self.SENSOR(**self.default_args, aws_conn_id=None)
 
         message = f"Error: AWS Glue data quality ruleset evaluation run RunId: 12345 Run Status: {state}: unknown error"
 
-        with pytest.raises(expected_exception, match=message):
+        with pytest.raises(AirflowException, match=message):
             sensor.poke({})
 
         mock_conn.get_data_quality_ruleset_evaluation_run.assert_called_once_with(RunId="12345")
@@ -247,29 +240,22 @@ class TestGlueDataQualityRuleRecommendationRunSensor:
         )
         assert self.sensor.poke({}) is False
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        [
-            pytest.param(False, AirflowException, id="not-soft-fail"),
-            pytest.param(True, AirflowSkipException, id="soft-fail"),
-        ],
-    )
     @pytest.mark.parametrize("state", SENSOR.FAILURE_STATES)
     @mock.patch.object(GlueDataQualityHook, "conn")
-    def test_poke_failure_states(self, mock_conn, state, soft_fail, expected_exception):
+    def test_poke_failure_states(self, mock_conn, state):
         mock_conn.get_data_quality_rule_recommendation_run.return_value = {
             "RunId": "12345",
             "Status": state,
             "ErrorString": "unknown error",
         }
 
-        sensor = self.SENSOR(**self.default_args, aws_conn_id=None, soft_fail=soft_fail)
+        sensor = self.SENSOR(**self.default_args, aws_conn_id=None)
 
         message = (
             f"Error: AWS Glue data quality recommendation run RunId: 12345 Run Status: {state}: unknown error"
         )
 
-        with pytest.raises(expected_exception, match=message):
+        with pytest.raises(AirflowException, match=message):
             sensor.poke({})
 
         mock_conn.get_data_quality_rule_recommendation_run.assert_called_once_with(RunId="12345")

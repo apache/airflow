@@ -20,11 +20,9 @@ from __future__ import annotations
 import datetime
 import json
 import logging
-import re
-from contextlib import redirect_stdout, suppress
+from contextlib import suppress
 from functools import wraps
 from importlib import metadata
-from io import StringIO
 from typing import TYPE_CHECKING, Any, Callable, Iterable
 
 import attrs
@@ -35,7 +33,7 @@ from packaging.version import Version
 from airflow import __version__ as AIRFLOW_VERSION
 from airflow.datasets import Dataset
 from airflow.exceptions import AirflowProviderDeprecationWarning  # TODO: move this maybe to Airflow's logic?
-from airflow.models import DAG, BaseOperator, MappedOperator
+from airflow.models import DAG, BaseOperator, MappedOperator, Operator
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.facets import (
     AirflowDagRunFacet,
@@ -441,16 +439,6 @@ def get_airflow_state_run_facet(dag_run: DagRun) -> dict[str, AirflowStateRunFac
     }
 
 
-def _safe_get_dag_tree_view(dag: DAG) -> list[str]:
-    # get_tree_view() has been added in Airflow 2.8.2
-    if hasattr(dag, "get_tree_view"):
-        return dag.get_tree_view().splitlines()
-
-    with redirect_stdout(StringIO()) as stdout:
-        dag.tree_view()
-        return stdout.getvalue().splitlines()
-
-
 def _get_parsed_dag_tree(dag: DAG) -> dict:
     """
     Get DAG's tasks hierarchy representation.
@@ -476,37 +464,15 @@ def _get_parsed_dag_tree(dag: DAG) -> dict:
         "task_6": {}
     }
     """
-    lines = _safe_get_dag_tree_view(dag)
-    task_dict: dict[str, dict] = {}
-    parent_map: dict[int, tuple[str, dict]] = {}
 
-    for line in lines:
-        stripped_line = line.strip()
-        if not stripped_line:
-            continue
+    def get_downstream(task: Operator, current_dict: dict):
+        current_dict[task.task_id] = {}
+        for tmp_task in sorted(task.downstream_list, key=lambda x: x.task_id):
+            get_downstream(tmp_task, current_dict[task.task_id])
 
-        # Determine the level by counting the leading spaces, assuming 4 spaces per level
-        # as defined in airflow.models.dag.DAG._generate_tree_view()
-        level = (len(line) - len(stripped_line)) // 4
-        # airflow.models.baseoperator.BaseOperator.__repr__ or
-        # airflow.models.mappedoperator.MappedOperator.__repr__ is used in DAG tree
-        # <Task({op_class}): {task_id}> or <Mapped({op_class}): {task_id}>
-        match = re.match(r"^<(?:Task|Mapped)\(.+\): (.+)>$", stripped_line)
-        if not match:
-            return {}
-        current_task_id = match[1]
-
-        if level == 0:  # It's a root task
-            task_dict[current_task_id] = {}
-            parent_map[level] = (current_task_id, task_dict[current_task_id])
-        else:
-            # Find the immediate parent task
-            parent_task, parent_dict = parent_map[(level - 1)]
-            # Create new dict for the current task
-            parent_dict[current_task_id] = {}
-            # Update this task in the parent map
-            parent_map[level] = (current_task_id, parent_dict[current_task_id])
-
+    task_dict: dict = {}
+    for t in sorted(dag.roots, key=lambda x: x.task_id):
+        get_downstream(t, task_dict)
     return task_dict
 
 

@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Sequence
 
 from deprecated import deprecated
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 
@@ -74,10 +74,7 @@ class QuickSightSensor(AwsBaseSensor[QuickSightHook]):
         self.log.info("QuickSight Status: %s", quicksight_ingestion_state)
         if quicksight_ingestion_state in self.errored_statuses:
             error = self.hook.get_error_info(None, self.data_set_id, self.ingestion_id)
-            message = f"The QuickSight Ingestion failed. Error info: {error}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
-            raise AirflowException(message)
+            raise AirflowException(f"The QuickSight Ingestion failed. Error info: {error}")
         return quicksight_ingestion_state == self.success_status
 
     @cached_property

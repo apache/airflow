@@ -28,7 +28,6 @@ source_files = ["airflow/www"]
 restapi_files = ["tests/www"]
 
 files_not_fully_covered = [
-    "airflow/www/api/experimental/endpoints.py",
     "airflow/www/app.py",
     "airflow/www/auth.py",
     "airflow/www/decorators.py",

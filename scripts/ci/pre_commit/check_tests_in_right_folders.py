@@ -32,7 +32,6 @@ POSSIBLE_TEST_FOLDERS = [
     "always",
     "api",
     "api_connexion",
-    "api_experimental",
     "api_internal",
     "auth",
     "callbacks",

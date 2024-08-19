@@ -22,7 +22,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import warnings
 from collections import defaultdict
 from inspect import signature
 from json import JSONDecodeError
@@ -33,7 +32,6 @@ from airflow.exceptions import (
     AirflowFileParseException,
     ConnectionNotUnique,
     FileSyntaxError,
-    RemovedInAirflow3Warning,
 )
 from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.utils import yaml
@@ -243,16 +241,6 @@ def load_variables(file_path: str) -> dict[str, str]:
     return variables
 
 
-def load_connections(file_path) -> dict[str, list[Any]]:
-    """Use `airflow.secrets.local_filesystem.load_connections_dict`, this is deprecated."""
-    warnings.warn(
-        "This function is deprecated. Please use `airflow.secrets.local_filesystem.load_connections_dict`.",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    return {k: [v] for k, v in load_connections_dict(file_path).values()}
-
-
 def load_connections_dict(file_path: str) -> dict[str, Any]:
     """
     Load connection from text file.
@@ -317,18 +305,6 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
         if conn_id in self._local_connections:
             return self._local_connections[conn_id]
         return None
-
-    def get_connections(self, conn_id: str) -> list[Any]:
-        warnings.warn(
-            "This method is deprecated. Please use "
-            "`airflow.secrets.local_filesystem.LocalFilesystemBackend.get_connection`.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        conn = self.get_connection(conn_id=conn_id)
-        if conn:
-            return [conn]
-        return []
 
     def get_variable(self, key: str) -> str | None:
         return self._local_variables.get(key)

@@ -35,14 +35,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.2.0
+.....
+
+Latest change: 2024-08-12
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+=================================================================================================  ===========  =======================================================================
+
 1.1.0
 .....
 
-Latest change: 2024-07-23
+Latest change: 2024-08-03
 
 =================================================================================================  ===========  ===================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================================================
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
 `0206a4cbcf <https://github.com/apache/airflow/commit/0206a4cbcfbf85ab035c25533b12f022c22cae3a>`_  2024-07-23   ``openlineage: migrate OpenLineage provider to V2 facets. (#39530)``
 `0212f67192 <https://github.com/apache/airflow/commit/0212f671921fc5da15085eefbde8b0a76db40fd9>`_  2024-07-22   ``openlineage: add support for hook lineage for S3Hook (#40819)``
 `6366204458 <https://github.com/apache/airflow/commit/63662044583031fc27d98af02f2913d324245db0>`_  2024-07-17   ``openlineage: add method to common.compat to not force hooks to try/except every 2.10 hook lineage call (#40812)``

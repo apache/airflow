@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, patch
 
 from airflow import DAG
 from airflow.decorators import task
-from airflow.models.baseoperator import BaseOperator
+from airflow.models.baseoperator import BaseOperator, chain
 from airflow.models.dagrun import DagRun
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
@@ -35,7 +35,6 @@ from airflow.providers.openlineage.utils.utils import (
     _get_parsed_dag_tree,
     _get_task_groups_details,
     _get_tasks_details,
-    _safe_get_dag_tree_view,
     get_airflow_dag_run_facet,
     get_airflow_job_facet,
     get_fully_qualified_class_name,
@@ -342,34 +341,6 @@ def test_get_tasks_details_empty_dag():
     assert _get_tasks_details(DAG("test_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1))) == {}
 
 
-def test_dag_tree_level_indent():
-    """Tests the correct indentation of tasks in a DAG tree view.
-
-    Test verifies that the tree view of the DAG correctly represents the hierarchical structure
-    of the tasks with proper indentation. The expected indentation increases by 4 spaces for each
-    subsequent level in the DAG. The test asserts that the generated tree view matches the expected
-    lines with correct indentation.
-    """
-    with DAG(dag_id="dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
-        task_0 = EmptyOperator(task_id="task_0")
-        task_1 = EmptyOperator(task_id="task_1")
-        task_2 = EmptyOperator(task_id="task_2")
-        task_3 = EmptyOperator(task_id="task_3")
-
-    task_0 >> task_1 >> task_2
-    task_3 >> task_2
-
-    indent = 4 * " "
-    expected_lines = [
-        "<Task(EmptyOperator): task_0>",
-        indent + "<Task(EmptyOperator): task_1>",
-        2 * indent + "<Task(EmptyOperator): task_2>",
-        "<Task(EmptyOperator): task_3>",
-        indent + "<Task(EmptyOperator): task_2>",
-    ]
-    assert _safe_get_dag_tree_view(dag) == expected_lines
-
-
 def test_get_dag_tree():
     class TestMappedOperator(BaseOperator):
         def __init__(self, value, **kwargs):
@@ -460,6 +431,49 @@ def test_get_dag_tree():
         }
         result = _get_parsed_dag_tree(dag)
         assert result == expected
+
+
+def test_get_dag_tree_large_dag():
+    class LongEmptyOperator(EmptyOperator):
+        # lets make repr really long :)
+        def __repr__(self) -> str:
+            return str(self.__dict__) * 200
+
+    with DAG("aaa_big_get_tree_view", schedule=None) as dag:
+        first_set = [LongEmptyOperator(task_id=f"hello_{i}_{'a' * 230}") for i in range(900)]
+        chain(*first_set)
+
+        last_task_in_first_set = first_set[-1]
+
+        chain(
+            last_task_in_first_set, [LongEmptyOperator(task_id=f"world_{i}_{'a' * 230}") for i in range(900)]
+        )
+
+        chain(
+            last_task_in_first_set, [LongEmptyOperator(task_id=f"this_{i}_{'a' * 230}") for i in range(900)]
+        )
+
+        chain(last_task_in_first_set, [LongEmptyOperator(task_id=f"is_{i}_{'a' * 230}") for i in range(900)])
+
+        chain(
+            last_task_in_first_set, [LongEmptyOperator(task_id=f"silly_{i}_{'a' * 230}") for i in range(900)]
+        )
+
+        chain(
+            last_task_in_first_set, [LongEmptyOperator(task_id=f"stuff_{i}_{'a' * 230}") for i in range(900)]
+        )
+
+    result = _get_parsed_dag_tree(dag)
+
+    def dfs_depth(d: dict, depth: int = 0) -> int:
+        max_depth = depth
+        for v in d.values():
+            if isinstance(v, dict):
+                max_depth = max(max_depth, dfs_depth(v, depth + 1))
+        return max_depth
+
+    assert len(result) == 1
+    assert dfs_depth(result, 901)
 
 
 def test_get_dag_tree_empty_dag():

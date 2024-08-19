@@ -38,14 +38,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.9.0
+.....
+
+Latest change: 2024-08-12
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+=================================================================================================  ===========  =======================================================================
+
 8.8.0
 .....
 
-Latest change: 2024-07-11
+Latest change: 2024-08-03
 
 =================================================================================================  ===========  ==============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
 `12ca9d875f <https://github.com/apache/airflow/commit/12ca9d875fc657a6a0d0cf575216d1ccc195ebaa>`_  2024-07-11   ``docs(SlackNotifier): add newly added unfurl args to the docstring (#40709)``
 `c25858cb30 <https://github.com/apache/airflow/commit/c25858cb30306ebfd6e473ded636ef0b7c84a88c>`_  2024-07-10   ``feat(slack): add unfurl options to slack notifier (#40694)``
 `09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``

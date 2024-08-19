@@ -348,6 +348,7 @@ class TestDynamodbToS3:
             dynamodb_table_name="airflow_rocks",
             s3_bucket_name="airflow-bucket",
             file_size=4000,
+            point_in_time_export=True,
             export_time=datetime(year=1983, month=1, day=1),
         )
         dynamodb_to_s3_operator.execute(context={})
@@ -362,5 +363,6 @@ class TestDynamodbToS3:
                 dynamodb_table_name="airflow_rocks",
                 s3_bucket_name="airflow-bucket",
                 file_size=4000,
+                point_in_time_export=True,
                 export_time=datetime(year=3000, month=1, day=1),
             ).execute(context={})

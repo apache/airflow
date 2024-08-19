@@ -1,0 +1,6 @@
+Experimental API is removed
+
+**Breaking Change**
+
+Experimental API is no longer available in Airflow. Users
+should transition to using Rest API as an alternative.

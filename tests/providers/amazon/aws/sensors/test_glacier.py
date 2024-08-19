@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.glacier import GlacierJobOperationSensor, JobStatus
 
 SUCCEEDED = "Succeeded"
@@ -77,19 +77,11 @@ class TestAmazonGlacierSensor:
         with pytest.raises(AirflowException, match="Sensor failed"):
             self.op.poke(None)
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        [
-            pytest.param(False, AirflowException, id="not-soft-fail"),
-            pytest.param(True, AirflowSkipException, id="soft-fail"),
-        ],
-    )
-    def test_fail_poke(self, soft_fail, expected_exception, mocked_describe_job):
-        self.op.soft_fail = soft_fail
+    def test_fail_poke(self, mocked_describe_job):
         response = {"Action": "some action", "StatusCode": "Failed"}
         message = f'Sensor failed. Job status: {response["Action"]}, code status: {response["StatusCode"]}'
         mocked_describe_job.return_value = response
-        with pytest.raises(expected_exception, match=message):
+        with pytest.raises(AirflowException, match=message):
             self.op.poke(context={})
 
 

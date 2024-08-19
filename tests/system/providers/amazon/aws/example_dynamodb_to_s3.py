@@ -17,17 +17,19 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import boto3
 import tenacity
 from tenacity import before_log, before_sleep_log
 
-from airflow.decorators import task
+from airflow.decorators import task, task_group
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Operator
+from airflow.utils.edgemodifier import Label
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
@@ -106,6 +108,59 @@ def delete_dynamodb_table(table_name: str):
     )
 
 
+@task_group
+def incremental_export(table_name: str, start_time: datetime):
+    """
+    Incremental export requires a minimum window of 15 minutes of data to export.
+    This task group allows us to have the sample code snippet for the docs while
+    skipping the task when we run the actual test.
+    """
+
+    @task
+    def get_latest_export_time(table_name: str):
+        r = boto3.client("dynamodb").describe_continuous_backups(
+            TableName=table_name,
+        )
+
+        return r["ContinuousBackupsDescription"]["PointInTimeRecoveryDescription"]["LatestRestorableDateTime"]
+
+    end_time = get_latest_export_time(table_name)
+
+    # [START howto_transfer_dynamodb_to_s3_in_some_point_in_time_incremental_export]
+    backup_db_to_point_in_time_incremental_export = DynamoDBToS3Operator(
+        task_id="backup_db_to_point_in_time_incremental_export",
+        dynamodb_table_name=table_name,
+        s3_bucket_name=bucket_name,
+        point_in_time_export=True,
+        s3_key_prefix=f"{S3_KEY_PREFIX}-4-",
+        export_table_to_point_in_time_kwargs={
+            "ExportType": "INCREMENTAL_EXPORT",
+            "IncrementalExportSpecification": {
+                "ExportFromTime": start_time,
+                "ExportToTime": end_time,
+                "ExportViewType": "NEW_AND_OLD_IMAGES",
+            },
+        },
+    )
+    # [END howto_transfer_dynamodb_to_s3_in_some_point_in_time_incremental_export]
+    # This operation can take a long time to complete
+    backup_db_to_point_in_time_incremental_export.max_attempts = 90
+
+    @task.branch
+    def skip_incremental_export(start_time: datetime, end_time: datetime):
+        not_enough_time = end_time < (start_time + timedelta(minutes=15))
+        return (
+            end_workflow.task_id if not_enough_time else backup_db_to_point_in_time_incremental_export.task_id
+        )
+
+    skip_incremental = skip_incremental_export(start_time, end_time)
+
+    end_workflow = EmptyOperator(task_id="end_workflow", trigger_rule=TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS)
+
+    chain(end_time, skip_incremental, Label("Incremental backup skipped"), end_workflow)
+    chain(end_time, skip_incremental, backup_db_to_point_in_time_incremental_export, end_workflow)
+
+
 with DAG(
     dag_id=DAG_ID,
     schedule="@once",
@@ -162,18 +217,17 @@ with DAG(
     # [END howto_transfer_dynamodb_to_s3_segmented]
 
     export_time = get_export_time(table_name)
-    # [START howto_transfer_dynamodb_to_s3_in_some_point_in_time]
-    backup_db_to_point_in_time = DynamoDBToS3Operator(
-        task_id="backup_db_to_point_in_time",
+    # [START howto_transfer_dynamodb_to_s3_in_some_point_in_time_full_export]
+    backup_db_to_point_in_time_full_export = DynamoDBToS3Operator(
+        task_id="backup_db_to_point_in_time_full_export",
         dynamodb_table_name=table_name,
-        file_size=1000,
         s3_bucket_name=bucket_name,
+        point_in_time_export=True,
         export_time=export_time,
         s3_key_prefix=f"{S3_KEY_PREFIX}-3-",
     )
-    # [END howto_transfer_dynamodb_to_s3_in_some_point_in_time]
-    # This operation can take a long time to complete
-    backup_db_to_point_in_time.max_attempts = 90
+    # [END howto_transfer_dynamodb_to_s3_in_some_point_in_time_full_export]
+    backup_db_to_point_in_time_full_export.max_attempts = 90
 
     delete_table = delete_dynamodb_table(table_name=table_name)
 
@@ -195,7 +249,8 @@ with DAG(
         backup_db_segment_1,
         backup_db_segment_2,
         export_time,
-        backup_db_to_point_in_time,
+        backup_db_to_point_in_time_full_export,
+        incremental_export(table_name=table_name, start_time=export_time),
         # TEST TEARDOWN
         delete_table,
         delete_bucket,

@@ -20,6 +20,23 @@
 Changelog
 ---------
 
+1.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Feature: Allow set Dag Run resource into Dag Level permission (#40703)``
+
+Misc
+~~~~
+
+* ``Remove deprecated SubDags (#41390)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.2.2
 .....
 

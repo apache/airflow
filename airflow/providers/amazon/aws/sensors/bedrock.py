@@ -21,7 +21,7 @@ import abc
 from typing import TYPE_CHECKING, Any, Sequence, TypeVar
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.bedrock import (
@@ -76,9 +76,6 @@ class BedrockBaseSensor(AwsBaseSensor[_GenericBedrockHook]):
     def poke(self, context: Context, **kwargs) -> bool:
         state = self.get_state()
         if state in self.FAILURE_STATES:
-            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
-            if self.soft_fail:
-                raise AirflowSkipException(self.FAILURE_MESSAGE)
             raise AirflowException(self.FAILURE_MESSAGE)
 
         return state not in self.INTERMEDIATE_STATES

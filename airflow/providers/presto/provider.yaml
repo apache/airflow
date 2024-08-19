@@ -22,9 +22,10 @@ description: |
     `Presto <https://prestodb.io/>`__
 
 state: ready
-source-date-epoch: 1718605325
+source-date-epoch: 1723970527
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 5.6.0
   - 5.5.2
   - 5.5.1
   - 5.5.0

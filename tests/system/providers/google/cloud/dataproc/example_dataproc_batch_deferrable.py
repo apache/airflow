@@ -25,6 +25,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from google.api_core.retry import Retry
+
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateBatchOperator,
@@ -62,6 +64,7 @@ with DAG(
         batch=BATCH_CONFIG,
         batch_id=BATCH_ID,
         deferrable=True,
+        result_retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
     )
     # [END how_to_cloud_dataproc_create_batch_operator_async]
 

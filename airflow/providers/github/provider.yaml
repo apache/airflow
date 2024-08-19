@@ -27,9 +27,10 @@ dependencies:
   - PyGithub>=2.1.1
 
 state: ready
-source-date-epoch: 1718604440
+source-date-epoch: 1723970175
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 2.7.0
   - 2.6.2
   - 2.6.1
   - 2.6.0

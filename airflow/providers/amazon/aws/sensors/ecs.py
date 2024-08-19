@@ -19,7 +19,7 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.ecs import (
     EcsClusterStates,
     EcsHook,
@@ -37,11 +37,9 @@ if TYPE_CHECKING:
 
 def _check_failed(current_state, target_state, failure_states, soft_fail: bool) -> None:
     if (current_state != target_state) and (current_state in failure_states):
-        # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
-        message = f"Terminal state reached. Current state: {current_state}, Expected state: {target_state}"
-        if soft_fail:
-            raise AirflowSkipException(message)
-        raise AirflowException(message)
+        raise AirflowException(
+            f"Terminal state reached. Current state: {current_state}, Expected state: {target_state}"
+        )
 
 
 class EcsBaseSensor(AwsBaseSensor[EcsHook]):

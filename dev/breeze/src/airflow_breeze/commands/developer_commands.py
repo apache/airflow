@@ -36,6 +36,7 @@ from airflow_breeze.commands.common_options import (
     option_answer,
     option_backend,
     option_builder,
+    option_clean_airflow_installation,
     option_database_isolation,
     option_db_reset,
     option_docker_host,
@@ -262,6 +263,7 @@ option_install_airflow_with_constraints_default_true = click.option(
 @option_builder
 @option_celery_broker
 @option_celery_flower
+@option_clean_airflow_installation
 @option_database_isolation
 @option_db_reset
 @option_docker_host
@@ -317,6 +319,7 @@ def shell(
     builder: str,
     celery_broker: str,
     celery_flower: bool,
+    clean_airflow_installation: bool,
     database_isolation: bool,
     db_reset: bool,
     downgrade_sqlalchemy: bool,
@@ -385,6 +388,7 @@ def shell(
         builder=builder,
         celery_broker=celery_broker,
         celery_flower=celery_flower,
+        clean_airflow_installation=clean_airflow_installation,
         database_isolation=database_isolation,
         db_reset=db_reset,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
@@ -485,6 +489,7 @@ option_executor_start_airflow = click.option(
 @option_answer
 @option_backend
 @option_builder
+@option_clean_airflow_installation
 @option_celery_broker
 @option_celery_flower
 @option_database_isolation
@@ -528,6 +533,7 @@ def start_airflow(
     builder: str,
     celery_broker: str,
     celery_flower: bool,
+    clean_airflow_installation: bool,
     database_isolation: bool,
     db_reset: bool,
     dev_mode: bool,
@@ -586,6 +592,7 @@ def start_airflow(
         builder=builder,
         celery_broker=celery_broker,
         celery_flower=celery_flower,
+        clean_airflow_installation=clean_airflow_installation,
         database_isolation=database_isolation,
         db_reset=db_reset,
         dev_mode=dev_mode,

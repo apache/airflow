@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Iterable, Sequence
 
 from deprecated import deprecated
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
@@ -75,11 +75,9 @@ class DmsTaskBaseSensor(AwsBaseSensor[DmsHook]):
 
     def poke(self, context: Context):
         if not (status := self.hook.get_task_status(self.replication_task_arn)):
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-            message = f"Failed to read task status, task with ARN {self.replication_task_arn} not found"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
-            raise AirflowException(message)
+            raise AirflowException(
+                f"Failed to read task status, task with ARN {self.replication_task_arn} not found"
+            )
 
         self.log.info("DMS Replication task (%s) has status: %s", self.replication_task_arn, status)
 
@@ -87,11 +85,7 @@ class DmsTaskBaseSensor(AwsBaseSensor[DmsHook]):
             return True
 
         if status in self.termination_statuses:
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-            message = f"Unexpected status: {status}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
-            raise AirflowException(message)
+            raise AirflowException(f"Unexpected status: {status}")
 
         return False
 

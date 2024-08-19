@@ -40,7 +40,7 @@ from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning, UnknownExecutorException
+from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
@@ -165,7 +165,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         scheduler_idle_sleep_time: float = conf.getfloat("scheduler", "scheduler_idle_sleep_time"),
         do_pickle: bool = False,
         log: logging.Logger | None = None,
-        processor_poll_interval: float | None = None,
     ):
         super().__init__(job)
         self.subdir = subdir
@@ -174,15 +173,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # number of times. This is only to support testing, and isn't something a user is likely to want to
         # configure -- they'll want num_runs
         self.num_times_parse_dags = num_times_parse_dags
-        if processor_poll_interval:
-            # TODO: Remove in Airflow 3.0
-            warnings.warn(
-                "The 'processor_poll_interval' parameter is deprecated. "
-                "Please use 'scheduler_idle_sleep_time'.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            scheduler_idle_sleep_time = processor_poll_interval
         self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
         # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
         self._zombie_threshold_secs = conf.getint("scheduler", "scheduler_zombie_task_threshold")
@@ -837,7 +827,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 span.set_attribute("hostname", ti.hostname)
                 span.set_attribute("log_url", ti.log_url)
                 span.set_attribute("operator", str(ti.operator))
-                span.set_attribute("try_number", ti.try_number - 1)
+                span.set_attribute("try_number", ti.try_number)
                 span.set_attribute("executor_state", state)
                 span.set_attribute("job_id", ti.job_id)
                 span.set_attribute("pool", ti.pool)

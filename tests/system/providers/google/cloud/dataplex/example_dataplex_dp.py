@@ -50,11 +50,12 @@ from airflow.providers.google.cloud.operators.dataplex import (
 )
 from airflow.providers.google.cloud.sensors.dataplex import DataplexDataProfileJobStatusSensor
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-DAG_ID = "example_dataplex_data_profile"
+DAG_ID = "dataplex_data_profile"
 
 LAKE_ID = f"lake-{DAG_ID}-{ENV_ID}".replace("_", "-")
 REGION = "us-central1"

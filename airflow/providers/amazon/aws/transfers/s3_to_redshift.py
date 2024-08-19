@@ -121,6 +121,10 @@ class S3ToRedshiftOperator(BaseOperator):
                 if arg in self.redshift_data_api_kwargs:
                     raise AirflowException(f"Cannot include param '{arg}' in Redshift Data API kwargs")
 
+    @property
+    def use_redshift_data(self):
+        return bool(self.redshift_data_api_kwargs)
+
     def _build_copy_query(
         self, copy_destination: str, credentials_block: str, region_info: str, copy_options: str
     ) -> str:
@@ -138,11 +142,11 @@ class S3ToRedshiftOperator(BaseOperator):
         if self.method not in AVAILABLE_METHODS:
             raise AirflowException(f"Method not found! Available methods: {AVAILABLE_METHODS}")
 
-        redshift_hook: RedshiftDataHook | RedshiftSQLHook
-        if self.redshift_data_api_kwargs:
-            redshift_hook = RedshiftDataHook(aws_conn_id=self.redshift_conn_id)
+        if self.use_redshift_data:
+            redshift_data_hook = RedshiftDataHook(aws_conn_id=self.redshift_conn_id)
         else:
-            redshift_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
+            redshift_sql_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
+
         conn = S3Hook.get_connection(conn_id=self.aws_conn_id) if self.aws_conn_id else None
         region_info = ""
         if conn and conn.extra_dejson.get("region", False):
@@ -167,12 +171,12 @@ class S3ToRedshiftOperator(BaseOperator):
         if self.method == "REPLACE":
             sql = ["BEGIN;", f"DELETE FROM {destination};", copy_statement, "COMMIT"]
         elif self.method == "UPSERT":
-            if isinstance(redshift_hook, RedshiftDataHook):
-                keys = self.upsert_keys or redshift_hook.get_table_primary_key(
+            if self.use_redshift_data:
+                keys = self.upsert_keys or redshift_data_hook.get_table_primary_key(
                     table=self.table, schema=self.schema, **self.redshift_data_api_kwargs
                 )
             else:
-                keys = self.upsert_keys or redshift_hook.get_table_primary_key(self.table, self.schema)
+                keys = self.upsert_keys or redshift_sql_hook.get_table_primary_key(self.table, self.schema)
             if not keys:
                 raise AirflowException(
                     f"No primary key on {self.schema}.{self.table}. Please provide keys on 'upsert_keys'"
@@ -192,8 +196,85 @@ class S3ToRedshiftOperator(BaseOperator):
             sql = copy_statement
 
         self.log.info("Executing COPY command...")
-        if isinstance(redshift_hook, RedshiftDataHook):
-            redshift_hook.execute_query(sql=sql, **self.redshift_data_api_kwargs)
+        if self.use_redshift_data:
+            redshift_data_hook.execute_query(sql=sql, **self.redshift_data_api_kwargs)
         else:
-            redshift_hook.run(sql, autocommit=self.autocommit)
+            redshift_sql_hook.run(sql, autocommit=self.autocommit)
         self.log.info("COPY command complete...")
+
+    def get_openlineage_facets_on_complete(self, task_instance):
+        """Implement on_complete as we will query destination table."""
+        from pathlib import Path
+
+        from airflow.providers.amazon.aws.utils.openlineage import (
+            get_facets_from_redshift_table,
+            get_identity_column_lineage_facet,
+        )
+        from airflow.providers.common.compat.openlineage.facet import (
+            Dataset,
+            Identifier,
+            LifecycleStateChange,
+            LifecycleStateChangeDatasetFacet,
+            SymlinksDatasetFacet,
+        )
+        from airflow.providers.openlineage.extractors import OperatorLineage
+
+        if self.use_redshift_data:
+            redshift_data_hook = RedshiftDataHook(aws_conn_id=self.redshift_conn_id)
+            database = self.redshift_data_api_kwargs.get("database")
+            identifier = self.redshift_data_api_kwargs.get(
+                "cluster_identifier", self.redshift_data_api_kwargs.get("workgroup_name")
+            )
+            port = self.redshift_data_api_kwargs.get("port", "5439")
+            authority = f"{identifier}.{redshift_data_hook.region_name}:{port}"
+            output_dataset_facets = get_facets_from_redshift_table(
+                redshift_data_hook, self.table, self.redshift_data_api_kwargs, self.schema
+            )
+        else:
+            redshift_sql_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
+            database = redshift_sql_hook.conn.schema
+            authority = redshift_sql_hook.get_openlineage_database_info(redshift_sql_hook.conn).authority
+            output_dataset_facets = get_facets_from_redshift_table(
+                redshift_sql_hook, self.table, self.redshift_data_api_kwargs, self.schema
+            )
+
+        input_dataset_facets = {}
+        if not self.column_list:
+            # If column_list is not specified, then we know that input file matches columns of output table.
+            input_dataset_facets["schema"] = output_dataset_facets["schema"]
+
+        dataset_name = self.s3_key
+        if "*" in dataset_name:
+            # If wildcard ("*") is used in s3 path, we want the name of dataset to be directory name,
+            # but we create a symlink to the full object path with wildcard.
+            input_dataset_facets["symlink"] = SymlinksDatasetFacet(
+                identifiers=[Identifier(namespace=f"s3://{self.s3_bucket}", name=dataset_name, type="file")]
+            )
+            dataset_name = Path(dataset_name).parent.as_posix()
+            if dataset_name == ".":
+                # blob path does not have leading slash, but we need root dataset name to be "/"
+                dataset_name = "/"
+
+        input_dataset = Dataset(
+            namespace=f"s3://{self.s3_bucket}",
+            name=dataset_name,
+            facets=input_dataset_facets,
+        )
+
+        output_dataset_facets["columnLineage"] = get_identity_column_lineage_facet(
+            field_names=[field.name for field in output_dataset_facets["schema"].fields],
+            input_datasets=[input_dataset],
+        )
+
+        if self.method == "REPLACE":
+            output_dataset_facets["lifecycleStateChange"] = LifecycleStateChangeDatasetFacet(
+                lifecycleStateChange=LifecycleStateChange.OVERWRITE
+            )
+
+        output_dataset = Dataset(
+            namespace=f"redshift://{authority}",
+            name=f"{database}.{self.schema}.{self.table}",
+            facets=output_dataset_facets,
+        )
+
+        return OperatorLineage(inputs=[input_dataset], outputs=[output_dataset])

@@ -38,6 +38,7 @@ from airflow.triggers.base import TriggerEvent
 TEST_PROJECT_ID = "project-id"
 TEST_REGION = "region"
 TEST_BATCH_ID = "batch-id"
+TEST_BATCH_STATE_MESSAGE = "Test batch state message"
 BATCH_CONFIG = {
     "spark_batch": {
         "jar_file_uris": ["file:///usr/lib/spark/examples/jars/spark-examples.jar"],
@@ -391,12 +392,15 @@ class TestDataprocBatchTrigger:
         Tests the DataprocBatchTrigger only fires once the batch execution reaches a successful state.
         """
 
-        mock_hook.return_value = async_get_batch(state=Batch.State.SUCCEEDED, batch_id=TEST_BATCH_ID)
+        mock_hook.return_value = async_get_batch(
+            state=Batch.State.SUCCEEDED, batch_id=TEST_BATCH_ID, state_message=TEST_BATCH_STATE_MESSAGE
+        )
 
         expected_event = TriggerEvent(
             {
                 "batch_id": TEST_BATCH_ID,
                 "batch_state": Batch.State.SUCCEEDED,
+                "batch_state_message": TEST_BATCH_STATE_MESSAGE,
             }
         )
 
@@ -409,9 +413,17 @@ class TestDataprocBatchTrigger:
     async def test_async_create_batch_trigger_run_returns_failed_event(
         self, mock_hook, batch_trigger, async_get_batch
     ):
-        mock_hook.return_value = async_get_batch(state=Batch.State.FAILED, batch_id=TEST_BATCH_ID)
+        mock_hook.return_value = async_get_batch(
+            state=Batch.State.FAILED, batch_id=TEST_BATCH_ID, state_message=TEST_BATCH_STATE_MESSAGE
+        )
 
-        expected_event = TriggerEvent({"batch_id": TEST_BATCH_ID, "batch_state": Batch.State.FAILED})
+        expected_event = TriggerEvent(
+            {
+                "batch_id": TEST_BATCH_ID,
+                "batch_state": Batch.State.FAILED,
+                "batch_state_message": TEST_BATCH_STATE_MESSAGE,
+            }
+        )
 
         actual_event = await batch_trigger.run().asend(None)
         await asyncio.sleep(0.5)
@@ -420,9 +432,17 @@ class TestDataprocBatchTrigger:
     @pytest.mark.asyncio
     @mock.patch("airflow.providers.google.cloud.hooks.dataproc.DataprocAsyncHook.get_batch")
     async def test_create_batch_run_returns_cancelled_event(self, mock_hook, batch_trigger, async_get_batch):
-        mock_hook.return_value = async_get_batch(state=Batch.State.CANCELLED, batch_id=TEST_BATCH_ID)
+        mock_hook.return_value = async_get_batch(
+            state=Batch.State.CANCELLED, batch_id=TEST_BATCH_ID, state_message=TEST_BATCH_STATE_MESSAGE
+        )
 
-        expected_event = TriggerEvent({"batch_id": TEST_BATCH_ID, "batch_state": Batch.State.CANCELLED})
+        expected_event = TriggerEvent(
+            {
+                "batch_id": TEST_BATCH_ID,
+                "batch_state": Batch.State.CANCELLED,
+                "batch_state_message": TEST_BATCH_STATE_MESSAGE,
+            }
+        )
 
         actual_event = await batch_trigger.run().asend(None)
         await asyncio.sleep(0.5)

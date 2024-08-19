@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.sagemaker import SageMakerBaseSensor
 
 
@@ -110,10 +110,7 @@ class TestSagemakerBaseSensor:
         with pytest.raises(AirflowException):
             sensor.poke(None)
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
-    def test_fail_poke(self, soft_fail, expected_exception):
+    def test_fail_poke(self):
         resource_type = "job"
 
         class SageMakerBaseSensorSubclass(SageMakerBaseSensor):
@@ -132,10 +129,9 @@ class TestSagemakerBaseSensor:
         sensor = SageMakerBaseSensorSubclass(
             task_id="test_task", poke_interval=2, aws_conn_id="aws_test", resource_type=resource_type
         )
-        sensor.soft_fail = soft_fail
         message = (
             f"Sagemaker {resource_type} failed for the following reason:"
             f" {sensor.get_failed_reason_from_response({})}"
         )
-        with pytest.raises(expected_exception, match=message):
+        with pytest.raises(AirflowException, match=message):
             sensor.poke(context={})

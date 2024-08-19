@@ -26,9 +26,10 @@ dependencies:
   - python-arango>=7.3.2
 
 state: ready
-source-date-epoch: 1716286828
+source-date-epoch: 1723969354
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 2.6.0
   - 2.5.1
   - 2.5.0
   - 2.4.1

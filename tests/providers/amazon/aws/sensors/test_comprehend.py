@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.comprehend import ComprehendHook
 from airflow.providers.amazon.aws.sensors.comprehend import (
     ComprehendCreateDocumentClassifierCompletedSensor,
@@ -76,22 +76,15 @@ class TestComprehendStartPiiEntitiesDetectionJobCompletedSensor:
         }
         assert self.sensor.poke({}) is False
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        [
-            pytest.param(False, AirflowException, id="not-soft-fail"),
-            pytest.param(True, AirflowSkipException, id="soft-fail"),
-        ],
-    )
     @pytest.mark.parametrize("state", SENSOR.FAILURE_STATES)
     @mock.patch.object(ComprehendHook, "conn")
-    def test_poke_failure_states(self, mock_conn, state, soft_fail, expected_exception):
+    def test_poke_failure_states(self, mock_conn, state):
         mock_conn.describe_pii_entities_detection_job.return_value = {
             "PiiEntitiesDetectionJobProperties": {"JobStatus": state}
         }
-        sensor = self.SENSOR(**self.default_op_kwargs, aws_conn_id=None, soft_fail=soft_fail)
+        sensor = self.SENSOR(**self.default_op_kwargs, aws_conn_id=None)
 
-        with pytest.raises(expected_exception, match=sensor.FAILURE_MESSAGE):
+        with pytest.raises(AirflowException, match=sensor.FAILURE_MESSAGE):
             sensor.poke({})
 
 
@@ -176,20 +169,13 @@ class TestComprehendCreateDocumentClassifierCompletedSensor:
         }
         assert self.sensor.poke({}) is False
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        [
-            pytest.param(False, AirflowException, id="not-soft-fail"),
-            pytest.param(True, AirflowSkipException, id="soft-fail"),
-        ],
-    )
     @pytest.mark.parametrize("state", SENSOR.FAILURE_STATES)
     @mock.patch.object(ComprehendHook, "conn")
-    def test_poke_failure_states(self, mock_conn, state, soft_fail, expected_exception):
+    def test_poke_failure_states(self, mock_conn, state):
         mock_conn.describe_document_classifier.return_value = {
             "DocumentClassifierProperties": {"Status": state}
         }
-        sensor = self.SENSOR(**self.default_op_kwargs, aws_conn_id=None, soft_fail=soft_fail)
+        sensor = self.SENSOR(**self.default_op_kwargs, aws_conn_id=None)
 
-        with pytest.raises(expected_exception, match=sensor.FAILURE_MESSAGE):
+        with pytest.raises(AirflowException, match=sensor.FAILURE_MESSAGE):
             sensor.poke({})

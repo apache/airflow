@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 from airflow.providers.amazon.aws.sensors.athena import AthenaSensor
 
@@ -73,17 +73,10 @@ class TestAthenaSensor:
         mock_poll_query_status.side_effect = [state]
         assert self.sensor.poke({}) is False
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        [
-            pytest.param(False, AirflowException, id="not-soft-fail"),
-            pytest.param(True, AirflowSkipException, id="soft-fail"),
-        ],
-    )
     @pytest.mark.parametrize("state", ["FAILED", "CANCELLED"])
-    def test_poke_failure_states(self, state, soft_fail, expected_exception, mock_poll_query_status):
+    def test_poke_failure_states(self, state, mock_poll_query_status):
         mock_poll_query_status.side_effect = [state]
-        sensor = AthenaSensor(**self.default_op_kwargs, aws_conn_id=None, soft_fail=soft_fail)
+        sensor = AthenaSensor(**self.default_op_kwargs, aws_conn_id=None)
         message = "Athena sensor failed"
-        with pytest.raises(expected_exception, match=message):
+        with pytest.raises(AirflowException, match=message):
             sensor.poke({})

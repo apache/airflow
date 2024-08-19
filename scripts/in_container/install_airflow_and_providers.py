@@ -481,10 +481,11 @@ def install_airflow_and_providers(
     )
     if installation_spec.airflow_package and install_airflow_with_constraints:
         base_install_airflow_cmd = [
+            "/usr/local/bin/uv",
             "pip",
             "install",
-            "--root-user-action",
-            "ignore",
+            "--python",
+            "/usr/local/bin/python",
             installation_spec.airflow_package,
         ]
         install_airflow_cmd = base_install_airflow_cmd.copy()
@@ -501,7 +502,13 @@ def install_airflow_and_providers(
             )
             run_command(base_install_airflow_cmd, github_actions=github_actions, check=True)
     if installation_spec.provider_packages or not install_airflow_with_constraints:
-        base_install_providers_cmd = ["pip", "install", "--root-user-action", "ignore"]
+        base_install_providers_cmd = [
+            "/usr/local/bin/uv",
+            "pip",
+            "install",
+            "--python",
+            "/usr/local/bin/python",
+        ]
         if not install_airflow_with_constraints and installation_spec.airflow_package:
             base_install_providers_cmd.append(installation_spec.airflow_package)
         console.print("\n[bright_blue]Installing provider packages:")

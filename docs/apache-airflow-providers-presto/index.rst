@@ -77,7 +77,7 @@ apache-airflow-providers-presto package
 `Presto <https://prestodb.io/>`__
 
 
-Release: 5.5.2
+Release: 5.6.0
 
 Provider package
 ----------------
@@ -95,12 +95,12 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
 =======================================  =========================================
 PIP package                              Version required
 =======================================  =========================================
-``apache-airflow``                       ``>=2.7.0``
+``apache-airflow``                       ``>=2.8.0``
 ``apache-airflow-providers-common-sql``  ``>=1.3.1``
 ``presto-python-client``                 ``>=0.8.4``
 ``pandas``                               ``>=2.1.2,<2.2; python_version >= "3.9"``
@@ -133,5 +133,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-presto 5.5.2 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.5.2.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.5.2.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.5.2.tar.gz.sha512>`__)
-* `The apache-airflow-providers-presto 5.5.2 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.5.2-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.5.2-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.5.2-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-presto 5.6.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.6.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.6.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.6.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-presto 5.6.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.6.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.6.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_presto-5.6.0-py3-none-any.whl.sha512>`__)

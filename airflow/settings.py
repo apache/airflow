@@ -36,7 +36,7 @@ from sqlalchemy.pool import NullPool
 
 from airflow import __version__ as airflow_version, policies
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # noqa: F401
-from airflow.exceptions import AirflowInternalRuntimeError, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowInternalRuntimeError
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
@@ -671,25 +671,7 @@ def prepare_syspath():
 def get_session_lifetime_config():
     """Get session timeout configs and handle outdated configs gracefully."""
     session_lifetime_minutes = conf.get("webserver", "session_lifetime_minutes", fallback=None)
-    session_lifetime_days = conf.get("webserver", "session_lifetime_days", fallback=None)
-    uses_deprecated_lifetime_configs = session_lifetime_days or conf.get(
-        "webserver", "force_log_out_after", fallback=None
-    )
-
     minutes_per_day = 24 * 60
-    default_lifetime_minutes = "43200"
-    if uses_deprecated_lifetime_configs and session_lifetime_minutes == default_lifetime_minutes:
-        warnings.warn(
-            "`session_lifetime_days` option from `[webserver]` section has been "
-            "renamed to `session_lifetime_minutes`. The new option allows to configure "
-            "session lifetime in minutes. The `force_log_out_after` option has been removed "
-            "from `[webserver]` section. Please update your configuration.",
-            category=RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        if session_lifetime_days:
-            session_lifetime_minutes = minutes_per_day * int(session_lifetime_days)
-
     if not session_lifetime_minutes:
         session_lifetime_days = 30
         session_lifetime_minutes = minutes_per_day * session_lifetime_days
@@ -720,16 +702,6 @@ def import_local_settings():
             names = set(airflow_local_settings.__all__)
         else:
             names = {n for n in airflow_local_settings.__dict__ if not n.startswith("__")}
-
-        if "policy" in names and "task_policy" not in names:
-            warnings.warn(
-                "Using `policy` in airflow_local_settings.py is deprecated. "
-                "Please rename your `policy` to `task_policy`.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            setattr(airflow_local_settings, "task_policy", airflow_local_settings.policy)
-            names.remove("policy")
 
         plugin_functions = policies.make_plugin_from_local_settings(
             POLICY_PLUGIN_MANAGER, airflow_local_settings, names

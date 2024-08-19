@@ -35,14 +35,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.3.0
+.....
+
+Latest change: 2024-08-13
+
+=================================================================================================  ===========  ==========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================
+`6570c6d1bb <https://github.com/apache/airflow/commit/6570c6d1bb620c6a952a16743c7168c775f6ad70>`_  2024-08-13   ``Remove deprecated SubDags (#41390)``
+`090607d92a <https://github.com/apache/airflow/commit/090607d92a7995c75b9d25f5324d11a3dae683ce>`_  2024-08-08   ``Feature: Allow set Dag Run resource into Dag Level permission (#40703)``
+=================================================================================================  ===========  ==========================================================================
+
 1.2.2
 .....
 
-Latest change: 2024-07-25
+Latest change: 2024-07-28
 
 =================================================================================================  ===========  =====================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =====================================================================================
+`7126678e87 <https://github.com/apache/airflow/commit/7126678e87c11665c06ec29595472cfaa0c7fdd6>`_  2024-07-28   ``Prepare Providers docs ad hoc release (#41074)``
 `95cab23792 <https://github.com/apache/airflow/commit/95cab23792c80f0ecf980ac0a74b8d08431fb3bb>`_  2024-07-25   ``Bug fix: sync perm command not able to use custom security manager (#41020)``
 `6684481c67 <https://github.com/apache/airflow/commit/6684481c67f6a21a72e7f1512b450a433c5313b5>`_  2024-07-20   ``AIP-44 make database isolation mode work in Breeze (#40894)``
 `d029e77f2f <https://github.com/apache/airflow/commit/d029e77f2fd704bec4f4797b09d54c5c824a8536>`_  2024-07-15   ``Bump version checked by FAB provider on logout CSRF protection to 2.10.0 (#40784)``

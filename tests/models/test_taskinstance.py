@@ -1443,7 +1443,10 @@ class TestTaskInstance:
     # Parameterized tests to check for the correct firing
     # of the trigger_rule under various circumstances of mapped task
     # Numeric fields are in order:
-    #   successes, skipped, failed, upstream_failed, done,removed
+    #   successes, skipped, failed, upstream_failed, done,remove
+    # Does not work for database isolation mode because there is local test monkeypatching of upstream_failed
+    # That never gets propagated to internal_api
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.parametrize(
         "trigger_rule, upstream_states, flag_upstream_failed, expect_state, expect_completed",
         [
@@ -1540,6 +1543,7 @@ class TestTaskInstance:
         ti = dr.get_task_instance("do_something_else", session=session)
         ti.map_index = 0
         base_task = ti.task
+
         for map_index in range(1, 5):
             ti = TaskInstance(base_task, run_id=dr.run_id, map_index=map_index)
             session.add(ti)

@@ -35,14 +35,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.4.0
+.....
+
+Latest change: 2024-08-14
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`530495c45b <https://github.com/apache/airflow/commit/530495c45b3094b38a7b3e37eeab2de8c21c64d7>`_  2024-08-14   ``Describe behaviour in docstring correctly (#41458)``
+`6570c6d1bb <https://github.com/apache/airflow/commit/6570c6d1bb620c6a952a16743c7168c775f6ad70>`_  2024-08-13   ``Remove deprecated SubDags (#41390)``
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+`2b1ae5f811 <https://github.com/apache/airflow/commit/2b1ae5f811457f95aefb589f9d85dd0eac58267f>`_  2024-08-12   ``reorder docstring of 'SparkKubernetesOperator' (#41372)``
+=================================================================================================  ===========  =======================================================================
+
 8.3.4
 .....
 
-Latest change: 2024-08-02
+Latest change: 2024-08-03
 
 =================================================================================================  ===========  ==========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
 `f9c1c61537 <https://github.com/apache/airflow/commit/f9c1c615377869120382905ec97e38e7e7916678>`_  2024-08-02   ``Pass content of kube/config file to triggerer as a dictionary (#41178)``
 `4ef847b7d2 <https://github.com/apache/airflow/commit/4ef847b7d23f9f5a62e02690972fcb5c6a3dcdac>`_  2024-07-31   ``Fix confusing log message in kubernetes executor (#41035)``
 `b014077fe3 <https://github.com/apache/airflow/commit/b014077fe31853b857a081f18a56552abdae3427>`_  2024-07-31   ``Fix ApiException handling when adopting completed pods (#41109)``

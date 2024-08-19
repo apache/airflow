@@ -42,14 +42,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.22.0
+.......
+
+Latest change: 2024-08-16
+
+=================================================================================================  ===========  ====================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================================
+`55d49cc12f <https://github.com/apache/airflow/commit/55d49cc12f31f669a5bd2b3a4b8e66e97a406077>`_  2024-08-16   ``Refactor DataprocCreateBatchOperator and Dataproc system tests (#41527)``
+`b1e506b1a7 <https://github.com/apache/airflow/commit/b1e506b1a7dd49ecdbefe0463a05e3dbbcb02f31>`_  2024-08-13   ``fix(providers/google): add missing sync_hook_class to CloudDataTransferServiceAsyncHook (#41417)``
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+`0aad0c8107 <https://github.com/apache/airflow/commit/0aad0c81078530a3512612d6424e1dcbd01f6752>`_  2024-08-10   ``Add 'CloudRunServiceHook' and 'CloudRunCreateServiceOperator' (#40008)``
+`16abb911e8 <https://github.com/apache/airflow/commit/16abb911e8f6a8b44fff519612b75ef612a58c79>`_  2024-08-06   ``Upgrade package gcloud-aio-auth>=5.2.0 (#41262)``
+=================================================================================================  ===========  ====================================================================================================
+
 10.21.1
 .......
 
-Latest change: 2024-07-30
+Latest change: 2024-08-03
 
 =================================================================================================  ===========  ========================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================================================
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
 `8f616551ca <https://github.com/apache/airflow/commit/8f616551cadbaee53b1bb5952936c163093b0b40>`_  2024-07-30   ``Fix cloudsql-query system tests (#41092)``
 `7126678e87 <https://github.com/apache/airflow/commit/7126678e87c11665c06ec29595472cfaa0c7fdd6>`_  2024-07-28   ``Prepare Providers docs ad hoc release (#41074)``
 `6e3bc84905 <https://github.com/apache/airflow/commit/6e3bc84905f7671ea60aa7e612ddf8c4095b70b8>`_  2024-07-26   ``fix unnecessary imports for CloudSQL hook (#41009)``

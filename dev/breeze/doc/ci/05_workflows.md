@@ -227,7 +227,6 @@ code.
 | Build CI images                 | Builds images in-workflow (not in the build images)      |          | Yes      | Yes (1)    | Yes (4)          |
 | Generate constraints/CI verify  | Generate constraints for the build and verify CI image   | Yes (2)  | Yes (2)  | Yes (2)    | Yes (2)          |
 | Build PROD images               | Builds images in-workflow (not in the build images)      |          | Yes      | Yes (1)    | Yes (4)          |
-| Build Bullseye PROD images      | Builds images based on Bullseye debian                   |          | Yes      | Yes        | Yes              |
 | Run breeze tests                | Run unit tests for Breeze                                | Yes      | Yes      | Yes        | Yes              |
 | Test OpenAPI client gen         | Tests if OpenAPIClient continues to generate             | Yes      | Yes      | Yes        | Yes              |
 | React WWW tests                 | React UI tests for new Airflow UI                        | Yes      | Yes      | Yes        | Yes              |

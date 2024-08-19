@@ -22,9 +22,10 @@ description: |
     `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
 
 state: ready
-source-date-epoch: 1722664831
+source-date-epoch: 1723970557
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.11.0
   - 4.10.3
   - 4.10.2
   - 4.10.1
