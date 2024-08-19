@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-18T07:45:39.426986
+# This constraints file was automatically generated on 2024-08-19T02:15:10.470213
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -235,7 +235,7 @@ blinker==1.8.2
 boto3==1.34.131
 botocore==1.34.131
 cachelib==0.9.0
-cachetools==5.4.0
+cachetools==5.5.0
 cassandra-driver==3.29.1
 cattrs==23.2.3
 celery==5.4.0
@@ -314,7 +314,7 @@ google-api-core==2.19.1
 google-api-python-client==2.141.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
-google-auth==2.33.0
+google-auth==2.34.0
 google-cloud-aiplatform==1.62.0
 google-cloud-appengine-logging==1.4.5
 google-cloud-audit-log==0.2.5
@@ -539,7 +539,6 @@ pure_eval==0.2.3
 py-partiql-parser==0.5.5
 py4j==0.10.9.7
 pyOpenSSL==24.2.1
-pyarrow-hotfix==0.6
 pyarrow==17.0.0
 pyasn1-modules==0.3.0
 pyasn1==0.5.1
@@ -553,7 +552,7 @@ pydruid==0.6.9
 pyenchant==3.2.2
 pyexasol==0.26.0
 pygraphviz==1.13
-pyiceberg==0.7.0
+pyiceberg==0.7.1
 pykerberos==1.2.4
 pymongo==4.8.0
 pymssql==2.3.0
