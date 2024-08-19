@@ -24,7 +24,7 @@ from airflow.decorators import task
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 DEFAULT_DATE = datetime(2022, 8, 17)

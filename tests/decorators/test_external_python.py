@@ -29,7 +29,7 @@ import pytest
 from airflow.decorators import setup, task, teardown
 from airflow.utils import timezone
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
