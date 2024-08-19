@@ -40,9 +40,7 @@ class TestAirbyteTriggerSyncOp:
     @mock.patch("airbyte_api.jobs.Jobs.create_job")
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.wait_for_job", return_value=None)
     def test_execute(self, mock_wait_for_job, mock_submit_sync_connection):
-        conn = Connection(
-            conn_id=self.airbyte_conn_id, conn_type="airbyte", host="airbyte.com", port="9000", schema="http"
-        )
+        conn = Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="airbyte.com")
         db.merge_conn(conn)
         mock_response = mock.Mock()
         mock_response.job_response = JobResponse(
