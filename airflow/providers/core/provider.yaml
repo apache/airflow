@@ -21,6 +21,8 @@ name: Core
 description: |
     Airflow Core Provider
 state: ready
+source-date-epoch: 1718603992
+
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 1.0.0
