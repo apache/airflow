@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import Column, Integer, MetaData, String, text
 from sqlalchemy.orm import registry
 
-from airflow import settings
 from airflow.configuration import conf
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -126,6 +125,8 @@ class BaseDBManager(LoggingMixin, metaclass=AttributeCheckerMeta):
 
     def get_alembic_config(self):
         from alembic.config import Config
+
+        from airflow import settings
 
         config = Config(self.alembic_file)
         config.set_main_option("script_location", self.migration_dir.replace("%", "%%"))
