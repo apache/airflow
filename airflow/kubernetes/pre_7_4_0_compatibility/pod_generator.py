@@ -566,7 +566,7 @@ class PodGenerator:
                 pod = yaml.safe_load(stream)
         else:
             pod = None
-            log.warning("Model file %s does not exist", path)
+            log.info("Pod template file %s does not exist", path)
 
         return PodGenerator.deserialize_model_dict(pod)
 
