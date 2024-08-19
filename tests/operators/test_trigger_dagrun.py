@@ -155,6 +155,24 @@ class TestDagRunOperator:
             assert dagrun.run_id == DagRun.generate_run_id(DagRunType.MANUAL, dagrun.logical_date)
             self.assert_extra_link(dagrun, task, session)
 
+    def test_trigger_dagrun_custom_run_id(self, dag_maker):
+        with dag_maker(
+            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
+        ) as dag:
+            task = TriggerDagRunOperator(
+                task_id="test_task",
+                trigger_dag_id=TRIGGERED_DAG_ID,
+                trigger_run_id="custom_run_id",
+            )
+        self.re_sync_triggered_dag_to_db(dag, dag_maker)
+        dag_maker.create_dagrun()
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        with create_session() as session:
+            dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
+            assert len(dagruns) == 1
+            assert dagruns[0].run_id == "custom_run_id"
+
     def test_trigger_dagrun_with_logical_date(self, dag_maker):
         """Test TriggerDagRunOperator with custom logical_date."""
         custom_logical_date = timezone.datetime(2021, 1, 2, 3, 4, 5)
