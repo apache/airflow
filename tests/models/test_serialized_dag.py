@@ -273,6 +273,7 @@ class TestSerializedDagModel:
         with DAG(
             dag_id="example",
             start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+            schedule=None,
         ) as dag:
             t1 = PythonOperator(
                 task_id="t1",
