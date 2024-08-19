@@ -39,6 +39,7 @@ from openai.types.beta.threads import Message, Run
 from openai.types.beta.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
 from openai.types.chat import ChatCompletion
 
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.openai.hooks.openai import OpenAIHook
 
@@ -55,7 +56,19 @@ METADATA = {"modified": "true", "user": "abc123"}
 VECTOR_STORE_ID = "test_vs_abc123"
 VECTOR_STORE_NAME = "Test Vector Store"
 VECTOR_FILE_STORE_BATCH_ID = "test_vfsb_abc123"
-BATCH_ID = "test_br_abc123"
+BATCH_ID = "test_batch_abc123"
+
+
+def create_batch(status) -> Batch:
+    return Batch(
+        id=BATCH_ID,
+        object="batch",
+        completion_window="24h",
+        created_at=1699061776,
+        endpoint="/v1/chat/completions",
+        input_file_id=FILE_ID,
+        status=status,
+    )
 
 
 @pytest.fixture
@@ -262,17 +275,22 @@ def mock_vector_file_store_list():
     )
 
 
-@pytest.fixture
-def mock_batch():
-    return Batch(
-        id=BATCH_ID,
-        object="batch",
-        completion_window="24",
-        created_at=1699061776,
-        endpoint="/v1/chat/completions",
-        input_file_id=FILE_ID,
-        status="completed",
-    )
+@pytest.fixture(
+    params=[
+        "completed",
+        "expired",
+        "cancelling",
+        "cancelled",
+        "failed",
+    ]
+)
+def mock_terminated_batch(request):
+    return create_batch(request.param)
+
+
+@pytest.fixture(params=["validating", "in_progress", "finalizing"])
+def mock_wip_batch(request):
+    return create_batch(request.param)
 
 
 def test_create_chat_completion(mock_openai_hook, mock_completion):
@@ -509,22 +527,42 @@ def test_delete_vector_store_file(mock_openai_hook):
     assert vector_store_file_deleted.deleted
 
 
-def test_create_batch(mock_openai_hook, mock_batch):
-    mock_openai_hook.conn.batches.create.return_value = mock_batch
+def test_create_batch(mock_openai_hook, mock_terminated_batch):
+    mock_openai_hook.conn.batches.create.return_value = mock_terminated_batch
     batch = mock_openai_hook.create_batch(endpoint="/v1/chat/completions", file_id=FILE_ID)
-    assert batch.id == mock_batch.id
+    assert batch.id == mock_terminated_batch.id
 
 
-def test_get_batch(mock_openai_hook, mock_batch):
-    mock_openai_hook.conn.batches.retrieve.return_value = mock_batch
+def test_get_batch(mock_openai_hook, mock_terminated_batch):
+    mock_openai_hook.conn.batches.retrieve.return_value = mock_terminated_batch
     batch = mock_openai_hook.get_batch(batch_id=BATCH_ID)
-    assert batch.id == mock_batch.id
+    assert batch.id == mock_terminated_batch.id
 
 
-def test_cancel_batch(mock_openai_hook, mock_batch):
-    mock_openai_hook.conn.batches.cancel.return_value = mock_batch
+def test_cancel_batch(mock_openai_hook, mock_terminated_batch):
+    mock_openai_hook.conn.batches.cancel.return_value = mock_terminated_batch
     batch = mock_openai_hook.cancel_batch(batch_id=BATCH_ID)
-    assert batch.id == mock_batch.id
+    assert batch.id == mock_terminated_batch.id
+
+
+def test_wait_for_finished_batch(mock_openai_hook, mock_terminated_batch):
+    mock_openai_hook.conn.batches.retrieve.return_value = mock_terminated_batch
+    if mock_terminated_batch.status == "completed":
+        try:
+            mock_openai_hook.wait_for_batch(batch_id=BATCH_ID)
+        except Exception as e:
+            pytest.fail(f"Should not have raised exception: {e}")
+    else:
+        with pytest.raises(AirflowException, match="Batch failed"):
+            mock_openai_hook.wait_for_batch(batch_id=BATCH_ID, wait_seconds=0.01, timeout=0.1)
+
+
+def test_wait_for_in_progress_batch_timeout(mock_openai_hook, mock_wip_batch):
+    mock_openai_hook.conn.batches.retrieve.return_value = mock_wip_batch
+    with pytest.raises(AirflowException, match="Timeout"):
+        mock_openai_hook.wait_for_batch(batch_id=BATCH_ID, wait_seconds=0.2, timeout=0.01)
+    assert mock_openai_hook.conn.batches.retrieve.call_count >= 1
+    assert mock_openai_hook.conn.batches.cancel.call_count == 1
 
 
 def test_openai_hook_test_connection(mock_openai_hook):

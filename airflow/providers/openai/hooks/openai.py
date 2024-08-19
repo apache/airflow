@@ -466,14 +466,16 @@ class OpenAIHook(BaseHook):
             if batch.status == BatchStatus.COMPLETED:
                 break
             if batch.status == BatchStatus.FAILED:
-                raise AirflowException(f"Batch failed:\n{batch}")
+                raise AirflowException(f"Batch failed - \n{batch_id}")
             elif batch.status in {BatchStatus.CANCELLED, BatchStatus.CANCELLING}:
-                raise AirflowException(f"Batch was cancelled:\n{batch}")
+                raise AirflowException(f"Batch failed - batch was cancelled:\n{batch_id}")
             elif batch.status == BatchStatus.EXPIRED:
-                raise AirflowException(f"Batch couldn't be completed within the hour time window :\n{batch}")
+                raise AirflowException(
+                    f"Batch failed - batch couldn't be completed within the hour time window :\n{batch_id}"
+                )
             else:
                 raise AirflowException(
-                    f"Encountered unexpected status `{batch.status}` for batch_id `{batch_id}`"
+                    f"Batch failed - encountered unexpected status `{batch.status}` for batch_id `{batch_id}`"
                 )
 
     def cancel_batch(self, batch_id: str) -> Batch:

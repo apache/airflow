@@ -84,7 +84,7 @@ class OpenAITriggerBatchOperator(BaseOperator):
     """
     Operator that triggers an OpenAI Batch API endpoint and waits for the batch to complete.
 
-    :param batch_id: Required. The ID of the batch to trigger.
+    :param file_id: Required. The ID of the batch file to trigger.
     :param endpoint: Required. The OpenAI Batch API endpoint to trigger.
     :param conn_id: Optional. The OpenAI connection ID to use. Defaults to 'openai_default'.
     :param deferrable: Optional. Run operator in the deferrable mode.
@@ -92,13 +92,17 @@ class OpenAITriggerBatchOperator(BaseOperator):
         Defaults to 3 seconds.
     :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
         Only used when ``deferrable`` is False. Defaults to 24 hour, which is the SLA for OpenAI Batch API.
+
+    .. seealso::
+        For more information on how to use this operator, please take a look at the guide:
+        :ref:`howto/operator:OpenAITriggerBatchOperator`
     """
 
-    template_fields: Sequence[str] = ("batch_id",)
+    template_fields: Sequence[str] = ("file_id",)
 
     def __init__(
         self,
-        batch_id: str,
+        file_id: str,
         endpoint: Literal["/v1/chat/completions", "/v1/embeddings", "/v1/completions"],
         conn_id: str = OpenAIHook.default_conn_name,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
@@ -108,18 +112,21 @@ class OpenAITriggerBatchOperator(BaseOperator):
     ):
         super().__init__(**kwargs)
         self.conn_id = conn_id
-        self.batch_id = batch_id
+        self.file_id = file_id
         self.endpoint = endpoint
         self.deferrable = deferrable
         self.wait_seconds = wait_seconds
         self.timeout = timeout
+        self.batch_id: str | None = None
 
     @cached_property
     def hook(self) -> OpenAIHook:
         """Return an instance of the OpenAIHook."""
         return OpenAIHook(conn_id=self.conn_id)
 
-    def execute(self, context: Context) -> Any:
+    def execute(self, context: Context) -> str:
+        batch = self.hook.create_batch(file_id=self.file_id, endpoint=self.endpoint)
+        self.batch_id = batch.id
         if self.deferrable:
             self.defer(
                 timeout=self.execution_timeout,
@@ -136,7 +143,7 @@ class OpenAITriggerBatchOperator(BaseOperator):
             self.hook.wait_for_batch(self.batch_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
         return self.batch_id
 
-    def execute_complete(self, context: Context, event: Any = None) -> None:
+    def execute_complete(self, context: Context, event: Any = None) -> str:
         """
         Invoke this callback when the trigger fires; return immediately.
 
@@ -147,7 +154,7 @@ class OpenAITriggerBatchOperator(BaseOperator):
             raise AirflowException(event["message"])
 
         self.log.info("%s completed successfully.", self.task_id)
-        return None
+        return event["batch_id"]
 
     def on_kill(self):
         """Cancel the batch if task is cancelled."""

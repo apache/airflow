@@ -65,7 +65,7 @@ class OpenAIBatchTrigger(BaseTrigger):
                     yield TriggerEvent(
                         {
                             "status": "error",
-                            "message": f"Batch run {self.batch_id} has not reached a terminal status after "
+                            "message": f"Batch {self.batch_id} has not reached a terminal status after "
                             f"{time.time() - self.end_time} seconds.",
                             "batch_id": self.batch_id,
                         }
@@ -76,7 +76,7 @@ class OpenAIBatchTrigger(BaseTrigger):
                 yield TriggerEvent(
                     {
                         "status": "success",
-                        "message": f"Batch run {self.batch_id} has completed successfully.",
+                        "message": f"Batch {self.batch_id} has completed successfully.",
                         "batch_id": self.batch_id,
                     }
                 )
@@ -84,19 +84,23 @@ class OpenAIBatchTrigger(BaseTrigger):
                 yield TriggerEvent(
                     {
                         "status": "cancelled",
-                        "message": f"Batch run {self.batch_id} has been cancelled.",
+                        "message": f"Batch {self.batch_id} has been cancelled.",
                         "batch_id": self.batch_id,
                     }
                 )
             elif batch.status == BatchStatus.FAILED:
                 yield TriggerEvent(
-                    {"status": "error", "message": f"Batch failed:\n{batch}", "batch_id": self.batch_id}
+                    {
+                        "status": "error",
+                        "message": f"Batch failed:\n{self.batch_id}",
+                        "batch_id": self.batch_id,
+                    }
                 )
             elif batch.status == BatchStatus.EXPIRED:
                 yield TriggerEvent(
                     {
                         "status": "error",
-                        "message": f"Batch couldn't be completed within the hour time window :\n{batch}",
+                        "message": f"Batch couldn't be completed within the hour time window :\n{self.batch_id}",
                         "batch_id": self.batch_id,
                     }
                 )
@@ -104,7 +108,7 @@ class OpenAIBatchTrigger(BaseTrigger):
                 yield TriggerEvent(
                     {
                         "status": "error",
-                        "message": f"Batch run {self.batch_id} has failed.",
+                        "message": f"Batch {self.batch_id} has failed.",
                         "batch_id": self.batch_id,
                     }
                 )
