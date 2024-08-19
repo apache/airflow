@@ -40,7 +40,7 @@ from airflow.assets import (
     BaseAsset,
     Dataset,
     DatasetAlias,
-    _DatasetAliasCondition,
+    _AssetAliasCondition,
 )
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.compat.functools import cache
@@ -1046,7 +1046,7 @@ class DependencyDetector:
                     )
                 )
             elif isinstance(obj, DatasetAlias):
-                cond = _DatasetAliasCondition(obj.name)
+                cond = _AssetAliasCondition(obj.name)
 
                 deps.extend(cond.iter_dag_dependencies(source=task.dag_id, target=""))
         return deps

@@ -328,7 +328,7 @@ class _AssetBooleanCondition(BaseAsset):
             raise TypeError("expect asset expressions in condition")
 
         self.objects = [
-            _DatasetAliasCondition(obj.name) if isinstance(obj, DatasetAlias) else obj for obj in objects
+            _AssetAliasCondition(obj.name) if isinstance(obj, DatasetAlias) else obj for obj in objects
         ]
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
@@ -381,9 +381,9 @@ class AssetAny(_AssetBooleanCondition):
         return {"any": [o.as_expression() for o in self.objects]}
 
 
-class _DatasetAliasCondition(AssetAny):
+class _AssetAliasCondition(AssetAny):
     """
-    Use to expand DataAlias as AssetAny of its resolved Datasets.
+    Use to expand AssetAlias as AssetAny of its resolved Datasets.
 
     :meta private:
     """
@@ -393,11 +393,11 @@ class _DatasetAliasCondition(AssetAny):
         self.objects = expand_alias_to_datasets(name)
 
     def __repr__(self) -> str:
-        return f"_DatasetAliasCondition({', '.join(map(str, self.objects))})"
+        return f"_AssetAliasCondition({', '.join(map(str, self.objects))})"
 
     def as_expression(self) -> Any:
         """
-        Serialize the dataset into its scheduling expression.
+        Serialize the asset alias into its scheduling expression.
 
         :meta private:
         """
@@ -408,7 +408,7 @@ class _DatasetAliasCondition(AssetAny):
 
     def iter_dag_dependencies(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
         """
-        Iterate a dataset alias and its resolved datasets  as dag dependency.
+        Iterate an asset alias and its resolved assets as dag dependency.
 
         :meta private:
         """
@@ -416,14 +416,14 @@ class _DatasetAliasCondition(AssetAny):
             for obj in self.objects:
                 dataset = cast(Dataset, obj)
                 uri = dataset.uri
-                # dataset
+                # asset
                 yield DagDependency(
                     source=f"dataset-alias:{self.name}" if source else "dataset",
                     target="dataset" if source else f"dataset-alias:{self.name}",
                     dependency_type="dataset",
                     dependency_id=uri,
                 )
-                # dataset alias
+                # asset alias
                 yield DagDependency(
                     source=source or f"dataset:{uri}",
                     target=target or f"dataset:{uri}",

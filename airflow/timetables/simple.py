@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Collection, Sequence
 
-from airflow.assets import DatasetAlias, _DatasetAliasCondition
+from airflow.assets import DatasetAlias, _AssetAliasCondition
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
 from airflow.utils import timezone
 
@@ -169,7 +169,7 @@ class DatasetTriggeredTimetable(_TrivialTimetable):
         super().__init__()
         self.dataset_condition = assets
         if isinstance(self.dataset_condition, DatasetAlias):
-            self.dataset_condition = _DatasetAliasCondition(self.dataset_condition.name)
+            self.dataset_condition = _AssetAliasCondition(self.dataset_condition.name)
 
         if not next(self.dataset_condition.iter_assets(), False):
             self._summary = DatasetTriggeredTimetable.UNRESOLVED_ALIAS_SUMMARY
