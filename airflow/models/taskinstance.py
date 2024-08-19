@@ -1550,11 +1550,21 @@ def _run_finished_callback(
     if callbacks:
         callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
         for callback in callbacks:
-            log.info("Executing %s callback", callback.__name__)
+            if hasattr(callback, "__name__"):
+                log.info("Executing %s callback", callback.__name__)
+            elif hasattr(callback, "__class__"):
+                log.info("Executing %s callback", callback.__class__.__name__)
+            else:
+                log.info("Executing %s callback", callback.__code__)
             try:
                 callback(context)
             except Exception:
-                log.exception("Error when executing %s callback", callback.__name__)  # type: ignore[attr-defined]
+                if hasattr(callback, "__name__"):
+                    log.exception("Error when executing %s callback", callback.__name__)
+                elif hasattr(callback, "__class__"):
+                    log.exception("Error when executing %s callback", callback.__class__.__name__)
+                else:
+                    log.exception("Error when executing %s callback", callback.__code__)
 
 
 def _log_state(*, task_instance: TaskInstance | TaskInstancePydantic, lead_msg: str = "") -> None:
