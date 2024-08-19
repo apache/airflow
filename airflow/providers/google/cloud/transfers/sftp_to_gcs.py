@@ -109,7 +109,7 @@ class SFTPToGCSOperator(BaseOperator):
         self.move_object = move_object
         self.impersonation_chain = impersonation_chain
         self.sftp_prefetch = sftp_prefetch
-        self.fail_on_sftp_file_not_exist=fail_on_sftp_file_not_exist
+        self.fail_on_sftp_file_not_exist = fail_on_sftp_file_not_exist
 
     def execute(self, context: Context):
         self.destination_path = self._set_destination_path(self.destination_path)
@@ -159,14 +159,14 @@ class SFTPToGCSOperator(BaseOperator):
             destination_object,
         )
 
-        file_existence=True
+        file_existence = True
         with NamedTemporaryFile("w") as tmp:
             try:
                 sftp_hook.retrieve_file(source_path, tmp.name, prefetch=self.sftp_prefetch)
             except FileNotFoundError:
                 if not self.fail_on_sftp_file_not_exist:
                     self.log.info("File %s does not exist in SFTP server", source_path)
-                    file_existence=False
+                    file_existence = False
                 else:
                     raise FileNotFoundError
             if file_existence:
