@@ -26,7 +26,7 @@ import time_machine
 
 from airflow.models import DagBag
 from airflow.models.dag import DAG
-from airflow.providers.core.time.sensors.time_delta import TimeDeltaSensor, TimeDeltaSensorAsync
+from airflow.providers.essentials.time.sensors.time_delta import TimeDeltaSensor, TimeDeltaSensorAsync
 from airflow.utils.timezone import datetime
 
 pytestmark = pytest.mark.db_test

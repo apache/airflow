@@ -38,7 +38,7 @@ from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
-from airflow.providers.core.time.sensors.time_sensor import TimeSensor
+from airflow.providers.essentials.time.sensors.time_sensor import TimeSensor
 from airflow.sensors.external_task import (
     ExternalTaskMarker,
     ExternalTaskSensor,

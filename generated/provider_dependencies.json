@@ -428,16 +428,6 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
-  "core": {
-    "deps": [
-      "apache-airflow>=2.8.0"
-    ],
-    "devel-deps": [],
-    "plugins": [],
-    "cross-providers-deps": [],
-    "excluded-python-versions": [],
-    "state": "ready"
-  },
   "databricks": {
     "deps": [
       "aiohttp>=3.9.2, <4",
@@ -552,6 +542,16 @@
     "cross-providers-deps": [
       "common.sql"
     ],
+    "excluded-python-versions": [],
+    "state": "ready"
+  },
+  "essentials": {
+    "deps": [
+      "apache-airflow>=2.8.0"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [],
     "excluded-python-versions": [],
     "state": "ready"
   },

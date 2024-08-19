@@ -23,9 +23,9 @@ import pendulum
 
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
-from airflow.providers.core.time.sensors.time_delta import TimeDeltaSensor, TimeDeltaSensorAsync
-from airflow.providers.core.time.sensors.time_sensor import TimeSensor, TimeSensorAsync
-from airflow.providers.core.time.sensors.weekday import DayOfWeekSensor
+from airflow.providers.essentials.time.sensors.time_delta import TimeDeltaSensor, TimeDeltaSensorAsync
+from airflow.providers.essentials.time.sensors.time_sensor import TimeSensor, TimeSensorAsync
+from airflow.providers.essentials.time.sensors.weekday import DayOfWeekSensor
 from airflow.sensors.bash import BashSensor
 from airflow.sensors.filesystem import FileSensor
 from airflow.sensors.python import PythonSensor
