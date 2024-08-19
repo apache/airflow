@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any, Literal, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airbyte_api.models import JobStatusEnum
 
