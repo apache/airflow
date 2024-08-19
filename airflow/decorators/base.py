@@ -511,13 +511,13 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             partial_kwargs.get("retry_delay", DEFAULT_RETRY_DELAY),
             key="retry_delay",
         )
-        max_retry_delay = partial_kwargs.get("max_retry_delay", None)
+        max_retry_delay = partial_kwargs.get("max_retry_delay")
         partial_kwargs["max_retry_delay"] = (
             max_retry_delay
             if max_retry_delay is None
             else coerce_timedelta(max_retry_delay, key="max_retry_delay")
         )
-        partial_kwargs["resources"] = coerce_resources(partial_kwargs.get("resources", None))
+        partial_kwargs["resources"] = coerce_resources(partial_kwargs.get("resources"))
         partial_kwargs.setdefault("executor_config", {})
         partial_kwargs.setdefault("op_args", [])
         partial_kwargs.setdefault("op_kwargs", {})
