@@ -105,8 +105,6 @@ class TestDagCode:
     def _compare_example_dags(self, example_dags):
         with create_session() as session:
             for dag in example_dags.values():
-                if dag.is_subdag:
-                    dag.fileloc = dag.parent_dag.fileloc
                 assert DagCode.has_dag(dag.fileloc)
                 dag_fileloc_hash = DagCode.dag_fileloc_hash(dag.fileloc)
                 result = (

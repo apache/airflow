@@ -546,7 +546,6 @@ class TestClearTasks:
             (TaskInstanceState.SCHEDULED, TaskInstanceState.FAILED),
             (None, TaskInstanceState.FAILED),
             (TaskInstanceState.RESTARTING, TaskInstanceState.FAILED),
-            (TaskInstanceState.SHUTDOWN, TaskInstanceState.FAILED),
         ],
     )
     def test_task_instance_history_record(self, state, state_recorded, dag_maker):
@@ -632,6 +631,7 @@ class TestClearTasks:
         for i in range(num_of_dags):
             dag = DAG(
                 f"test_dag_clear_{i}",
+                schedule=datetime.timedelta(days=1),
                 start_date=DEFAULT_DATE,
                 end_date=DEFAULT_DATE + datetime.timedelta(days=10),
             )
