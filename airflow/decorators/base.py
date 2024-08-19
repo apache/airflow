@@ -438,14 +438,14 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             task_params=task_kwargs.pop("params", None),
             task_default_args=task_kwargs.pop("default_args", None),
         )
-        partial_kwargs = task_kwargs.copy()
-        partial_kwargs.update(
-            default_args=default_args,
-            is_setup=self.is_setup,
-            is_teardown=self.is_teardown,
-            on_failure_fail_dagrun=self.on_failure_fail_dagrun,
-        )
+        partial_kwargs: dict[str, Any] = {
+            "is_setup": self.is_setup,
+            "is_teardown": self.is_teardown,
+            "on_failure_fail_dagrun": self.on_failure_fail_dagrun,
+        }
         partial_kwargs.update({key: value for key, value in default_args.items() if key in _PARTIAL_DEFAULTS})
+        partial_kwargs.update(task_kwargs)
+        partial_kwargs["default_args"] = default_args
 
         task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
         if task_group:
@@ -454,27 +454,29 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         # Logic here should be kept in sync with BaseOperatorMeta.partial().
         if "task_concurrency" in partial_kwargs:
             raise TypeError("unexpected argument: task_concurrency")
-        if default_args.get("wait_for_downstream"):
+        if partial_kwargs.get("wait_for_downstream"):
             partial_kwargs["depends_on_past"] = True
-        start_date = timezone.convert_to_utc(default_args.pop("start_date", None))
-        end_date = timezone.convert_to_utc(default_args.pop("end_date", None))
-        if default_args.get("pool") is None:
+        start_date = default_args.pop("start_date", None)
+        start_date = partial_kwargs.pop("start_date", start_date)
+        start_date = timezone.convert_to_utc(start_date)
+        end_date = default_args.pop("end_date", None)
+        end_date = partial_kwargs.pop("end_date", end_date)
+        end_date = timezone.convert_to_utc(end_date)
+        if partial_kwargs.get("pool") is None and default_args.get("pool") is None:
             partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME
-        default_args["retries"] = partial_kwargs["retries"] = parse_retries(
-            default_args.get("retries", DEFAULT_RETRIES)
-        )
-        default_args["retry_delay"] = partial_kwargs["retry_delay"] = coerce_timedelta(
-            default_args.get("retry_delay", DEFAULT_RETRY_DELAY),
+        partial_kwargs["retries"] = parse_retries(partial_kwargs.get("retries", DEFAULT_RETRIES))
+        partial_kwargs["retry_delay"] = coerce_timedelta(
+            partial_kwargs.get("retry_delay", DEFAULT_RETRY_DELAY),
             key="retry_delay",
         )
-        max_retry_delay = default_args.get("max_retry_delay")
-        default_args["max_retry_delay"] = partial_kwargs["max_retry_delay"] = (
+        max_retry_delay = partial_kwargs.get("max_retry_delay", default_args.get("max_retry_delay"))
+        partial_kwargs["max_retry_delay"] = (
             max_retry_delay
             if max_retry_delay is None
             else coerce_timedelta(max_retry_delay, key="max_retry_delay")
         )
-        default_args["resources"] = partial_kwargs["resources"] = coerce_resources(
-            default_args.get("resources")
+        partial_kwargs["resources"] = coerce_resources(
+            partial_kwargs.get("resources", default_args.get("resources"))
         )
         partial_kwargs.setdefault("executor_config", {})
         partial_kwargs.setdefault("op_args", [])
