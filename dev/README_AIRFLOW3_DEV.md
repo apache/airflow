@@ -33,6 +33,10 @@
   - [Merging PRs 2.10.x](#merging-prs-210x)
   - [Merging PRs for Airflow 3](#merging-prs-for-airflow-3)
   - [Merging PRs for Airflow 2.11](#merging-prs-for-airflow-211)
+- [Milestones for PR](#milestones-for-pr)
+  - [Set 2.10.x milestone](#set-210x-milestone)
+  - [Set 2.11 milestone](#set-211-milestone)
+  - [Set 3 milestone](#set-3-milestone)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
