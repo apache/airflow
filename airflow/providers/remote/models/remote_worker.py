@@ -29,6 +29,7 @@ from sqlalchemy import (
 )
 
 from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.exceptions import AirflowException
 from airflow.models.base import Base
 from airflow.serialization.serialized_objects import add_pydantic_class_type_mapping
 from airflow.utils import timezone
@@ -39,6 +40,29 @@ from airflow.utils.sqlalchemy import UtcDateTime
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
+
+
+class RemoteWorkerVersionException(AirflowException):
+    """Signal a version mismatch between core and remote site."""
+
+    pass
+
+
+class RemoteWorkerState(str, Enum):
+    """Status of a remote worker instance."""
+
+    STARTING = "starting"
+    """Remote worker is in initialization."""
+    RUNNING = "running"
+    """Remote worker is actively running a task."""
+    IDLE = "idle"
+    """Remote worker is active and waiting for a task."""
+    TERMINATING = "terminating"
+    """Remote worker is completing work and stopping."""
+    OFFLINE = "offline"
+    """Remote worker was show down."""
+    UNKNOWN = "unknown"
+    """No heartbeat signal from worker for some time, remote worker probably down."""
 
 
 class RemoteWorkerModel(Base, LoggingMixin):
@@ -76,23 +100,6 @@ class RemoteWorkerModel(Base, LoggingMixin):
         return json.loads(self.sysinfo) if self.sysinfo else None
 
 
-class RemoteWorkerState(str, Enum):
-    """Status of a remote worker instance."""
-
-    STARTING = "starting"
-    """Remote worker is in initialization."""
-    RUNNING = "running"
-    """Remote worker is actively running a task."""
-    IDLE = "idle"
-    """Remote worker is active and waiting for a task."""
-    TERMINATING = "terminating"
-    """Remote worker is completing work and stopping."""
-    OFFLINE = "offline"
-    """Remote worker was show down."""
-    UNKNOWN = "unknown"
-    """No heartbeat signal from worker for some time, remote worker probably down."""
-
-
 class RemoteWorker(BaseModelPydantic, LoggingMixin):
     """Accessor for remote worker instances as logical model."""
 
@@ -109,17 +116,53 @@ class RemoteWorker(BaseModelPydantic, LoggingMixin):
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 
     @staticmethod
+    def assert_version(sysinfo: dict[str, str]) -> None:
+        """Check if the remote worker version matches the central API site."""
+        from airflow import __version__ as airflow_version
+        from airflow.providers.remote import __version__ as remote_provider_version
+
+        # Note: In future, more stable versions we might be more liberate, for the
+        #       moment we require exact version match for remote worker and core version
+        if "airflow_version" in sysinfo:
+            airflow_remote = sysinfo["airflow_version"]
+            if airflow_remote != airflow_version:
+                raise RemoteWorkerVersionException(
+                    f"Remote worker runs on Airflow {airflow_remote} "
+                    f"and the core runs on {airflow_version}. Rejecting access due to difference."
+                )
+        else:
+            raise RemoteWorkerVersionException("Remote worker does not specify the version it is running on.")
+
+        if "remote_provider_version" in sysinfo:
+            provider_remote = sysinfo["remote_provider_version"]
+            if provider_remote != remote_provider_version:
+                raise RemoteWorkerVersionException(
+                    f"Remote worker runs on Remote Provider {provider_remote} "
+                    f"and the core runs on {remote_provider_version}. Rejecting access due to difference."
+                )
+        else:
+            raise RemoteWorkerVersionException(
+                "Remote worker does not specify the provider version it is running on."
+            )
+
+    @staticmethod
     @internal_api_call
     @provide_session
     def register_worker(
-        worker_name: str, state: RemoteWorkerState, queues: list[str] | None, session: Session = NEW_SESSION
+        worker_name: str,
+        state: RemoteWorkerState,
+        queues: list[str] | None,
+        sysinfo: dict[str, str],
+        session: Session = NEW_SESSION,
     ) -> RemoteWorker:
+        RemoteWorker.assert_version(sysinfo)
         query = select(RemoteWorkerModel).where(RemoteWorkerModel.worker_name == worker_name)
         worker: RemoteWorkerModel = session.scalar(query)
         if not worker:
             worker = RemoteWorkerModel(worker_name=worker_name, state=state, queues=queues)
         worker.state = state
         worker.queues = queues
+        worker.sysinfo = json.dumps(sysinfo)
         worker.last_update = timezone.utcnow()
         session.add(worker)
         return RemoteWorker(
@@ -145,6 +188,7 @@ class RemoteWorker(BaseModelPydantic, LoggingMixin):
         sysinfo: dict[str, str],
         session: Session = NEW_SESSION,
     ):
+        RemoteWorker.assert_version(sysinfo)
         query = select(RemoteWorkerModel).where(RemoteWorkerModel.worker_name == worker_name)
         worker: RemoteWorkerModel = session.scalar(query)
         worker.state = state

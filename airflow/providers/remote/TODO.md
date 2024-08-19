@@ -49,7 +49,7 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
   - [x] Send logs (basic)
   - [ ] Send logs also to TaskFileHandler + Archive logs on completions (DB)
   - [x] Can terminate job
-  - [ ] Check version match
+  - [x] Check version match
   - [ ] Handle SIG-INT/CTRL+C and gracefully terminate and complete job
   - [ ] Add a stop command
 - [x] Web UI
@@ -86,7 +86,7 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
   - [x] Multiple jobs / concurrency
   - [ ] Publish system metrics with heartbeats
   - [ ] Integration into telemetry to send metrics
-- [ ] API token provisioning can be automated
+  - [ ] Be more liberal e.g. on patch version
 - [ ] Test/Support on Windows
 - [ ] Scaling test
 - [ ] Airflow 3 / AIP-72 Migration
