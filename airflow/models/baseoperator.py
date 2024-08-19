@@ -1402,7 +1402,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         jinja_env: jinja2.Environment | None = None,
     ) -> None:
         """
-        Template all attributes listed in *self.template_fields*.
+        Template all attributes listed in *self.template_fields* and params in context.
 
         This mutates the attributes in-place and is irreversible.
 
@@ -2075,9 +2075,9 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
 
     E.g.: suppose you want precedence like so::
 
-            â•­â"€op2â"€â•® â•­â"€op4â"€â•®
-        op1â"€â"¤     â"œâ"€â"œâ"€op5â"€â"¤â"€op7
-            â•°-op3â"€â•¯ â•°-op6â"€â•¯
+            â•­ï¿½"ï¿½op2ï¿½"ï¿½â•® â•­ï¿½"ï¿½op4ï¿½"ï¿½â•®
+        op1ï¿½"ï¿½ï¿½"ï¿½     ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½op5ï¿½"ï¿½ï¿½"ï¿½ï¿½"ï¿½op7
+            â•°-op3ï¿½"ï¿½â•¯ â•°-op6ï¿½"ï¿½â•¯
 
     Then you can accomplish like so::
 
