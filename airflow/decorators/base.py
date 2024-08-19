@@ -462,8 +462,8 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         end_date = default_args.pop("end_date", None)
         end_date = partial_kwargs.pop("end_date", end_date)
         end_date = timezone.convert_to_utc(end_date)
-        if partial_kwargs.get("pool") is None and default_args.get("pool") is None:
-            partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME
+        pool = partial_kwargs.get("pool", default_args.get("pool"))
+        partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME if pool is None else pool
         partial_kwargs["retries"] = parse_retries(partial_kwargs.get("retries", DEFAULT_RETRIES))
         partial_kwargs["retry_delay"] = coerce_timedelta(
             partial_kwargs.get("retry_delay", DEFAULT_RETRY_DELAY),
