@@ -364,9 +364,9 @@ def partial(
         partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME
     if partial_kwargs["pool_slots"] < 1:
         dag_str = ""
-        if partial_kwargs["dag"]:
-            dag_str = f" in dag {partial_kwargs['dag'].dag_id}"
-        raise ValueError(f"pool slots for {partial_kwargs['task_id']}{dag_str} cannot be less than 1")
+        if dag:
+            dag_str = f" in dag {dag.dag_id}"
+        raise ValueError(f"pool slots for {task_id}{dag_str} cannot be less than 1")
     partial_kwargs["retries"] = parse_retries(partial_kwargs["retries"])
     partial_kwargs["retry_delay"] = coerce_timedelta(partial_kwargs["retry_delay"], key="retry_delay")
     if partial_kwargs["max_retry_delay"] is not None:
@@ -522,7 +522,11 @@ class BaseOperatorMeta(abc.ABCMeta):
             partial_desc = vars(new_cls)["partial"]
             if isinstance(partial_desc, _PartialDescriptor):
                 partial_desc.class_method = classmethod(partial)
-        new_cls.__init__ = cls._apply_defaults(new_cls.__init__)
+
+        # We patch `__init__` only if the class defines it.
+        if inspect.getmro(new_cls)[1].__init__ is not new_cls.__init__:
+            new_cls.__init__ = cls._apply_defaults(new_cls.__init__)
+
         return new_cls
 
 
@@ -854,10 +858,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     _dag: DAG | None = None
     task_group: TaskGroup | None = None
-
-    # subdag parameter is only set for SubDagOperator.
-    # Setting it to None by default as other Operators do not have that field
-    subdag: DAG | None = None
 
     start_date: pendulum.DateTime | None = None
     end_date: pendulum.DateTime | None = None
@@ -1725,7 +1725,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "end_date",
                     "_task_type",
                     "_operator_name",
-                    "subdag",
                     "ui_color",
                     "ui_fgcolor",
                     "template_ext",
