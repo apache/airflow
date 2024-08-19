@@ -57,6 +57,7 @@ import pendulum
 import re2
 import sqlalchemy_jsonfield
 from dateutil.relativedelta import relativedelta
+from packaging import version as packaging_version
 from sqlalchemy import (
     Boolean,
     Column,
@@ -116,6 +117,7 @@ from airflow.models.taskinstance import (
     clear_task_instances,
 )
 from airflow.models.tasklog import LogTemplate
+from airflow.providers.fab import __version__ as FAB_VERSION
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
 from airflow.security import permissions
 from airflow.settings import json
@@ -936,16 +938,26 @@ class DAG(LoggingMixin):
 
         updated_access_control = {}
         for role, perms in access_control.items():
-            updated_access_control[role] = updated_access_control.get(role, {})
-            if isinstance(perms, (set, list)):
-                # Support for old-style access_control where only the actions are specified
-                updated_access_control[role][permissions.RESOURCE_DAG] = set(perms)
+            if packaging_version.parse(FAB_VERSION) >= packaging_version.parse("1.3.0"):
+                updated_access_control[role] = updated_access_control.get(role, {})
+                if isinstance(perms, (set, list)):
+                    # Support for old-style access_control where only the actions are specified
+                    updated_access_control[role][permissions.RESOURCE_DAG] = set(perms)
+                else:
+                    updated_access_control[role] = perms
+                if permissions.RESOURCE_DAG in updated_access_control[role]:
+                    updated_access_control[role][permissions.RESOURCE_DAG] = {
+                        update_old_perm(perm)
+                        for perm in updated_access_control[role][permissions.RESOURCE_DAG]
+                    }
+            elif isinstance(perms, dict):
+                # Not allow new access control format with old FAB versions
+                raise AirflowException(
+                    "Please upgrade the FAB provider to a version >= 1.3.0 to allow "
+                    'use other resources than "DAGs" in the Dag Level Access Control.'
+                )
             else:
-                updated_access_control[role] = perms
-            if permissions.RESOURCE_DAG in updated_access_control[role]:
-                updated_access_control[role][permissions.RESOURCE_DAG] = {
-                    update_old_perm(perm) for perm in updated_access_control[role][permissions.RESOURCE_DAG]
-                }
+                updated_access_control[role] = {update_old_perm(perm) for perm in perms}
 
         return updated_access_control
 
