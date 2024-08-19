@@ -954,7 +954,7 @@ class DAG(LoggingMixin):
                 # Not allow new access control format with old FAB versions
                 raise AirflowException(
                     "Please upgrade the FAB provider to a version >= 1.3.0 to allow "
-                    'use other resources than "DAGs" in the Dag Level Access Control.'
+                    "use the Dag Level Access Control new format."
                 )
             else:
                 updated_access_control[role] = {update_old_perm(perm) for perm in perms}
