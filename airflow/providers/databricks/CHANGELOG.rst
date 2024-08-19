@@ -26,6 +26,50 @@
 Changelog
 ---------
 
+6.9.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.8.0
+.....
+
+.. note::
+  This release reverts some of the functionality added in 6.7.0
+  around json parameter compatible with XComs, Jinja expression values
+
+Features
+~~~~~~~~
+
+* ``Add DatabricksWorkflowPlugin (#40724)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``DatabricksPlugin - Fix dag view redirect URL by using url_for redirect (#41040)``
+* ``Fix named parameters templating in Databricks operators (#40864)``
+
+Misc
+~~~~
+
+* ``[Databricks Provider] Revert PRs #40864 and #40471 (#41050)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Add DatabricksWorkflowPlugin (#40153)" (#40714)``
+   * ``Add DatabricksWorkflowPlugin (#40153)``
+
 6.7.0
 .....
 

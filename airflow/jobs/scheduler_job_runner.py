@@ -40,7 +40,7 @@ from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning, UnknownExecutorException
+from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
@@ -61,7 +61,7 @@ from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.timetables.simple import DatasetTriggeredTimetable
 from airflow.traces import utils as trace_utils
-from airflow.traces.tracer import Trace, span
+from airflow.traces.tracer import Trace, add_span
 from airflow.utils import timezone
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.event_scheduler import EventScheduler
@@ -165,7 +165,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         scheduler_idle_sleep_time: float = conf.getfloat("scheduler", "scheduler_idle_sleep_time"),
         do_pickle: bool = False,
         log: logging.Logger | None = None,
-        processor_poll_interval: float | None = None,
     ):
         super().__init__(job)
         self.subdir = subdir
@@ -174,15 +173,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # number of times. This is only to support testing, and isn't something a user is likely to want to
         # configure -- they'll want num_runs
         self.num_times_parse_dags = num_times_parse_dags
-        if processor_poll_interval:
-            # TODO: Remove in Airflow 3.0
-            warnings.warn(
-                "The 'processor_poll_interval' parameter is deprecated. "
-                "Please use 'scheduler_idle_sleep_time'.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            scheduler_idle_sleep_time = processor_poll_interval
         self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
         # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
         self._zombie_threshold_secs = conf.getint("scheduler", "scheduler_zombie_task_threshold")
@@ -837,7 +827,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 span.set_attribute("hostname", ti.hostname)
                 span.set_attribute("log_url", ti.log_url)
                 span.set_attribute("operator", str(ti.operator))
-                span.set_attribute("try_number", ti.try_number - 1)
+                span.set_attribute("try_number", ti.try_number)
                 span.set_attribute("executor_state", state)
                 span.set_attribute("job_id", ti.job_id)
                 span.set_attribute("pool", ti.pool)
@@ -1304,7 +1294,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         guard.commit()
         # END: create dagruns
 
-    @span
+    @add_span
     def _create_dag_runs(self, dag_models: Collection[DagModel], session: Session) -> None:
         """Create a DAG run and update the dag_model to control if/when the next DAGRun should be created."""
         # Bulk Fetch DagRuns with dag_id and execution_date same
@@ -1512,7 +1502,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             return False
         return True
 
-    @span
+    @add_span
     def _start_queued_dagruns(self, session: Session) -> None:
         """Find DagRuns in queued state and decide moving them to running state."""
         # added all() to save runtime, otherwise query is executed more than once
@@ -1522,13 +1512,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             DagRun.active_runs_of_dags((dr.dag_id for dr in dag_runs), only_running=True, session=session),
         )
 
-        @span
+        @add_span
         def _update_state(dag: DAG, dag_run: DagRun):
-            __span = Trace.get_current_span()
-            __span.set_attribute("state", str(DagRunState.RUNNING))
-            __span.set_attribute("run_id", dag_run.run_id)
-            __span.set_attribute("type", dag_run.run_type)
-            __span.set_attribute("dag_id", dag_run.dag_id)
+            span = Trace.get_current_span()
+            span.set_attribute("state", str(DagRunState.RUNNING))
+            span.set_attribute("run_id", dag_run.run_id)
+            span.set_attribute("type", dag_run.run_type)
+            span.set_attribute("dag_id", dag_run.dag_id)
 
             dag_run.state = DagRunState.RUNNING
             dag_run.start_date = timezone.utcnow()
@@ -1549,8 +1539,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     schedule_delay,
                     tags={"dag_id": dag.dag_id},
                 )
-                if __span.is_recording():
-                    __span.add_event(
+                if span.is_recording():
+                    span.add_event(
                         name="schedule_delay",
                         attributes={"dag_id": dag.dag_id, "schedule_delay": str(schedule_delay)},
                     )
@@ -1560,7 +1550,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             partial(self.dagbag.get_dag, session=session)
         )
 
-        _span = Trace.get_current_span()
+        span = Trace.get_current_span()
         for dag_run in dag_runs:
             dag = dag_run.dag = cached_get_dag(dag_run.dag_id)
 
@@ -1577,8 +1567,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     dag_run.execution_date,
                 )
             else:
-                if _span.is_recording():
-                    _span.add_event(
+                if span.is_recording():
+                    span.add_event(
                         name="dag_run",
                         attributes={
                             "run_id": dag_run.run_id,
@@ -2070,6 +2060,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 isouter=True,
             )
             .group_by(DatasetModel.id)
+            .where(~DatasetModel.is_orphaned)
             .having(
                 and_(
                     func.count(DagScheduleDatasetReference.dag_id) == 0,

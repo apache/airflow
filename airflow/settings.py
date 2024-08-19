@@ -36,7 +36,7 @@ from sqlalchemy.pool import NullPool
 
 from airflow import __version__ as airflow_version, policies
 from airflow.configuration import AIRFLOW_HOME, WEBSERVER_CONFIG, conf  # noqa: F401
-from airflow.exceptions import AirflowInternalRuntimeError, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowInternalRuntimeError
 from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
@@ -62,6 +62,14 @@ except Exception:
 
 log.info("Configured default timezone %s", TIMEZONE)
 
+if conf.has_option("database", "sql_alchemy_session_maker"):
+    log.info(
+        '[Warning] Found config "sql_alchemy_session_maker", make sure you know what you are doing.\n'
+        "[Warning] Improper configuration of sql_alchemy_session_maker can lead to serious issues, "
+        "including data corruption, unrecoverable application crashes.\n"
+        "[Warning] Please review the SQLAlchemy documentation for detailed guidance on "
+        "proper configuration and best practices."
+    )
 
 HEADER = "\n".join(
     [
@@ -108,7 +116,6 @@ STATE_COLORS = {
     "up_for_reschedule": "turquoise",
     "up_for_retry": "gold",
     "upstream_failed": "orange",
-    "shutdown": "blue",
 }
 
 
@@ -319,6 +326,8 @@ class TracebackSessionForTests:
     """
 
     db_session_class = None
+    allow_db_access = False
+    """For pytests to create/prepare stuff where explicit DB access it needed"""
 
     def __init__(self):
         self.current_db_session = TracebackSessionForTests.db_session_class()
@@ -326,12 +335,12 @@ class TracebackSessionForTests:
 
     def __getattr__(self, item):
         test_code, frame_summary = self.is_called_from_test_code()
-        if test_code:
+        if self.allow_db_access or test_code:
             return getattr(self.current_db_session, item)
         raise RuntimeError(
             "TracebackSessionForTests object was used but internal API is enabled. "
             "Only test code is allowed to use this object.\n"
-            f"Called from:\n    {frame_summary.filename}: {frame_summary.lineno}{frame_summary.colno}\n"
+            f"Called from:\n    {frame_summary.filename}: {frame_summary.lineno}\n"
             f"     {frame_summary.line}\n\n"
             "You'll need to ensure you are making only RPC calls with this object. "
             "The stack list below will show where the TracebackSession object was called:\n"
@@ -342,6 +351,12 @@ class TracebackSessionForTests:
 
     def remove(*args, **kwargs):
         pass
+
+    @staticmethod
+    def set_allow_db_access(session, flag: bool):
+        """Temporarily, e.g. for pytests allow access to DB to prepare stuff."""
+        if isinstance(session, TracebackSessionForTests):
+            session.allow_db_access = flag
 
     def is_called_from_test_code(self) -> tuple[bool, traceback.FrameSummary | None]:
         """
@@ -361,8 +376,11 @@ class TracebackSessionForTests:
             and not tb.filename == AIRFLOW_SETTINGS_PATH
             and not tb.filename == AIRFLOW_UTILS_SESSION_PATH
         ]
-        if any(filename.endswith("conftest.py") for filename, _, _, _ in airflow_frames):
-            # This is a fixture call
+        if any(
+            filename.endswith("conftest.py") or filename.endswith("tests/test_utils/db.py")
+            for filename, _, _, _ in airflow_frames
+        ):
+            # This is a fixture call or testing utilities
             return True, None
         if (
             len(airflow_frames) >= 2
@@ -446,14 +464,19 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
     setup_event_handlers(engine)
 
-    Session = scoped_session(
-        sessionmaker(
-            autocommit=False,
-            autoflush=False,
-            bind=engine,
-            expire_on_commit=False,
-        )
-    )
+    if conf.has_option("database", "sql_alchemy_session_maker"):
+        _session_maker = conf.getimport("database", "sql_alchemy_session_maker")
+    else:
+
+        def _session_maker(_engine):
+            return sessionmaker(
+                autocommit=False,
+                autoflush=False,
+                bind=_engine,
+                expire_on_commit=False,
+            )
+
+    Session = scoped_session(_session_maker(engine))
 
 
 def force_traceback_session_for_untrusted_components(allow_tests_to_use_db=False):
@@ -648,25 +671,7 @@ def prepare_syspath():
 def get_session_lifetime_config():
     """Get session timeout configs and handle outdated configs gracefully."""
     session_lifetime_minutes = conf.get("webserver", "session_lifetime_minutes", fallback=None)
-    session_lifetime_days = conf.get("webserver", "session_lifetime_days", fallback=None)
-    uses_deprecated_lifetime_configs = session_lifetime_days or conf.get(
-        "webserver", "force_log_out_after", fallback=None
-    )
-
     minutes_per_day = 24 * 60
-    default_lifetime_minutes = "43200"
-    if uses_deprecated_lifetime_configs and session_lifetime_minutes == default_lifetime_minutes:
-        warnings.warn(
-            "`session_lifetime_days` option from `[webserver]` section has been "
-            "renamed to `session_lifetime_minutes`. The new option allows to configure "
-            "session lifetime in minutes. The `force_log_out_after` option has been removed "
-            "from `[webserver]` section. Please update your configuration.",
-            category=RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        if session_lifetime_days:
-            session_lifetime_minutes = minutes_per_day * int(session_lifetime_days)
-
     if not session_lifetime_minutes:
         session_lifetime_days = 30
         session_lifetime_minutes = minutes_per_day * session_lifetime_days
@@ -697,16 +702,6 @@ def import_local_settings():
             names = set(airflow_local_settings.__all__)
         else:
             names = {n for n in airflow_local_settings.__dict__ if not n.startswith("__")}
-
-        if "policy" in names and "task_policy" not in names:
-            warnings.warn(
-                "Using `policy` in airflow_local_settings.py is deprecated. "
-                "Please rename your `policy` to `task_policy`.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            setattr(airflow_local_settings, "task_policy", airflow_local_settings.policy)
-            names.remove("policy")
 
         plugin_functions = policies.make_plugin_from_local_settings(
             POLICY_PLUGIN_MANAGER, airflow_local_settings, names

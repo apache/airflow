@@ -77,7 +77,6 @@ SAMPLE_SIZE = 600
 # This script will be the entrypoint for the docker image which will handle preprocessing the raw data
 # NOTE:  The following string must remain dedented as it is being written to a file.
 PREPROCESS_SCRIPT_TEMPLATE = """
-import boto3
 import numpy as np
 import pandas as pd
 
@@ -141,8 +140,6 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
             f"""
             FROM public.ecr.aws/amazonlinux/amazonlinux
             COPY {preprocessing_script.name.split('/')[2]} /preprocessing.py
-            ADD credentials /credentials
-            ENV AWS_SHARED_CREDENTIALS_FILE=/credentials
             RUN yum install python3 pip -y
             RUN pip3 install boto3 pandas requests
             CMD [ "python3", "/preprocessing.py"]
@@ -151,13 +148,12 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
         dockerfile.flush()
 
         ecr_region = repository_uri.split(".")[3]
+
         docker_build_and_push_commands = f"""
-            cp /root/.aws/credentials /tmp/credentials &&
             # login to public ecr repo containing amazonlinux image (public login is always on us east 1)
             aws ecr-public get-login-password --region us-east-1 |
             docker login --username AWS --password-stdin public.ecr.aws &&
             docker build --platform=linux/amd64 -f {dockerfile.name} -t {repository_uri} /tmp &&
-            rm /tmp/credentials &&
 
             # login again, this time to the private repo we created to hold that specific image
             aws ecr get-login-password --region {ecr_region} |
@@ -432,18 +428,19 @@ def delete_model_group(group_name, model_version_arn):
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_experiment(name):
+def delete_experiments(experiment_names):
     sgmk_client = boto3.client("sagemaker")
-    trials = sgmk_client.list_trials(ExperimentName=name)
-    trials_names = [s["TrialName"] for s in trials["TrialSummaries"]]
-    for trial in trials_names:
-        components = sgmk_client.list_trial_components(TrialName=trial)
-        components_names = [s["TrialComponentName"] for s in components["TrialComponentSummaries"]]
-        for component in components_names:
-            sgmk_client.disassociate_trial_component(TrialComponentName=component, TrialName=trial)
-            sgmk_client.delete_trial_component(TrialComponentName=component)
-        sgmk_client.delete_trial(TrialName=trial)
-    sgmk_client.delete_experiment(ExperimentName=name)
+    for experiment in experiment_names:
+        trials = sgmk_client.list_trials(ExperimentName=experiment)
+        trials_names = [s["TrialName"] for s in trials["TrialSummaries"]]
+        for trial in trials_names:
+            components = sgmk_client.list_trial_components(TrialName=trial)
+            components_names = [s["TrialComponentName"] for s in components["TrialComponentSummaries"]]
+            for component in components_names:
+                sgmk_client.disassociate_trial_component(TrialComponentName=component, TrialName=trial)
+                sgmk_client.delete_trial_component(TrialComponentName=component)
+            sgmk_client.delete_trial(TrialName=trial)
+        sgmk_client.delete_experiment(ExperimentName=experiment)
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
@@ -637,7 +634,13 @@ with DAG(
         delete_model_group(test_setup["model_package_group_name"], register_model.output),
         delete_model,
         delete_bucket,
-        delete_experiment(test_setup["experiment_name"]),
+        delete_experiments(
+            [
+                test_setup["experiment_name"],
+                f"{test_setup['auto_ml_job_name']}-aws-auto-ml-job",
+                f"{test_setup['tuning_job_name']}-aws-tuning-job",
+            ]
+        ),
         delete_docker_image(test_setup["docker_image"]),
         log_cleanup,
     )

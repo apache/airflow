@@ -35,14 +35,41 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.9.0
+.....
+
+Latest change: 2024-08-12
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+`4e62909ff5 <https://github.com/apache/airflow/commit/4e62909ff5fc92eb19676fb3266cd935cd42df55>`_  2024-08-12   ``Add comment on methodtools in mssql provider.yaml (#41402)``
+`4fd77ecfd9 <https://github.com/apache/airflow/commit/4fd77ecfd9d69fe57d498b6e4562408c333adcb7>`_  2024-08-12   ``Add methodtools as dependency to mssql provider (#41392)``
+=================================================================================================  ===========  =======================================================================
+
+3.8.0
+.....
+
+Latest change: 2024-08-03
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
+`f3db8761eb <https://github.com/apache/airflow/commit/f3db8761ebe214839421416462219baae5b822dd>`_  2024-07-26   ``Added support for replace option when using insert_rows with MsSqlHook (#40836)``
+`bef82d6ab3 <https://github.com/apache/airflow/commit/bef82d6ab38d627dc1b42981c90b9f8d36852f4c>`_  2024-07-19   ``Clean up remaining getattr connection DbApiHook (#40665)``
+=================================================================================================  ===========  ===================================================================================
+
 3.7.2
 .....
 
-Latest change: 2024-06-04
+Latest change: 2024-06-22
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`6e5ae26382 <https://github.com/apache/airflow/commit/6e5ae26382b328e88907e8301d4b2352ef8524c5>`_  2024-06-22   ``Prepare docs 2nd wave June 2024 (#40273)``
 `c0f27094ab <https://github.com/apache/airflow/commit/c0f27094abc2d09d626ef8a38cf570274a0a42ff>`_  2024-06-04   ``iMPlement per-provider tests with lowest-direct dependency resolution (#39946)``
 `f0677275f9 <https://github.com/apache/airflow/commit/f0677275f9a974386193e0ff4b3469303e135447>`_  2024-05-27   ``Add 'mssql' integration tests and relocate existing unit tests (#39831)``
 =================================================================================================  ===========  ==================================================================================

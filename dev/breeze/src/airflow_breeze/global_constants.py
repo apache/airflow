@@ -68,7 +68,7 @@ TESTABLE_INTEGRATIONS = [
     "ydb",
 ]
 OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
-ALLOWED_DEBIAN_VERSIONS = ["bookworm", "bullseye"]
+ALLOWED_DEBIAN_VERSIONS = ["bookworm"]
 ALL_INTEGRATIONS = sorted(
     [
         *TESTABLE_INTEGRATIONS,
@@ -90,7 +90,7 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.27.13", "v1.28.9", "v1.29.4", "v1.30.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.28.13", "v1.29.8", "v1.30.4", "v1.31.0"]
 ALLOWED_EXECUTORS = [
     "LocalExecutor",
     "KubernetesExecutor",
@@ -422,6 +422,8 @@ PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "provider
 with Path(AIRFLOW_SOURCES_ROOT, "generated", "provider_dependencies.json").open() as f:
     PROVIDER_DEPENDENCIES = json.load(f)
 
+DEVEL_DEPS_PATH = AIRFLOW_SOURCES_ROOT / "generated" / "devel_deps.txt"
+
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [
     "pyproject.toml",
@@ -444,7 +446,7 @@ CURRENT_EXECUTORS = ["KubernetesExecutor"]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.23.0"
+KIND_VERSION = "v0.24.0"
 HELM_VERSION = "v3.15.3"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
@@ -501,12 +503,6 @@ CHICKEN_EGG_PROVIDERS = " ".join([])
 
 
 BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
-    {
-        "python-version": "3.8",
-        "airflow-version": "2.7.3",
-        "remove-providers": "common.io fab",
-        "run-tests": "true",
-    },
     {
         "python-version": "3.8",
         "airflow-version": "2.8.4",

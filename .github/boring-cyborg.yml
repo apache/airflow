@@ -170,6 +170,11 @@ labelPRBasedOnFilePath:
     - tests/providers/cohere/**/*
     - tests/system/providers/cohere/**/*
 
+  provider:common-compat:
+    - airflow/providers/common/compat/**/*
+    - docs/apache-airflow-providers-common-compat/**/*
+    - tests/providers/common/compat/**/*
+
   provider:common-io:
     - airflow/providers/common/io/**/*
     - docs/apache-airflow-providers-common-io/**/*
@@ -544,12 +549,9 @@ labelPRBasedOnFilePath:
   area:API:
     - airflow/api/**/*
     - airflow/api_connexion/**/*
-    - airflow/www/api/**/*
     - clients/**/*
-    - docs/apache-airflow/deprecated-rest-api-ref.rst
     - docs/apache-airflow/stable-rest-api-ref.rst
     - tests/api_connexion/**/*
-    - tests/www/api/**/*
 
   area:dev-tools:
     - scripts/**/*

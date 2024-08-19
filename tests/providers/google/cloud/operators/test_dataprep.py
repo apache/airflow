@@ -174,7 +174,7 @@ class TestDataprepCopyFlowOperatorTest:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.dataprep.GoogleDataprepHook")
-    def test_execute_with_templated_params(self, _, create_task_instance_of_operator):
+    def test_execute_with_templated_params(self, _, create_task_instance_of_operator, session):
         dag_id = "test_execute_with_templated_params"
         ti = create_task_instance_of_operator(
             DataprepCopyFlowOperator,
@@ -185,6 +185,8 @@ class TestDataprepCopyFlowOperatorTest:
             name="{{ dag.dag_id }}",
             description="{{ dag.dag_id }}",
         )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         assert dag_id == ti.task.project_id
         assert dag_id == ti.task.flow_id
@@ -248,7 +250,7 @@ class TestDataprepDeleteFlowOperator:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.dataprep.GoogleDataprepHook")
-    def test_execute_with_template_params(self, _, create_task_instance_of_operator):
+    def test_execute_with_template_params(self, _, create_task_instance_of_operator, session):
         dag_id = "test_execute_delete_flow_with_template"
         ti = create_task_instance_of_operator(
             DataprepDeleteFlowOperator,
@@ -256,6 +258,8 @@ class TestDataprepDeleteFlowOperator:
             task_id=TASK_ID,
             flow_id="{{ dag.dag_id }}",
         )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         assert dag_id == ti.task.flow_id
 
@@ -279,7 +283,7 @@ class TestDataprepRunFlowOperator:
 
     @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.dataprep.GoogleDataprepHook")
-    def test_execute_with_template_params(self, _, create_task_instance_of_operator):
+    def test_execute_with_template_params(self, _, create_task_instance_of_operator, session):
         dag_id = "test_execute_run_flow_with_template"
         ti = create_task_instance_of_operator(
             DataprepRunFlowOperator,
@@ -289,7 +293,8 @@ class TestDataprepRunFlowOperator:
             flow_id="{{ dag.dag_id }}",
             body_request={},
         )
-
+        session.add(ti)
+        session.commit()
         ti.render_templates()
 
         assert dag_id == ti.task.project_id

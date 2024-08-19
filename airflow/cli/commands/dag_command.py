@@ -101,7 +101,6 @@ def _run_dag_backfill(dags: list[DAG], args) -> None:
                     start_date=args.start_date,
                     end_date=args.end_date,
                     confirm_prompt=not args.yes,
-                    include_subdags=True,
                     dag_run_state=DagRunState.QUEUED,
                 )
 
@@ -334,10 +333,8 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
     return {
         "dag_id": dag.dag_id,
         "dag_display_name": dag.dag_display_name,
-        "root_dag_id": dag.parent_dag.dag_id if dag.parent_dag else None,
         "is_paused": dag.get_is_paused(),
         "is_active": dag.get_is_active(),
-        "is_subdag": dag.is_subdag,
         "last_parsed_time": None,
         "last_pickled": None,
         "last_expired": None,

@@ -21,7 +21,7 @@ import re
 from contextlib import contextmanager, nullcontext
 from io import BytesIO
 from unittest import mock
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, mock_open, patch
 
 import pendulum
 import pytest
@@ -52,7 +52,7 @@ from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from tests.test_utils import db
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
@@ -90,7 +90,7 @@ def create_context(task, persist_to_db=False, map_index=None):
     if task.has_dag():
         dag = task.dag
     else:
-        dag = DAG(dag_id="dag", start_date=pendulum.now())
+        dag = DAG(dag_id="dag", schedule=None, start_date=pendulum.now())
         dag.add_task(task)
     dag_run = DagRun(
         run_id=DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE),
@@ -135,10 +135,11 @@ class TestKubernetesPodOperator:
 
         patch.stopall()
 
-    def test_templates(self, create_task_instance_of_operator):
+    def test_templates(self, create_task_instance_of_operator, session):
         dag_id = "TestKubernetesPodOperator"
         ti = create_task_instance_of_operator(
             KubernetesPodOperator,
+            session=session,
             dag_id=dag_id,
             task_id="task-id",
             namespace="{{ dag.dag_id }}",
@@ -172,6 +173,8 @@ class TestKubernetesPodOperator:
             ],
         )
 
+        session.add(ti)
+        session.commit()
         rendered = ti.render_templates()
 
         assert dag_id == rendered.container_resources.limits["memory"]
@@ -250,6 +253,7 @@ class TestKubernetesPodOperator:
     def test_env_vars(self, input, render_template_as_native_obj, raises_error):
         dag = DAG(
             dag_id="dag",
+            schedule=None,
             start_date=pendulum.now(),
             render_template_as_native_obj=render_template_as_native_obj,
         )
@@ -1344,7 +1348,7 @@ class TestKubernetesPodOperator:
         self, mock_patch_already_checked, mock_delete_pod, task_kwargs, should_fail, should_be_deleted
     ):
         """If we aren't deleting pods mark "checked" if the task completes (successful or otherwise)"""
-        dag = DAG("hello2", start_date=pendulum.now())
+        dag = DAG("hello2", schedule=None, start_date=pendulum.now())
         k = KubernetesPodOperator(
             task_id="task",
             dag=dag,
@@ -1413,7 +1417,7 @@ class TestKubernetesPodOperator:
         )
 
     def test_task_id_as_name_dag_id_is_ignored(self):
-        dag = DAG(dag_id="this_is_a_dag_name", start_date=pendulum.now())
+        dag = DAG(dag_id="this_is_a_dag_name", schedule=None, start_date=pendulum.now())
         k = KubernetesPodOperator(
             task_id="a_very_reasonable_task_name",
             dag=dag,
@@ -1866,7 +1870,7 @@ class TestKubernetesPodOperatorAsync:
     @patch(KUB_OP_PATH.format("build_pod_request_obj"))
     @patch(KUB_OP_PATH.format("get_or_create_pod"))
     def test_async_create_pod_should_execute_successfully(
-        self, mocked_pod, mocked_pod_obj, mocked_found_pod, mocked_client, do_xcom_push
+        self, mocked_pod, mocked_pod_obj, mocked_found_pod, mocked_client, do_xcom_push, mocker
     ):
         """
         Asserts that a task is deferred and the KubernetesCreatePodTrigger will be fired
@@ -1889,7 +1893,9 @@ class TestKubernetesPodOperatorAsync:
             deferrable=True,
             do_xcom_push=do_xcom_push,
         )
-        k.config_file_in_dict_representation = {"a": "b"}
+
+        mock_file = mock_open(read_data='{"a": "b"}')
+        mocker.patch("builtins.open", mock_file)
 
         mocked_pod.return_value.metadata.name = TEST_NAME
         mocked_pod.return_value.metadata.namespace = TEST_NAMESPACE

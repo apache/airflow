@@ -52,7 +52,7 @@ if TYPE_CHECKING:
 
 
 def test_task_mapping_with_dag():
-    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
+    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE) as dag:
         task1 = BaseOperator(task_id="op1")
         literal = ["a", "b", "c"]
         mapped = MockOperator.partial(task_id="task_2").expand(arg2=literal)
@@ -70,6 +70,7 @@ def test_task_mapping_with_dag():
     assert mapped.downstream_list == [finish]
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @patch("airflow.models.abstractoperator.AbstractOperator.render_template")
 def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template, caplog):
     class UnrenderableClass:
@@ -86,7 +87,7 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template
         def execute(self, context: Context):
             pass
 
-    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
+    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE) as dag:
         task1 = CustomOperator(task_id="op1", arg=None)
         unrenderable_values = [UnrenderableClass(), UnrenderableClass()]
         mapped = CustomOperator.partial(task_id="task_2").expand(arg=unrenderable_values)
@@ -100,7 +101,7 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template
 
 
 def test_task_mapping_without_dag_context():
-    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
+    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE) as dag:
         task1 = BaseOperator(task_id="op1")
     literal = ["a", "b", "c"]
     mapped = MockOperator.partial(task_id="task_2").expand(arg2=literal)
@@ -117,7 +118,7 @@ def test_task_mapping_without_dag_context():
 
 def test_task_mapping_default_args():
     default_args = {"start_date": DEFAULT_DATE.now(), "owner": "test"}
-    with DAG("test-dag", start_date=DEFAULT_DATE, default_args=default_args):
+    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE, default_args=default_args):
         task1 = BaseOperator(task_id="op1")
         literal = ["a", "b", "c"]
         mapped = MockOperator.partial(task_id="task_2").expand(arg2=literal)
@@ -130,7 +131,7 @@ def test_task_mapping_default_args():
 
 def test_task_mapping_override_default_args():
     default_args = {"retries": 2, "start_date": DEFAULT_DATE.now()}
-    with DAG("test-dag", start_date=DEFAULT_DATE, default_args=default_args):
+    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE, default_args=default_args):
         literal = ["a", "b", "c"]
         mapped = MockOperator.partial(task_id="task", retries=1).expand(arg2=literal)
 
@@ -149,7 +150,7 @@ def test_map_unknown_arg_raises():
 
 def test_map_xcom_arg():
     """Test that dependencies are correct when mapping with an XComArg"""
-    with DAG("test-dag", start_date=DEFAULT_DATE):
+    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE):
         task1 = BaseOperator(task_id="op1")
         mapped = MockOperator.partial(task_id="task_2").expand(arg2=task1.output)
         finish = MockOperator(task_id="finish")
@@ -159,6 +160,7 @@ def test_map_xcom_arg():
     assert task1.downstream_list == [mapped]
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_map_xcom_arg_multiple_upstream_xcoms(dag_maker, session):
     """Test that the correct number of downstream tasks are generated when mapping with an XComArg"""
 
@@ -227,6 +229,7 @@ def test_partial_on_invalid_pool_slots_raises() -> None:
         MockOperator.partial(task_id="pool_slots_test", pool="test", pool_slots="a").expand(arg1=[1, 2, 3])
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @pytest.mark.parametrize(
     ["num_existing_tis", "expected"],
     (
@@ -294,6 +297,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
     assert indices == expected
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
     """
     This test tries to recreate a faulty state in the database and checks if we can recover from it.
@@ -345,6 +349,7 @@ def test_expand_mapped_task_failed_state_in_db(dag_maker, session):
     assert indices == [(0, "success"), (1, "success")]
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
     with dag_maker(session=session):
         task1 = BaseOperator(task_id="op1")
@@ -410,6 +415,7 @@ def test_mapped_expand_against_params(dag_maker, dag_params, task_params, expect
     assert t.expand_input.value == {"params": [{"c": "x"}, {"d": 1}]}
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_mapped_render_template_fields_validating_operator(dag_maker, session, tmp_path):
     file_template_dir = tmp_path / "path" / "to"
     file_template_dir.mkdir(parents=True, exist_ok=True)
@@ -475,6 +481,7 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session, t
         assert mapped_ti.task.file_template == "loaded data", "Should be templated!"
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_mapped_expand_kwargs_render_template_fields_validating_operator(dag_maker, session, tmp_path):
     file_template_dir = tmp_path / "path" / "to"
     file_template_dir.mkdir(parents=True, exist_ok=True)
@@ -524,6 +531,7 @@ def test_mapped_expand_kwargs_render_template_fields_validating_operator(dag_mak
         assert mapped_ti.task.file_template == "loaded data", "Should be templated!"
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 def test_mapped_render_nested_template_fields(dag_maker, session):
     with dag_maker(session=session):
         MockOperatorWithNestedFields.partial(
@@ -548,6 +556,7 @@ def test_mapped_render_nested_template_fields(dag_maker, session):
     assert ti.task.arg2.field_2 == "value_2"
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @pytest.mark.parametrize(
     ["num_existing_tis", "expected"],
     (
@@ -667,6 +676,7 @@ def _create_named_map_index_renders_on_failure_taskflow(*, task_id, map_names, t
     return task1.expand(map_name=map_names)
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @pytest.mark.parametrize(
     "template, expected_rendered_names",
     [
@@ -715,6 +725,7 @@ def test_expand_mapped_task_instance_with_named_index(
     assert indices == expected_rendered_names
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @pytest.mark.parametrize(
     "map_index, expected",
     [
@@ -801,7 +812,7 @@ def test_all_xcomargs_from_mapped_tasks_are_consumable(dag_maker, session):
 
 
 def test_task_mapping_with_task_group_context():
-    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
+    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE) as dag:
         task1 = BaseOperator(task_id="op1")
         finish = MockOperator(task_id="finish")
 
@@ -822,7 +833,7 @@ def test_task_mapping_with_task_group_context():
 
 
 def test_task_mapping_with_explicit_task_group():
-    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
+    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE) as dag:
         task1 = BaseOperator(task_id="op1")
         finish = MockOperator(task_id="finish")
 
@@ -881,6 +892,7 @@ class TestMappedSetupTeardown:
         else:
             return PythonOperator(**kwargs)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.parametrize("type_", ["taskflow", "classic"])
     def test_one_to_many_work_failed(self, type_, dag_maker):
         """
@@ -931,6 +943,7 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.parametrize("type_", ["taskflow", "classic"])
     def test_many_one_explicit_odd_setup_mapped_setups_fail(self, type_, dag_maker):
         """
@@ -1017,6 +1030,7 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.parametrize("type_", ["taskflow", "classic"])
     def test_many_one_explicit_odd_setup_all_setups_fail(self, type_, dag_maker):
         """
@@ -1114,6 +1128,7 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.parametrize("type_", ["taskflow", "classic"])
     def test_many_one_explicit_odd_setup_one_mapped_fails(self, type_, dag_maker):
         """
@@ -1226,6 +1241,7 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.parametrize("type_", ["taskflow", "classic"])
     def test_one_to_many_as_teardown(self, type_, dag_maker):
         """
@@ -1281,6 +1297,7 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.parametrize("type_", ["taskflow", "classic"])
     def test_one_to_many_as_teardown_on_failure_fail_dagrun(self, type_, dag_maker):
         """
@@ -1345,6 +1362,7 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.parametrize("type_", ["taskflow", "classic"])
     def test_mapped_task_group_simple(self, type_, dag_maker, session):
         """
@@ -1419,6 +1437,7 @@ class TestMappedSetupTeardown:
 
         assert states == expected
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.parametrize("type_", ["taskflow", "classic"])
     def test_mapped_task_group_work_fail_or_skip(self, type_, dag_maker):
         """
@@ -1490,6 +1509,7 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.parametrize("type_", ["taskflow", "classic"])
     def test_teardown_many_one_explicit(self, type_, dag_maker):
         """-- passing
@@ -1550,6 +1570,7 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_one_to_many_with_teardown_and_fail_stop(self, dag_maker):
         """
         With fail_stop enabled, the teardown for an already-completed setup
@@ -1586,6 +1607,7 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_one_to_many_with_teardown_and_fail_stop_more_tasks(self, dag_maker):
         """
         when fail_stop enabled, teardowns should run according to their setups.
@@ -1628,6 +1650,7 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_one_to_many_with_teardown_and_fail_stop_more_tasks_mapped_setup(self, dag_maker):
         """
         when fail_stop enabled, teardowns should run according to their setups.
@@ -1677,6 +1700,7 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_skip_one_mapped_task_from_task_group_with_generator(self, dag_maker):
         with dag_maker() as dag:
 
@@ -1708,6 +1732,7 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
+    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_skip_one_mapped_task_from_task_group(self, dag_maker):
         with dag_maker() as dag:
 

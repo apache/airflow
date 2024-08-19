@@ -413,7 +413,11 @@ class DataprocTestBase:
     @classmethod
     def setup_class(cls):
         cls.dagbag = DagBag(dag_folder="/dev/null", include_examples=False)
-        cls.dag = DAG(TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id=TEST_DAG_ID,
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
 
     def setup_method(self):
         self.mock_ti = MagicMock()
@@ -2704,7 +2708,7 @@ class TestDataprocCreateBatchOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        mock_hook.return_value.wait_for_operation.return_value = Batch(state=Batch.State.FAILED)
+        mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.FAILED)
         with pytest.raises(AirflowException):
             op.execute(context=MagicMock())
 
@@ -2725,12 +2729,12 @@ class TestDataprocCreateBatchOperator:
         )
         mock_hook.return_value.wait_for_operation.side_effect = AlreadyExists("")
         mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.SUCCEEDED)
+        mock_hook.return_value.create_batch.return_value.metadata.batch = f"prefix/{BATCH_ID}"
         op.execute(context=MagicMock())
         mock_hook.return_value.wait_for_batch.assert_called_once_with(
             batch_id=BATCH_ID,
             region=GCP_REGION,
             project_id=GCP_PROJECT,
-            wait_check_interval=5,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
@@ -2753,13 +2757,13 @@ class TestDataprocCreateBatchOperator:
         )
         mock_hook.return_value.wait_for_operation.side_effect = AlreadyExists("")
         mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.FAILED)
+        mock_hook.return_value.create_batch.return_value.metadata.batch = f"prefix/{BATCH_ID}"
         with pytest.raises(AirflowException):
             op.execute(context=MagicMock())
         mock_hook.return_value.wait_for_batch.assert_called_once_with(
             batch_id=BATCH_ID,
             region=GCP_REGION,
             project_id=GCP_PROJECT,
-            wait_check_interval=5,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
@@ -2782,13 +2786,13 @@ class TestDataprocCreateBatchOperator:
         )
         mock_hook.return_value.wait_for_operation.side_effect = AlreadyExists("")
         mock_hook.return_value.wait_for_batch.return_value = Batch(state=Batch.State.CANCELLED)
+        mock_hook.return_value.create_batch.return_value.metadata.batch = f"prefix/{BATCH_ID}"
         with pytest.raises(AirflowException):
             op.execute(context=MagicMock())
         mock_hook.return_value.wait_for_batch.assert_called_once_with(
             batch_id=BATCH_ID,
             region=GCP_REGION,
             project_id=GCP_PROJECT,
-            wait_check_interval=5,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,

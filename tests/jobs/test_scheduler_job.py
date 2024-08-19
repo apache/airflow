@@ -87,7 +87,7 @@ from tests.test_utils.mock_executor import MockExecutor
 from tests.test_utils.mock_operators import CustomOperator
 from tests.utils.test_timezone import UTC
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
@@ -3097,12 +3097,12 @@ class TestSchedulerJob:
             dag_id = "test_task_start_date_scheduling"
             dag = self.dagbag.get_dag(dag_id)
             dag.is_paused_upon_creation = False
-            dagbag.bag_dag(dag=dag, root_dag=dag)
+            dagbag.bag_dag(dag=dag)
 
             # Deactivate other dags in this file so the scheduler doesn't waste time processing them
             other_dag = self.dagbag.get_dag("test_start_date_scheduling")
             other_dag.is_paused_upon_creation = True
-            dagbag.bag_dag(dag=other_dag, root_dag=other_dag)
+            dagbag.bag_dag(dag=other_dag)
 
             dagbag.sync_to_db()
 
@@ -5284,16 +5284,17 @@ class TestSchedulerJob:
             self.job_runner._find_zombies()
 
         scheduler_job.executor.callback_sink.send.assert_called_once()
-        requests = scheduler_job.executor.callback_sink.send.call_args.args
-        assert 1 == len(requests)
-        assert requests[0].full_filepath == dag.fileloc
-        assert requests[0].msg == str(self.job_runner._generate_zombie_message_details(ti))
-        assert requests[0].is_failure_callback is True
-        assert isinstance(requests[0].simple_task_instance, SimpleTaskInstance)
-        assert ti.dag_id == requests[0].simple_task_instance.dag_id
-        assert ti.task_id == requests[0].simple_task_instance.task_id
-        assert ti.run_id == requests[0].simple_task_instance.run_id
-        assert ti.map_index == requests[0].simple_task_instance.map_index
+        callback_requests = scheduler_job.executor.callback_sink.send.call_args.args
+        assert len(callback_requests) == 1
+        callback_request = callback_requests[0]
+        assert isinstance(callback_request.simple_task_instance, SimpleTaskInstance)
+        assert callback_request.full_filepath == dag.fileloc
+        assert callback_request.msg == str(self.job_runner._generate_zombie_message_details(ti))
+        assert callback_request.is_failure_callback is True
+        assert callback_request.simple_task_instance.dag_id == ti.dag_id
+        assert callback_request.simple_task_instance.task_id == ti.task_id
+        assert callback_request.simple_task_instance.run_id == ti.run_id
+        assert callback_request.simple_task_instance.map_index == ti.map_index
 
         with create_session() as session:
             session.query(TaskInstance).delete()
@@ -5795,6 +5796,48 @@ class TestSchedulerJob:
             .order_by(DatasetModel.uri)
         ]
         assert orphaned_datasets == ["ds2", "ds4"]
+
+    def test_dataset_orphaning_ignore_orphaned_datasets(self, dag_maker, session):
+        dataset1 = Dataset(uri="ds1")
+
+        with dag_maker(dag_id="datasets-1", schedule=[dataset1], session=session):
+            BashOperator(task_id="task", bash_command="echo 1")
+
+        non_orphaned_dataset_count = session.query(DatasetModel).filter(~DatasetModel.is_orphaned).count()
+        assert non_orphaned_dataset_count == 1
+        orphaned_dataset_count = session.query(DatasetModel).filter(DatasetModel.is_orphaned).count()
+        assert orphaned_dataset_count == 0
+
+        # now remove dataset1 reference
+        with dag_maker(dag_id="datasets-1", schedule=None, session=session):
+            BashOperator(task_id="task", bash_command="echo 1")
+
+        scheduler_job = Job()
+        self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+
+        self.job_runner._orphan_unreferenced_datasets(session=session)
+        session.flush()
+
+        orphaned_datasets_before_rerun = (
+            session.query(DatasetModel.updated_at, DatasetModel.uri)
+            .filter(DatasetModel.is_orphaned)
+            .order_by(DatasetModel.uri)
+        )
+        assert [dataset.uri for dataset in orphaned_datasets_before_rerun] == ["ds1"]
+        updated_at_timestamps = [dataset.updated_at for dataset in orphaned_datasets_before_rerun]
+
+        # when rerunning we should ignore the already orphaned datasets and thus the updated_at timestamp
+        # should remain the same
+        self.job_runner._orphan_unreferenced_datasets(session=session)
+        session.flush()
+
+        orphaned_datasets_after_rerun = (
+            session.query(DatasetModel.updated_at, DatasetModel.uri)
+            .filter(DatasetModel.is_orphaned)
+            .order_by(DatasetModel.uri)
+        )
+        assert [dataset.uri for dataset in orphaned_datasets_after_rerun] == ["ds1"]
+        assert updated_at_timestamps == [dataset.updated_at for dataset in orphaned_datasets_after_rerun]
 
     def test_misconfigured_dags_doesnt_crash_scheduler(self, session, dag_maker, caplog):
         """Test that if dagrun creation throws an exception, the scheduler doesn't crash"""

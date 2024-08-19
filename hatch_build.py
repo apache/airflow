@@ -79,9 +79,6 @@ CORE_EXTRAS: dict[str, list[str]] = {
     "cloudpickle": [
         "cloudpickle",
     ],
-    "deprecated-api": [
-        "requests>=2.27.0,<3",
-    ],
     "github-enterprise": [
         "apache-airflow[fab]",
         "authlib>=1.0.0",
@@ -251,7 +248,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     "devel-static-checks": [
         "black>=23.12.0",
         "pre-commit>=3.5.0",
-        "ruff==0.4.5",
+        "ruff==0.5.5",
         "yamllint>=1.33.0",
     ],
     "devel-tests": [
@@ -273,6 +270,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "pytest-xdist>=3.5.0",
         "pytest>=8.2,<9",
         "requests_mock>=1.11.0",
+        "semver>=3.0.2",
         "time-machine>=2.13.0",
         "wheel>=0.42.0",
     ],

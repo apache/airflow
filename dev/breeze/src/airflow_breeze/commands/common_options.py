@@ -117,6 +117,12 @@ option_builder = click.option(
     show_default=True,
     default="autodetect",
 )
+option_clean_airflow_installation = click.option(
+    "--clean-airflow-installation",
+    help="Clean the airflow installation before installing version specified by --use-airflow-version.",
+    is_flag=True,
+    envvar="CLEAN_AIRFLOW_INSTALLATION",
+)
 option_commit_sha = click.option(
     "--commit-sha",
     show_default=True,
@@ -397,6 +403,14 @@ option_use_airflow_version = click.option(
     "(https://pip.pypa.io/en/stable/topics/vcs-support/). Implies --mount-sources `remove`.",
     type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
     envvar="USE_AIRFLOW_VERSION",
+)
+option_airflow_version = click.option(
+    "-A",
+    "--airflow-version",
+    help="Airflow version to use for the command.",
+    type=str,
+    envvar="AIRFLOW_VERSION",
+    required=True,
 )
 option_verbose = click.option(
     "-v",

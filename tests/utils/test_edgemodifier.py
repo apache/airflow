@@ -44,7 +44,7 @@ def test_dag():
     def f(task_id):
         return f"OP:{task_id}"
 
-    with DAG(dag_id="test_xcom_dag", default_args=DEFAULT_ARGS) as dag:
+    with DAG(dag_id="test_xcom_dag", schedule=None, default_args=DEFAULT_ARGS) as dag:
         operators = [PythonOperator(python_callable=f, task_id=f"test_op_{i}") for i in range(4)]
         return dag, operators
 
@@ -56,7 +56,7 @@ def test_taskgroup_dag():
     def f(task_id):
         return f"OP:{task_id}"
 
-    with DAG(dag_id="test_xcom_dag", default_args=DEFAULT_ARGS) as dag:
+    with DAG(dag_id="test_xcom_dag", schedule=None, default_args=DEFAULT_ARGS) as dag:
         op1 = PythonOperator(python_callable=f, task_id="test_op_1")
         op4 = PythonOperator(python_callable=f, task_id="test_op_4")
         with TaskGroup("group_1") as group:
@@ -72,7 +72,7 @@ def test_complex_taskgroup_dag():
     def f(task_id):
         return f"OP:{task_id}"
 
-    with DAG(dag_id="test_complex_dag", default_args=DEFAULT_ARGS) as dag:
+    with DAG(dag_id="test_complex_dag", schedule=None, default_args=DEFAULT_ARGS) as dag:
         with TaskGroup("group_1") as group:
             group_emp1 = EmptyOperator(task_id="group_empty1")
             group_emp2 = EmptyOperator(task_id="group_empty2")
@@ -116,7 +116,7 @@ def test_multiple_taskgroups_dag():
     def f(task_id):
         return f"OP:{task_id}"
 
-    with DAG(dag_id="test_multiple_task_group_dag", default_args=DEFAULT_ARGS) as dag:
+    with DAG(dag_id="test_multiple_task_group_dag", schedule=None, default_args=DEFAULT_ARGS) as dag:
         with TaskGroup("group1") as group1:
             group1_emp1 = EmptyOperator(task_id="group1_empty1")
             group1_emp2 = EmptyOperator(task_id="group1_empty2")

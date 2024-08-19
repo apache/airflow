@@ -46,6 +46,7 @@ class DagAttributeTypes(str, Enum):
     RELATIVEDELTA = "relativedelta"
     BASE_TRIGGER = "base_trigger"
     AIRFLOW_EXC_SER = "airflow_exc_ser"
+    BASE_EXC_SER = "base_exc_ser"
     DICT = "dict"
     SET = "set"
     TUPLE = "tuple"
@@ -71,3 +72,5 @@ class DagAttributeTypes(str, Enum):
     TASK_CALLBACK_REQUEST = "task_callback_request"
     DAG_CALLBACK_REQUEST = "dag_callback_request"
     SLA_CALLBACK_REQUEST = "sla_callback_request"
+    TASK_INSTANCE_KEY = "task_instance_key"
+    TRIGGER = "trigger"

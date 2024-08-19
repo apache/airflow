@@ -17,13 +17,15 @@
  * under the License.
  */
 
-import React from "react";
+import React, { useEffect } from "react";
 import { Box } from "@chakra-ui/react";
+
 import useSelection from "src/dag/useSelection";
 import { boxSize } from "src/dag/StatusBox";
 import { getMetaValue } from "src/utils";
 import type { Task } from "src/types";
 import { useTIHistory } from "src/api";
+
 import InstanceBar from "./InstanceBar";
 
 interface Props {
@@ -32,6 +34,11 @@ interface Props {
   task: Task;
   ganttStartDate?: string | null;
   ganttEndDate?: string | null;
+  setGanttDuration?: (
+    queued: string | null | undefined,
+    start: string | null | undefined,
+    end: string | null | undefined
+  ) => void;
 }
 
 const dagId = getMetaValue("dag_id");
@@ -42,6 +49,7 @@ const Row = ({
   task,
   ganttStartDate,
   ganttEndDate,
+  setGanttDuration,
 }: Props) => {
   const {
     selected: { runId, taskId },
@@ -52,12 +60,34 @@ const Row = ({
   const { data: tiHistory } = useTIHistory({
     dagId,
     taskId: task.id || "",
-    runId: runId || "",
-    enabled: !!(instance?.tryNumber && instance?.tryNumber > 1) && !!task.id, // Only try to look up task tries if try number > 1
+    dagRunId: runId || "",
+    options: {
+      enabled: !!(instance?.tryNumber && instance?.tryNumber > 1) && !!task.id, // Only try to look up task tries if try number > 1
+    },
   });
 
   const isSelected = taskId === instance?.taskId;
   const isOpen = openGroupIds.includes(task.id || "");
+
+  // Adjust gantt start/end if the instance dates are out of bounds
+  useEffect(() => {
+    if (setGanttDuration) {
+      setGanttDuration(
+        instance?.queuedDttm,
+        instance?.startDate,
+        instance?.endDate
+      );
+    }
+  }, [instance, setGanttDuration]);
+
+  // Adjust gantt start/end if the ti history dates are out of bounds
+  useEffect(() => {
+    tiHistory?.taskInstances?.forEach(
+      (tih) =>
+        setGanttDuration &&
+        setGanttDuration(tih.queuedWhen, tih.startDate, tih.endDate)
+    );
+  }, [tiHistory, setGanttDuration]);
 
   return (
     <div>
@@ -72,6 +102,7 @@ const Row = ({
       >
         {!!instance && (
           <InstanceBar
+            key={`${instance.taskId}-${instance.tryNumber}`}
             instance={{
               ...instance,
               queuedWhen: instance.queuedDttm,
@@ -83,16 +114,19 @@ const Row = ({
             ganttEndDate={ganttEndDate}
           />
         )}
-        {(tiHistory || []).map((ti) => (
-          <InstanceBar
-            key={`${taskId}-${ti.tryNumber}`}
-            instance={ti}
-            task={task}
-            ganttWidth={ganttWidth}
-            ganttStartDate={ganttStartDate}
-            ganttEndDate={ganttEndDate}
-          />
-        ))}
+        {tiHistory?.taskInstances?.map(
+          (ti) =>
+            ti.tryNumber !== instance?.tryNumber && (
+              <InstanceBar
+                key={`${ti.taskId}-${ti.tryNumber}`}
+                instance={ti}
+                task={task}
+                ganttWidth={ganttWidth}
+                ganttStartDate={ganttStartDate}
+                ganttEndDate={ganttEndDate}
+              />
+            )
+        )}
       </Box>
       {isOpen &&
         !!task.children &&

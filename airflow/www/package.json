@@ -107,7 +107,7 @@
     "@visx/group": "^2.10.0",
     "@visx/shape": "^2.12.2",
     "ansi_up": "^6.0.2",
-    "axios": "^1.6.0",
+    "axios": "^1.7.4",
     "bootstrap-3-typeahead": "^4.0.2",
     "camelcase-keys": "^7.0.0",
     "chakra-react-select": "^4.0.0",

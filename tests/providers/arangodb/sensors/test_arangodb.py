@@ -26,7 +26,8 @@ from airflow.models.dag import DAG
 from airflow.providers.arangodb.sensors.arangodb import AQLSensor
 from airflow.utils import db, timezone
 
-pytestmark = pytest.mark.db_test
+# The tests do not create dag runs, so db isolation tests are skipped
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -36,7 +37,7 @@ arangodb_hook_mock = Mock(name="arangodb_hook_for_test", **{"query.return_value.
 class TestAQLSensor:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG("test_dag_id", default_args=args)
+        dag = DAG("test_dag_id", schedule=None, default_args=args)
         self.dag = dag
         db.merge_conn(
             Connection(

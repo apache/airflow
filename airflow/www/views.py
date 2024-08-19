@@ -110,7 +110,6 @@ from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQue
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
-from airflow.models.taskinstancehistory import TaskInstanceHistory as TIHistory
 from airflow.plugins_manager import PLUGINS_ATTRIBUTES_TO_DUMP
 from airflow.providers_manager import ProvidersManager
 from airflow.security import permissions
@@ -235,15 +234,22 @@ def build_scarf_url(dags_count: int) -> str:
     db_name = usage_data_collection.get_database_name()
     executor = usage_data_collection.get_executor()
     python_version = usage_data_collection.get_python_version()
+    plugin_counts = usage_data_collection.get_plugin_counts()
+    plugins_count = plugin_counts["plugins"]
+    flask_blueprints_count = plugin_counts["flask_blueprints"]
+    appbuilder_views_count = plugin_counts["appbuilder_views"]
+    appbuilder_menu_items_count = plugin_counts["appbuilder_menu_items"]
+    timetables_count = plugin_counts["timetables"]
 
     # Path Format:
-    # /{version}/{python_version}/{platform}/{arch}/{database}/{db_version}/{executor}/{num_dags}
+    # /{version}/{python_version}/{platform}/{arch}/{database}/{db_version}/{executor}/{num_dags}/{plugin_count}/{flask_blueprint_count}/{appbuilder_view_count}/{appbuilder_menu_item_count}/{timetables}
     #
     # This path redirects to a Pixel tracking URL
     scarf_url = (
         f"{scarf_domain}/webserver"
         f"/{version}/{python_version}"
         f"/{platform_sys}/{platform_arch}/{db_name}/{db_version}/{executor}/{dags_count}"
+        f"/{plugins_count}/{flask_blueprints_count}/{appbuilder_views_count}/{appbuilder_menu_items_count}/{timetables_count}"
     )
 
     return scarf_url
@@ -838,7 +844,7 @@ class Airflow(AirflowBaseView):
 
         with create_session() as session:
             # read orm_dags from the db
-            dags_query = select(DagModel).where(~DagModel.is_subdag, DagModel.is_active)
+            dags_query = select(DagModel).where(DagModel.is_active)
 
             if arg_search_query:
                 escaped_arg_search_query = arg_search_query.replace("_", r"\_")
@@ -990,9 +996,6 @@ class Airflow(AirflowBaseView):
                 .unique()
                 .all()
             )
-            can_create_dag_run = get_auth_manager().is_authorized_dag(
-                method="POST", access_entity=DagAccessEntity.RUN, user=g.user
-            )
 
             dataset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.schedule_interval == "Dataset"}
             if dataset_triggered_dag_ids:
@@ -1006,6 +1009,12 @@ class Airflow(AirflowBaseView):
             for dag in dags:
                 dag.can_edit = get_auth_manager().is_authorized_dag(
                     method="PUT", details=DagDetails(id=dag.dag_id), user=g.user
+                )
+                can_create_dag_run = get_auth_manager().is_authorized_dag(
+                    method="POST",
+                    access_entity=DagAccessEntity.RUN,
+                    details=DagDetails(id=dag.dag_id),
+                    user=g.user,
                 )
                 dag.can_trigger = dag.can_edit and can_create_dag_run
                 dag.can_delete = get_auth_manager().is_authorized_dag(
@@ -2154,7 +2163,7 @@ class Airflow(AirflowBaseView):
             .limit(num_recent_confs)
         )
         recent_confs = {
-            run_id: json.dumps(run_conf)
+            run_id: json.dumps(run_conf, cls=utils_json.WebEncoder)
             for run_id, run_conf in ((run.run_id, run.conf) for run in recent_runs)
             if isinstance(run_conf, dict) and any(run_conf)
         }
@@ -2189,6 +2198,7 @@ class Airflow(AirflowBaseView):
                         },
                         indent=4,
                         ensure_ascii=False,
+                        cls=utils_json.WebEncoder,
                     )
                 except TypeError:
                     flash("Could not pre-populate conf field due to non-JSON-serializable data-types")
@@ -2331,8 +2341,6 @@ class Airflow(AirflowBaseView):
                 start_date=start_date,
                 end_date=end_date,
                 task_ids=task_ids,
-                include_subdags=recursive,
-                include_parentdag=recursive,
                 only_failed=only_failed,
                 session=session,
             )
@@ -2345,8 +2353,6 @@ class Airflow(AirflowBaseView):
                 start_date=start_date,
                 end_date=end_date,
                 task_ids=task_ids,
-                include_subdags=recursive,
-                include_parentdag=recursive,
                 only_failed=only_failed,
                 dry_run=True,
                 session=session,
@@ -3635,40 +3641,6 @@ class Airflow(AirflowBaseView):
                 htmlsafe_json_dumps(data, separators=(",", ":"), cls=utils_json.WebEncoder),
                 {"Content-Type": "application/json; charset=utf-8"},
             )
-
-    @expose("/object/task_instance_history")
-    @provide_session
-    @auth.has_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
-    def ti_history(self, session: Session = NEW_SESSION):
-        dag_id = request.args.get("dag_id")
-        task_id = request.args.get("task_id")
-        run_id = request.args.get("run_id")
-        map_index = request.args.get("map_index", -1, type=int)
-
-        ti_history = (
-            session.query(TIHistory)
-            .filter(
-                TIHistory.dag_id == dag_id,
-                TIHistory.task_id == task_id,
-                TIHistory.run_id == run_id,
-                TIHistory.map_index == map_index,
-            )
-            .order_by(TIHistory.try_number.asc())
-            .all()
-        )
-
-        attrs = TaskInstance.__table__.columns.keys()
-
-        data = [{attr: getattr(ti, attr) for attr in attrs} for ti in ti_history]
-
-        for entity in data:
-            entity["dag_run_id"] = entity.pop("run_id")
-            entity["queued_when"] = entity.pop("queued_dttm")
-
-        return (
-            htmlsafe_json_dumps(data, separators=(",", ":"), cls=utils_json.WebEncoder),
-            {"Content-Type": "application/json; charset=utf-8"},
-        )
 
     @expose("/robots.txt")
     @action_logging
@@ -5512,8 +5484,6 @@ class TaskInstanceModelView(AirflowModelView):
                             start_date=dag_run.execution_date,
                             end_date=dag_run.execution_date,
                             task_ids=downstream_task_ids_to_clear,
-                            include_subdags=False,
-                            include_parentdag=False,
                             session=session,
                             dry_run=True,
                         )
@@ -5662,7 +5632,6 @@ class AutocompleteView(AirflowBaseView):
             DagModel.dag_id.label("name"),
             DagModel._dag_display_property_value.label("dag_display_name"),
         ).where(
-            ~DagModel.is_subdag,
             DagModel.is_active,
             or_(
                 DagModel.dag_id.ilike(f"%{query}%"),
@@ -5677,7 +5646,7 @@ class AutocompleteView(AirflowBaseView):
                 sqla.literal(None).label("dag_display_name"),
             )
             .distinct()
-            .where(~DagModel.is_subdag, DagModel.is_active, DagModel.owners.ilike(f"%{query}%"))
+            .where(DagModel.is_active, DagModel.owners.ilike(f"%{query}%"))
         )
 
         # Hide DAGs if not showing status: "all"
@@ -5770,7 +5739,7 @@ def add_user_permissions_to_dag(sender, template, context, **extra):
         return
     dag = context["dag"]
     can_create_dag_run = get_auth_manager().is_authorized_dag(
-        method="POST", access_entity=DagAccessEntity.RUN
+        method="POST", access_entity=DagAccessEntity.RUN, details=DagDetails(id=dag.dag_id)
     )
 
     dag.can_edit = get_auth_manager().is_authorized_dag(method="PUT", details=DagDetails(id=dag.dag_id))
