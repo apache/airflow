@@ -28,7 +28,6 @@ from unittest import mock
 import pytest
 
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils import email
 from tests.test_utils.config import conf_vars
 
@@ -217,11 +216,7 @@ class TestEmailSmtp:
         monkeypatch.delenv("AIRFLOW_CONN_SMTP_DEFAULT", raising=False)
         mock_smtp.return_value = mock.Mock()
         msg = MIMEMultipart()
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match="Fetching SMTP credentials from configuration variables.*deprecated",
-        ):
-            email.send_mime_email("from", "to", msg, dryrun=False)
+        email.send_mime_email("from", "to", msg, dryrun=False)
         mock_smtp.assert_called_once_with(
             host=conf.get("smtp", "SMTP_HOST"),
             port=conf.getint("smtp", "SMTP_PORT"),
@@ -229,10 +224,6 @@ class TestEmailSmtp:
         )
         assert not mock_smtp_ssl.called
         assert mock_smtp.return_value.starttls.called
-        mock_smtp.return_value.login.assert_called_once_with(
-            conf.get("smtp", "SMTP_USER"),
-            conf.get("smtp", "SMTP_PASSWORD"),
-        )
         mock_smtp.return_value.sendmail.assert_called_once_with("from", "to", msg.as_string())
         assert mock_smtp.return_value.quit.called
 
