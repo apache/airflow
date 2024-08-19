@@ -78,8 +78,8 @@ class TestTimeDeltaSensorAsync:
     )
     @mock.patch("airflow.models.baseoperator.BaseOperator.defer")
     def test_wait_sensor(self, defer_mock, should_defer):
-        delta = timedelta(hours=1)
-        op = WaitSensor(task_id="wait_sensor_check", delta=delta, dag=self.dag)
+        delta = timedelta(seconds=30)
+        op = WaitSensor(task_id="wait_sensor_check", delta=delta, dag=self.dag, deferrable=should_defer)
         op.execute({})
         if should_defer:
             defer_mock.assert_called_once()
