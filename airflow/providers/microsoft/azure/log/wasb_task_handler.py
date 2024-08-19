@@ -46,7 +46,6 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
 
     def __init__(
         self,
-        *,
         base_log_folder: str,
         wasb_log_folder: str,
         wasb_container: str,
