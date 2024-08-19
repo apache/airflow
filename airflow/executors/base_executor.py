@@ -352,7 +352,7 @@ class BaseExecutor(LoggingMixin):
 
                 # Otherwise, we give up and remove the task from the queue.
                 self.log.error(
-                    "could not queue task %s (still running after %d attempts).",
+                    "Could not queue task %s (still running after %d attempts). Learn more: https://airflow.apache.org/docs/apache-airflow/stable/troubleshooting.html#state-mismatch-between-airflow-database-and-executor",
                     key,
                     attempt.total_tries,
                 )
