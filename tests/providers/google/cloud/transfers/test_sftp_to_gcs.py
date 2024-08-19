@@ -304,4 +304,3 @@ class TestSFTPToGCSOperator:
             os.path.join(SOURCE_OBJECT_NO_WILDCARD), mock.ANY, prefetch=True
         )
         gcs_hook.return_value.upload.assert_not_called()  # Upload should not be called
-
