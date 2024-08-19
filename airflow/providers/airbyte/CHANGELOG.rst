@@ -41,8 +41,6 @@ Breaking changes
   The ``token_url`` parameter is optional and it is used to create the access token, the default value is ``v1/applications/token`` used by Airbyte Cloud.
   You must remove the ``api_type`` parameter from your DAG it isn't required anymore.
 
-
-
 3.9.0
 .....
 
