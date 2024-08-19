@@ -112,3 +112,17 @@ Our goal is to avoid breaking changes if we can so we should allow time to revie
 ## Merging PRs for Airflow 2.11
 
 TBD
+
+# Milestones for PR
+
+## Set 2.10.x milestone
+
+TBD
+
+## Set 2.11 milestone
+
+TBD
+
+## Set 3 milestone
+
+TBD
