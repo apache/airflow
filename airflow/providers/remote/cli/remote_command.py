@@ -42,6 +42,22 @@ from airflow.utils.state import TaskInstanceState
 logger = logging.getLogger(__name__)
 
 
+def force_use_internal_api():
+    """Force that environment is made for internal API w/o need to declare outside."""
+    api_url = conf.get("remote", "api_url")
+    if not api_url:
+        raise SystemExit("Error: API URL is not configured, please correct configuration.")
+    logger.info("Starting worker with API endpoint %s", api_url)
+    # export remote API to be used for internal API
+    os.environ["AIRFLOW_ENABLE_AIP_44"] = "True"
+    os.environ["AIRFLOW__CORE__INTERNAL_API_URL"] = api_url
+    InternalApiConfig.set_use_internal_api("remote-worker")
+    os.environ["AIRFLOW__SCHEDULER__SCHEDULE_AFTER_TASK_EXECUTION"] = "False"
+
+
+force_use_internal_api()
+
+
 def _hostname() -> str:
     if platform.system() == "Windows":
         return platform.uname().node
@@ -136,15 +152,8 @@ def _heartbeat(hostname: str, jobs: list[Job], drain_worker: bool) -> None:
 @cli_utils.action_cli(check_db=False)
 def worker(args):
     """Start Airflow Remote worker."""
-    api_url = conf.get("remote", "api_url")
     job_poll_interval = conf.getint("remote", "job_poll_interval")
     heartbeat_interval = conf.getint("remote", "heartbeat_interval")
-    if not api_url:
-        raise SystemExit("Error: API URL is not configured, please correct configuration.")
-    logger.info("Starting worker with API endpoint %s", api_url)
-    # export remote API to be used for internal API
-    os.environ["AIRFLOW__CORE__INTERNAL_API_URL"] = api_url
-    InternalApiConfig.set_use_internal_api("remote-worker")
 
     hostname: str = args.remote_hostname or _hostname()
     queues: list[str] | None = args.queues.split(",") if args.queues else None
@@ -182,7 +191,7 @@ def worker(args):
             new_job = False
 
     logger.info("Quitting worker, signal being offline.")
-    RemoteWorker.set_state(hostname, RemoteWorkerState.OFFLINE, 0, {})
+    RemoteWorker.set_state(hostname, RemoteWorkerState.OFFLINE, 0, _get_sysinfo())
 
 
 ARG_CONCURRENCY = Arg(
