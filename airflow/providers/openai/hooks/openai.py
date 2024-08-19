@@ -455,7 +455,7 @@ class OpenAIHook(BaseHook):
         """
         start = time.monotonic()
         while True:
-            if timeout and start + timeout < time.monotonic():
+            if start + timeout < time.monotonic():
                 self.cancel_batch(batch_id=batch_id)
                 raise AirflowException(f"Timeout: OpenAI Batch {batch_id} is not ready after {timeout}s")
             time.sleep(wait_seconds)

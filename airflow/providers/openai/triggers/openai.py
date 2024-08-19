@@ -76,7 +76,7 @@ class OpenAIBatchTrigger(BaseTrigger):
                 yield TriggerEvent(
                     {
                         "status": "success",
-                        "message": f"Job run {self.batch_id} has completed successfully.",
+                        "message": f"Batch run {self.batch_id} has completed successfully.",
                         "batch_id": self.batch_id,
                     }
                 )
@@ -84,7 +84,7 @@ class OpenAIBatchTrigger(BaseTrigger):
                 yield TriggerEvent(
                     {
                         "status": "cancelled",
-                        "message": f"Job run {self.batch_id} has been cancelled.",
+                        "message": f"Batch run {self.batch_id} has been cancelled.",
                         "batch_id": self.batch_id,
                     }
                 )
