@@ -798,7 +798,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     _base_operator_shallow_copy_attrs: tuple[str, ...] = (
         "user_defined_macros",
         "user_defined_filters",
-        "params",
     )
 
     # each operator should override this class attr for shallow copy attrs.
@@ -1416,6 +1415,23 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         """
         if not jinja_env:
             jinja_env = self.get_template_env()
+
+        # render params if exists
+        if "params" in context:
+            class ParamsWrapper:
+                params = context["params"].serialize() if \
+                    isinstance(context["params"], ParamsDict) \
+                    else context["params"]
+
+            params_wrapper = ParamsWrapper()
+            self._do_render_template_fields(params_wrapper, ("params", ), context, jinja_env, set())
+
+            # Update context with rendered params
+            context['params'] = ParamsDict.deserialize(
+                data=params_wrapper.params,
+                version=ParamsDict.__version__,
+            )
+
         self._do_render_template_fields(self, self.template_fields, context, jinja_env, set())
 
     @provide_session

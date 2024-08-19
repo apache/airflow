@@ -386,6 +386,50 @@ class TestBaseOperator:
         task.render_template_fields({})
         assert task.arg2 == "foo_barbarbar"
 
+    @pytest.mark.parametrize(
+        ("arg1", "arg2", "params", "rendered_params", "context", "rendered_arg1", "rendered_arg2"),
+        [
+            (
+                "{{ foo }}",
+                "{{ params.bar }}",
+                {"bar": "{{ foo }}"},
+                {"bar": "footemplated"},
+                {"foo": "footemplated"},
+                "footemplated",
+                "footemplated",
+            ),
+            (
+                "{{ foo }}",
+                "{{ params.bar.foo }}",
+                {"bar": {"foo": "{{ foo }}"}},
+                {"bar": {"foo": "footemplated"}},
+                {"foo": "footemplated"},
+                "footemplated",
+                "footemplated",
+            ),
+        ]
+    )
+    def test_render_template_fields_with_params(self, arg1, arg2, params, rendered_params,
+                                                context, rendered_arg1, rendered_arg2):
+        """Verify if operator attributes are correctly templated when params is also templated."""
+        with DAG("test-dag", start_date=DEFAULT_DATE):
+            task = MockOperator(task_id="op1", arg1=arg1, arg2=arg2, params=params)
+
+        # Build a context with the given params
+        complete_context = dict(dag=task.dag, task=task, **context)
+        complete_context["params"] = task.params
+
+        # Assert nothing is templated yet
+        assert task.arg1 == arg1
+        assert task.arg2 == arg2
+        assert complete_context["params"] != rendered_params
+
+        # Trigger templating and verify if attributes are templated correctly
+        task.render_template_fields(complete_context)
+        assert task.arg1 == rendered_arg1
+        assert task.arg2 == rendered_arg2
+        assert complete_context["params"] == rendered_params
+
     @pytest.mark.parametrize(("content",), [(object(),), (uuid.uuid4(),)])
     def test_render_template_fields_no_change(self, content):
         """Tests if non-templatable types remain unchanged."""
