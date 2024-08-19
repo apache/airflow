@@ -160,7 +160,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const { nodes: upstreamDatasetNodes, edges: upstreamDatasetEdges } =
     getUpstreamDatasets(
       dagDetails.datasetExpression as DatasetExpression,
-      data?.nodes?.children ? data.nodes.children[0].id : ""
+      data?.nodes?.children?.[0]?.id ?? ""
     );
 
   const {

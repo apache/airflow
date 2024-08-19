@@ -57,7 +57,7 @@ class TestS3TaskHandler:
         assert self.s3_task_handler.hook is not None
 
         date = datetime(2016, 1, 1)
-        self.dag = DAG("dag_for_testing_s3_task_handler", start_date=date)
+        self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test", run_type="manual")
         session.add(dag_run)

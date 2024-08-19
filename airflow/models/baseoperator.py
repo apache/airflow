@@ -853,10 +853,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     _dag: DAG | None = None
     task_group: TaskGroup | None = None
 
-    # subdag parameter is only set for SubDagOperator.
-    # Setting it to None by default as other Operators do not have that field
-    subdag: DAG | None = None
-
     start_date: pendulum.DateTime | None = None
     end_date: pendulum.DateTime | None = None
 
@@ -1740,7 +1736,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "end_date",
                     "_task_type",
                     "_operator_name",
-                    "subdag",
                     "ui_color",
                     "ui_fgcolor",
                     "template_ext",
@@ -2080,9 +2075,9 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
 
     E.g.: suppose you want precedence like so::
 
-            â•­â”€op2â”€â•® â•­â”€op4â”€â•®
-        op1â”€â”¤     â”œâ”€â”œâ”€op5â”€â”¤â”€op7
-            â•°-op3â”€â•¯ â•°-op6â”€â•¯
+            â•­â"€op2â"€â•® â•­â"€op4â"€â•®
+        op1â"€â"¤     â"œâ"€â"œâ"€op5â"€â"¤â"€op7
+            â•°-op3â"€â•¯ â•°-op6â"€â•¯
 
     Then you can accomplish like so::
 

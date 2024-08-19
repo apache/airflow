@@ -213,7 +213,8 @@ class WasbHook(BaseHook):
             **extra,
         )
 
-    def _get_container_client(self, container_name: str) -> ContainerClient:
+    # TODO: rework the interface as it might also return AsyncContainerClient
+    def _get_container_client(self, container_name: str) -> ContainerClient:  # type: ignore[override]
         """
         Instantiate a container client.
 
@@ -222,7 +223,7 @@ class WasbHook(BaseHook):
         """
         return self.blob_service_client.get_container_client(container_name)
 
-    def _get_blob_client(self, container_name: str, blob_name: str) -> BlobClient:
+    def _get_blob_client(self, container_name: str, blob_name: str) -> BlobClient | AsyncBlobClient:
         """
         Instantiate a blob client.
 
@@ -415,7 +416,8 @@ class WasbHook(BaseHook):
             self.create_container(container_name)
 
         blob_client = self._get_blob_client(container_name, blob_name)
-        return blob_client.upload_blob(data, blob_type, length=length, **kwargs)
+        # TODO: rework the interface as it might also return Awaitable
+        return blob_client.upload_blob(data, blob_type, length=length, **kwargs)  # type: ignore[return-value]
 
     def download(
         self, container_name, blob_name, offset: int | None = None, length: int | None = None, **kwargs
@@ -430,7 +432,8 @@ class WasbHook(BaseHook):
         :param length: Number of bytes to read from the stream.
         """
         blob_client = self._get_blob_client(container_name, blob_name)
-        return blob_client.download_blob(offset=offset, length=length, **kwargs)
+        # TODO: rework the interface as it might also return Awaitable
+        return blob_client.download_blob(offset=offset, length=length, **kwargs)  # type: ignore[return-value]
 
     def create_container(self, container_name: str) -> None:
         """
@@ -656,7 +659,8 @@ class WasbAsyncHook(WasbHook):
             return False
         return True
 
-    def _get_container_client(self, container_name: str) -> AsyncContainerClient:
+    # TODO: rework the interface as in parent Hook it returns ContainerClient
+    def _get_container_client(self, container_name: str) -> AsyncContainerClient:  # type: ignore[override]
         """
         Instantiate a container client.
 

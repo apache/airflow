@@ -47,7 +47,7 @@ def init_xframe_protection(app):
     app.after_request(apply_caching)
 
 
-def init_api_experimental_auth(app):
+def init_api_auth(app):
     """Load authentication backends."""
     auth_backends = "airflow.api.auth.backend.default"
     try:
