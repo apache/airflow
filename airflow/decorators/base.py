@@ -445,7 +445,6 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         }
         partial_kwargs.update({key: value for key, value in default_args.items() if key in _PARTIAL_DEFAULTS})
         partial_kwargs.update(task_kwargs)
-        partial_kwargs["default_args"] = default_args
 
         task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
         if task_group:
