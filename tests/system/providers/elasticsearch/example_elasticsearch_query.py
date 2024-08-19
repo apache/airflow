@@ -41,11 +41,10 @@ def show_tables():
     # [START howto_elasticsearch_query]
     es = ElasticsearchSQLHook(elasticsearch_conn_id=CONN_ID)
 
-    # Handle ES conn with context manager
-    with es.get_conn() as es_conn:
-        tables = es_conn.execute("SHOW TABLES")
-        for table, *_ in tables:
-            print(f"table: {table}")
+    es_connection = es.get_conn()
+    response = es_connection.execute_sql("SHOW TABLES")
+    for row in response["rows"]:
+        print(f"row: {row}")
     return True
     # [END howto_elasticsearch_query]
 
