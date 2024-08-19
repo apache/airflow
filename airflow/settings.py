@@ -452,7 +452,6 @@ def configure_orm(disable_connection_pool=False, pool_class=None):
 
     global Session
     global engine
-    from airflow.api_internal.internal_api_call import InternalApiConfig
 
     if os.environ.get("_AIRFLOW_SKIP_DB_TESTS") == "true":
         # Skip DB initialization in unit tests, if DB tests are skipped
