@@ -485,6 +485,7 @@ class TestDagRun:
             dag_id="test_dagrun_update_state_with_handle_callback_success",
             start_date=datetime.datetime(2017, 1, 1),
             on_success_callback=mock_on_success,
+            schedule=datetime.timedelta(days=1),
         )
 
         _ = EmptyOperator(task_id="test_state_succeeded1", dag=dag)
