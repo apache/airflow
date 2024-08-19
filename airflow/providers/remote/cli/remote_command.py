@@ -60,6 +60,14 @@ class Job:
     """Last size of log file, point of last chunk push."""
 
 
+def _get_sysinfo() -> dict:
+    """Produce the sysinfo from worker to post to central site."""
+    return {
+        "airflow_version": airflow_version,
+        "remote_provider_version": remote_provider_version,
+    }
+
+
 def _fetch_job(hostname: str, queues: list[str] | None, jobs: list[Job]) -> bool:
     """Fetch and start a new job from central site."""
     logger.debug("Attempting to fetch a new job...")
@@ -121,10 +129,7 @@ def _heartbeat(hostname: str, jobs: list[Job], drain_worker: bool) -> None:
         if jobs
         else RemoteWorkerState.IDLE
     )
-    sysinfo = {
-        "airflow_version": airflow_version,
-        "remote_provider_version": remote_provider_version,
-    }
+    sysinfo = _get_sysinfo()
     RemoteWorker.set_state(hostname, state, len(jobs), sysinfo)
 
 
@@ -148,10 +153,12 @@ def worker(args):
     new_job = False
     try:
         last_heartbeat = RemoteWorker.register_worker(
-            hostname, RemoteWorkerState.STARTING, queues
+            hostname, RemoteWorkerState.STARTING, queues, _get_sysinfo()
         ).last_update
-    except AirflowException:
-        raise SystemExit("Error: API endpoint is not ready, please set [remote] api_enabled=True.")
+    except AirflowException as e:
+        if "404:NOT FOUND" in str(e):
+            raise SystemExit("Error: API endpoint is not ready, please set [remote] api_enabled=True.")
+        raise SystemExit(str(e))
 
     drain_worker = [False]
 
