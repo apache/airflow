@@ -24,10 +24,7 @@ unset BACKEND
 unset POSTGRES_VERSION
 unset DATABASE_ISOLATION
 
-export AIRFLOW_ENABLE_AIP_44=true
-export AIRFLOW__REMOTE__API_ENABLED=true
 export AIRFLOW__REMOTE__API_URL=http://localhost:8080/remote_worker/v1/rpcapi
-export AIRFLOW__SCHEDULER__SCHEDULE_AFTER_TASK_EXECUTION=False
 
 # Ensure logs are smelling like remote and are not visible to other components
 export AIRFLOW__LOGGING__BASE_LOG_FOLDER=remote_logs
