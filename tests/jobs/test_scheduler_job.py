@@ -1236,7 +1236,7 @@ class TestSchedulerJob:
         assert res[0].key == ti3.key
         session.rollback()
 
-    def test_find_executable_task_instances_concurrency_queued_with_zero_deferred_active_tasks(
+    def test_find_executable_task_instances_concurrency_queued_when_zero_deferred_active_tasks(
         self, dag_maker
     ):
         dag_id = "SchedulerJobTest.test_find_executable_task_instances_concurrency_queued"
@@ -1270,7 +1270,9 @@ class TestSchedulerJob:
         assert res[0].key == ti3.key
         session.rollback()
 
-    def test_find_executable_task_instances_concurrency_queued_with_deferred_active_tasks(self, dag_maker):
+    def test_find_executable_task_instances_concurrency_queued_when_deferred_active_tasks_exists(
+        self, dag_maker
+    ):
         dag_id = "SchedulerJobTest.test_find_executable_task_instances_concurrency_queued"
 
         # max_active_tasks_include_deferred includes deferred tasks count into max_active_tasks
@@ -1306,7 +1308,6 @@ class TestSchedulerJob:
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
         assert 0 == len(res)
-        # assert res[0].key == ti3.key
         session.rollback()
 
     def test_find_executable_task_instances_concurrency_queued_when_all_tasks_are_in_deferred_state(
@@ -1316,7 +1317,7 @@ class TestSchedulerJob:
 
         # max_active_tasks_include_deferred includes deferred tasks count into max_active_tasks
 
-        with dag_maker(dag_id=dag_id, max_active_tasks=3, max_active_tasks_include_deferred=True):
+        with dag_maker(dag_id=dag_id, max_active_tasks=4, max_active_tasks_include_deferred=True):
             task1 = EmptyOperator(task_id="dummy1")
             task2 = EmptyOperator(task_id="dummy2")
             task3 = EmptyOperator(task_id="dummy3")
@@ -1346,8 +1347,8 @@ class TestSchedulerJob:
 
         res = self.job_runner._executable_task_instances_to_queued(max_tis=32, session=session)
 
-        assert 0 == len(res)
-        # assert res[0].key == ti3.key
+        assert 1 == len(res)
+        assert res[0].key == ti4.key
         session.rollback()
 
     # TODO: This is a hack, I think I need to just remove the setting and have it on always

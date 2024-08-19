@@ -187,6 +187,7 @@ def test_serializing_pydantic_dagmodel(schedule):
         timetable_description=timetable.description,
         is_active=True,
         is_paused=False,
+        max_active_tasks_include_deferred=False,
     )
 
     pydantic_dag_model = DagModelPydantic.model_validate(dag_model)
@@ -199,6 +200,7 @@ def test_serializing_pydantic_dagmodel(schedule):
     assert deserialized_model.timetable_description == timetable.description
     assert deserialized_model.is_active is True
     assert deserialized_model.is_paused is False
+    assert deserialized_model.max_active_tasks_include_deferred is False
 
 
 def test_serializing_pydantic_local_task_job(session, create_task_instance):

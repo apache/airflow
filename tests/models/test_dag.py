@@ -2547,6 +2547,29 @@ class TestDagModel:
         session.rollback()
         session.close()
 
+    def test_max_active_tasks_include_deferred_updated(self):
+        dag = DAG(
+            dag_id="max_active_tasks_include_deferred_updated",
+            schedule=None,
+            start_date=timezone.datetime(2038, 1, 1),
+        )
+        EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
+
+        session = settings.Session()
+        orm_dag = DagModel(
+            dag_id=dag.dag_id,
+            next_dagrun=None,
+            next_dagrun_create_after=None,
+            is_active=True,
+        )
+
+        assert not orm_dag.max_active_tasks_include_deferred
+        session.add(orm_dag)
+        session.flush()
+
+        session.rollback()
+        session.close()
+
     def test_dags_needing_dagruns_only_unpaused(self):
         """
         We should never create dagruns for unpaused DAGs
