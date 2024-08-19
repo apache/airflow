@@ -1414,16 +1414,19 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         # render params if exists
         if "params" in context:
+
             class ParamsWrapper:
-                params = context["params"].serialize() if \
-                    isinstance(context["params"], ParamsDict) \
+                params = (
+                    context["params"].serialize()
+                    if isinstance(context["params"], ParamsDict)
                     else context["params"]
+                )
 
             params_wrapper = ParamsWrapper()
-            self._do_render_template_fields(params_wrapper, ("params", ), context, jinja_env, set())
+            self._do_render_template_fields(params_wrapper, ("params",), context, jinja_env, set())
 
             # Update context with rendered params
-            context['params'] = ParamsDict.deserialize(
+            context["params"] = ParamsDict.deserialize(
                 data=params_wrapper.params,
                 version=ParamsDict.__version__,
             )

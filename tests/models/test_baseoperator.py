@@ -423,12 +423,13 @@ class TestBaseOperator:
                 "footemplated",
                 "footemplated",
             ),
-        ]
+        ],
     )
-    def test_render_template_fields_with_params(self, arg1, arg2, params, rendered_params,
-                                                context, rendered_arg1, rendered_arg2):
+    def test_render_template_fields_with_params(
+        self, arg1, arg2, params, rendered_params, context, rendered_arg1, rendered_arg2
+    ):
         """Verify if operator attributes are correctly templated when params is also templated."""
-        with DAG("test-dag", start_date=DEFAULT_DATE):
+        with DAG("test-dag", schedule=timedelta(days=1)):
             task = MockOperator(task_id="op1", arg1=arg1, arg2=arg2, params=params)
 
         # Build a context with the given params
