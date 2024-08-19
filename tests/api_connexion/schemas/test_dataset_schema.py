@@ -28,7 +28,7 @@ from airflow.api_connexion.schemas.dataset_schema import (
     dataset_schema,
 )
 from airflow.assets import Dataset
-from airflow.models.dataset import DatasetAliasModel, DatasetEvent, DatasetModel
+from airflow.models.dataset import AssetAliasModel, DatasetEvent, DatasetModel
 from airflow.operators.empty import EmptyOperator
 from tests.test_utils.db import clear_db_dags, clear_db_datasets
 
@@ -100,11 +100,11 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
             )
             for i in range(2)
         ]
-        dataset_aliases = [DatasetAliasModel(name=f"alias_{i}") for i in range(2)]
-        for dataset_alias in dataset_aliases:
-            dataset_alias.datasets.append(datasets[0])
+        asset_aliases = [AssetAliasModel(name=f"alias_{i}") for i in range(2)]
+        for asset_alias in asset_aliases:
+            asset_alias.datasets.append(datasets[0])
         session.add_all(datasets)
-        session.add_all(dataset_aliases)
+        session.add_all(asset_aliases)
         session.flush()
         serialized_data = dataset_collection_schema.dump(
             DatasetCollection(datasets=datasets, total_entries=2)

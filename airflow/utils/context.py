@@ -47,7 +47,7 @@ from airflow.assets import (
     extract_event_key,
 )
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.dataset import DatasetAliasModel, DatasetEvent, DatasetModel
+from airflow.models.dataset import AssetAliasModel, DatasetEvent, DatasetModel
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.types import NOTSET
 
@@ -165,7 +165,7 @@ class ConnectionAccessor:
 @attrs.define()
 class OutletEventAccessor:
     """
-    Wrapper to access an outlet dataset event in template.
+    Wrapper to access an outlet asset event in template.
 
     :meta private:
     """
@@ -184,14 +184,14 @@ class OutletEventAccessor:
             return
 
         if isinstance(self.raw_key, str):
-            dataset_alias_name = self.raw_key
+            asset_alias_name = self.raw_key
         elif isinstance(self.raw_key, DatasetAlias):
-            dataset_alias_name = self.raw_key.name
+            asset_alias_name = self.raw_key.name
         else:
             return
 
         event = AssetAliasEvent(
-            source_alias_name=dataset_alias_name, dest_asset_uri=dataset_uri, extra=extra or {}
+            source_alias_name=asset_alias_name, dest_asset_uri=dataset_uri, extra=extra or {}
         )
         self.asset_alias_events.append(event)
 
@@ -280,7 +280,7 @@ class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
         if isinstance(obj, DatasetAlias):
             dataset_alias = self._dataset_aliases[obj.name]
             join_clause = DatasetEvent.source_aliases
-            where_clause = DatasetAliasModel.name == dataset_alias.name
+            where_clause = AssetAliasModel.name == dataset_alias.name
         elif isinstance(obj, (Dataset, str)):
             dataset = self._datasets[extract_event_key(obj)]
             join_clause = DatasetEvent.dataset

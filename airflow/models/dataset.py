@@ -83,7 +83,7 @@ dataset_alias_dataset_event_assocation_table = Table(
 )
 
 
-class DatasetAliasModel(Base):
+class AssetAliasModel(Base):
     """
     A table to store dataset alias.
 
@@ -123,7 +123,7 @@ class DatasetAliasModel(Base):
     consuming_dags = relationship("DagScheduleDatasetAliasReference", back_populates="dataset_alias")
 
     @classmethod
-    def from_public(cls, obj: DatasetAlias) -> DatasetAliasModel:
+    def from_public(cls, obj: DatasetAlias) -> AssetAliasModel:
         return cls(name=obj.name)
 
     def __repr__(self):
@@ -215,7 +215,7 @@ class DagScheduleDatasetAliasReference(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    dataset_alias = relationship("DatasetAliasModel", back_populates="consuming_dags")
+    dataset_alias = relationship("AssetAliasModel", back_populates="consuming_dags")
     dag = relationship("DagModel", back_populates="schedule_dataset_alias_references")
 
     __tablename__ = "dag_schedule_dataset_alias_reference"
@@ -443,7 +443,7 @@ class DatasetEvent(Base):
     )
 
     source_aliases = relationship(
-        "DatasetAliasModel",
+        "AssetAliasModel",
         secondary=dataset_alias_dataset_event_assocation_table,
         back_populates="dataset_events",
     )

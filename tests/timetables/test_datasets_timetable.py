@@ -24,7 +24,7 @@ import pytest
 from pendulum import DateTime
 
 from airflow.assets import Dataset, DatasetAlias
-from airflow.models.dataset import DatasetAliasModel, DatasetEvent, DatasetModel
+from airflow.models.dataset import AssetAliasModel, DatasetEvent, DatasetModel
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.datasets import DatasetOrTimeSchedule
 from airflow.timetables.simple import DatasetTriggeredTimetable
@@ -261,11 +261,11 @@ def test_run_ordering_inheritance(dataset_timetable: DatasetOrTimeSchedule) -> N
 @pytest.mark.db_test
 def test_summary(session: Session) -> None:
     dataset_model = DatasetModel(uri="test_dataset")
-    dataset_alias_model = DatasetAliasModel(name="test_dataset_alias")
+    dataset_alias_model = AssetAliasModel(name="test_asset_alias")
     session.add_all([dataset_model, dataset_alias_model])
     session.commit()
 
-    dataset_alias = DatasetAlias("test_dataset_alias")
+    dataset_alias = DatasetAlias("test_asset_alias")
     table = DatasetTriggeredTimetable(dataset_alias)
     assert table.summary == "Unresolved DatasetAlias"
 

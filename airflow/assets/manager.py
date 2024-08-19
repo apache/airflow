@@ -29,9 +29,9 @@ from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dataset import (
+    AssetAliasModel,
     DagScheduleDatasetAliasReference,
     DagScheduleDatasetReference,
-    DatasetAliasModel,
     DatasetDagRunQueue,
     DatasetEvent,
     DatasetModel,
@@ -73,11 +73,11 @@ class AssetManager(LoggingMixin):
         dataset_aliases: list[DatasetAlias],
         *,
         session: Session,
-    ) -> list[DatasetAliasModel]:
+    ) -> list[AssetAliasModel]:
         """Create new dataset aliases."""
 
-        def _add_one(dataset_alias: DatasetAlias) -> DatasetAliasModel:
-            model = DatasetAliasModel.from_public(dataset_alias)
+        def _add_one(dataset_alias: DatasetAlias) -> AssetAliasModel:
+            model = AssetAliasModel.from_public(dataset_alias)
             session.add(model)
             cls.notify_dataset_alias_created(dataset_alias=dataset_alias)
             return model
@@ -95,10 +95,10 @@ class AssetManager(LoggingMixin):
         already_related = {m.name for m in dataset.aliases}
         existing_aliases = {
             m.name: m
-            for m in session.scalars(select(DatasetAliasModel).where(DatasetAliasModel.name.in_(alias_names)))
+            for m in session.scalars(select(AssetAliasModel).where(AssetAliasModel.name.in_(alias_names)))
         }
         dataset.aliases.extend(
-            existing_aliases.get(name, DatasetAliasModel(name=name))
+            existing_aliases.get(name, AssetAliasModel(name=name))
             for name in alias_names
             if name not in already_related
         )
@@ -159,10 +159,10 @@ class AssetManager(LoggingMixin):
         dags_to_queue_from_asset_alias = set()
         if source_alias_names:
             asset_alias_models = session.scalars(
-                select(DatasetAliasModel)
-                .where(DatasetAliasModel.name.in_(source_alias_names))
+                select(AssetAliasModel)
+                .where(AssetAliasModel.name.in_(source_alias_names))
                 .options(
-                    joinedload(DatasetAliasModel.consuming_dags).joinedload(
+                    joinedload(AssetAliasModel.consuming_dags).joinedload(
                         DagScheduleDatasetAliasReference.dag
                     )
                 )

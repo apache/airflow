@@ -57,7 +57,7 @@ from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetAliasModel, DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.dataset import AssetAliasModel, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY, NotFullyPopulated
 from airflow.models.param import process_params
 from airflow.models.pool import Pool
@@ -2535,7 +2535,7 @@ class TestTaskInstance:
         from airflow.assets import Dataset, DatasetAlias
 
         ds_uri = "test_outlet_dataset_alias_test_case_ds"
-        dsa_name_1 = "test_outlet_dataset_alias_test_case_dsa_1"
+        alias_name_1 = "test_outlet_dataset_alias_test_case_dsa_1"
 
         ds1 = DatasetModel(id=1, uri=ds_uri)
         session.add(ds1)
@@ -2543,9 +2543,9 @@ class TestTaskInstance:
 
         with dag_maker(dag_id="producer_dag", schedule=None, session=session) as dag:
 
-            @task(outlets=DatasetAlias(dsa_name_1))
+            @task(outlets=DatasetAlias(alias_name_1))
             def producer(*, outlet_events):
-                outlet_events[dsa_name_1].add(Dataset(ds_uri))
+                outlet_events[alias_name_1].add(Dataset(ds_uri))
 
             producer()
 
@@ -2569,15 +2569,15 @@ class TestTaskInstance:
         assert producer_event.dataset.uri == ds_uri
         assert len(producer_event.source_aliases) == 1
         assert producer_event.extra == {}
-        assert producer_event.source_aliases[0].name == dsa_name_1
+        assert producer_event.source_aliases[0].name == alias_name_1
 
         ds_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == ds_uri))
         assert len(ds_obj.aliases) == 1
-        assert ds_obj.aliases[0].name == dsa_name_1
+        assert ds_obj.aliases[0].name == alias_name_1
 
-        dsa_obj = session.scalar(select(DatasetAliasModel).where(DatasetAliasModel.name == dsa_name_1))
-        assert len(dsa_obj.datasets) == 1
-        assert dsa_obj.datasets[0].uri == ds_uri
+        asset_alias_obj = session.scalar(select(AssetAliasModel).where(AssetAliasModel.name == alias_name_1))
+        assert len(asset_alias_obj.datasets) == 1
+        assert asset_alias_obj.datasets[0].uri == ds_uri
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_multiple_dataset_alias(self, dag_maker, session):
@@ -2634,11 +2634,11 @@ class TestTaskInstance:
         assert len(ds_obj.aliases) == 3
         assert {alias.name for alias in ds_obj.aliases} == {dsa_name_1, dsa_name_2, dsa_name_3}
 
-        dsa_objs = session.scalars(select(DatasetAliasModel)).all()
-        assert len(dsa_objs) == 3
-        for dsa_obj in dsa_objs:
-            assert len(dsa_obj.datasets) == 1
-            assert dsa_obj.datasets[0].uri == ds_uri
+        asset_alias_objs = session.scalars(select(AssetAliasModel)).all()
+        assert len(asset_alias_objs) == 3
+        for asset_alias_obj in asset_alias_objs:
+            assert len(asset_alias_obj.datasets) == 1
+            assert asset_alias_obj.datasets[0].uri == ds_uri
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_dataset_alias_through_metadata(self, dag_maker, session):
@@ -2681,9 +2681,9 @@ class TestTaskInstance:
         assert len(ds_obj.aliases) == 1
         assert ds_obj.aliases[0].name == dsa_name
 
-        dsa_obj = session.scalar(select(DatasetAliasModel))
-        assert len(dsa_obj.datasets) == 1
-        assert dsa_obj.datasets[0].uri == ds_uri
+        asset_alias_obj = session.scalar(select(AssetAliasModel))
+        assert len(asset_alias_obj.datasets) == 1
+        assert asset_alias_obj.datasets[0].uri == ds_uri
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_dataset_alias_dataset_not_exists(self, dag_maker, session):
@@ -2721,9 +2721,9 @@ class TestTaskInstance:
         assert len(ds_obj.aliases) == 1
         assert ds_obj.aliases[0].name == dsa_name
 
-        dsa_obj = session.scalar(select(DatasetAliasModel))
-        assert len(dsa_obj.datasets) == 1
-        assert dsa_obj.datasets[0].uri == ds_uri
+        asset_alias_obj = session.scalar(select(AssetAliasModel))
+        assert len(asset_alias_obj.datasets) == 1
+        assert asset_alias_obj.datasets[0].uri == ds_uri
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_inlet_dataset_extra(self, dag_maker, session):
@@ -2785,7 +2785,7 @@ class TestTaskInstance:
         dsa_name = "test_inlet_dataset_extra_dsa"
 
         ds_model = DatasetModel(id=1, uri=ds_uri)
-        dsa_model = DatasetAliasModel(name=dsa_name)
+        dsa_model = AssetAliasModel(name=dsa_name)
         dsa_model.datasets.append(ds_model)
         session.add_all([ds_model, dsa_model])
         session.commit()
@@ -2845,7 +2845,7 @@ class TestTaskInstance:
     def test_inlet_unresolved_dataset_alias(self, dag_maker, session):
         dsa_name = "test_inlet_dataset_extra_dsa"
 
-        dsa_model = DatasetAliasModel(name=dsa_name)
+        dsa_model = AssetAliasModel(name=dsa_name)
         session.add(dsa_model)
         session.commit()
 
@@ -2938,7 +2938,7 @@ class TestTaskInstance:
         dsa_name = "test_inlet_dataset_alias_extra_slice_dsa"
 
         ds_model = DatasetModel(id=1, uri=ds_uri)
-        dsa_model = DatasetAliasModel(name=dsa_name)
+        dsa_model = AssetAliasModel(name=dsa_name)
         dsa_model.datasets.append(ds_model)
         session.add_all([ds_model, dsa_model])
         session.commit()

@@ -35,7 +35,7 @@ from airflow.assets import (
     _get_normalized_scheme,
     _sanitize_uri,
 )
-from airflow.models.dataset import DatasetAliasModel, DatasetDagRunQueue, DatasetModel
+from airflow.models.dataset import AssetAliasModel, DatasetDagRunQueue, DatasetModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization, SerializedDAG
@@ -536,7 +536,7 @@ def test_normalize_uri_valid_uri():
 class Test_DatasetAliasCondition:
     @pytest.fixture
     def ds_1(self, session):
-        """Example dataset links to dataset alias resolved_dsa_2."""
+        """Example dataset links to dataset alias resolved_asset_alias_2."""
         ds_uri = "test_uri"
         ds_1 = DatasetModel(id=1, uri=ds_uri)
 
@@ -546,43 +546,43 @@ class Test_DatasetAliasCondition:
         return ds_1
 
     @pytest.fixture
-    def dsa_1(self, session):
-        """Example dataset alias links to no datasets."""
-        dsa_name = "test_name"
-        dsa_1 = DatasetAliasModel(name=dsa_name)
+    def asset_alias_1(self, session):
+        """Example asset alias links to no datasets."""
+        alias_name = "test_name"
+        asset_alias_model = AssetAliasModel(name=alias_name)
 
-        session.add(dsa_1)
+        session.add(asset_alias_model)
         session.commit()
 
-        return dsa_1
+        return asset_alias_model
 
     @pytest.fixture
-    def resolved_dsa_2(self, session, ds_1):
-        """Example dataset alias links to no dataset dsa_1."""
-        dsa_name = "test_name_2"
-        dsa_2 = DatasetAliasModel(name=dsa_name)
-        dsa_2.datasets.append(ds_1)
+    def resolved_asset_alias_2(self, session, ds_1):
+        """Example dataset alias links to no dataset asset_alias_1."""
+        asset_name = "test_name_2"
+        asset_alias_2 = AssetAliasModel(name=asset_name)
+        asset_alias_2.datasets.append(ds_1)
 
-        session.add(dsa_2)
+        session.add(asset_alias_2)
         session.commit()
 
-        return dsa_2
+        return asset_alias_2
 
-    def test_init(self, dsa_1, ds_1, resolved_dsa_2):
-        cond = _DatasetAliasCondition(name=dsa_1.name)
+    def test_init(self, asset_alias_1, ds_1, resolved_asset_alias_2):
+        cond = _DatasetAliasCondition(name=asset_alias_1.name)
         assert cond.objects == []
 
-        cond = _DatasetAliasCondition(name=resolved_dsa_2.name)
+        cond = _DatasetAliasCondition(name=resolved_asset_alias_2.name)
         assert cond.objects == [Dataset(uri=ds_1.uri)]
 
-    def test_as_expression(self, dsa_1, resolved_dsa_2):
-        for dsa in (dsa_1, resolved_dsa_2):
-            cond = _DatasetAliasCondition(dsa.name)
-            assert cond.as_expression() == {"alias": dsa.name}
+    def test_as_expression(self, asset_alias_1, resolved_asset_alias_2):
+        for assset_alias in (asset_alias_1, resolved_asset_alias_2):
+            cond = _DatasetAliasCondition(assset_alias.name)
+            assert cond.as_expression() == {"alias": assset_alias.name}
 
-    def test_evalute(self, dsa_1, resolved_dsa_2, ds_1):
-        cond = _DatasetAliasCondition(dsa_1.name)
+    def test_evalute(self, asset_alias_1, resolved_asset_alias_2, ds_1):
+        cond = _DatasetAliasCondition(asset_alias_1.name)
         assert cond.evaluate({ds_1.uri: True}) is False
 
-        cond = _DatasetAliasCondition(resolved_dsa_2.name)
+        cond = _DatasetAliasCondition(resolved_asset_alias_2.name)
         assert cond.evaluate({ds_1.uri: True}) is True

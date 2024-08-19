@@ -64,7 +64,7 @@ from airflow.models.dag import (
 )
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import (
-    DatasetAliasModel,
+    AssetAliasModel,
     DatasetDagRunQueue,
     DatasetEvent,
     DatasetModel,
@@ -1137,14 +1137,14 @@ class TestDag:
         DAG.bulk_write_to_db([dag1, dag2], session=session)
         session.commit()
 
-        stored_dataset_aliases = {x.name: x for x in session.query(DatasetAliasModel).all()}
-        da1_orm = stored_dataset_aliases[da1.name]
-        da2_orm = stored_dataset_aliases[da2.name]
-        da3_orm = stored_dataset_aliases[da3.name]
-        assert da1_orm.name == "da1"
-        assert da2_orm.name == "da2"
-        assert da3_orm.name == "da3"
-        assert len(stored_dataset_aliases) == 3
+        stored_asset_alias_models = {x.name: x for x in session.query(AssetAliasModel).all()}
+        asset_alias_1_orm = stored_asset_alias_models[da1.name]
+        asset_alias_2_orm = stored_asset_alias_models[da2.name]
+        asset_alias_3_orm = stored_asset_alias_models[da3.name]
+        assert asset_alias_1_orm.name == "da1"
+        assert asset_alias_2_orm.name == "da2"
+        assert asset_alias_3_orm.name == "da3"
+        assert len(stored_asset_alias_models) == 3
 
     def test_sync_to_db(self):
         dag = DAG("dag", start_date=DEFAULT_DATE, schedule=None)
@@ -2477,9 +2477,9 @@ class TestDagModel:
     def test_dags_needing_dagruns_dataset_aliases(self, dag_maker, session):
         # link dataset_alias hello_alias to dataset hello
         dataset_model = DatasetModel(uri="hello")
-        dataset_alias_model = DatasetAliasModel(name="hello_alias")
-        dataset_alias_model.datasets.append(dataset_model)
-        session.add_all([dataset_model, dataset_alias_model])
+        asset_alias_model = AssetAliasModel(name="hello_alias")
+        asset_alias_model.datasets.append(dataset_model)
+        session.add_all([dataset_model, asset_alias_model])
         session.commit()
 
         with dag_maker(

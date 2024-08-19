@@ -82,9 +82,9 @@ def clear_db_datasets():
         session.query(DagScheduleDatasetReference).delete()
         session.query(TaskOutletDatasetReference).delete()
         if AIRFLOW_V_2_10_PLUS:
-            from airflow.models.dataset import DatasetAliasModel
+            from airflow.models.dataset import AssetAliasModel
 
-            session.query(DatasetAliasModel).delete()
+            session.query(AssetAliasModel).delete()
 
 
 def clear_db_dags():

@@ -25,8 +25,8 @@ from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 from airflow.api_connexion.schemas.common_schema import JsonObjectField
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import (
+    AssetAliasModel,
     DagScheduleDatasetReference,
-    DatasetAliasModel,
     DatasetEvent,
     DatasetModel,
     TaskOutletDatasetReference,
@@ -66,7 +66,7 @@ class DatasetAliasSchema(SQLAlchemySchema):
     class Meta:
         """Meta."""
 
-        model = DatasetAliasModel
+        model = AssetAliasModel
 
     id = auto_field()
     name = auto_field()
