@@ -444,7 +444,7 @@ class OpenAIHook(BaseHook):
         batch = self.conn.batches.retrieve(batch_id=batch_id)
         return batch
 
-    def wait_for_batch(self, batch_id: str, wait_seconds: float = 3, timeout: float | None = 3600) -> None:
+    def wait_for_batch(self, batch_id: str, wait_seconds: float = 3, timeout: float = 3600) -> None:
         """
         Poll a batch to check if it finishes.
 
