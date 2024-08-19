@@ -120,7 +120,7 @@ class AssetAliasModel(Base):
         secondary=dataset_alias_dataset_event_assocation_table,
         back_populates="source_aliases",
     )
-    consuming_dags = relationship("DagScheduleDatasetAliasReference", back_populates="dataset_alias")
+    consuming_dags = relationship("DagScheduleAssetAliasReference", back_populates="dataset_alias")
 
     @classmethod
     def from_public(cls, obj: AssetAlias) -> AssetAliasModel:
@@ -207,8 +207,8 @@ class DatasetModel(Base):
         return Dataset(uri=self.uri, extra=self.extra)
 
 
-class DagScheduleDatasetAliasReference(Base):
-    """References from a DAG to a dataset alias of which it is a consumer."""
+class DagScheduleAssetAliasReference(Base):
+    """References from a DAG to an asset alias of which it is a consumer."""
 
     alias_id = Column(Integer, primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)

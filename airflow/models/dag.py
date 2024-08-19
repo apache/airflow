@@ -2971,7 +2971,7 @@ class DagModel(Base):
         cascade="all, delete, delete-orphan",
     )
     schedule_dataset_alias_references = relationship(
-        "DagScheduleDatasetAliasReference",
+        "DagScheduleAssetAliasReference",
         back_populates="dag",
         cascade="all, delete, delete-orphan",
     )

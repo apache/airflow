@@ -30,7 +30,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dataset import (
     AssetAliasModel,
-    DagScheduleDatasetAliasReference,
+    DagScheduleAssetAliasReference,
     DagScheduleDatasetReference,
     DatasetDagRunQueue,
     DatasetEvent,
@@ -162,9 +162,7 @@ class AssetManager(LoggingMixin):
                 select(AssetAliasModel)
                 .where(AssetAliasModel.name.in_(source_alias_names))
                 .options(
-                    joinedload(AssetAliasModel.consuming_dags).joinedload(
-                        DagScheduleDatasetAliasReference.dag
-                    )
+                    joinedload(AssetAliasModel.consuming_dags).joinedload(DagScheduleAssetAliasReference.dag)
                 )
             ).unique()
 
