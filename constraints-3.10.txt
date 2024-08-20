@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-20T13:52:49.938176
+# This constraints file was automatically generated on 2024-08-20T19:46:41.187977
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -318,7 +318,7 @@ gitdb==4.0.11
 google-ads==25.0.0
 google-analytics-admin==0.23.0
 google-api-core==2.19.1
-google-api-python-client==2.141.0
+google-api-python-client==2.142.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.34.0
@@ -326,8 +326,8 @@ google-cloud-aiplatform==1.62.0
 google-cloud-appengine-logging==1.4.5
 google-cloud-audit-log==0.3.0
 google-cloud-automl==2.13.5
-google-cloud-batch==0.17.25
-google-cloud-bigquery-datatransfer==3.15.5
+google-cloud-batch==0.17.26
+google-cloud-bigquery-datatransfer==3.15.6
 google-cloud-bigquery==3.20.1
 google-cloud-bigtable==2.26.0
 google-cloud-build==3.24.2
@@ -358,7 +358,7 @@ google-cloud-speech==2.27.0
 google-cloud-storage-transfer==1.12.0
 google-cloud-storage==2.18.2
 google-cloud-tasks==2.16.5
-google-cloud-texttospeech==2.17.0
+google-cloud-texttospeech==2.17.1
 google-cloud-translate==3.16.0
 google-cloud-videointelligence==2.13.5
 google-cloud-vision==3.7.4
@@ -429,6 +429,7 @@ jsonschema-specifications==2023.12.1
 jsonschema==4.23.0
 jupyter_client==8.6.2
 jupyter_core==5.7.2
+kerberos==1.3.1
 keyring==25.3.0
 kombu==5.4.0
 krb5==0.6.0
@@ -446,7 +447,7 @@ lz4==4.3.3
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.28.2
-marshmallow==3.21.3
+marshmallow==3.22.0
 matplotlib-inline==0.1.7
 mdit-py-plugins==0.4.1
 mdurl==0.1.2
@@ -492,7 +493,7 @@ openlineage-integration-common==1.19.0
 openlineage-python==1.19.0
 openlineage_sql==1.19.0
 openpyxl==3.1.5
-opensearch-py==2.6.0
+opensearch-py==2.7.0
 opentelemetry-api==1.26.0
 opentelemetry-exporter-otlp-proto-common==1.26.0
 opentelemetry-exporter-otlp-proto-grpc==1.26.0
@@ -640,7 +641,7 @@ smbprotocol==1.13.0
 smmap==5.0.1
 sniffio==1.3.1
 snowballstemmer==2.2.0
-snowflake-connector-python==3.12.0
+snowflake-connector-python==3.12.1
 snowflake-sqlalchemy==1.6.1
 sortedcontainers==2.4.0
 soupsieve==2.6
