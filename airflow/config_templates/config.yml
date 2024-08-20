@@ -114,7 +114,7 @@ core:
         running and deferred tasks for all DAG runs of the DAG. This is configurable at the DAG level with
         ``max_active_tasks_include_deferred``, which is defaulted as
         ``[core] max_active_tasks_include_deferred``.
-      version_added: tbd
+      version_added: ~
       type: boolean
       example: ~
       default: "False"
