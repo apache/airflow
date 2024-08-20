@@ -17,15 +17,20 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 from unittest.mock import patch
 
 import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.cloudant.hooks.cloudant import CloudantHook
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test]
+
+if sys.version_info >= (3, 10):
+    from airflow.providers.cloudant.hooks.cloudant import CloudantHook
+else:
+    pytestmark.append(pytest.mark.skip(f"bupkus {__name__}"))
 
 
 class TestCloudantHook:
