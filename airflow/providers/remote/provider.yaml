@@ -77,3 +77,27 @@ config:
         type: integer
         example: "10"
         default: "30"
+      worker_concurrency:
+        description: |
+          The concurrency that will be used when starting workers with the
+          ``airflow remote worker`` command. This defines the number of task instances that
+          a worker will take, so size up your workers based on the resources on
+          your worker box and the nature of your tasks
+        version_added: ~
+        type: integer
+        example: ~
+        default: "8"
+      job_success_purge:
+        description: |
+          Minutes after which successful jobs for remote executor are purged from database
+        version_added: ~
+        type: integer
+        example: ~
+        default: "5"
+      job_fail_purge:
+        description: |
+          Minutes after which failed jobs for remote executor are purged from database
+        version_added: ~
+        type: integer
+        example: ~
+        default: "60"
