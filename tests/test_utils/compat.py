@@ -55,6 +55,16 @@ except ImportError:
     from airflow.models.baseoperator import BaseOperatorLink
 
 
+if TYPE_CHECKING:
+    from airflow.models.dataset import DagScheduleAssetReference
+else:
+    try:
+        from airflow.models.dataset import DagScheduleAssetReference
+    except ImportError:
+        # dataset is renamed to asset since Airflow 3.0
+        from airflow.models.dataset import DagScheduleDatasetReference as DagScheduleAssetReference
+
+
 def deserialize_operator(serialized_operator: dict[str, Any]) -> Operator:
     if AIRFLOW_V_2_10_PLUS:
         # In airflow 2.10+ we can deserialize operator using regular deserialize method.

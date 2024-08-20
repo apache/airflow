@@ -168,7 +168,7 @@ class DatasetModel(Base):
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
     is_orphaned = Column(Boolean, default=False, nullable=False, server_default="0")
 
-    consuming_dags = relationship("DagScheduleDatasetReference", back_populates="dataset")
+    consuming_dags = relationship("DagScheduleAssetReference", back_populates="dataset")
     producing_tasks = relationship("TaskOutletDatasetReference", back_populates="dataset")
 
     __tablename__ = "dataset"
@@ -251,8 +251,8 @@ class DagScheduleAssetAliasReference(Base):
         return f"{self.__class__.__name__}({', '.join(args)})"
 
 
-class DagScheduleDatasetReference(Base):
-    """References from a DAG to a dataset of which it is a consumer."""
+class DagScheduleAssetReference(Base):
+    """References from a DAG to an asset of which it is a consumer."""
 
     dataset_id = Column(Integer, primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
@@ -265,8 +265,8 @@ class DagScheduleDatasetReference(Base):
     queue_records = relationship(
         "DatasetDagRunQueue",
         primaryjoin="""and_(
-            DagScheduleDatasetReference.dataset_id == foreign(DatasetDagRunQueue.dataset_id),
-            DagScheduleDatasetReference.dag_id == foreign(DatasetDagRunQueue.target_dag_id),
+            DagScheduleAssetReference.dataset_id == foreign(DatasetDagRunQueue.dataset_id),
+            DagScheduleAssetReference.dag_id == foreign(DatasetDagRunQueue.target_dag_id),
         )""",
         cascade="all, delete, delete-orphan",
     )

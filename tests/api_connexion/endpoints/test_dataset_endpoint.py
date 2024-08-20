@@ -27,7 +27,7 @@ from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import (
-    DagScheduleDatasetReference,
+    DagScheduleAssetReference,
     DatasetDagRunQueue,
     DatasetEvent,
     DatasetModel,
@@ -276,8 +276,8 @@ class TestGetDatasets(TestDatasetEndpoint):
         dataset1 = DatasetModel("s3://folder/key")
         dataset2 = DatasetModel("gcp://bucket/key")
         dataset3 = DatasetModel("somescheme://dataset/key")
-        dag_ref1 = DagScheduleDatasetReference(dag_id="dag1", dataset=dataset1)
-        dag_ref2 = DagScheduleDatasetReference(dag_id="dag2", dataset=dataset2)
+        dag_ref1 = DagScheduleAssetReference(dag_id="dag1", dataset=dataset1)
+        dag_ref2 = DagScheduleAssetReference(dag_id="dag2", dataset=dataset2)
         task_ref1 = TaskOutletDatasetReference(dag_id="dag3", task_id="task1", dataset=dataset3)
         session.add_all([dataset1, dataset2, dataset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1])
         session.commit()
@@ -303,8 +303,8 @@ class TestGetDatasets(TestDatasetEndpoint):
         dataset1 = DatasetModel("s3://folder/key")
         dataset2 = DatasetModel("gcp://bucket/key")
         dataset3 = DatasetModel("somescheme://dataset/key")
-        dag_ref1 = DagScheduleDatasetReference(dag_id="dag1", dataset=dataset1)
-        dag_ref2 = DagScheduleDatasetReference(dag_id="dag2", dataset=dataset2)
+        dag_ref1 = DagScheduleAssetReference(dag_id="dag1", dataset=dataset1)
+        dag_ref2 = DagScheduleAssetReference(dag_id="dag2", dataset=dataset2)
         task_ref1 = TaskOutletDatasetReference(dag_id="dag3", task_id="task1", dataset=dataset3)
         session.add_all([dataset1, dataset2, dataset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1])
         session.commit()

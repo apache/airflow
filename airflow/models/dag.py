@@ -252,7 +252,7 @@ def get_dataset_triggered_next_run_info(
     Given a list of dag_ids, get string representing how close any that are dataset triggered are
     their next run, e.g. "1 of 2 datasets updated".
     """
-    from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue as DDRQ
+    from airflow.models.dataset import DagScheduleAssetReference, DatasetDagRunQueue as DDRQ
 
     return {
         x.dag_id: {
@@ -262,7 +262,7 @@ def get_dataset_triggered_next_run_info(
         }
         for x in session.execute(
             select(
-                DagScheduleDatasetReference.dag_id,
+                DagScheduleAssetReference.dag_id,
                 # This is a dirty hack to workaround group by requiring an aggregate,
                 # since grouping by dataset is not what we want to do here...but it works
                 case((func.count() == 1, func.max(DatasetModel.uri)), else_="").label("uri"),
@@ -272,14 +272,14 @@ def get_dataset_triggered_next_run_info(
             .join(
                 DDRQ,
                 and_(
-                    DDRQ.dataset_id == DagScheduleDatasetReference.dataset_id,
-                    DDRQ.target_dag_id == DagScheduleDatasetReference.dag_id,
+                    DDRQ.dataset_id == DagScheduleAssetReference.dataset_id,
+                    DDRQ.target_dag_id == DagScheduleAssetReference.dag_id,
                 ),
                 isouter=True,
             )
-            .join(DatasetModel, DatasetModel.id == DagScheduleDatasetReference.dataset_id)
-            .group_by(DagScheduleDatasetReference.dag_id)
-            .where(DagScheduleDatasetReference.dag_id.in_(dag_ids))
+            .join(DatasetModel, DatasetModel.id == DagScheduleAssetReference.dataset_id)
+            .group_by(DagScheduleAssetReference.dag_id)
+            .where(DagScheduleAssetReference.dag_id.in_(dag_ids))
         ).all()
     }
 
@@ -2966,7 +2966,7 @@ class DagModel(Base):
     __table_args__ = (Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),)
 
     schedule_dataset_references = relationship(
-        "DagScheduleDatasetReference",
+        "DagScheduleAssetReference",
         back_populates="dag",
         cascade="all, delete, delete-orphan",
     )

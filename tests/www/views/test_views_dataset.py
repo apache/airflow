@@ -258,7 +258,7 @@ class TestGetDatasets(TestDatasetEndpoint):
 
             # We create multiple dataset-producing and dataset-consuming DAGs because the query requires
             # COUNT(DISTINCT ...) for total_updates, or else it returns a multiple of the correct number due
-            # to the outer joins with DagScheduleDatasetReference and TaskOutletDatasetReference
+            # to the outer joins with DagScheduleAssetReference and TaskOutletDatasetReference
             # Two independent DAGs that produce dataset #3
             with dag_maker(dag_id="independent_producer_1", serialized=True, session=session):
                 EmptyOperator(task_id="task1", outlets=[datasets[2]])

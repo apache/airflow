@@ -431,7 +431,7 @@ def test_all_pydantic_models_round_trip():
     exclusion_list = {
         "DatasetPydantic",
         "DagTagPydantic",
-        "DagScheduleDatasetReferencePydantic",
+        "DagScheduleAssetReferencePydantic",
         "TaskOutletDatasetReferencePydantic",
         "DagOwnerAttributesPydantic",
         "DatasetEventPydantic",

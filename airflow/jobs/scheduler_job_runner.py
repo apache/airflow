@@ -48,7 +48,7 @@ from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import (
-    DagScheduleDatasetReference,
+    DagScheduleAssetReference,
     DatasetDagRunQueue,
     DatasetEvent,
     DatasetModel,
@@ -1426,7 +1426,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .limit(1)
                 )
                 dataset_event_filters = [
-                    DagScheduleDatasetReference.dag_id == dag.dag_id,
+                    DagScheduleAssetReference.dag_id == dag.dag_id,
                     DatasetEvent.timestamp <= exec_date,
                 ]
                 if previous_dag_run:
@@ -1435,8 +1435,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dataset_events = session.scalars(
                     select(DatasetEvent)
                     .join(
-                        DagScheduleDatasetReference,
-                        DatasetEvent.dataset_id == DagScheduleDatasetReference.dataset_id,
+                        DagScheduleAssetReference,
+                        DatasetEvent.dataset_id == DagScheduleAssetReference.dataset_id,
                     )
                     .where(*dataset_event_filters)
                 ).all()
@@ -2029,7 +2029,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         orphaned_dataset_query = session.scalars(
             select(DatasetModel)
             .join(
-                DagScheduleDatasetReference,
+                DagScheduleAssetReference,
                 isouter=True,
             )
             .join(
@@ -2040,7 +2040,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .where(~DatasetModel.is_orphaned)
             .having(
                 and_(
-                    func.count(DagScheduleDatasetReference.dag_id) == 0,
+                    func.count(DagScheduleAssetReference.dag_id) == 0,
                     func.count(TaskOutletDatasetReference.dag_id) == 0,
                 )
             )

@@ -29,7 +29,7 @@ from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
 from airflow.api_connexion.schemas.dataset_schema import (
-    DagScheduleDatasetReference,
+    DagScheduleAssetReference,
     DatasetCollection,
     DatasetEventCollection,
     QueuedEvent,
@@ -98,7 +98,7 @@ def get_datasets(
     if dag_ids:
         dags_list = dag_ids.split(",")
         query = query.filter(
-            (DatasetModel.consuming_dags.any(DagScheduleDatasetReference.dag_id.in_(dags_list)))
+            (DatasetModel.consuming_dags.any(DagScheduleAssetReference.dag_id.in_(dags_list)))
             | (DatasetModel.producing_tasks.any(TaskOutletDatasetReference.dag_id.in_(dags_list)))
         )
     if uri_pattern:

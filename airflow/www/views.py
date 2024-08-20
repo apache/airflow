@@ -106,7 +106,7 @@ from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, Trigger, XCom
 from airflow.models.dag import get_dataset_triggered_next_run_info
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
-from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.dataset import DagScheduleAssetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
@@ -3428,14 +3428,12 @@ class Airflow(AirflowBaseView):
                         DatasetModel.uri,
                         func.max(DatasetEvent.timestamp).label("lastUpdate"),
                     )
-                    .join(
-                        DagScheduleDatasetReference, DagScheduleDatasetReference.dataset_id == DatasetModel.id
-                    )
+                    .join(DagScheduleAssetReference, DagScheduleAssetReference.dataset_id == DatasetModel.id)
                     .join(
                         DatasetDagRunQueue,
                         and_(
                             DatasetDagRunQueue.dataset_id == DatasetModel.id,
-                            DatasetDagRunQueue.target_dag_id == DagScheduleDatasetReference.dag_id,
+                            DatasetDagRunQueue.target_dag_id == DagScheduleAssetReference.dag_id,
                         ),
                         isouter=True,
                     )
@@ -3451,7 +3449,7 @@ class Airflow(AirflowBaseView):
                         ),
                         isouter=True,
                     )
-                    .where(DagScheduleDatasetReference.dag_id == dag_id, ~DatasetModel.is_orphaned)
+                    .where(DagScheduleAssetReference.dag_id == dag_id, ~DatasetModel.is_orphaned)
                     .group_by(DatasetModel.id, DatasetModel.uri)
                     .order_by(DatasetModel.uri)
                 )

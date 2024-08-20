@@ -20,8 +20,8 @@ from typing import List, Optional
 from pydantic import BaseModel as BaseModelPydantic, ConfigDict
 
 
-class DagScheduleDatasetReferencePydantic(BaseModelPydantic):
-    """Serializable version of the DagScheduleDatasetReference ORM SqlAlchemyModel used by internal API."""
+class DagScheduleAssetReferencePydantic(BaseModelPydantic):
+    """Serializable version of the DagScheduleAssetReference ORM SqlAlchemyModel used by internal API."""
 
     dataset_id: int
     dag_id: str
@@ -53,7 +53,7 @@ class DatasetPydantic(BaseModelPydantic):
     updated_at: datetime
     is_orphaned: bool
 
-    consuming_dags: List[DagScheduleDatasetReferencePydantic]
+    consuming_dags: List[DagScheduleAssetReferencePydantic]
     producing_tasks: List[TaskOutletDatasetReferencePydantic]
 
     model_config = ConfigDict(from_attributes=True)

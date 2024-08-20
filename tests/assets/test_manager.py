@@ -28,7 +28,7 @@ from airflow.assets import Dataset
 from airflow.assets.manager import AssetManager
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DagModel
-from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.dataset import DagScheduleAssetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from tests.listeners import dataset_listener
 
@@ -117,7 +117,7 @@ class TestAssetManager:
 
         dsm = DatasetModel(uri="test_dataset_uri")
         session.add(dsm)
-        dsm.consuming_dags = [DagScheduleDatasetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)]
+        dsm.consuming_dags = [DagScheduleAssetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)]
         session.execute(delete(DatasetDagRunQueue))
         session.flush()
 
@@ -156,7 +156,7 @@ class TestAssetManager:
 
         dsm = DatasetModel(uri="test_dataset_uri_2")
         session.add(dsm)
-        dsm.consuming_dags = [DagScheduleDatasetReference(dag_id=dag1.dag_id)]
+        dsm.consuming_dags = [DagScheduleAssetReference(dag_id=dag1.dag_id)]
         session.flush()
 
         dsem.register_asset_change(task_instance=mock_task_instance, asset=ds, session=session)

@@ -31,7 +31,7 @@ from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dataset import (
     AssetAliasModel,
     DagScheduleAssetAliasReference,
-    DagScheduleDatasetReference,
+    DagScheduleAssetReference,
     DatasetDagRunQueue,
     DatasetEvent,
     DatasetModel,
@@ -128,7 +128,7 @@ class AssetManager(LoggingMixin):
             .where(DatasetModel.uri == asset.uri)
             .options(
                 joinedload(DatasetModel.aliases),
-                joinedload(DatasetModel.consuming_dags).joinedload(DagScheduleDatasetReference.dag),
+                joinedload(DatasetModel.consuming_dags).joinedload(DagScheduleAssetReference.dag),
             )
         )
         if not asset_model:
