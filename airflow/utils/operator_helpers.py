@@ -162,12 +162,11 @@ class KeywordParameters:
         signature = inspect.signature(func)
         has_wildcard_kwargs = any(p.kind == p.VAR_KEYWORD for p in signature.parameters.values())
 
-        for name in itertools.islice(signature.parameters.keys(), len(args)):
-            if signature.parameters[name].kind in [
-                inspect.Parameter.KEYWORD_ONLY,
-                inspect.Parameter.VAR_KEYWORD,
-            ]:
-                # this is only checking positional arguments
+        for name, param in itertools.islice(signature.parameters.items(), len(args)):
+            # Keyword-only arguments can't be passed positionally and are not checked.
+            if param.kind == inspect.Parameter.KEYWORD_ONLY:
+                continue
+            if param.kind == inspect.Parameter.VAR_KEYWORD:
                 continue
 
             # Check if args conflict with names in kwargs.
