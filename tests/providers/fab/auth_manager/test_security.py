@@ -226,8 +226,8 @@ def mock_dag_models(request, session, security_manager):
 @pytest.fixture
 def sample_dags(security_manager):
     dags = [
-        DAG("has_access_control", access_control={"Public": {permissions.ACTION_CAN_READ}}),
-        DAG("no_access_control"),
+        DAG("has_access_control", schedule=None, access_control={"Public": {permissions.ACTION_CAN_READ}}),
+        DAG("no_access_control", schedule=None),
     ]
 
     yield dags

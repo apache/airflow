@@ -692,7 +692,7 @@ def test_mapped_decorator():
     def print_everything(**kwargs) -> None:
         print(kwargs)
 
-    with DAG("test_mapped_decorator", start_date=DEFAULT_DATE):
+    with DAG("test_mapped_decorator", schedule=None, start_date=DEFAULT_DATE):
         t0 = print_info.expand(m1=["a", "b"], m2={"foo": "bar"})
         t1 = print_info.partial(m1="hi").expand(m2=[1, 2, 3])
         t2 = print_everything.partial(whatever="123").expand(any_key=[1, 2], works=t1)
@@ -728,7 +728,7 @@ def test_partial_mapped_decorator() -> None:
 
     literal = [1, 2, 3]
 
-    with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
+    with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
         quadrupled = product.partial(multiple=3).expand(number=literal)
         doubled = product.partial(multiple=2).expand(number=literal)
         trippled = product.partial(multiple=3).expand(number=literal)

@@ -108,7 +108,7 @@ class TestExternalTaskSensor:
     def setup_method(self):
         self.dagbag = DagBag(dag_folder=DEV_NULL, include_examples=True)
         self.args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG(TEST_DAG_ID, default_args=self.args)
+        self.dag = DAG(TEST_DAG_ID, schedule=None, default_args=self.args)
         self.dag_run_id = DagRunType.MANUAL.generate_run_id(DEFAULT_DATE)
 
     def add_time_sensor(self, task_id=TEST_TASK_ID):
@@ -948,19 +948,19 @@ exit 0
         (
             (None, None, {}, f"The external DAG {TEST_DAG_ID} does not exist."),
             (
-                DAG(dag_id="test"),
+                DAG(dag_id="test", schedule=None),
                 False,
                 {},
                 f"The external DAG {TEST_DAG_ID} was deleted.",
             ),
             (
-                DAG(dag_id="test"),
+                DAG(dag_id="test", schedule=None),
                 True,
                 {"external_task_ids": [TEST_TASK_ID, TEST_TASK_ID_ALTERNATE]},
                 f"The external task {TEST_TASK_ID} in DAG {TEST_DAG_ID} does not exist.",
             ),
             (
-                DAG(dag_id="test"),
+                DAG(dag_id="test", schedule=None),
                 True,
                 {"external_task_group_id": [TEST_TASK_ID, TEST_TASK_ID_ALTERNATE]},
                 f"The external task group '{re.escape(str([TEST_TASK_ID, TEST_TASK_ID_ALTERNATE]))}'"
@@ -1139,7 +1139,7 @@ class TestExternalTaskMarker:
         assert {"recursion_depth"}.issubset(ExternalTaskMarker.get_serialized_fields())
 
     def test_serialized_external_task_marker(self):
-        dag = DAG("test_serialized_external_task_marker", start_date=DEFAULT_DATE)
+        dag = DAG("test_serialized_external_task_marker", schedule=None, start_date=DEFAULT_DATE)
         task = ExternalTaskMarker(
             task_id="parent_task",
             external_dag_id="external_task_marker_child",

@@ -329,7 +329,7 @@ def test_mark_task_instance_state(test_app):
 
     clear_db_runs()
     start_date = datetime(2020, 1, 1)
-    with DAG("test_mark_task_instance_state", start_date=start_date) as dag:
+    with DAG("test_mark_task_instance_state", start_date=start_date, schedule="0 0 * * *") as dag:
         task_1 = EmptyOperator(task_id="task_1")
         task_2 = EmptyOperator(task_id="task_2")
         task_3 = EmptyOperator(task_id="task_3")
@@ -420,7 +420,7 @@ def test_mark_task_group_state(test_app):
 
     clear_db_runs()
     start_date = datetime(2020, 1, 1)
-    with DAG("test_mark_task_group_state", start_date=start_date) as dag:
+    with DAG("test_mark_task_group_state", start_date=start_date, schedule="0 0 * * *") as dag:
         start = EmptyOperator(task_id="start")
 
         with TaskGroup("section_1", tooltip="Tasks for section_1") as section_1:
