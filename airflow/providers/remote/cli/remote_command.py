@@ -28,9 +28,12 @@ from pathlib import Path
 from subprocess import Popen
 from time import sleep
 
+import psutil
+from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile, write_pid_to_pidfile
+
 from airflow import __version__ as airflow_version
 from airflow.api_internal.internal_api_call import InternalApiConfig
-from airflow.cli.cli_config import ARG_VERBOSE, ActionCommand, Arg
+from airflow.cli.cli_config import ARG_PID, ARG_VERBOSE, ActionCommand, Arg
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.remote import __version__ as remote_provider_version
@@ -41,6 +44,7 @@ from airflow.utils import cli as cli_utils
 from airflow.utils.state import TaskInstanceState
 
 logger = logging.getLogger(__name__)
+REMOTE_WORKER_PROCESS_NAME = "remote-worker"
 
 
 def force_use_internal_api_on_remote_worker():
@@ -71,6 +75,12 @@ def _hostname() -> str:
         return platform.uname().node
     else:
         return os.uname()[1]
+
+
+def _pid_file_path(args) -> str:
+    """Define the PID file path."""
+    pid_file_path, _, _, _ = cli_utils.setup_locations(process=REMOTE_WORKER_PROCESS_NAME, pid=args.pid)
+    return pid_file_path
 
 
 @dataclass
@@ -161,7 +171,7 @@ def _heartbeat(hostname: str, jobs: list[Job], drain_worker: bool) -> None:
 def worker(args):
     """Start Airflow Remote worker."""
     job_poll_interval = conf.getint("remote", "job_poll_interval")
-    heartbeat_interval = conf.getint("remote", "heartbeat_interval")
+    hb_interval = conf.getint("remote", "heartbeat_interval")
 
     hostname: str = args.remote_hostname or _hostname()
     queues: list[str] | None = args.queues.split(",") if args.queues else None
@@ -169,7 +179,7 @@ def worker(args):
     jobs: list[Job] = []
     new_job = False
     try:
-        last_heartbeat = RemoteWorker.register_worker(
+        last_hb = RemoteWorker.register_worker(
             hostname, RemoteWorkerState.STARTING, queues, _get_sysinfo()
         ).last_update
     except AirflowException as e:
@@ -177,29 +187,47 @@ def worker(args):
             raise SystemExit("Error: API endpoint is not ready, please set [remote] api_enabled=True.")
         raise SystemExit(str(e))
 
+    pid_file_path = _pid_file_path(args)
+    write_pid_to_pidfile(pid_file_path)
     drain_worker = [False]
 
     def signal_handler(sig, frame):
         logger.info("Request to show down remote worker received, waiting for jobs to complete.")
         drain_worker[0] = True
 
-    signal.signal(signal.SIGINT, signal_handler)
+    try:
+        signal.signal(signal.SIGINT, signal_handler)
 
-    while not drain_worker[0] or jobs:
-        if not drain_worker[0] and len(jobs) < concurrency:
-            new_job = _fetch_job(hostname, queues, jobs)
-        _check_running_jobs(jobs)
+        while not drain_worker[0] or jobs:
+            if not drain_worker[0] and len(jobs) < concurrency:
+                new_job = _fetch_job(hostname, queues, jobs)
+            _check_running_jobs(jobs)
 
-        if drain_worker[0] or datetime.now().timestamp() - last_heartbeat.timestamp() > heartbeat_interval:
-            _heartbeat(hostname, jobs, drain_worker[0])
-            last_heartbeat = datetime.now()
+            if drain_worker[0] or datetime.now().timestamp() - last_hb.timestamp() > hb_interval:
+                _heartbeat(hostname, jobs, drain_worker[0])
+                last_hb = datetime.now()
 
-        if not new_job:
-            sleep(job_poll_interval)
-            new_job = False
+            if not new_job:
+                sleep(job_poll_interval)
+                new_job = False
 
-    logger.info("Quitting worker, signal being offline.")
-    RemoteWorker.set_state(hostname, RemoteWorkerState.OFFLINE, 0, _get_sysinfo())
+        logger.info("Quitting worker, signal being offline.")
+        RemoteWorker.set_state(hostname, RemoteWorkerState.OFFLINE, 0, _get_sysinfo())
+    finally:
+        remove_existing_pidfile(pid_file_path)
+
+
+@cli_utils.action_cli(check_db=False)
+def stop(args):
+    """Stop a running Airflow Remote worker."""
+    pid = read_pid_from_pidfile(_pid_file_path(args))
+    # Send SIGINT
+    if pid:
+        logger.warning("Sending SIGINT to worker pid %i.", pid)
+        worker_process = psutil.Process(pid)
+        worker_process.send_signal(signal.SIGINT)
+    else:
+        logger.warning("Could not find PID of worker.")
 
 
 ARG_CONCURRENCY = Arg(
@@ -225,6 +253,16 @@ REMOTE_COMMANDS: list[ActionCommand] = [
             ARG_CONCURRENCY,
             ARG_QUEUES,
             ARG_REMOTE_HOSTNAME,
+            ARG_PID,
+            ARG_VERBOSE,
+        ),
+    ),
+    ActionCommand(
+        name=stop.__name__,
+        help=stop.__doc__,
+        func=stop,
+        args=(
+            ARG_PID,
             ARG_VERBOSE,
         ),
     ),
