@@ -779,7 +779,7 @@ repos:
         files: ^\.pre-commit-config\.yaml$|^.*_installed_providers\.txt$
         pass_filenames: false
         require_serial: true
-      - id: update-spelling-wordlist-to-be-sorted
+      - id: update--wordlist-to-be-sorted
         name: Sort alphabetically and uniquify spelling_wordlist.txt
         entry: ./scripts/ci/pre_commit/sort_spelling_wordlist.py
         language: python
