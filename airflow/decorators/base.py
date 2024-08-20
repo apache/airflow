@@ -444,12 +444,12 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         }
         base_signature = inspect.signature(BaseOperator)
         ignore = {
-            "default_args",
-            "kwargs",
-            "do_xcom_push",
-            "multiple_outputs",
-            "params",
-            "task_concurrency",
+            "default_args",  # This is target we are working on now.
+            "kwargs",  # A common name for a keyword argument.
+            "do_xcom_push",  # In the same boat as `multiple_outputs`
+            "multiple_outputs",  # We will use `self.multiple_outputs` instead.
+            "params",  # Already handled above `partial_params`.
+            "task_concurrency",  # Deprecated(replaced by `max_active_tis_per_dag`).
         }
         partial_keys = set(base_signature.parameters) - ignore
         partial_kwargs.update({key: value for key, value in default_args.items() if key in partial_keys})
