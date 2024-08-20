@@ -32,6 +32,7 @@ from airflow.utils import db
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
+@pytest.mark.db_test
 class TestAirbyteHook:
     """
     Test all functions from Airbyte Hook
@@ -49,7 +50,6 @@ class TestAirbyteHook:
     _mock_job_status_success_response_body = {"job": {"status": "succeeded"}}
     _mock_job_cancel_status = "cancelled"
 
-    @pytest.mark.db_test
     def setup_method(self):
         db.merge_conn(
             Connection(

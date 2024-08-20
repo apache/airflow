@@ -30,6 +30,7 @@ from airflow.triggers.base import TriggerEvent
 from airflow.utils import db
 
 
+@pytest.mark.db_test
 class TestAirbyteSyncTrigger:
     DAG_ID = "airbyte_sync_run"
     TASK_ID = "airbyte_sync_run_task_op"
@@ -38,7 +39,6 @@ class TestAirbyteSyncTrigger:
     END_TIME = time.time() + 60 * 60 * 24 * 7
     POLL_INTERVAL = 3.0
 
-    @pytest.mark.db_test
     def setup_method(self):
         db.merge_conn(Connection(conn_id=self.CONN_ID, conn_type="airbyte", host="http://test-airbyte"))
 

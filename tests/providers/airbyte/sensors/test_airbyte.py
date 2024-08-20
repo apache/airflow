@@ -28,6 +28,7 @@ from airflow.providers.airbyte.sensors.airbyte import AirbyteJobSensor
 from airflow.utils import db
 
 
+@pytest.mark.db_test
 class TestAirbyteJobSensor:
     task_id = "task-id"
     airbyte_conn_id = "airbyte-conn-test"
@@ -45,7 +46,6 @@ class TestAirbyteJobSensor:
         )
         return response
 
-    @pytest.mark.db_test
     def setup_method(self):
         db.merge_conn(
             Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="http://test-airbyte")
