@@ -68,7 +68,7 @@ its direction. To stop a worker running on a machine you can use:
 
     airflow remote stop
 
-It will try to stop the worker gracefully by sending ``SIGTERM`` signal to main
+It will try to stop the worker gracefully by sending ``SIGINT`` signal to main
 process as and wait until all running tasks are completed.
 
 If you want to monitor the remote activity and worker, use the UI plugin which
@@ -78,7 +78,6 @@ is included in the provider package as install on the webserver and use the
 
 Some caveats:
 
-- Make sure to specify the Airflow backend and credentials in the remote worker configuration.
 - Tasks can consume resources. Make sure your worker has enough resources to run ``worker_concurrency`` tasks
 - Queue names are limited to 256 characters, but each broker backend might have its own restrictions
 
@@ -103,6 +102,11 @@ before use. The following features have been initially tested and are working:
   - XCom read/write
   - Variable and Connection access
   - Setup and Teardown tasks
+
+- Some known limitations
+
+  - Tasks that require DB access will fail - no DB connection from remote is possible
+  - This also means that some direct Airflow API via Python is not possible (e.g. airflow.models.*)
 
 
 Architecture
