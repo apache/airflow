@@ -53,7 +53,7 @@ from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import AssetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.dataset import AssetDagRunQueue, AssetModel, DatasetEvent
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
@@ -4114,10 +4114,10 @@ class TestSchedulerJob:
             data_interval=(DEFAULT_DATE + timedelta(days=10), DEFAULT_DATE + timedelta(days=11)),
         )
 
-        ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
+        asset1_id = session.query(AssetModel.id).filter_by(uri=dataset1.uri).scalar()
 
         event1 = DatasetEvent(
-            dataset_id=ds1_id,
+            dataset_id=asset1_id,
             source_task_id="task",
             source_dag_id=dr.dag_id,
             source_run_id=dr.run_id,
@@ -4133,7 +4133,7 @@ class TestSchedulerJob:
         )
 
         event2 = DatasetEvent(
-            dataset_id=ds1_id,
+            dataset_id=asset1_id,
             source_task_id="task",
             source_dag_id=dr.dag_id,
             source_run_id=dr.run_id,
@@ -4151,8 +4151,8 @@ class TestSchedulerJob:
         session = dag_maker.session
         session.add_all(
             [
-                AssetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag2.dag_id),
-                AssetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag3.dag_id),
+                AssetDagRunQueue(dataset_id=asset1_id, target_dag_id=dag2.dag_id),
+                AssetDagRunQueue(dataset_id=asset1_id, target_dag_id=dag3.dag_id),
             ]
         )
         session.flush()
@@ -4204,13 +4204,15 @@ class TestSchedulerJob:
             pass
         with dag_maker(dag_id="producer", schedule="@daily", session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=ds)
-        dsm = AssetManager()
+        asset_manger = AssetManager()
 
-        ds_id = session.scalars(select(DatasetModel.id).filter_by(uri=ds.uri)).one()
+        asset_id = session.scalars(select(AssetModel.id).filter_by(uri=ds.uri)).one()
 
-        dse_q = select(DatasetEvent).where(DatasetEvent.dataset_id == ds_id).order_by(DatasetEvent.timestamp)
+        dse_q = (
+            select(DatasetEvent).where(DatasetEvent.dataset_id == asset_id).order_by(DatasetEvent.timestamp)
+        )
         adrq_q = select(AssetDagRunQueue).where(
-            AssetDagRunQueue.dataset_id == ds_id, AssetDagRunQueue.target_dag_id == "consumer"
+            AssetDagRunQueue.dataset_id == asset_id, AssetDagRunQueue.target_dag_id == "consumer"
         )
 
         # Simulate the consumer DAG being disabled.
@@ -4218,7 +4220,7 @@ class TestSchedulerJob:
 
         # An ADRQ is not scheduled although an event is emitted.
         dr1: DagRun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
-        dsm.register_asset_change(
+        asset_manger.register_asset_change(
             task_instance=dr1.get_task_instance("task", session=session),
             asset=ds,
             session=session,
@@ -4232,7 +4234,7 @@ class TestSchedulerJob:
 
         # An ADRQ should be scheduled for the new event, but not the previous one.
         dr2: DagRun = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
-        dsm.register_asset_change(
+        asset_manger.register_asset_change(
             task_instance=dr2.get_task_instance("task", session=session),
             asset=ds,
             session=session,
@@ -5737,10 +5739,10 @@ class TestSchedulerJob:
         with dag_maker(dag_id="datasets-1", schedule=[dataset1, dataset2], session=session):
             BashOperator(task_id="task", bash_command="echo 1", outlets=[dataset3, dataset4])
 
-        non_orphaned_dataset_count = session.query(DatasetModel).filter(~DatasetModel.is_orphaned).count()
-        assert non_orphaned_dataset_count == 4
-        orphaned_dataset_count = session.query(DatasetModel).filter(DatasetModel.is_orphaned).count()
-        assert orphaned_dataset_count == 0
+        non_orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.is_orphaned).count()
+        assert non_orphaned_asset_count == 4
+        orphaned_asset_count = session.query(AssetModel).filter(AssetModel.is_orphaned).count()
+        assert orphaned_asset_count == 0
 
         # now remove 2 dataset references
         with dag_maker(dag_id="datasets-1", schedule=[dataset1], session=session):
@@ -5753,20 +5755,18 @@ class TestSchedulerJob:
         session.flush()
 
         # and find the orphans
-        non_orphaned_datasets = [
-            dataset.uri
-            for dataset in session.query(DatasetModel.uri)
-            .filter(~DatasetModel.is_orphaned)
-            .order_by(DatasetModel.uri)
+        non_orphaned_assets = [
+            asset.uri
+            for asset in session.query(AssetModel.uri)
+            .filter(~AssetModel.is_orphaned)
+            .order_by(AssetModel.uri)
         ]
-        assert non_orphaned_datasets == ["ds1", "ds3"]
-        orphaned_datasets = [
-            dataset.uri
-            for dataset in session.query(DatasetModel.uri)
-            .filter(DatasetModel.is_orphaned)
-            .order_by(DatasetModel.uri)
+        assert non_orphaned_assets == ["ds1", "ds3"]
+        orphaned_assets = [
+            asset.uri
+            for asset in session.query(AssetModel.uri).filter(AssetModel.is_orphaned).order_by(AssetModel.uri)
         ]
-        assert orphaned_datasets == ["ds2", "ds4"]
+        assert orphaned_assets == ["ds2", "ds4"]
 
     def test_dataset_orphaning_ignore_orphaned_datasets(self, dag_maker, session):
         dataset1 = Dataset(uri="ds1")
@@ -5774,10 +5774,10 @@ class TestSchedulerJob:
         with dag_maker(dag_id="datasets-1", schedule=[dataset1], session=session):
             BashOperator(task_id="task", bash_command="echo 1")
 
-        non_orphaned_dataset_count = session.query(DatasetModel).filter(~DatasetModel.is_orphaned).count()
-        assert non_orphaned_dataset_count == 1
-        orphaned_dataset_count = session.query(DatasetModel).filter(DatasetModel.is_orphaned).count()
-        assert orphaned_dataset_count == 0
+        non_orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.is_orphaned).count()
+        assert non_orphaned_asset_count == 1
+        orphaned_asset_count = session.query(AssetModel).filter(AssetModel.is_orphaned).count()
+        assert orphaned_asset_count == 0
 
         # now remove dataset1 reference
         with dag_maker(dag_id="datasets-1", schedule=None, session=session):
@@ -5789,26 +5789,26 @@ class TestSchedulerJob:
         self.job_runner._orphan_unreferenced_datasets(session=session)
         session.flush()
 
-        orphaned_datasets_before_rerun = (
-            session.query(DatasetModel.updated_at, DatasetModel.uri)
-            .filter(DatasetModel.is_orphaned)
-            .order_by(DatasetModel.uri)
+        orphaned_assets_before_rerun = (
+            session.query(AssetModel.updated_at, AssetModel.uri)
+            .filter(AssetModel.is_orphaned)
+            .order_by(AssetModel.uri)
         )
-        assert [dataset.uri for dataset in orphaned_datasets_before_rerun] == ["ds1"]
-        updated_at_timestamps = [dataset.updated_at for dataset in orphaned_datasets_before_rerun]
+        assert [asset.uri for asset in orphaned_assets_before_rerun] == ["ds1"]
+        updated_at_timestamps = [asset.updated_at for asset in orphaned_assets_before_rerun]
 
         # when rerunning we should ignore the already orphaned datasets and thus the updated_at timestamp
         # should remain the same
         self.job_runner._orphan_unreferenced_datasets(session=session)
         session.flush()
 
-        orphaned_datasets_after_rerun = (
-            session.query(DatasetModel.updated_at, DatasetModel.uri)
-            .filter(DatasetModel.is_orphaned)
-            .order_by(DatasetModel.uri)
+        orphaned_assets_after_rerun = (
+            session.query(AssetModel.updated_at, AssetModel.uri)
+            .filter(AssetModel.is_orphaned)
+            .order_by(AssetModel.uri)
         )
-        assert [dataset.uri for dataset in orphaned_datasets_after_rerun] == ["ds1"]
-        assert updated_at_timestamps == [dataset.updated_at for dataset in orphaned_datasets_after_rerun]
+        assert [asset.uri for asset in orphaned_assets_after_rerun] == ["ds1"]
+        assert updated_at_timestamps == [asset.updated_at for asset in orphaned_assets_after_rerun]
 
     def test_misconfigured_dags_doesnt_crash_scheduler(self, session, dag_maker, caplog):
         """Test that if dagrun creation throws an exception, the scheduler doesn't crash"""

@@ -21,7 +21,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.assets import AssetAlias, AssetAliasEvent, Dataset
-from airflow.models.dataset import AssetAliasModel, DatasetModel
+from airflow.models.dataset import AssetAliasModel, AssetModel
 from airflow.utils.context import OutletEventAccessor, OutletEventAccessors
 
 
@@ -57,9 +57,9 @@ class TestOutletEventAccessor:
         ),
     )
     def test_add_with_db(self, raw_key, asset_alias_events, session):
-        dsm = DatasetModel(uri="test_uri")
+        asm = AssetModel(uri="test_uri")
         aam = AssetAliasModel(name="test_alias")
-        session.add_all([dsm, aam])
+        session.add_all([asm, aam])
         session.flush()
 
         outlet_event_accessor = OutletEventAccessor(raw_key=raw_key, extra={"not": ""})

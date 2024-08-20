@@ -47,7 +47,7 @@ from airflow.assets import (
     extract_event_key,
 )
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.dataset import AssetAliasModel, DatasetEvent, DatasetModel
+from airflow.models.dataset import AssetAliasModel, AssetModel, DatasetEvent
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.types import NOTSET
 
@@ -284,7 +284,7 @@ class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
         elif isinstance(obj, (Dataset, str)):
             dataset = self._datasets[extract_event_key(obj)]
             join_clause = DatasetEvent.dataset
-            where_clause = DatasetModel.uri == dataset.uri
+            where_clause = AssetModel.uri == dataset.uri
         else:
             raise ValueError(key)
 

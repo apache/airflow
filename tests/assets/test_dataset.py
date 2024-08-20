@@ -35,7 +35,7 @@ from airflow.assets import (
     _get_normalized_scheme,
     _sanitize_uri,
 )
-from airflow.models.dataset import AssetAliasModel, AssetDagRunQueue, DatasetModel
+from airflow.models.dataset import AssetAliasModel, AssetDagRunQueue, AssetModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization, SerializedDAG
@@ -263,11 +263,11 @@ def test_nested_asset_conditions_with_serialization(status_values, expected_eval
 @pytest.fixture
 def create_test_datasets(session):
     """Fixture to create test datasets and corresponding models."""
-    datasets = [Dataset(uri=f"hello{i}") for i in range(1, 3)]
-    for dataset in datasets:
-        session.add(DatasetModel(uri=dataset.uri))
+    assets = [Dataset(uri=f"hello{i}") for i in range(1, 3)]
+    for dataset in assets:
+        session.add(AssetModel(uri=dataset.uri))
     session.commit()
-    return datasets
+    return assets
 
 
 @pytest.mark.db_test
@@ -300,14 +300,14 @@ def test_dataset_trigger_setup_and_serialization(session, dag_maker, create_test
 @pytest.mark.usefixtures("clear_datasets")
 def test_dataset_dag_run_queue_processing(session, clear_datasets, dag_maker, create_test_datasets):
     datasets = create_test_datasets
-    dataset_models = session.query(DatasetModel).all()
+    asset_models = session.query(AssetModel).all()
 
     with dag_maker(schedule=AssetAny(*datasets)) as dag:
         EmptyOperator(task_id="hello")
 
-    # Add AssetDagRunQueue entries to simulate dataset event processing
-    for dm in dataset_models:
-        session.add(AssetDagRunQueue(dataset_id=dm.id, target_dag_id=dag.dag_id))
+    # Add AssetDagRunQueue entries to simulate asset event processing
+    for am in asset_models:
+        session.add(AssetDagRunQueue(dataset_id=am.id, target_dag_id=dag.dag_id))
     session.commit()
 
     # Fetch and evaluate dataset triggers for all DAGs affected by dataset events
@@ -334,10 +334,10 @@ def test_dag_with_complex_asset_condition(session, dag_maker):
     d1 = Dataset(uri="hello1")
     d2 = Dataset(uri="hello2")
 
-    # Create and add DatasetModel instances to the session
-    dm1 = DatasetModel(uri=d1.uri)
-    dm2 = DatasetModel(uri=d2.uri)
-    session.add_all([dm1, dm2])
+    # Create and add AssetModel instances to the session
+    am1 = AssetModel(uri=d1.uri)
+    am2 = AssetModel(uri=d2.uri)
+    session.add_all([am1, am2])
     session.commit()
 
     # Setup a DAG with complex dataset triggers (AssetAny with AssetAll)
@@ -535,15 +535,15 @@ def test_normalize_uri_valid_uri():
 @pytest.mark.usefixtures("clear_datasets")
 class Test_AssetAliasCondition:
     @pytest.fixture
-    def ds_1(self, session):
-        """Example dataset links to asset alias resolved_asset_alias_2."""
-        ds_uri = "test_uri"
-        ds_1 = DatasetModel(id=1, uri=ds_uri)
+    def asset_1(self, session):
+        """Example asset links to asset alias resolved_asset_alias_2."""
+        asset_uri = "test_uri"
+        asset_1 = AssetModel(id=1, uri=asset_uri)
 
-        session.add(ds_1)
+        session.add(asset_1)
         session.commit()
 
-        return ds_1
+        return asset_1
 
     @pytest.fixture
     def asset_alias_1(self, session):
@@ -557,32 +557,32 @@ class Test_AssetAliasCondition:
         return asset_alias_model
 
     @pytest.fixture
-    def resolved_asset_alias_2(self, session, ds_1):
+    def resolved_asset_alias_2(self, session, asset_1):
         """Example asset alias links to dataset asset_alias_1."""
         asset_name = "test_name_2"
         asset_alias_2 = AssetAliasModel(name=asset_name)
-        asset_alias_2.datasets.append(ds_1)
+        asset_alias_2.datasets.append(asset_1)
 
         session.add(asset_alias_2)
         session.commit()
 
         return asset_alias_2
 
-    def test_init(self, asset_alias_1, ds_1, resolved_asset_alias_2):
+    def test_init(self, asset_alias_1, asset_1, resolved_asset_alias_2):
         cond = _AssetAliasCondition(name=asset_alias_1.name)
         assert cond.objects == []
 
         cond = _AssetAliasCondition(name=resolved_asset_alias_2.name)
-        assert cond.objects == [Dataset(uri=ds_1.uri)]
+        assert cond.objects == [Dataset(uri=asset_1.uri)]
 
     def test_as_expression(self, asset_alias_1, resolved_asset_alias_2):
         for assset_alias in (asset_alias_1, resolved_asset_alias_2):
             cond = _AssetAliasCondition(assset_alias.name)
             assert cond.as_expression() == {"alias": assset_alias.name}
 
-    def test_evalute(self, asset_alias_1, resolved_asset_alias_2, ds_1):
+    def test_evalute(self, asset_alias_1, resolved_asset_alias_2, asset_1):
         cond = _AssetAliasCondition(asset_alias_1.name)
-        assert cond.evaluate({ds_1.uri: True}) is False
+        assert cond.evaluate({asset_1.uri: True}) is False
 
         cond = _AssetAliasCondition(resolved_asset_alias_2.name)
-        assert cond.evaluate({ds_1.uri: True}) is True
+        assert cond.evaluate({asset_1.uri: True}) is True

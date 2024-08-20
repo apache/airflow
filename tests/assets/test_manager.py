@@ -28,7 +28,7 @@ from airflow.assets import Dataset
 from airflow.assets.manager import AssetManager
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DagModel
-from airflow.models.dataset import AssetDagRunQueue, DagScheduleAssetReference, DatasetEvent, DatasetModel
+from airflow.models.dataset import AssetDagRunQueue, AssetModel, DagScheduleAssetReference, DatasetEvent
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from tests.listeners import dataset_listener
 
@@ -115,25 +115,25 @@ class TestAssetManager:
         dag2 = DagModel(dag_id="dag2", is_active=True)
         session.add_all([dag1, dag2])
 
-        dsm = DatasetModel(uri="test_dataset_uri")
-        session.add(dsm)
-        dsm.consuming_dags = [DagScheduleAssetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)]
+        asm = AssetModel(uri="test_dataset_uri")
+        session.add(asm)
+        asm.consuming_dags = [DagScheduleAssetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)]
         session.execute(delete(AssetDagRunQueue))
         session.flush()
 
         dsem.register_asset_change(task_instance=mock_task_instance, asset=ds, session=session)
         session.flush()
 
-        # Ensure we've created a dataset
-        assert session.query(DatasetEvent).filter_by(dataset_id=dsm.id).count() == 1
+        # Ensure we've created an asset
+        assert session.query(DatasetEvent).filter_by(dataset_id=asm.id).count() == 1
         assert session.query(AssetDagRunQueue).count() == 2
 
     def test_register_asset_change_no_downstreams(self, session, mock_task_instance):
         dsem = AssetManager()
 
         ds = Dataset(uri="never_consumed")
-        dsm = DatasetModel(uri="never_consumed")
-        session.add(dsm)
+        asm = AssetModel(uri="never_consumed")
+        session.add(asm)
         session.execute(delete(AssetDagRunQueue))
         session.flush()
 
@@ -141,7 +141,7 @@ class TestAssetManager:
         session.flush()
 
         # Ensure we've created a dataset
-        assert session.query(DatasetEvent).filter_by(dataset_id=dsm.id).count() == 1
+        assert session.query(DatasetEvent).filter_by(dataset_id=asm.id).count() == 1
         assert session.query(AssetDagRunQueue).count() == 0
 
     @pytest.mark.skip_if_database_isolation_mode
@@ -154,9 +154,9 @@ class TestAssetManager:
         dag1 = DagModel(dag_id="dag3")
         session.add(dag1)
 
-        dsm = DatasetModel(uri="test_dataset_uri_2")
-        session.add(dsm)
-        dsm.consuming_dags = [DagScheduleAssetReference(dag_id=dag1.dag_id)]
+        asm = AssetModel(uri="test_asset_uri_2")
+        session.add(asm)
+        asm.consuming_dags = [DagScheduleAssetReference(dag_id=dag1.dag_id)]
         session.flush()
 
         dsem.register_asset_change(task_instance=mock_task_instance, asset=ds, session=session)
@@ -168,15 +168,15 @@ class TestAssetManager:
 
     @pytest.mark.skip_if_database_isolation_mode
     def test_create_assets_notifies_dataset_listener(self, session):
-        dsem = AssetManager()
+        asset_manager = AssetManager()
         dataset_listener.clear()
         get_listener_manager().add_listener(dataset_listener)
 
-        ds = Dataset(uri="test_dataset_uri_3")
+        asset = Dataset(uri="test_asset_uri_3")
 
-        dsms = dsem.create_assets([ds], session=session)
+        asms = asset_manager.create_assets([asset], session=session)
 
         # Ensure the listener was notified
         assert len(dataset_listener.created) == 1
-        assert len(dsms) == 1
-        assert dataset_listener.created[0].uri == ds.uri == dsms[0].uri
+        assert len(asms) == 1
+        assert dataset_listener.created[0].uri == asset.uri == asms[0].uri

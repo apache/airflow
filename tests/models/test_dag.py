@@ -66,8 +66,8 @@ from airflow.models.dagrun import DagRun
 from airflow.models.dataset import (
     AssetAliasModel,
     AssetDagRunQueue,
+    AssetModel,
     DatasetEvent,
-    DatasetModel,
     TaskOutletAssetReference,
 )
 from airflow.models.param import DagParam, Param, ParamsDict
@@ -1023,13 +1023,13 @@ class TestDag:
         dag1.clear()
         DAG.bulk_write_to_db([dag1, dag2], session=session)
         session.commit()
-        stored_datasets = {x.uri: x for x in session.query(DatasetModel).all()}
-        d1_orm = stored_datasets[d1.uri]
-        d2_orm = stored_datasets[d2.uri]
-        d3_orm = stored_datasets[d3.uri]
-        assert stored_datasets[uri1].extra == {"should": "be used"}
-        assert [x.dag_id for x in d1_orm.consuming_dags] == [dag_id1]
-        assert [(x.task_id, x.dag_id) for x in d1_orm.producing_tasks] == [(task_id, dag_id2)]
+        stored_assets = {x.uri: x for x in session.query(AssetModel).all()}
+        asset1_orm = stored_assets[d1.uri]
+        asset2_orm = stored_assets[d2.uri]
+        asset3_orm = stored_assets[d3.uri]
+        assert stored_assets[uri1].extra == {"should": "be used"}
+        assert [x.dag_id for x in asset1_orm.consuming_dags] == [dag_id1]
+        assert [(x.task_id, x.dag_id) for x in asset1_orm.producing_tasks] == [(task_id, dag_id2)]
         assert set(
             session.query(
                 TaskOutletAssetReference.task_id,
@@ -1039,9 +1039,9 @@ class TestDag:
             .filter(TaskOutletAssetReference.dag_id.in_((dag_id1, dag_id2)))
             .all()
         ) == {
-            (task_id, dag_id1, d2_orm.id),
-            (task_id, dag_id1, d3_orm.id),
-            (task_id, dag_id2, d1_orm.id),
+            (task_id, dag_id1, asset2_orm.id),
+            (task_id, dag_id1, asset3_orm.id),
+            (task_id, dag_id2, asset1_orm.id),
         }
 
         # now that we have verified that a new dag has its dataset references recorded properly,
@@ -1055,10 +1055,10 @@ class TestDag:
         DAG.bulk_write_to_db([dag1, dag2], session=session)
         session.commit()
         session.expunge_all()
-        stored_datasets = {x.uri: x for x in session.query(DatasetModel).all()}
-        d1_orm = stored_datasets[d1.uri]
-        d2_orm = stored_datasets[d2.uri]
-        assert [x.dag_id for x in d1_orm.consuming_dags] == []
+        stored_assets = {x.uri: x for x in session.query(AssetModel).all()}
+        asset1_orm = stored_assets[d1.uri]
+        asset2_orm = stored_assets[d2.uri]
+        assert [x.dag_id for x in asset1_orm.consuming_dags] == []
         assert set(
             session.query(
                 TaskOutletAssetReference.task_id,
@@ -1067,7 +1067,7 @@ class TestDag:
             )
             .filter(TaskOutletAssetReference.dag_id.in_((dag_id1, dag_id2)))
             .all()
-        ) == {(task_id, dag_id1, d2_orm.id)}
+        ) == {(task_id, dag_id1, asset2_orm.id)}
 
     def test_bulk_write_to_db_unorphan_datasets(self):
         """
@@ -1079,10 +1079,10 @@ class TestDag:
             # orphans
             dataset1 = Dataset(uri="ds1")
             dataset2 = Dataset(uri="ds2")
-            session.add(DatasetModel(uri=dataset2.uri, is_orphaned=True))
+            session.add(AssetModel(uri=dataset2.uri, is_orphaned=True))
             dataset3 = Dataset(uri="ds3")
             dataset4 = Dataset(uri="ds4")
-            session.add(DatasetModel(uri=dataset4.uri, is_orphaned=True))
+            session.add(AssetModel(uri=dataset4.uri, is_orphaned=True))
             session.flush()
 
             dag1 = DAG(dag_id="datasets-1", start_date=DEFAULT_DATE, schedule=[dataset1])
@@ -1091,20 +1091,20 @@ class TestDag:
             DAG.bulk_write_to_db([dag1], session=session)
 
             # Double check
-            non_orphaned_datasets = [
-                dataset.uri
-                for dataset in session.query(DatasetModel.uri)
-                .filter(~DatasetModel.is_orphaned)
-                .order_by(DatasetModel.uri)
+            non_orphaned_assets = [
+                asset.uri
+                for asset in session.query(AssetModel.uri)
+                .filter(~AssetModel.is_orphaned)
+                .order_by(AssetModel.uri)
             ]
-            assert non_orphaned_datasets == ["ds1", "ds3"]
-            orphaned_datasets = [
-                dataset.uri
-                for dataset in session.query(DatasetModel.uri)
-                .filter(DatasetModel.is_orphaned)
-                .order_by(DatasetModel.uri)
+            assert non_orphaned_assets == ["ds1", "ds3"]
+            orphaned_assets = [
+                asset.uri
+                for asset in session.query(AssetModel.uri)
+                .filter(AssetModel.is_orphaned)
+                .order_by(AssetModel.uri)
             ]
-            assert orphaned_datasets == ["ds2", "ds4"]
+            assert orphaned_assets == ["ds2", "ds4"]
 
             # Now add references to the two unreferenced datasets
             dag1 = DAG(dag_id="datasets-1", start_date=DEFAULT_DATE, schedule=[dataset1, dataset2])
@@ -1113,10 +1113,10 @@ class TestDag:
             DAG.bulk_write_to_db([dag1], session=session)
 
             # and count the orphans and non-orphans
-            non_orphaned_dataset_count = session.query(DatasetModel).filter(~DatasetModel.is_orphaned).count()
-            assert non_orphaned_dataset_count == 4
-            orphaned_dataset_count = session.query(DatasetModel).filter(DatasetModel.is_orphaned).count()
-            assert orphaned_dataset_count == 0
+            non_orphaned_asset_count = session.query(AssetModel).filter(~AssetModel.is_orphaned).count()
+            assert non_orphaned_asset_count == 4
+            orphaned_asset_count = session.query(AssetModel).filter(AssetModel.is_orphaned).count()
+            assert orphaned_asset_count == 0
 
     def test_bulk_write_to_db_asset_aliases(self):
         """
@@ -2450,8 +2450,8 @@ class TestDagModel:
 
         # add queue records so we'll need a run
         dag_model = session.query(DagModel).filter(DagModel.dag_id == dag.dag_id).one()
-        dataset_model: DatasetModel = dag_model.schedule_datasets[0]
-        session.add(AssetDagRunQueue(dataset_id=dataset_model.id, target_dag_id=dag_model.dag_id))
+        asset_model: AssetModel = dag_model.schedule_datasets[0]
+        session.add(AssetDagRunQueue(dataset_id=asset_model.id, target_dag_id=dag_model.dag_id))
         session.flush()
         query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
@@ -2476,10 +2476,10 @@ class TestDagModel:
 
     def test_dags_needing_dagruns_asset_aliases(self, dag_maker, session):
         # link dataset_alias hello_alias to dataset hello
-        dataset_model = DatasetModel(uri="hello")
+        asset_model = AssetModel(uri="hello")
         asset_alias_model = AssetAliasModel(name="hello_alias")
-        asset_alias_model.datasets.append(dataset_model)
-        session.add_all([dataset_model, asset_alias_model])
+        asset_alias_model.datasets.append(asset_model)
+        session.add_all([asset_model, asset_alias_model])
         session.commit()
 
         with dag_maker(
@@ -2498,8 +2498,8 @@ class TestDagModel:
 
         # add queue records so we'll need a run
         dag_model = dag_maker.dag_model
-        dataset_model: DatasetModel = dag_model.schedule_datasets[0]
-        session.add(AssetDagRunQueue(dataset_id=dataset_model.id, target_dag_id=dag_model.dag_id))
+        asset_model: AssetModel = dag_model.schedule_datasets[0]
+        session.add(AssetDagRunQueue(dataset_id=asset_model.id, target_dag_id=dag_model.dag_id))
         session.flush()
         query, _ = DagModel.dags_needing_dagruns(session)
         dag_models = query.all()
@@ -2672,11 +2672,11 @@ class TestDagModel:
                 EmptyOperator(task_id="task", outlets=[dataset])
             dr = dag_maker.create_dagrun()
 
-            ds_id = session.query(DatasetModel.id).filter_by(uri=dataset.uri).scalar()
+            asset_id = session.query(AssetModel.id).filter_by(uri=dataset.uri).scalar()
 
             session.add(
                 DatasetEvent(
-                    dataset_id=ds_id,
+                    dataset_id=asset_id,
                     source_task_id="task",
                     source_dag_id=dr.dag_id,
                     source_run_id=dr.run_id,
@@ -2684,8 +2684,8 @@ class TestDagModel:
                 )
             )
 
-        ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
-        ds2_id = session.query(DatasetModel.id).filter_by(uri=dataset2.uri).scalar()
+        asset1_id = session.query(AssetModel.id).filter_by(uri=dataset1.uri).scalar()
+        asset2_id = session.query(AssetModel.id).filter_by(uri=dataset2.uri).scalar()
 
         with dag_maker(dag_id="datasets-consumer-multiple", schedule=[dataset1, dataset2]) as dag:
             pass
@@ -2693,9 +2693,11 @@ class TestDagModel:
         session.flush()
         session.add_all(
             [
-                AssetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE),
+                AssetDagRunQueue(dataset_id=asset1_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE),
                 AssetDagRunQueue(
-                    dataset_id=ds2_id, target_dag_id=dag.dag_id, created_at=DEFAULT_DATE + timedelta(hours=1)
+                    dataset_id=asset2_id,
+                    target_dag_id=dag.dag_id,
+                    created_at=DEFAULT_DATE + timedelta(hours=1),
                 ),
             ]
         )
@@ -3441,22 +3443,22 @@ def test_get_dataset_triggered_next_run_info(dag_maker, clear_datasets):
     dag3 = dag_maker.dag
 
     session = dag_maker.session
-    ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
+    asset1_id = session.query(AssetModel.id).filter_by(uri=dataset1.uri).scalar()
     session.bulk_save_objects(
         [
-            AssetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag2.dag_id),
-            AssetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag3.dag_id),
+            AssetDagRunQueue(dataset_id=asset1_id, target_dag_id=dag2.dag_id),
+            AssetDagRunQueue(dataset_id=asset1_id, target_dag_id=dag3.dag_id),
         ]
     )
     session.flush()
 
-    datasets = session.query(DatasetModel.uri).order_by(DatasetModel.id).all()
+    assets = session.query(AssetModel.uri).order_by(AssetModel.id).all()
 
     info = get_dataset_triggered_next_run_info([dag1.dag_id], session=session)
     assert info[dag1.dag_id] == {
         "ready": 0,
         "total": 1,
-        "uri": datasets[0].uri,
+        "uri": assets[0].uri,
     }
 
     # This time, check both dag2 and dag3 at the same time (tests filtering)

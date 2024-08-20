@@ -45,7 +45,7 @@ from airflow.api_connexion.schemas.dataset_schema import (
 )
 from airflow.assets import Dataset
 from airflow.assets.manager import asset_manager
-from airflow.models.dataset import AssetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.dataset import AssetDagRunQueue, AssetModel, DatasetEvent
 from airflow.utils import timezone
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -63,18 +63,18 @@ RESOURCE_EVENT_PREFIX = "dataset"
 @security.requires_access_dataset("GET")
 @provide_session
 def get_dataset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
-    """Get a Dataset."""
-    dataset = session.scalar(
-        select(DatasetModel)
-        .where(DatasetModel.uri == uri)
-        .options(joinedload(DatasetModel.consuming_dags), joinedload(DatasetModel.producing_tasks))
+    """Get an asset ."""
+    asset = session.scalar(
+        select(AssetModel)
+        .where(AssetModel.uri == uri)
+        .options(joinedload(AssetModel.consuming_dags), joinedload(AssetModel.producing_tasks))
     )
-    if not dataset:
+    if not asset:
         raise NotFound(
-            "Dataset not found",
-            detail=f"The Dataset with uri: `{uri}` was not found",
+            "Asset not found",
+            detail=f"The Asset with uri: `{uri}` was not found",
         )
-    return dataset_schema.dump(dataset)
+    return dataset_schema.dump(asset)
 
 
 @security.requires_access_dataset("GET")
@@ -89,27 +89,27 @@ def get_datasets(
     order_by: str = "id",
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Get datasets."""
+    """Get assets."""
     allowed_attrs = ["id", "uri", "created_at", "updated_at"]
 
-    total_entries = session.scalars(select(func.count(DatasetModel.id))).one()
-    query = select(DatasetModel)
+    total_entries = session.scalars(select(func.count(AssetModel.id))).one()
+    query = select(AssetModel)
 
     if dag_ids:
         dags_list = dag_ids.split(",")
         query = query.filter(
-            (DatasetModel.consuming_dags.any(DagScheduleAssetReference.dag_id.in_(dags_list)))
-            | (DatasetModel.producing_tasks.any(TaskOutletAssetReference.dag_id.in_(dags_list)))
+            (AssetModel.consuming_dags.any(DagScheduleAssetReference.dag_id.in_(dags_list)))
+            | (AssetModel.producing_tasks.any(TaskOutletAssetReference.dag_id.in_(dags_list)))
         )
     if uri_pattern:
-        query = query.where(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
+        query = query.where(AssetModel.uri.ilike(f"%{uri_pattern}%"))
     query = apply_sorting(query, order_by, {}, allowed_attrs)
-    datasets = session.scalars(
-        query.options(subqueryload(DatasetModel.consuming_dags), subqueryload(DatasetModel.producing_tasks))
+    assets = session.scalars(
+        query.options(subqueryload(AssetModel.consuming_dags), subqueryload(AssetModel.producing_tasks))
         .offset(offset)
         .limit(limit)
     ).all()
-    return dataset_collection_schema.dump(DatasetCollection(datasets=datasets, total_entries=total_entries))
+    return dataset_collection_schema.dump(DatasetCollection(datasets=assets, total_entries=total_entries))
 
 
 @security.requires_access_dataset("GET")
@@ -127,7 +127,7 @@ def get_dataset_events(
     source_map_index: int | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Get dataset events."""
+    """Get asset events."""
     allowed_attrs = ["source_dag_id", "source_task_id", "source_run_id", "source_map_index", "timestamp"]
 
     query = select(DatasetEvent)
@@ -170,7 +170,7 @@ def _generate_queued_event_where_clause(
     if uri is not None:
         where_clause.append(
             AssetDagRunQueue.dataset_id.in_(
-                select(DatasetModel.id).where(DatasetModel.uri == uri),
+                select(AssetModel.id).where(AssetModel.uri == uri),
             ),
         )
     if before is not None:
@@ -190,7 +190,7 @@ def get_dag_dataset_queued_event(
     where_clause = _generate_queued_event_where_clause(dag_id=dag_id, uri=uri, before=before)
     adrq = session.scalar(
         select(AssetDagRunQueue)
-        .join(DatasetModel, AssetDagRunQueue.dataset_id == DatasetModel.id)
+        .join(AssetModel, AssetDagRunQueue.dataset_id == AssetModel.id)
         .where(*where_clause)
     )
     if adrq is None:
@@ -230,8 +230,8 @@ def get_dag_dataset_queued_events(
     """Get queued asset events for a DAG."""
     where_clause = _generate_queued_event_where_clause(dag_id=dag_id, before=before)
     query = (
-        select(AssetDagRunQueue, DatasetModel.uri)
-        .join(DatasetModel, AssetDagRunQueue.dataset_id == DatasetModel.id)
+        select(AssetDagRunQueue, AssetModel.uri)
+        .join(AssetModel, AssetDagRunQueue.dataset_id == AssetModel.id)
         .where(*where_clause)
     )
     result = session.execute(query).all()
@@ -280,8 +280,8 @@ def get_dataset_queued_events(
         uri=uri, before=before, permitted_dag_ids=permitted_dag_ids
     )
     query = (
-        select(AssetDagRunQueue, DatasetModel.uri)
-        .join(DatasetModel, AssetDagRunQueue.dataset_id == DatasetModel.id)
+        select(AssetDagRunQueue, AssetModel.uri)
+        .join(AssetModel, AssetDagRunQueue.dataset_id == AssetModel.id)
         .where(*where_clause)
     )
     total_entries = get_query_count(query, session=session)
@@ -296,7 +296,7 @@ def get_dataset_queued_events(
         )
     raise NotFound(
         "Queue event not found",
-        detail=f"Queue event with dataset uri: `{uri}` was not found",
+        detail=f"Queue event with asset uri: `{uri}` was not found",
     )
 
 
@@ -318,7 +318,7 @@ def delete_dataset_queued_events(
         return NoContent, HTTPStatus.NO_CONTENT
     raise NotFound(
         "Queue event not found",
-        detail=f"Queue event with dataset uri: `{uri}` was not found",
+        detail=f"Queue event with asset uri: `{uri}` was not found",
     )
 
 
@@ -326,7 +326,7 @@ def delete_dataset_queued_events(
 @provide_session
 @action_logging
 def create_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
-    """Create dataset event."""
+    """Create asset event."""
     body = get_json_request_dict()
     try:
         json_body = create_dataset_event_schema.load(body)
@@ -334,9 +334,9 @@ def create_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
         raise BadRequest(detail=str(err))
 
     uri = json_body["dataset_uri"]
-    dataset = session.scalar(select(DatasetModel).where(DatasetModel.uri == uri).limit(1))
-    if not dataset:
-        raise NotFound(title="Dataset not found", detail=f"Dataset with uri: '{uri}' not found")
+    asset = session.scalar(select(AssetModel).where(AssetModel.uri == uri).limit(1))
+    if not asset:
+        raise NotFound(title="Asset not found", detail=f"Asset with uri: '{uri}' not found")
     timestamp = timezone.utcnow()
     extra = json_body.get("extra", {})
     extra["from_rest_api"] = True
@@ -347,7 +347,7 @@ def create_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
         session=session,
     )
     if not asset_event:
-        raise NotFound(title="Dataset not found", detail=f"Dataset with uri: '{uri}' not found")
+        raise NotFound(title="Asset not found", detail=f"Asset with uri: '{uri}' not found")
     session.flush()  # So we can dump the timestamp.
     event = dataset_event_schema.dump(asset_event)
     return event

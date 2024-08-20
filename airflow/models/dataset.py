@@ -111,7 +111,7 @@ class AssetAliasModel(Base):
     )
 
     datasets = relationship(
-        "DatasetModel",
+        "AssetModel",
         secondary=alias_association_table,
         backref="aliases",
     )
@@ -142,11 +142,11 @@ class AssetAliasModel(Base):
         return AssetAlias(name=self.name)
 
 
-class DatasetModel(Base):
+class AssetModel(Base):
     """
-    A table to store datasets.
+    A table to store assets.
 
-    :param uri: a string that uniquely identifies the dataset
+    :param uri: a string that uniquely identifies the asset
     :param extra: JSON field for arbitrary extra info
     """
 
@@ -178,7 +178,7 @@ class DatasetModel(Base):
     )
 
     @classmethod
-    def from_public(cls, obj: Dataset) -> DatasetModel:
+    def from_public(cls, obj: Dataset) -> AssetModel:
         return cls(uri=obj.uri, extra=obj.extra)
 
     def __init__(self, uri: str, **kwargs):
@@ -259,7 +259,7 @@ class DagScheduleAssetReference(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    dataset = relationship("DatasetModel", back_populates="consuming_dags")
+    dataset = relationship("AssetModel", back_populates="consuming_dags")
     dag = relationship("DagModel", back_populates="schedule_dataset_references")
 
     queue_records = relationship(
@@ -314,7 +314,7 @@ class TaskOutletAssetReference(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    dataset = relationship("DatasetModel", back_populates="producing_tasks")
+    dataset = relationship("AssetModel", back_populates="producing_tasks")
 
     __tablename__ = "task_outlet_dataset_reference"
     __table_args__ = (
@@ -360,7 +360,7 @@ class AssetDagRunQueue(Base):
     dataset_id = Column(Integer, primary_key=True, nullable=False)
     target_dag_id = Column(StringID(), primary_key=True, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
-    dataset = relationship("DatasetModel", viewonly=True)
+    dataset = relationship("AssetModel", viewonly=True)
     __tablename__ = "dataset_dag_run_queue"
     __table_args__ = (
         PrimaryKeyConstraint(dataset_id, target_dag_id, name="datasetdagrunqueue_pkey"),
@@ -409,7 +409,7 @@ class DatasetEvent(Base):
     """
     A table to store datasets events.
 
-    :param dataset_id: reference to DatasetModel record
+    :param dataset_id: reference to AssetModel record
     :param extra: JSON field for arbitrary extra info
     :param source_task_id: the task_id of the TI which updated the dataset
     :param source_dag_id: the dag_id of the TI which updated the dataset
@@ -471,8 +471,8 @@ class DatasetEvent(Base):
         uselist=False,
     )
     dataset = relationship(
-        DatasetModel,
-        primaryjoin="DatasetEvent.dataset_id == foreign(DatasetModel.id)",
+        AssetModel,
+        primaryjoin="DatasetEvent.dataset_id == foreign(AssetModel.id)",
         viewonly=True,
         lazy="select",
         uselist=False,

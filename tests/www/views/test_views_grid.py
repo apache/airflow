@@ -28,7 +28,7 @@ from airflow.assets import Dataset
 from airflow.decorators import task_group
 from airflow.lineage.entities import File
 from airflow.models import DagBag
-from airflow.models.dataset import AssetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.dataset import AssetDagRunQueue, AssetModel, DatasetEvent
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -477,25 +477,25 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
 
         m.setattr(app, "dag_bag", dag_maker.dagbag)
 
-        ds1_id = session.query(DatasetModel.id).filter_by(uri=datasets[0].uri).scalar()
-        ds2_id = session.query(DatasetModel.id).filter_by(uri=datasets[1].uri).scalar()
+        asset1_id = session.query(AssetModel.id).filter_by(uri=datasets[0].uri).scalar()
+        asset2_id = session.query(AssetModel.id).filter_by(uri=datasets[1].uri).scalar()
         adrq = AssetDagRunQueue(
-            target_dag_id=DAG_ID, dataset_id=ds1_id, created_at=pendulum.DateTime(2022, 8, 2, tzinfo=UTC)
+            target_dag_id=DAG_ID, dataset_id=asset1_id, created_at=pendulum.DateTime(2022, 8, 2, tzinfo=UTC)
         )
         session.add(adrq)
         dataset_events = [
             DatasetEvent(
-                dataset_id=ds1_id,
+                dataset_id=asset1_id,
                 extra={},
                 timestamp=pendulum.DateTime(2022, 8, 1, 1, tzinfo=UTC),
             ),
             DatasetEvent(
-                dataset_id=ds1_id,
+                dataset_id=asset1_id,
                 extra={},
                 timestamp=pendulum.DateTime(2022, 8, 2, 1, tzinfo=UTC),
             ),
             DatasetEvent(
-                dataset_id=ds1_id,
+                dataset_id=asset1_id,
                 extra={},
                 timestamp=pendulum.DateTime(2022, 8, 2, 2, tzinfo=UTC),
             ),
@@ -509,8 +509,8 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
     assert resp.json == {
         "dataset_expression": {"all": ["s3://bucket/key/1", "s3://bucket/key/2"]},
         "events": [
-            {"id": ds1_id, "uri": "s3://bucket/key/1", "lastUpdate": "2022-08-02T02:00:00+00:00"},
-            {"id": ds2_id, "uri": "s3://bucket/key/2", "lastUpdate": None},
+            {"id": asset1_id, "uri": "s3://bucket/key/1", "lastUpdate": "2022-08-02T02:00:00+00:00"},
+            {"id": asset2_id, "uri": "s3://bucket/key/2", "lastUpdate": None},
         ],
     }
 

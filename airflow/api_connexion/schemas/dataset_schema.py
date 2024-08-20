@@ -26,9 +26,9 @@ from airflow.api_connexion.schemas.common_schema import JsonObjectField
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import (
     AssetAliasModel,
+    AssetModel,
     DagScheduleAssetReference,
     DatasetEvent,
-    DatasetModel,
     TaskOutletAssetReference,
 )
 
@@ -78,7 +78,7 @@ class DatasetSchema(SQLAlchemySchema):
     class Meta:
         """Meta."""
 
-        model = DatasetModel
+        model = AssetModel
 
     id = auto_field()
     uri = auto_field()
@@ -93,7 +93,7 @@ class DatasetSchema(SQLAlchemySchema):
 class DatasetCollection(NamedTuple):
     """List of Datasets with meta."""
 
-    datasets: list[DatasetModel]
+    datasets: list[AssetModel]
     total_entries: int
 
 

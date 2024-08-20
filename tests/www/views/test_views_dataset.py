@@ -22,7 +22,7 @@ import pytest
 from dateutil.tz import UTC
 
 from airflow.assets import Dataset
-from airflow.models.dataset import DatasetEvent, DatasetModel
+from airflow.models.dataset import AssetModel, DatasetEvent
 from airflow.operators.empty import EmptyOperator
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_datasets
@@ -40,16 +40,16 @@ class TestDatasetEndpoint:
 
 class TestGetDatasets(TestDatasetEndpoint):
     def test_should_respond_200(self, admin_client, session):
-        datasets = [
-            DatasetModel(
+        assets = [
+            AssetModel(
                 id=i,
                 uri=f"s3://bucket/key/{i}",
             )
             for i in [1, 2]
         ]
-        session.add_all(datasets)
+        session.add_all(assets)
         session.commit()
-        assert session.query(DatasetModel).count() == 2
+        assert session.query(AssetModel).count() == 2
 
         with assert_queries_count(10):
             response = admin_client.get("/object/datasets_summary")
@@ -75,15 +75,15 @@ class TestGetDatasets(TestDatasetEndpoint):
         }
 
     def test_order_by_raises_400_for_invalid_attr(self, admin_client, session):
-        datasets = [
-            DatasetModel(
+        assets = [
+            AssetModel(
                 uri=f"s3://bucket/key/{i}",
             )
             for i in [1, 2]
         ]
-        session.add_all(datasets)
+        session.add_all(assets)
         session.commit()
-        assert session.query(DatasetModel).count() == 2
+        assert session.query(AssetModel).count() == 2
 
         response = admin_client.get("/object/datasets_summary?order_by=fake")
 
@@ -92,15 +92,10 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert response.json["detail"] == msg
 
     def test_order_by_raises_400_for_invalid_datetimes(self, admin_client, session):
-        datasets = [
-            DatasetModel(
-                uri=f"s3://bucket/key/{i}",
-            )
-            for i in [1, 2]
-        ]
-        session.add_all(datasets)
+        assets = [AssetModel(uri=f"s3://bucket/key/{i}") for i in [1, 2]]
+        session.add_all(assets)
         session.commit()
-        assert session.query(DatasetModel).count() == 2
+        assert session.query(AssetModel).count() == 2
 
         response = admin_client.get("/object/datasets_summary?updated_before=null")
 
@@ -115,25 +110,25 @@ class TestGetDatasets(TestDatasetEndpoint):
     def test_filter_by_datetimes(self, admin_client, session):
         today = pendulum.today("UTC")
 
-        datasets = [
-            DatasetModel(
+        assets = [
+            AssetModel(
                 id=i,
                 uri=f"s3://bucket/key/{i}",
             )
             for i in range(1, 4)
         ]
-        session.add_all(datasets)
+        session.add_all(assets)
         # Update datasets, one per day, starting with datasets[0], ending with datasets[2]
         dataset_events = [
             DatasetEvent(
-                dataset_id=datasets[i].id,
-                timestamp=today.add(days=-len(datasets) + i + 1),
+                dataset_id=assets[i].id,
+                timestamp=today.add(days=-len(assets) + i + 1),
             )
-            for i in range(len(datasets))
+            for i in range(len(assets))
         ]
         session.add_all(dataset_events)
         session.commit()
-        assert session.query(DatasetModel).count() == len(datasets)
+        assert session.query(AssetModel).count() == len(assets)
 
         cutoff = today.add(days=-1).add(minutes=-5).to_iso8601_string()
         response = admin_client.get(f"/object/datasets_summary?updated_after={cutoff}")
@@ -159,31 +154,31 @@ class TestGetDatasets(TestDatasetEndpoint):
         ],
     )
     def test_order_by(self, admin_client, session, order_by, ordered_dataset_ids):
-        datasets = [
-            DatasetModel(
+        assets = [
+            AssetModel(
                 id=i,
                 uri=f"s3://bucket/key/{i}",
             )
             for i in range(1, len(ordered_dataset_ids) + 1)
         ]
-        session.add_all(datasets)
+        session.add_all(assets)
         dataset_events = [
             DatasetEvent(
-                dataset_id=datasets[2].id,
+                dataset_id=assets[2].id,
                 timestamp=pendulum.today("UTC").add(days=-3),
             ),
             DatasetEvent(
-                dataset_id=datasets[1].id,
+                dataset_id=assets[1].id,
                 timestamp=pendulum.today("UTC").add(days=-2),
             ),
             DatasetEvent(
-                dataset_id=datasets[1].id,
+                dataset_id=assets[1].id,
                 timestamp=pendulum.today("UTC").add(days=-1),
             ),
         ]
         session.add_all(dataset_events)
         session.commit()
-        assert session.query(DatasetModel).count() == len(ordered_dataset_ids)
+        assert session.query(AssetModel).count() == len(ordered_dataset_ids)
 
         response = admin_client.get(f"/object/datasets_summary?order_by={order_by}")
 
@@ -192,16 +187,16 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert response.json["total_entries"] == len(ordered_dataset_ids)
 
     def test_search_uri_pattern(self, admin_client, session):
-        datasets = [
-            DatasetModel(
+        assets = [
+            AssetModel(
                 id=i,
                 uri=f"s3://bucket/key_{i}",
             )
             for i in [1, 2]
         ]
-        session.add_all(datasets)
+        session.add_all(assets)
         session.commit()
-        assert session.query(DatasetModel).count() == 2
+        assert session.query(AssetModel).count() == 2
 
         uri_pattern = "key_2"
         response = admin_client.get(f"/object/datasets_summary?uri_pattern={uri_pattern}")
@@ -246,14 +241,14 @@ class TestGetDatasets(TestDatasetEndpoint):
     @pytest.mark.need_serialized_dag
     def test_correct_counts_update(self, admin_client, session, dag_maker, app, monkeypatch):
         with monkeypatch.context() as m:
-            datasets = [Dataset(uri=f"s3://bucket/key/{i}") for i in [1, 2, 3, 4, 5]]
+            assets = [Dataset(uri=f"s3://bucket/key/{i}") for i in [1, 2, 3, 4, 5]]
 
             # DAG that produces dataset #1
             with dag_maker(dag_id="upstream", schedule=None, serialized=True, session=session):
-                EmptyOperator(task_id="task1", outlets=[datasets[0]])
+                EmptyOperator(task_id="task1", outlets=[assets[0]])
 
-            # DAG that is consumes only datasets #1 and #2
-            with dag_maker(dag_id="downstream", schedule=datasets[:2], serialized=True, session=session):
+            # DAG that is consumes only assets #1 and #2
+            with dag_maker(dag_id="downstream", schedule=assets[:2], serialized=True, session=session):
                 EmptyOperator(task_id="task1")
 
             # We create multiple dataset-producing and dataset-consuming DAGs because the query requires
@@ -261,20 +256,20 @@ class TestGetDatasets(TestDatasetEndpoint):
             # to the outer joins with DagScheduleAssetReference and TaskOutletAssetReference
             # Two independent DAGs that produce dataset #3
             with dag_maker(dag_id="independent_producer_1", serialized=True, session=session):
-                EmptyOperator(task_id="task1", outlets=[datasets[2]])
+                EmptyOperator(task_id="task1", outlets=[assets[2]])
             with dag_maker(dag_id="independent_producer_2", serialized=True, session=session):
-                EmptyOperator(task_id="task1", outlets=[datasets[2]])
+                EmptyOperator(task_id="task1", outlets=[assets[2]])
             # Two independent DAGs that consume dataset #4
             with dag_maker(
                 dag_id="independent_consumer_1",
-                schedule=[datasets[3]],
+                schedule=[assets[3]],
                 serialized=True,
                 session=session,
             ):
                 EmptyOperator(task_id="task1")
             with dag_maker(
                 dag_id="independent_consumer_2",
-                schedule=[datasets[3]],
+                schedule=[assets[3]],
                 serialized=True,
                 session=session,
             ):
@@ -283,25 +278,25 @@ class TestGetDatasets(TestDatasetEndpoint):
             # Independent DAG that is produces and consumes the same dataset, #5
             with dag_maker(
                 dag_id="independent_producer_self_consumer",
-                schedule=[datasets[4]],
+                schedule=[assets[4]],
                 serialized=True,
                 session=session,
             ):
-                EmptyOperator(task_id="task1", outlets=[datasets[4]])
+                EmptyOperator(task_id="task1", outlets=[assets[4]])
 
             m.setattr(app, "dag_bag", dag_maker.dagbag)
 
-            ds1_id = session.query(DatasetModel.id).filter_by(uri=datasets[0].uri).scalar()
-            ds2_id = session.query(DatasetModel.id).filter_by(uri=datasets[1].uri).scalar()
-            ds3_id = session.query(DatasetModel.id).filter_by(uri=datasets[2].uri).scalar()
-            ds4_id = session.query(DatasetModel.id).filter_by(uri=datasets[3].uri).scalar()
-            ds5_id = session.query(DatasetModel.id).filter_by(uri=datasets[4].uri).scalar()
+            asset1_id = session.query(AssetModel.id).filter_by(uri=assets[0].uri).scalar()
+            asset2_id = session.query(AssetModel.id).filter_by(uri=assets[1].uri).scalar()
+            asset3_id = session.query(AssetModel.id).filter_by(uri=assets[2].uri).scalar()
+            asset4_id = session.query(AssetModel.id).filter_by(uri=assets[3].uri).scalar()
+            asset5_id = session.query(AssetModel.id).filter_by(uri=assets[4].uri).scalar()
 
             # dataset 1 events
             session.add_all(
                 [
                     DatasetEvent(
-                        dataset_id=ds1_id,
+                        dataset_id=asset1_id,
                         timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
                     )
                     for i in range(3)
@@ -311,7 +306,7 @@ class TestGetDatasets(TestDatasetEndpoint):
             session.add_all(
                 [
                     DatasetEvent(
-                        dataset_id=ds3_id,
+                        dataset_id=asset3_id,
                         timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
                     )
                     for i in range(3)
@@ -321,7 +316,7 @@ class TestGetDatasets(TestDatasetEndpoint):
             session.add_all(
                 [
                     DatasetEvent(
-                        dataset_id=ds4_id,
+                        dataset_id=asset4_id,
                         timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
                     )
                     for i in range(4)
@@ -331,7 +326,7 @@ class TestGetDatasets(TestDatasetEndpoint):
             session.add_all(
                 [
                     DatasetEvent(
-                        dataset_id=ds5_id,
+                        dataset_id=asset5_id,
                         timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
                     )
                     for i in range(5)
@@ -346,31 +341,31 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert response_data == {
             "datasets": [
                 {
-                    "id": ds1_id,
+                    "id": asset1_id,
                     "uri": "s3://bucket/key/1",
                     "last_dataset_update": "2022-08-01T02:00:00+00:00",
                     "total_updates": 3,
                 },
                 {
-                    "id": ds2_id,
+                    "id": asset2_id,
                     "uri": "s3://bucket/key/2",
                     "last_dataset_update": None,
                     "total_updates": 0,
                 },
                 {
-                    "id": ds3_id,
+                    "id": asset3_id,
                     "uri": "s3://bucket/key/3",
                     "last_dataset_update": "2022-08-01T02:00:00+00:00",
                     "total_updates": 3,
                 },
                 {
-                    "id": ds4_id,
+                    "id": asset4_id,
                     "uri": "s3://bucket/key/4",
                     "last_dataset_update": "2022-08-01T03:00:00+00:00",
                     "total_updates": 4,
                 },
                 {
-                    "id": ds5_id,
+                    "id": asset5_id,
                     "uri": "s3://bucket/key/5",
                     "last_dataset_update": "2022-08-01T04:00:00+00:00",
                     "total_updates": 5,
@@ -395,14 +390,14 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         ],
     )
     def test_limit_and_offset(self, admin_client, session, url, expected_dataset_uris):
-        datasets = [
-            DatasetModel(
+        assets = [
+            AssetModel(
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
             )
             for i in range(1, 10)
         ]
-        session.add_all(datasets)
+        session.add_all(assets)
         session.commit()
 
         response = admin_client.get(url)
@@ -412,14 +407,14 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         assert dataset_uris == expected_dataset_uris
 
     def test_should_respect_page_size_limit_default(self, admin_client, session):
-        datasets = [
-            DatasetModel(
+        assets = [
+            AssetModel(
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
             )
             for i in range(1, 60)
         ]
-        session.add_all(datasets)
+        session.add_all(assets)
         session.commit()
 
         response = admin_client.get("/object/datasets_summary")
@@ -428,14 +423,14 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         assert len(response.json["datasets"]) == 25
 
     def test_should_return_max_if_req_above(self, admin_client, session):
-        datasets = [
-            DatasetModel(
+        assets = [
+            AssetModel(
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
             )
             for i in range(1, 60)
         ]
-        session.add_all(datasets)
+        session.add_all(assets)
         session.commit()
 
         response = admin_client.get("/object/datasets_summary?limit=180")

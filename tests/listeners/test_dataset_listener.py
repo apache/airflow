@@ -20,7 +20,7 @@ import pytest
 
 from airflow.assets import Dataset
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.dataset import DatasetModel
+from airflow.models.dataset import AssetModel
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
 from tests.listeners import dataset_listener
@@ -43,8 +43,8 @@ def clean_listener_manager():
 def test_dataset_listener_on_asset_changed_gets_calls(create_task_instance_of_operator, session):
     dataset_uri = "test_dataset_uri"
     ds = Dataset(uri=dataset_uri)
-    ds_model = DatasetModel(uri=dataset_uri)
-    session.add(ds_model)
+    asset_model = AssetModel(uri=dataset_uri)
+    session.add(asset_model)
 
     session.flush()
 

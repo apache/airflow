@@ -49,9 +49,9 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import (
     AssetDagRunQueue,
+    AssetModel,
     DagScheduleAssetReference,
     DatasetEvent,
-    DatasetModel,
     TaskOutletAssetReference,
 )
 from airflow.models.serialized_dag import SerializedDagModel
@@ -2014,20 +2014,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             SerializedDagModel.remove_dag(dag_id=dag.dag_id, session=session)
         session.flush()
 
-    def _set_orphaned(self, dataset: DatasetModel) -> int:
-        self.log.info("Orphaning unreferenced dataset '%s'", dataset.uri)
-        dataset.is_orphaned = expression.true()
+    def _set_orphaned(self, asset: AssetModel) -> int:
+        self.log.info("Orphaning unreferenced asset '%s'", asset.uri)
+        asset.is_orphaned = expression.true()
         return 1
 
     @provide_session
     def _orphan_unreferenced_datasets(self, session: Session = NEW_SESSION) -> None:
         """
-        Detect orphaned datasets and set is_orphaned flag to True.
+        Detect orphaned assets and set is_orphaned flag to True.
 
-        An orphaned dataset is no longer referenced in any DAG schedule parameters or task outlets.
+        An orphaned asset is no longer referenced in any DAG schedule parameters or task outlets.
         """
-        orphaned_dataset_query = session.scalars(
-            select(DatasetModel)
+        orphaned_asset_query = session.scalars(
+            select(AssetModel)
             .join(
                 DagScheduleAssetReference,
                 isouter=True,
@@ -2036,8 +2036,8 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 TaskOutletAssetReference,
                 isouter=True,
             )
-            .group_by(DatasetModel.id)
-            .where(~DatasetModel.is_orphaned)
+            .group_by(AssetModel.id)
+            .where(~AssetModel.is_orphaned)
             .having(
                 and_(
                     func.count(DagScheduleAssetReference.dag_id) == 0,
@@ -2046,7 +2046,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             )
         )
 
-        updated_count = sum(self._set_orphaned(dataset) for dataset in orphaned_dataset_query)
+        updated_count = sum(self._set_orphaned(asset) for asset in orphaned_asset_query)
         Stats.gauge("dataset.orphaned", updated_count)
 
     def _executor_to_tis(self, tis: list[TaskInstance]) -> dict[BaseExecutor, list[TaskInstance]]:

@@ -89,7 +89,7 @@ from airflow.exceptions import (
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
-from airflow.models.dataset import DatasetModel
+from airflow.models.dataset import AssetModel
 from airflow.models.log import Log
 from airflow.models.param import process_params
 from airflow.models.renderedtifields import get_serialized_template_fields
@@ -2911,10 +2911,10 @@ class TaskInstance(Base, LoggingMixin):
                     frozen_extra = frozenset(asset_alias_event["extra"].items())
                     asset_alias_names[(asset_uri, frozen_extra)].add(asset_alias_name)
 
-        dataset_models: dict[str, DatasetModel] = {
+        dataset_models: dict[str, AssetModel] = {
             dataset_obj.uri: dataset_obj
             for dataset_obj in session.scalars(
-                select(DatasetModel).where(DatasetModel.uri.in_(uri for uri, _ in asset_alias_names))
+                select(AssetModel).where(AssetModel.uri.in_(uri for uri, _ in asset_alias_names))
             )
         }
         if missing_datasets := [Dataset(uri=u) for u, _ in asset_alias_names if u not in dataset_models]:

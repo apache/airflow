@@ -56,11 +56,17 @@ except ImportError:
 
 
 if TYPE_CHECKING:
-    from airflow.models.dataset import AssetDagRunQueue, DagScheduleAssetReference, TaskOutletAssetReference
+    from airflow.models.dataset import (
+        AssetDagRunQueue,
+        AssetModel,
+        DagScheduleAssetReference,
+        TaskOutletAssetReference,
+    )
 else:
     try:
         from airflow.models.dataset import (
             AssetDagRunQueue,
+            AssetModel,
             DagScheduleAssetReference,
             TaskOutletAssetReference,
         )
@@ -69,6 +75,7 @@ else:
         from airflow.models.dataset import (
             DagScheduleDatasetReference as DagScheduleAssetReference,
             DatasetDagRunQueue as AssetDagRunQueue,
+            DatasetModel as AssetModel,
             TaskOutletDatasetReference as TaskOutletAssetReference,
         )
 

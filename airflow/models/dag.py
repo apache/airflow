@@ -103,7 +103,7 @@ from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
 from airflow.models.dataset import (
     AssetDagRunQueue,
-    DatasetModel,
+    AssetModel,
 )
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import (
@@ -264,8 +264,8 @@ def get_dataset_triggered_next_run_info(
             select(
                 DagScheduleAssetReference.dag_id,
                 # This is a dirty hack to workaround group by requiring an aggregate,
-                # since grouping by dataset is not what we want to do here...but it works
-                case((func.count() == 1, func.max(DatasetModel.uri)), else_="").label("uri"),
+                # since grouping by asset is not what we want to do here...but it works
+                case((func.count() == 1, func.max(AssetModel.uri)), else_="").label("uri"),
                 func.count().label("total"),
                 func.sum(case((ADRQ.target_dag_id.is_not(None), 1), else_=0)).label("ready"),
             )
@@ -277,7 +277,7 @@ def get_dataset_triggered_next_run_info(
                 ),
                 isouter=True,
             )
-            .join(DatasetModel, DatasetModel.id == DagScheduleAssetReference.dataset_id)
+            .join(AssetModel, AssetModel.id == DagScheduleAssetReference.dataset_id)
             .group_by(DagScheduleAssetReference.dag_id)
             .where(DagScheduleAssetReference.dag_id.in_(dag_ids))
         ).all()

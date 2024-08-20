@@ -38,10 +38,7 @@ from airflow.models import (
 from airflow.models.dag import DagOwnerAttributes
 from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning
-from airflow.models.dataset import (
-    DatasetEvent,
-    DatasetModel,
-)
+from airflow.models.dataset import DatasetEvent
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
@@ -49,6 +46,7 @@ from airflow.utils.session import create_session
 from tests.test_utils.compat import (
     AIRFLOW_V_2_10_PLUS,
     AssetDagRunQueue,
+    AssetModel,
     DagScheduleAssetReference,
     ParseImportError,
     TaskOutletAssetReference,
@@ -80,7 +78,7 @@ def clear_db_backfills():
 def clear_db_datasets():
     with create_session() as session:
         session.query(DatasetEvent).delete()
-        session.query(DatasetModel).delete()
+        session.query(AssetModel).delete()
         session.query(AssetDagRunQueue).delete()
         session.query(DagScheduleAssetReference).delete()
         session.query(TaskOutletAssetReference).delete()

@@ -28,7 +28,7 @@ from airflow.api_connexion.schemas.dataset_schema import (
     dataset_schema,
 )
 from airflow.assets import Dataset
-from airflow.models.dataset import AssetAliasModel, DatasetEvent, DatasetModel
+from airflow.models.dataset import AssetAliasModel, AssetModel, DatasetEvent
 from airflow.operators.empty import EmptyOperator
 from tests.test_utils.db import clear_db_dags, clear_db_datasets
 
@@ -62,9 +62,9 @@ class TestDatasetSchema(TestDatasetSchemaBase):
         ):
             EmptyOperator(task_id="task2")
 
-        dataset_model = session.query(DatasetModel).filter_by(uri=dataset.uri).one()
+        asset_model = session.query(AssetModel).filter_by(uri=dataset.uri).one()
 
-        serialized_data = dataset_schema.dump(dataset_model)
+        serialized_data = dataset_schema.dump(asset_model)
         serialized_data["id"] = 1
         assert serialized_data == {
             "id": 1,
@@ -93,8 +93,8 @@ class TestDatasetSchema(TestDatasetSchemaBase):
 
 class TestDatasetCollectionSchema(TestDatasetSchemaBase):
     def test_serialize(self, session):
-        datasets = [
-            DatasetModel(
+        assets = [
+            AssetModel(
                 uri=f"s3://bucket/key/{i+1}",
                 extra={"foo": "bar"},
             )
@@ -102,13 +102,11 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
         ]
         asset_aliases = [AssetAliasModel(name=f"alias_{i}") for i in range(2)]
         for asset_alias in asset_aliases:
-            asset_alias.datasets.append(datasets[0])
-        session.add_all(datasets)
+            asset_alias.datasets.append(assets[0])
+        session.add_all(assets)
         session.add_all(asset_aliases)
         session.flush()
-        serialized_data = dataset_collection_schema.dump(
-            DatasetCollection(datasets=datasets, total_entries=2)
-        )
+        serialized_data = dataset_collection_schema.dump(DatasetCollection(datasets=assets, total_entries=2))
         serialized_data["datasets"][0]["id"] = 1
         serialized_data["datasets"][1]["id"] = 2
         serialized_data["datasets"][0]["aliases"][0]["id"] = 1
@@ -145,12 +143,12 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
 
 class TestDatasetEventSchema(TestDatasetSchemaBase):
     def test_serialize(self, session):
-        d = DatasetModel("s3://abc")
-        session.add(d)
+        assetssetsset = AssetModel("s3://abc")
+        session.add(assetssetsset)
         session.commit()
         event = DatasetEvent(
             id=1,
-            dataset_id=d.id,
+            dataset_id=assetssetsset.id,
             extra={"foo": "bar"},
             source_dag_id="foo",
             source_task_id="bar",
@@ -162,7 +160,7 @@ class TestDatasetEventSchema(TestDatasetSchemaBase):
         serialized_data = dataset_event_schema.dump(event)
         assert serialized_data == {
             "id": 1,
-            "dataset_id": d.id,
+            "dataset_id": assetssetsset.id,
             "dataset_uri": "s3://abc",
             "extra": {"foo": "bar"},
             "source_dag_id": "foo",
@@ -176,12 +174,12 @@ class TestDatasetEventSchema(TestDatasetSchemaBase):
 
 class TestDatasetEventCreateSchema(TestDatasetSchemaBase):
     def test_serialize(self, session):
-        d = DatasetModel("s3://abc")
-        session.add(d)
+        asset = AssetModel("s3://abc")
+        session.add(asset)
         session.commit()
         event = DatasetEvent(
             id=1,
-            dataset_id=d.id,
+            dataset_id=asset.id,
             extra={"foo": "bar"},
             source_dag_id=None,
             source_task_id=None,
@@ -193,7 +191,7 @@ class TestDatasetEventCreateSchema(TestDatasetSchemaBase):
         serialized_data = dataset_event_schema.dump(event)
         assert serialized_data == {
             "id": 1,
-            "dataset_id": d.id,
+            "dataset_id": asset.id,
             "dataset_uri": "s3://abc",
             "extra": {"foo": "bar"},
             "source_dag_id": None,

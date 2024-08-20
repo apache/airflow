@@ -27,7 +27,7 @@ from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.assets import Dataset
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetEvent, DatasetModel
+from airflow.models.dataset import AssetModel, DatasetEvent
 from airflow.models.param import Param
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
@@ -1918,9 +1918,9 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
 
-        ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
+        asset1_id = session.query(AssetModel.id).filter_by(uri=dataset1.uri).scalar()
         event = DatasetEvent(
-            dataset_id=ds1_id,
+            dataset_id=asset1_id,
             source_task_id=ti.task_id,
             source_dag_id=ti.dag_id,
             source_run_id=ti.run_id,
@@ -1945,7 +1945,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
             "dataset_events": [
                 {
                     "timestamp": event.timestamp.isoformat(),
-                    "dataset_id": ds1_id,
+                    "dataset_id": asset1_id,
                     "dataset_uri": dataset1.uri,
                     "extra": {},
                     "id": event.id,
@@ -2000,6 +2000,42 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamDatasetEvents")
 
         assert_401(response)
+
+    @pytest.mark.parametrize(
+        "set_auto_role_public, expected_status_code",
+        (("Public", 403), ("Admin", 200)),
+        indirect=["set_auto_role_public"],
+    )
+    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, dag_maker, session):
+        dataset1 = Dataset(uri="ds1")
+
+        with dag_maker(dag_id="source_dag", start_date=timezone.utcnow(), session=session):
+            EmptyOperator(task_id="task", outlets=[dataset1])
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+
+        asset1_id = session.query(AssetModel.id).filter_by(uri=dataset1.uri).scalar()
+        event = DatasetEvent(
+            dataset_id=asset1_id,
+            source_task_id=ti.task_id,
+            source_dag_id=ti.dag_id,
+            source_run_id=ti.run_id,
+            source_map_index=ti.map_index,
+        )
+        session.add(event)
+
+        with dag_maker(dag_id="TEST_DAG_ID", start_date=timezone.utcnow(), session=session):
+            pass
+        dr = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.DATASET_TRIGGERED)
+        dr.consumed_dataset_events.append(event)
+
+        session.commit()
+        assert event.timestamp
+
+        response = self.client.get(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamDatasetEvents",
+        )
+        assert response.status_code == expected_status_code
 
 
 class TestSetDagRunNote(TestDagRunEndpoint):

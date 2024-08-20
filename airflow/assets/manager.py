@@ -24,17 +24,16 @@ from sqlalchemy import exc, select
 from sqlalchemy.orm import joinedload
 
 from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.assets import Dataset
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dataset import (
     AssetAliasModel,
     AssetDagRunQueue,
+    AssetModel,
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
     DatasetEvent,
-    DatasetModel,
 )
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -42,7 +41,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
-    from airflow.datasets import Dataset, DatasetAlias
+    from airflow.assets import AssetAlias, Dataset
     from airflow.models.dag import DagModel
     from airflow.models.taskinstance import TaskInstance
 
@@ -56,11 +55,11 @@ class AssetManager(LoggingMixin):
     """
 
     @classmethod
-    def create_assets(cls, assets: list[Dataset], *, session: Session) -> list[DatasetModel]:
+    def create_assets(cls, assets: list[Dataset], *, session: Session) -> list[AssetModel]:
         """Create new assets."""
 
-        def _add_one(asset: Dataset) -> DatasetModel:
-            model = DatasetModel.from_public(asset)
+        def _add_one(asset: Dataset) -> AssetModel:
+            model = AssetModel.from_public(asset)
             session.add(model)
             cls.notify_asset_created(asset=asset)
             return model
@@ -70,16 +69,16 @@ class AssetManager(LoggingMixin):
     @classmethod
     def create_dataset_aliases(
         cls,
-        dataset_aliases: list[DatasetAlias],
+        dataset_aliases: list[AssetAlias],
         *,
         session: Session,
     ) -> list[AssetAliasModel]:
         """Create new dataset aliases."""
 
-        def _add_one(dataset_alias: DatasetAlias) -> AssetAliasModel:
+        def _add_one(dataset_alias: AssetAlias) -> AssetAliasModel:
             model = AssetAliasModel.from_public(dataset_alias)
             session.add(model)
-            cls.notify_dataset_alias_created(dataset_alias=dataset_alias)
+            cls.notify_dataset_alias_created(asset_assets=dataset_alias)
             return model
 
         return [_add_one(a) for a in dataset_aliases]
@@ -88,7 +87,7 @@ class AssetManager(LoggingMixin):
     def _add_dataset_alias_association(
         cls,
         alias_names: Collection[str],
-        dataset: DatasetModel,
+        dataset: AssetModel,
         *,
         session: Session,
     ) -> None:
@@ -111,7 +110,7 @@ class AssetManager(LoggingMixin):
         task_instance: TaskInstance | None = None,
         asset: Dataset,
         extra=None,
-        aliases: Collection[DatasetAlias] = (),
+        aliases: Collection[AssetAlias] = (),
         source_alias_names: Iterable[str] | None = None,
         session: Session,
         **kwargs,
@@ -124,11 +123,11 @@ class AssetManager(LoggingMixin):
         """
         # todo: add test so that all usages of internal_api_call are added to rpc endpoint
         asset_model = session.scalar(
-            select(DatasetModel)
-            .where(DatasetModel.uri == asset.uri)
+            select(AssetModel)
+            .where(AssetModel.uri == asset.uri)
             .options(
-                joinedload(DatasetModel.aliases),
-                joinedload(DatasetModel.consuming_dags).joinedload(DagScheduleAssetReference.dag),
+                joinedload(AssetModel.aliases),
+                joinedload(AssetModel.consuming_dags).joinedload(DagScheduleAssetReference.dag),
             )
         )
         if not asset_model:
@@ -190,17 +189,17 @@ class AssetManager(LoggingMixin):
         return asset_event
 
     @staticmethod
-    def notify_asset_created(self, asset: Dataset):
+    def notify_asset_created(asset: Dataset):
         """Run applicable notification actions when an asset is created."""
         get_listener_manager().hook.on_asset_created(asset=asset)
 
     @staticmethod
-    def notify_dataset_alias_created(dataset_alias: DatasetAlias):
-        """Run applicable notification actions when a dataset alias is created."""
-        get_listener_manager().hook.on_dataset_alias_created(dataset_alias=dataset_alias)
+    def notify_dataset_alias_created(asset_assets: AssetAlias):
+        """Run applicable notification actions when an asset alias is created."""
+        get_listener_manager().hook.on_dataset_alias_created(dataset_alias=asset_assets)
 
     @staticmethod
-    def notify_asset_changed(cls, asset: Dataset):
+    def notify_asset_changed(asset: Dataset):
         """Run applicable notification actions when an asset is changed."""
         get_listener_manager().hook.on_asset_changed(asset=asset)
 
