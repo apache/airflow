@@ -1870,6 +1870,24 @@
                     ],
                     "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
                 },
+                "kubernetes_resources": {
+                    "description": "Resources on kubernetes workers",
+                    "type": "object",
+                    "default": {},
+                    "examples": [
+                        {
+                            "limits": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            },
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            }
+                        }
+                    ],
+                    "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                },
                 "terminationGracePeriodSeconds": {
                     "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
                     "type": "integer",
