@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.timetables._cron import CronMixin
 from airflow.timetables.base import DagRunInfo, DataInterval, Timetable
-from airflow.utils import timezone
+from airflow.utils.timezone import coerce_datetime, utcnow
 
 if TYPE_CHECKING:
     from dateutil.relativedelta import relativedelta
@@ -60,7 +60,7 @@ class CronTriggerTimetable(CronMixin, Timetable):
         *,
         timezone: str | Timezone | FixedTimezone,
         interval: datetime.timedelta | relativedelta = datetime.timedelta(),
-        run_immediately: bool | datetime.timedelta | None = None,
+        run_immediately: bool | datetime.timedelta = False,
     ) -> None:
         super().__init__(cron, timezone)
         self._interval = interval
@@ -75,11 +75,11 @@ class CronTriggerTimetable(CronMixin, Timetable):
             interval = decode_relativedelta(data["interval"])
         else:
             interval = datetime.timedelta(seconds=data["interval"])
-        immediate: bool | datetime.timedelta | None
+        immediate: bool | datetime.timedelta
         if isinstance(data["immediate"], float):
             immediate = datetime.timedelta(seconds=data["interval"])
         else:
-            immediate = data["immediate"] if isinstance(data["immediate"], bool) else None
+            immediate = data["immediate"]
         return cls(
             data["expression"],
             timezone=decode_timezone(data["timezone"]),
@@ -96,7 +96,7 @@ class CronTriggerTimetable(CronMixin, Timetable):
         else:
             interval = encode_relativedelta(self._interval)
         timezone = encode_timezone(self._timezone)
-        immediate: bool | float | None
+        immediate: bool | float
         if isinstance(self.run_immediately, datetime.timedelta):
             immediate = self.run_immediately.total_seconds()
         else:
@@ -130,7 +130,7 @@ class CronTriggerTimetable(CronMixin, Timetable):
             else:
                 next_start_time = self._align_to_next(restriction.earliest)
         else:
-            start_time_candidates = [self._align_to_prev(timezone.coerce_datetime(timezone.utcnow()))]
+            start_time_candidates = [self._align_to_prev(coerce_datetime(utcnow()))]
             if last_automated_data_interval is not None:
                 start_time_candidates.append(self._get_next(last_automated_data_interval.end))
             else:
@@ -154,7 +154,7 @@ class CronTriggerTimetable(CronMixin, Timetable):
         If True, always prefer past run, if False, never. If None, if within 10% of next run,
         if timedelta, if within that timedelta from past run.
         """
-        now = timezone.coerce_datetime(timezone.utcnow())
+        now = coerce_datetime(utcnow())
         past_run_time = self._align_to_prev(now)
         next_run_time = self._align_to_next(now)
         if self.run_immediately is True:  # not truthy, actually set to True
@@ -163,8 +163,9 @@ class CronTriggerTimetable(CronMixin, Timetable):
             return next_run_time
         gap_between_runs = next_run_time - past_run_time
         gap_to_past = now - past_run_time
-        if self.run_immediately is None:
-            if gap_between_runs > gap_to_past * 10:
+        if self.run_immediately is False:
+            buffer_between_runs = max(gap_to_past * 10, datetime.timedelta(minutes=5))
+            if gap_between_runs > buffer_between_runs:
                 return past_run_time
             else:
                 return next_run_time
