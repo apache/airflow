@@ -250,8 +250,8 @@ classpaths
 cleartext
 cli
 clientId
-CloudantV
 cloudant
+CloudantV
 cloudbuild
 CloudBuildClient
 cloudml
