@@ -38,6 +38,7 @@ class TestAirbyteSyncTrigger:
     END_TIME = time.time() + 60 * 60 * 24 * 7
     POLL_INTERVAL = 3.0
 
+    @pytest.mark.db_test
     def setup_method(self):
         db.merge_conn(Connection(conn_id=self.CONN_ID, conn_type="airbyte", host="http://test-airbyte"))
 

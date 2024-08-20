@@ -49,6 +49,7 @@ class TestAirbyteHook:
     _mock_job_status_success_response_body = {"job": {"status": "succeeded"}}
     _mock_job_cancel_status = "cancelled"
 
+    @pytest.mark.db_test
     def setup_method(self):
         db.merge_conn(
             Connection(
