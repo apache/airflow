@@ -17,8 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-import time
 from datetime import timedelta
+from time import sleep
 from typing import TYPE_CHECKING, Any, NoReturn
 
 from airflow.configuration import conf
@@ -101,22 +101,22 @@ class WaitSensor(BaseSensorOperator):
     This differs from TimeDeltaSensor because the time to wait is measured from the start of the task, not
     the data_interval_end of the DAG run.
 
-    :param delta: time length to wait after the task starts before succeeding.
+    :param time_to_wait: time length to wait after the task starts before succeeding.
     :param deferrable: Run sensor in deferrable mode
     """
 
     def __init__(
         self,
-        delta: timedelta | int,
+        time_to_wait: timedelta | int,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.deferrable = deferrable
-        if isinstance(delta, int):
-            self.delta = timedelta(minutes=delta)
+        if isinstance(time_to_wait, int):
+            self.delta = timedelta(minutes=time_to_wait)
         else:
-            self.delta = delta
+            self.delta = time_to_wait
 
     def execute(self, context: Context) -> None:
         if self.deferrable:
@@ -125,5 +125,4 @@ class WaitSensor(BaseSensorOperator):
                 method_name="execute_complete",
             )
         else:
-            for _ in range(int(self.delta.total_seconds())):
-                time.sleep(1)  # prolonged sleep tasks block timeout
+            sleep(int(self.delta.total_seconds()))

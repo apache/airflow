@@ -22,6 +22,7 @@ from unittest import mock
 
 import pendulum
 import pytest
+import time_machine
 
 from airflow.models import DagBag
 from airflow.models.dag import DAG
@@ -29,7 +30,6 @@ from airflow.sensors.time_delta import TimeDeltaSensor, TimeDeltaSensorAsync, Wa
 from airflow.utils.timezone import datetime
 
 pytestmark = pytest.mark.db_test
-
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 DEV_NULL = "/dev/null"
@@ -77,11 +77,16 @@ class TestTimeDeltaSensorAsync:
         [False, True],
     )
     @mock.patch("airflow.models.baseoperator.BaseOperator.defer")
-    def test_wait_sensor(self, defer_mock, should_defer):
-        delta = timedelta(seconds=30)
-        op = WaitSensor(task_id="wait_sensor_check", delta=delta, dag=self.dag, deferrable=should_defer)
-        op.execute({})
-        if should_defer:
-            defer_mock.assert_called_once()
-        else:
-            defer_mock.assert_not_called()
+    @mock.patch("airflow.sensors.time_delta.sleep")
+    def test_wait_sensor(self, sleep_mock, defer_mock, should_defer):
+        wait_time = timedelta(seconds=30)
+        op = WaitSensor(
+            task_id="wait_sensor_check", time_to_wait=wait_time, dag=self.dag, deferrable=should_defer
+        )
+        with time_machine.travel(pendulum.datetime(year=2024, month=8, day=1, tz="UTC"), tick=False):
+            op.execute({})
+            if should_defer:
+                defer_mock.assert_called_once()
+            else:
+                defer_mock.assert_not_called()
+                sleep_mock.assert_called_once_with(30)
