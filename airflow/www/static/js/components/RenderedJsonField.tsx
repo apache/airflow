@@ -30,32 +30,15 @@ import {
   useTheme,
   FlexProps,
 } from "@chakra-ui/react";
+import jsonParse from "./utils";
 
 interface Props extends FlexProps {
   content: string | object;
   jsonProps?: Omit<ReactJsonViewProps, "src">;
 }
 
-const JsonParse = (content: string | object) => {
-  let contentJson = null;
-  let contentFormatted = "";
-  let isJson = false;
-  try {
-    if (typeof content === "string") {
-      contentJson = JSON.parse(content);
-    } else {
-      contentJson = content;
-    }
-    contentFormatted = JSON.stringify(contentJson, null, 4);
-    isJson = true;
-  } catch (e) {
-    // skip
-  }
-  return [isJson, contentJson, contentFormatted];
-};
-
 const RenderedJsonField = ({ content, jsonProps, ...rest }: Props) => {
-  const [isJson, contentJson, contentFormatted] = JsonParse(content);
+  const [isJson, contentJson, contentFormatted] = jsonParse(content);
   const { onCopy, hasCopied } = useClipboard(contentFormatted);
   const theme = useTheme();
 
