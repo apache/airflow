@@ -23,6 +23,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from google.api_core.retry import Retry
+
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
     ClusterGenerator,
@@ -89,6 +91,7 @@ with DAG(
         cluster_config=CLUSTER_GENERATOR_CONFIG_FOR_PHS,
         region=REGION,
         cluster_name=CLUSTER_NAME,
+        retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
     )
     # [END how_to_cloud_dataproc_create_cluster_for_persistent_history_server]
 
@@ -99,6 +102,7 @@ with DAG(
         region=REGION,
         batch=BATCH_CONFIG_WITH_PHS,
         batch_id=BATCH_ID,
+        result_retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
     )
     # [END how_to_cloud_dataproc_create_batch_operator_with_persistent_history_server]
 

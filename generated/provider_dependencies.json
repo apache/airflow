@@ -41,7 +41,7 @@
       "jsonpath_ng>=1.5.3",
       "redshift_connector>=2.0.918",
       "sqlalchemy_redshift>=0.8.6",
-      "watchtower>=3.0.0,<4"
+      "watchtower>=3.0.0,!=3.3.0,<4"
     ],
     "devel-deps": [
       "aiobotocore>=2.13.0",
@@ -1007,15 +1007,13 @@
       "ipykernel",
       "pandas>=1.5.3,<2.2;python_version<\"3.9\"",
       "pandas>=2.1.2,<2.2;python_version>=\"3.9\"",
-      "papermill[all]>=2.4.0",
+      "papermill[all]>=2.6.0",
       "scrapbook[all]"
     ],
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [],
-    "excluded-python-versions": [
-      "3.12"
-    ],
+    "excluded-python-versions": [],
     "state": "ready"
   },
   "pgvector": {

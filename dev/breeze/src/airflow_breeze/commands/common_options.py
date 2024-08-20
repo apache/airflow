@@ -117,6 +117,12 @@ option_builder = click.option(
     show_default=True,
     default="autodetect",
 )
+option_clean_airflow_installation = click.option(
+    "--clean-airflow-installation",
+    help="Clean the airflow installation before installing version specified by --use-airflow-version.",
+    is_flag=True,
+    envvar="CLEAN_AIRFLOW_INSTALLATION",
+)
 option_commit_sha = click.option(
     "--commit-sha",
     show_default=True,
