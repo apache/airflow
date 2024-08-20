@@ -461,7 +461,7 @@ class OpenAIHook(BaseHook):
             time.sleep(wait_seconds)
             batch = self.get_batch(batch_id=batch_id)
 
-            if batch.status in {BatchStatus.IN_PROGRESS, BatchStatus.VALIDATING, BatchStatus.FINALIZING}:
+            if batch.status in (BatchStatus.IN_PROGRESS, BatchStatus.VALIDATING, BatchStatus.FINALIZING):
                 continue
             if batch.status == BatchStatus.COMPLETED:
                 break
