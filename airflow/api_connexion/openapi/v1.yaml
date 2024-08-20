@@ -4143,6 +4143,7 @@ components:
                 - type: array
                   items: {}
                 - type: object
+                  nullable: true
               description: The value(s),
 
     # Python objects
