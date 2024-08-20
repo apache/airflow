@@ -30,7 +30,11 @@ pytestmark = [pytest.mark.db_test]
 if sys.version_info >= (3, 10):
     from airflow.providers.cloudant.hooks.cloudant import CloudantHook
 else:
-    pytestmark.append(pytest.mark.skip(f"bupkus {__name__}"))
+    pytestmark.append(
+        pytest.mark.skip(
+            f"Skipping {__name__} as the cloudant provider is not supported on Python 3.8, 3.9 and 3.12, see #41555."
+        )
+    )
 
 
 class TestCloudantHook:
