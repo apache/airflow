@@ -60,7 +60,7 @@ Apache Airflow is tested with:
 | Platform   | AMD64/ARM64(\*)            | AMD64/ARM64(\*)            |
 | Kubernetes | 1.28, 1.29, 1.30, 1.31     | 1.27, 1.28, 1.29, 1.30     |
 | PostgreSQL | 12, 13, 14, 15, 16         | 12, 13, 14, 15, 16         |
-| MySQL      | 8.0, 8.4, Innovation       | 8.0, Innovation            |
+| MySQL      | 8.0, 8.4, Innovation       | 8.0, 8.4, Innovation       |
 | SQLite     | 3.15.0+                    | 3.15.0+                    |
 
 \* Experimental

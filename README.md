@@ -103,7 +103,7 @@ Apache Airflow is tested with:
 | Platform   | AMD64/ARM64(\*)            | AMD64/ARM64(\*)            |
 | Kubernetes | 1.28, 1.29, 1.30, 1.31     | 1.27, 1.28, 1.29, 1.30     |
 | PostgreSQL | 12, 13, 14, 15, 16         | 12, 13, 14, 15, 16         |
-| MySQL      | 8.0, 8.4, Innovation       | 8.0, Innovation            |
+| MySQL      | 8.0, 8.4, Innovation       | 8.0, 8.4, Innovation       |
 | SQLite     | 3.15.0+                    | 3.15.0+                    |
 
 \* Experimental
@@ -345,13 +345,9 @@ building and testing the OS version. Approximately 6 months before the end-of-re
 previous stable version of the OS, Airflow switches the images released to use the latest supported
 version of the OS.
 
-For example since ``Debian Buster`` end-of-life was August 2022, Airflow switched the images in `main` branch
-to use ``Debian Bullseye`` in February/March 2022. The version was used in the next MINOR release after
-the switch happened. In case of the Bullseye switch - 2.3.0 version used ``Debian Bullseye``.
-The images released  in the previous MINOR version continue to use the version that all other releases
-for the MINOR version used. Similar switch from ``Debian Bullseye`` to ``Debian Bookworm`` has been implemented
+For example switch from ``Debian Bullseye`` to ``Debian Bookworm`` has been implemented
 before 2.8.0 release in October 2023 and ``Debian Bookworm`` will be the only option supported as of
-Airflow 2.9.0.
+Airflow 2.10.0.
 
 Users will continue to be able to build their images using stable Debian releases until the end of regular
 support and building and verifying of the images happens in our CI but no unit tests were executed using
