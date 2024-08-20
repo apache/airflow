@@ -62,7 +62,7 @@ class CloudantHook(BaseHook):
 
     def get_conn(self) -> CloudantV1:
         """
-        Open a connection to the cloudant service and close it automatically if used as context manager.
+        Create an authenticated service object for connection to the Cloudant service.
 
         .. note::
             In the connection form:
