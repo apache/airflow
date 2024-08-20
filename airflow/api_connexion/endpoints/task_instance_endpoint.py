@@ -245,10 +245,11 @@ def get_mapped_task_instances(
         .options(joinedload(TI.rendered_task_instance_fields))
     )
 
-    order_by_params = _get_order_by_params(order_by)
-    if not order_by_params:
+    try:
+        order_by_params = _get_order_by_params(order_by)
+        entry_query = entry_query.order_by(*order_by_params)
+    except ValueError:
         raise BadRequest(detail=f"Ordering with '{order_by}' is not supported")
-    entry_query = entry_query.order_by(*order_by_params)
 
     # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
     task_instances = session.execute(entry_query.offset(offset).limit(limit)).all()
@@ -299,9 +300,11 @@ def _get_order_by_params(order_by: str | None = None) -> tuple:
         return (TI.end_date.asc(), TI.map_index.asc())
     if order_by == "-end_date":
         return (TI.end_date.desc(), TI.map_index.asc())
+    if order_by == "map_index":
+        return (TI.map_index.asc(),)
     if order_by == "-map_index":
         return (TI.map_index.desc(),)
-    return ()
+    raise ValueError(f"Unsupported order_by value '{order_by}'")
 
 
 @format_parameters(
@@ -388,10 +391,11 @@ def get_task_instances(
         .options(joinedload(TI.rendered_task_instance_fields))
     )
 
-    order_by_params = _get_order_by_params(order_by or "start_date")
-    if not order_by_params:
+    try:
+        order_by_params = _get_order_by_params(order_by)
+        entry_query = entry_query.order_by(*order_by_params)
+    except ValueError:
         raise BadRequest(detail=f"Ordering with '{order_by}' is not supported")
-    entry_query = entry_query.order_by(*order_by_params)
 
     # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
     task_instances = session.execute(entry_query.offset(offset).limit(limit)).all()
@@ -467,10 +471,11 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     )
 
     order_by = data["order_by"]
-    order_by_params = _get_order_by_params(order_by or "start_date")
-    if not order_by_params:
+    try:
+        order_by_params = _get_order_by_params(order_by)
+        ti_query = ti_query.order_by(*order_by_params)
+    except ValueError:
         raise BadRequest(detail=f"Ordering with '{order_by}' is not supported")
-    ti_query = ti_query.order_by(*order_by_params)
 
     # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
     task_instances = session.execute(ti_query).all()
