@@ -22,8 +22,8 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, Sequence
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.openai.exceptions import OpenAIBatchJobException
 from airflow.providers.openai.hooks.openai import OpenAIHook
 from airflow.providers.openai.triggers.openai import OpenAIBatchTrigger
 
@@ -131,22 +131,21 @@ class OpenAITriggerBatchOperator(BaseOperator):
     def execute(self, context: Context) -> str:
         batch = self.hook.create_batch(file_id=self.file_id, endpoint=self.endpoint)
         self.batch_id = batch.id
-        if not self.wait_for_completion:
-            return self.batch_id
-        if self.deferrable:
-            self.defer(
-                timeout=self.execution_timeout,
-                trigger=OpenAIBatchTrigger(
-                    conn_id=self.conn_id,
-                    batch_id=self.batch_id,
-                    poll_interval=60,
-                    end_time=time.time() + self.timeout,
-                ),
-                method_name="execute_complete",
-            )
-        else:
-            self.log.info("Waiting for batch %s to complete", self.batch_id)
-            self.hook.wait_for_batch(self.batch_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
+        if self.wait_for_completion:
+            if self.deferrable:
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=OpenAIBatchTrigger(
+                        conn_id=self.conn_id,
+                        batch_id=self.batch_id,
+                        poll_interval=60,
+                        end_time=time.time() + self.timeout,
+                    ),
+                    method_name="execute_complete",
+                )
+            else:
+                self.log.info("Waiting for batch %s to complete", self.batch_id)
+                self.hook.wait_for_batch(self.batch_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
         return self.batch_id
 
     def execute_complete(self, context: Context, event: Any = None) -> str:
@@ -157,7 +156,7 @@ class OpenAITriggerBatchOperator(BaseOperator):
         successful.
         """
         if event["status"] == "error":
-            raise AirflowException(event["message"])
+            raise OpenAIBatchJobException(event["message"])
 
         self.log.info("%s completed successfully.", self.task_id)
         return event["batch_id"]

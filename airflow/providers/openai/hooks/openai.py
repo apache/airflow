@@ -45,9 +45,8 @@ if TYPE_CHECKING:
         ChatCompletionToolMessageParam,
         ChatCompletionUserMessageParam,
     )
-
-from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
 
 
 class BatchStatus(str, Enum):
@@ -64,6 +63,11 @@ class BatchStatus(str, Enum):
 
     def __str__(self) -> str:
         return str(self.value)
+
+    @classmethod
+    def is_in_progress(cls, status: str) -> bool:
+        """Check if the batch status is in progress."""
+        return status in (cls.VALIDATING, cls.IN_PROGRESS, cls.FINALIZING)
 
 
 class OpenAIHook(BaseHook):
@@ -457,24 +461,24 @@ class OpenAIHook(BaseHook):
         while True:
             if start + timeout < time.monotonic():
                 self.cancel_batch(batch_id=batch_id)
-                raise AirflowException(f"Timeout: OpenAI Batch {batch_id} is not ready after {timeout}s")
+                raise OpenAIBatchTimeout(f"Timeout: OpenAI Batch {batch_id} is not ready after {timeout}s")
             time.sleep(wait_seconds)
             batch = self.get_batch(batch_id=batch_id)
 
-            if batch.status in (BatchStatus.IN_PROGRESS, BatchStatus.VALIDATING, BatchStatus.FINALIZING):
+            if BatchStatus.is_in_progress(batch.status):
                 continue
             if batch.status == BatchStatus.COMPLETED:
                 return
             if batch.status == BatchStatus.FAILED:
-                raise AirflowException(f"Batch failed - \n{batch_id}")
+                raise OpenAIBatchJobException(f"Batch failed - \n{batch_id}")
             elif batch.status in (BatchStatus.CANCELLED, BatchStatus.CANCELLING):
-                raise AirflowException(f"Batch failed - batch was cancelled:\n{batch_id}")
+                raise OpenAIBatchJobException(f"Batch failed - batch was cancelled:\n{batch_id}")
             elif batch.status == BatchStatus.EXPIRED:
-                raise AirflowException(
+                raise OpenAIBatchJobException(
                     f"Batch failed - batch couldn't be completed within the hour time window :\n{batch_id}"
                 )
 
-            raise AirflowException(
+            raise OpenAIBatchJobException(
                 f"Batch failed - encountered unexpected status `{batch.status}` for batch_id `{batch_id}`"
             )
 

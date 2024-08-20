@@ -56,11 +56,7 @@ class OpenAIBatchTrigger(BaseTrigger):
         """Make connection to OpenAI Client, and poll the status of batch."""
         hook = OpenAIHook(conn_id=self.conn_id)
         try:
-            while (batch := hook.get_batch(self.batch_id)) and batch.status in {
-                BatchStatus.VALIDATING,
-                BatchStatus.IN_PROGRESS,
-                BatchStatus.FINALIZING,
-            }:
+            while (batch := hook.get_batch(self.batch_id)) and BatchStatus.is_in_progress(batch.status):
                 if self.end_time < time.time():
                     yield TriggerEvent(
                         {

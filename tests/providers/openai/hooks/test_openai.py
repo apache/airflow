@@ -39,8 +39,8 @@ from openai.types.beta.threads import Message, Run
 from openai.types.beta.vector_stores import VectorStoreFile, VectorStoreFileBatch, VectorStoreFileDeleted
 from openai.types.chat import ChatCompletion
 
-from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
 from airflow.providers.openai.hooks.openai import OpenAIHook
 
 ASSISTANT_ID = "test_assistant_abc123"
@@ -553,13 +553,13 @@ def test_wait_for_finished_batch(mock_openai_hook, mock_terminated_batch):
         except Exception as e:
             pytest.fail(f"Should not have raised exception: {e}")
     else:
-        with pytest.raises(AirflowException, match="Batch failed"):
+        with pytest.raises(OpenAIBatchJobException, match="Batch failed"):
             mock_openai_hook.wait_for_batch(batch_id=BATCH_ID, wait_seconds=0.01, timeout=0.1)
 
 
 def test_wait_for_in_progress_batch_timeout(mock_openai_hook, mock_wip_batch):
     mock_openai_hook.conn.batches.retrieve.return_value = mock_wip_batch
-    with pytest.raises(AirflowException, match="Timeout"):
+    with pytest.raises(OpenAIBatchTimeout, match="Timeout"):
         mock_openai_hook.wait_for_batch(batch_id=BATCH_ID, wait_seconds=0.2, timeout=0.01)
     assert mock_openai_hook.conn.batches.retrieve.call_count >= 1
     assert mock_openai_hook.conn.batches.cancel.call_count == 1
