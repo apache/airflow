@@ -114,15 +114,15 @@ class WaitSensor(BaseSensorOperator):
         super().__init__(**kwargs)
         self.deferrable = deferrable
         if isinstance(time_to_wait, int):
-            self.delta = timedelta(minutes=time_to_wait)
+            self.time_to_wait = timedelta(minutes=time_to_wait)
         else:
-            self.delta = time_to_wait
+            self.time_to_wait = time_to_wait
 
     def execute(self, context: Context) -> None:
         if self.deferrable:
             self.defer(
-                trigger=TimeDeltaTrigger(self.delta, end_from_trigger=True),
+                trigger=TimeDeltaTrigger(self.time_to_wait, end_from_trigger=True),
                 method_name="execute_complete",
             )
         else:
-            sleep(int(self.delta.total_seconds()))
+            sleep(int(self.time_to_wait.total_seconds()))
