@@ -28,7 +28,7 @@ from airflow.assets import Dataset
 from airflow.decorators import task_group
 from airflow.lineage.entities import File
 from airflow.models import DagBag
-from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.dataset import AssetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -479,10 +479,10 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
 
         ds1_id = session.query(DatasetModel.id).filter_by(uri=datasets[0].uri).scalar()
         ds2_id = session.query(DatasetModel.id).filter_by(uri=datasets[1].uri).scalar()
-        ddrq = DatasetDagRunQueue(
+        adrq = AssetDagRunQueue(
             target_dag_id=DAG_ID, dataset_id=ds1_id, created_at=pendulum.DateTime(2022, 8, 2, tzinfo=UTC)
         )
-        session.add(ddrq)
+        session.add(adrq)
         dataset_events = [
             DatasetEvent(
                 dataset_id=ds1_id,

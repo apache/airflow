@@ -27,8 +27,8 @@ from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import (
+    AssetDagRunQueue,
     DagScheduleAssetReference,
-    DatasetDagRunQueue,
     DatasetEvent,
     DatasetModel,
     TaskOutletAssetReference,
@@ -133,9 +133,9 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
         )
         assert response.status_code == 404
         assert {
-            "detail": "The Dataset with uri: `s3://bucket/key` was not found",
+            "detail": "The Asset with uri: `s3://bucket/key` was not found",
             "status": 404,
-            "title": "Dataset not found",
+            "title": "Asset not found",
             "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json
 
@@ -761,10 +761,10 @@ class TestQueuedEventEndpoint(TestDatasetEndpoint):
         freezer.stop()
 
     def _create_dataset_dag_run_queues(self, dag_id, dataset_id, session):
-        ddrq = DatasetDagRunQueue(target_dag_id=dag_id, dataset_id=dataset_id)
-        session.add(ddrq)
+        adrq = AssetDagRunQueue(target_dag_id=dag_id, dataset_id=dataset_id)
+        session.add(adrq)
         session.commit()
-        return ddrq
+        return adrq
 
 
 class TestGetDagDatasetQueuedEvent(TestQueuedEventEndpoint):
@@ -799,7 +799,7 @@ class TestGetDagDatasetQueuedEvent(TestQueuedEventEndpoint):
 
         assert response.status_code == 404
         assert {
-            "detail": "Queue event with dag_id: `not_exists` and dataset uri: `not_exists` was not found",
+            "detail": "Queue event with dag_id: `not_exists` and asset uri: `not_exists` was not found",
             "status": 404,
             "title": "Queue event not found",
             "type": EXCEPTIONS_LINK_MAP[404],
@@ -832,10 +832,10 @@ class TestDeleteDagDatasetQueuedEvent(TestDatasetEndpoint):
         dataset_uri = "s3://bucket/key"
         dataset_id = self._create_dataset(session).id
 
-        ddrq = DatasetDagRunQueue(target_dag_id=dag_id, dataset_id=dataset_id)
-        session.add(ddrq)
+        adrq = AssetDagRunQueue(target_dag_id=dag_id, dataset_id=dataset_id)
+        session.add(adrq)
         session.commit()
-        conn = session.query(DatasetDagRunQueue).all()
+        conn = session.query(AssetDagRunQueue).all()
         assert len(conn) == 1
 
         response = self.client.delete(
@@ -844,7 +844,7 @@ class TestDeleteDagDatasetQueuedEvent(TestDatasetEndpoint):
         )
 
         assert response.status_code == 204
-        conn = session.query(DatasetDagRunQueue).all()
+        conn = session.query(AssetDagRunQueue).all()
         assert len(conn) == 0
         _check_last_log(
             session, dag_id=dag_id, event="api.delete_dag_dataset_queued_event", execution_date=None
@@ -861,7 +861,7 @@ class TestDeleteDagDatasetQueuedEvent(TestDatasetEndpoint):
 
         assert response.status_code == 404
         assert {
-            "detail": "Queue event with dag_id: `not_exists` and dataset uri: `not_exists` was not found",
+            "detail": "Queue event with dag_id: `not_exists` and asset uri: `not_exists` was not found",
             "status": 404,
             "title": "Queue event not found",
             "type": EXCEPTIONS_LINK_MAP[404],
@@ -976,6 +976,31 @@ class TestDeleteDagDatasetQueuedEvents(TestDatasetEndpoint):
 
         assert response.status_code == 403
 
+    @pytest.mark.parametrize(
+        "set_auto_role_public, expected_status_code",
+        (("Public", 403), ("Admin", 204)),
+        indirect=["set_auto_role_public"],
+    )
+    def test_with_auth_role_public_set(
+        self, set_auto_role_public, expected_status_code, session, create_dummy_dag
+    ):
+        dag, _ = create_dummy_dag()
+        dag_id = dag.dag_id
+        dataset_uri = "s3://bucket/key"
+        dataset_id = self._create_dataset(session).id
+
+        adrq = AssetDagRunQueue(target_dag_id=dag_id, dataset_id=dataset_id)
+        session.add(adrq)
+        session.commit()
+        conn = session.query(AssetDagRunQueue).all()
+        assert len(conn) == 1
+
+        response = self.client.delete(
+            f"/api/v1/dags/{dag_id}/datasets/queuedEvent/{dataset_uri}",
+        )
+
+        assert response.status_code == expected_status_code
+
 
 class TestGetDatasetQueuedEvents(TestQueuedEventEndpoint):
     @pytest.mark.usefixtures("time_freezer")
@@ -1013,7 +1038,7 @@ class TestGetDatasetQueuedEvents(TestQueuedEventEndpoint):
 
         assert response.status_code == 404
         assert {
-            "detail": "Queue event with dataset uri: `not_exists` was not found",
+            "detail": "Queue event with asset uri: `not_exists` was not found",
             "status": 404,
             "title": "Queue event not found",
             "type": EXCEPTIONS_LINK_MAP[404],
@@ -1051,7 +1076,7 @@ class TestDeleteDatasetQueuedEvents(TestQueuedEventEndpoint):
         )
 
         assert response.status_code == 204
-        conn = session.query(DatasetDagRunQueue).all()
+        conn = session.query(AssetDagRunQueue).all()
         assert len(conn) == 0
         _check_last_log(session, dag_id=None, event="api.delete_dataset_queued_events", execution_date=None)
 
@@ -1065,7 +1090,7 @@ class TestDeleteDatasetQueuedEvents(TestQueuedEventEndpoint):
 
         assert response.status_code == 404
         assert {
-            "detail": "Queue event with dataset uri: `not_exists` was not found",
+            "detail": "Queue event with asset uri: `not_exists` was not found",
             "status": 404,
             "title": "Queue event not found",
             "type": EXCEPTIONS_LINK_MAP[404],

@@ -263,10 +263,10 @@ class DagScheduleAssetReference(Base):
     dag = relationship("DagModel", back_populates="schedule_dataset_references")
 
     queue_records = relationship(
-        "DatasetDagRunQueue",
+        "AssetDagRunQueue",
         primaryjoin="""and_(
-            DagScheduleAssetReference.dataset_id == foreign(DatasetDagRunQueue.dataset_id),
-            DagScheduleAssetReference.dag_id == foreign(DatasetDagRunQueue.target_dag_id),
+            DagScheduleAssetReference.dataset_id == foreign(AssetDagRunQueue.dataset_id),
+            DagScheduleAssetReference.dag_id == foreign(AssetDagRunQueue.target_dag_id),
         )""",
         cascade="all, delete, delete-orphan",
     )
@@ -354,7 +354,7 @@ class TaskOutletAssetReference(Base):
         return f"{self.__class__.__name__}({', '.join(args)})"
 
 
-class DatasetDagRunQueue(Base):
+class AssetDagRunQueue(Base):
     """Model for storing dataset events that need processing."""
 
     dataset_id = Column(Integer, primary_key=True, nullable=False)

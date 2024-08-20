@@ -57,7 +57,7 @@ from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import AssetAliasModel, DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.dataset import AssetAliasModel, AssetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY, NotFullyPopulated
 from airflow.models.param import process_params
 from airflow.models.pool import Pool
@@ -2272,7 +2272,7 @@ class TestTaskInstance:
     def test_outlet_datasets(self, create_task_instance):
         """
         Verify that when we have an outlet dataset on a task, and the task
-        completes successfully, a DatasetDagRunQueue is logged.
+        completes successfully, a AssetDagRunQueue is logged.
         """
         from airflow.example_dags import example_datasets
         from airflow.example_dags.example_datasets import dag1
@@ -2304,9 +2304,9 @@ class TestTaskInstance:
         assert event.dataset
 
         # check that one queue record created for each dag that depends on dataset 1
-        assert session.query(DatasetDagRunQueue.target_dag_id).filter_by(
-            dataset_id=event.dataset.id
-        ).order_by(DatasetDagRunQueue.target_dag_id).all() == [
+        assert session.query(AssetDagRunQueue.target_dag_id).filter_by(dataset_id=event.dataset.id).order_by(
+            AssetDagRunQueue.target_dag_id
+        ).all() == [
             ("conditional_dataset_and_time_based_timetable",),
             ("consume_1_and_2_with_dataset_expressions",),
             ("consume_1_or_2_with_dataset_expressions",),
@@ -2321,19 +2321,19 @@ class TestTaskInstance:
             DatasetEvent.source_task_instance == ti
         ).one() == ("s3://dag1/output_1.txt",)
 
-        # check that the dataset event has an earlier timestamp than the DDRQ's
-        ddrq_timestamps = (
-            session.query(DatasetDagRunQueue.created_at).filter_by(dataset_id=event.dataset.id).all()
+        # check that the asset event has an earlier timestamp than the ADRQ's
+        adrq_timestamps = (
+            session.query(AssetDagRunQueue.created_at).filter_by(dataset_id=event.dataset.id).all()
         )
         assert all(
-            event.timestamp < ddrq_timestamp for (ddrq_timestamp,) in ddrq_timestamps
-        ), f"Some items in {[str(t) for t in ddrq_timestamps]} are earlier than {event.timestamp}"
+            event.timestamp < adrq_timestamp for (adrq_timestamp,) in adrq_timestamps
+        ), f"Some items in {[str(t) for t in adrq_timestamps]} are earlier than {event.timestamp}"
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_datasets_failed(self, create_task_instance):
         """
         Verify that when we have an outlet dataset on a task, and the task
-        failed, a DatasetDagRunQueue is not logged, and a DatasetEvent is
+        failed, a AssetDagRunQueue is not logged, and a DatasetEvent is
         not generated
         """
         from tests.dags import test_datasets
@@ -2356,7 +2356,7 @@ class TestTaskInstance:
         assert ti.state == TaskInstanceState.FAILED
 
         # check that no dagruns were queued
-        assert session.query(DatasetDagRunQueue).count() == 0
+        assert session.query(AssetDagRunQueue).count() == 0
 
         # check that no dataset events were generated
         assert session.query(DatasetEvent).count() == 0
@@ -2389,7 +2389,7 @@ class TestTaskInstance:
     def test_outlet_datasets_skipped(self):
         """
         Verify that when we have an outlet dataset on a task, and the task
-        is skipped, a DatasetDagRunQueue is not logged, and a DatasetEvent is
+        is skipped, a AssetDagRunQueue is not logged, and a DatasetEvent is
         not generated
         """
         from tests.dags import test_datasets
@@ -2411,7 +2411,7 @@ class TestTaskInstance:
         assert ti.state == TaskInstanceState.SKIPPED
 
         # check that no dagruns were queued
-        assert session.query(DatasetDagRunQueue).count() == 0
+        assert session.query(AssetDagRunQueue).count() == 0
 
         # check that no dataset events were generated
         assert session.query(DatasetEvent).count() == 0
@@ -2996,7 +2996,7 @@ class TestTaskInstance:
         assert result == expected
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    def test_changing_of_dataset_when_ddrq_is_already_populated(self, dag_maker):
+    def test_changing_of_dataset_when_adrq_is_already_populated(self, dag_maker):
         """
         Test that when a task that produces dataset has ran, that changing the consumer
         dag dataset will not cause primary key blank-out

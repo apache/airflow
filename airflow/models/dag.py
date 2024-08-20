@@ -102,7 +102,7 @@ from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
 from airflow.models.dataset import (
-    DatasetDagRunQueue,
+    AssetDagRunQueue,
     DatasetModel,
 )
 from airflow.models.param import DagParam, ParamsDict
@@ -252,7 +252,7 @@ def get_dataset_triggered_next_run_info(
     Given a list of dag_ids, get string representing how close any that are dataset triggered are
     their next run, e.g. "1 of 2 datasets updated".
     """
-    from airflow.models.dataset import DagScheduleAssetReference, DatasetDagRunQueue as DDRQ
+    from airflow.models.dataset import AssetDagRunQueue as ADRQ, DagScheduleAssetReference
 
     return {
         x.dag_id: {
@@ -267,13 +267,13 @@ def get_dataset_triggered_next_run_info(
                 # since grouping by dataset is not what we want to do here...but it works
                 case((func.count() == 1, func.max(DatasetModel.uri)), else_="").label("uri"),
                 func.count().label("total"),
-                func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)).label("ready"),
+                func.sum(case((ADRQ.target_dag_id.is_not(None), 1), else_=0)).label("ready"),
             )
             .join(
-                DDRQ,
+                ADRQ,
                 and_(
-                    DDRQ.dataset_id == DagScheduleAssetReference.dataset_id,
-                    DDRQ.target_dag_id == DagScheduleAssetReference.dag_id,
+                    ADRQ.dataset_id == DagScheduleAssetReference.dataset_id,
+                    ADRQ.target_dag_id == DagScheduleAssetReference.dag_id,
                 ),
                 isouter=True,
             )
@@ -3168,8 +3168,8 @@ class DagModel(Base):
                 log.warning("dag '%s' has old serialization; skipping DAG run creation.", dag_id)
                 return None
 
-        # this loads all the DDRQ records.... may need to limit num dags
-        all_records = session.scalars(select(DatasetDagRunQueue)).all()
+        # this loads all the ADRQ records.... may need to limit num dags
+        all_records = session.scalars(select(AssetDagRunQueue)).all()
         by_dag = defaultdict(list)
         for r in all_records:
             by_dag[r.target_dag_id].append(r)

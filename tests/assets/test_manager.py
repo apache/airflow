@@ -28,7 +28,7 @@ from airflow.assets import Dataset
 from airflow.assets.manager import AssetManager
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DagModel
-from airflow.models.dataset import DagScheduleAssetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.dataset import AssetDagRunQueue, DagScheduleAssetReference, DatasetEvent, DatasetModel
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from tests.listeners import dataset_listener
 
@@ -103,7 +103,7 @@ class TestAssetManager:
         dsem.register_asset_change(task_instance=mock_task_instance, asset=dataset, session=mock_session)
 
         # Ensure that we have ignored the dataset and _not_ created a DatasetEvent or
-        # DatasetDagRunQueue rows
+        # AssetDagRunQueue rows
         mock_session.add.assert_not_called()
         mock_session.merge.assert_not_called()
 
@@ -118,7 +118,7 @@ class TestAssetManager:
         dsm = DatasetModel(uri="test_dataset_uri")
         session.add(dsm)
         dsm.consuming_dags = [DagScheduleAssetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)]
-        session.execute(delete(DatasetDagRunQueue))
+        session.execute(delete(AssetDagRunQueue))
         session.flush()
 
         dsem.register_asset_change(task_instance=mock_task_instance, asset=ds, session=session)
@@ -126,7 +126,7 @@ class TestAssetManager:
 
         # Ensure we've created a dataset
         assert session.query(DatasetEvent).filter_by(dataset_id=dsm.id).count() == 1
-        assert session.query(DatasetDagRunQueue).count() == 2
+        assert session.query(AssetDagRunQueue).count() == 2
 
     def test_register_asset_change_no_downstreams(self, session, mock_task_instance):
         dsem = AssetManager()
@@ -134,7 +134,7 @@ class TestAssetManager:
         ds = Dataset(uri="never_consumed")
         dsm = DatasetModel(uri="never_consumed")
         session.add(dsm)
-        session.execute(delete(DatasetDagRunQueue))
+        session.execute(delete(AssetDagRunQueue))
         session.flush()
 
         dsem.register_asset_change(task_instance=mock_task_instance, asset=ds, session=session)
@@ -142,7 +142,7 @@ class TestAssetManager:
 
         # Ensure we've created a dataset
         assert session.query(DatasetEvent).filter_by(dataset_id=dsm.id).count() == 1
-        assert session.query(DatasetDagRunQueue).count() == 0
+        assert session.query(AssetDagRunQueue).count() == 0
 
     @pytest.mark.skip_if_database_isolation_mode
     def test_register_asset_change_notifies_dataset_listener(self, session, mock_task_instance):

@@ -48,8 +48,8 @@ from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import (
+    AssetDagRunQueue,
     DagScheduleAssetReference,
-    DatasetDagRunQueue,
     DatasetEvent,
     DatasetModel,
     TaskOutletAssetReference,
@@ -1465,7 +1465,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 Stats.incr("dataset.triggered_dagruns")
                 dag_run.consumed_dataset_events.extend(dataset_events)
                 session.execute(
-                    delete(DatasetDagRunQueue).where(DatasetDagRunQueue.target_dag_id == dag_run.dag_id)
+                    delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_run.dag_id)
                 )
 
     def _should_update_dag_next_dagruns(

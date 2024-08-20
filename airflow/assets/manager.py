@@ -30,9 +30,9 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dataset import (
     AssetAliasModel,
+    AssetDagRunQueue,
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
-    DatasetDagRunQueue,
     DatasetEvent,
     DatasetModel,
 )
@@ -224,7 +224,7 @@ class AssetManager(LoggingMixin):
     @classmethod
     def _slow_path_queue_dagruns(cls, asset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
         def _queue_dagrun_if_needed(dag: DagModel) -> str | None:
-            item = DatasetDagRunQueue(target_dag_id=dag.dag_id, dataset_id=asset_id)
+            item = AssetDagRunQueue(target_dag_id=dag.dag_id, dataset_id=asset_id)
             # Don't error whole transaction when a single RunQueue item conflicts.
             # https://docs.sqlalchemy.org/en/14/orm/session_transaction.html#using-savepoint
             try:
@@ -243,7 +243,7 @@ class AssetManager(LoggingMixin):
         from sqlalchemy.dialects.postgresql import insert
 
         values = [{"target_dag_id": dag.dag_id} for dag in dags_to_queue]
-        stmt = insert(DatasetDagRunQueue).values(dataset_id=asset_id).on_conflict_do_nothing()
+        stmt = insert(AssetDagRunQueue).values(dataset_id=asset_id).on_conflict_do_nothing()
         session.execute(stmt, values)
 
     @classmethod

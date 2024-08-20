@@ -45,7 +45,7 @@ from airflow.api_connexion.schemas.dataset_schema import (
 )
 from airflow.assets import Dataset
 from airflow.assets.manager import asset_manager
-from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.dataset import AssetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.utils import timezone
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -161,22 +161,22 @@ def _generate_queued_event_where_clause(
     before: str | None = None,
     permitted_dag_ids: set[str] | None = None,
 ) -> list:
-    """Get DatasetDagRunQueue where clause."""
+    """Get AssetDagRunQueue where clause."""
     where_clause = []
     if dag_id is not None:
-        where_clause.append(DatasetDagRunQueue.target_dag_id == dag_id)
+        where_clause.append(AssetDagRunQueue.target_dag_id == dag_id)
     if dataset_id is not None:
-        where_clause.append(DatasetDagRunQueue.dataset_id == dataset_id)
+        where_clause.append(AssetDagRunQueue.dataset_id == dataset_id)
     if uri is not None:
         where_clause.append(
-            DatasetDagRunQueue.dataset_id.in_(
+            AssetDagRunQueue.dataset_id.in_(
                 select(DatasetModel.id).where(DatasetModel.uri == uri),
             ),
         )
     if before is not None:
-        where_clause.append(DatasetDagRunQueue.created_at < format_datetime(before))
+        where_clause.append(AssetDagRunQueue.created_at < format_datetime(before))
     if permitted_dag_ids is not None:
-        where_clause.append(DatasetDagRunQueue.target_dag_id.in_(permitted_dag_ids))
+        where_clause.append(AssetDagRunQueue.target_dag_id.in_(permitted_dag_ids))
     return where_clause
 
 
@@ -186,19 +186,19 @@ def _generate_queued_event_where_clause(
 def get_dag_dataset_queued_event(
     *, dag_id: str, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
-    """Get a queued Dataset event for a DAG."""
+    """Get a queued asset event for a DAG."""
     where_clause = _generate_queued_event_where_clause(dag_id=dag_id, uri=uri, before=before)
-    ddrq = session.scalar(
-        select(DatasetDagRunQueue)
-        .join(DatasetModel, DatasetDagRunQueue.dataset_id == DatasetModel.id)
+    adrq = session.scalar(
+        select(AssetDagRunQueue)
+        .join(DatasetModel, AssetDagRunQueue.dataset_id == DatasetModel.id)
         .where(*where_clause)
     )
-    if ddrq is None:
+    if adrq is None:
         raise NotFound(
             "Queue event not found",
-            detail=f"Queue event with dag_id: `{dag_id}` and dataset uri: `{uri}` was not found",
+            detail=f"Queue event with dag_id: `{dag_id}` and asset uri: `{uri}` was not found",
         )
-    queued_event = {"created_at": ddrq.created_at, "dag_id": dag_id, "uri": uri}
+    queued_event = {"created_at": adrq.created_at, "dag_id": dag_id, "uri": uri}
     return queued_event_schema.dump(queued_event)
 
 
@@ -209,17 +209,15 @@ def get_dag_dataset_queued_event(
 def delete_dag_dataset_queued_event(
     *, dag_id: str, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
-    """Delete a queued Dataset event for a DAG."""
+    """Delete a queued asset event for a DAG."""
     where_clause = _generate_queued_event_where_clause(dag_id=dag_id, uri=uri, before=before)
-    delete_stmt = (
-        delete(DatasetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
-    )
+    delete_stmt = delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
     result = session.execute(delete_stmt)
     if result.rowcount > 0:
         return NoContent, HTTPStatus.NO_CONTENT
     raise NotFound(
         "Queue event not found",
-        detail=f"Queue event with dag_id: `{dag_id}` and dataset uri: `{uri}` was not found",
+        detail=f"Queue event with dag_id: `{dag_id}` and asset uri: `{uri}` was not found",
     )
 
 
@@ -229,11 +227,11 @@ def delete_dag_dataset_queued_event(
 def get_dag_dataset_queued_events(
     *, dag_id: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
-    """Get queued Dataset events for a DAG."""
+    """Get queued asset events for a DAG."""
     where_clause = _generate_queued_event_where_clause(dag_id=dag_id, before=before)
     query = (
-        select(DatasetDagRunQueue, DatasetModel.uri)
-        .join(DatasetModel, DatasetDagRunQueue.dataset_id == DatasetModel.id)
+        select(AssetDagRunQueue, DatasetModel.uri)
+        .join(DatasetModel, AssetDagRunQueue.dataset_id == DatasetModel.id)
         .where(*where_clause)
     )
     result = session.execute(query).all()
@@ -244,7 +242,7 @@ def get_dag_dataset_queued_events(
             detail=f"Queue event with dag_id: `{dag_id}` was not found",
         )
     queued_events = [
-        QueuedEvent(created_at=ddrq.created_at, dag_id=ddrq.target_dag_id, uri=uri) for ddrq, uri in result
+        QueuedEvent(created_at=adrq.created_at, dag_id=adrq.target_dag_id, uri=uri) for adrq, uri in result
     ]
     return queued_event_collection_schema.dump(
         QueuedEventCollection(queued_events=queued_events, total_entries=total_entries)
@@ -258,9 +256,9 @@ def get_dag_dataset_queued_events(
 def delete_dag_dataset_queued_events(
     *, dag_id: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
-    """Delete queued Dataset events for a DAG."""
+    """Delete queued asset events for a DAG."""
     where_clause = _generate_queued_event_where_clause(dag_id=dag_id, before=before)
-    delete_stmt = delete(DatasetDagRunQueue).where(*where_clause)
+    delete_stmt = delete(AssetDagRunQueue).where(*where_clause)
     result = session.execute(delete_stmt)
     if result.rowcount > 0:
         return NoContent, HTTPStatus.NO_CONTENT
@@ -276,22 +274,22 @@ def delete_dag_dataset_queued_events(
 def get_dataset_queued_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
-    """Get queued Dataset events for a Dataset."""
+    """Get queued asset events for an asset."""
     permitted_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"])
     where_clause = _generate_queued_event_where_clause(
         uri=uri, before=before, permitted_dag_ids=permitted_dag_ids
     )
     query = (
-        select(DatasetDagRunQueue, DatasetModel.uri)
-        .join(DatasetModel, DatasetDagRunQueue.dataset_id == DatasetModel.id)
+        select(AssetDagRunQueue, DatasetModel.uri)
+        .join(DatasetModel, AssetDagRunQueue.dataset_id == DatasetModel.id)
         .where(*where_clause)
     )
     total_entries = get_query_count(query, session=session)
     result = session.execute(query).all()
     if total_entries > 0:
         queued_events = [
-            QueuedEvent(created_at=ddrq.created_at, dag_id=ddrq.target_dag_id, uri=uri)
-            for ddrq, uri in result
+            QueuedEvent(created_at=adrq.created_at, dag_id=adrq.target_dag_id, uri=uri)
+            for adrq, uri in result
         ]
         return queued_event_collection_schema.dump(
             QueuedEventCollection(queued_events=queued_events, total_entries=total_entries)
@@ -308,14 +306,12 @@ def get_dataset_queued_events(
 def delete_dataset_queued_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
-    """Delete queued Dataset events for a Dataset."""
+    """Delete queued asset events for an asset."""
     permitted_dag_ids = get_auth_manager().get_permitted_dag_ids(methods=["GET"])
     where_clause = _generate_queued_event_where_clause(
         uri=uri, before=before, permitted_dag_ids=permitted_dag_ids
     )
-    delete_stmt = (
-        delete(DatasetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
-    )
+    delete_stmt = delete(AssetDagRunQueue).where(*where_clause).execution_options(synchronize_session="fetch")
 
     result = session.execute(delete_stmt)
     if result.rowcount > 0:

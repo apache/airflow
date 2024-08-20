@@ -53,7 +53,7 @@ from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.dataset import AssetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
@@ -4151,8 +4151,8 @@ class TestSchedulerJob:
         session = dag_maker.session
         session.add_all(
             [
-                DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag2.dag_id),
-                DatasetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag3.dag_id),
+                AssetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag2.dag_id),
+                AssetDagRunQueue(dataset_id=ds1_id, target_dag_id=dag3.dag_id),
             ]
         )
         session.flush()
@@ -4181,12 +4181,12 @@ class TestSchedulerJob:
         )
         assert created_run.data_interval_start == DEFAULT_DATE + timedelta(days=5)
         assert created_run.data_interval_end == DEFAULT_DATE + timedelta(days=11)
-        # dag2 DDRQ record should still be there since the dag run was *not* triggered
-        assert session.query(DatasetDagRunQueue).filter_by(target_dag_id=dag2.dag_id).one() is not None
+        # dag2 ADRQ record should still be there since the dag run was *not* triggered
+        assert session.query(AssetDagRunQueue).filter_by(target_dag_id=dag2.dag_id).one() is not None
         # dag2 should not be triggered since it depends on both dataset 1  and 2
         assert session.query(DagRun).filter(DagRun.dag_id == dag2.dag_id).one_or_none() is None
-        # dag3 DDRQ record should be deleted since the dag run was triggered
-        assert session.query(DatasetDagRunQueue).filter_by(target_dag_id=dag3.dag_id).one_or_none() is None
+        # dag3 ADRQ record should be deleted since the dag run was triggered
+        assert session.query(AssetDagRunQueue).filter_by(target_dag_id=dag3.dag_id).one_or_none() is None
 
         assert dag3.get_last_dagrun().creating_job_id == scheduler_job.id
 
@@ -4209,14 +4209,14 @@ class TestSchedulerJob:
         ds_id = session.scalars(select(DatasetModel.id).filter_by(uri=ds.uri)).one()
 
         dse_q = select(DatasetEvent).where(DatasetEvent.dataset_id == ds_id).order_by(DatasetEvent.timestamp)
-        ddrq_q = select(DatasetDagRunQueue).where(
-            DatasetDagRunQueue.dataset_id == ds_id, DatasetDagRunQueue.target_dag_id == "consumer"
+        adrq_q = select(AssetDagRunQueue).where(
+            AssetDagRunQueue.dataset_id == ds_id, AssetDagRunQueue.target_dag_id == "consumer"
         )
 
         # Simulate the consumer DAG being disabled.
         session.execute(update(DagModel).where(DagModel.dag_id == "consumer").values(**disable))
 
-        # A DDRQ is not scheduled although an event is emitted.
+        # An ADRQ is not scheduled although an event is emitted.
         dr1: DagRun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
         dsm.register_asset_change(
             task_instance=dr1.get_task_instance("task", session=session),
@@ -4225,12 +4225,12 @@ class TestSchedulerJob:
         )
         session.flush()
         assert session.scalars(dse_q).one().source_run_id == dr1.run_id
-        assert session.scalars(ddrq_q).one_or_none() is None
+        assert session.scalars(adrq_q).one_or_none() is None
 
         # Simulate the consumer DAG being enabled.
         session.execute(update(DagModel).where(DagModel.dag_id == "consumer").values(**enable))
 
-        # A DDRQ should be scheduled for the new event, but not the previous one.
+        # An ADRQ should be scheduled for the new event, but not the previous one.
         dr2: DagRun = dag_maker.create_dagrun_after(dr1, run_type=DagRunType.SCHEDULED)
         dsm.register_asset_change(
             task_instance=dr2.get_task_instance("task", session=session),
@@ -4239,7 +4239,7 @@ class TestSchedulerJob:
         )
         session.flush()
         assert [e.source_run_id for e in session.scalars(dse_q)] == [dr1.run_id, dr2.run_id]
-        assert session.scalars(ddrq_q).one().target_dag_id == "consumer"
+        assert session.scalars(adrq_q).one().target_dag_id == "consumer"
 
     @time_machine.travel(DEFAULT_DATE + datetime.timedelta(days=1, seconds=9), tick=False)
     @mock.patch("airflow.jobs.scheduler_job_runner.Stats.timing")

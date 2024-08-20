@@ -35,7 +35,7 @@ from airflow.assets import (
     _get_normalized_scheme,
     _sanitize_uri,
 )
-from airflow.models.dataset import AssetAliasModel, DatasetDagRunQueue, DatasetModel
+from airflow.models.dataset import AssetAliasModel, AssetDagRunQueue, DatasetModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization, SerializedDAG
@@ -305,13 +305,13 @@ def test_dataset_dag_run_queue_processing(session, clear_datasets, dag_maker, cr
     with dag_maker(schedule=AssetAny(*datasets)) as dag:
         EmptyOperator(task_id="hello")
 
-    # Add DatasetDagRunQueue entries to simulate dataset event processing
+    # Add AssetDagRunQueue entries to simulate dataset event processing
     for dm in dataset_models:
-        session.add(DatasetDagRunQueue(dataset_id=dm.id, target_dag_id=dag.dag_id))
+        session.add(AssetDagRunQueue(dataset_id=dm.id, target_dag_id=dag.dag_id))
     session.commit()
 
     # Fetch and evaluate dataset triggers for all DAGs affected by dataset events
-    records = session.scalars(select(DatasetDagRunQueue)).all()
+    records = session.scalars(select(AssetDagRunQueue)).all()
     dag_statuses = defaultdict(lambda: defaultdict(bool))
     for record in records:
         dag_statuses[record.target_dag_id][record.dataset.uri] = True
