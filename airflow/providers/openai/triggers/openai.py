@@ -33,7 +33,7 @@ class OpenAIBatchTrigger(BaseTrigger):
         batch_id: str,
         poll_interval: float,
         end_time: float,
-    ):
+    ) -> None:
         super().__init__()
         self.conn_id = conn_id
         self.poll_interval = poll_interval
