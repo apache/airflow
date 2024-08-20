@@ -108,8 +108,8 @@ The collector then uses this data to construct AIP-60 compliant Datasets, a stan
         def run(self):
             # run actual code
             collector = get_hook_lineage_collector()
-            collector.add_input_dataset(self, dataset_kwargs={"scheme": "file", "path": "/tmp/in"})
-            collector.add_output_dataset(self, dataset_kwargs={"scheme": "file", "path": "/tmp/out"})
+            collector.add_asset_dataset(self, asset_kwargs={"scheme": "file", "path": "/tmp/in"})
+            collector.add_asset_dataset(self, asset_kwargs={"scheme": "file", "path": "/tmp/out"})
 
 Lineage data collected by the ``HookLineageCollector`` can be accessed using an instance of ``HookLineageReader``,
 which is registered in an Airflow plugin.
@@ -122,7 +122,7 @@ which is registered in an Airflow plugin.
 
     class CustomHookLineageReader(HookLineageReader):
         def get_inputs(self):
-            return self.lineage_collector.collected_datasets.inputs
+            return self.lineage_collector.collected_assets.inputs
 
 
     class HookLineageCollectionPlugin(AirflowPlugin):

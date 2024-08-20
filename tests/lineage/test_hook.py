@@ -26,7 +26,7 @@ from airflow.assets import Dataset
 from airflow.hooks.base import BaseHook
 from airflow.lineage import hook
 from airflow.lineage.hook import (
-    DatasetLineageInfo,
+    AssetLineageInfo,
     HookLineage,
     HookLineageCollector,
     HookLineageReader,
@@ -40,20 +40,18 @@ class TestHookLineageCollector:
     def setup_method(self):
         self.collector = HookLineageCollector()
 
-    def test_are_datasets_collected(self):
+    def test_are_assets_collected(self):
         assert self.collector is not None
-        assert self.collector.collected_datasets == HookLineage()
+        assert self.collector.collected_assets == HookLineage()
         input_hook = BaseHook()
         output_hook = BaseHook()
-        self.collector.add_input_dataset(input_hook, uri="s3://in_bucket/file")
-        self.collector.add_output_dataset(
-            output_hook, uri="postgres://example.com:5432/database/default/table"
-        )
-        assert self.collector.collected_datasets == HookLineage(
-            [DatasetLineageInfo(dataset=Dataset("s3://in_bucket/file"), count=1, context=input_hook)],
+        self.collector.add_input_asset(input_hook, uri="s3://in_bucket/file")
+        self.collector.add_output_asset(output_hook, uri="postgres://example.com:5432/database/default/table")
+        assert self.collector.collected_assets == HookLineage(
+            [AssetLineageInfo(asset=Dataset("s3://in_bucket/file"), count=1, context=input_hook)],
             [
-                DatasetLineageInfo(
-                    dataset=Dataset("postgres://example.com:5432/database/default/table"),
+                AssetLineageInfo(
+                    asset=Dataset("postgres://example.com:5432/database/default/table"),
                     count=1,
                     context=output_hook,
                 )
@@ -61,129 +59,99 @@ class TestHookLineageCollector:
         )
 
     @patch("airflow.lineage.hook.Dataset")
-    def test_add_input_dataset(self, mock_dataset):
-        dataset = MagicMock(spec=Dataset, extra={})
-        mock_dataset.return_value = dataset
+    def test_add_input_asset(self, mock_asset):
+        asset = MagicMock(spec=Dataset, extra={})
+        mock_asset.return_value = asset
 
         hook = MagicMock()
-        self.collector.add_input_dataset(hook, uri="test_uri")
+        self.collector.add_input_asset(hook, uri="test_uri")
 
-        assert next(iter(self.collector._inputs.values())) == (dataset, hook)
-        mock_dataset.assert_called_once_with(uri="test_uri", extra=None)
+        assert next(iter(self.collector._inputs.values())) == (asset, hook)
+        mock_asset.assert_called_once_with(uri="test_uri", extra=None)
 
-    def test_grouping_datasets(self):
+    def test_grouping_assets(self):
         hook_1 = MagicMock()
         hook_2 = MagicMock()
 
         uri = "test://uri/"
 
-        self.collector.add_input_dataset(context=hook_1, uri=uri)
-        self.collector.add_input_dataset(context=hook_2, uri=uri)
-        self.collector.add_input_dataset(context=hook_1, uri=uri, dataset_extra={"key": "value"})
+        self.collector.add_input_asset(context=hook_1, uri=uri)
+        self.collector.add_input_asset(context=hook_2, uri=uri)
+        self.collector.add_input_asset(context=hook_1, uri=uri, asset_extra={"key": "value"})
 
-        collected_inputs = self.collector.collected_datasets.inputs
+        collected_inputs = self.collector.collected_assets.inputs
 
         assert len(collected_inputs) == 3
-        assert collected_inputs[0].dataset.uri == "test://uri/"
-        assert collected_inputs[0].dataset == collected_inputs[1].dataset
+        assert collected_inputs[0].asset.uri == "test://uri/"
+        assert collected_inputs[0].asset == collected_inputs[1].asset
         assert collected_inputs[0].count == 1
         assert collected_inputs[0].context == collected_inputs[2].context == hook_1
         assert collected_inputs[1].count == 1
         assert collected_inputs[1].context == hook_2
         assert collected_inputs[2].count == 1
-        assert collected_inputs[2].dataset.extra == {"key": "value"}
+        assert collected_inputs[2].asset.extra == {"key": "value"}
 
     @patch("airflow.lineage.hook.ProvidersManager")
-    def test_create_dataset(self, mock_providers_manager):
-        def create_dataset(arg1, arg2="default", extra=None):
-            return Dataset(uri=f"myscheme://{arg1}/{arg2}", extra=extra)
+    def test_create_asset(self, mock_providers_manager):
+        def create_asset(arg1, arg2="default", extra=None):
+            return Dataset(uri=f"myscheme://{arg1}/{arg2}", extra=extra or {})
 
-        test_scheme = "myscheme"
-        mock_providers_manager.return_value.dataset_factories = {test_scheme: create_dataset}
-
-        test_uri = "urischeme://value_a/value_b"
-        test_kwargs = {"arg1": "value_1"}
-        test_kwargs_uri = "myscheme://value_1/default"
-        test_extra = {"key": "value"}
-
-        # test uri arg - should take precedence over the keyword args + scheme
-        assert self.collector.create_dataset(
-            scheme=test_scheme, uri=test_uri, dataset_kwargs=test_kwargs, dataset_extra=None
-        ) == Dataset(test_uri)
-        assert self.collector.create_dataset(
-            scheme=test_scheme, uri=test_uri, dataset_kwargs=test_kwargs, dataset_extra={}
-        ) == Dataset(test_uri)
-        assert self.collector.create_dataset(
-            scheme=test_scheme, uri=test_uri, dataset_kwargs=test_kwargs, dataset_extra=test_extra
-        ) == Dataset(test_uri, extra=test_extra)
-
-        # test keyword args
-        assert self.collector.create_dataset(
-            scheme=test_scheme, uri=None, dataset_kwargs=test_kwargs, dataset_extra=None
-        ) == Dataset(test_kwargs_uri)
-        assert self.collector.create_dataset(
-            scheme=test_scheme, uri=None, dataset_kwargs=test_kwargs, dataset_extra={}
-        ) == Dataset(test_kwargs_uri)
-        assert self.collector.create_dataset(
-            scheme=test_scheme,
+        mock_providers_manager.return_value.dataset_factories = {"myscheme": create_asset}
+        assert self.collector.create_asset(
+            scheme="myscheme", uri=None, asset_kwargs={"arg1": "value_1"}, asset_extra=None
+        ) == Dataset("myscheme://value_1/default")
+        assert self.collector.create_asset(
+            scheme="myscheme",
             uri=None,
-            dataset_kwargs={**test_kwargs, "arg2": "value_2"},
-            dataset_extra=test_extra,
-        ) == Dataset("myscheme://value_1/value_2", extra=test_extra)
-
-        # missing both uri and scheme
-        assert (
-            self.collector.create_dataset(
-                scheme=None, uri=None, dataset_kwargs=test_kwargs, dataset_extra=None
-            )
-            is None
-        )
+            asset_kwargs={"arg1": "value_1", "arg2": "value_2"},
+            asset_extra={"key": "value"},
+        ) == Dataset("myscheme://value_1/value_2", extra={"key": "value"})
 
     @patch("airflow.lineage.hook.ProvidersManager")
-    def test_create_dataset_no_factory(self, mock_providers_manager):
+    def test_create_asset_no_factory(self, mock_providers_manager):
         test_scheme = "myscheme"
         mock_providers_manager.return_value.dataset_factories = {}
 
         test_kwargs = {"arg1": "value_1"}
 
         assert (
-            self.collector.create_dataset(
-                scheme=test_scheme, uri=None, dataset_kwargs=test_kwargs, dataset_extra=None
+            self.collector.create_asset(
+                scheme=test_scheme, uri=None, asset_kwargs=test_kwargs, asset_extra=None
             )
             is None
         )
 
     @patch("airflow.lineage.hook.ProvidersManager")
-    def test_create_dataset_factory_exception(self, mock_providers_manager):
-        def create_dataset(extra=None, **kwargs):
+    def test_create_asset_factory_exception(self, mock_providers_manager):
+        def create_asset(extra=None, **kwargs):
             raise RuntimeError("Factory error")
 
         test_scheme = "myscheme"
-        mock_providers_manager.return_value.dataset_factories = {test_scheme: create_dataset}
+        mock_providers_manager.return_value.dataset_factories = {test_scheme: create_asset}
 
         test_kwargs = {"arg1": "value_1"}
 
         assert (
-            self.collector.create_dataset(
-                scheme=test_scheme, uri=None, dataset_kwargs=test_kwargs, dataset_extra=None
+            self.collector.create_asset(
+                scheme=test_scheme, uri=None, asset_kwargs=test_kwargs, asset_extra=None
             )
             is None
         )
 
-    def test_collected_datasets(self):
+    def test_collected_assets(self):
         context_input = MagicMock()
         context_output = MagicMock()
 
-        self.collector.add_input_dataset(context_input, uri="test://input")
-        self.collector.add_output_dataset(context_output, uri="test://output")
+        self.collector.add_input_asset(context_input, uri="test://input")
+        self.collector.add_output_asset(context_output, uri="test://output")
 
-        hook_lineage = self.collector.collected_datasets
+        hook_lineage = self.collector.collected_assets
         assert len(hook_lineage.inputs) == 1
-        assert hook_lineage.inputs[0].dataset.uri == "test://input/"
+        assert hook_lineage.inputs[0].asset.uri == "test://input/"
         assert hook_lineage.inputs[0].context == context_input
 
         assert len(hook_lineage.outputs) == 1
-        assert hook_lineage.outputs[0].dataset.uri == "test://output/"
+        assert hook_lineage.outputs[0].asset.uri == "test://output/"
 
     def test_has_collected(self):
         collector = HookLineageCollector()

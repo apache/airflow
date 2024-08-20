@@ -22,20 +22,33 @@ def get_hook_lineage_collector():
     try:
         from airflow.lineage.hook import get_hook_lineage_collector
 
-        return get_hook_lineage_collector()
-    except ImportError:
+        collector = get_hook_lineage_collector()
 
-        class NoOpCollector:
+        if not getattr(collector, "add_input_asset"):
+            collector.add_input_asset = collector.add_input_dataset
+        if not getattr(collector, "add_output_asset"):
+            collector.add_output_asset = collector.add_output_dataset
+        if not getattr(collector, "collected_assets"):
+            collector.collected_assets = collector.collected_datasets
+
+        return collector
+    except ImportError:
+        from airflow.utils.log.logging_mixin import LoggingMixin
+
+        class NoOpCollector(LoggingMixin):
             """
             NoOpCollector is a hook lineage collector that does nothing.
 
             It is used when you want to disable lineage collection.
             """
 
-            def add_input_dataset(self, *_, **__):
+            def add_input_asset(self, *_, **__):
                 pass
 
-            def add_output_dataset(self, *_, **__):
+            def add_output_asset(self, *_, **__):
                 pass
+
+            add_input_dataset = add_input_asset
+            add_output_dataset = add_output_asset
 
         return NoOpCollector()
