@@ -52,7 +52,7 @@ class TestWasbBlobSensor:
 
     def setup_method(self):
         args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     def test_init(self):
         sensor = WasbBlobSensor(task_id="wasb_sensor_1", dag=self.dag, **self._config)
@@ -95,7 +95,7 @@ class TestWasbBlobAsyncSensor:
 
     def create_context(self, task, dag=None):
         if dag is None:
-            dag = DAG(dag_id="dag")
+            dag = DAG(dag_id="dag", schedule=None)
         tzinfo = pendulum.timezone("UTC")
         execution_date = timezone.datetime(2022, 1, 1, 1, 0, 0, tzinfo=tzinfo)
         dag_run = DagRun(
@@ -181,7 +181,7 @@ class TestWasbPrefixSensor:
 
     def setup_method(self):
         args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     def test_init(self):
         sensor = WasbPrefixSensor(task_id="wasb_sensor_1", dag=self.dag, **self._config)
@@ -224,7 +224,7 @@ class TestWasbPrefixAsyncSensor:
 
     def create_context(self, task, dag=None):
         if dag is None:
-            dag = DAG(dag_id="dag")
+            dag = DAG(dag_id="dag", schedule=None)
         tzinfo = pendulum.timezone("UTC")
         execution_date = timezone.datetime(2022, 1, 1, 1, 0, 0, tzinfo=tzinfo)
         dag_run = DagRun(

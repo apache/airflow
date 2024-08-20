@@ -625,7 +625,9 @@ def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, new_id_exampl
 
 @pytest.fixture
 def new_dag_to_delete():
-    dag = DAG("new_dag_to_delete", is_paused_upon_creation=True)
+    dag = DAG(
+        "new_dag_to_delete", is_paused_upon_creation=True, schedule="0 * * * *", start_date=DEFAULT_DATE
+    )
     session = settings.Session()
     dag.sync_to_db(session=session)
     return dag

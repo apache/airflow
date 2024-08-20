@@ -186,10 +186,16 @@ class TestBaseOperator:
         from airflow.models.abstractoperator import DEFAULT_TRIGGER_RULE
 
         fail_stop_dag = DAG(
-            dag_id="test_dag_trigger_rule_validation", start_date=DEFAULT_DATE, fail_stop=True
+            dag_id="test_dag_trigger_rule_validation",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            fail_stop=True,
         )
         non_fail_stop_dag = DAG(
-            dag_id="test_dag_trigger_rule_validation", start_date=DEFAULT_DATE, fail_stop=False
+            dag_id="test_dag_trigger_rule_validation",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            fail_stop=False,
         )
 
         # An operator with default trigger rule and a fail-stop dag should be allowed
@@ -305,7 +311,7 @@ class TestBaseOperator:
     )
     def test_render_template_with_native_envs(self, content, context, expected_output):
         """Test render_template given various input types with Native Python types"""
-        with DAG("test-dag", start_date=DEFAULT_DATE, render_template_as_native_obj=True):
+        with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE, render_template_as_native_obj=True):
             task = BaseOperator(task_id="op1")
 
         result = task.render_template(content, context)
@@ -320,7 +326,12 @@ class TestBaseOperator:
             def execute(self, context):
                 print(self.x)
 
-        with DAG("test-dag", start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))) as dag:
+        with DAG(
+            dag_id="test-dag",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            default_args={"sla": timedelta(minutes=30)},
+        ) as dag:
 
             @dag.task
             def get_values():
@@ -331,7 +342,12 @@ class TestBaseOperator:
                 MyOp.partial(task_id="hi").expand(x=task1)
 
     def test_mapped_dag_slas_disabled_taskflow(self):
-        with DAG("test-dag", start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))) as dag:
+        with DAG(
+            dag_id="test-dag",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            default_args={"sla": timedelta(minutes=30)},
+        ) as dag:
 
             @dag.task
             def get_values():
@@ -467,7 +483,7 @@ class TestBaseOperator:
 
     def test_cross_downstream(self):
         """Test if all dependencies between tasks are all set correctly."""
-        dag = DAG(dag_id="test_dag", start_date=datetime.now())
+        dag = DAG(dag_id="test_dag", schedule=None, start_date=datetime.now())
         start_tasks = [BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 4)]
         end_tasks = [BaseOperator(task_id=f"t{i}", dag=dag) for i in range(4, 7)]
         cross_downstream(from_tasks=start_tasks, to_tasks=end_tasks)
@@ -492,7 +508,7 @@ class TestBaseOperator:
             }
 
     def test_chain(self):
-        dag = DAG(dag_id="test_chain", start_date=datetime.now())
+        dag = DAG(dag_id="test_chain", schedule=None, start_date=datetime.now())
 
         # Begin test for classic operators with `EdgeModifiers`
         [label1, label2] = [Label(label=f"label{i}") for i in range(1, 3)]
@@ -549,7 +565,7 @@ class TestBaseOperator:
         assert [op2] == tgop4.get_direct_relatives(upstream=False)
 
     def test_chain_linear(self):
-        dag = DAG(dag_id="test_chain_linear", start_date=datetime.now())
+        dag = DAG(dag_id="test_chain_linear", schedule=None, start_date=datetime.now())
 
         t1, t2, t3, t4, t5, t6, t7 = (BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 8))
         chain_linear(t1, [t2, t3, t4], [t5, t6], t7)
@@ -598,7 +614,7 @@ class TestBaseOperator:
             chain_linear(t1)
 
     def test_chain_not_support_type(self):
-        dag = DAG(dag_id="test_chain", start_date=datetime.now())
+        dag = DAG(dag_id="test_chain", schedule=None, start_date=datetime.now())
         [op1, op2] = [BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 3)]
         with pytest.raises(TypeError):
             chain([op1, op2], 1)
@@ -623,7 +639,7 @@ class TestBaseOperator:
             chain([tg1, tg2], 1)
 
     def test_chain_different_length_iterable(self):
-        dag = DAG(dag_id="test_chain", start_date=datetime.now())
+        dag = DAG(dag_id="test_chain", schedule=None, start_date=datetime.now())
         [label1, label2] = [Label(label=f"label{i}") for i in range(1, 3)]
         [op1, op2, op3, op4, op5] = [BaseOperator(task_id=f"t{i}", dag=dag) for i in range(1, 6)]
 
@@ -658,7 +674,7 @@ class TestBaseOperator:
         """
         inlet = File(url="in")
         outlet = File(url="out")
-        dag = DAG("test-dag", start_date=DEFAULT_DATE)
+        dag = DAG("test-dag", schedule=None, start_date=DEFAULT_DATE)
         task1 = BaseOperator(task_id="op1", dag=dag)
         task2 = BaseOperator(task_id="op2", dag=dag)
 
@@ -744,7 +760,7 @@ class TestBaseOperator:
         assert method_mock.call_count == 0
 
     def test_upstream_is_set_when_template_field_is_xcomarg(self):
-        with DAG("xcomargs_test", default_args={"start_date": datetime.today()}):
+        with DAG("xcomargs_test", schedule=None, default_args={"start_date": datetime.today()}):
             op1 = BaseOperator(task_id="op1")
             op2 = MockOperator(task_id="op2", arg1=op1.output)
 
@@ -752,7 +768,7 @@ class TestBaseOperator:
         assert op2 in op1.downstream_list
 
     def test_set_xcomargs_dependencies_works_recursively(self):
-        with DAG("xcomargs_test", default_args={"start_date": datetime.today()}):
+        with DAG("xcomargs_test", schedule=None, default_args={"start_date": datetime.today()}):
             op1 = BaseOperator(task_id="op1")
             op2 = BaseOperator(task_id="op2")
             op3 = MockOperator(task_id="op3", arg1=[op1.output, op2.output])
@@ -764,7 +780,7 @@ class TestBaseOperator:
         assert op2 in op4.upstream_list
 
     def test_set_xcomargs_dependencies_works_when_set_after_init(self):
-        with DAG(dag_id="xcomargs_test", default_args={"start_date": datetime.today()}):
+        with DAG(dag_id="xcomargs_test", schedule=None, default_args={"start_date": datetime.today()}):
             op1 = BaseOperator(task_id="op1")
             op2 = MockOperator(task_id="op2")
             op2.arg1 = op1.output  # value is set after init
@@ -928,7 +944,7 @@ def test_task_level_retry_delay(dag_maker):
 
 def test_deepcopy():
     # Test bug when copying an operator attached to a DAG
-    with DAG("dag0", start_date=DEFAULT_DATE) as dag:
+    with DAG("dag0", schedule=None, start_date=DEFAULT_DATE) as dag:
 
         @dag.task
         def task0():
@@ -1092,7 +1108,7 @@ def test_get_task_instances(session):
     second_execution_date = pendulum.datetime(2023, 1, 2)
     third_execution_date = pendulum.datetime(2023, 1, 3)
 
-    test_dag = DAG(dag_id="test_dag", start_date=first_execution_date)
+    test_dag = DAG(dag_id="test_dag", schedule=None, start_date=first_execution_date)
     task = BaseOperator(task_id="test_task", dag=test_dag)
 
     common_dr_kwargs = {
