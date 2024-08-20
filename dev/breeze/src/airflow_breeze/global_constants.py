@@ -53,9 +53,10 @@ ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "none"]
 ALLOWED_PROD_BACKENDS = ["mysql", "postgres"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
+CELERY_INTEGRATION = "celery"
 TESTABLE_INTEGRATIONS = [
     "cassandra",
-    "celery",
+    CELERY_INTEGRATION,
     "drill",
     "kafka",
     "kerberos",
@@ -102,6 +103,7 @@ ALLOWED_EXECUTORS = [
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
 START_AIRFLOW_ALLOWED_EXECUTORS = ["LocalExecutor", "CeleryExecutor", "SequentialExecutor"]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR = START_AIRFLOW_ALLOWED_EXECUTORS[0]
+ALLOWED_CELERY_EXECUTORS = ["CeleryExecutor", "CeleryKubernetesExecutor"]
 
 SEQUENTIAL_EXECUTOR = "SequentialExecutor"
 
