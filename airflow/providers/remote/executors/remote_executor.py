@@ -20,6 +20,8 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+from sqlalchemy import delete
+
 from airflow.cli.cli_config import GroupCommand
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
@@ -108,27 +110,26 @@ class RemoteExecutor(BaseExecutor):
                     self.fail(job.key)
                 else:
                     self.last_reported_state[job.key] = job.state
-            if job.state == TaskInstanceState.SUCCESS:
-                if job.last_update.timestamp() < (datetime.now() - timedelta(minutes=5)).timestamp():
-                    if job.key in self.last_reported_state:
-                        del self.last_reported_state[job.key]
-                    session.delete(job)
-            elif job.state == TaskInstanceState.FAILED:
-                if job.last_update.timestamp() < (datetime.now() - timedelta(hours=1)).timestamp():
-                    if job.key in self.last_reported_state:
-                        del self.last_reported_state[job.key]
-                    session.delete(job)
+            if (
+                job.state == TaskInstanceState.SUCCESS
+                and job.last_update.timestamp() < (datetime.now() - timedelta(minutes=5)).timestamp()
+            ) or (
+                job.state == TaskInstanceState.FAILED
+                and job.last_update.timestamp() < (datetime.now() - timedelta(hours=1)).timestamp()
+            ):
+                if job.key in self.last_reported_state:
+                    del self.last_reported_state[job.key]
+                session.delete(job)
+                session.execute(
+                    delete(RemoteLogsModel).where(
+                        RemoteLogsModel.dag_id == job.dag_id,
+                        RemoteLogsModel.run_id == job.run_id,
+                        RemoteLogsModel.task_id == job.task_id,
+                        RemoteLogsModel.map_index == job.map_index,
+                        RemoteLogsModel.try_number == job.try_number,
+                    )
+                )
         session.commit()
-
-    def get_task_log(self, ti: TaskInstance, try_number: int) -> tuple[list[str], list[str]]:
-        """
-        Return the task logs.
-
-        :param ti: A TaskInstance object
-        :param try_number: current try_number to read log from
-        :return: tuple of logs and messages
-        """
-        return [], []
 
     def end(self) -> None:
         """End the executor."""
