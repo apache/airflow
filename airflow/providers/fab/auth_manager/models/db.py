@@ -19,8 +19,8 @@ from __future__ import annotations
 import os
 
 import airflow
-from airflow.models.base import BaseDBManager
 from airflow.providers.fab.auth_manager.models import metadata
+from airflow.utils.db_manager import BaseDBManager
 
 PACKAGE_DIR = os.path.dirname(airflow.__file__)
 
@@ -33,3 +33,6 @@ class FABDBManager(BaseDBManager):
     migration_dir = os.path.join(PACKAGE_DIR, "providers/fab/migrations")
     alembic_file = os.path.join(PACKAGE_DIR, "providers/fab/alembic.ini")
     supports_table_dropping = True
+
+    def __init__(self, session):
+        self.session = session

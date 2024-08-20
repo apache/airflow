@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.models.base import Base, BaseDBManager, get_id_collation_args
+from airflow.models.base import get_id_collation_args
 from tests.test_utils.config import conf_vars
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
@@ -47,47 +47,3 @@ pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 def test_collation(dsn, expected, extra):
     with conf_vars({("database", "sql_alchemy_conn"): dsn, **extra}):
         assert expected == get_id_collation_args()
-
-
-def test_subclassing_db_manager_with_missing_attrs():
-    """Test subclassing BaseDBManager."""
-
-    with pytest.raises(AttributeError, match="SubclassDBManager is missing required attribute: metadata"):
-
-        class SubclassDBManager(BaseDBManager): ...
-
-
-def test_subclassing_db_manager_with_set_metadata():
-    with pytest.raises(
-        AttributeError, match="SubclassDbManager is missing required attribute: migration_dir"
-    ):
-
-        class SubclassDbManager(BaseDBManager):
-            metadata = Base.metadata
-
-
-def test_subclassing_db_manager_with_set_metadata_and_migration_dir():
-    with pytest.raises(AttributeError, match="SubclassDbManager is missing required attribute: alembic_file"):
-
-        class SubclassDbManager(BaseDBManager):
-            metadata = Base.metadata
-            migration_dir = "some_dir"
-
-
-def test_subclassing_db_manager_with_attrs_set_except_version_table_name():
-    with pytest.raises(
-        AttributeError, match="SubclassDbManager is missing required attribute: version_table_name"
-    ):
-
-        class SubclassDbManager(BaseDBManager):
-            metadata = Base.metadata
-            migration_dir = "some_dir"
-            alembic_file = "some_file"
-
-
-def test_subclassing_db_manager_with_attrs_set_dont_raise(session):
-    class SubclassDbManager(BaseDBManager):
-        metadata = Base.metadata
-        migration_dir = "some_dir"
-        alembic_file = "some_file"
-        version_table_name = "some_table"

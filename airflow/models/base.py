@@ -23,7 +23,6 @@ from sqlalchemy import Column, Integer, MetaData, String, text
 from sqlalchemy.orm import registry
 
 from airflow.configuration import conf
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 SQL_ALCHEMY_SCHEMA = conf.get("database", "SQL_ALCHEMY_SCHEMA")
 
@@ -95,76 +94,3 @@ class TaskInstanceDependencies(Base):
     dag_id = Column(StringID(), nullable=False)
     run_id = Column(StringID(), nullable=False)
     map_index = Column(Integer, nullable=False, server_default=text("-1"))
-
-
-class AttributeCheckerMeta(type):
-    """Metaclass to check attributes of subclasses."""
-
-    def __new__(cls, name, bases, dct):
-        """Check that subclasses are setting the required attributes."""
-        required_attrs = ["metadata", "migration_dir", "alembic_file", "version_table_name"]
-        for attr in required_attrs:
-            if attr not in dct:
-                raise AttributeError(f"{name} is missing required attribute: {attr}")
-        return super().__new__(cls, name, bases, dct)
-
-
-class BaseDBManager(LoggingMixin, metaclass=AttributeCheckerMeta):
-    """Base DB manager for external DBs."""
-
-    metadata: MetaData = None
-    migration_dir: str = ""
-    alembic_file: str = ""
-    version_table_name: str = ""
-    # Whether the database supports dropping tables when airflow tables are dropped
-    supports_table_dropping: bool = False
-
-    def __init__(self, session):
-        super().__init__()
-        self.session = session
-
-    def get_alembic_config(self):
-        from alembic.config import Config
-
-        from airflow import settings
-
-        config = Config(self.alembic_file)
-        config.set_main_option("script_location", self.migration_dir.replace("%", "%%"))
-        config.set_main_option("sqlalchemy.url", settings.SQL_ALCHEMY_CONN.replace("%", "%%"))
-        return config
-
-    def get_current_revision(self):
-        from alembic.migration import MigrationContext
-
-        conn = self.session.connection()
-
-        migration_ctx = MigrationContext.configure(conn, opts={"version_table": self.version_table_name})
-
-        return migration_ctx.get_current_revision()
-
-    def _create_db_from_orm(self):
-        """Create database from ORM."""
-        from alembic import command
-
-        engine = self.session.get_bind().engine
-        self.metadata.create_all(engine)
-        config = self.get_alembic_config()
-        command.stamp(config, "head")
-
-    def initdb(self):
-        """Initialize the database."""
-        db_exists = self.get_current_revision()
-        if db_exists:
-            self.upgradedb()
-        else:
-            self._create_db_from_orm()
-
-    def upgradedb(self, to_version=None, from_version=None, show_sql_only=False):
-        """Upgrade the database."""
-        from alembic import command
-
-        config = self.get_alembic_config()
-        command.upgrade(config, revision=to_version or "heads", sql=show_sql_only)
-
-    def downgradedb(self, to_version, from_version=None, show_sql_only=False):
-        """Downgrade the database."""
