@@ -101,7 +101,7 @@ dependencies:
   - botocore>=1.34.90
   - inflection>=0.5.1
   # Allow a wider range of watchtower versions for flexibility among users
-  - watchtower>=3.0.0,<4
+  - watchtower>=3.0.0,!=3.3.0,<4
   - jsonpath_ng>=1.5.3
   - redshift_connector>=2.0.918
   - sqlalchemy_redshift>=0.8.6
