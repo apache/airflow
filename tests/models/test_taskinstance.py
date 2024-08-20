@@ -3433,6 +3433,7 @@ class TestTaskInstance:
             """
             error captured by BaseNotifier
             """
+
             def __init__(self, error: bool):
                 super().__init__()
                 self.raise_error = error
@@ -3459,7 +3460,7 @@ class TestTaskInstance:
         for callback_input in [OnFinishNotifier(error=False), OnFinishNotifier(error=True)]:
             caplog.clear()
             _run_finished_callback(callbacks=callback_input, context={})
-            assert "Executing MockNotifier callback" in caplog.text
+            assert "Executing OnFinishNotifier callback" in caplog.text
             assert "Failed to send notification" in caplog.text
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
