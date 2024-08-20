@@ -41,12 +41,14 @@ from airflow.providers.remote.models.remote_job import RemoteJob
 from airflow.providers.remote.models.remote_logs import RemoteLogs
 from airflow.providers.remote.models.remote_worker import RemoteWorker, RemoteWorkerState
 from airflow.utils import cli as cli_utils
+from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.state import TaskInstanceState
 
 logger = logging.getLogger(__name__)
 REMOTE_WORKER_PROCESS_NAME = "remote-worker"
 
 
+@providers_configuration_loaded
 def force_use_internal_api_on_remote_worker():
     """
     Force that environment is made for internal API w/o need to declare outside.
@@ -169,6 +171,7 @@ def _heartbeat(hostname: str, jobs: list[Job], drain_worker: bool) -> None:
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def worker(args):
     """Start Airflow Remote worker."""
     job_poll_interval = conf.getint("remote", "job_poll_interval")
@@ -219,6 +222,7 @@ def worker(args):
 
 
 @cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
 def stop(args):
     """Stop a running Airflow Remote worker."""
     pid = read_pid_from_pidfile(_pid_file_path(args))
@@ -235,7 +239,7 @@ ARG_CONCURRENCY = Arg(
     ("-c", "--concurrency"),
     type=int,
     help="The number of worker processes",
-    default=1,
+    default=conf.getint("remote", "worker_concurrency", fallback=8),
 )
 ARG_QUEUES = Arg(
     ("-q", "--queues"),
