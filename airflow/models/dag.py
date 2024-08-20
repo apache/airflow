@@ -360,6 +360,7 @@ DAG_ARGS_EXPECTED_TYPES = {
     "auto_register": bool,
     "fail_stop": bool,
     "dag_display_name": str,
+    "call_on_kill_on_dagrun_timeout": bool,
 }
 
 
@@ -538,6 +539,7 @@ class DAG(LoggingMixin):
         auto_register: bool = True,
         fail_stop: bool = False,
         dag_display_name: str | None = None,
+        call_on_kill_on_dagrun_timeout: bool = False,
     ):
         from airflow.utils.task_group import TaskGroup
 
@@ -564,6 +566,7 @@ class DAG(LoggingMixin):
 
         self._dag_id = dag_id
         self._dag_display_property_value = dag_display_name
+        self.call_on_kill_on_dagrun_timeout = call_on_kill_on_dagrun_timeout
 
         self._max_active_tasks = max_active_tasks
         self._pickle_id: int | None = None
@@ -3592,6 +3595,7 @@ def dag(
     auto_register: bool = True,
     fail_stop: bool = False,
     dag_display_name: str | None = None,
+    call_on_kill_on_dagrun_timeout: bool = False,
 ) -> Callable[[Callable], Callable[..., DAG]]:
     """
     Python dag decorator which wraps a function into an Airflow DAG.
@@ -3645,6 +3649,7 @@ def dag(
                 auto_register=auto_register,
                 fail_stop=fail_stop,
                 dag_display_name=dag_display_name,
+                call_on_kill_on_dagrun_timeout=call_on_kill_on_dagrun_timeout,
             ) as dag_obj:
                 # Set DAG documentation from function documentation if it exists and doc_md is not set.
                 if f.__doc__ and not dag_obj.doc_md:
