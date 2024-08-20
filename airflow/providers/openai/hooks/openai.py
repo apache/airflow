@@ -467,7 +467,7 @@ class OpenAIHook(BaseHook):
                 return
             if batch.status == BatchStatus.FAILED:
                 raise AirflowException(f"Batch failed - \n{batch_id}")
-            elif batch.status in {BatchStatus.CANCELLED, BatchStatus.CANCELLING}:
+            elif batch.status in (BatchStatus.CANCELLED, BatchStatus.CANCELLING):
                 raise AirflowException(f"Batch failed - batch was cancelled:\n{batch_id}")
             elif batch.status == BatchStatus.EXPIRED:
                 raise AirflowException(
