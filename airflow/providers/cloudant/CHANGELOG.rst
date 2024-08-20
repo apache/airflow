@@ -35,6 +35,9 @@ Breaking changes
 
 * ``Switch cloudant provider from cloudant library to ibmcloudant library (#41555)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare docs for Aug 2nd wave of providers (#41559)``
+
 3.6.0
 .....
 
