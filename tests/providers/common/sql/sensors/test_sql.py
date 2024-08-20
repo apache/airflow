@@ -40,7 +40,7 @@ TEST_DAG_ID = "unit_test_sql_dag"
 class TestSqlSensor:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG(TEST_DAG_ID, default_args=args)
+        self.dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
 
     @pytest.mark.db_test
     def test_unsupported_conn_type(self):

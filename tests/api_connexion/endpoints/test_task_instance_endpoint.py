@@ -1220,57 +1220,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 id="clear by task ids",
             ),
             pytest.param(
-                "example_subdag_operator",
-                [
-                    {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
-                    {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
-                        "state": State.FAILED,
-                    },
-                    {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
-                        "state": State.FAILED,
-                    },
-                    {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
-                        "state": State.FAILED,
-                    },
-                    {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=4),
-                        "state": State.FAILED,
-                    },
-                ],
-                "example_subdag_operator.section-1",
-                {"dry_run": True, "include_parentdag": True},
-                4,
-                id="include parent dag",
-            ),
-            pytest.param(
-                "example_subdag_operator.section-1",
-                [
-                    {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
-                    {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
-                        "state": State.FAILED,
-                    },
-                    {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
-                        "state": State.FAILED,
-                    },
-                    {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
-                        "state": State.FAILED,
-                    },
-                ],
-                "example_subdag_operator",
-                {
-                    "dry_run": True,
-                    "include_subdags": True,
-                },
-                4,
-                id="include sub dag",
-            ),
-            pytest.param(
                 "example_python_operator",
                 [
                     {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
@@ -1321,7 +1270,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         """Test that if reset_dag_runs is True, then clear_task_instances is called with State.QUEUED"""
         self.create_task_instances(session)
         dag_id = "example_python_operator"
-        payload = {"include_subdags": True, "reset_dag_runs": True, "dry_run": False}
+        payload = {"reset_dag_runs": True, "dry_run": False}
         self.app.dag_bag.sync_to_db()
         response = self.client.post(
             f"/api/v1/dags/{dag_id}/clearTaskInstances",
@@ -1362,7 +1311,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "reset_dag_runs": True,
             "only_failed": False,
             "only_running": True,
-            "include_subdags": True,
         }
         task_instances = [
             {"execution_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
@@ -1454,7 +1402,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "reset_dag_runs": False,
             "only_failed": False,
             "only_running": True,
-            "include_subdags": True,
             "dag_run_id": "TEST_DAG_RUN_ID_0",
         }
         task_instances = [
@@ -1514,7 +1461,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "only_failed": False,
             "include_past": True,
             "only_running": True,
-            "include_subdags": True,
         }
         task_instances = [
             {"execution_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
@@ -1693,7 +1639,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "reset_dag_runs": False,
             "only_failed": False,
             "only_running": True,
-            "include_subdags": True,
             "dag_run_id": "TEST_DAG_RUN_ID_100",
         }
         task_instances = [
@@ -1732,7 +1677,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "reset_dag_runs": True,
                 "only_failed": False,
                 "only_running": True,
-                "include_subdags": True,
             },
         )
         assert_401(response)
@@ -1747,7 +1691,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "reset_dag_runs": True,
                 "only_failed": False,
                 "only_running": True,
-                "include_subdags": True,
             },
         )
         assert response.status_code == 403
@@ -1794,7 +1737,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "reset_dag_runs": True,
                 "only_failed": False,
                 "only_running": True,
-                "include_subdags": True,
             },
         )
         assert response.status_code == 404

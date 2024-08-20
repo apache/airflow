@@ -53,7 +53,7 @@ from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.secrets.cache import SecretCache
 from airflow.stats import Stats
-from airflow.traces.tracer import Trace, span
+from airflow.traces.tracer import Trace, add_span
 from airflow.utils import timezone
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.file import list_py_file_paths, might_contain_dag
@@ -1213,7 +1213,7 @@ class DagFileProcessorManager(LoggingMixin):
             callback_requests=callback_requests,
         )
 
-    @span
+    @add_span
     def start_new_processes(self):
         """Start more processors if we have enough slots and files to process."""
         # initialize cache to mutualize calls to Variable.get in DAGs
@@ -1251,7 +1251,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             Stats.gauge("dag_processing.file_path_queue_size", len(self._file_path_queue))
 
-    @span
+    @add_span
     def add_new_file_path_to_queue(self):
         for file_path in self.file_paths:
             if file_path not in self._file_stats:

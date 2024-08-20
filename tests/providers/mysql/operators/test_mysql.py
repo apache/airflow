@@ -47,7 +47,7 @@ MYSQL_DEFAULT = "mysql_default"
 class TestMySql:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG(TEST_DAG_ID, default_args=args)
+        dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
         self.dag = dag
 
     def teardown_method(self):
@@ -105,7 +105,12 @@ class TestMySql:
         path = tmp_path / "testfile.json"
         path.write_text('{\n "foo": "{{ ds }}"}')
 
-        with DAG("test-dag", start_date=DEFAULT_DATE, template_searchpath=os.fspath(path.parent)):
+        with DAG(
+            dag_id="test-dag",
+            schedule=None,
+            start_date=DEFAULT_DATE,
+            template_searchpath=os.fspath(path.parent),
+        ):
             task = SQLExecuteQueryOperator(
                 task_id="op1", parameters=path.name, sql="SELECT 1", conn_id=MYSQL_DEFAULT
             )

@@ -378,6 +378,7 @@ log = logging.getLogger(__name__)
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
+    schedule=None,
     catchup=False,
     tags=["example", "cloudsql", "postgres"],
 ) as dag:
