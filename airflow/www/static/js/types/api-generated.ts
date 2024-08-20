@@ -1662,7 +1662,7 @@ export interface components {
         Partial<number> &
         Partial<boolean> &
         Partial<unknown[]> &
-        Partial<{ [key: string]: unknown }>;
+        Partial<{ [key: string]: unknown } | null>;
     };
     /**
      * @description DAG details.
