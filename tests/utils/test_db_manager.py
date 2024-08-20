@@ -26,6 +26,8 @@ from airflow.models import Base
 from airflow.utils.db import downgrade, initdb, upgradedb
 from airflow.utils.db_manager import BaseDBManager, RunDBManager
 
+pytestmark = [pytest.mark.db_test]
+
 
 class TestRunDBManager:
     def test_fab_db_manager_is_default(self):

@@ -58,8 +58,6 @@ pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 class TestDb:
     def test_database_schema_and_sqlalchemy_model_are_in_sync(self):
-        external_db_managers = RunDBManager()
-
         import airflow.models
 
         airflow.models.import_all_models()
@@ -68,6 +66,7 @@ class TestDb:
         for table_name, table in airflow_base.metadata.tables.items():
             all_meta_data._add_table(table_name, table.schema, table)
         # External DB Managers
+        external_db_managers = RunDBManager()
         for dbmanager in external_db_managers._managers:
             for table_name, table in dbmanager.metadata.tables.items():
                 all_meta_data._add_table(table_name, table.schema, table)
