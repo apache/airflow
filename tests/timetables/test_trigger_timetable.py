@@ -266,3 +266,18 @@ def test_run_immediately(catchup, run_immediately, current_time, correct_interva
             restriction=TimeRestriction(earliest=None, latest=None, catchup=catchup),
         )
         assert next_info == correct_interval
+
+
+@pytest.mark.parametrize("catchup", [True, False])
+def test_run_immediately_fast_dag(catchup):
+    timetable = CronTriggerTimetable(
+        "*/10 3 * * *",  # Runs every 10 minutes, so falls back to 5 min hardcoded limit on buffer time
+        timezone=utc,
+        run_immediately=False,
+    )
+    with time_machine.travel(JUST_AFTER):
+        next_info = timetable.next_dagrun_info(
+            last_automated_data_interval=None,
+            restriction=TimeRestriction(earliest=None, latest=None, catchup=catchup),
+        )
+        assert next_info == PREVIOUS
