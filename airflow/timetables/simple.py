@@ -167,29 +167,29 @@ class DatasetTriggeredTimetable(_TrivialTimetable):
 
     def __init__(self, assets: BaseAsset) -> None:
         super().__init__()
-        self.dataset_condition = assets
-        if isinstance(self.dataset_condition, AssetAlias):
-            self.dataset_condition = _AssetAliasCondition(self.dataset_condition.name)
+        self.asset_condition = assets
+        if isinstance(self.asset_condition, AssetAlias):
+            self.asset_condition = _AssetAliasCondition(self.asset_condition.name)
 
-        if not next(self.dataset_condition.iter_assets(), False):
+        if not next(self.asset_condition.iter_assets(), False):
             self._summary = DatasetTriggeredTimetable.UNRESOLVED_ALIAS_SUMMARY
         else:
-            self._summary = "Dataset"
+            self._summary = "Asset"
 
     @classmethod
     def deserialize(cls, data: dict[str, Any]) -> Timetable:
-        from airflow.serialization.serialized_objects import decode_dataset_condition
+        from airflow.serialization.serialized_objects import decode_asset_condition
 
-        return cls(decode_dataset_condition(data["dataset_condition"]))
+        return cls(decode_asset_condition(data["asset_condition"]))
 
     @property
     def summary(self) -> str:
         return self._summary
 
     def serialize(self) -> dict[str, Any]:
-        from airflow.serialization.serialized_objects import encode_dataset_condition
+        from airflow.serialization.serialized_objects import encode_asset_condition
 
-        return {"dataset_condition": encode_dataset_condition(self.dataset_condition)}
+        return {"asset_condition": encode_asset_condition(self.asset_condition)}
 
     def generate_run_id(
         self,

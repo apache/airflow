@@ -33,52 +33,52 @@ if typing.TYPE_CHECKING:
     from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 
 
-class DatasetOrTimeSchedule(DatasetTriggeredSchedule):
+class AssetOrTimeSchedule(DatasetTriggeredSchedule):
     """Combine time-based scheduling with event-based scheduling."""
 
     def __init__(
         self,
         *,
         timetable: Timetable,
-        datasets: Collection[Dataset] | BaseAsset,
+        assets: Collection[Dataset] | BaseAsset,
     ) -> None:
         self.timetable = timetable
-        if isinstance(datasets, BaseAsset):
-            self.dataset_condition = datasets
+        if isinstance(assets, BaseAsset):
+            self.asset_condition = assets
         else:
-            self.dataset_condition = AssetAll(*datasets)
+            self.asset_condition = AssetAll(*assets)
 
-        self.description = f"Triggered by datasets or {timetable.description}"
+        self.description = f"Triggered by assets or {timetable.description}"
         self.periodic = timetable.periodic
         self.can_be_scheduled = timetable.can_be_scheduled
         self.active_runs_limit = timetable.active_runs_limit
 
     @classmethod
     def deserialize(cls, data: dict[str, typing.Any]) -> Timetable:
-        from airflow.serialization.serialized_objects import decode_dataset_condition, decode_timetable
+        from airflow.serialization.serialized_objects import decode_asset_condition, decode_timetable
 
         return cls(
-            datasets=decode_dataset_condition(data["dataset_condition"]),
+            assets=decode_asset_condition(data["asset_condition"]),
             timetable=decode_timetable(data["timetable"]),
         )
 
     def serialize(self) -> dict[str, typing.Any]:
-        from airflow.serialization.serialized_objects import encode_dataset_condition, encode_timetable
+        from airflow.serialization.serialized_objects import encode_asset_condition, encode_timetable
 
         return {
-            "dataset_condition": encode_dataset_condition(self.dataset_condition),
+            "asset_condition": encode_asset_condition(self.asset_condition),
             "timetable": encode_timetable(self.timetable),
         }
 
     def validate(self) -> None:
         if isinstance(self.timetable, DatasetTriggeredSchedule):
-            raise AirflowTimetableInvalid("cannot nest dataset timetables")
-        if not isinstance(self.dataset_condition, BaseAsset):
-            raise AirflowTimetableInvalid("all elements in 'datasets' must be datasets")
+            raise AirflowTimetableInvalid("cannot nest asset timetables")
+        if not isinstance(self.asset_condition, BaseAsset):
+            raise AirflowTimetableInvalid("all elements in 'assets' must be assets")
 
     @property
     def summary(self) -> str:
-        return f"Dataset or {self.timetable.summary}"
+        return f"Asset or {self.timetable.summary}"
 
     def infer_manual_data_interval(self, *, run_after: pendulum.DateTime) -> DataInterval:
         return self.timetable.infer_manual_data_interval(run_after=run_after)

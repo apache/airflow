@@ -246,7 +246,7 @@ class _PriorityWeightStrategyNotRegistered(AirflowException):
         )
 
 
-def encode_dataset_condition(var: BaseAsset) -> dict[str, Any]:
+def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
     """
     Encode a dataset condition.
 
@@ -257,13 +257,13 @@ def encode_dataset_condition(var: BaseAsset) -> dict[str, Any]:
     if isinstance(var, AssetAlias):
         return {"__type": DAT.ASSET_ALIAS, "name": var.name}
     if isinstance(var, AssetAll):
-        return {"__type": DAT.ASSET_ALL, "objects": [encode_dataset_condition(x) for x in var.objects]}
+        return {"__type": DAT.ASSET_ALL, "objects": [encode_asset_condition(x) for x in var.objects]}
     if isinstance(var, AssetAny):
-        return {"__type": DAT.ASSET_ANY, "objects": [encode_dataset_condition(x) for x in var.objects]}
+        return {"__type": DAT.ASSET_ANY, "objects": [encode_asset_condition(x) for x in var.objects]}
     raise ValueError(f"serialization not implemented for {type(var).__name__!r}")
 
 
-def decode_dataset_condition(var: dict[str, Any]) -> BaseAsset:
+def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
     """
     Decode a previously serialized dataset condition.
 
@@ -273,9 +273,9 @@ def decode_dataset_condition(var: dict[str, Any]) -> BaseAsset:
     if dat == DAT.DATASET:
         return Dataset(var["uri"], extra=var["extra"])
     if dat == DAT.ASSET_ALL:
-        return AssetAll(*(decode_dataset_condition(x) for x in var["objects"]))
+        return AssetAll(*(decode_asset_condition(x) for x in var["objects"]))
     if dat == DAT.ASSET_ANY:
-        return AssetAny(*(decode_dataset_condition(x) for x in var["objects"]))
+        return AssetAny(*(decode_asset_condition(x) for x in var["objects"]))
     if dat == DAT.ASSET_ALIAS:
         return AssetAlias(name=var["name"])
     raise ValueError(f"deserialization not implemented for DAT {dat!r}")
@@ -740,7 +740,7 @@ class BaseSerialization:
         elif isinstance(var, LazySelectSequence):
             return cls.serialize(list(var))
         elif isinstance(var, BaseAsset):
-            serialized_dataset = encode_dataset_condition(var)
+            serialized_dataset = encode_asset_condition(var)
             return cls._encode(serialized_dataset, type_=serialized_dataset.pop("__type"))
         elif isinstance(var, SimpleTaskInstance):
             return cls._encode(
@@ -872,9 +872,9 @@ class BaseSerialization:
         elif type_ == DAT.ASSET_ALIAS:
             return AssetAlias(**var)
         elif type_ == DAT.ASSET_ANY:
-            return AssetAny(*(decode_dataset_condition(x) for x in var["objects"]))
+            return AssetAny(*(decode_asset_condition(x) for x in var["objects"]))
         elif type_ == DAT.ASSET_ALL:
-            return AssetAll(*(decode_dataset_condition(x) for x in var["objects"]))
+            return AssetAll(*(decode_asset_condition(x) for x in var["objects"]))
         elif type_ == DAT.SIMPLE_TASK_INSTANCE:
             return SimpleTaskInstance(**cls.deserialize(var))
         elif type_ == DAT.CONNECTION:
@@ -1057,7 +1057,7 @@ class DependencyDetector:
         if not dag:
             return
 
-        yield from dag.timetable.dataset_condition.iter_dag_dependencies(source="", target=dag.dag_id)
+        yield from dag.timetable.asset_condition.iter_dag_dependencies(source="", target=dag.dag_id)
 
 
 class SerializedBaseOperator(BaseOperator, BaseSerialization):

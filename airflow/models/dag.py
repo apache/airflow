@@ -3184,7 +3184,7 @@ class DagModel(Base):
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
 
-            if not dag_ready(dag_id, cond=ser_dag.dag.timetable.dataset_condition, statuses=statuses):
+            if not dag_ready(dag_id, cond=ser_dag.dag.timetable.asset_condition, statuses=statuses):
                 del by_dag[dag_id]
                 del dag_statuses[dag_id]
         del dag_statuses

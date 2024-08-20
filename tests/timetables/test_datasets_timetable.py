@@ -26,7 +26,7 @@ from pendulum import DateTime
 from airflow.assets import AssetAlias, Dataset
 from airflow.models.dataset import AssetAliasModel, DatasetEvent, DatasetModel
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
-from airflow.timetables.datasets import DatasetOrTimeSchedule
+from airflow.timetables.datasets import AssetOrTimeSchedule
 from airflow.timetables.simple import DatasetTriggeredTimetable
 from airflow.utils.types import DagRunType
 
@@ -109,30 +109,30 @@ def test_datasets() -> list[Dataset]:
 
 
 @pytest.fixture
-def dataset_timetable(test_timetable: MockTimetable, test_datasets: list[Dataset]) -> DatasetOrTimeSchedule:
+def asset_timetable(test_timetable: MockTimetable, test_datasets: list[Dataset]) -> AssetOrTimeSchedule:
     """
-    Pytest fixture for creating a DatasetTimetable object.
+    Pytest fixture for creating a AssetOrTimeSchedule object.
 
     :param test_timetable: The test timetable instance.
     :param test_datasets: A list of Dataset instances.
     """
-    return DatasetOrTimeSchedule(timetable=test_timetable, datasets=test_datasets)
+    return AssetOrTimeSchedule(timetable=test_timetable, assets=test_datasets)
 
 
-def test_serialization(dataset_timetable: DatasetOrTimeSchedule, monkeypatch: Any) -> None:
+def test_serialization(asset_timetable: AssetOrTimeSchedule, monkeypatch: Any) -> None:
     """
-    Tests the serialization method of DatasetTimetable.
+    Tests the serialization method of AssetOrTimeSchedule.
 
-    :param dataset_timetable: The DatasetTimetable instance to test.
+    :param asset_timetable: The AssetOrTimeSchedule instance to test.
     :param monkeypatch: The monkeypatch fixture from pytest.
     """
     monkeypatch.setattr(
         "airflow.serialization.serialized_objects.encode_timetable", lambda x: "mock_serialized_timetable"
     )
-    serialized = dataset_timetable.serialize()
+    serialized = asset_timetable.serialize()
     assert serialized == {
         "timetable": "mock_serialized_timetable",
-        "dataset_condition": {
+        "asset_condition": {
             "__type": "asset_all",
             "objects": [{"__type": "dataset", "uri": "test_dataset", "extra": {}}],
         },
@@ -141,7 +141,7 @@ def test_serialization(dataset_timetable: DatasetOrTimeSchedule, monkeypatch: An
 
 def test_deserialization(monkeypatch: Any) -> None:
     """
-    Tests the deserialization method of DatasetTimetable.
+    Tests the deserialization method of AssetOrTimeSchedule.
 
     :param monkeypatch: The monkeypatch fixture from pytest.
     """
@@ -150,47 +150,47 @@ def test_deserialization(monkeypatch: Any) -> None:
     )
     mock_serialized_data = {
         "timetable": "mock_serialized_timetable",
-        "dataset_condition": {
+        "asset_condition": {
             "__type": "asset_all",
             "objects": [{"__type": "dataset", "uri": "test_dataset", "extra": None}],
         },
     }
-    deserialized = DatasetOrTimeSchedule.deserialize(mock_serialized_data)
-    assert isinstance(deserialized, DatasetOrTimeSchedule)
+    deserialized = AssetOrTimeSchedule.deserialize(mock_serialized_data)
+    assert isinstance(deserialized, AssetOrTimeSchedule)
 
 
-def test_infer_manual_data_interval(dataset_timetable: DatasetOrTimeSchedule) -> None:
+def test_infer_manual_data_interval(asset_timetable: AssetOrTimeSchedule) -> None:
     """
-    Tests the infer_manual_data_interval method of DatasetTimetable.
+    Tests the infer_manual_data_interval method of AssetOrTimeSchedule.
 
-    :param dataset_timetable: The DatasetTimetable instance to test.
+    :param asset_timetable: The AssetOrTimeSchedule instance to test.
     """
     run_after = DateTime.now()
-    result = dataset_timetable.infer_manual_data_interval(run_after=run_after)
+    result = asset_timetable.infer_manual_data_interval(run_after=run_after)
     assert isinstance(result, DataInterval)
 
 
-def test_next_dagrun_info(dataset_timetable: DatasetOrTimeSchedule) -> None:
+def test_next_dagrun_info(asset_timetable: AssetOrTimeSchedule) -> None:
     """
-    Tests the next_dagrun_info method of DatasetTimetable.
+    Tests the next_dagrun_info method of AssetOrTimeSchedule.
 
-    :param dataset_timetable: The DatasetTimetable instance to test.
+    :param asset_timetable: The AssetOrTimeSchedule instance to test.
     """
     last_interval = DataInterval.exact(DateTime.now())
     restriction = TimeRestriction(earliest=DateTime.now(), latest=None, catchup=True)
-    result = dataset_timetable.next_dagrun_info(
+    result = asset_timetable.next_dagrun_info(
         last_automated_data_interval=last_interval, restriction=restriction
     )
     assert result is None or isinstance(result, DagRunInfo)
 
 
-def test_generate_run_id(dataset_timetable: DatasetOrTimeSchedule) -> None:
+def test_generate_run_id(asset_timetable: AssetOrTimeSchedule) -> None:
     """
-    Tests the generate_run_id method of DatasetTimetable.
+    Tests the generate_run_id method of AssetOrTimeSchedule.
 
-    :param dataset_timetable: The DatasetTimetable instance to test.
+    :param asset_timetable: The AssetOrTimeSchedule instance to test.
     """
-    run_id = dataset_timetable.generate_run_id(
+    run_id = asset_timetable.generate_run_id(
         run_type=DagRunType.MANUAL, extra_args="test", logical_date=DateTime.now(), data_interval=None
     )
     assert isinstance(run_id, str)
@@ -224,15 +224,15 @@ def dataset_events(mocker) -> list[DatasetEvent]:
 
 
 def test_data_interval_for_events(
-    dataset_timetable: DatasetOrTimeSchedule, dataset_events: list[DatasetEvent]
+    asset_timetable: AssetOrTimeSchedule, dataset_events: list[DatasetEvent]
 ) -> None:
     """
-    Tests the data_interval_for_events method of DatasetTimetable.
+    Tests the data_interval_for_events method of AssetOrTimeSchedule.
 
-    :param dataset_timetable: The DatasetTimetable instance to test.
+    :param asset_timetable: The AssetOrTimeSchedule instance to test.
     :param dataset_events: A list of mock DatasetEvent instances.
     """
-    data_interval = dataset_timetable.data_interval_for_events(
+    data_interval = asset_timetable.data_interval_for_events(
         logical_date=DateTime.now(), events=dataset_events
     )
     assert data_interval.start == min(
@@ -243,19 +243,17 @@ def test_data_interval_for_events(
     ), "Data interval end does not match"
 
 
-def test_run_ordering_inheritance(dataset_timetable: DatasetOrTimeSchedule) -> None:
+def test_run_ordering_inheritance(asset_timetable: AssetOrTimeSchedule) -> None:
     """
-    Tests that DatasetOrTimeSchedule inherits run_ordering from its parent class correctly.
+    Tests that AssetOrTimeSchedule inherits run_ordering from its parent class correctly.
 
-    :param dataset_timetable: The DatasetTimetable instance to test.
+    :param asset_timetable: The AssetOrTimeSchedule instance to test.
     """
     assert hasattr(
-        dataset_timetable, "run_ordering"
-    ), "DatasetOrTimeSchedule should have 'run_ordering' attribute"
+        asset_timetable, "run_ordering"
+    ), "AssetOrTimeSchedule should have 'run_ordering' attribute"
     parent_run_ordering = getattr(DatasetTriggeredTimetable, "run_ordering", None)
-    assert (
-        dataset_timetable.run_ordering == parent_run_ordering
-    ), "run_ordering does not match the parent class"
+    assert asset_timetable.run_ordering == parent_run_ordering, "run_ordering does not match the parent class"
 
 
 @pytest.mark.db_test

@@ -235,7 +235,7 @@ def test_dataset_logical_conditions_evaluation_and_serialization(inputs, scenari
         ((True, False, False), False),  # d1 is True, but neither d2 nor d3 meet the AssetAny condition
     ],
 )
-def test_nested_dataset_conditions_with_serialization(status_values, expected_evaluation):
+def test_nested_asset_conditions_with_serialization(status_values, expected_evaluation):
     # Define datasets
     d1 = Dataset(uri="s3://abc/123")
     d2 = Dataset(uri="s3://abc/124")
@@ -281,7 +281,7 @@ def test_dataset_trigger_setup_and_serialization(session, dag_maker, create_test
 
     # Verify datasets are set up correctly
     assert isinstance(
-        dag.timetable.dataset_condition, AssetAny
+        dag.timetable.asset_condition, AssetAny
     ), "DAG datasets should be an instance of AssetAny"
 
     # Round-trip the DAG through serialization
@@ -289,10 +289,10 @@ def test_dataset_trigger_setup_and_serialization(session, dag_maker, create_test
 
     # Verify serialization and deserialization integrity
     assert isinstance(
-        deserialized_dag.timetable.dataset_condition, AssetAny
+        deserialized_dag.timetable.asset_condition, AssetAny
     ), "Deserialized datasets should maintain type AssetAny"
     assert (
-        deserialized_dag.timetable.dataset_condition.objects == dag.timetable.dataset_condition.objects
+        deserialized_dag.timetable.asset_condition.objects == dag.timetable.asset_condition.objects
     ), "Deserialized datasets should match original"
 
 
@@ -323,13 +323,13 @@ def test_dataset_dag_run_queue_processing(session, clear_datasets, dag_maker, cr
     for (serialized_dag,) in serialized_dags:
         dag = SerializedDAG.deserialize(serialized_dag.data)
         for dataset_uri, status in dag_statuses[dag.dag_id].items():
-            cond = dag.timetable.dataset_condition
+            cond = dag.timetable.asset_condition
             assert cond.evaluate({dataset_uri: status}), "DAG trigger evaluation failed"
 
 
 @pytest.mark.db_test
 @pytest.mark.usefixtures("clear_datasets")
-def test_dag_with_complex_dataset_condition(session, dag_maker):
+def test_dag_with_complex_asset_condition(session, dag_maker):
     # Create Dataset instances
     d1 = Dataset(uri="hello1")
     d2 = Dataset(uri="hello2")
@@ -345,13 +345,13 @@ def test_dag_with_complex_dataset_condition(session, dag_maker):
         EmptyOperator(task_id="hello")
 
     assert isinstance(
-        dag.timetable.dataset_condition, AssetAny
+        dag.timetable.asset_condition, AssetAny
     ), "DAG's dataset trigger should be an instance of AssetAny"
     assert any(
-        isinstance(trigger, AssetAll) for trigger in dag.timetable.dataset_condition.objects
+        isinstance(trigger, AssetAll) for trigger in dag.timetable.asset_condition.objects
     ), "DAG's dataset trigger should include AssetAll"
 
-    serialized_triggers = SerializedDAG.serialize(dag.timetable.dataset_condition)
+    serialized_triggers = SerializedDAG.serialize(dag.timetable.asset_condition)
 
     deserialized_triggers = SerializedDAG.deserialize(serialized_triggers)
 
@@ -364,11 +364,11 @@ def test_dag_with_complex_dataset_condition(session, dag_maker):
 
     serialized_timetable_dict = SerializedDAG.to_dict(dag)["dag"]["timetable"]["__var"]
     assert (
-        "dataset_condition" in serialized_timetable_dict
-    ), "Serialized timetable should contain 'dataset_condition'"
+        "asset_condition" in serialized_timetable_dict
+    ), "Serialized timetable should contain 'asset_condition'"
     assert isinstance(
-        serialized_timetable_dict["dataset_condition"], dict
-    ), "Serialized 'dataset_condition' should be a dict"
+        serialized_timetable_dict["asset_condition"], dict
+    ), "Serialized 'asset_condition' should be a dict"
 
 
 def datasets_equal(a1: BaseAsset, a2: BaseAsset) -> bool:

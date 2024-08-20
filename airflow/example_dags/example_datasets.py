@@ -57,7 +57,7 @@ import pendulum
 from airflow.assets import Dataset
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
-from airflow.timetables.datasets import DatasetOrTimeSchedule
+from airflow.timetables.datasets import AssetOrTimeSchedule
 from airflow.timetables.trigger import CronTriggerTimetable
 
 # [START dataset_def]
@@ -180,10 +180,10 @@ with DAG(
     dag_id="conditional_dataset_and_time_based_timetable",
     catchup=False,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    schedule=DatasetOrTimeSchedule(
-        timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), datasets=(dag1_dataset & dag2_dataset)
+    schedule=AssetOrTimeSchedule(
+        timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), assets=(dag1_dataset & dag2_dataset)
     ),
-    tags=["dataset-time-based-timetable"],
+    tags=["asset-time-based-timetable"],
 ) as dag8:
     BashOperator(
         outlets=[Dataset("s3://dataset_time_based/dataset_other_unknown.txt")],

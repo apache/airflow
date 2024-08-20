@@ -189,11 +189,11 @@ class Timetable(Protocol):
     as for :class:`~airflow.timetable.simple.ContinuousTimetable`.
     """
 
-    dataset_condition: BaseAsset = _NullDataset()
-    """The dataset condition that triggers a DAG using this timetable.
+    asset_condition: BaseAsset = _NullDataset()
+    """The asset condition that triggers a DAG using this timetable.
 
-    If this is not *None*, this should be a dataset, or a combination of, that
-    controls the DAG's dataset triggers.
+    If this is not *None*, this should be an asset, or a combination of, that
+    controls the DAG's asset triggers.
     """
 
     @classmethod
