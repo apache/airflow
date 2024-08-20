@@ -464,7 +464,7 @@ class OpenAIHook(BaseHook):
             if batch.status in (BatchStatus.IN_PROGRESS, BatchStatus.VALIDATING, BatchStatus.FINALIZING):
                 continue
             if batch.status == BatchStatus.COMPLETED:
-                break
+                return
             if batch.status == BatchStatus.FAILED:
                 raise AirflowException(f"Batch failed - \n{batch_id}")
             elif batch.status in {BatchStatus.CANCELLED, BatchStatus.CANCELLING}:
