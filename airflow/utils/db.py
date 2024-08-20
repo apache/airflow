@@ -2127,7 +2127,7 @@ class RunDBManager(LoggingMixin):
 
     def __init__(self):
         super().__init__()
-        self._managers: list[type[BaseDBManager]] = []
+        self._managers: list[BaseDBManager] = []
         managers = conf.get("database", "external_db_managers").split(",")
         for module in managers:
             manager = import_string(module)
@@ -2139,7 +2139,7 @@ class RunDBManager(LoggingMixin):
             RunDBManager._validate(manager)
 
     @staticmethod
-    def _validate(manager: type[BaseDBManager]):
+    def _validate(manager: BaseDBManager):
         """Validate the external database migration."""
         import ast
 
