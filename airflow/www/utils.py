@@ -638,7 +638,7 @@ def json_render(obj, lexer):
 
 def wrapped_markdown(s, css_class="rich_doc"):
     """Convert a Markdown string to HTML."""
-    md = MarkdownIt("gfm-like")
+    md = MarkdownIt("gfm-like", {"html": False})
     if s is None:
         return None
     s = textwrap.dedent(s)
