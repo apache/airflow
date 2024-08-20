@@ -52,10 +52,10 @@ class AirbyteHook(BaseHook):
         super().__init__()
         self.api_version: str = api_version
         self.airbyte_conn_id = airbyte_conn_id
-        self.conn = self.get_conn(self.airbyte_conn_id)
+        self.conn = self.get_conn_params(self.airbyte_conn_id)
         self.airbyte_api = self.create_api_session()
 
-    def get_conn(self, conn_id: str) -> Any:
+    def get_conn_params(self, conn_id: str) -> Any:
         conn = self.get_connection(conn_id)
 
         conn_params: dict = {}
