@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Add `max_active_tasks_include_deferred` column to DAG table.
+Add ``max_active_tasks_include_deferred`` column to DAG table.
 
 Revision ID: 993df96ee59b
 Revises: 1cdc775ca98f
