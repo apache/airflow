@@ -49,14 +49,14 @@ class TestRunDBManager:
         with pytest.raises(AirflowException, match="Table 'dag_run' already exists in the Airflow metadata"):
             run_db_manager.validate()
 
-    @mock.patch("airflow.utils.db.RunDBManager")
+    @mock.patch("airflow.utils.db_manager.RunDBManager")
     def test_init_db_calls_rundbmanager(self, mock_rundbmanager, session):
         initdb(session=session)
         mock_rundbmanager.return_value.initdb.assert_called_once_with(session)
         mock_rundbmanager.return_value.upgradedb.assert_not_called()
         mock_rundbmanager.return_value.downgrade.assert_not_called()
 
-    @mock.patch("airflow.utils.db.RunDBManager")
+    @mock.patch("airflow.utils.db_manager.RunDBManager")
     @mock.patch("alembic.command")
     def test_upgradedb_or_downgrade_dont_call_rundbmanager(
         self, mock_alembic_command, mock_rundbmanager, session
