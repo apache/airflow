@@ -152,18 +152,18 @@ class ContinuousTimetable(_TrivialTimetable):
         return DagRunInfo.interval(start, end)
 
 
-class DatasetTriggeredTimetable(_TrivialTimetable):
+class AssetTriggeredTimetable(_TrivialTimetable):
     """
     Timetable that never schedules anything.
 
-    This should not be directly used anywhere, but only set if a DAG is triggered by datasets.
+    This should not be directly used anywhere, but only set if a DAG is triggered by assets.
 
     :meta private:
     """
 
     UNRESOLVED_ALIAS_SUMMARY = "Unresolved AssetAlias"
 
-    description: str = "Triggered by datasets"
+    description: str = "Triggered by assets"
 
     def __init__(self, assets: BaseAsset) -> None:
         super().__init__()
@@ -172,7 +172,7 @@ class DatasetTriggeredTimetable(_TrivialTimetable):
             self.asset_condition = _AssetAliasCondition(self.asset_condition.name)
 
         if not next(self.asset_condition.iter_assets(), False):
-            self._summary = DatasetTriggeredTimetable.UNRESOLVED_ALIAS_SUMMARY
+            self._summary = AssetTriggeredTimetable.UNRESOLVED_ALIAS_SUMMARY
         else:
             self._summary = "Asset"
 

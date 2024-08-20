@@ -81,8 +81,8 @@ from airflow.security import permissions
 from airflow.templates import NativeEnvironment, SandboxedEnvironment
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.simple import (
+    AssetTriggeredTimetable,
     ContinuousTimetable,
-    DatasetTriggeredTimetable,
     NullTimetable,
     OnceTimetable,
 )
@@ -1666,8 +1666,8 @@ class TestDag:
 
     def test_timetable_and_description_from_dataset(self):
         dag = DAG("test_schedule_arg", schedule=[Dataset(uri="hello")], start_date=TEST_DATE)
-        assert dag.timetable == DatasetTriggeredTimetable(Dataset(uri="hello"))
-        assert dag.timetable.description == "Triggered by datasets"
+        assert dag.timetable == AssetTriggeredTimetable(Dataset(uri="hello"))
+        assert dag.timetable.description == "Triggered by assets"
 
     @pytest.mark.parametrize(
         "timetable, expected_description",

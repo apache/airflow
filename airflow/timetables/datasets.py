@@ -21,7 +21,7 @@ import typing
 
 from airflow.assets import AssetAll, BaseAsset
 from airflow.exceptions import AirflowTimetableInvalid
-from airflow.timetables.simple import DatasetTriggeredTimetable as DatasetTriggeredSchedule
+from airflow.timetables.simple import AssetTriggeredTimetable as DatasetTriggeredSchedule
 from airflow.utils.types import DagRunType
 
 if typing.TYPE_CHECKING:

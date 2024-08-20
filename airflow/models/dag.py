@@ -121,8 +121,8 @@ from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import (
+    AssetTriggeredTimetable,
     ContinuousTimetable,
-    DatasetTriggeredTimetable,
     NullTimetable,
     OnceTimetable,
 )
@@ -599,11 +599,11 @@ class DAG(LoggingMixin):
         if isinstance(schedule, Timetable):
             self.timetable = schedule
         elif isinstance(schedule, BaseAsset):
-            self.timetable = DatasetTriggeredTimetable(schedule)
+            self.timetable = AssetTriggeredTimetable(schedule)
         elif isinstance(schedule, Collection) and not isinstance(schedule, str):
             if not all(isinstance(x, (Dataset, AssetAlias)) for x in schedule):
                 raise ValueError("All elements in 'schedule' should be datasets or asset aliases")
-            self.timetable = DatasetTriggeredTimetable(AssetAll(*schedule))
+            self.timetable = AssetTriggeredTimetable(AssetAll(*schedule))
         else:
             self.timetable = create_timetable(schedule, self.timezone)
 
@@ -876,7 +876,7 @@ class DAG(LoggingMixin):
         :meta private:
         """
         timetable_type = type(self.timetable)
-        if issubclass(timetable_type, (NullTimetable, OnceTimetable, DatasetTriggeredTimetable)):
+        if issubclass(timetable_type, (NullTimetable, OnceTimetable, AssetTriggeredTimetable)):
             return DataInterval.exact(timezone.coerce_datetime(logical_date))
         start = timezone.coerce_datetime(logical_date)
         if issubclass(timetable_type, CronDataIntervalTimetable):

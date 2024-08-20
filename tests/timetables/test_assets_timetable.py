@@ -27,7 +27,7 @@ from airflow.assets import AssetAlias, Dataset
 from airflow.models.dataset import AssetAliasModel, DatasetEvent, DatasetModel
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.datasets import AssetOrTimeSchedule
-from airflow.timetables.simple import DatasetTriggeredTimetable
+from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.utils.types import DagRunType
 
 if TYPE_CHECKING:
@@ -252,7 +252,7 @@ def test_run_ordering_inheritance(asset_timetable: AssetOrTimeSchedule) -> None:
     assert hasattr(
         asset_timetable, "run_ordering"
     ), "AssetOrTimeSchedule should have 'run_ordering' attribute"
-    parent_run_ordering = getattr(DatasetTriggeredTimetable, "run_ordering", None)
+    parent_run_ordering = getattr(AssetTriggeredTimetable, "run_ordering", None)
     assert asset_timetable.run_ordering == parent_run_ordering, "run_ordering does not match the parent class"
 
 
@@ -264,12 +264,12 @@ def test_summary(session: Session) -> None:
     session.commit()
 
     asset_alias = AssetAlias("test_asset_alias")
-    table = DatasetTriggeredTimetable(asset_alias)
+    table = AssetTriggeredTimetable(asset_alias)
     assert table.summary == "Unresolved AssetAlias"
 
     asset_alias_model.datasets.append(dataset_model)
     session.add(asset_alias_model)
     session.commit()
 
-    table = DatasetTriggeredTimetable(asset_alias)
-    assert table.summary == "Dataset"
+    table = AssetTriggeredTimetable(asset_alias)
+    assert table.summary == "Asset"
