@@ -21,6 +21,7 @@ import logging
 import os
 import platform
 import signal
+import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -42,20 +43,27 @@ from airflow.utils.state import TaskInstanceState
 logger = logging.getLogger(__name__)
 
 
-def force_use_internal_api():
-    """Force that environment is made for internal API w/o need to declare outside."""
-    api_url = conf.get("remote", "api_url")
-    if not api_url:
-        raise SystemExit("Error: API URL is not configured, please correct configuration.")
-    logger.info("Starting worker with API endpoint %s", api_url)
-    # export remote API to be used for internal API
-    os.environ["AIRFLOW_ENABLE_AIP_44"] = "True"
-    os.environ["AIRFLOW__CORE__INTERNAL_API_URL"] = api_url
-    InternalApiConfig.set_use_internal_api("remote-worker")
-    os.environ["AIRFLOW__SCHEDULER__SCHEDULE_AFTER_TASK_EXECUTION"] = "False"
+def force_use_internal_api_on_remote_worker():
+    """
+    Force that environment is made for internal API w/o need to declare outside.
+
+    This is only needed for remote worker and need to be made before click CLI wrapper
+    is started as the CLI wrapper attempts to make a DB connection which will fail before
+    function call can influence. On remote worker we need to "patch" the env before start.
+    """
+    if "airflow" in sys.argv[0] and sys.argv[1:3] == ["remote", "worker"]:
+        api_url = conf.get("remote", "api_url")
+        if not api_url:
+            raise SystemExit("Error: API URL is not configured, please correct configuration.")
+        logger.info("Starting worker with API endpoint %s", api_url)
+        # export remote API to be used for internal API
+        os.environ["AIRFLOW_ENABLE_AIP_44"] = "True"
+        os.environ["AIRFLOW__CORE__INTERNAL_API_URL"] = api_url
+        InternalApiConfig.set_use_internal_api("remote-worker")
+        os.environ["AIRFLOW__SCHEDULER__SCHEDULE_AFTER_TASK_EXECUTION"] = "False"
 
 
-force_use_internal_api()
+force_use_internal_api_on_remote_worker()
 
 
 def _hostname() -> str:
