@@ -37,7 +37,6 @@ from sqlalchemy.sql import Select
 from airflow.models import Base as airflow_base
 from airflow.settings import engine
 from airflow.utils.db import (
-    RunDBManager,
     _get_alembic_config,
     check_bad_references,
     check_migrations,
@@ -51,6 +50,7 @@ from airflow.utils.db import (
     resetdb,
     upgradedb,
 )
+from airflow.utils.db_manager import RunDBManager
 from airflow.utils.session import NEW_SESSION
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]

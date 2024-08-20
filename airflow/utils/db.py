@@ -65,7 +65,6 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import import_all_models
 from airflow.utils import helpers
-from airflow.utils.db_manager import RunDBManager
 
 # TODO: remove create_session once we decide to break backward compatibility
 from airflow.utils.session import NEW_SESSION, create_session, provide_session  # noqa: F401
@@ -773,6 +772,8 @@ def initdb(session: Session = NEW_SESSION, load_connections: bool = True):
         upgradedb(session=session)
     else:
         _create_db_from_orm(session=session)
+    from airflow.utils.db_manager import RunDBManager
+
     external_db_manager = RunDBManager()
     external_db_manager.validate()
     external_db_manager.initdb(session)
@@ -1681,6 +1682,8 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS), connection.begin():
         drop_airflow_models(connection)
         drop_airflow_moved_tables(connection)
+        from airflow.utils.db_manager import RunDBManager
+
         external_db_manager = RunDBManager()
         external_db_manager.drop_tables(connection)
 
