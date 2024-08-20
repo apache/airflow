@@ -104,13 +104,13 @@ class OpenAIBatchTrigger(BaseTrigger):
                         "batch_id": self.batch_id,
                     }
                 )
-            else:
-                yield TriggerEvent(
-                    {
-                        "status": "error",
-                        "message": f"Batch {self.batch_id} has failed.",
-                        "batch_id": self.batch_id,
-                    }
-                )
+
+            yield TriggerEvent(
+                {
+                    "status": "error",
+                    "message": f"Batch {self.batch_id} has failed.",
+                    "batch_id": self.batch_id,
+                }
+            )
         except Exception as e:
             yield TriggerEvent({"status": "error", "message": str(e), "batch_id": self.batch_id})
