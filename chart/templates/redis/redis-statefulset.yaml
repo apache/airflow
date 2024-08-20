@@ -118,7 +118,7 @@ spec:
       volumes:
         - name: redis-db
           persistentVolumeClaim:
-          claimName: {{ .Values.redis.persistence.existingClaim }}
+            claimName: {{ .Values.redis.persistence.existingClaim }}
   {{- else }}
   volumeClaimTemplates:
     - metadata:
