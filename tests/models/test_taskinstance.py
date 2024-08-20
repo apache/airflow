@@ -3429,6 +3429,18 @@ class TestTaskInstance:
             raise KeyError
             completed = True
 
+        for callback_input in [[on_finish_callable], on_finish_callable]:
+            called = completed = False
+            caplog.clear()
+            _run_finished_callback(callbacks=callback_input, context={})
+
+            assert called
+            assert not completed
+            callback_name = callback_input[0] if isinstance(callback_input, list) else callback_input
+            callback_name = qualname(callback_name).split(".")[-1]
+            assert "Executing on_finish_callable callback" in caplog.text
+            assert "Error when executing on_finish_callable callback" in caplog.text
+
         class OnFinishNotifier(BaseNotifier):
             """
             error captured by BaseNotifier
@@ -3445,23 +3457,11 @@ class TestTaskInstance:
                 if self.raise_error:
                     raise KeyError
 
-        for callback_input in [[on_finish_callable], on_finish_callable]:
-            called = completed = False
-            caplog.clear()
-            _run_finished_callback(callbacks=callback_input, context={})
-
-            assert called
-            assert not completed
-            callback_name = callback_input[0] if isinstance(callback_input, list) else callback_input
-            callback_name = qualname(callback_name).split(".")[-1]
-            assert "Executing on_finish_callable callback" in caplog.text
-            assert "Error when executing on_finish_callable callback" in caplog.text
-
         for callback_input in [OnFinishNotifier(error=False), OnFinishNotifier(error=True)]:
             caplog.clear()
             _run_finished_callback(callbacks=callback_input, context={})
             assert "Executing OnFinishNotifier callback" in caplog.text
-            assert "Failed to send notification" in caplog.text
+            assert "KeyError" in caplog.text
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @provide_session

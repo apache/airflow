@@ -1533,7 +1533,6 @@ def _get_email_subject_content(
 
     return subject, html_content, html_content_err
 
-
 def _run_finished_callback(
     *,
     callbacks: None | TaskStateChangeCallback | list[TaskStateChangeCallback],
@@ -1549,23 +1548,18 @@ def _run_finished_callback(
     """
     if callbacks:
         callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
-        for callback in callbacks:
+        def get_callback_name(callback: TaskStateChangeCallback) -> str:
             if hasattr(callback, "__name__"):
-                log.info("Executing %s callback", callback.__name__)
-            elif hasattr(callback, "__class__"):
-                log.info("Executing %s callback", callback.__class__.__name__)
-            else:
-                log.info("Executing %s callback", callback.__code__)
+                return callback.__name__
+            if hasattr(callback, "__class__"):
+                return callback.__class__.__name__
+            return callback.__str__()
+        for idx, callback in enumerate(callbacks):
+            log.info("Executing (%d) %s callback", idx, get_callback_name(callback))
             try:
                 callback(context)
             except Exception:
-                if hasattr(callback, "__name__"):
-                    log.exception("Error when executing %s callback", callback.__name__)
-                elif hasattr(callback, "__class__"):
-                    log.exception("Error when executing %s callback", callback.__class__.__name__)
-                else:
-                    log.exception("Error when executing %s callback", callback.__code__)
-
+                log.exception("Error when executing (%d) %s callback", idx, get_callback_name(callback))
 
 def _log_state(*, task_instance: TaskInstance | TaskInstancePydantic, lead_msg: str = "") -> None:
     """
