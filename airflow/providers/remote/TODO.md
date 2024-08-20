@@ -47,7 +47,6 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
   - [x] Queues
   - [x] Retry on connection loss
   - [x] Send logs (basic)
-  - [ ] Send logs also to TaskFileHandler + Archive logs on completions (DB)
   - [x] Can terminate job
   - [x] Check version match
   - [ ] Handle SIG-INT/CTRL+C and gracefully terminate and complete job
@@ -84,6 +83,7 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
   - [ ] Administrative maintenance / temporary disable jobs on worker
 - [ ] Remote Worker
   - [x] Multiple jobs / concurrency
+  - [ ] Send logs also to TaskFileHandler + Archive logs on completions (DB)
   - [ ] Publish system metrics with heartbeats
   - [ ] Integration into telemetry to send metrics
   - [ ] Be more liberal e.g. on patch version

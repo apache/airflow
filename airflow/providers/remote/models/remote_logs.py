@@ -111,6 +111,7 @@ class RemoteLogs(BaseModelPydantic, LoggingMixin):
         log_chunk_data: str,
         session: Session = NEW_SESSION,
     ) -> None:
+        """Push an incremental log chunk from remote worker to central site."""
         log_chunk = RemoteLogsModel(
             dag_id=dag_id,
             task_id=task_id,
@@ -144,7 +145,7 @@ class RemoteLogs(BaseModelPydantic, LoggingMixin):
         if TYPE_CHECKING:
             assert ti
         base_log_folder = conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
-        return Path(base_log_folder, FileTaskHandler(base_log_folder, None)._render_filename(ti, try_number))
+        return Path(base_log_folder, FileTaskHandler(base_log_folder)._render_filename(ti, try_number))
 
 
 if is_pydantic_2_installed():
