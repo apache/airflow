@@ -51,10 +51,8 @@ class DAGSchema(SQLAlchemySchema):
 
     dag_id = auto_field(dump_only=True)
     dag_display_name = fields.String(attribute="dag_display_name", dump_only=True)
-    root_dag_id = auto_field(dump_only=True)
     is_paused = auto_field()
     is_active = auto_field(dump_only=True)
-    is_subdag = auto_field(dump_only=True)
     last_parsed_time = auto_field(dump_only=True)
     last_pickled = auto_field(dump_only=True)
     last_expired = auto_field(dump_only=True)

@@ -449,12 +449,6 @@ ARG_UPSTREAM = Arg(("-u", "--upstream"), help="Include upstream tasks", action="
 ARG_ONLY_FAILED = Arg(("-f", "--only-failed"), help="Only failed jobs", action="store_true")
 ARG_ONLY_RUNNING = Arg(("-r", "--only-running"), help="Only running jobs", action="store_true")
 ARG_DOWNSTREAM = Arg(("-d", "--downstream"), help="Include downstream tasks", action="store_true")
-ARG_EXCLUDE_SUBDAGS = Arg(("-x", "--exclude-subdags"), help="Exclude subdags", action="store_true")
-ARG_EXCLUDE_PARENTDAG = Arg(
-    ("-X", "--exclude-parentdag"),
-    help="Exclude ParentDAGS if the task cleared is a part of a SubDAG",
-    action="store_true",
-)
 ARG_DAG_REGEX = Arg(
     ("-R", "--dag-regex"), help="Search dag_id as regex instead of exact string", action="store_true"
 )
@@ -701,12 +695,6 @@ ARG_DB_SQL_ONLY = Arg(
 ARG_DB_SKIP_INIT = Arg(
     ("-s", "--skip-init"),
     help="Only remove tables; do not perform db init.",
-    action="store_true",
-    default=False,
-)
-ARG_DB_USE_MIGRATION_FILES = Arg(
-    ("-m", "--use-migration-files"),
-    help="Use migration files to perform migration",
     action="store_true",
     default=False,
 )
@@ -1336,8 +1324,6 @@ TASKS_COMMANDS = (
             ARG_YES,
             ARG_ONLY_FAILED,
             ARG_ONLY_RUNNING,
-            ARG_EXCLUDE_SUBDAGS,
-            ARG_EXCLUDE_PARENTDAG,
             ARG_DAG_REGEX,
             ARG_VERBOSE,
         ),
@@ -1546,7 +1532,7 @@ DB_COMMANDS = (
         name="reset",
         help="Burn down and rebuild the metadata database",
         func=lazy_load_command("airflow.cli.commands.db_command.resetdb"),
-        args=(ARG_YES, ARG_DB_SKIP_INIT, ARG_DB_USE_MIGRATION_FILES, ARG_VERBOSE),
+        args=(ARG_YES, ARG_DB_SKIP_INIT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="upgrade",
@@ -1566,7 +1552,6 @@ DB_COMMANDS = (
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
             ARG_DB_RESERIALIZE_DAGS,
-            ARG_DB_USE_MIGRATION_FILES,
             ARG_VERBOSE,
         ),
         hide=True,
@@ -1590,7 +1575,6 @@ DB_COMMANDS = (
             ARG_DB_FROM_REVISION,
             ARG_DB_FROM_VERSION,
             ARG_DB_RESERIALIZE_DAGS,
-            ARG_DB_USE_MIGRATION_FILES,
             ARG_VERBOSE,
         ),
     ),

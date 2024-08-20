@@ -69,6 +69,17 @@ const Row = ({
   const isSelected = taskId === instance?.taskId;
   const isOpen = openGroupIds.includes(task.id || "");
 
+  // Adjust gantt start/end if the instance dates are out of bounds
+  useEffect(() => {
+    if (setGanttDuration) {
+      setGanttDuration(
+        instance?.queuedDttm,
+        instance?.startDate,
+        instance?.endDate
+      );
+    }
+  }, [instance, setGanttDuration]);
+
   // Adjust gantt start/end if the ti history dates are out of bounds
   useEffect(() => {
     tiHistory?.taskInstances?.forEach(
@@ -91,6 +102,7 @@ const Row = ({
       >
         {!!instance && (
           <InstanceBar
+            key={`${instance.taskId}-${instance.tryNumber}`}
             instance={{
               ...instance,
               queuedWhen: instance.queuedDttm,
@@ -102,16 +114,19 @@ const Row = ({
             ganttEndDate={ganttEndDate}
           />
         )}
-        {tiHistory?.taskInstances?.map((ti) => (
-          <InstanceBar
-            key={`${taskId}-${ti.tryNumber}`}
-            instance={ti}
-            task={task}
-            ganttWidth={ganttWidth}
-            ganttStartDate={ganttStartDate}
-            ganttEndDate={ganttEndDate}
-          />
-        ))}
+        {tiHistory?.taskInstances?.map(
+          (ti) =>
+            ti.tryNumber !== instance?.tryNumber && (
+              <InstanceBar
+                key={`${ti.taskId}-${ti.tryNumber}`}
+                instance={ti}
+                task={task}
+                ganttWidth={ganttWidth}
+                ganttStartDate={ganttStartDate}
+                ganttEndDate={ganttEndDate}
+              />
+            )
+        )}
       </Box>
       {isOpen &&
         !!task.children &&

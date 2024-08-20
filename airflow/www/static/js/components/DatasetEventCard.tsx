@@ -44,11 +44,17 @@ import TriggeredDagRuns from "./TriggeredDagRuns";
 
 type CardProps = {
   datasetEvent: DatasetEvent;
+  showSource?: boolean;
+  showTriggeredDagRuns?: boolean;
 };
 
 const datasetsUrl = getMetaValue("datasets_url");
 
-const DatasetEventCard = ({ datasetEvent }: CardProps) => {
+const DatasetEventCard = ({
+  datasetEvent,
+  showSource = true,
+  showTriggeredDagRuns = true,
+}: CardProps) => {
   const [searchParams] = useSearchParams();
 
   const selectedUri = decodeURIComponent(searchParams.get("uri") || "");
@@ -92,25 +98,29 @@ const DatasetEventCard = ({ datasetEvent }: CardProps) => {
           </Flex>
         </GridItem>
         <GridItem>
-          Source:
-          {fromRestApi && (
-            <Tooltip
-              portalProps={{ containerRef }}
-              hasArrow
-              placement="top"
-              label="Manually created from REST API"
-            >
-              <Box width="20px">
-                <TbApi size="20px" />
-              </Box>
-            </Tooltip>
-          )}
-          {!!datasetEvent.sourceTaskId && (
-            <SourceTaskInstance datasetEvent={datasetEvent} />
+          {showSource && (
+            <>
+              Source:
+              {fromRestApi && (
+                <Tooltip
+                  portalProps={{ containerRef }}
+                  hasArrow
+                  placement="top"
+                  label="Manually created from REST API"
+                >
+                  <Box width="20px">
+                    <TbApi size="20px" />
+                  </Box>
+                </Tooltip>
+              )}
+              {!!datasetEvent.sourceTaskId && (
+                <SourceTaskInstance datasetEvent={datasetEvent} />
+              )}
+            </>
           )}
         </GridItem>
         <GridItem>
-          {!!datasetEvent?.createdDagruns?.length && (
+          {showTriggeredDagRuns && !!datasetEvent?.createdDagruns?.length && (
             <>
               Triggered Dag Runs:
               <TriggeredDagRuns createdDagRuns={datasetEvent?.createdDagruns} />

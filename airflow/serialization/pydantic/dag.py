@@ -108,10 +108,8 @@ class DagModelPydantic(BaseModelPydantic):
     """Serializable representation of the DagModel ORM SqlAlchemyModel used by internal API."""
 
     dag_id: str
-    root_dag_id: Optional[str]
     is_paused_at_creation: bool = airflow_conf.getboolean("core", "dags_are_paused_at_creation")
     is_paused: bool = is_paused_at_creation
-    is_subdag: Optional[bool] = False
     is_active: Optional[bool] = False
     last_parsed_time: Optional[datetime]
     last_pickled: Optional[datetime]
@@ -127,7 +125,6 @@ class DagModelPydantic(BaseModelPydantic):
     timetable_description: Optional[str]
     tags: List[DagTagPydantic]  # noqa: UP006
     dag_owner_links: List[DagOwnerAttributesPydantic]  # noqa: UP006
-    parent_dag: Optional[PydanticDag]
 
     max_active_tasks: int
     max_active_runs: Optional[int]

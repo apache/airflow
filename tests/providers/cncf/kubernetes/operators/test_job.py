@@ -51,7 +51,7 @@ def create_context(task, persist_to_db=False, map_index=None):
     if task.has_dag():
         dag = task.dag
     else:
-        dag = DAG(dag_id="dag", start_date=pendulum.now())
+        dag = DAG(dag_id="dag", schedule=None, start_date=pendulum.now())
         dag.add_task(task)
     dag_run = DagRun(
         run_id=DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE),
@@ -116,6 +116,7 @@ class TestKubernetesJobOperator:
             cmds="{{ dag.dag_id }}",
             image="{{ dag.dag_id }}",
             annotations={"dag-id": "{{ dag.dag_id }}"},
+            session=session,
         )
 
         session.add(ti)
@@ -460,7 +461,7 @@ class TestKubernetesJobOperator:
         )
 
     def test_task_id_as_name_dag_id_is_ignored(self):
-        dag = DAG(dag_id="this_is_a_dag_name", start_date=pendulum.now())
+        dag = DAG(dag_id="this_is_a_dag_name", schedule=None, start_date=pendulum.now())
         k = KubernetesJobOperator(
             task_id="a_very_reasonable_task_name",
             dag=dag,

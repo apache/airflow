@@ -70,7 +70,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.7.0
+  - apache-airflow>=2.8.0
   - docker>=7.1.0
   - python-dotenv>=0.21.0
 

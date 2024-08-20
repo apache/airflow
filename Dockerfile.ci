@@ -1068,8 +1068,9 @@ function check_pydantic() {
         echo
         echo "${COLOR_YELLOW}Downgrading Pydantic to < 2${COLOR_RESET}"
         echo
+        # Pydantic 1.10.17/1.10.15 conflicts with aws-sam-translator so we need to exclude it
         # shellcheck disable=SC2086
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "pydantic<2.0.0"
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "pydantic<2.0.0,!=1.10.17,!=1.10.15"
         pip check
     else
         echo
@@ -1310,7 +1311,7 @@ ARG DEFAULT_CONSTRAINTS_BRANCH="constraints-main"
 ARG AIRFLOW_CI_BUILD_EPOCH="10"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 ARG AIRFLOW_PIP_VERSION=24.2
-ARG AIRFLOW_UV_VERSION=0.2.33
+ARG AIRFLOW_UV_VERSION=0.2.34
 ARG AIRFLOW_USE_UV="true"
 # Setup PIP
 # By default PIP install run without cache to make image smaller
@@ -1334,7 +1335,7 @@ ARG AIRFLOW_VERSION=""
 ARG ADDITIONAL_PIP_INSTALL_FLAGS=""
 
 ARG AIRFLOW_PIP_VERSION=24.2
-ARG AIRFLOW_UV_VERSION=0.2.33
+ARG AIRFLOW_UV_VERSION=0.2.34
 ARG AIRFLOW_USE_UV="true"
 
 ENV AIRFLOW_REPO=${AIRFLOW_REPO}\

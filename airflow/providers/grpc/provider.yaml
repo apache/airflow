@@ -45,7 +45,7 @@ versions:
   - 1.0.1
   - 1.0.0
 dependencies:
-  - apache-airflow>=2.7.0
+  - apache-airflow>=2.8.0
   # Google has very clear rules on what dependencies should be used. All the limits below
   # follow strict guidelines of Google Libraries as quoted here:
   # While this issue is open, dependents of google-api-core, google-cloud-core. and google-auth

@@ -43,26 +43,13 @@ def bash_dag(dagbag):
 
 
 @pytest.fixture(scope="module")
-def sub_dag(dagbag):
-    return dagbag.get_dag("example_subdag_operator")
-
-
-@pytest.fixture(scope="module")
 def xcom_dag(dagbag):
     return dagbag.get_dag("example_xcom")
 
 
 @pytest.fixture(autouse=True)
-def dagruns(bash_dag, sub_dag, xcom_dag):
+def dagruns(bash_dag, xcom_dag):
     bash_dagrun = bash_dag.create_dagrun(
-        run_type=DagRunType.SCHEDULED,
-        execution_date=EXAMPLE_DAG_DEFAULT_DATE,
-        data_interval=(EXAMPLE_DAG_DEFAULT_DATE, EXAMPLE_DAG_DEFAULT_DATE),
-        start_date=timezone.utcnow(),
-        state=State.RUNNING,
-    )
-
-    sub_dagrun = sub_dag.create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
         data_interval=(EXAMPLE_DAG_DEFAULT_DATE, EXAMPLE_DAG_DEFAULT_DATE),
@@ -78,7 +65,7 @@ def dagruns(bash_dag, sub_dag, xcom_dag):
         state=State.RUNNING,
     )
 
-    yield bash_dagrun, sub_dagrun, xcom_dagrun
+    yield bash_dagrun, xcom_dagrun
 
     clear_db_runs()
 

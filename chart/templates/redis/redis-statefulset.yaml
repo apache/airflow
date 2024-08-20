@@ -77,6 +77,7 @@ spec:
       affinity: {{- toYaml $affinity | nindent 8 }}
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
+      terminationGracePeriodSeconds: {{ .Values.redis.terminationGracePeriodSeconds }}
       serviceAccountName: {{ include "redis.serviceAccountName" . }}
       {{- if .Values.schedulerName }}
       schedulerName: {{ .Values.schedulerName }}
