@@ -39,7 +39,7 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
   - [x] REST API Authentication
   - [x] Expose jobs via UI
   - [x] Expose active remote worker
-- [ ] Remote Worker
+- [x] Remote Worker
   - [x] CLI
   - [x] Get a job and execute it
   - [x] Report result
@@ -49,7 +49,6 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
   - [x] Send logs (basic)
   - [x] Can terminate job
   - [x] Check version match
-  - [ ] Handle SIG-INT/CTRL+C and gracefully terminate and complete job
   - [x] Add a stop command
 - [x] Web UI
   - [x] Show logs while executing
@@ -83,6 +82,7 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
   - [ ] Administrative maintenance / temporary disable jobs on worker
 - [ ] Remote Worker
   - [x] Multiple jobs / concurrency
+  - [ ] Handle SIG-INT/CTRL+C and gracefully terminate and complete job (``remote worker stop`` is working though)
   - [ ] Send logs also to TaskFileHandler + Archive logs on completions (DB)
   - [ ] Publish system metrics with heartbeats
   - [ ] Integration into telemetry to send metrics
