@@ -162,7 +162,7 @@ class OpenAITriggerBatchOperator(BaseOperator):
         self.log.info("%s completed successfully.", self.task_id)
         return event["batch_id"]
 
-    def on_kill(self):
+    def on_kill(self) -> None:
         """Cancel the batch if task is cancelled."""
         if self.batch_id:
             self.log.info("on_kill: cancel the OpenAI Batch %s", self.batch_id)
