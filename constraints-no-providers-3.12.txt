@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-19T08:01:42.986530
+# This constraints file was automatically generated on 2024-08-20T13:49:52.439831
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -34,8 +34,8 @@ SQLAlchemy==1.4.53
 WTForms==3.1.2
 Werkzeug==2.2.3
 aiobotocore==2.13.2
-aiohappyeyeballs==2.3.7
-aiohttp==3.10.4
+aiohappyeyeballs==2.4.0
+aiohttp==3.10.5
 aioitertools==0.11.0
 aiosignal==1.3.1
 alembic==1.13.2
@@ -162,7 +162,7 @@ rpds-py==0.20.0
 s3fs==2024.6.1
 sentry-sdk==2.13.0
 setproctitle==1.3.3
-setuptools==72.2.0
+setuptools==73.0.0
 six==1.16.0
 sniffio==1.3.1
 sqlparse==0.5.1
@@ -180,7 +180,7 @@ uc-micro-py==1.0.3
 unicodecsv==0.14.1
 universal_pathlib==0.2.2
 urllib3==2.2.2
-uv==0.2.34
+uv==0.2.37
 vine==5.1.0
 virtualenv==20.26.3
 wirerope==0.4.7
