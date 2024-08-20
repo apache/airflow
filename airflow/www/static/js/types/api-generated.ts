@@ -2305,9 +2305,14 @@ export interface components {
       /** @description The value can be repeated to retrieve multiple matching values (OR condition). */
       executor?: string[];
       /**
-       * @description The name of the field to order the results by. Prefix a field name
-       * with `-` to reverse the sort order.
-       */
+         * @description The name of the field to order the results by.
+         * Prefix a field name with `-` to reverse the sort order.
+         * `order_by` defaults to `map_index` when unspecified.
+         * Supported field names: `state`, `duration`, `start_date`, `end_date`
+         * and `map_index`.
+         *
+         * *New in version 3.0.0*
+      */
       order_by?: string;
     };
     /**
@@ -4055,10 +4060,13 @@ export interface operations {
         /** The number of items to skip before starting to collect the result set. */
         offset?: components["parameters"]["PageOffset"];
         /**
-         * The name of the field to order the results by.
-         * Prefix a field name with `-` to reverse the sort order.
+         * The name of the field to order the results by. Prefix a field name
+         * with `-` to reverse the sort order. `order_by` defaults to
+         * `map_index` when unspecified.
+         * Supported field names: `state`, `duration`, `start_date`, `end_date`
+         * and `map_index`.
          *
-         * *New in version 2.1.0*
+         * *New in version 3.0.0*
          */
         order_by?: components["parameters"]["OrderBy"];
       };
@@ -4288,8 +4296,11 @@ export interface operations {
         /** The value can be repeated to retrieve multiple matching values (OR condition). */
         executor?: components["parameters"]["FilterExecutor"];
         /**
-         * The name of the field to order the results by.
-         * Prefix a field name with `-` to reverse the sort order.
+         * The name of the field to order the results by. Prefix a field name
+         * with `-` to reverse the sort order. `order_by` defaults to
+         * `map_index` when unspecified.
+         * Supported field names: `state`, `duration`, `start_date`, `end_date`
+         * and `map_index`.
          *
          * *New in version 2.1.0*
          */
