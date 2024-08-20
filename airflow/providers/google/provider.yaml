@@ -100,7 +100,7 @@ dependencies:
   - asgiref>=3.5.2
   - dill>=0.2.3
   - gcloud-aio-auth>=5.2.0
-  - gcloud-aio-bigquery>=6.1.2
+  - gcloud-aio-bigquery>=7.1.0
   - gcloud-aio-storage>=9.0.0
   - gcsfs>=2023.10.0
   - google-ads>=24.1.0
