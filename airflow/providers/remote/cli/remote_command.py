@@ -111,6 +111,7 @@ def _fetch_job(hostname: str, queues: list[str] | None, jobs: list[Job]) -> bool
         env = os.environ.copy()
         env["AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION"] = "True"
         env["AIRFLOW__CORE__INTERNAL_API_URL"] = conf.get("remote", "api_url")
+        env["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
         process = Popen(remote_job.command, close_fds=True, env=env)
         logfile = RemoteLogs.logfile_path(
             remote_job.dag_id,
