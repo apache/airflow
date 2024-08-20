@@ -29,10 +29,10 @@ export AIRFLOW__REMOTE__API_URL=http://localhost:8080/remote_worker/v1/rpcapi
 # Ensure logs are smelling like remote and are not visible to other components
 export AIRFLOW__LOGGING__BASE_LOG_FOLDER=remote_logs
 
-airflow remote worker --concurrency 8
+airflow remote worker
 
 # Eventually start with:
-# airflow remote worker --concurrency 8 --queues remote
+# airflow remote worker --queues remote
 
 # Start webserver with
 # AIRFLOW__REMOTE__API_ENABLED=true airflow webserver
