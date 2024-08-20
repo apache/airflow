@@ -75,11 +75,15 @@ class CronTriggerTimetable(CronMixin, Timetable):
             interval = decode_relativedelta(data["interval"])
         else:
             interval = datetime.timedelta(seconds=data["interval"])
+
         immediate: bool | datetime.timedelta
-        if isinstance(data["immediate"], float):
+        if "immediate" not in data:
+            immediate = False
+        elif isinstance(data["immediate"], float):
             immediate = datetime.timedelta(seconds=data["interval"])
         else:
             immediate = data["immediate"]
+
         return cls(
             data["expression"],
             timezone=decode_timezone(data["timezone"]),
