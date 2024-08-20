@@ -1627,6 +1627,9 @@ class SerializedDAG(DAG, BaseSerialization):
 
             serialized_dag["_processor_dags_folder"] = DAGS_FOLDER
 
+            if dag.call_on_kill_on_dagrun_timeout:
+                serialized_dag["call_on_kill_on_dagrun_timeout"] = dag.call_on_kill_on_dagrun_timeout
+
             # If schedule_interval is backed by timetable, serialize only
             # timetable; vice versa for a timetable backed by schedule_interval.
             if dag.timetable.summary == dag.schedule_interval:
@@ -1696,6 +1699,8 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = cls.deserialize(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
+            elif k == "call_on_kill_on_dagrun_timeout":
+                v = cls.deserialize(v)
             # else use v as it is
 
             setattr(dag, k, v)
