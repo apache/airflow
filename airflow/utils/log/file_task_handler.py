@@ -22,7 +22,6 @@ from __future__ import annotations
 import inspect
 import logging
 import os
-import warnings
 from contextlib import suppress
 from enum import Enum
 from functools import cached_property
@@ -34,7 +33,7 @@ import pendulum
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
@@ -175,7 +174,6 @@ class FileTaskHandler(logging.Handler):
     instance context.  It reads logs from task instance's host machine.
 
     :param base_log_folder: Base log folder to place logs.
-    :param filename_template: template filename string
     :param max_bytes: max bytes size for the log file
     :param backup_count: backup file count for the log file
     :param delay:  default False -> StreamHandler, True -> Handler
@@ -189,7 +187,6 @@ class FileTaskHandler(logging.Handler):
     def __init__(
         self,
         base_log_folder: str,
-        filename_template: str | None = None,
         max_bytes: int = 0,
         backup_count: int = 0,
         delay: bool = False,
@@ -197,14 +194,6 @@ class FileTaskHandler(logging.Handler):
         super().__init__()
         self.handler: logging.Handler | None = None
         self.local_base = base_log_folder
-        if filename_template is not None:
-            warnings.warn(
-                "Passing filename_template to a log handler is deprecated and has no effect",
-                RemovedInAirflow3Warning,
-                # We want to reference the stack that actually instantiates the
-                # handler, not the one that calls super()__init__.
-                stacklevel=(2 if isinstance(self, FileTaskHandler) else 3),
-            )
         self.maintain_propagate: bool = False
         self.max_bytes = max_bytes
         self.backup_count = backup_count
