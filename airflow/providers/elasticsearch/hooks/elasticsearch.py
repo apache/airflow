@@ -23,12 +23,15 @@ from urllib import parse
 
 from deprecated import deprecated
 from elasticsearch import Elasticsearch
+from elasticsearch.client import SqlClient
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
+    from elastic_transport import ObjectApiResponse
+
     from airflow.models.connection import Connection as AirflowConnection
 
 
@@ -67,6 +70,11 @@ class ESConnection:
             self.es = Elasticsearch(self.url, http_auth=(user, password), **self.kwargs)
         else:
             self.es = Elasticsearch(self.url, **self.kwargs)
+        self.es_sql_client = SqlClient(self.es)
+
+    def execute_sql(self, query: str) -> ObjectApiResponse:
+        sql_query = {"query": query}
+        return self.es_sql_client.query(body=sql_query)
 
 
 class ElasticsearchSQLHook(DbApiHook):
