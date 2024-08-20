@@ -2674,7 +2674,6 @@ export interface components {
      * *New in version 3.0.0*
      */
     TaskInstanceOrderBy: string;
-
     /**
      * @description The name of the field to order the results by.
      * Prefix a field name with `-` to reverse the sort order.
@@ -4078,7 +4077,7 @@ export interface operations {
          * and `map_index`.
          *
          * *New in version 3.0.0*
-       */
+         */
         order_by?: components["parameters"]["TaskInstanceOrderBy"];
       };
     };
@@ -4314,7 +4313,7 @@ export interface operations {
          * and `map_index`.
          *
          * *New in version 3.0.0*
-       */
+         */
         order_by?: components["parameters"]["TaskInstanceOrderBy"];
       };
     };
