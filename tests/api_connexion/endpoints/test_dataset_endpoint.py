@@ -31,7 +31,7 @@ from airflow.models.dataset import (
     DatasetDagRunQueue,
     DatasetEvent,
     DatasetModel,
-    TaskOutletDatasetReference,
+    TaskOutletAssetReference,
 )
 from airflow.security import permissions
 from airflow.utils import timezone
@@ -278,7 +278,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         dataset3 = DatasetModel("somescheme://dataset/key")
         dag_ref1 = DagScheduleAssetReference(dag_id="dag1", dataset=dataset1)
         dag_ref2 = DagScheduleAssetReference(dag_id="dag2", dataset=dataset2)
-        task_ref1 = TaskOutletDatasetReference(dag_id="dag3", task_id="task1", dataset=dataset3)
+        task_ref1 = TaskOutletAssetReference(dag_id="dag3", task_id="task1", dataset=dataset3)
         session.add_all([dataset1, dataset2, dataset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1])
         session.commit()
         response = self.client.get(
@@ -305,7 +305,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         dataset3 = DatasetModel("somescheme://dataset/key")
         dag_ref1 = DagScheduleAssetReference(dag_id="dag1", dataset=dataset1)
         dag_ref2 = DagScheduleAssetReference(dag_id="dag2", dataset=dataset2)
-        task_ref1 = TaskOutletDatasetReference(dag_id="dag3", task_id="task1", dataset=dataset3)
+        task_ref1 = TaskOutletAssetReference(dag_id="dag3", task_id="task1", dataset=dataset3)
         session.add_all([dataset1, dataset2, dataset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1])
         session.commit()
         response = self.client.get(

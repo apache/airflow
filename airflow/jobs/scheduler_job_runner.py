@@ -52,7 +52,7 @@ from airflow.models.dataset import (
     DatasetDagRunQueue,
     DatasetEvent,
     DatasetModel,
-    TaskOutletDatasetReference,
+    TaskOutletAssetReference,
 )
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
@@ -2033,7 +2033,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 isouter=True,
             )
             .join(
-                TaskOutletDatasetReference,
+                TaskOutletAssetReference,
                 isouter=True,
             )
             .group_by(DatasetModel.id)
@@ -2041,7 +2041,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             .having(
                 and_(
                     func.count(DagScheduleAssetReference.dag_id) == 0,
-                    func.count(TaskOutletDatasetReference.dag_id) == 0,
+                    func.count(TaskOutletAssetReference.dag_id) == 0,
                 )
             )
         )

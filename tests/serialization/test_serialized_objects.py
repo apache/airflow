@@ -432,7 +432,7 @@ def test_all_pydantic_models_round_trip():
         "DatasetPydantic",
         "DagTagPydantic",
         "DagScheduleAssetReferencePydantic",
-        "TaskOutletDatasetReferencePydantic",
+        "TaskOutletAssetReferencePydantic",
         "DagOwnerAttributesPydantic",
         "DatasetEventPydantic",
         "TriggerPydantic",

@@ -42,13 +42,17 @@ from airflow.models.dataset import (
     DatasetDagRunQueue,
     DatasetEvent,
     DatasetModel,
-    TaskOutletDatasetReference,
 )
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
 from airflow.utils.session import create_session
-from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS, DagScheduleAssetReference, ParseImportError
+from tests.test_utils.compat import (
+    AIRFLOW_V_2_10_PLUS,
+    DagScheduleAssetReference,
+    ParseImportError,
+    TaskOutletAssetReference,
+)
 
 
 def clear_db_runs():
@@ -79,7 +83,7 @@ def clear_db_datasets():
         session.query(DatasetModel).delete()
         session.query(DatasetDagRunQueue).delete()
         session.query(DagScheduleAssetReference).delete()
-        session.query(TaskOutletDatasetReference).delete()
+        session.query(TaskOutletAssetReference).delete()
         if AIRFLOW_V_2_10_PLUS:
             from airflow.models.dataset import AssetAliasModel
 

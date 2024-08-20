@@ -2977,7 +2977,7 @@ class DagModel(Base):
     )
     schedule_datasets = association_proxy("schedule_dataset_references", "dataset")
     task_outlet_dataset_references = relationship(
-        "TaskOutletDatasetReference",
+        "TaskOutletAssetReference",
         cascade="all, delete, delete-orphan",
     )
     NUM_DAGS_PER_DAGRUN_QUERY = airflow_conf.getint(

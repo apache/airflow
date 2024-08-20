@@ -34,7 +34,7 @@ from airflow.api_connexion.schemas.dataset_schema import (
     DatasetEventCollection,
     QueuedEvent,
     QueuedEventCollection,
-    TaskOutletDatasetReference,
+    TaskOutletAssetReference,
     create_dataset_event_schema,
     dataset_collection_schema,
     dataset_event_collection_schema,
@@ -99,7 +99,7 @@ def get_datasets(
         dags_list = dag_ids.split(",")
         query = query.filter(
             (DatasetModel.consuming_dags.any(DagScheduleAssetReference.dag_id.in_(dags_list)))
-            | (DatasetModel.producing_tasks.any(TaskOutletDatasetReference.dag_id.in_(dags_list)))
+            | (DatasetModel.producing_tasks.any(TaskOutletAssetReference.dag_id.in_(dags_list)))
         )
     if uri_pattern:
         query = query.where(DatasetModel.uri.ilike(f"%{uri_pattern}%"))

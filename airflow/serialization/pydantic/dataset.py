@@ -31,8 +31,8 @@ class DagScheduleAssetReferencePydantic(BaseModelPydantic):
     model_config = ConfigDict(from_attributes=True)
 
 
-class TaskOutletDatasetReferencePydantic(BaseModelPydantic):
-    """Serializable version of the TaskOutletDatasetReference ORM SqlAlchemyModel used by internal API."""
+class TaskOutletAssetReferencePydantic(BaseModelPydantic):
+    """Serializable version of the TaskOutletAssetReference ORM SqlAlchemyModel used by internal API."""
 
     dataset_id: int
     dag_id: str
@@ -54,7 +54,7 @@ class DatasetPydantic(BaseModelPydantic):
     is_orphaned: bool
 
     consuming_dags: List[DagScheduleAssetReferencePydantic]
-    producing_tasks: List[TaskOutletDatasetReferencePydantic]
+    producing_tasks: List[TaskOutletAssetReferencePydantic]
 
     model_config = ConfigDict(from_attributes=True)
 

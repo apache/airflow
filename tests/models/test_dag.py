@@ -68,7 +68,7 @@ from airflow.models.dataset import (
     DatasetDagRunQueue,
     DatasetEvent,
     DatasetModel,
-    TaskOutletDatasetReference,
+    TaskOutletAssetReference,
 )
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.models.serialized_dag import SerializedDagModel
@@ -1032,11 +1032,11 @@ class TestDag:
         assert [(x.task_id, x.dag_id) for x in d1_orm.producing_tasks] == [(task_id, dag_id2)]
         assert set(
             session.query(
-                TaskOutletDatasetReference.task_id,
-                TaskOutletDatasetReference.dag_id,
-                TaskOutletDatasetReference.dataset_id,
+                TaskOutletAssetReference.task_id,
+                TaskOutletAssetReference.dag_id,
+                TaskOutletAssetReference.dataset_id,
             )
-            .filter(TaskOutletDatasetReference.dag_id.in_((dag_id1, dag_id2)))
+            .filter(TaskOutletAssetReference.dag_id.in_((dag_id1, dag_id2)))
             .all()
         ) == {
             (task_id, dag_id1, d2_orm.id),
@@ -1061,11 +1061,11 @@ class TestDag:
         assert [x.dag_id for x in d1_orm.consuming_dags] == []
         assert set(
             session.query(
-                TaskOutletDatasetReference.task_id,
-                TaskOutletDatasetReference.dag_id,
-                TaskOutletDatasetReference.dataset_id,
+                TaskOutletAssetReference.task_id,
+                TaskOutletAssetReference.dag_id,
+                TaskOutletAssetReference.dataset_id,
             )
-            .filter(TaskOutletDatasetReference.dag_id.in_((dag_id1, dag_id2)))
+            .filter(TaskOutletAssetReference.dag_id.in_((dag_id1, dag_id2)))
             .all()
         ) == {(task_id, dag_id1, d2_orm.id)}
 

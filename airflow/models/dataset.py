@@ -169,7 +169,7 @@ class DatasetModel(Base):
     is_orphaned = Column(Boolean, default=False, nullable=False, server_default="0")
 
     consuming_dags = relationship("DagScheduleAssetReference", back_populates="dataset")
-    producing_tasks = relationship("TaskOutletDatasetReference", back_populates="dataset")
+    producing_tasks = relationship("TaskOutletAssetReference", back_populates="dataset")
 
     __tablename__ = "dataset"
     __table_args__ = (
@@ -305,8 +305,8 @@ class DagScheduleAssetReference(Base):
         return f"{self.__class__.__name__}({', '.join(args)})"
 
 
-class TaskOutletDatasetReference(Base):
-    """References from a task to a dataset that it updates / produces."""
+class TaskOutletAssetReference(Base):
+    """References from a task to an asset that it updates / produces."""
 
     dataset_id = Column(Integer, primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)

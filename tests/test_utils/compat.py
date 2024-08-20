@@ -56,13 +56,16 @@ except ImportError:
 
 
 if TYPE_CHECKING:
-    from airflow.models.dataset import DagScheduleAssetReference
+    from airflow.models.dataset import DagScheduleAssetReference, TaskOutletAssetReference
 else:
     try:
-        from airflow.models.dataset import DagScheduleAssetReference
+        from airflow.models.dataset import DagScheduleAssetReference, TaskOutletAssetReference
     except ImportError:
         # dataset is renamed to asset since Airflow 3.0
-        from airflow.models.dataset import DagScheduleDatasetReference as DagScheduleAssetReference
+        from airflow.models.dataset import (
+            DagScheduleDatasetReference as DagScheduleAssetReference,
+            TaskOutletDatasetReference as TaskOutletAssetReference,
+        )
 
 
 def deserialize_operator(serialized_operator: dict[str, Any]) -> Operator:

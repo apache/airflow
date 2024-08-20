@@ -32,7 +32,7 @@ from airflow.models.dataset import (
     DagScheduleAssetReference,
     DatasetEvent,
     DatasetModel,
-    TaskOutletDatasetReference,
+    TaskOutletAssetReference,
 )
 from airflow.serialization.pydantic.dag import DagModelPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
@@ -257,7 +257,7 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
     dag_asset_ref = DagScheduleAssetReference(dag_id=dag.dag_id)
     session.add(dag_asset_ref)
     dag_asset_ref.dataset = ds1
-    task_ds_ref = TaskOutletDatasetReference(task_id=task1.task_id, dag_id=dag.dag_id)
+    task_ds_ref = TaskOutletAssetReference(task_id=task1.task_id, dag_id=dag.dag_id)
     session.add(task_ds_ref)
     task_ds_ref.dataset = ds1
 

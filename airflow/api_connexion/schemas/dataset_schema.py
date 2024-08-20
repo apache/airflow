@@ -29,17 +29,17 @@ from airflow.models.dataset import (
     DagScheduleAssetReference,
     DatasetEvent,
     DatasetModel,
-    TaskOutletDatasetReference,
+    TaskOutletAssetReference,
 )
 
 
-class TaskOutletDatasetReferenceSchema(SQLAlchemySchema):
-    """TaskOutletDatasetReference DB schema."""
+class TaskOutletAssetReferenceSchema(SQLAlchemySchema):
+    """TaskOutletAssetReference DB schema."""
 
     class Meta:
         """Meta."""
 
-        model = TaskOutletDatasetReference
+        model = TaskOutletAssetReference
 
     dag_id = auto_field()
     task_id = auto_field()
@@ -85,7 +85,7 @@ class DatasetSchema(SQLAlchemySchema):
     extra = JsonObjectField()
     created_at = auto_field()
     updated_at = auto_field()
-    producing_tasks = fields.List(fields.Nested(TaskOutletDatasetReferenceSchema))
+    producing_tasks = fields.List(fields.Nested(TaskOutletAssetReferenceSchema))
     consuming_dags = fields.List(fields.Nested(DagScheduleAssetReferenceSchema))
     aliases = fields.List(fields.Nested(DatasetAliasSchema))
 
