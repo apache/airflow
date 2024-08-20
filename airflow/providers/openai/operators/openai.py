@@ -92,6 +92,8 @@ class OpenAITriggerBatchOperator(BaseOperator):
         Defaults to 3 seconds.
     :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
         Only used when ``deferrable`` is False. Defaults to 24 hour, which is the SLA for OpenAI Batch API.
+    :param wait_for_completion: Optional. Whether to wait for the batch to complete. If set to False, the operator
+        will return immediately after triggering the batch. Defaults to True.
 
     .. seealso::
         For more information on how to use this operator, please take a look at the guide:
@@ -108,6 +110,7 @@ class OpenAITriggerBatchOperator(BaseOperator):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         wait_seconds: float = 3,
         timeout: float = 24 * 60 * 60,
+        wait_for_completion: bool = True,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
@@ -117,6 +120,7 @@ class OpenAITriggerBatchOperator(BaseOperator):
         self.deferrable = deferrable
         self.wait_seconds = wait_seconds
         self.timeout = timeout
+        self.wait_for_completion = wait_for_completion
         self.batch_id: str | None = None
 
     @cached_property
@@ -127,6 +131,8 @@ class OpenAITriggerBatchOperator(BaseOperator):
     def execute(self, context: Context) -> str:
         batch = self.hook.create_batch(file_id=self.file_id, endpoint=self.endpoint)
         self.batch_id = batch.id
+        if not self.wait_for_completion:
+            return self.batch_id
         if self.deferrable:
             self.defer(
                 timeout=self.execution_timeout,
