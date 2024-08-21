@@ -1653,7 +1653,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                             task.on_kill()
                             task_instance.state = TaskInstanceState.FAILED
                         except Exception as e:
-                            self.log.error(f"Error when calling on_kill for task {task_instance}: {e}")
+                            self.log.error("Error when calling on_kill for task %s: %s", task_instance, e)
                     else:
                         task_instance.state = TaskInstanceState.SKIPPED
                     session.merge(task_instance)
