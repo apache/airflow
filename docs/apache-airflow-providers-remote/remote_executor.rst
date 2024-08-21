@@ -54,6 +54,15 @@ Here are a few imperative requirements for your workers:
   pipelines files shared there should work as well
 
 
+Minimum configuration for the Remote Worker to make it running is:
+
+- Section ``[remote]``
+
+  - ``api_enabled``: Must be set to true. It is disabled by intend not to expose
+    the endpoint by default. This is the endpoint the worker connects to.
+    In a future release a dedicated API server can be started.
+  - ``api_url``: Must be set to the URL which exposes the web endpoint
+
 To kick off a worker, you need to setup Airflow and kick off the worker
 subcommand
 

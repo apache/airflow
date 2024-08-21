@@ -70,7 +70,7 @@ core:
     executor:
       description: |
         The executor class that airflow should use. Choices include
-        ``SequentialExecutor``, ``LocalExecutor``, ``CeleryExecutor``,
+        ``SequentialExecutor``, ``LocalExecutor``, ``CeleryExecutor``, ``RemoteExecutor``,
         ``KubernetesExecutor``, ``CeleryKubernetesExecutor``, ``LocalKubernetesExecutor`` or the
         full import path to the class when using a custom executor.
       version_added: ~
