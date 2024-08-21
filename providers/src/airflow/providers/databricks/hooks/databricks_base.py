@@ -26,6 +26,7 @@ operators talk to the ``api/2.0/jobs/runs/submit``
 from __future__ import annotations
 
 import copy
+import os
 import platform
 import time
 from asyncio.exceptions import TimeoutError
@@ -35,7 +36,12 @@ from urllib.parse import urlsplit
 
 import aiohttp
 import requests
+<<<<<<< HEAD:providers/src/airflow/providers/databricks/hooks/databricks_base.py
 from aiohttp.client_exceptions import ClientConnectorError
+=======
+from azure.core.credentials import AccessToken
+from azure.identity import DefaultAzureCredential, WorkloadIdentityCredential
+>>>>>>> 29de4a2773 (add kubernetes check):airflow/providers/databricks/hooks/databricks_base.py
 from requests import PreparedRequest, exceptions as requests_exceptions
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.exceptions import JSONDecodeError
@@ -52,9 +58,7 @@ from airflow import __version__
 from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.hooks.base import BaseHook
 from airflow.providers_manager import ProvidersManager
-
-from azure.core.credentials import AccessToken
-from azure.identity import WorkloadIdentityCredential
+from airflow.settings import RUNNING_IN_KUBERNETES
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -463,6 +467,10 @@ class BaseDatabricksHook(BaseHook):
         except (requests_exceptions.RequestException, ValueError) as e:
             raise AirflowException(f"Can't reach Azure Metadata Service: {e}")
 
+    def _running_in_kubernetes(self):
+        """https://kubernetes.io/docs/tutorials/services/connect-applications-service/#environment-variables."""
+        return bool(os.environ.get("KUBERNETES_SERVICE_HOST", ""))
+
     def _get_token(self, raise_error: bool = False) -> str | None:
         if "token" in self.databricks_conn.extra_dejson:
             self.log.info(
@@ -482,14 +490,22 @@ class BaseDatabricksHook(BaseHook):
             self._check_azure_metadata_service()
             return self._get_aad_token(DEFAULT_DATABRICKS_SCOPE)
         elif self.databricks_conn.extra_dejson.get(WORKLOAD_IDENTITY_SETTING_KEY, False):
+            if not self._running_in_kubernetes():
+                raise AirflowException(
+                    "Workload identity authentication is only supporting when running in an Kubernetes cluster"
+                )
+
             self.log.debug("Using Azure Workload Identity authentication.")
-            
+
             # This only works in an AKS Cluster given the following environment variables:
             # AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_FEDERATED_TOKEN_FILE
-            credential = WorkloadIdentityCredential()
-            
+            #
+            # While there is a WorkloadIdentityCredential class, the below class is advised by microsoft examples
+            # https://learn.microsoft.com/nl-nl/azure/aks/workload-identity-overview
+            credential = DefaultAzureCredential()
+
             token_obj: AccessToken = credential.get_token(DEFAULT_DATABRICKS_SCOPE)
-            
+
             return token_obj.token
         elif self.databricks_conn.extra_dejson.get("service_principal_oauth", False):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
