@@ -103,6 +103,10 @@ class RemoteJobModel(Base, LoggingMixin):
             map_index=self.map_index,
         )
 
+    @property
+    def last_update_t(self) -> float:
+        return self.last_update.timestamp()
+
 
 class RemoteJob(BaseModelPydantic, LoggingMixin):
     """Accessor for remote jobs as logical model."""
