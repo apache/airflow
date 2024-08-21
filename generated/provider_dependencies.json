@@ -1271,7 +1271,7 @@
       "apache.iceberg"
     ],
     "excluded-python-versions": [],
-    "state": "ready"
+    "state": "removed"
   },
   "telegram": {
     "deps": [
