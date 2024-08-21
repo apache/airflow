@@ -23,6 +23,7 @@ import datetime
 # Copyright 2013, Daniel Vaz Gaspar
 from typing import TYPE_CHECKING
 
+import packaging.version
 from flask import current_app, g
 from flask_appbuilder.models.sqla import Model
 from sqlalchemy import (
@@ -42,8 +43,15 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import backref, declared_attr, registry, relationship
 
+from airflow import __version__ as airflow_version
 from airflow.auth.managers.models.base_user import BaseUser
 from airflow.models.base import _get_schema, naming_convention
+
+if TYPE_CHECKING:
+    try:
+        from sqlalchemy import Identity
+    except Exception:
+        Identity = None
 
 """
 Compatibility note: The models in this file are duplicated from Flask AppBuilder.
@@ -52,13 +60,14 @@ Compatibility note: The models in this file are duplicated from Flask AppBuilder
 metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
 mapper_registry = registry(metadata=metadata)
 
-Model.metadata = metadata
+if packaging.version.parse(packaging.version.parse(airflow_version).base_version) >= packaging.version.parse(
+    "3.0.0"
+):
+    Model.metadata = metadata
+else:
+    from airflow.models.base import Base
 
-if TYPE_CHECKING:
-    try:
-        from sqlalchemy import Identity
-    except Exception:
-        Identity = None
+    Model.metadata = Base.metadata
 
 
 class Action(Model):
