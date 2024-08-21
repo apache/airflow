@@ -894,6 +894,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             ti_queued = ti.try_number == buffer_key.try_number and ti.state in (
                 TaskInstanceState.SCHEDULED,
                 TaskInstanceState.QUEUED,
+                TaskInstanceState.RUNNING,
             )
             ti_requeued = (
                 ti.queued_by_job_id != job_id  # Another scheduler has queued this task again
