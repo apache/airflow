@@ -373,7 +373,6 @@ class TestDockerSwarmOperator:
         )
 
         assert operator.logging_driver == "json-file"
-        
 
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
     def test_invalid_logging_driver(self, types_mock, docker_api_client_patcher):
