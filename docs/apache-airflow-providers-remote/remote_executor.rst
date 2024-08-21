@@ -56,6 +56,7 @@ Here are a few imperative requirements for your workers:
 
 Minimum configuration for the Remote Worker to make it running is:
 
+- Section ``[core]``: Executor must be set or added to be ``airflow.providers.remote.executors.RemoteExecutor``
 - Section ``[remote]``
 
   - ``api_enabled``: Must be set to true. It is disabled by intend not to expose
