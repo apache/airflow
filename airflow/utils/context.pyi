@@ -36,7 +36,7 @@ from airflow.configuration import AirflowConfigParser
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetEvent
+from airflow.models.dataset import AssetEvent
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
@@ -75,11 +75,11 @@ class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
     def __len__(self) -> int: ...
     def __getitem__(self, key: str | Dataset | AssetAlias) -> OutletEventAccessor: ...
 
-class InletEventsAccessor(Sequence[DatasetEvent]):
+class InletEventsAccessor(Sequence[AssetEvent]):
     @overload
-    def __getitem__(self, key: int) -> DatasetEvent: ...
+    def __getitem__(self, key: int) -> AssetEvent: ...
     @overload
-    def __getitem__(self, key: slice) -> Sequence[DatasetEvent]: ...
+    def __getitem__(self, key: slice) -> Sequence[AssetEvent]: ...
     def __len__(self) -> int: ...
 
 class InletEventsAccessors(Mapping[str, InletEventsAccessor]):
@@ -132,7 +132,7 @@ class Context(TypedDict, total=False):
     ti: TaskInstance | TaskInstancePydantic
     tomorrow_ds: str
     tomorrow_ds_nodash: str
-    triggering_dataset_events: Mapping[str, Collection[DatasetEvent | DatasetEventPydantic]]
+    triggering_dataset_events: Mapping[str, Collection[AssetEvent | DatasetEventPydantic]]
     ts: str
     ts_nodash: str
     ts_nodash_with_tz: str

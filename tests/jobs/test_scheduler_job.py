@@ -53,7 +53,7 @@ from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import AssetDagRunQueue, AssetModel, DatasetEvent
+from airflow.models.dataset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel
@@ -4116,7 +4116,7 @@ class TestSchedulerJob:
 
         asset1_id = session.query(AssetModel.id).filter_by(uri=dataset1.uri).scalar()
 
-        event1 = DatasetEvent(
+        event1 = AssetEvent(
             dataset_id=asset1_id,
             source_task_id="task",
             source_dag_id=dr.dag_id,
@@ -4132,7 +4132,7 @@ class TestSchedulerJob:
             data_interval=(DEFAULT_DATE + timedelta(days=5), DEFAULT_DATE + timedelta(days=6)),
         )
 
-        event2 = DatasetEvent(
+        event2 = AssetEvent(
             dataset_id=asset1_id,
             source_task_id="task",
             source_dag_id=dr.dag_id,
@@ -4208,9 +4208,7 @@ class TestSchedulerJob:
 
         asset_id = session.scalars(select(AssetModel.id).filter_by(uri=ds.uri)).one()
 
-        dse_q = (
-            select(DatasetEvent).where(DatasetEvent.dataset_id == asset_id).order_by(DatasetEvent.timestamp)
-        )
+        ase_q = select(AssetEvent).where(AssetEvent.dataset_id == asset_id).order_by(AssetEvent.timestamp)
         adrq_q = select(AssetDagRunQueue).where(
             AssetDagRunQueue.dataset_id == asset_id, AssetDagRunQueue.target_dag_id == "consumer"
         )
@@ -4226,7 +4224,7 @@ class TestSchedulerJob:
             session=session,
         )
         session.flush()
-        assert session.scalars(dse_q).one().source_run_id == dr1.run_id
+        assert session.scalars(ase_q).one().source_run_id == dr1.run_id
         assert session.scalars(adrq_q).one_or_none() is None
 
         # Simulate the consumer DAG being enabled.
@@ -4240,7 +4238,7 @@ class TestSchedulerJob:
             session=session,
         )
         session.flush()
-        assert [e.source_run_id for e in session.scalars(dse_q)] == [dr1.run_id, dr2.run_id]
+        assert [e.source_run_id for e in session.scalars(ase_q)] == [dr1.run_id, dr2.run_id]
         assert session.scalars(adrq_q).one().target_dag_id == "consumer"
 
     @time_machine.travel(DEFAULT_DATE + datetime.timedelta(days=1, seconds=9), tick=False)

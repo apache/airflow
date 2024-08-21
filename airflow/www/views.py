@@ -106,7 +106,7 @@ from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, Trigger, XCom
 from airflow.models.dag import get_dataset_triggered_next_run_info
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
-from airflow.models.dataset import AssetDagRunQueue, AssetModel, DagScheduleAssetReference, DatasetEvent
+from airflow.models.dataset import AssetDagRunQueue, AssetEvent, AssetModel, DagScheduleAssetReference
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
@@ -3426,7 +3426,7 @@ class Airflow(AirflowBaseView):
                     select(
                         AssetModel.id,
                         AssetModel.uri,
-                        func.max(DatasetEvent.timestamp).label("lastUpdate"),
+                        func.max(AssetEvent.timestamp).label("lastUpdate"),
                     )
                     .join(DagScheduleAssetReference, DagScheduleAssetReference.dataset_id == AssetModel.id)
                     .join(
@@ -3438,11 +3438,11 @@ class Airflow(AirflowBaseView):
                         isouter=True,
                     )
                     .join(
-                        DatasetEvent,
+                        AssetEvent,
                         and_(
-                            DatasetEvent.dataset_id == AssetModel.id,
+                            AssetEvent.dataset_id == AssetModel.id,
                             (
-                                DatasetEvent.timestamp >= latest_run.execution_date
+                                AssetEvent.timestamp >= latest_run.execution_date
                                 if latest_run and latest_run.execution_date
                                 else True
                             ),
@@ -3547,14 +3547,14 @@ class Airflow(AirflowBaseView):
             elif lstripped_orderby == "last_dataset_update":
                 if order_by.startswith("-"):
                     order_by = (
-                        func.max(DatasetEvent.timestamp).desc(),
+                        func.max(AssetEvent.timestamp).desc(),
                         AssetModel.uri.asc(),
                     )
                     if session.bind.dialect.name == "postgresql":
                         order_by = (order_by[0].nulls_last(), *order_by[1:])
                 else:
                     order_by = (
-                        func.max(DatasetEvent.timestamp).asc(),
+                        func.max(AssetEvent.timestamp).asc(),
                         AssetModel.uri.desc(),
                     )
                     if session.bind.dialect.name == "postgresql":
@@ -3568,10 +3568,10 @@ class Airflow(AirflowBaseView):
                 select(
                     AssetModel.id,
                     AssetModel.uri,
-                    func.max(DatasetEvent.timestamp).label("last_dataset_update"),
-                    func.sum(case((DatasetEvent.id.is_not(None), 1), else_=0)).label("total_updates"),
+                    func.max(AssetEvent.timestamp).label("last_dataset_update"),
+                    func.sum(case((AssetEvent.id.is_not(None), 1), else_=0)).label("total_updates"),
                 )
-                .join(DatasetEvent, DatasetEvent.dataset_id == AssetModel.id, isouter=not has_event_filters)
+                .join(AssetEvent, AssetEvent.dataset_id == AssetModel.id, isouter=not has_event_filters)
                 .group_by(
                     AssetModel.id,
                     AssetModel.uri,
@@ -3580,15 +3580,15 @@ class Airflow(AirflowBaseView):
             )
 
             if has_event_filters:
-                count_query = count_query.join(DatasetEvent, DatasetEvent.dataset_id == AssetModel.id)
+                count_query = count_query.join(AssetEvent, AssetEvent.dataset_id == AssetModel.id)
 
             filters = [~AssetModel.is_orphaned]
             if uri_pattern:
                 filters.append(AssetModel.uri.ilike(f"%{uri_pattern}%"))
             if updated_after:
-                filters.append(DatasetEvent.timestamp >= updated_after)
+                filters.append(AssetEvent.timestamp >= updated_after)
             if updated_before:
-                filters.append(DatasetEvent.timestamp <= updated_before)
+                filters.append(AssetEvent.timestamp <= updated_before)
 
             query = query.where(*filters).offset(offset).limit(limit)
             count_query = count_query.where(*filters)

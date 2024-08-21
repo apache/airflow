@@ -16,7 +16,7 @@
 # under the License.
 
 """
-Example DAG to demonstrate annotating a dataset event with extra information.
+Example DAG to demonstrate annotating an asset event with extra information.
 
 Also see examples in ``example_inlet_event_extra.py``.
 """

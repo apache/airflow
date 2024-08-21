@@ -26,8 +26,8 @@ Before running any DAG, the schedule of the "asset_alias_example_alias_consumer"
 This is expected because the asset alias has not been resolved into any dataset yet.
 
 Once the "dataset_s3_bucket_producer" DAG is triggered, the "dataset_s3_bucket_consumer" DAG should be triggered upon completion.
-This is because the asset alias "example-alias" is used to add a dataset event to the dataset "s3://bucket/my-task"
-during the "produce_dataset_events_through_asset_alias" task.
+This is because the asset alias "example-alias" is used to add an asset event to the dataset "s3://bucket/my-task"
+during the "produce_asset_events_through_asset_alias" task.
 As the DAG "asset-alias-consumer" relies on asset alias "example-alias" which was previously unresolved,
 the DAG "asset-alias-consumer" (along with all the DAGs in the same file) will be re-parsed and
 thus update its schedule to the dataset "s3://bucket/my-task" and will also be triggered.
@@ -50,10 +50,10 @@ with DAG(
 ):
 
     @task(outlets=[Dataset("s3://bucket/my-task")])
-    def produce_dataset_events():
+    def produce_asset_events():
         pass
 
-    produce_dataset_events()
+    produce_asset_events()
 
 with DAG(
     dag_id="asset_alias_example_alias_producer",
@@ -64,12 +64,12 @@ with DAG(
 ):
 
     @task(outlets=[AssetAlias("example-alias")])
-    def produce_dataset_events_through_asset_alias(*, outlet_events=None):
+    def produce_asset_events_through_asset_alias(*, outlet_events=None):
         bucket_name = "bucket"
         object_path = "my-task"
         outlet_events["example-alias"].add(Dataset(f"s3://{bucket_name}/{object_path}"))
 
-    produce_dataset_events_through_asset_alias()
+    produce_asset_events_through_asset_alias()
 
 with DAG(
     dag_id="dataset_s3_bucket_consumer",
@@ -80,10 +80,10 @@ with DAG(
 ):
 
     @task
-    def consume_dataset_event():
+    def consume_asset_event():
         pass
 
-    consume_dataset_event()
+    consume_asset_event()
 
 with DAG(
     dag_id="asset_alias_example_alias_consumer",
@@ -94,8 +94,8 @@ with DAG(
 ):
 
     @task(inlets=[AssetAlias("example-alias")])
-    def consume_dataset_event_from_asset_alias(*, inlet_events=None):
+    def consume_asset_event_from_asset_alias(*, inlet_events=None):
         for event in inlet_events[AssetAlias("example-alias")]:
             print(event)
 
-    consume_dataset_event_from_asset_alias()
+    consume_asset_event_from_asset_alias()

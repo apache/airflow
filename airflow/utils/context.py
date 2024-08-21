@@ -47,7 +47,7 @@ from airflow.assets import (
     extract_event_key,
 )
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.dataset import AssetAliasModel, AssetModel, DatasetEvent
+from airflow.models.dataset import AssetAliasModel, AssetEvent, AssetModel
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.types import NOTSET
 
@@ -175,7 +175,7 @@ class OutletEventAccessor:
     asset_alias_events: list[AssetAliasEvent] = attrs.field(factory=list)
 
     def add(self, dataset: Dataset | str, extra: dict[str, Any] | None = None) -> None:
-        """Add a DatasetEvent to an existing Dataset."""
+        """Add an AssetEvent to an existing Dataset."""
         if isinstance(dataset, str):
             dataset_uri = dataset
         elif isinstance(dataset, Dataset):
@@ -198,7 +198,7 @@ class OutletEventAccessor:
 
 class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
     """
-    Lazy mapping of outlet dataset event accessors.
+    Lazy mapping of outlet asset event accessors.
 
     :meta private:
     """
@@ -222,26 +222,26 @@ class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
         return self._dict[event_key]
 
 
-class LazyDatasetEventSelectSequence(LazySelectSequence[DatasetEvent]):
+class LazyDatasetEventSelectSequence(LazySelectSequence[AssetEvent]):
     """
-    List-like interface to lazily access DatasetEvent rows.
+    List-like interface to lazily access AssetEvent rows.
 
     :meta private:
     """
 
     @staticmethod
     def _rebuild_select(stmt: TextClause) -> Select:
-        return select(DatasetEvent).from_statement(stmt)
+        return select(AssetEvent).from_statement(stmt)
 
     @staticmethod
-    def _process_row(row: Row) -> DatasetEvent:
+    def _process_row(row: Row) -> AssetEvent:
         return row[0]
 
 
 @attrs.define(init=False)
 class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
     """
-    Lazy mapping for inlet dataset events accessors.
+    Lazy mapping for inlet asset events accessors.
 
     :meta private:
     """
@@ -279,18 +279,18 @@ class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
 
         if isinstance(obj, AssetAlias):
             asset_alias = self._asset_aliases[obj.name]
-            join_clause = DatasetEvent.source_aliases
+            join_clause = AssetEvent.source_aliases
             where_clause = AssetAliasModel.name == asset_alias.name
         elif isinstance(obj, (Dataset, str)):
             dataset = self._datasets[extract_event_key(obj)]
-            join_clause = DatasetEvent.dataset
+            join_clause = AssetEvent.dataset
             where_clause = AssetModel.uri == dataset.uri
         else:
             raise ValueError(key)
 
         return LazyDatasetEventSelectSequence.from_select(
-            select(DatasetEvent).join(join_clause).where(where_clause),
-            order_by=[DatasetEvent.timestamp],
+            select(AssetEvent).join(join_clause).where(where_clause),
+            order_by=[AssetEvent.timestamp],
             session=self._session,
         )
 

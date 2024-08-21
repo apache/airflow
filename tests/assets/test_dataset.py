@@ -310,7 +310,7 @@ def test_dataset_dag_run_queue_processing(session, clear_datasets, dag_maker, cr
         session.add(AssetDagRunQueue(dataset_id=am.id, target_dag_id=dag.dag_id))
     session.commit()
 
-    # Fetch and evaluate dataset triggers for all DAGs affected by dataset events
+    # Fetch and evaluate dataset triggers for all DAGs affected by asset events
     records = session.scalars(select(AssetDagRunQueue)).all()
     dag_statuses = defaultdict(lambda: defaultdict(bool))
     for record in records:

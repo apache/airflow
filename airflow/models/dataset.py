@@ -116,7 +116,7 @@ class AssetAliasModel(Base):
         backref="aliases",
     )
     dataset_events = relationship(
-        "DatasetEvent",
+        "AssetEvent",
         secondary=dataset_alias_dataset_event_assocation_table,
         back_populates="source_aliases",
     )
@@ -355,7 +355,7 @@ class TaskOutletAssetReference(Base):
 
 
 class AssetDagRunQueue(Base):
-    """Model for storing dataset events that need processing."""
+    """Model for storing asset events that need processing."""
 
     dataset_id = Column(Integer, primary_key=True, nullable=False)
     target_dag_id = Column(StringID(), primary_key=True, nullable=False)
@@ -405,7 +405,7 @@ association_table = Table(
 )
 
 
-class DatasetEvent(Base):
+class AssetEvent(Base):
     """
     A table to store datasets events.
 
@@ -417,7 +417,7 @@ class DatasetEvent(Base):
     :param source_map_index: the map_index of the TI which updated the dataset
     :param timestamp: the time the event was logged
 
-    We use relationships instead of foreign keys so that dataset events are not deleted even
+    We use relationships instead of foreign keys so that asset events are not deleted even
     if the foreign key object is.
     """
 
@@ -451,10 +451,10 @@ class DatasetEvent(Base):
     source_task_instance = relationship(
         "TaskInstance",
         primaryjoin="""and_(
-            DatasetEvent.source_dag_id == foreign(TaskInstance.dag_id),
-            DatasetEvent.source_run_id == foreign(TaskInstance.run_id),
-            DatasetEvent.source_task_id == foreign(TaskInstance.task_id),
-            DatasetEvent.source_map_index == foreign(TaskInstance.map_index),
+            AssetEvent.source_dag_id == foreign(TaskInstance.dag_id),
+            AssetEvent.source_run_id == foreign(TaskInstance.run_id),
+            AssetEvent.source_task_id == foreign(TaskInstance.task_id),
+            AssetEvent.source_map_index == foreign(TaskInstance.map_index),
         )""",
         viewonly=True,
         lazy="select",
@@ -463,8 +463,8 @@ class DatasetEvent(Base):
     source_dag_run = relationship(
         "DagRun",
         primaryjoin="""and_(
-            DatasetEvent.source_dag_id == foreign(DagRun.dag_id),
-            DatasetEvent.source_run_id == foreign(DagRun.run_id),
+            AssetEvent.source_dag_id == foreign(DagRun.dag_id),
+            AssetEvent.source_run_id == foreign(DagRun.run_id),
         )""",
         viewonly=True,
         lazy="select",
@@ -472,7 +472,7 @@ class DatasetEvent(Base):
     )
     dataset = relationship(
         AssetModel,
-        primaryjoin="DatasetEvent.dataset_id == foreign(AssetModel.id)",
+        primaryjoin="AssetEvent.dataset_id == foreign(AssetModel.id)",
         viewonly=True,
         lazy="select",
         uselist=False,

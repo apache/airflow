@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from sqlalchemy import Session
 
     from airflow.assets import BaseAsset
-    from airflow.models.dataset import DatasetEvent
+    from airflow.models.dataset import AssetEvent
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 
@@ -198,7 +198,7 @@ class AssetTriggeredTimetable(_TrivialTimetable):
         logical_date: DateTime,
         data_interval: DataInterval | None,
         session: Session | None = None,
-        events: Collection[DatasetEvent] | None = None,
+        events: Collection[AssetEvent] | None = None,
         **extra,
     ) -> str:
         from airflow.models.dagrun import DagRun
@@ -208,7 +208,7 @@ class AssetTriggeredTimetable(_TrivialTimetable):
     def data_interval_for_events(
         self,
         logical_date: DateTime,
-        events: Collection[DatasetEvent],
+        events: Collection[AssetEvent],
     ) -> DataInterval:
         if not events:
             return DataInterval(logical_date, logical_date)

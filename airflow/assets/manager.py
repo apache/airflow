@@ -30,10 +30,10 @@ from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dataset import (
     AssetAliasModel,
     AssetDagRunQueue,
+    AssetEvent,
     AssetModel,
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
-    DatasetEvent,
 )
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -114,7 +114,7 @@ class AssetManager(LoggingMixin):
         source_alias_names: Iterable[str] | None = None,
         session: Session,
         **kwargs,
-    ) -> DatasetEvent | None:
+    ) -> AssetEvent | None:
         """
         Register asset related changes.
 
@@ -148,7 +148,7 @@ class AssetManager(LoggingMixin):
                 source_map_index=task_instance.map_index,
             )
 
-        asset_event = DatasetEvent(**event_kwargs)
+        asset_event = AssetEvent(**event_kwargs)
         session.add(asset_event)
         session.flush()  # Ensure the event is written earlier than DDRQ entries below.
 

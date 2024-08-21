@@ -28,7 +28,7 @@ from airflow.api_connexion.schemas.dataset_schema import (
     dataset_schema,
 )
 from airflow.assets import Dataset
-from airflow.models.dataset import AssetAliasModel, AssetModel, DatasetEvent
+from airflow.models.dataset import AssetAliasModel, AssetEvent, AssetModel
 from airflow.operators.empty import EmptyOperator
 from tests.test_utils.db import clear_db_dags, clear_db_datasets
 
@@ -146,7 +146,7 @@ class TestDatasetEventSchema(TestDatasetSchemaBase):
         assetssetsset = AssetModel("s3://abc")
         session.add(assetssetsset)
         session.commit()
-        event = DatasetEvent(
+        event = AssetEvent(
             id=1,
             dataset_id=assetssetsset.id,
             extra={"foo": "bar"},
@@ -177,7 +177,7 @@ class TestDatasetEventCreateSchema(TestDatasetSchemaBase):
         asset = AssetModel("s3://abc")
         session.add(asset)
         session.commit()
-        event = DatasetEvent(
+        event = AssetEvent(
             id=1,
             dataset_id=asset.id,
             extra={"foo": "bar"},
@@ -215,7 +215,7 @@ class TestDatasetEventCollectionSchema(TestDatasetSchemaBase):
             "created_dagruns": [],
         }
 
-        events = [DatasetEvent(id=i, **common) for i in [1, 2]]
+        events = [AssetEvent(id=i, **common) for i in [1, 2]]
         session.add_all(events)
         session.flush()
         serialized_data = dataset_event_collection_schema.dump(

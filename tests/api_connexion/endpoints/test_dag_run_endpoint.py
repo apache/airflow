@@ -27,7 +27,7 @@ from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.assets import Dataset
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import AssetModel, DatasetEvent
+from airflow.models.dataset import AssetEvent, AssetModel
 from airflow.models.param import Param
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
@@ -1919,7 +1919,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         ti = dr.task_instances[0]
 
         asset1_id = session.query(AssetModel.id).filter_by(uri=dataset1.uri).scalar()
-        event = DatasetEvent(
+        event = AssetEvent(
             dataset_id=asset1_id,
             source_task_id=ti.task_id,
             source_dag_id=ti.dag_id,
@@ -2015,7 +2015,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         ti = dr.task_instances[0]
 
         asset1_id = session.query(AssetModel.id).filter_by(uri=dataset1.uri).scalar()
-        event = DatasetEvent(
+        event = AssetEvent(
             dataset_id=asset1_id,
             source_task_id=ti.task_id,
             source_dag_id=ti.dag_id,

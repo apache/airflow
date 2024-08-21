@@ -22,7 +22,7 @@ import pytest
 from dateutil.tz import UTC
 
 from airflow.assets import Dataset
-from airflow.models.dataset import AssetModel, DatasetEvent
+from airflow.models.dataset import AssetEvent, AssetModel
 from airflow.operators.empty import EmptyOperator
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_datasets
@@ -119,14 +119,14 @@ class TestGetDatasets(TestDatasetEndpoint):
         ]
         session.add_all(assets)
         # Update datasets, one per day, starting with datasets[0], ending with datasets[2]
-        dataset_events = [
-            DatasetEvent(
+        asset_events = [
+            AssetEvent(
                 dataset_id=assets[i].id,
                 timestamp=today.add(days=-len(assets) + i + 1),
             )
             for i in range(len(assets))
         ]
-        session.add_all(dataset_events)
+        session.add_all(asset_events)
         session.commit()
         assert session.query(AssetModel).count() == len(assets)
 
@@ -162,21 +162,21 @@ class TestGetDatasets(TestDatasetEndpoint):
             for i in range(1, len(ordered_dataset_ids) + 1)
         ]
         session.add_all(assets)
-        dataset_events = [
-            DatasetEvent(
+        asset_events = [
+            AssetEvent(
                 dataset_id=assets[2].id,
                 timestamp=pendulum.today("UTC").add(days=-3),
             ),
-            DatasetEvent(
+            AssetEvent(
                 dataset_id=assets[1].id,
                 timestamp=pendulum.today("UTC").add(days=-2),
             ),
-            DatasetEvent(
+            AssetEvent(
                 dataset_id=assets[1].id,
                 timestamp=pendulum.today("UTC").add(days=-1),
             ),
         ]
-        session.add_all(dataset_events)
+        session.add_all(asset_events)
         session.commit()
         assert session.query(AssetModel).count() == len(ordered_dataset_ids)
 
@@ -295,7 +295,7 @@ class TestGetDatasets(TestDatasetEndpoint):
             # dataset 1 events
             session.add_all(
                 [
-                    DatasetEvent(
+                    AssetEvent(
                         dataset_id=asset1_id,
                         timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
                     )
@@ -305,7 +305,7 @@ class TestGetDatasets(TestDatasetEndpoint):
             # dataset 3 events
             session.add_all(
                 [
-                    DatasetEvent(
+                    AssetEvent(
                         dataset_id=asset3_id,
                         timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
                     )
@@ -315,7 +315,7 @@ class TestGetDatasets(TestDatasetEndpoint):
             # dataset 4 events
             session.add_all(
                 [
-                    DatasetEvent(
+                    AssetEvent(
                         dataset_id=asset4_id,
                         timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
                     )
@@ -325,7 +325,7 @@ class TestGetDatasets(TestDatasetEndpoint):
             # dataset 5 events
             session.add_all(
                 [
-                    DatasetEvent(
+                    AssetEvent(
                         dataset_id=asset5_id,
                         timestamp=pendulum.DateTime(2022, 8, 1, i, tzinfo=UTC),
                     )

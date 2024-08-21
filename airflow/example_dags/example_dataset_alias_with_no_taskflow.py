@@ -27,7 +27,7 @@ This is expected because the asset alias has not been resolved into any dataset 
 
 Once the "dataset_s3_bucket_producer_with_no_taskflow" DAG is triggered, the "dataset_s3_bucket_consumer_with_no_taskflow" DAG should be triggered upon completion.
 This is because the asset alias "example-alias-no-taskflow" is used to add a dataset event to the dataset "s3://bucket/my-task-with-no-taskflow"
-during the "produce_dataset_events_through_asset_alias_with_no_taskflow" task. Also, the schedule of the "asset_alias_example_alias_consumer_with_no_taskflow" DAG should change to "Dataset" as
+during the "produce_asset_events_through_asset_alias_with_no_taskflow" task. Also, the schedule of the "asset_alias_example_alias_consumer_with_no_taskflow" DAG should change to "Dataset" as
 the asset alias "example-alias-no-taskflow" is now resolved to the dataset "s3://bucket/my-task-with-no-taskflow" and this DAG should also be triggered.
 """
 
@@ -47,13 +47,13 @@ with DAG(
     tags=["producer", "dataset"],
 ):
 
-    def produce_dataset_events():
+    def produce_asset_events():
         pass
 
     PythonOperator(
-        task_id="produce_dataset_events",
+        task_id="produce_asset_events",
         outlets=[Dataset("s3://bucket/my-task-with-no-taskflow")],
-        python_callable=produce_dataset_events,
+        python_callable=produce_asset_events,
     )
 
 
@@ -65,15 +65,15 @@ with DAG(
     tags=["producer", "asset-alias"],
 ):
 
-    def produce_dataset_events_through_asset_alias_with_no_taskflow(*, outlet_events=None):
+    def produce_asset_events_through_asset_alias_with_no_taskflow(*, outlet_events=None):
         bucket_name = "bucket"
         object_path = "my-task"
         outlet_events["example-alias-no-taskflow"].add(Dataset(f"s3://{bucket_name}/{object_path}"))
 
     PythonOperator(
-        task_id="produce_dataset_events_through_asset_alias_with_no_taskflow",
+        task_id="produce_asset_events_through_asset_alias_with_no_taskflow",
         outlets=[AssetAlias("example-alias-no-taskflow")],
-        python_callable=produce_dataset_events_through_asset_alias_with_no_taskflow,
+        python_callable=produce_asset_events_through_asset_alias_with_no_taskflow,
     )
 
 with DAG(
@@ -84,10 +84,10 @@ with DAG(
     tags=["consumer", "dataset"],
 ):
 
-    def consume_dataset_event():
+    def consume_asset_event():
         pass
 
-    PythonOperator(task_id="consume_dataset_event", python_callable=consume_dataset_event)
+    PythonOperator(task_id="consume_asset_event", python_callable=consume_asset_event)
 
 with DAG(
     dag_id="asset_alias_example_alias_consumer_with_no_taskflow",
@@ -97,12 +97,12 @@ with DAG(
     tags=["consumer", "asset-alias"],
 ):
 
-    def consume_dataset_event_from_asset_alias(*, inlet_events=None):
+    def consume_asset_event_from_asset_alias(*, inlet_events=None):
         for event in inlet_events[AssetAlias("example-alias-no-taskflow")]:
             print(event)
 
     PythonOperator(
-        task_id="consume_dataset_event_from_asset_alias",
-        python_callable=consume_dataset_event_from_asset_alias,
+        task_id="consume_asset_event_from_asset_alias",
+        python_callable=consume_asset_event_from_asset_alias,
         inlets=[AssetAlias("example-alias-no-taskflow")],
     )

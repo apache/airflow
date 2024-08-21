@@ -28,7 +28,7 @@ from airflow.assets import Dataset
 from airflow.assets.manager import AssetManager
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dag import DagModel
-from airflow.models.dataset import AssetDagRunQueue, AssetModel, DagScheduleAssetReference, DatasetEvent
+from airflow.models.dataset import AssetDagRunQueue, AssetEvent, AssetModel, DagScheduleAssetReference
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from tests.listeners import dataset_listener
 
@@ -125,7 +125,7 @@ class TestAssetManager:
         session.flush()
 
         # Ensure we've created an asset
-        assert session.query(DatasetEvent).filter_by(dataset_id=asm.id).count() == 1
+        assert session.query(AssetEvent).filter_by(dataset_id=asm.id).count() == 1
         assert session.query(AssetDagRunQueue).count() == 2
 
     def test_register_asset_change_no_downstreams(self, session, mock_task_instance):
@@ -140,8 +140,8 @@ class TestAssetManager:
         dsem.register_asset_change(task_instance=mock_task_instance, asset=ds, session=session)
         session.flush()
 
-        # Ensure we've created a dataset
-        assert session.query(DatasetEvent).filter_by(dataset_id=asm.id).count() == 1
+        # Ensure we've created an asset
+        assert session.query(AssetEvent).filter_by(dataset_id=asm.id).count() == 1
         assert session.query(AssetDagRunQueue).count() == 0
 
     @pytest.mark.skip_if_database_isolation_mode

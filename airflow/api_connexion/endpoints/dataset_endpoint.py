@@ -45,7 +45,7 @@ from airflow.api_connexion.schemas.dataset_schema import (
 )
 from airflow.assets import Dataset
 from airflow.assets.manager import asset_manager
-from airflow.models.dataset import AssetDagRunQueue, AssetModel, DatasetEvent
+from airflow.models.dataset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.utils import timezone
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -130,20 +130,20 @@ def get_dataset_events(
     """Get asset events."""
     allowed_attrs = ["source_dag_id", "source_task_id", "source_run_id", "source_map_index", "timestamp"]
 
-    query = select(DatasetEvent)
+    query = select(AssetEvent)
 
     if dataset_id:
-        query = query.where(DatasetEvent.dataset_id == dataset_id)
+        query = query.where(AssetEvent.dataset_id == dataset_id)
     if source_dag_id:
-        query = query.where(DatasetEvent.source_dag_id == source_dag_id)
+        query = query.where(AssetEvent.source_dag_id == source_dag_id)
     if source_task_id:
-        query = query.where(DatasetEvent.source_task_id == source_task_id)
+        query = query.where(AssetEvent.source_task_id == source_task_id)
     if source_run_id:
-        query = query.where(DatasetEvent.source_run_id == source_run_id)
+        query = query.where(AssetEvent.source_run_id == source_run_id)
     if source_map_index:
-        query = query.where(DatasetEvent.source_map_index == source_map_index)
+        query = query.where(AssetEvent.source_map_index == source_map_index)
 
-    query = query.options(subqueryload(DatasetEvent.created_dagruns))
+    query = query.options(subqueryload(AssetEvent.created_dagruns))
 
     total_entries = get_query_count(query, session=session)
     query = apply_sorting(query, order_by, {}, allowed_attrs)

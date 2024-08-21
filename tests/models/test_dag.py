@@ -66,8 +66,8 @@ from airflow.models.dagrun import DagRun
 from airflow.models.dataset import (
     AssetAliasModel,
     AssetDagRunQueue,
+    AssetEvent,
     AssetModel,
-    DatasetEvent,
     TaskOutletAssetReference,
 )
 from airflow.models.param import DagParam, Param, ParamsDict
@@ -2675,7 +2675,7 @@ class TestDagModel:
             asset_id = session.query(AssetModel.id).filter_by(uri=dataset.uri).scalar()
 
             session.add(
-                DatasetEvent(
+                AssetEvent(
                     dataset_id=asset_id,
                     source_task_id="task",
                     source_dag_id=dr.dag_id,

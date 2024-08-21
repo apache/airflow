@@ -43,7 +43,7 @@ from airflow.jobs.job import Job
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, DagModel, DagTag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetEvent
+from airflow.models.dataset import AssetEvent
 from airflow.models.param import Param
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.tasklog import LogTemplate
@@ -241,7 +241,7 @@ class MockLazySelectSequence(LazySelectSequence):
         ),
         (
             OutletEventAccessor(raw_key=Dataset(uri="test"), extra={"key": "value"}, asset_alias_events=[]),
-            DAT.DATASET_EVENT_ACCESSOR,
+            DAT.ASSET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
         ),
         (
@@ -252,12 +252,12 @@ class MockLazySelectSequence(LazySelectSequence):
                     AssetAliasEvent(source_alias_name="test_alias", dest_asset_uri="test_uri", extra={})
                 ],
             ),
-            DAT.DATASET_EVENT_ACCESSOR,
+            DAT.ASSET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
         ),
         (
             OutletEventAccessor(raw_key="test", extra={"key": "value"}, asset_alias_events=[]),
-            DAT.DATASET_EVENT_ACCESSOR,
+            DAT.ASSET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
         ),
         (
@@ -327,7 +327,7 @@ sample_objects = {
     ),
     DagTagPydantic: DagTag(),
     DatasetPydantic: Dataset("uri", {}),
-    DatasetEventPydantic: DatasetEvent(),
+    DatasetEventPydantic: AssetEvent(),
 }
 
 
@@ -490,7 +490,7 @@ def test_serialized_mapped_operator_unmap(dag_maker):
     assert serialized_unmapped_task.dag is serialized_dag
 
 
-def test_ser_of_dataset_event_accessor():
+def test_ser_of_asset_event_accessor():
     # todo: (Airflow 3.0) we should force reserialization on upgrade
     d = OutletEventAccessors()
     d["hi"].extra = "blah1"  # todo: this should maybe be forbidden?  i.e. can extra be any json or just dict?

@@ -24,7 +24,7 @@ import pytest
 from pendulum import DateTime
 
 from airflow.assets import AssetAlias, Dataset
-from airflow.models.dataset import AssetAliasModel, AssetModel, DatasetEvent
+from airflow.models.dataset import AssetAliasModel, AssetEvent, AssetModel
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.datasets import AssetOrTimeSchedule
 from airflow.timetables.simple import AssetTriggeredTimetable
@@ -197,8 +197,8 @@ def test_generate_run_id(asset_timetable: AssetOrTimeSchedule) -> None:
 
 
 @pytest.fixture
-def dataset_events(mocker) -> list[DatasetEvent]:
-    """Pytest fixture for creating mock DatasetEvent objects."""
+def asset_events(mocker) -> list[AssetEvent]:
+    """Pytest fixture for creating mock AssetEvent objects."""
     now = DateTime.now()
     earlier = now.subtract(days=1)
     later = now.add(days=1)
@@ -212,9 +212,9 @@ def dataset_events(mocker) -> list[DatasetEvent]:
     mock_dag_run_later.data_interval_start = now
     mock_dag_run_later.data_interval_end = later
 
-    # Create DatasetEvent objects with mock source_dag_run
-    event_earlier = DatasetEvent(timestamp=earlier, dataset_id=1)
-    event_later = DatasetEvent(timestamp=later, dataset_id=1)
+    # Create AssetEvent objects with mock source_dag_run
+    event_earlier = AssetEvent(timestamp=earlier, dataset_id=1)
+    event_later = AssetEvent(timestamp=later, dataset_id=1)
 
     # Use mocker to set the source_dag_run attribute to avoid SQLAlchemy's instrumentation
     mocker.patch.object(event_earlier, "source_dag_run", new=mock_dag_run_earlier)
@@ -224,22 +224,20 @@ def dataset_events(mocker) -> list[DatasetEvent]:
 
 
 def test_data_interval_for_events(
-    asset_timetable: AssetOrTimeSchedule, dataset_events: list[DatasetEvent]
+    asset_timetable: AssetOrTimeSchedule, asset_events: list[AssetEvent]
 ) -> None:
     """
     Tests the data_interval_for_events method of AssetOrTimeSchedule.
 
     :param asset_timetable: The AssetOrTimeSchedule instance to test.
-    :param dataset_events: A list of mock DatasetEvent instances.
+    :param asset_events: A list of mock AssetEvent instances.
     """
-    data_interval = asset_timetable.data_interval_for_events(
-        logical_date=DateTime.now(), events=dataset_events
-    )
+    data_interval = asset_timetable.data_interval_for_events(logical_date=DateTime.now(), events=asset_events)
     assert data_interval.start == min(
-        event.timestamp for event in dataset_events
+        event.timestamp for event in asset_events
     ), "Data interval start does not match"
     assert data_interval.end == max(
-        event.timestamp for event in dataset_events
+        event.timestamp for event in asset_events
     ), "Data interval end does not match"
 
 

@@ -28,9 +28,9 @@ from airflow.models import DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import (
     AssetDagRunQueue,
+    AssetEvent,
     AssetModel,
     DagScheduleAssetReference,
-    DatasetEvent,
     TaskOutletAssetReference,
 )
 from airflow.security import permissions
@@ -443,10 +443,10 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
             "created_dagruns": [],
         }
 
-        events = [DatasetEvent(id=i, timestamp=timezone.parse(self.default_time), **common) for i in [1, 2]]
+        events = [AssetEvent(id=i, timestamp=timezone.parse(self.default_time), **common) for i in [1, 2]]
         session.add_all(events)
         session.commit()
-        assert session.query(DatasetEvent).count() == 2
+        assert session.query(AssetEvent).count() == 2
 
         response = self.client.get("/api/v1/datasets/events", environ_overrides={"REMOTE_USER": "test"})
 
@@ -495,7 +495,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         session.add_all(assets)
         session.commit()
         events = [
-            DatasetEvent(
+            AssetEvent(
                 id=i,
                 dataset_id=i,
                 source_dag_id=f"dag{i}",
@@ -508,7 +508,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         ]
         session.add_all(events)
         session.commit()
-        assert session.query(DatasetEvent).count() == 3
+        assert session.query(AssetEvent).count() == 3
 
         response = self.client.get(
             f"/api/v1/datasets/events?{attr}={value}", environ_overrides={"REMOTE_USER": "test"}
@@ -537,7 +537,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
     def test_order_by_raises_400_for_invalid_attr(self, session):
         self._create_dataset(session)
         events = [
-            DatasetEvent(
+            AssetEvent(
                 dataset_id=1,
                 extra="{'foo': 'bar'}",
                 source_dag_id="foo",
@@ -550,7 +550,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         ]
         session.add_all(events)
         session.commit()
-        assert session.query(DatasetEvent).count() == 2
+        assert session.query(AssetEvent).count() == 2
 
         response = self.client.get(
             "/api/v1/datasets/events?order_by=fake", environ_overrides={"REMOTE_USER": "test"}
@@ -566,7 +566,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
 
     def test_includes_created_dagrun(self, session):
         self._create_dataset(session)
-        event = DatasetEvent(
+        event = AssetEvent(
             id=1,
             dataset_id=1,
             timestamp=timezone.parse(self.default_time),
@@ -622,6 +622,32 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
             ],
             "total_entries": 1,
         }
+
+    @pytest.mark.parametrize(
+        "set_auto_role_public, expected_status_code",
+        (("Public", 403), ("Admin", 200)),
+        indirect=["set_auto_role_public"],
+    )
+    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, session):
+        self._create_dataset(session)
+        common = {
+            "dataset_id": 1,
+            "extra": {"foo": "bar"},
+            "source_dag_id": "foo",
+            "source_task_id": "bar",
+            "source_run_id": "custom",
+            "source_map_index": -1,
+            "created_dagruns": [],
+        }
+
+        events = [AssetEvent(id=i, timestamp=timezone.parse(self.default_time), **common) for i in [1, 2]]
+        session.add_all(events)
+        session.commit()
+        assert session.query(AssetEvent).count() == 2
+
+        response = self.client.get("/api/v1/datasets/events")
+
+        assert response.status_code == expected_status_code
 
 
 class TestPostDatasetEvents(TestDatasetEndpoint):
@@ -726,7 +752,7 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
     def test_limit_and_offset(self, url, expected_event_runids, session):
         self._create_dataset(session)
         events = [
-            DatasetEvent(
+            AssetEvent(
                 dataset_id=1,
                 source_dag_id="foo",
                 source_task_id="bar",
@@ -748,7 +774,7 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
     def test_should_respect_page_size_limit_default(self, session):
         self._create_dataset(session)
         events = [
-            DatasetEvent(
+            AssetEvent(
                 dataset_id=1,
                 source_dag_id="foo",
                 source_task_id="bar",
@@ -770,7 +796,7 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
     def test_should_return_conf_max_if_req_max_above_conf(self, session):
         self._create_dataset(session)
         events = [
-            DatasetEvent(
+            AssetEvent(
                 dataset_id=1,
                 source_dag_id="foo",
                 source_task_id="bar",

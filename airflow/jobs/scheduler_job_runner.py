@@ -49,9 +49,9 @@ from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
 from airflow.models.dataset import (
     AssetDagRunQueue,
+    AssetEvent,
     AssetModel,
     DagScheduleAssetReference,
-    DatasetEvent,
     TaskOutletAssetReference,
 )
 from airflow.models.serialized_dag import SerializedDagModel
@@ -1425,29 +1425,29 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .order_by(DagRun.execution_date.desc())
                     .limit(1)
                 )
-                dataset_event_filters = [
+                asset_event_filters = [
                     DagScheduleAssetReference.dag_id == dag.dag_id,
-                    DatasetEvent.timestamp <= exec_date,
+                    AssetEvent.timestamp <= exec_date,
                 ]
                 if previous_dag_run:
-                    dataset_event_filters.append(DatasetEvent.timestamp > previous_dag_run.execution_date)
+                    asset_event_filters.append(AssetEvent.timestamp > previous_dag_run.execution_date)
 
-                dataset_events = session.scalars(
-                    select(DatasetEvent)
+                asset_events = session.scalars(
+                    select(AssetEvent)
                     .join(
                         DagScheduleAssetReference,
-                        DatasetEvent.dataset_id == DagScheduleAssetReference.dataset_id,
+                        AssetEvent.dataset_id == DagScheduleAssetReference.dataset_id,
                     )
-                    .where(*dataset_event_filters)
+                    .where(*asset_event_filters)
                 ).all()
 
-                data_interval = dag.timetable.data_interval_for_events(exec_date, dataset_events)
+                data_interval = dag.timetable.data_interval_for_events(exec_date, asset_events)
                 run_id = dag.timetable.generate_run_id(
                     run_type=DagRunType.DATASET_TRIGGERED,
                     logical_date=exec_date,
                     data_interval=data_interval,
                     session=session,
-                    events=dataset_events,
+                    events=asset_events,
                 )
 
                 dag_run = dag.create_dagrun(
@@ -1463,7 +1463,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     triggered_by=DagRunTriggeredByType.DATASET,
                 )
                 Stats.incr("dataset.triggered_dagruns")
-                dag_run.consumed_dataset_events.extend(dataset_events)
+                dag_run.consumed_dataset_events.extend(asset_events)
                 session.execute(
                     delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_run.dag_id)
                 )

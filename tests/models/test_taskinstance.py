@@ -57,7 +57,7 @@ from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import AssetAliasModel, AssetDagRunQueue, AssetModel, DatasetEvent
+from airflow.models.dataset import AssetAliasModel, AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY, NotFullyPopulated
 from airflow.models.param import process_params
 from airflow.models.pool import Pool
@@ -2293,11 +2293,11 @@ class TestTaskInstance:
         ti.refresh_from_db()
         assert ti.state == TaskInstanceState.SUCCESS
 
-        # check that no other dataset events recorded
+        # check that no other asset events recorded
         event = (
-            session.query(DatasetEvent)
-            .join(DatasetEvent.dataset)
-            .filter(DatasetEvent.source_task_instance == ti)
+            session.query(AssetEvent)
+            .join(AssetEvent.dataset)
+            .filter(AssetEvent.source_task_instance == ti)
             .one()
         )
         assert event
@@ -2317,8 +2317,8 @@ class TestTaskInstance:
         ]
 
         # check that one event record created for dataset1 and this TI
-        assert session.query(AssetModel.uri).join(DatasetEvent.dataset).filter(
-            DatasetEvent.source_task_instance == ti
+        assert session.query(AssetModel.uri).join(AssetEvent.dataset).filter(
+            AssetEvent.source_task_instance == ti
         ).one() == ("s3://dag1/output_1.txt",)
 
         # check that the asset event has an earlier timestamp than the ADRQ's
@@ -2333,7 +2333,7 @@ class TestTaskInstance:
     def test_outlet_datasets_failed(self, create_task_instance):
         """
         Verify that when we have an outlet dataset on a task, and the task
-        failed, a AssetDagRunQueue is not logged, and a DatasetEvent is
+        failed, a AssetDagRunQueue is not logged, and an AssetEvent is
         not generated
         """
         from tests.dags import test_datasets
@@ -2358,8 +2358,8 @@ class TestTaskInstance:
         # check that no dagruns were queued
         assert session.query(AssetDagRunQueue).count() == 0
 
-        # check that no dataset events were generated
-        assert session.query(DatasetEvent).count() == 0
+        # check that no asset events were generated
+        assert session.query(AssetEvent).count() == 0
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_mapped_current_state(self, dag_maker):
@@ -2389,7 +2389,7 @@ class TestTaskInstance:
     def test_outlet_datasets_skipped(self):
         """
         Verify that when we have an outlet dataset on a task, and the task
-        is skipped, a AssetDagRunQueue is not logged, and a DatasetEvent is
+        is skipped, a AssetDagRunQueue is not logged, and an AssetEvent is
         not generated
         """
         from tests.dags import test_datasets
@@ -2413,8 +2413,8 @@ class TestTaskInstance:
         # check that no dagruns were queued
         assert session.query(AssetDagRunQueue).count() == 0
 
-        # check that no dataset events were generated
-        assert session.query(DatasetEvent).count() == 0
+        # check that no asset events were generated
+        assert session.query(AssetEvent).count() == 0
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_dataset_extra(self, dag_maker, session):
@@ -2443,7 +2443,7 @@ class TestTaskInstance:
             ti.refresh_from_task(dag.get_task(ti.task_id))
             ti.run(session=session)
 
-        events = dict(iter(session.execute(select(DatasetEvent.source_task_id, DatasetEvent))))
+        events = dict(iter(session.execute(select(AssetEvent.source_task_id, AssetEvent))))
         assert set(events) == {"write1", "write2"}
 
         assert events["write1"].source_dag_id == dr.dag_id
@@ -2474,7 +2474,7 @@ class TestTaskInstance:
         dr: DagRun = dag_maker.create_dagrun()
         dr.get_task_instance("write").run(session=session)
 
-        event = session.scalars(select(DatasetEvent)).one()
+        event = session.scalars(select(AssetEvent)).one()
         assert event.source_dag_id == dr.dag_id
         assert event.source_run_id == dr.run_id
         assert event.source_task_id == "write"
@@ -2515,7 +2515,7 @@ class TestTaskInstance:
         ).one()
         assert xcom.value == "write_1 result"
 
-        events = dict(iter(session.execute(select(DatasetEvent.source_task_id, DatasetEvent))))
+        events = dict(iter(session.execute(select(AssetEvent.source_task_id, AssetEvent))))
         assert set(events) == {"write1", "write2"}
 
         assert events["write1"].source_dag_id == dr.dag_id
@@ -2556,7 +2556,7 @@ class TestTaskInstance:
             ti.run(session=session)
 
         producer_events = session.execute(
-            select(DatasetEvent).where(DatasetEvent.source_task_id == "producer")
+            select(AssetEvent).where(AssetEvent.source_task_id == "producer")
         ).fetchall()
 
         assert len(producer_events) == 1
@@ -2615,7 +2615,7 @@ class TestTaskInstance:
             ti.run(session=session)
 
         producer_events = session.execute(
-            select(DatasetEvent).where(DatasetEvent.source_task_id == "producer")
+            select(AssetEvent).where(AssetEvent.source_task_id == "producer")
         ).fetchall()
 
         assert len(producer_events) == 2
@@ -2679,7 +2679,7 @@ class TestTaskInstance:
             ti.refresh_from_task(dag.get_task(ti.task_id))
             ti.run(session=session)
 
-        producer_event = session.scalar(select(DatasetEvent).where(DatasetEvent.source_task_id == "producer"))
+        producer_event = session.scalar(select(AssetEvent).where(AssetEvent.source_task_id == "producer"))
 
         assert producer_event.source_task_id == "producer"
         assert producer_event.source_dag_id == "producer_dag"
@@ -2719,7 +2719,7 @@ class TestTaskInstance:
             ti.refresh_from_task(dag.get_task(ti.task_id))
             ti.run(session=session)
 
-        producer_event = session.scalar(select(DatasetEvent).where(DatasetEvent.source_task_id == "producer"))
+        producer_event = session.scalar(select(AssetEvent).where(AssetEvent.source_task_id == "producer"))
 
         assert producer_event.source_task_id == "producer"
         assert producer_event.source_dag_id == "producer_dag"
@@ -3202,9 +3202,9 @@ class TestTaskInstance:
             data_interval=(execution_date, execution_date),
             **triggered_by_kwargs,
         )
-        ds1_event = DatasetEvent(dataset_id=1)
-        ds2_event_1 = DatasetEvent(dataset_id=2)
-        ds2_event_2 = DatasetEvent(dataset_id=2)
+        ds1_event = AssetEvent(dataset_id=1)
+        ds2_event_1 = AssetEvent(dataset_id=2)
+        ds2_event_2 = AssetEvent(dataset_id=2)
         dr.consumed_dataset_events.append(ds1_event)
         dr.consumed_dataset_events.append(ds2_event_1)
         dr.consumed_dataset_events.append(ds2_event_2)

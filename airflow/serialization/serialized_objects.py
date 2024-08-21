@@ -656,12 +656,12 @@ class BaseSerialization:
         elif isinstance(var, OutletEventAccessors):
             return cls._encode(
                 cls.serialize(var._dict, strict=strict, use_pydantic_models=use_pydantic_models),  # type: ignore[attr-defined]
-                type_=DAT.DATASET_EVENT_ACCESSORS,
+                type_=DAT.ASSET_EVENT_ACCESSORS,
             )
         elif isinstance(var, OutletEventAccessor):
             return cls._encode(
                 encode_outlet_event_accessor(var),
-                type_=DAT.DATASET_EVENT_ACCESSOR,
+                type_=DAT.ASSET_EVENT_ACCESSOR,
             )
         elif isinstance(var, DAG):
             return cls._encode(SerializedDAG.serialize_dag(var), type_=DAT.DAG)
@@ -821,11 +821,11 @@ class BaseSerialization:
             return Context(**d)
         elif type_ == DAT.DICT:
             return {k: cls.deserialize(v, use_pydantic_models) for k, v in var.items()}
-        elif type_ == DAT.DATASET_EVENT_ACCESSORS:
+        elif type_ == DAT.ASSET_EVENT_ACCESSORS:
             d = OutletEventAccessors()  # type: ignore[assignment]
             d._dict = cls.deserialize(var)  # type: ignore[attr-defined]
             return d
-        elif type_ == DAT.DATASET_EVENT_ACCESSOR:
+        elif type_ == DAT.ASSET_EVENT_ACCESSOR:
             return decode_outlet_event_accessor(var)
         elif type_ == DAT.DAG:
             return SerializedDAG.deserialize_dag(var)

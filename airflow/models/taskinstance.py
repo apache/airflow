@@ -89,7 +89,7 @@ from airflow.exceptions import (
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
-from airflow.models.dataset import AssetModel
+from airflow.models.dataset import AssetEvent, AssetModel
 from airflow.models.log import Log
 from airflow.models.param import process_params
 from airflow.models.renderedtifields import get_serialized_template_fields
@@ -154,10 +154,10 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.expression import ColumnOperators
 
     from airflow.models.abstractoperator import TaskStateChangeCallback
+    from airflow.models.asset import AssetEvent
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
-    from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
     from airflow.serialization.pydantic.dag import DagModelPydantic
     from airflow.serialization.pydantic.dataset import DatasetEventPydantic
@@ -1077,7 +1077,7 @@ def _get_template_context(
             return None
         return prev_ds.replace("-", "")
 
-    def get_triggering_events() -> dict[str, list[DatasetEvent | DatasetEventPydantic]]:
+    def get_triggering_events() -> dict[str, list[AssetEvent | DatasetEventPydantic]]:
         if TYPE_CHECKING:
             assert session is not None
 
@@ -1087,9 +1087,9 @@ def _get_template_context(
         nonlocal dag_run
         if dag_run not in session:
             dag_run = session.merge(dag_run, load=False)
-        dataset_events = dag_run.consumed_dataset_events
-        triggering_events: dict[str, list[DatasetEvent | DatasetEventPydantic]] = defaultdict(list)
-        for event in dataset_events:
+        asset_events = dag_run.consumed_dataset_events
+        triggering_events: dict[str, list[AssetEvent | DatasetEventPydantic]] = defaultdict(list)
+        for event in asset_events:
             if event.dataset:
                 triggering_events[event.dataset.uri].append(event)
 
@@ -2890,9 +2890,9 @@ class TaskInstance(Base, LoggingMixin):
         if TYPE_CHECKING:
             assert self.task
 
-        # One task only triggers one dataset event for each dataset with the same extra.
+        # One task only triggers one asset event for each dataset with the same extra.
         # This tuple[dataset uri, extra] to sets alias names mapping is used to find whether
-        # there're datasets with same uri but different extra that we need to emit more than one dataset events.
+        # there're datasets with same uri but different extra that we need to emit more than one asset events.
         asset_alias_names: dict[tuple[str, frozenset], set[str]] = defaultdict(set)
         for obj in self.task.outlets or []:
             self.log.debug("outlet obj %s", obj)

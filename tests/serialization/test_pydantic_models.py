@@ -29,9 +29,9 @@ from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.models import MappedOperator
 from airflow.models.dag import DAG, DagModel, create_timetable
 from airflow.models.dataset import (
+    AssetEvent,
     AssetModel,
     DagScheduleAssetReference,
-    DatasetEvent,
     TaskOutletAssetReference,
 )
 from airflow.serialization.pydantic.dag import DagModelPydantic
@@ -250,9 +250,9 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
         data_interval=(execution_date, execution_date),
         **triggered_by_kwargs,
     )
-    ds1_event = DatasetEvent(dataset_id=1)
-    ds2_event_1 = DatasetEvent(dataset_id=2)
-    ds2_event_2 = DatasetEvent(dataset_id=2)
+    asset1_event = AssetEvent(dataset_id=1)
+    asset2_event_1 = AssetEvent(dataset_id=2)
+    asset2_event_2 = AssetEvent(dataset_id=2)
 
     dag_asset_ref = DagScheduleAssetReference(dag_id=dag.dag_id)
     session.add(dag_asset_ref)
@@ -261,18 +261,18 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
     session.add(task_ds_ref)
     task_ds_ref.dataset = ds1
 
-    dr.consumed_dataset_events.append(ds1_event)
-    dr.consumed_dataset_events.append(ds2_event_1)
-    dr.consumed_dataset_events.append(ds2_event_2)
+    dr.consumed_dataset_events.append(asset1_event)
+    dr.consumed_dataset_events.append(asset2_event_1)
+    dr.consumed_dataset_events.append(asset2_event_2)
     session.commit()
     TracebackSessionForTests.set_allow_db_access(session, False)
 
-    print(ds2_event_2.dataset.consuming_dags)
-    pydantic_dse1 = DatasetEventPydantic.model_validate(ds1_event)
+    print(asset2_event_2.dataset.consuming_dags)
+    pydantic_dse1 = DatasetEventPydantic.model_validate(asset1_event)
     json_string1 = pydantic_dse1.model_dump_json()
     print(json_string1)
 
-    pydantic_dse2 = DatasetEventPydantic.model_validate(ds2_event_1)
+    pydantic_dse2 = DatasetEventPydantic.model_validate(asset2_event_1)
     json_string2 = pydantic_dse2.model_dump_json()
     print(json_string2)
 

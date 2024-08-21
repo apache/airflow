@@ -117,7 +117,7 @@ def get_dag_run(
 def get_upstream_dataset_events(
     *, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION
 ) -> APIResponse:
-    """If dag run is dataset-triggered, return the dataset events that triggered it."""
+    """If dag run is dataset-triggered, return the asset events that triggered it."""
     dag_run: DagRun | None = session.scalar(
         select(DagRun).where(
             DagRun.dag_id == dag_id,

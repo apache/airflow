@@ -37,8 +37,8 @@ class DagAttributeTypes(str, Enum):
     """Enum of supported attribute types of DAG."""
 
     DAG = "dag"
-    DATASET_EVENT_ACCESSORS = "dataset_event_accessors"
-    DATASET_EVENT_ACCESSOR = "dataset_event_accessor"
+    ASSET_EVENT_ACCESSORS = "asset_event_accessors"
+    ASSET_EVENT_ACCESSOR = "asset_event_accessor"
     OP = "operator"
     DATETIME = "datetime"
     TIMEDELTA = "timedelta"
