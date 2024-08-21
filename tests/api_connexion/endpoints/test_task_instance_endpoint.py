@@ -782,6 +782,80 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert count == response.json["total_entries"]
         assert count == len(response.json["task_instances"])
 
+    def test_should_respond_200_for_order_by(self, session):
+        dag_id = "example_python_operator"
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(10)
+            ],
+            dag_id=dag_id,
+        )
+
+        ti_count = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).count()
+
+        # Ascending order
+        response_asc = self.client.get(
+            "/api/v1/dags/~/dagRuns/~/taskInstances?order_by=start_date",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response_asc.status_code == 200
+        assert response_asc.json["total_entries"] == ti_count
+        assert len(response_asc.json["task_instances"]) == ti_count
+
+        # Descending order
+        response_desc = self.client.get(
+            "/api/v1/dags/~/dagRuns/~/taskInstances?order_by=-start_date",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response_desc.status_code == 200
+        assert response_desc.json["total_entries"] == ti_count
+        assert len(response_desc.json["task_instances"]) == ti_count
+
+        # Compare
+        start_dates_asc = [ti["start_date"] for ti in response_asc.json["task_instances"]]
+        assert len(start_dates_asc) == ti_count
+        start_dates_desc = [ti["start_date"] for ti in response_desc.json["task_instances"]]
+        assert len(start_dates_desc) == ti_count
+        assert start_dates_asc == list(reversed(start_dates_desc))
+
+    def test_should_respond_200_for_pagination(self, session):
+        dag_id = "example_python_operator"
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(10)
+            ],
+            dag_id=dag_id,
+        )
+
+        # First 5 items
+        response_batch1 = self.client.get(
+            "/api/v1/dags/~/dagRuns/~/taskInstances?limit=5&offset=0",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response_batch1.status_code == 200, response_batch1.json
+        num_entries_batch1 = len(response_batch1.json["task_instances"])
+        assert num_entries_batch1 == 5
+        assert len(response_batch1.json["task_instances"]) == 5
+
+        # 5 items after that
+        response_batch2 = self.client.get(
+            "/api/v1/dags/~/dagRuns/~/taskInstances?limit=5&offset=5",
+            environ_overrides={"REMOTE_USER": "test"},
+            json={"limit": 5, "offset": 0, "dag_ids": [dag_id]},
+        )
+        assert response_batch2.status_code == 200, response_batch2.json
+        num_entries_batch2 = len(response_batch2.json["task_instances"])
+        assert num_entries_batch2 > 0
+        assert len(response_batch2.json["task_instances"]) > 0
+
+        # Match
+        ti_count = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).count()
+        assert response_batch1.json["total_entries"] == response_batch2.json["total_entries"] == ti_count
+        assert (num_entries_batch1 + num_entries_batch2) == ti_count
+        assert response_batch1 != response_batch2
+
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/~/taskInstances",
@@ -970,6 +1044,45 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         assert response.status_code == 200, response.json
         assert expected_ti_count == response.json["total_entries"]
         assert expected_ti_count == len(response.json["task_instances"])
+
+    def test_should_respond_200_for_order_by(self, session):
+        dag_id = "example_python_operator"
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(10)
+            ],
+            dag_id=dag_id,
+        )
+
+        ti_count = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).count()
+
+        # Ascending order
+        response_asc = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": "test"},
+            json={"order_by": "start_date", "dag_ids": [dag_id]},
+        )
+        assert response_asc.status_code == 200, response_asc.json
+        assert response_asc.json["total_entries"] == ti_count
+        assert len(response_asc.json["task_instances"]) == ti_count
+
+        # Descending order
+        response_desc = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": "test"},
+            json={"order_by": "-start_date", "dag_ids": [dag_id]},
+        )
+        assert response_desc.status_code == 200, response_desc.json
+        assert response_desc.json["total_entries"] == ti_count
+        assert len(response_desc.json["task_instances"]) == ti_count
+
+        # Compare
+        start_dates_asc = [ti["start_date"] for ti in response_asc.json["task_instances"]]
+        assert len(start_dates_asc) == ti_count
+        start_dates_desc = [ti["start_date"] for ti in response_desc.json["task_instances"]]
+        assert len(start_dates_desc) == ti_count
+        assert start_dates_asc == list(reversed(start_dates_desc))
 
     @pytest.mark.parametrize(
         "task_instances, payload, expected_ti_count",

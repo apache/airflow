@@ -1,0 +1,1 @@
+Removed deprecated ``--ignore-depends-on-past``  cli option from task command. Please use ``--depends-on-past ignore``.

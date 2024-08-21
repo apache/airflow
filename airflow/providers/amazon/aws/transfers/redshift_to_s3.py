@@ -44,11 +44,12 @@ class RedshiftToS3Operator(BaseOperator):
     :param s3_bucket: reference to a specific S3 bucket
     :param s3_key: reference to a specific S3 key. If ``table_as_file_name`` is set
         to False, this param must include the desired file name
-    :param schema: reference to a specific schema in redshift database
-        Applicable when ``table`` param provided.
-    :param table: reference to a specific table in redshift database
-        Used when ``select_query`` param not provided.
-    :param select_query: custom select query to fetch data from redshift database
+    :param schema: reference to a specific schema in redshift database,
+        used when ``table`` param provided and ``select_query`` param not provided
+    :param table: reference to a specific table in redshift database,
+        used when ``schema`` param provided and ``select_query`` param not provided
+    :param select_query: custom select query to fetch data from redshift database,
+        has precedence over default query `SELECT * FROM ``schema``.``table``
     :param redshift_conn_id: reference to a specific redshift database
     :param aws_conn_id: reference to a specific S3 connection
         If the AWS connection contains 'aws_iam_role' in ``extras``
@@ -138,12 +139,17 @@ class RedshiftToS3Operator(BaseOperator):
                     {unload_options};
         """
 
+    @property
+    def default_select_query(self) -> str | None:
+        if self.schema and self.table:
+            return f"SELECT * FROM {self.schema}.{self.table}"
+        return None
+
     def execute(self, context: Context) -> None:
         if self.table and self.table_as_file_name:
             self.s3_key = f"{self.s3_key}/{self.table}_"
 
-        if self.schema and self.table:
-            self.select_query = f"SELECT * FROM {self.schema}.{self.table}"
+        self.select_query = self.select_query or self.default_select_query
 
         if self.select_query is None:
             raise ValueError(

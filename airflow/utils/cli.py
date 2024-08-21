@@ -36,7 +36,7 @@ from sqlalchemy import select
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException
 from airflow.utils import cli_action_loggers, timezone
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.platform import getuser, is_terminal_support_colors
@@ -352,14 +352,6 @@ def should_use_colors(args) -> bool:
 
 
 def should_ignore_depends_on_past(args) -> bool:
-    if args.ignore_depends_on_past:
-        warnings.warn(
-            "Using `--ignore-depends-on-past` is Deprecated."
-            "Please use `--depends-on-past ignore` instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        return True
     return args.depends_on_past == "ignore"
 
 

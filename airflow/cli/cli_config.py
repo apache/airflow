@@ -617,12 +617,6 @@ ARG_IGNORE_DEPENDENCIES = Arg(
     help="Ignore task-specific dependencies, e.g. upstream, depends_on_past, and retry delay dependencies",
     action="store_true",
 )
-ARG_IGNORE_DEPENDS_ON_PAST = Arg(
-    ("-I", "--ignore-depends-on-past"),
-    help="Deprecated -- use `--depends-on-past ignore` instead. "
-    "Ignore depends_on_past dependencies (but respect upstream dependencies)",
-    action="store_true",
-)
 ARG_DEPENDS_ON_PAST = Arg(
     ("-d", "--depends-on-past"),
     help="Determine how Airflow should deal with past dependencies. The default action is `check`, Airflow "
@@ -1382,7 +1376,6 @@ TASKS_COMMANDS = (
             ARG_RAW,
             ARG_IGNORE_ALL_DEPENDENCIES,
             ARG_IGNORE_DEPENDENCIES,
-            ARG_IGNORE_DEPENDS_ON_PAST,
             ARG_DEPENDS_ON_PAST,
             ARG_SHIP_DAG,
             ARG_PICKLE,

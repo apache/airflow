@@ -415,7 +415,6 @@ class TestCliTasks:
         "option",
         [
             "--ignore-all-dependencies",
-            "--ignore-depends-on-past",
             "--ignore-dependencies",
             "--force",
         ],
