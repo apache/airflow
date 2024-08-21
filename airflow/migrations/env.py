@@ -33,7 +33,13 @@ def include_object(_, name, type_, *args):
     if name == "sqlite_sequence":
         return False
     # Only create migrations for objects that are in the target metadata
-    if type_ == "table" and name not in target_metadata.tables:
+    from airflow import __version__ as airflow_version
+
+    if airflow_version.startswith("2"):  # For backwards compatibility with FAB provider
+        # Ignore _anything_ to do with Celery, or FlaskSession's tables
+        if type_ == "table" and (name.startswith("celery_") or name == "session"):
+            return False
+    elif type_ == "table" and name not in target_metadata.tables:
         return False
     else:
         return True

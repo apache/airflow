@@ -19,6 +19,8 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 
+from alembic import command
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -28,25 +30,13 @@ if TYPE_CHECKING:
     from sqlalchemy import MetaData
 
 
-class AttributeCheckerMeta(type):
-    """Metaclass to check attributes of subclasses."""
+class BaseDBManager(LoggingMixin):
+    """Abstract Base DB manager for external DBs."""
 
-    def __new__(cls, name, bases, dct):
-        """Check that subclasses are setting the required attributes."""
-        required_attrs = ["metadata", "migration_dir", "alembic_file", "version_table_name"]
-        for attr in required_attrs:
-            if attr not in dct:
-                raise AttributeError(f"{name} is missing required attribute: {attr}")
-        return super().__new__(cls, name, bases, dct)
-
-
-class BaseDBManager(LoggingMixin, metaclass=AttributeCheckerMeta):
-    """Base DB manager for external DBs."""
-
-    metadata: MetaData = None
-    migration_dir: str = ""
-    alembic_file: str = ""
-    version_table_name: str = ""
+    metadata: MetaData
+    migration_dir: str
+    alembic_file: str
+    version_table_name: str
     # Whether the database supports dropping tables when airflow tables are dropped
     supports_table_dropping: bool = False
 
@@ -75,8 +65,6 @@ class BaseDBManager(LoggingMixin, metaclass=AttributeCheckerMeta):
 
     def _create_db_from_orm(self):
         """Create database from ORM."""
-        from alembic import command
-
         engine = self.session.get_bind().engine
         self.metadata.create_all(engine)
         config = self.get_alembic_config()
@@ -92,25 +80,26 @@ class BaseDBManager(LoggingMixin, metaclass=AttributeCheckerMeta):
 
     def upgradedb(self, to_version=None, from_version=None, show_sql_only=False):
         """Upgrade the database."""
-        from alembic import command
+        self.log.info("Upgrading the %s database", self.__class__.__name__)
 
         config = self.get_alembic_config()
         command.upgrade(config, revision=to_version or "heads", sql=show_sql_only)
 
     def downgradedb(self, to_version, from_version=None, show_sql_only=False):
         """Downgrade the database."""
+        self.log.info("Downgrading the %s database", self.__class__.__name__)
 
 
 class RunDBManager(LoggingMixin):
     """
     Run External DB Managers.
 
-    This class is a container for external database managers.
+    Validates and runs the external database managers.
     """
 
     def __init__(self):
         super().__init__()
-        self._managers = []
+        self._managers: list[BaseDBManager] = []
         managers = conf.get("database", "external_db_managers").split(",")
         for module in managers:
             manager = import_string(module)
@@ -122,7 +111,7 @@ class RunDBManager(LoggingMixin):
             RunDBManager._validate(manager)
 
     @staticmethod
-    def _validate(manager):
+    def _validate(manager: BaseDBManager):
         """Validate the external database migration."""
         import ast
 

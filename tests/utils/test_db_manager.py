@@ -30,44 +30,52 @@ pytestmark = [pytest.mark.db_test]
 
 
 class TestRunDBManager:
+    def setup_method(self):
+        self.run_db_manager = RunDBManager()
+        self.manager = self.run_db_manager._managers[0]
+        self.metadata = self.manager.metadata
+
     def test_fab_db_manager_is_default(self):
         from airflow.providers.fab.auth_manager.models.db import FABDBManager
 
-        run_db_manager = RunDBManager()
-        assert run_db_manager._managers == [FABDBManager]
+        assert self.run_db_manager._managers == [FABDBManager]
 
     def test_defining_table_same_name_as_airflow_table_name_raises(self):
         from sqlalchemy import Column, Integer, String
 
-        run_db_manager = RunDBManager()
-        manager = run_db_manager._managers[0]
         # Add dag_run table to metadata
         mytable = Table(
-            "dag_run", manager.metadata, Column("id", Integer, primary_key=True), Column("name", String(50))
+            "dag_run", self.metadata, Column("id", Integer, primary_key=True), Column("name", String(50))
         )
-        manager.metadata._add_table("dag_run", None, mytable)
+        self.metadata._add_table("dag_run", None, mytable)
         with pytest.raises(AirflowException, match="Table 'dag_run' already exists in the Airflow metadata"):
-            run_db_manager.validate()
+            self.run_db_manager.validate()
+        self.metadata._remove_table("dag_run", schema=None)
 
-    @mock.patch("airflow.utils.db_manager.RunDBManager")
-    def test_init_db_calls_rundbmanager(self, mock_rundbmanager, session):
+    @mock.patch.object(RunDBManager, "downgradedb")
+    @mock.patch.object(RunDBManager, "upgradedb")
+    @mock.patch.object(RunDBManager, "initdb")
+    def test_init_db_calls_rundbmanager(self, mock_initdb, mock_upgrade_db, mock_downgrade_db, session):
         initdb(session=session)
-        mock_rundbmanager.return_value.initdb.assert_called_once_with(session)
-        mock_rundbmanager.return_value.upgradedb.assert_not_called()
-        mock_rundbmanager.return_value.downgrade.assert_not_called()
+        mock_initdb.assert_called()
+        mock_initdb.assert_called_once_with(session)
+        mock_upgrade_db.assert_not_called()
+        mock_downgrade_db.assert_not_called()
 
-    @mock.patch("airflow.utils.db_manager.RunDBManager")
+    @mock.patch.object(RunDBManager, "downgradedb")
+    @mock.patch.object(RunDBManager, "upgradedb")
+    @mock.patch.object(RunDBManager, "initdb")
     @mock.patch("alembic.command")
     def test_upgradedb_or_downgrade_dont_call_rundbmanager(
-        self, mock_alembic_command, mock_rundbmanager, session
+        self, mock_alembic_command, mock_initdb, mock_upgrade_db, mock_downgrade_db, session
     ):
         upgradedb(session=session)
         mock_alembic_command.upgrade.assert_called_once_with(mock.ANY, revision="heads")
         downgrade(to_revision="base")
         mock_alembic_command.downgrade.assert_called_once_with(mock.ANY, revision="base", sql=False)
-        mock_rundbmanager.return_value.initdb.assert_not_called()
-        mock_rundbmanager.return_value.upgradedb.assert_not_called()
-        mock_rundbmanager.return_value.downgrade.assert_not_called()
+        mock_initdb.assert_not_called()
+        mock_upgrade_db.assert_not_called()
+        mock_downgrade_db.assert_not_called()
 
     @mock.patch("airflow.providers.fab.auth_manager.models.db.FABDBManager")
     def test_rundbmanager_calls_dbmanager_methods(self, mock_fabdb_manager, session):
@@ -83,45 +91,31 @@ class TestRunDBManager:
         mock_fabdb_manager.return_value.downgradedb.assert_called_once()
 
 
-def test_subclassing_db_manager_with_missing_attrs():
-    """Test subclassing BaseDBManager."""
+class MockDBManager(BaseDBManager):
+    metadata = Base.metadata
+    version_table_name = "mock_alembic_version"
+    migration_dir = "mock_migration_dir"
+    alembic_file = "mock_alembic.ini"
+    supports_table_dropping = True
 
-    with pytest.raises(AttributeError, match="SubclassDBManager is missing required attribute: metadata"):
 
-        class SubclassDBManager(BaseDBManager): ...
-
-
-def test_subclassing_db_manager_with_set_metadata():
-    with pytest.raises(
-        AttributeError, match="SubclassDbManager is missing required attribute: migration_dir"
+class TestBaseDBManager:
+    @mock.patch.object(BaseDBManager, "get_alembic_config")
+    @mock.patch.object(BaseDBManager, "get_current_revision")
+    @mock.patch.object(BaseDBManager, "_create_db_from_orm")
+    def test_create_db_from_orm_called_from_init(
+        self, mock_create_db_from_orm, mock_current_revision, mock_config, session
     ):
+        mock_current_revision.return_value = None
 
-        class SubclassDbManager(BaseDBManager):
-            metadata = Base.metadata
+        manager = MockDBManager(session)
+        manager.initdb()
+        mock_create_db_from_orm.assert_called_once()
 
-
-def test_subclassing_db_manager_with_set_metadata_and_migration_dir():
-    with pytest.raises(AttributeError, match="SubclassDbManager is missing required attribute: alembic_file"):
-
-        class SubclassDbManager(BaseDBManager):
-            metadata = Base.metadata
-            migration_dir = "some_dir"
-
-
-def test_subclassing_db_manager_with_attrs_set_except_version_table_name():
-    with pytest.raises(
-        AttributeError, match="SubclassDbManager is missing required attribute: version_table_name"
-    ):
-
-        class SubclassDbManager(BaseDBManager):
-            metadata = Base.metadata
-            migration_dir = "some_dir"
-            alembic_file = "some_file"
-
-
-def test_subclassing_db_manager_with_attrs_set_dont_raise(session):
-    class SubclassDbManager(BaseDBManager):
-        metadata = Base.metadata
-        migration_dir = "some_dir"
-        alembic_file = "some_file"
-        version_table_name = "some_table"
+    @mock.patch.object(BaseDBManager, "get_alembic_config")
+    @mock.patch("alembic.command.upgrade")
+    def test_upgradedb(self, mock_alembic_cmd, mock_alembic_config, session, caplog):
+        manager = MockDBManager(session)
+        manager.upgradedb()
+        mock_alembic_cmd.assert_called_once()
+        assert "Upgrading the MockDBManager database" in caplog.text
