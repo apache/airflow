@@ -33,7 +33,6 @@ from kubernetes.client import models as k8s
 from requests.adapters import Response
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors import executor_loader
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
@@ -78,13 +77,6 @@ class TestFileTaskLogHandler:
 
     def teardown_method(self):
         self.clean_up()
-
-    def test_deprecated_filename_template(self):
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match="Passing filename_template to a log handler is deprecated and has no effect",
-        ):
-            FileTaskHandler("", filename_template="/foo/bar")
 
     def test_default_task_logging_setup(self):
         # file task handler is used by default.

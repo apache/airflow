@@ -18,8 +18,9 @@ from __future__ import annotations
 
 from unittest import mock
 
-import opensearchpy
 import pytest
+
+opensearchpy = pytest.importorskip("opensearchpy")
 from opensearchpy import Urllib3HttpConnection
 
 from airflow.exceptions import AirflowException

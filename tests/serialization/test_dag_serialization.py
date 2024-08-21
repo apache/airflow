@@ -78,7 +78,6 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.test_utils.compat import BaseOperatorLink
-from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import AirflowLink2, CustomOperator, GoogleLink, MockOperator
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
 
@@ -1690,57 +1689,6 @@ class TestStringifiedDAGs:
                     "dependency_id": "task1",
                 }
             ]
-
-    @pytest.mark.db_test
-    @conf_vars(
-        {
-            (
-                "scheduler",
-                "dependency_detector",
-            ): "tests.serialization.test_dag_serialization.CustomDependencyDetector"
-        }
-    )
-    def test_custom_dep_detector(self):
-        """
-        Prior to deprecation of custom dependency detector, the return type was DagDependency | None.
-        This class verifies that custom dependency detector classes which assume that return type will still
-        work until support for them is removed in 3.0.
-
-        TODO: remove in Airflow 3.0
-        """
-        from airflow.sensors.external_task import ExternalTaskSensor
-
-        execution_date = datetime(2020, 1, 1)
-        with DAG(dag_id="test", schedule=None, start_date=execution_date) as dag:
-            ExternalTaskSensor(
-                task_id="task1",
-                external_dag_id="external_dag_id",
-                mode="reschedule",
-            )
-            CustomDepOperator(task_id="hello", bash_command="hi")
-            with pytest.warns(
-                RemovedInAirflow3Warning,
-                match=r"Use of a custom dependency detector is deprecated\. "
-                r"Support will be removed in a future release\.",
-            ):
-                dag = SerializedDAG.to_dict(dag)
-            assert sorted(dag["dag"]["dag_dependencies"], key=lambda x: tuple(x.values())) == sorted(
-                [
-                    {
-                        "source": "external_dag_id",
-                        "target": "test",
-                        "dependency_type": "sensor",
-                        "dependency_id": "task1",
-                    },
-                    {
-                        "source": "test",
-                        "target": "nothing",
-                        "dependency_type": "abc",
-                        "dependency_id": "hello",
-                    },
-                ],
-                key=lambda x: tuple(x.values()),
-            )
 
     @pytest.mark.db_test
     def test_dag_deps_datasets_with_duplicate_dataset(self):

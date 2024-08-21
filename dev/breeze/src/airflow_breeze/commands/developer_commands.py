@@ -87,8 +87,10 @@ from airflow_breeze.commands.testing_commands import (
 )
 from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
+    ALLOWED_CELERY_EXECUTORS,
     ALLOWED_EXECUTORS,
     ALLOWED_TTY,
+    CELERY_INTEGRATION,
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -461,9 +463,8 @@ option_load_default_connection = click.option(
 option_executor_start_airflow = click.option(
     "--executor",
     type=click.Choice(START_AIRFLOW_ALLOWED_EXECUTORS, case_sensitive=False),
-    help="Specify the executor to use with start-airflow command.",
-    default=START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
-    show_default=True,
+    help="Specify the executor to use with start-airflow (defaults to LocalExecutor "
+    "or CeleryExecutor depending on the integration used).",
 )
 
 
@@ -538,7 +539,7 @@ def start_airflow(
     db_reset: bool,
     dev_mode: bool,
     docker_host: str | None,
-    executor: str,
+    executor: str | None,
     extra_args: tuple,
     force_build: bool,
     forward_credentials: bool,
@@ -581,6 +582,14 @@ def start_airflow(
     airflow_constraints_reference = _determine_constraint_branch_used(
         airflow_constraints_reference, use_airflow_version
     )
+
+    if not executor:
+        if CELERY_INTEGRATION in integration:
+            # Default to a celery executor if that's the integration being used
+            executor = ALLOWED_CELERY_EXECUTORS[0]
+        else:
+            # Otherwise default to LocalExecutor
+            executor = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
 
     shell_params = ShellParams(
         airflow_constraints_location=airflow_constraints_location,
@@ -630,6 +639,12 @@ def start_airflow(
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
     fix_ownership_using_docker()
+    if CELERY_INTEGRATION in integration and executor not in ALLOWED_CELERY_EXECUTORS:
+        get_console().print(
+            "[warning]A non-Celery executor was used with start-airflow in combination with the Celery "
+            "integration, this will lead to some processes failing to start (e.g.  celery worker)\n"
+        )
+
     sys.exit(result.returncode)
 
 

@@ -228,6 +228,14 @@ class TestCloudwatchTaskHandler:
 
                 mock_log_handler_close.assert_called_once()
 
+    def test_filename_template_for_backward_compatibility(self):
+        # filename_template arg support for running the latest provider on airflow 2
+        CloudwatchTaskHandler(
+            self.local_log_location,
+            f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
+            filename_template=None,
+        )
+
 
 def generate_log_events(conn, log_group_name, log_stream_name, log_events):
     conn.create_log_group(logGroupName=log_group_name)

@@ -42,9 +42,7 @@
     : </label>
   </td>
   <td>
-    {% if "custom_html_form" in form_details.schema %}
-      {{ form_details.schema.custom_html_form | replace("{name}", "element_" + form_key) | replace("{value}", form_details.value) }}
-    {% elif "type" in form_details.schema and form_details.schema.type == "boolean" %}
+    {% if "type" in form_details.schema and form_details.schema.type == "boolean" %}
       <label for="element_{{ form_key }}" control-label="">
         <input class="switch-input" name="element_{{ form_key }}" id="element_{{ form_key }}" type="checkbox"
           {%- if form_details.value %} checked="checked"{%- endif -%}/>

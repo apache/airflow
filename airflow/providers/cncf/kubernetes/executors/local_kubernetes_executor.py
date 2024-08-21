@@ -103,6 +103,11 @@ class LocalKubernetesExecutor(LoggingMixin):
         """Number of new tasks this executor instance can accept."""
         return self.local_executor.slots_available
 
+    @property
+    def slots_occupied(self):
+        """Number of tasks this executor instance is currently managing."""
+        return len(self.running) + len(self.queued_tasks)
+
     def queue_command(
         self,
         task_instance: TaskInstance,

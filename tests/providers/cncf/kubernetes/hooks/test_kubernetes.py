@@ -41,7 +41,6 @@ from tests.test_utils.providers import get_provider_min_airflow_version
 
 pytestmark = pytest.mark.db_test
 
-
 KUBE_CONFIG_PATH = os.getenv("KUBECONFIG", "~/.kube/config")
 HOOK_MODULE = "airflow.providers.cncf.kubernetes.hooks.kubernetes"
 
@@ -685,6 +684,7 @@ class TestAsyncKubernetesHook:
     KUBE_CONFIG_MERGER = "kubernetes_asyncio.config.kube_config.KubeConfigMerger"
     INCLUSTER_CONFIG_LOADER = "kubernetes_asyncio.config.incluster_config.InClusterConfigLoader"
     KUBE_LOADER_CONFIG = "kubernetes_asyncio.config.kube_config.KubeConfigLoader"
+    KUBE_CONFIG_FROM_DICT = "kubernetes_asyncio.config.kube_config.load_kube_config_from_dict"
     KUBE_API = "kubernetes_asyncio.client.api.core_v1_api.CoreV1Api.{}"
     KUBE_BATCH_API = "kubernetes_asyncio.client.api.batch_v1_api.BatchV1Api.{}"
     KUBE_ASYNC_HOOK = HOOK_MODULE + ".AsyncKubernetesHook.{}"
@@ -734,19 +734,19 @@ class TestAsyncKubernetesHook:
     @pytest.mark.asyncio
     @mock.patch(INCLUSTER_CONFIG_LOADER)
     @mock.patch(KUBE_CONFIG_MERGER)
-    async def test_load_config_with_config_path(
+    async def test_load_config_with_config_dict(
         self, kube_config_merger, incluster_config, kube_config_loader
     ):
         hook = AsyncKubernetesHook(
             conn_id=None,
             in_cluster=False,
-            config_file=ASYNC_CONFIG_PATH,
+            config_dict={"a": "b"},
             cluster_context=None,
         )
         await hook._load_config()
         assert not incluster_config.called
+        assert hook._is_in_cluster is False
         kube_config_loader.assert_called_once()
-        kube_config_merger.assert_called_once()
 
     @pytest.mark.asyncio
     @mock.patch(INCLUSTER_CONFIG_LOADER)

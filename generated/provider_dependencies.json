@@ -41,7 +41,7 @@
       "jsonpath_ng>=1.5.3",
       "redshift_connector>=2.0.918",
       "sqlalchemy_redshift>=0.8.6",
-      "watchtower>=3.0.0,<4"
+      "watchtower>=3.0.0,!=3.3.0,<4"
     ],
     "devel-deps": [
       "aiobotocore>=2.13.0",
@@ -207,7 +207,9 @@
       "apache-airflow>=2.8.0",
       "impyla>=0.18.0,<1.0"
     ],
-    "devel-deps": [],
+    "devel-deps": [
+      "kerberos>=1.3.0"
+    ],
     "plugins": [],
     "cross-providers-deps": [
       "common.sql"
@@ -556,7 +558,9 @@
       "google-re2>=1.0",
       "jmespath>=0.7.0"
     ],
-    "devel-deps": [],
+    "devel-deps": [
+      "kerberos>=1.3.0"
+    ],
     "plugins": [],
     "cross-providers-deps": [],
     "excluded-python-versions": [],

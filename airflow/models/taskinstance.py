@@ -354,7 +354,8 @@ def _run_raw_task(
         # run on_success_callback before db committing
         # otherwise, the LocalTaskJob sees the state is changed to `success`,
         # but the task_runner is still running, LocalTaskJob then treats the state is set externally!
-        _run_finished_callback(callbacks=ti.task.on_success_callback, context=context)
+        if ti.state == TaskInstanceState.SUCCESS:
+            _run_finished_callback(callbacks=ti.task.on_success_callback, context=context)
 
         if not test_mode:
             _add_log(event=ti.state, task_instance=ti, session=session)

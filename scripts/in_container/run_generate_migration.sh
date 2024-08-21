@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
-. "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
+. "$(dirname "${BASH_SOURCE[0]}")/_in_container_script_init.sh"
 
 cd "${AIRFLOW_SOURCES}" || exit 1
 cd "airflow" || exit 1
-airflow db reset --use-migration-files
+airflow db reset
 alembic revision --autogenerate -m "${@}"

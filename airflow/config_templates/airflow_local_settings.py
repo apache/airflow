@@ -61,10 +61,6 @@ DAG_PROCESSOR_MANAGER_LOG_STDOUT: str = conf.get_mandatory_value(
     "logging", "DAG_PROCESSOR_MANAGER_LOG_STDOUT"
 )
 
-# FILENAME_TEMPLATE only uses in Remote Logging Handlers since Airflow 2.3.3
-# All of these handlers inherited from FileTaskHandler and providing any value rather than None
-# would raise deprecation warning.
-FILENAME_TEMPLATE: str | None = None
 
 PROCESSOR_FILENAME_TEMPLATE: str = conf.get_mandatory_value("logging", "LOG_PROCESSOR_FILENAME_TEMPLATE")
 
@@ -230,7 +226,6 @@ if REMOTE_LOGGING:
                 "formatter": "airflow",
                 "base_log_folder": str(os.path.expanduser(BASE_LOG_FOLDER)),
                 "s3_log_folder": REMOTE_BASE_LOG_FOLDER,
-                "filename_template": FILENAME_TEMPLATE,
             },
         }
 
@@ -243,7 +238,6 @@ if REMOTE_LOGGING:
                 "formatter": "airflow",
                 "base_log_folder": str(os.path.expanduser(BASE_LOG_FOLDER)),
                 "log_group_arn": url_parts.netloc + url_parts.path,
-                "filename_template": FILENAME_TEMPLATE,
             },
         }
 
@@ -256,7 +250,6 @@ if REMOTE_LOGGING:
                 "formatter": "airflow",
                 "base_log_folder": str(os.path.expanduser(BASE_LOG_FOLDER)),
                 "gcs_log_folder": REMOTE_BASE_LOG_FOLDER,
-                "filename_template": FILENAME_TEMPLATE,
                 "gcp_key_path": key_path,
             },
         }
@@ -273,7 +266,6 @@ if REMOTE_LOGGING:
                 "base_log_folder": str(os.path.expanduser(BASE_LOG_FOLDER)),
                 "wasb_log_folder": REMOTE_BASE_LOG_FOLDER,
                 "wasb_container": wasb_log_container,
-                "filename_template": FILENAME_TEMPLATE,
             },
         }
 
@@ -299,7 +291,6 @@ if REMOTE_LOGGING:
                 "formatter": "airflow",
                 "base_log_folder": os.path.expanduser(BASE_LOG_FOLDER),
                 "oss_log_folder": REMOTE_BASE_LOG_FOLDER,
-                "filename_template": FILENAME_TEMPLATE,
             },
         }
         DEFAULT_LOGGING_CONFIG["handlers"].update(OSS_REMOTE_HANDLERS)
@@ -310,7 +301,6 @@ if REMOTE_LOGGING:
                 "formatter": "airflow",
                 "base_log_folder": str(os.path.expanduser(BASE_LOG_FOLDER)),
                 "hdfs_log_folder": REMOTE_BASE_LOG_FOLDER,
-                "filename_template": FILENAME_TEMPLATE,
             },
         }
         DEFAULT_LOGGING_CONFIG["handlers"].update(HDFS_REMOTE_HANDLERS)
@@ -328,7 +318,6 @@ if REMOTE_LOGGING:
                 "class": "airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler",
                 "formatter": "airflow",
                 "base_log_folder": str(os.path.expanduser(BASE_LOG_FOLDER)),
-                "filename_template": FILENAME_TEMPLATE,
                 "end_of_log_mark": ELASTICSEARCH_END_OF_LOG_MARK,
                 "host": ELASTICSEARCH_HOST,
                 "frontend": ELASTICSEARCH_FRONTEND,

@@ -154,8 +154,8 @@ jobs:
         env:
           HATCH_ENV: "test"
         working-directory: ./clients/python
-      - name: "Install Airflow in editable mode with fab for webserver tests"
-        run: pip install -e ".[fab]"
+      - name: "Install Airflow with fab for webserver tests"
+        run: pip install ".[fab]"
       - name: "Install Python client"
         run: pip install ./dist/apache_airflow_client-*.whl
       - name: "Initialize Airflow DB and start webserver"

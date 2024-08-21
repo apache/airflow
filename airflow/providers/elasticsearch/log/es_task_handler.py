@@ -158,14 +158,14 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         index_patterns_callable: str = conf.get("elasticsearch", "index_patterns_callable", fallback=""),
         es_kwargs: dict | None | Literal["default_es_kwargs"] = "default_es_kwargs",
         *,
-        filename_template: str | None = None,
         log_id_template: str | None = None,
+        **kwargs,
     ):
         es_kwargs = es_kwargs or {}
         if es_kwargs == "default_es_kwargs":
             es_kwargs = get_es_kwargs_from_config()
         host = self.format_url(host)
-        super().__init__(base_log_folder, filename_template)
+        super().__init__(base_log_folder)
         self.closed = False
 
         self.client = elasticsearch.Elasticsearch(host, **es_kwargs)
