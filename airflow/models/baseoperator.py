@@ -276,6 +276,7 @@ def partial(
     task_display_name: str | None | ArgNotSet = NOTSET,
     logger_name: str | None | ArgNotSet = NOTSET,
     allow_nested_operators: bool = True,
+    call_on_kill_on_dagrun_timeout: bool | ArgNotSet = NOTSET,
     **kwargs,
 ) -> OperatorPartial:
     from airflow.models.dag import DagContext
