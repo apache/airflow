@@ -38,6 +38,7 @@ from packaging.utils import canonicalize_name
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.hooks.filesystem import FSHook
 from airflow.hooks.package_index import PackageIndexHook
+from airflow.models.param import Param
 from airflow.typing_compat import ParamSpec
 from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
@@ -1013,12 +1014,103 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
             # Do not use attr here. We want to check only direct class fields not those
             # inherited from parent hook. This way we add form fields only once for the whole
             # hierarchy and we add it only from the parent hook that provides those!
+            if "get_connection_form" in hook_class.__dict__:
+                # the new way in Airflow 3
+                widgets = hook_class.get_connection_form()
             if "get_connection_form_widgets" in hook_class.__dict__:
-                widgets = hook_class.get_connection_form_widgets()
+                from unittest import mock
+
+                def mock_lazy_gettext(txt: str) -> str:
+                    """Mock for flask_babel.lazy_gettext."""
+                    return txt
+
+                class MockOptional:
+                    """Mock for wtforms.validators.Optional."""
+
+                class MockEnum:
+                    """Mock for wtforms.validators.Optional."""
+
+                    def __init__(self, allowed_values):
+                        self.allowed_values = allowed_values
+
+                def mock_any_of(allowed_values: list) -> MockEnum:
+                    """Mock for wtforms.validators.any_of."""
+                    return MockEnum(allowed_values)
+
+                class MockBaseField:
+                    """Mock of WTForms Field."""
+
+                    param_type: str = "UNDEFINED"
+                    param_format: str | None = None
+
+                    def __init__(
+                        self,
+                        label: str | None = None,
+                        validators=None,
+                        description: str = "",
+                        default: str | None = None,
+                        widget=None,
+                    ):
+                        type: str | list[str] = self.param_type
+                        enum = {}
+                        format = {"format": self.param_format} if self.param_format else {}
+                        if validators:
+                            if any(isinstance(v, MockOptional) for v in validators):
+                                type = [self.param_type, "null"]
+                            for v in validators:
+                                if isinstance(v, MockEnum):
+                                    enum = {"enum": v.allowed_values}
+                        self.param = Param(
+                            default=default,
+                            title=label,
+                            description=description or None,
+                            type=type,
+                            **format,
+                            **enum,
+                        )
+
+                class MockStringField(MockBaseField):
+                    """Mock of WTForms StringField."""
+
+                    param_type: str = "string"
+
+                class MockIntegerField(MockBaseField):
+                    """Mock of WTForms IntegerField."""
+
+                    param_type: str = "integer"
+
+                class MockPasswordField(MockBaseField):
+                    """Mock of WTForms PasswordField."""
+
+                    param_type: str = "string"
+                    param_format: str | None = "password"  # TODO password not defined in params today
+
+                class MockBooleanField(MockBaseField):
+                    """Mock of WTForms BooleanField."""
+
+                    param_type: str = "boolean"
+
+                class MockAnyWidget:
+                    """Mock any flask appbuilder widget."""
+
+                with mock.patch("wtforms.StringField", MockStringField), mock.patch(
+                    "wtforms.IntegerField", MockIntegerField
+                ), mock.patch("wtforms.PasswordField", MockPasswordField), mock.patch(
+                    "wtforms.BooleanField", MockBooleanField
+                ), mock.patch("flask_babel.lazy_gettext", mock_lazy_gettext), mock.patch(
+                    "flask_appbuilder.fieldwidgets.BS3TextFieldWidget", MockAnyWidget
+                ), mock.patch(
+                    "flask_appbuilder.fieldwidgets.BS3TextAreaFieldWidget", MockAnyWidget
+                ), mock.patch(
+                    "flask_appbuilder.fieldwidgets.BS3PasswordFieldWidget", MockAnyWidget
+                ), mock.patch("wtforms.validators.Optional", MockOptional), mock.patch(
+                    "wtforms.validators.any_of", mock_any_of
+                ):
+                    widgets = hook_class.get_connection_form_widgets()
 
                 if widgets:
                     for widget in widgets.values():
-                        if widget.field_class not in allowed_field_classes:
+                        if not isinstance(widget, Param):
                             log.warning(
                                 "The hook_class '%s' uses field of unsupported class '%s'. "
                                 "Only '%s' field classes are supported",
