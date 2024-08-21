@@ -24,9 +24,9 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
 ## Primary Functionality - MVP
 
 - [x] Model -> DB Table creation
-- [ ] Breeze
+- [x] Breeze
   - [x] Support RemoteExecutor
-  - [ ] Start Remote Worker panel
+  - [x] Start Remote Worker panel
   - [x] Hatch dynamically load plugin(s)
 - [x] Bootstrap Provider Package
 - [x] Executor class
