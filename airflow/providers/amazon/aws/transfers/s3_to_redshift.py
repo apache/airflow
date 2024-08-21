@@ -59,7 +59,8 @@ class S3ToRedshiftOperator(BaseOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
-    :param column_list: list of column names to load
+    :param column_list: list of column names to load source data fields into specific target columns
+        https://docs.aws.amazon.com/redshift/latest/dg/copy-parameters-column-mapping.html#copy-column-list
     :param copy_options: reference to a list of COPY options
     :param method: Action to be performed on execution. Available ``APPEND``, ``UPSERT`` and ``REPLACE``.
     :param upsert_keys: List of fields to use as key on upsert action
@@ -204,18 +205,13 @@ class S3ToRedshiftOperator(BaseOperator):
 
     def get_openlineage_facets_on_complete(self, task_instance):
         """Implement on_complete as we will query destination table."""
-        from pathlib import Path
-
         from airflow.providers.amazon.aws.utils.openlineage import (
             get_facets_from_redshift_table,
-            get_identity_column_lineage_facet,
         )
         from airflow.providers.common.compat.openlineage.facet import (
             Dataset,
-            Identifier,
             LifecycleStateChange,
             LifecycleStateChangeDatasetFacet,
-            SymlinksDatasetFacet,
         )
         from airflow.providers.openlineage.extractors import OperatorLineage
 
@@ -235,36 +231,8 @@ class S3ToRedshiftOperator(BaseOperator):
             database = redshift_sql_hook.conn.schema
             authority = redshift_sql_hook.get_openlineage_database_info(redshift_sql_hook.conn).authority
             output_dataset_facets = get_facets_from_redshift_table(
-                redshift_sql_hook, self.table, self.redshift_data_api_kwargs, self.schema
+                redshift_sql_hook, self.table, {}, self.schema
             )
-
-        input_dataset_facets = {}
-        if not self.column_list:
-            # If column_list is not specified, then we know that input file matches columns of output table.
-            input_dataset_facets["schema"] = output_dataset_facets["schema"]
-
-        dataset_name = self.s3_key
-        if "*" in dataset_name:
-            # If wildcard ("*") is used in s3 path, we want the name of dataset to be directory name,
-            # but we create a symlink to the full object path with wildcard.
-            input_dataset_facets["symlink"] = SymlinksDatasetFacet(
-                identifiers=[Identifier(namespace=f"s3://{self.s3_bucket}", name=dataset_name, type="file")]
-            )
-            dataset_name = Path(dataset_name).parent.as_posix()
-            if dataset_name == ".":
-                # blob path does not have leading slash, but we need root dataset name to be "/"
-                dataset_name = "/"
-
-        input_dataset = Dataset(
-            namespace=f"s3://{self.s3_bucket}",
-            name=dataset_name,
-            facets=input_dataset_facets,
-        )
-
-        output_dataset_facets["columnLineage"] = get_identity_column_lineage_facet(
-            field_names=[field.name for field in output_dataset_facets["schema"].fields],
-            input_datasets=[input_dataset],
-        )
 
         if self.method == "REPLACE":
             output_dataset_facets["lifecycleStateChange"] = LifecycleStateChangeDatasetFacet(
@@ -275,6 +243,11 @@ class S3ToRedshiftOperator(BaseOperator):
             namespace=f"redshift://{authority}",
             name=f"{database}.{self.schema}.{self.table}",
             facets=output_dataset_facets,
+        )
+
+        input_dataset = Dataset(
+            namespace=f"s3://{self.s3_bucket}",
+            name=self.s3_key,
         )
 
         return OperatorLineage(inputs=[input_dataset], outputs=[output_dataset])
