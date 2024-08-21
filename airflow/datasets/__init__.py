@@ -258,6 +258,17 @@ class DatasetAliasEvent(TypedDict):
 
 
 @attr.define()
+class NoComparison(ArithmeticError):
+    """Exception for when two datasets cannot be compared directly."""
+
+    a: Dataset
+    b: Dataset
+
+    def __str__(self) -> str:
+        return f"Can not compare {self.a} and {self.b}"
+
+
+@attr.define()
 class Dataset(os.PathLike, BaseDataset):
     """A representation of data dependencies between workflows."""
 
@@ -275,21 +286,44 @@ class Dataset(os.PathLike, BaseDataset):
     def __attrs_post_init__(self) -> None:
         if self.name is None and self.uri is None:
             raise TypeError("Dataset requires either name or URI")
-        if self.name is None:
-            self.name = self.uri
-        elif self.uri is None:
-            self.uri = self.name
 
     def __fspath__(self) -> str:
         return self.uri
 
     def __eq__(self, other: Any) -> bool:
-        if isinstance(other, self.__class__):
-            return self.uri == other.uri
-        return NotImplemented
+        """
+        Check equality of two datasets.
 
-    def __hash__(self) -> int:
-        return hash(self.uri)
+        Since either *name* or *uri* is required, and we ensure integrity when
+        DAG files are parsed, we only need to consider the following combos:
+
+        * Both datasets have name and uri defined: Both fields must match.
+        * One dataset have only one field (name or uri) defined: The field
+          defined by both must match.
+        * Both datasets have the same one field defined: The field must match.
+        * Either dataset has the other field defined (e.g. *self* defines only
+          *name*, but *other* only *uri*): The two cannot be reliably compared,
+          and (a subclass of) *ArithmeticError* is raised.
+
+        In the last case, we can still check dataset equality by querying the
+        database. We do not do here though since that has too much performance
+        implication. The call site should consider the possibility instead.
+
+        However, since *Dataset* objects created from the meta-database (e.g.
+        those in the task execution context) would have both concrete name and
+        URI values filled by the DAG parser. Non-comparability only happens if
+        the user accesses the dataset objects that aren't created from the
+        database, say globally in a DAG file. This is discouraged anyway.
+        """
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        if self.name is not None and other.name is not None:
+            if self.uri is None or other.uri is None:
+                return self.name == other.name
+            return self.name == other.name and self.uri == other.uri
+        if self.uri is not None and other.uri is not None:
+            return self.uri == other.uri
+        raise NoComparison(self, other)
 
     @property
     def normalized_uri(self) -> str | None:
