@@ -35,8 +35,6 @@ from urllib.parse import urlsplit
 
 import aiohttp
 import requests
-from azure.core.credentials import AccessToken
-from azure.identity import DefaultAzureCredential, WorkloadIdentityCredential
 from requests import PreparedRequest, exceptions as requests_exceptions
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.exceptions import JSONDecodeError
