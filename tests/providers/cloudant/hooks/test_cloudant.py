@@ -27,7 +27,7 @@ from airflow.models import Connection
 
 pytestmark = [pytest.mark.db_test]
 
-if sys.version_info >= (3, 10):
+if (3, 10) <= sys.version_info < (3, 12):
     from airflow.providers.cloudant.hooks.cloudant import CloudantHook
 else:
     pytestmark.append(
