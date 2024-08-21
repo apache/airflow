@@ -182,7 +182,7 @@ class AssetManager(LoggingMixin):
 
         cls.notify_asset_changed(asset=asset)
 
-        Stats.incr("dataset.updates")
+        Stats.incr("asset.updates")
 
         dags_to_queue = dags_to_queue_from_asset | dags_to_queue_from_asset_alias
         cls._queue_dagruns(asset_id=asset_model.id, dags_to_queue=dags_to_queue, session=session)
