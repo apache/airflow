@@ -1,1 +1,0 @@
-Decorator for Task Flow, to make it simple to apply whether or not to skip a Task.
