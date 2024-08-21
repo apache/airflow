@@ -19,9 +19,6 @@ from __future__ import annotations
 
 from airflow.exceptions import AirflowException
 
-# Note: Any AirflowException raised is expected to cause the TaskInstance
-#       to be marked in an ERROR state
-
 
 class OpenAIBatchJobException(AirflowException):
     """Raise when OpenAI Batch Job fails to start AFTER processing the request."""

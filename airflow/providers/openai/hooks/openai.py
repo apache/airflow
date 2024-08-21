@@ -462,10 +462,10 @@ class OpenAIHook(BaseHook):
             if start + timeout < time.monotonic():
                 self.cancel_batch(batch_id=batch_id)
                 raise OpenAIBatchTimeout(f"Timeout: OpenAI Batch {batch_id} is not ready after {timeout}s")
-            time.sleep(wait_seconds)
             batch = self.get_batch(batch_id=batch_id)
 
             if BatchStatus.is_in_progress(batch.status):
+                time.sleep(wait_seconds)
                 continue
             if batch.status == BatchStatus.COMPLETED:
                 return
