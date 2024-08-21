@@ -37,11 +37,14 @@ from urllib.parse import urlsplit
 import aiohttp
 import requests
 <<<<<<< HEAD:providers/src/airflow/providers/databricks/hooks/databricks_base.py
+<<<<<<< HEAD:providers/src/airflow/providers/databricks/hooks/databricks_base.py
 from aiohttp.client_exceptions import ClientConnectorError
 =======
 from azure.core.credentials import AccessToken
 from azure.identity import DefaultAzureCredential, WorkloadIdentityCredential
 >>>>>>> 29de4a2773 (add kubernetes check):airflow/providers/databricks/hooks/databricks_base.py
+=======
+>>>>>>> d0bac3f2a8 (Cleanup imports):airflow/providers/databricks/hooks/databricks_base.py
 from requests import PreparedRequest, exceptions as requests_exceptions
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.exceptions import JSONDecodeError
