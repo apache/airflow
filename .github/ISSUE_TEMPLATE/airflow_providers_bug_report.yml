@@ -52,7 +52,6 @@ body:
         - common-compat
         - common-io
         - common-sql
-        - core
         - databricks
         - datadog
         - dbt-cloud
@@ -61,6 +60,7 @@ body:
         - docker
         - edge
         - elasticsearch
+        - essentials
         - exasol
         - fab
         - facebook
