@@ -2490,7 +2490,7 @@ class TestSchedulerJob:
             dag_id="test_dagrun_timeout",
             dagrun_timeout=datetime.timedelta(seconds=1),
             call_on_kill_on_dagrun_timeout=True,
-        ) as dag:
+        ):
             task = BashOperator(
                 task_id="task",
                 bash_command="sleep 10",
