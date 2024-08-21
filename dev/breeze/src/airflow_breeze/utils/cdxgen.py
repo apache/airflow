@@ -24,7 +24,6 @@ import signal
 import sys
 import time
 from abc import abstractmethod
-from csv import DictWriter
 from dataclasses import dataclass
 from multiprocessing.pool import Pool
 from pathlib import Path
@@ -538,7 +537,7 @@ def get_vcs(dependency: dict[str, Any]) -> str:
     if "externalReferences" in dependency:
         for reference in dependency["externalReferences"]:
             if reference["type"] == "vcs":
-                return reference["url"]
+                return reference["url"].replace("http://", "https://")
     return ""
 
 
@@ -570,8 +569,57 @@ OPEN_PSF_CHECKS = [
     "SAST",
 ]
 
+CHECK_DOCS: dict[str, str] = {}
 
-def get_open_psf_scorecard(vcs):
+
+KNOWN_REPUTABLE_FOUNDATIONS = [
+    "apache",
+    "python",
+    "zopefoundation",
+    "uqfoundation",
+    "numpy",
+    "django",
+]
+
+KNOWN_STRONG_COMMUNITIES = ["pallets-eco", "celery", "fsspec", "aio-libs", "pyasn1", "pytest-dev", "aio-libs"]
+
+KNOWN_COMPANIES = ["getsentry", "prometheus", "Textualize", "google", "googleapis", "boto"]
+
+KNOWN_STABLE_PROJECTS = [
+    "Deprecated",
+    "Flask-Bcrypt",
+    "SQLAlchemy-Utils",
+    "aiohttp",
+    "aiosignal",
+    "async-timeout",
+    "backoff",
+    "botocore",
+    "cgroupspy",
+    "charset-normalizer",
+    "colorlog",
+    "decorator",
+    "google-re2",
+    "h11",
+    "inflection",
+    "isodate",
+    "jmespath",
+    "lazy-object-proxy",
+    "ldap3",
+    "multidict",
+    "prison",
+    "prometheus_client",
+    "pure-sasl",
+    "rfc3339-validator",
+    "six",
+    "setproctitle",
+    "text-unidecode",
+    "thrift-sasl",
+    "tzdata",
+    "vine",
+]
+
+
+def get_open_psf_scorecard(vcs: str, project_name: str):
     import requests
 
     repo_url = vcs.split("://")[1]
@@ -586,34 +634,62 @@ def get_open_psf_scorecard(vcs):
     if "checks" in open_psf_scorecard:
         for check in open_psf_scorecard["checks"]:
             check_name = check["name"]
+            score = check["score"]
             results["OPSF-" + check_name] = check["score"]
             reason = check.get("reason") or ""
             if check.get("details"):
                 reason += "\n".join(check["details"])
             results["OPSF-Details-" + check_name] = reason
+            CHECK_DOCS[check_name] = check["documentation"]["short"] + "\n" + check["documentation"]["url"]
+            if check_name == "Maintained":
+                if project_name in KNOWN_STABLE_PROJECTS:
+                    lifecycle_status = "Stable"
+                else:
+                    if score == 0:
+                        lifecycle_status = "Abandoned"
+                    elif score < 6:
+                        lifecycle_status = "Somewhat maintained"
+                    else:
+                        lifecycle_status = "Actively maintained"
+                results["Lifecycle status"] = lifecycle_status
+            if check_name == "Vulnerabilities":
+                results["Unpatched Vulns"] = "Yes" if score != 10 else ""
     return results
 
 
-def convert_sbom_to_csv(
-    writer: DictWriter,
+def get_governance(vcs: str | None):
+    if not vcs or not vcs.startswith("https://github.com/"):
+        return ""
+    organization = vcs.split("/")[3]
+    if organization.lower() in KNOWN_REPUTABLE_FOUNDATIONS:
+        return "Reputable Foundation"
+    if organization.lower() in KNOWN_STRONG_COMMUNITIES:
+        return "Strong Community"
+    if organization.lower() in KNOWN_COMPANIES:
+        return "Company"
+    return "Loose community/ Single Person"
+
+
+def convert_sbom_entry_to_dict(
     dependency: dict[str, Any],
     is_core: bool,
     is_devel: bool,
     include_open_psf_scorecard: bool = False,
-) -> None:
+) -> dict[str, Any] | None:
     """
-    Convert SBOM to CSV
-    :param writer: CSV writer
+    Convert SBOM to Row for CSV or spreadsheet output
     :param dependency: Dependency to convert
     :param is_core: Whether the dependency is core or not
+    :param is_devel: Whether the dependency is devel or not
+    :param include_open_psf_scorecard: Whether to include Open PSF Scorecard
     """
     get_console().print(f"[info]Converting {dependency['name']} to CSV")
     vcs = get_vcs(dependency)
     name = dependency.get("name", "")
     if name.startswith("apache-airflow"):
-        return
+        return None
     row = {
-        "Name": dependency.get("name", ""),
+        "Name": normalize_package_name(dependency.get("name", "")),
         "Author": dependency.get("author", ""),
         "Version": dependency.get("version", ""),
         "Description": dependency.get("description"),
@@ -623,11 +699,12 @@ def convert_sbom_to_csv(
         "Purl": dependency.get("purl"),
         "Pypi": get_pypi_link(dependency),
         "Vcs": vcs,
+        "Governance": get_governance(vcs),
     }
     if vcs and include_open_psf_scorecard:
-        open_psf_scorecard = get_open_psf_scorecard(vcs)
+        open_psf_scorecard = get_open_psf_scorecard(vcs, name)
         row.update(open_psf_scorecard)
-    writer.writerow(row)
+    return row
 
 
 def get_field_names(include_open_psf_scorecard: bool) -> list[str]:
@@ -637,6 +714,7 @@ def get_field_names(include_open_psf_scorecard: bool) -> list[str]:
         for check in OPEN_PSF_CHECKS:
             names.append("OPSF-" + check)
             names.append("OPSF-Details-" + check)
+    names.extend(["Governance", "Lifecycle status", "Unpatched Vulns"])
     return names
 
 
