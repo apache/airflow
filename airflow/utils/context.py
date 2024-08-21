@@ -222,7 +222,7 @@ class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
         return self._dict[event_key]
 
 
-class LazyDatasetEventSelectSequence(LazySelectSequence[AssetEvent]):
+class LazyAssetEventSelectSequence(LazySelectSequence[AssetEvent]):
     """
     List-like interface to lazily access AssetEvent rows.
 
@@ -239,7 +239,7 @@ class LazyDatasetEventSelectSequence(LazySelectSequence[AssetEvent]):
 
 
 @attrs.define(init=False)
-class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
+class InletEventsAccessors(Mapping[str, LazyAssetEventSelectSequence]):
     """
     Lazy mapping for inlet asset events accessors.
 
@@ -247,19 +247,19 @@ class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
     """
 
     _inlets: list[Any]
-    _datasets: dict[str, Dataset]
+    _assets: dict[str, Dataset]
     _asset_aliases: dict[str, AssetAlias]
     _session: Session
 
     def __init__(self, inlets: list, *, session: Session) -> None:
         self._inlets = inlets
         self._session = session
-        self._datasets = {}
+        self._assets = {}
         self._asset_aliases = {}
 
         for inlet in inlets:
             if isinstance(inlet, Dataset):
-                self._datasets[inlet.uri] = inlet
+                self._assets[inlet.uri] = inlet
             elif isinstance(inlet, AssetAlias):
                 self._asset_aliases[inlet.name] = inlet
 
@@ -269,7 +269,7 @@ class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
     def __len__(self) -> int:
         return len(self._inlets)
 
-    def __getitem__(self, key: int | str | Dataset | AssetAlias) -> LazyDatasetEventSelectSequence:
+    def __getitem__(self, key: int | str | Dataset | AssetAlias) -> LazyAssetEventSelectSequence:
         if isinstance(key, int):  # Support index access; it's easier for trivial cases.
             obj = self._inlets[key]
             if not isinstance(obj, (Dataset, AssetAlias)):
@@ -282,13 +282,13 @@ class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
             join_clause = AssetEvent.source_aliases
             where_clause = AssetAliasModel.name == asset_alias.name
         elif isinstance(obj, (Dataset, str)):
-            dataset = self._datasets[extract_event_key(obj)]
+            asset = self._assets[extract_event_key(obj)]
             join_clause = AssetEvent.dataset
-            where_clause = AssetModel.uri == dataset.uri
+            where_clause = AssetModel.uri == asset.uri
         else:
             raise ValueError(key)
 
-        return LazyDatasetEventSelectSequence.from_select(
+        return LazyAssetEventSelectSequence.from_select(
             select(AssetEvent).join(join_clause).where(where_clause),
             order_by=[AssetEvent.timestamp],
             session=self._session,
