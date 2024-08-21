@@ -62,6 +62,7 @@ from airflow.www.extensions.init_auth_manager import get_auth_manager
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import ClauseElement, Select
+    from sqlalchemy.sql.expression import ColumnOperators
 
     from airflow.api_connexion.types import APIResponse
     from airflow.auth.managers.models.batch_apis import IsAuthorizedDagRequest
@@ -248,8 +249,8 @@ def get_mapped_task_instances(
     try:
         order_by_params = _get_order_by_params(order_by)
         entry_query = entry_query.order_by(*order_by_params)
-    except ValueError:
-        raise BadRequest(detail=f"Ordering with '{order_by}' is not supported")
+    except _UnsupportedOrderBy as e:
+        raise BadRequest(detail=f"Ordering with {e.order_by!r} is not supported")
 
     # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
     task_instances = session.execute(entry_query.offset(offset).limit(limit)).all()
@@ -280,7 +281,13 @@ def _apply_range_filter(query: Select, key: ClauseElement, value_range: tuple[T,
     return query
 
 
-def _get_order_by_params(order_by: str | None = None) -> tuple:
+class _UnsupportedOrderBy(ValueError):
+    def __init__(self, order_by: str) -> None:
+        super().__init__(order_by)
+        self.order_by = order_by
+
+
+def _get_order_by_params(order_by: str | None = None) -> tuple[ColumnOperators, ...]:
     """Return a tuple with the order by params to be used in the query."""
     if order_by is None:
         return (TI.map_index.asc(),)
@@ -304,7 +311,7 @@ def _get_order_by_params(order_by: str | None = None) -> tuple:
         return (TI.map_index.asc(),)
     if order_by == "-map_index":
         return (TI.map_index.desc(),)
-    raise ValueError(f"Unsupported order_by value '{order_by}'")
+    raise _UnsupportedOrderBy(order_by)
 
 
 @format_parameters(
@@ -394,8 +401,8 @@ def get_task_instances(
     try:
         order_by_params = _get_order_by_params(order_by)
         entry_query = entry_query.order_by(*order_by_params)
-    except ValueError:
-        raise BadRequest(detail=f"Ordering with '{order_by}' is not supported")
+    except _UnsupportedOrderBy as e:
+        raise BadRequest(detail=f"Ordering with {e.order_by!r} is not supported")
 
     # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
     task_instances = session.execute(entry_query.offset(offset).limit(limit)).all()
@@ -470,12 +477,11 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
         joinedload(TI.rendered_task_instance_fields), joinedload(TI.task_instance_note)
     )
 
-    order_by = data["order_by"]
     try:
-        order_by_params = _get_order_by_params(order_by)
+        order_by_params = _get_order_by_params(data["order_by"])
         ti_query = ti_query.order_by(*order_by_params)
-    except ValueError:
-        raise BadRequest(detail=f"Ordering with '{order_by}' is not supported")
+    except _UnsupportedOrderBy as e:
+        raise BadRequest(detail=f"Ordering with {e.order_by!r} is not supported")
 
     # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
     task_instances = session.execute(ti_query).all()
