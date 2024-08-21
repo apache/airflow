@@ -78,7 +78,6 @@ class TestDatabricksHookAadTokenManagedIdentity:
     )
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.requests.get")
     def test_one(self, requests_mock, get_token_mock: mock.MagicMock):
-        # get_token_mock.return_value = create_aad_token_for_resource()
         requests_mock.return_value = create_successful_response_mock({"jobs": []})
 
         result = self._hook.list_jobs()
