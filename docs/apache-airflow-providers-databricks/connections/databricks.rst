@@ -87,6 +87,7 @@ Extra (optional)
 
     * ``use_azure_managed_identity``: required boolean flag to specify if managed identity needs to be used instead of
       service principal
+    * ``use_azure_workload_identity``: required boolean flag to specify if workload identity needs to be used to used within an AKS cluster. Note that this option can't be set together with the `use_azure_managed_identity` parameter.
     * ``azure_resource_id``: optional Resource ID of the Azure Databricks workspace (required if managed identity isn't
       a user inside workspace)
 
