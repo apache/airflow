@@ -750,7 +750,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def process_executor_events(
         cls, executor: BaseExecutor, dag_bag: DagBag, job_id: str | None, session: Session
     ) -> int:
-        """Respond to executor events."""
+        """
+        Respond to executor events.
+
+        This is a classmethod because this is also used in `dag.test()`.
+        `dag.test` execute DAGs with no scheduler, therefore it needs to handle the events pushed by the
+        executors as well.
+        """
         ti_primary_key_to_try_number_map: dict[tuple[str, str, str, int], int] = {}
         event_buffer = executor.get_event_buffer()
         tis_with_right_state: list[TaskInstanceKey] = []
