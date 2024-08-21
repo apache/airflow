@@ -1,4 +1,4 @@
-#
+
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -58,7 +58,6 @@ from airflow import __version__
 from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureException
 from airflow.hooks.base import BaseHook
 from airflow.providers_manager import ProvidersManager
-from airflow.settings import RUNNING_IN_KUBERNETES
 
 if TYPE_CHECKING:
     from airflow.models import Connection
@@ -385,6 +384,50 @@ class BaseDatabricksHook(BaseHook):
 
         return jsn["access_token"]
 
+    def _get_aad_token_for_workload_identity(self, resource: str) -> str:
+        """
+        Get AAD token for given resource for workload identity.
+
+        Supports managed identity or service principal auth.
+        :param resource: resource to issue token to
+        :return: AAD token, or raise an exception
+        """
+        aad_token = self.oauth_tokens.get(resource)
+        if aad_token and self._is_oauth_token_valid(aad_token):
+            return aad_token["access_token"]
+
+        self.log.info("Existing AAD token is expired, or going to expire soon. Refreshing...")
+        try:
+            from azure.identity import DefaultAzureCredential
+
+            for attempt in self._get_retry_object():
+                with attempt:
+                    # This only works in an AKS Cluster given the following environment variables:
+                    # AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_FEDERATED_TOKEN_FILE
+                    #
+                    # While there is a WorkloadIdentityCredential class, the below class is advised by microsoft examples
+                    # https://learn.microsoft.com/nl-nl/azure/aks/workload-identity-overview
+                    token = DefaultAzureCredential().get_token(f"{resource}/.default")
+
+                    jsn = {
+                        "access_token": token.token,
+                        "token_type": "Bearer",
+                        "expires_on": token.expires_on,
+                    }
+                    self._is_oauth_token_valid(jsn)
+                    self.oauth_tokens[resource] = jsn
+                    break
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(e)
+        except RetryError:
+            raise AirflowException(f"API requests to Azure failed {self.retry_limit} times. Giving up.")
+        except requests_exceptions.HTTPError as e:
+            msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
+            raise AirflowException(msg)
+
+        return token.token
+
+
     def _get_aad_headers(self) -> dict:
         """
         Fill AAD headers if necessary (SPN is outside of the workspace).
@@ -494,19 +537,9 @@ class BaseDatabricksHook(BaseHook):
                 raise AirflowException(
                     "Workload identity authentication is only supporting when running in an Kubernetes cluster"
                 )
-
             self.log.debug("Using Azure Workload Identity authentication.")
 
-            # This only works in an AKS Cluster given the following environment variables:
-            # AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_FEDERATED_TOKEN_FILE
-            #
-            # While there is a WorkloadIdentityCredential class, the below class is advised by microsoft examples
-            # https://learn.microsoft.com/nl-nl/azure/aks/workload-identity-overview
-            credential = DefaultAzureCredential()
-
-            token_obj: AccessToken = credential.get_token(DEFAULT_DATABRICKS_SCOPE)
-
-            return token_obj.token
+            return self._get_aad_token_for_workload_identity(DEFAULT_DATABRICKS_SCOPE)
         elif self.databricks_conn.extra_dejson.get("service_principal_oauth", False):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
