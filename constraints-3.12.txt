@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-20T19:46:53.133957
+# This constraints file was automatically generated on 2024-08-21T07:46:16.915921
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -315,7 +315,7 @@ google-api-python-client==2.142.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.34.0
-google-cloud-aiplatform==1.62.0
+google-cloud-aiplatform==1.63.0
 google-cloud-appengine-logging==1.4.5
 google-cloud-audit-log==0.3.0
 google-cloud-automl==2.13.5
@@ -463,7 +463,7 @@ multidict==6.0.5
 mypy-boto3-appflow==1.35.0
 mypy-boto3-rds==1.35.0
 mypy-boto3-redshift-data==1.35.0
-mypy-boto3-s3==1.35.0
+mypy-boto3-s3==1.35.2
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.0.0
@@ -477,7 +477,7 @@ nh3==0.2.18
 nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
-openai==1.41.1
+openai==1.42.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.19.0
@@ -495,7 +495,7 @@ opentelemetry-proto==1.26.0
 opentelemetry-sdk==1.26.0
 opentelemetry-semantic-conventions==0.47b0
 opsgenie-sdk==2.1.5
-oracledb==2.3.0
+oracledb==2.4.0
 ordered-set==4.1.0
 oss2==2.18.6
 packaging==24.1
@@ -695,12 +695,12 @@ types-docutils==0.21.0.20240724
 types-paramiko==3.4.0.20240423
 types-protobuf==5.27.0.20240626
 types-pyOpenSSL==24.1.0.20240722
-types-python-dateutil==2.9.0.20240316
+types-python-dateutil==2.9.0.20240821
 types-python-slugify==8.0.2.20240310
 types-pytz==2024.1.0.20240417
 types-redis==4.6.0.20240819
 types-requests==2.32.0.20240712
-types-setuptools==71.1.0.20240818
+types-setuptools==72.2.0.20240821
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
@@ -718,7 +718,7 @@ validators==0.33.0
 vertica-python==1.4.0
 vine==5.1.0
 virtualenv==20.26.3
-watchtower==3.2.0
+watchtower==3.3.1
 wcwidth==0.2.13
 weaviate-client==4.7.1
 websocket-client==1.8.0
@@ -733,7 +733,7 @@ yandexcloud==0.291.0
 yarl==1.9.4
 ydb==3.16.0
 zeep==4.2.1
-zenpy==2.0.49
+zenpy==2.0.50
 zipp==3.20.0
 zope.event==5.0
 zope.interface==7.0.1
