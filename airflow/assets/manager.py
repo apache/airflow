@@ -144,7 +144,7 @@ class AssetManager(LoggingMixin):
             cls._send_dag_priority_parsing_request(file_locs, session)
         session.flush()
 
-        cls.notify_dataset_changed(dataset=asset)
+        cls.notify_asset_changed(asset=asset)
 
         Stats.incr("dataset.updates")
 
@@ -158,9 +158,9 @@ class AssetManager(LoggingMixin):
         get_listener_manager().hook.on_dataset_created(dataset=asset)
 
     @classmethod
-    def notify_dataset_changed(cls, dataset: Dataset):
-        """Run applicable notification actions when a dataset is changed."""
-        get_listener_manager().hook.on_dataset_changed(dataset=dataset)
+    def notify_asset_changed(cls, asset: Dataset):
+        """Run applicable notification actions when an asset is changed."""
+        get_listener_manager().hook.on_dataset_changed(dataset=asset)
 
     @classmethod
     def _queue_dagruns(cls, dataset_id: int, dags_to_queue: set[DagModel], session: Session) -> None:
