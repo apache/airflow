@@ -112,13 +112,12 @@ class RemoteExecutor(BaseExecutor):
                     self.last_reported_state[job.key] = job.state
             job_success_purge = conf.getint("remote", "job_success_purge")
             job_fail_purge = conf.getint("remote", "job_fail_purge")
-            last_update_t = job.last_update.timestamp()
             if (
                 job.state == TaskInstanceState.SUCCESS
-                and last_update_t < (datetime.now() - timedelta(minutes=job_success_purge)).timestamp()
+                and job.last_update_t < (datetime.now() - timedelta(minutes=job_success_purge)).timestamp()
             ) or (
                 job.state == TaskInstanceState.FAILED
-                and last_update_t < (datetime.now() - timedelta(minutes=job_fail_purge)).timestamp()
+                and job.last_update_t < (datetime.now() - timedelta(minutes=job_fail_purge)).timestamp()
             ):
                 if job.key in self.last_reported_state:
                     del self.last_reported_state[job.key]
