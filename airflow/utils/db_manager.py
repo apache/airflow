@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+from abc import abstractmethod
 from typing import TYPE_CHECKING
 
 from alembic import command
@@ -85,9 +86,9 @@ class BaseDBManager(LoggingMixin):
         config = self.get_alembic_config()
         command.upgrade(config, revision=to_version or "heads", sql=show_sql_only)
 
+    @abstractmethod
     def downgradedb(self, to_version, from_version=None, show_sql_only=False):
         """Downgrade the database."""
-        self.log.info("Downgrading the %s database", self.__class__.__name__)
 
 
 class RunDBManager(LoggingMixin):
