@@ -53,6 +53,9 @@ from airflow.exceptions import AirflowException, AirflowOptionalProviderFeatureE
 from airflow.hooks.base import BaseHook
 from airflow.providers_manager import ProvidersManager
 
+from azure.core.credentials import AccessToken
+from azure.identity import WorkloadIdentityCredential
+
 if TYPE_CHECKING:
     from airflow.models import Connection
 
@@ -64,6 +67,8 @@ TOKEN_REFRESH_LEAD_TIME = 120
 AZURE_MANAGEMENT_ENDPOINT = "https://management.core.windows.net/"
 DEFAULT_DATABRICKS_SCOPE = "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
 OIDC_TOKEN_SERVICE_URL = "{}/oidc/v1/token"
+
+WORKLOAD_IDENTITY_SETTING_KEY = "use_azure_workload_identity"
 
 
 class BaseDatabricksHook(BaseHook):
@@ -476,6 +481,16 @@ class BaseDatabricksHook(BaseHook):
             self.log.debug("Using AAD Token for managed identity.")
             self._check_azure_metadata_service()
             return self._get_aad_token(DEFAULT_DATABRICKS_SCOPE)
+        elif self.databricks_conn.extra_dejson.get(WORKLOAD_IDENTITY_SETTING_KEY, False):
+            self.log.debug("Using Azure Workload Identity authentication.")
+            
+            # This only works in an AKS Cluster given the following environment variables:
+            # AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_FEDERATED_TOKEN_FILE
+            credential = WorkloadIdentityCredential()
+            
+            token_obj: AccessToken = credential.get_token(DEFAULT_DATABRICKS_SCOPE)
+            
+            return token_obj.token
         elif self.databricks_conn.extra_dejson.get("service_principal_oauth", False):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
