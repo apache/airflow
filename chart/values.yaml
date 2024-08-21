@@ -682,6 +682,16 @@ workers:
   #   cpu: 100m
   #   memory: 128Mi
 
+  # Set the kubernetes pod resource configuration here here if using CeleryKubernetesExecutor
+  # If empty, it will use the Celery executor resource configuration from above
+  kubernetes_resources: {}
+  #  limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  #  requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
   # Grace period for tasks to finish after SIGTERM is sent from kubernetes
   terminationGracePeriodSeconds: 600
 
