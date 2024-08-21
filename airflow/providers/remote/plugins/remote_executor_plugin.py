@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -99,7 +100,8 @@ class RemoteWorkerHosts(BaseView):
         from airflow.providers.remote.models.remote_worker import RemoteWorkerModel
 
         hosts = session.scalars(select(RemoteWorkerModel).order_by(RemoteWorkerModel.worker_name)).all()
-        return self.render_template("remote_worker_hosts.html", hosts=hosts)
+        five_min_ago = datetime.now() - timedelta(minutes=5)
+        return self.render_template("remote_worker_hosts.html", hosts=hosts, five_min_ago=five_min_ago)
 
 
 # Check if RemoteExecutor is actually loaded

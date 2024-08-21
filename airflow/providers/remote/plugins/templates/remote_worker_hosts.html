@@ -46,7 +46,12 @@
           <tr>
             <td>{{ host.worker_name }}</a></td>
             <td>
-              {%- if host.state == "starting" -%}
+              {%- if host.state == "offline" -%}
+                <span class="label" style="color:white; background-color:black;" title="Current State: {{ host.state }}">{{ host.state }}</span>
+              {%- elif host.last_update.timestamp() <= five_min_ago.timestamp() -%}
+                Reported <span class="label" style="color:white; background-color:red;" title="Current State: {{ host.state }}">{{ host.state }}</span>
+                but no heartbeat
+              {%- elif host.state == "starting" -%}
                 <span class="label" style="color:black; background-color:gold;" title="Current State: {{ host.state }}">{{ host.state }}</span>
               {%- elif host.state == "running" -%}
                 <span class="label" style="color:white; background-color:green;" title="Current State: {{ host.state }}">{{ host.state }}</span>
@@ -54,8 +59,6 @@
                 <span class="label" style="color:black; background-color:gray;" title="Current State: {{ host.state }}">{{ host.state }}</span>
               {%- elif host.state == "terminating" -%}
                 <span class="label" style="color:black; background-color:violet;" title="Current State: {{ host.state }}">{{ host.state }}</span>
-              {%- elif host.state == "offline" -%}
-                <span class="label" style="color:white; background-color:black;" title="Current State: {{ host.state }}">{{ host.state }}</span>
               {%- elif host.state == "unknown" -%}
                 <span class="label" style="color:white; background-color:red;" title="Current State: {{ host.state }}">{{ host.state }}</span>
               {%- else -%}
