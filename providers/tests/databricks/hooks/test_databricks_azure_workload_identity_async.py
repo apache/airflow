@@ -37,10 +37,6 @@ DEFAULT_RETRY_ARGS = dict(
 
 @pytest.mark.db_test
 class TestDatabricksHookAadTokenWorkloadIdentityAsync:
-    """
-    Tests for DatabricksHook when auth is done with AAD leveraging Managed Identity authentication
-    """
-
     _hook: DatabricksHook
 
     @provide_session
