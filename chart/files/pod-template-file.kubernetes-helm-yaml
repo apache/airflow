@@ -96,6 +96,12 @@ spec:
       env:
         - name: AIRFLOW__CORE__EXECUTOR
           value: LocalExecutor
+        {{- if or .Values.workers.kerberosSidecar.enabled .Values.workers.kerberosInitContainer.enabled}}
+        - name: KRB5_CONFIG
+          value:  {{ .Values.kerberos.configPath | quote }}
+        - name: KRB5CCNAME
+          value:  {{ include "kerberos_ccache_path" . | quote }}
+        {{- end }}
         {{- include "standard_airflow_environment" . | indent 6}}
         {{- include "custom_airflow_environment" . | indent 6 }}
         {{- include "container_extra_envs" (list . .Values.workers.env) | indent 6 }}
@@ -229,6 +235,11 @@ spec:
   - configMap:
       name: {{ include "airflow_config" . }}
     name: config
+  {{- if and (or .Values.webserver.webserverConfig .Values.webserver.webserverConfigConfigMapName) (or .Values.workers.kerberosInitContainer.enabled .Values.workers.kerberosSidecar.enabled)}}
+  - name: webserver-config
+    configMap:
+      name: {{ template "airflow_webserver_config_configmap_name" . }}
+  {{- end }}
   {{- if .Values.volumes }}
     {{- toYaml .Values.volumes | nindent 2 }}
   {{- end }}
