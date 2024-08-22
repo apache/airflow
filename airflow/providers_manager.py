@@ -966,6 +966,96 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
             return None
         return getattr(obj, attr_name)
 
+    @staticmethod
+    def _get_legacy_connection_form_widgets(hook_class: type[BaseHook]) -> dict[str, Param]:
+        from unittest import mock
+
+        def mock_lazy_gettext(txt: str) -> str:
+            """Mock for flask_babel.lazy_gettext."""
+            return txt
+
+        class MockOptional:
+            """Mock for wtforms.validators.Optional."""
+
+        class MockEnum:
+            """Mock for wtforms.validators.Optional."""
+
+            def __init__(self, allowed_values):
+                self.allowed_values = allowed_values
+
+        def mock_any_of(allowed_values: list) -> MockEnum:
+            """Mock for wtforms.validators.any_of."""
+            return MockEnum(allowed_values)
+
+        class MockBaseField:
+            """Mock of WTForms Field."""
+
+            param_type: str = "UNDEFINED"
+            param_format: str | None = None
+
+            def __init__(
+                self,
+                label: str | None = None,
+                validators=None,
+                description: str = "",
+                default: str | None = None,
+                widget=None,
+            ):
+                type: str | list[str] = self.param_type
+                enum = {}
+                format = {"format": self.param_format} if self.param_format else {}
+                if validators:
+                    if any(isinstance(v, MockOptional) for v in validators):
+                        type = [self.param_type, "null"]
+                    for v in validators:
+                        if isinstance(v, MockEnum):
+                            enum = {"enum": v.allowed_values}
+                self.param = Param(
+                    default=default,
+                    title=label,
+                    description=description or None,
+                    type=type,
+                    **format,
+                    **enum,
+                )
+
+        class MockStringField(MockBaseField):
+            """Mock of WTForms StringField."""
+
+            param_type: str = "string"
+
+        class MockIntegerField(MockBaseField):
+            """Mock of WTForms IntegerField."""
+
+            param_type: str = "integer"
+
+        class MockPasswordField(MockBaseField):
+            """Mock of WTForms PasswordField."""
+
+            param_type: str = "string"
+            param_format: str | None = "password"  # TODO password not defined in params today
+
+        class MockBooleanField(MockBaseField):
+            """Mock of WTForms BooleanField."""
+
+            param_type: str = "boolean"
+
+        class MockAnyWidget:
+            """Mock any flask appbuilder widget."""
+
+        with mock.patch("wtforms.StringField", MockStringField), mock.patch(
+            "wtforms.IntegerField", MockIntegerField
+        ), mock.patch("wtforms.PasswordField", MockPasswordField), mock.patch(
+            "wtforms.BooleanField", MockBooleanField
+        ), mock.patch("flask_babel.lazy_gettext", mock_lazy_gettext), mock.patch(
+            "flask_appbuilder.fieldwidgets.BS3TextFieldWidget", MockAnyWidget
+        ), mock.patch("flask_appbuilder.fieldwidgets.BS3TextAreaFieldWidget", MockAnyWidget), mock.patch(
+            "flask_appbuilder.fieldwidgets.BS3PasswordFieldWidget", MockAnyWidget
+        ), mock.patch("wtforms.validators.Optional", MockOptional), mock.patch(
+            "wtforms.validators.any_of", mock_any_of
+        ):
+            return {k: v.param for k, v in hook_class.get_connection_form_widgets().items()}
+
     def _import_hook(
         self,
         connection_type: str | None,
@@ -1018,95 +1108,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 # the new way in Airflow 3
                 widgets = hook_class.get_connection_form()
             if "get_connection_form_widgets" in hook_class.__dict__:
-                from unittest import mock
-
-                def mock_lazy_gettext(txt: str) -> str:
-                    """Mock for flask_babel.lazy_gettext."""
-                    return txt
-
-                class MockOptional:
-                    """Mock for wtforms.validators.Optional."""
-
-                class MockEnum:
-                    """Mock for wtforms.validators.Optional."""
-
-                    def __init__(self, allowed_values):
-                        self.allowed_values = allowed_values
-
-                def mock_any_of(allowed_values: list) -> MockEnum:
-                    """Mock for wtforms.validators.any_of."""
-                    return MockEnum(allowed_values)
-
-                class MockBaseField:
-                    """Mock of WTForms Field."""
-
-                    param_type: str = "UNDEFINED"
-                    param_format: str | None = None
-
-                    def __init__(
-                        self,
-                        label: str | None = None,
-                        validators=None,
-                        description: str = "",
-                        default: str | None = None,
-                        widget=None,
-                    ):
-                        type: str | list[str] = self.param_type
-                        enum = {}
-                        format = {"format": self.param_format} if self.param_format else {}
-                        if validators:
-                            if any(isinstance(v, MockOptional) for v in validators):
-                                type = [self.param_type, "null"]
-                            for v in validators:
-                                if isinstance(v, MockEnum):
-                                    enum = {"enum": v.allowed_values}
-                        self.param = Param(
-                            default=default,
-                            title=label,
-                            description=description or None,
-                            type=type,
-                            **format,
-                            **enum,
-                        )
-
-                class MockStringField(MockBaseField):
-                    """Mock of WTForms StringField."""
-
-                    param_type: str = "string"
-
-                class MockIntegerField(MockBaseField):
-                    """Mock of WTForms IntegerField."""
-
-                    param_type: str = "integer"
-
-                class MockPasswordField(MockBaseField):
-                    """Mock of WTForms PasswordField."""
-
-                    param_type: str = "string"
-                    param_format: str | None = "password"  # TODO password not defined in params today
-
-                class MockBooleanField(MockBaseField):
-                    """Mock of WTForms BooleanField."""
-
-                    param_type: str = "boolean"
-
-                class MockAnyWidget:
-                    """Mock any flask appbuilder widget."""
-
-                with mock.patch("wtforms.StringField", MockStringField), mock.patch(
-                    "wtforms.IntegerField", MockIntegerField
-                ), mock.patch("wtforms.PasswordField", MockPasswordField), mock.patch(
-                    "wtforms.BooleanField", MockBooleanField
-                ), mock.patch("flask_babel.lazy_gettext", mock_lazy_gettext), mock.patch(
-                    "flask_appbuilder.fieldwidgets.BS3TextFieldWidget", MockAnyWidget
-                ), mock.patch(
-                    "flask_appbuilder.fieldwidgets.BS3TextAreaFieldWidget", MockAnyWidget
-                ), mock.patch(
-                    "flask_appbuilder.fieldwidgets.BS3PasswordFieldWidget", MockAnyWidget
-                ), mock.patch("wtforms.validators.Optional", MockOptional), mock.patch(
-                    "wtforms.validators.any_of", mock_any_of
-                ):
-                    widgets = hook_class.get_connection_form_widgets()
+                widgets = ProvidersManager._get_legacy_connection_form_widgets(hook_class)
 
                 if widgets:
                     for widget in widgets.values():
@@ -1464,3 +1466,194 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._plugins_set.clear()
         self._initialized = False
         self._initialization_stack_trace = None
+
+
+if __name__ == "__main__":
+    print("Test Plugin Loading for Airflow 3 PoC w/o FAB...")
+
+    from airflow.hooks.filesystem import FSHook
+    from airflow.hooks.package_index import PackageIndexHook
+    from airflow.hooks.subprocess import SubprocessHook
+    from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
+    from airflow.providers.apache.beam.hooks.beam import BeamHook
+    from airflow.providers.apache.druid.hooks.druid import DruidHook
+    from airflow.providers.apache.hdfs.hooks.hdfs import HDFSHook
+    from airflow.providers.apache.hdfs.hooks.webhdfs import WebHDFSHook
+    from airflow.providers.apache.hive.hooks.hive import HiveCliHook, HiveMetastoreHook
+    from airflow.providers.apache.iceberg.hooks.iceberg import IcebergHook
+    from airflow.providers.apache.kafka.hooks.base import KafkaBaseHook
+    from airflow.providers.apache.kylin.hooks.kylin import KylinHook
+    from airflow.providers.apache.pig.hooks.pig import PigCliHook
+    from airflow.providers.apache.pinot.hooks.pinot import PinotAdminHook
+    from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
+    from airflow.providers.apprise.hooks.apprise import AppriseHook
+    from airflow.providers.arangodb.hooks.arangodb import ArangoDBHook
+    from airflow.providers.asana.hooks.asana import AsanaHook
+    from airflow.providers.atlassian.jira.hooks.jira import JiraHook
+    from airflow.providers.cloudant.hooks.cloudant import CloudantHook
+    from airflow.providers.cohere.hooks.cohere import CohereHook
+    from airflow.providers.common.sql.hooks.sql import DbApiHook
+    from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
+    from airflow.providers.docker.hooks.docker import DockerHook
+    from airflow.providers.elasticsearch.hooks.elasticsearch import ElasticsearchPythonHook
+    from airflow.providers.facebook.ads.hooks.ads import FacebookAdsReportingHook
+    from airflow.providers.ftp.hooks.ftp import FTPHook
+    from airflow.providers.github.hooks.github import GithubHook
+    from airflow.providers.google.ads.hooks.ads import GoogleAdsHook
+    from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook
+    from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook
+    from airflow.providers.google.cloud.hooks.looker import LookerHook
+    from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
+    from airflow.providers.google.leveldb.hooks.leveldb import LevelDBHook
+    from airflow.providers.grpc.hooks.grpc import GrpcHook
+    from airflow.providers.hashicorp.hooks.vault import VaultHook
+    from airflow.providers.http.hooks.http import HttpAsyncHook, HttpHook
+    from airflow.providers.imap.hooks.imap import ImapHook
+
+    # from airflow.providers.influxdb.hooks.influxdb import InfluxDBHook
+    from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
+    from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
+    from airflow.providers.microsoft.azure.hooks.asb import BaseAzureServiceBusHook
+    from airflow.providers.microsoft.azure.hooks.base_azure import AzureBaseHook
+    from airflow.providers.microsoft.azure.hooks.batch import AzureBatchHook
+    from airflow.providers.microsoft.azure.hooks.container_registry import AzureContainerRegistryHook
+    from airflow.providers.microsoft.azure.hooks.container_volume import AzureContainerVolumeHook
+    from airflow.providers.microsoft.azure.hooks.cosmos import AzureCosmosDBHook
+    from airflow.providers.microsoft.azure.hooks.data_factory import AzureDataFactoryHook
+    from airflow.providers.microsoft.azure.hooks.data_lake import (
+        AzureDataLakeHook,
+        AzureDataLakeStorageV2Hook,
+    )
+    from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
+    from airflow.providers.microsoft.azure.hooks.msgraph import KiotaRequestAdapterHook
+    from airflow.providers.microsoft.azure.hooks.synapse import AzureSynapseHook, BaseAzureSynapseHook
+    from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
+    from airflow.providers.microsoft.psrp.hooks.psrp import PsrpHook
+    from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
+    from airflow.providers.mongo.hooks.mongo import MongoHook
+    from airflow.providers.neo4j.hooks.neo4j import Neo4jHook
+    from airflow.providers.openai.hooks.openai import OpenAIHook
+    from airflow.providers.openfaas.hooks.openfaas import OpenFaasHook
+    from airflow.providers.opensearch.hooks.opensearch import OpenSearchHook
+    from airflow.providers.opsgenie.hooks.opsgenie import OpsgenieAlertHook
+    from airflow.providers.pagerduty.hooks.pagerduty import PagerdutyHook
+    from airflow.providers.pagerduty.hooks.pagerduty_events import PagerdutyEventsHook
+    from airflow.providers.papermill.hooks.kernel import KernelHook
+    from airflow.providers.pinecone.hooks.pinecone import PineconeHook
+
+    # from airflow.providers.qdrant.hooks.qdrant import QdrantHook
+    from airflow.providers.redis.hooks.redis import RedisHook
+    from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
+    from airflow.providers.samba.hooks.samba import SambaHook
+    from airflow.providers.segment.hooks.segment import SegmentHook
+    from airflow.providers.sftp.hooks.sftp import SFTPHookAsync
+    from airflow.providers.slack.hooks.slack import SlackHook
+    from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
+    from airflow.providers.smtp.hooks.smtp import SmtpHook
+    from airflow.providers.ssh.hooks.ssh import SSHHook
+    from airflow.providers.tableau.hooks.tableau import TableauHook
+    from airflow.providers.telegram.hooks.telegram import TelegramHook
+    from airflow.providers.weaviate.hooks.weaviate import WeaviateHook
+    from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
+    from airflow.providers.zendesk.hooks.zendesk import ZendeskHook
+
+    for cls in [
+        FSHook,
+        SubprocessHook,
+        PackageIndexHook,
+        OSSHook,
+        BeamHook,
+        DruidHook,
+        HDFSHook,
+        WebHDFSHook,
+        HiveCliHook,
+        HiveMetastoreHook,
+        KafkaBaseHook,
+        KylinHook,
+        PigCliHook,
+        PinotAdminHook,
+        SparkSqlHook,
+        IcebergHook,
+        AppriseHook,
+        ArangoDBHook,
+        AsanaHook,
+        JiraHook,
+        CloudantHook,
+        DbApiHook,
+        BaseDatabricksHook,
+        DockerHook,
+        ElasticsearchPythonHook,
+        FacebookAdsReportingHook,
+        FTPHook,
+        GithubHook,
+        GoogleAdsHook,
+        GoogleDataprepHook,
+        LookerHook,
+        CloudSQLDatabaseHook,
+        GoogleBaseHook,
+        GoogleBaseAsyncHook,
+        LevelDBHook,
+        GrpcHook,
+        VaultHook,
+        HttpHook,
+        HttpAsyncHook,
+        ImapHook,
+        # InfluxDBHook,
+        JenkinsHook,
+        AzureDataExplorerHook,
+        AzureBaseHook,
+        AzureBatchHook,
+        AzureContainerRegistryHook,
+        AzureContainerVolumeHook,
+        AzureFileShareHook,
+        AzureCosmosDBHook,
+        AzureSynapseHook,
+        BaseAzureSynapseHook,
+        BaseAzureServiceBusHook,
+        AzureDataFactoryHook,
+        AzureDataLakeHook,
+        AzureDataLakeStorageV2Hook,
+        WasbHook,
+        KiotaRequestAdapterHook,
+        PsrpHook,
+        WinRMHook,
+        MongoHook,
+        Neo4jHook,
+        OpenFaasHook,
+        OpsgenieAlertHook,
+        PagerdutyHook,
+        PagerdutyEventsHook,
+        KernelHook,
+        RedisHook,
+        SalesforceHook,
+        SambaHook,
+        SegmentHook,
+        SFTPHookAsync,
+        SlackWebhookHook,
+        SlackHook,
+        SmtpHook,
+        SSHHook,
+        TableauHook,
+        TelegramHook,
+        YandexCloudBaseHook,
+        ZendeskHook,
+        CohereHook,
+        OpenAIHook,
+        OpenSearchHook,
+        PineconeHook,
+        WeaviateHook,
+        # QdrantHook,
+    ]:
+        print(f"Testing {cls.__name__}")
+        widgets = ProvidersManager._get_legacy_connection_form_widgets(cls)
+        if not widgets:
+            print("...this does not define any form fields.")
+        for item, param in widgets.items():
+            print(f"    Field: {item}")
+            print(f"    Class: {param.__class__}")
+            if isinstance(param, Param):
+                for k, v in param.__dict__.items():
+                    print(f"        {k}: {v}")
+            else:
+                print("ERROR: Field is expected to be a Param object but it is not!")
+        print("-------------------------------------")
