@@ -464,7 +464,7 @@ and allows you to test the client in a real environment.
    variable in `files/airflow-breeze-config/init.sh`:
 
 ```shell
-export AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth
+export AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
 export AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
 ```
 
