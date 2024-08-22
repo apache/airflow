@@ -24,11 +24,11 @@ from flask import Response, g
 from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
 from airflow.auth.managers.models.resource_details import (
     AccessView,
+    AssetDetails,
     ConfigurationDetails,
     ConnectionDetails,
     DagAccessEntity,
     DagDetails,
-    DatasetDetails,
     PoolDetails,
     VariableDetails,
 )
@@ -165,7 +165,7 @@ def requires_access_dataset(method: ResourceMethod) -> Callable[[T], T]:
             uri: str | None = kwargs.get("uri")
             return _requires_access(
                 is_authorized_callback=lambda: get_auth_manager().is_authorized_dataset(
-                    method=method, details=DatasetDetails(uri=uri)
+                    method=method, details=AssetDetails(uri=uri)
                 ),
                 func=func,
                 args=args,

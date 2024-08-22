@@ -35,9 +35,9 @@ if TYPE_CHECKING:
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.auth.managers.models.resource_details import (
         AccessView,
+        AssetDetails,
         ConfigurationDetails,
         DagAccessEntity,
-        DatasetDetails,
     )
 
 
@@ -74,7 +74,7 @@ class EmptyAuthManager(BaseAuthManager):
         raise NotImplementedError()
 
     def is_authorized_dataset(
-        self, *, method: ResourceMethod, details: DatasetDetails | None = None, user: BaseUser | None = None
+        self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
     ) -> bool:
         raise NotImplementedError()
 

@@ -46,10 +46,10 @@ if TYPE_CHECKING:
     )
     from airflow.auth.managers.models.resource_details import (
         AccessView,
+        AssetDetails,
         ConfigurationDetails,
         ConnectionDetails,
         DagAccessEntity,
-        DatasetDetails,
         PoolDetails,
         VariableDetails,
     )
@@ -182,7 +182,7 @@ class BaseAuthManager(LoggingMixin):
         self,
         *,
         method: ResourceMethod,
-        details: DatasetDetails | None = None,
+        details: AssetDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
         """

@@ -43,8 +43,8 @@ class DagDetails:
 
 
 @dataclass
-class DatasetDetails:
-    """Represents the details of a dataset."""
+class AssetDetails:
+    """Represents the details of an asset."""
 
     uri: str | None = None
 
