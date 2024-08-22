@@ -21,7 +21,6 @@ import functools
 import json
 import logging
 from typing import TYPE_CHECKING, Any, Callable
-from uuid import uuid4
 
 from flask import Response, request
 from itsdangerous import BadSignature
@@ -34,6 +33,10 @@ from jwt import (
 )
 
 from airflow.api_connexion.exceptions import PermissionDenied
+from airflow.api_internal.endpoints.rpc_api_endpoint import (
+    initialize_method_map,
+    log_and_build_error_response,
+)
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.serialization.serialized_objects import BaseSerialization
@@ -48,7 +51,6 @@ log = logging.getLogger(__name__)
 
 @functools.lru_cache
 def _initialize_method_map() -> dict[str, Callable]:
-    from airflow.api_internal.endpoints.rpc_api_endpoint import initialize_method_map
     from airflow.providers.remote.models.remote_job import RemoteJob
     from airflow.providers.remote.models.remote_logs import RemoteLogs
     from airflow.providers.remote.models.remote_worker import RemoteWorker
@@ -67,16 +69,10 @@ def _initialize_method_map() -> dict[str, Callable]:
     return {f"{func.__module__}.{func.__qualname__}": func for func in functions}
 
 
-def log_and_build_error_response(message, status):
-    error_id = uuid4()
-    server_message = message + f" error_id={error_id}"
-    log.exception(server_message)
-    client_message = message + f" The server side traceback may be identified with error_id={error_id}"
-    return Response(response=client_message, status=status)
-
-
 def remote_worker_api(body: dict[str, Any]) -> APIResponse:
     """Handle Remote Worker API `/remote_worker/v1/rpcapi` endpoint."""
+    # Note: Except the method map this is a 100% copy of internal API module
+    #       airflow.api_internal.endpoints.rpc_api_endpoint.remote_worker_api()
     content_type = request.headers.get("Content-Type")
     if content_type != "application/json":
         raise PermissionDenied("Expected Content-Type: application/json")
