@@ -56,7 +56,13 @@ Here are a few imperative requirements for your workers:
 
 Minimum configuration for the Remote Worker to make it running is:
 
-- Section ``[core]``: Executor must be set or added to be ``airflow.providers.remote.executors.RemoteExecutor``
+- Section ``[core]``
+
+  - ``executor``: Executor must be set or added to be ``airflow.providers.remote.executors.RemoteExecutor``
+  - ``internal_api_secret_key``: An encryption key must be set on webserver and remote worker component as
+    shared secret to authenticate traffic. It should be a random string like the fernet key
+    (but preferably not the same).
+
 - Section ``[remote]``
 
   - ``api_enabled``: Must be set to true. It is disabled by intend not to expose
