@@ -118,7 +118,7 @@ spec:
       volumes:
         - name: redis-db
           persistentVolumeClaim:
-            claimName: {{- toYaml .Values.redis.persistence.existingClaim | nindent 14 }}
+            claimName: {{ .Values.redis.persistence.existingClaim }}
   {{- else }}
   volumeClaimTemplates:
     - metadata:
