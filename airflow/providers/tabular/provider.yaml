@@ -21,7 +21,7 @@ name: Tabular
 description: |
     `Tabular <https://tabular.io/>`__
 
-state: ready
+state: removed
 source-date-epoch: 1723970601
 # note that those versions are maintained by release manager - do not update them manually
 versions:

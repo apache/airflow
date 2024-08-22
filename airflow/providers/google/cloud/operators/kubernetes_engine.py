@@ -943,12 +943,25 @@ class GKEStartJobOperator(KubernetesJobOperator):
                 ssl_ca_cert=self._ssl_ca_cert,
                 job_name=self.job.metadata.name,  # type: ignore[union-attr]
                 job_namespace=self.job.metadata.namespace,  # type: ignore[union-attr]
+                pod_name=self.pod.metadata.name,  # type: ignore[union-attr]
+                pod_namespace=self.pod.metadata.namespace,  # type: ignore[union-attr]
+                base_container_name=self.base_container_name,
                 gcp_conn_id=self.gcp_conn_id,
                 poll_interval=self.job_poll_interval,
                 impersonation_chain=self.impersonation_chain,
+                get_logs=self.get_logs,
+                do_xcom_push=self.do_xcom_push,
             ),
             method_name="execute_complete",
+            kwargs={"cluster_url": self._cluster_url, "ssl_ca_cert": self._ssl_ca_cert},
         )
+
+    def execute_complete(self, context: Context, event: dict, **kwargs):
+        # It is required for hook to be initialized
+        self._cluster_url = kwargs["cluster_url"]
+        self._ssl_ca_cert = kwargs["ssl_ca_cert"]
+
+        return super().execute_complete(context, event)
 
 
 class GKEDescribeJobOperator(GoogleCloudBaseOperator):
