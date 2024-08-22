@@ -106,23 +106,8 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                         "%s but since repair run is set, repairing the run with all failed tasks",
                         error_message,
                     )
-
-                    repair_reason = next(
-                        (
-                            reason
-                            for reason in (operator.databricks_repair_reason_new_settings or {}).keys()
-                            if reason in run_state.state_message
-                        ),
-                        None,
-                    )
-
-                    if repair_reason is not None and operator.databricks_repair_reason_new_settings:
-                        new_settings_json = normalise_json_content(
-                            operator.databricks_repair_reason_new_settings[repair_reason]
-                        )
-                        log.warning("Repairing the run with new_settings json: %s", new_settings_json)
-                        hook.update_job(job_id=operator.json["job_id"], json=new_settings_json)
-
+                    job_id = operator.json["job_id"]
+                    update_job_for_repair(operator, hook, job_id, run_state)
                     latest_repair_id = hook.get_latest_repair_id(operator.run_id)
                     repair_json = {"run_id": operator.run_id, "rerun_all_failed_tasks": True}
                     if latest_repair_id is not None:
@@ -137,6 +122,30 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
             time.sleep(operator.polling_period_seconds)
 
     log.info("View run status, Spark UI, and logs at %s", run_page_url)
+
+
+def update_job_for_repair(operator, hook, job_id, run_state) -> None:
+    """
+    Update job settings(partial) to repair the run with all failed tasks.
+
+    :param operator: Databricks operator being handled
+    :param hook: Databricks hook
+    :param job_id: Job ID of Databricks
+    :param run_state: Run state of the Databricks job
+    """
+    repair_reason = next(
+        (
+            reason
+            for reason in operator.databricks_repair_reason_new_settings
+            if reason in run_state.state_message
+        ),
+        None,
+    )
+    if repair_reason is not None and operator.databricks_repair_reason_new_settings:
+        new_settings_json = normalise_json_content(
+            operator.databricks_repair_reason_new_settings[repair_reason]
+        )
+        hook.update_job(job_id=job_id, json=new_settings_json)
 
 
 def _handle_deferrable_databricks_operator_execution(operator, hook, log, context) -> None:
@@ -833,7 +842,7 @@ class DatabricksRunNowOperator(BaseOperator):
         self.wait_for_termination = wait_for_termination
         self.deferrable = deferrable
         self.repair_run = repair_run
-        self.databricks_repair_reason_new_settings = databricks_repair_reason_new_settings
+        self.databricks_repair_reason_new_settings = databricks_repair_reason_new_settings or {}
         self.cancel_previous_runs = cancel_previous_runs
 
         if job_id is not None:
@@ -899,20 +908,7 @@ class DatabricksRunNowOperator(BaseOperator):
                 run_state = RunState.from_json(event["run_state"])
                 self.run_id = event["run_id"]
                 job_id = self._hook.get_job_id(self.run_id)
-                repair_reason = next(
-                    (
-                        reason
-                        for reason in (self.databricks_repair_reason_new_settings or {}).keys()
-                        if reason in run_state.state_message
-                    ),
-                    None,
-                )
-                if repair_reason is not None and self.databricks_repair_reason_new_settings:
-                    new_settings_json = normalise_json_content(
-                        self.databricks_repair_reason_new_settings[repair_reason]
-                    )
-                    self._hook.update_job(job_id=str(job_id), json=new_settings_json)
-
+                update_job_for_repair(self, self._hook, job_id, run_state)
                 latest_repair_id = self._hook.get_latest_repair_id(self.run_id)
                 repair_json = {"run_id": self.run_id, "rerun_all_failed_tasks": True}
                 if latest_repair_id is not None:

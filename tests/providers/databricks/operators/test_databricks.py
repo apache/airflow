@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from typing import Any
 from unittest import mock
 from unittest.mock import MagicMock
 
@@ -152,7 +153,7 @@ TASKS = [
         "retry_on_timeout": False,
     },
 ]
-JOB_CLUSTERS = [
+JOB_CLUSTERS: list[dict[str, Any]] = [
     {
         "job_cluster_key": "auto_scaling_cluster",
         "new_cluster": {
@@ -172,6 +173,47 @@ JOB_CLUSTERS = [
         },
     },
 ]
+
+JOB_CLUSTERS_REPAIR_AWS_INSUFFICIENT_INSTANCE_CAPACITY_FAILURE: list[dict[str, Any]] = [
+    {
+        **cluster,
+        "new_cluster": {
+            **cluster["new_cluster"],
+            "aws_attributes": {
+                **cluster["new_cluster"]["aws_attributes"],
+                "zone_id": "ua-east-2a",
+            },
+        },
+    }
+    for cluster in JOB_CLUSTERS
+]
+
+JOB_CLUSTERS_REPAIR_AWS_MAX_SPOT_INSTANCE_COUNT_EXCEEDED_FAILURE: list[dict[str, Any]] = [
+    {
+        **cluster,
+        "new_cluster": {
+            **cluster["new_cluster"],
+            "aws_attributes": {
+                **cluster["new_cluster"]["aws_attributes"],
+                "availability": "ON_DEMAND",
+            },
+        },
+    }
+    for cluster in JOB_CLUSTERS
+]
+
+
+DATABRICKS_REPAIR_REASON_NEW_SETTINGS = {
+    "AWS_INSUFFICIENT_INSTANCE_CAPACITY_FAILURE": {
+        "job_id": JOB_ID,
+        "new_settings": {"job_clusters": JOB_CLUSTERS_REPAIR_AWS_INSUFFICIENT_INSTANCE_CAPACITY_FAILURE},
+    },
+    "AWS_MAX_SPOT_INSTANCE_COUNT_EXCEEDED_FAILURE": {
+        "job_id": JOB_ID,
+        "new_settings": {"job_clusters": JOB_CLUSTERS_REPAIR_AWS_MAX_SPOT_INSTANCE_COUNT_EXCEEDED_FAILURE},
+    },
+}
+
 EMAIL_NOTIFICATIONS = {
     "on_start": [
         "user.name@databricks.com",
@@ -1720,6 +1762,52 @@ class TestDatabricksRunNowOperator:
         db_mock.run_now.return_value = RUN_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED")
         db_mock.get_latest_repair_id.assert_called_once()
+        db_mock.repair_run.assert_called_once()
+        mock_handle_deferrable_databricks_operator_execution.assert_called_once()
+
+    @mock.patch(
+        "airflow.providers.databricks.operators.databricks._handle_deferrable_databricks_operator_execution"
+    )
+    @mock.patch("airflow.providers.databricks.operators.databricks.DatabricksHook")
+    def test_deferrable_exec_with_update_job_for_repair(
+        self, db_mock_class, mock_handle_deferrable_databricks_operator_execution
+    ):
+        """
+        Test the deferrable execute function in case where user want to repair with new settings
+        """
+        state_message = f"""Task {TASK_ID} failed with message: Cluster {EXISTING_CLUSTER_ID} was terminated.
+            Reason: AWS_INSUFFICIENT_INSTANCE_CAPACITY_FAILURE (CLIENT_ERROR).
+            Parameters: aws_api_error_code:InsufficientInstanceCapacity, aws_error_message:There is no Spot
+            capacity available that matches your request..
+                   """
+        run_state_failed = RunState(
+            "TERMINATED",
+            "FAILED",
+            state_message,
+        )
+        run = {"notebook_params": NOTEBOOK_PARAMS, "notebook_task": NOTEBOOK_TASK, "jar_params": JAR_PARAMS}
+        event = {
+            "run_id": RUN_ID,
+            "run_page_url": RUN_PAGE_URL,
+            "run_state": run_state_failed.to_json(),
+            "repair_run": True,
+            "errors": [],
+        }
+
+        op = DatabricksRunNowOperator(
+            deferrable=True,
+            task_id=TASK_ID,
+            job_id=JOB_ID,
+            json=run,
+            databricks_repair_reason_new_settings=DATABRICKS_REPAIR_REASON_NEW_SETTINGS,
+        )
+        op.execute_complete(context=None, event=event)
+
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = RUN_ID
+        db_mock.get_job_id.return_value = JOB_ID
+        db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED", state_message)
+        db_mock.update_job.assert_called_once()
         db_mock.repair_run.assert_called_once()
         mock_handle_deferrable_databricks_operator_execution.assert_called_once()
 
