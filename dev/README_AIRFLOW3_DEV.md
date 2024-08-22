@@ -43,7 +43,7 @@
 # Main branch is Airflow 3
 
 The main branch is for development of Airflow 3.
-Airflow 2.10.x releases will be cut from `v-2-10-stable` branch.
+Airflow 2.10.x releases will be cut from `v2-10-stable` branch.
 
 # Contributors
 
@@ -65,13 +65,13 @@ PRs should target `main` branch.
 
 ## Developing for Airflow 2.10.x
 
-PR should target `v-2-10-test` branch. When cutting a new release for 2.10 release manager
-will sync `v-2-10-test`  branch to `v-2-10-stable` and cut the release from the stable branch.
-PR should never target `v-2-10-stable` unless specifically instructed by release manager.
+PR should target `v2-10-test` branch. When cutting a new release for 2.10 release manager
+will sync `v2-10-test`  branch to `v2-10-stable` and cut the release from the stable branch.
+PR should never target `v2-10-stable` unless specifically instructed by release manager.
 
 ## Developing for Airflow 2.11
 
-Version 2.11 is planned to be cut from `v-2-10-stable` branch.
+Version 2.11 is planned to be cut from `v2-10-stable` branch.
 The version will contain features relevant as bridge release for Airflow 3.
 We will not backport otherwise features from main branch to 2.11
 Note that 2.11 policy may change as 2.11 become closer
@@ -90,18 +90,18 @@ Do not treat PR approval (Green V) as exclusion approval.
 
 ## Merging PR for Airflow 3 and 2.10.x / 2.11.x
 
-The committer who merge the PR is responsible for back-porting the PR to `v-2-10-test`.
+The committer who merge the PR is responsible for back-porting the PR to `v2-10-test`.
 This means start a new PR where the original commit from main is cherry-picked and conflicts resolved.
-If cherry-pick is too complex then ask the PR author / start your own PR against `v-2-10-test` directly with the change.
+If cherry-pick is too complex then ask the PR author / start your own PR against `v2-10-test` directly with the change.
 Note: tracking that the PRs merged as expected is the responsibility of committer who merged the PR.
 
-Committer may also request from PR author to raise 2 PRs one against `main` branch and one against `v-2-10-test` prior to accepting the code change.
+Committer may also request from PR author to raise 2 PRs one against `main` branch and one against `v2-10-test` prior to accepting the code change.
 
 ## Merging PRs 2.10.x
 
 Suggested change
-Make sure PR target `v-2-10-test` branch and merge it when ready.
-Make sure your PRs target the `v-2-10-test` branch, and it can be merged when ready.
+Make sure PR target `v2-10-test` branch and merge it when ready.
+Make sure your PRs target the `v2-10-test` branch, and it can be merged when ready.
 All regular protocols of merging considerations are applied.
 
 ## Merging PRs for Airflow 3
