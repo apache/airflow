@@ -467,7 +467,7 @@ class BaseExecutor(LoggingMixin):
                 span.set_attribute("dag_id", key.dag_id)
                 span.set_attribute("run_id", key.run_id)
                 span.set_attribute("task_id", key.task_id)
-                span.set_attribute("try_number", key.try_number - 1)
+                span.set_attribute("try_number", key.try_number)
 
         self.change_state(key, TaskInstanceState.SUCCESS, info)
 

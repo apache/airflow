@@ -1306,6 +1306,9 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
         "AssertRewritingHook including captured stdout and we need to run "
         "it with `--assert=plain` pytest option and PYTEST_PLAIN_ASSERTS=true .",
     )
+    # TODO(potiuk) check if this can be fixed in the future - for now we are skipping tests with venv
+    # and airflow context in DB isolation mode as they are passing None as DAG.
+    @pytest.mark.skip_if_database_isolation_mode
     def test_airflow_context(self, serializer):
         def f(
             # basic

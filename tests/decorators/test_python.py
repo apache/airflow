@@ -41,7 +41,7 @@ from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.operators.test_python import BasePythonTest
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 
 if TYPE_CHECKING:
@@ -281,6 +281,8 @@ class TestAirflowTaskDecorator(BasePythonTest):
                 def add_number(self, num: int) -> int:
                     return self.num + num
 
+    # TODO(potiuk) see why this test hangs in DB isolation mode
+    @pytest.mark.skip_if_database_isolation_mode
     def test_fail_multiple_outputs_key_type(self):
         @task_decorator(multiple_outputs=True)
         def add_number(num: int):
@@ -293,6 +295,8 @@ class TestAirflowTaskDecorator(BasePythonTest):
         with pytest.raises(AirflowException):
             ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
+    # TODO(potiuk) see why this test hangs in DB isolation mode
+    @pytest.mark.skip_if_database_isolation_mode
     def test_fail_multiple_outputs_no_dict(self):
         @task_decorator(multiple_outputs=True)
         def add_number(num: int):
@@ -541,6 +545,8 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         assert "add_2" in self.dag_non_serialized.task_ids
 
+    # TODO(potiuk) see why this test hangs in DB isolation mode
+    @pytest.mark.skip_if_database_isolation_mode
     def test_dag_task_multiple_outputs(self):
         """Tests dag.task property to generate task with multiple outputs"""
 
@@ -863,6 +869,7 @@ def test_task_decorator_has_wrapped_attr():
     assert decorated_test_func.__wrapped__ is org_test_func, "__wrapped__ attr is not the original function"
 
 
+@pytest.mark.need_serialized_dag(False)
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_upstream_exception_produces_none_xcom(dag_maker, session):
     from airflow.exceptions import AirflowSkipException
@@ -900,6 +907,7 @@ def test_upstream_exception_produces_none_xcom(dag_maker, session):
     assert result == "'example' None"
 
 
+@pytest.mark.need_serialized_dag(False)
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @pytest.mark.parametrize("multiple_outputs", [True, False])
 def test_multiple_outputs_produces_none_xcom_when_task_is_skipped(dag_maker, session, multiple_outputs):
@@ -958,6 +966,7 @@ def test_no_warnings(reset_logging_config, caplog):
     assert caplog.messages == []
 
 
+@pytest.mark.need_serialized_dag(False)
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_task_decorator_dataset(dag_maker, session):
     from airflow.datasets import Dataset

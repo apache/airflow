@@ -242,16 +242,17 @@ function check_boto_upgrade() {
     echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
     echo
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs yandexcloud || true
+    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs yandexcloud opensearch-py || true
     # We need to include few dependencies to pass pip check with other dependencies:
     #   * oss2 as dependency as otherwise jmespath will be bumped (sync with alibaba provider)
-    #   * gcloud-aio-auth limit is needed to be included as it bumps cryptography (sync with google provider)
+    #   * cryptography is kept for snowflake-connector-python limitation (sync with snowflake provider)
     #   * requests needs to be limited to be compatible with apache beam (sync with apache-beam provider)
     #   * yandexcloud requirements for requests does not match those of apache.beam and latest botocore
     #   Both requests and yandexcloud exclusion above might be removed after
     #   https://github.com/apache/beam/issues/32080 is addressed
-    #   When you remove yandexcloud from the above list, also remove it from "test_example_dags.py"
-    #   in "tests/always".
+    #   This is already addressed and planned for 2.59.0 release.
+    #   When you remove yandexcloud and opensearch from the above list, you can also remove the
+    #   optional providers_dependencies exclusions from "test_example_dags.py" in "tests/always".
     set -x
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore \
@@ -289,8 +290,9 @@ function check_pydantic() {
         echo
         echo "${COLOR_YELLOW}Downgrading Pydantic to < 2${COLOR_RESET}"
         echo
+        # Pydantic 1.10.17/1.10.15 conflicts with aws-sam-translator so we need to exclude it
         # shellcheck disable=SC2086
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "pydantic<2.0.0"
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "pydantic<2.0.0,!=1.10.17,!=1.10.15"
         pip check
     else
         echo

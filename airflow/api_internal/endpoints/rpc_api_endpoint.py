@@ -126,9 +126,9 @@ def initialize_method_map() -> dict[str, Callable]:
         # XCom.get_many, # Not supported because it returns query
         XCom.clear,
         XCom.set,
-        Variable.set,
-        Variable.update,
-        Variable.delete,
+        Variable._set,
+        Variable._update,
+        Variable._delete,
         DAG.fetch_callback,
         DAG.fetch_dagrun,
         DagRun.fetch_task_instances,
@@ -228,19 +228,20 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
     except Exception:
         return log_and_build_error_response(message="Error deserializing parameters.", status=400)
 
-    log.info("Calling method %s\nparams: %s", method_name, params)
+    log.debug("Calling method %s\nparams: %s", method_name, params)
     try:
         # Session must be created there as it may be needed by serializer for lazy-loaded fields.
         with create_session() as session:
             output = handler(**params, session=session)
             output_json = BaseSerialization.serialize(output, use_pydantic_models=True)
             response = json.dumps(output_json) if output_json is not None else None
-            log.info("Sending response: %s", response)
+            log.debug("Sending response: %s", response)
             return Response(response=response, headers={"Content-Type": "application/json"})
-    except AirflowException as e:  # In case of AirflowException transport the exception class back to caller
+    # In case of AirflowException or other selective known types, transport the exception class back to caller
+    except (KeyError, AttributeError, AirflowException) as e:
         exception_json = BaseSerialization.serialize(e, use_pydantic_models=True)
         response = json.dumps(exception_json)
-        log.info("Sending exception response: %s", response)
+        log.debug("Sending exception response: %s", response)
         return Response(response=response, headers={"Content-Type": "application/json"})
     except Exception:
         return log_and_build_error_response(message=f"Error executing method '{method_name}'.", status=500)
