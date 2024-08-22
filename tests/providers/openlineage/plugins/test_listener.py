@@ -21,7 +21,7 @@ import uuid
 from contextlib import suppress
 from typing import Callable
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import pandas as pd
 import pytest
@@ -29,6 +29,7 @@ import pytest
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.python import PythonOperator
+from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
 from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
 from airflow.utils.state import State
@@ -72,6 +73,7 @@ def test_listener_does_not_change_task_instance(render_mock, xcom_push_mock):
 
     dag = DAG(
         "test",
+        schedule=None,
         start_date=dt.datetime(2022, 1, 1),
         user_defined_macros={"render_df": render_df},
         params={"df": {"col": [1, 2]}},
@@ -143,6 +145,7 @@ def _create_test_dag_and_task(python_callable: Callable, scenario_name: str) -> 
     """
     dag = DAG(
         f"test_{scenario_name}",
+        schedule=None,
         start_date=dt.datetime(2022, 1, 1),
     )
     t = PythonOperator(task_id=f"test_task_{scenario_name}", dag=dag, python_callable=python_callable)
@@ -213,6 +216,7 @@ def _create_listener_and_task_instance() -> tuple[OpenLineageListener, TaskInsta
     return listener, task_instance
 
 
+@mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
 @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
 @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
 @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_mapped_task_facet")
@@ -225,6 +229,7 @@ def test_adapter_start_task_is_called_with_proper_arguments(
     mock_get_user_provided_run_facets,
     mock_get_airflow_run_facet,
     mock_disabled,
+    mock_debug_mode,
 ):
     """Tests that the 'start_task' method of the OpenLineageAdapter is invoked with the correct arguments.
 
@@ -258,10 +263,12 @@ def test_adapter_start_task_is_called_with_proper_arguments(
             "mapped_facet": 1,
             "custom_user_facet": 2,
             "airflow_run_facet": 3,
+            "debug": AirflowDebugRunFacet(packages=ANY),
         },
     )
 
 
+@mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
 @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
 @mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter")
 @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
@@ -274,6 +281,7 @@ def test_adapter_fail_task_is_called_with_proper_arguments(
     mock_get_airflow_run_facet,
     mocked_adapter,
     mock_disabled,
+    mock_debug_mode,
 ):
     """Tests that the 'fail_task' method of the OpenLineageAdapter is invoked with the correct arguments.
 
@@ -311,11 +319,16 @@ def test_adapter_fail_task_is_called_with_proper_arguments(
         parent_run_id="execution_date.dag_id",
         run_id="execution_date.dag_id.task_id.1",
         task=listener.extractor_manager.extract_metadata(),
-        run_facets={"custom_user_facet": 2, "airflow": {"task": "..."}},
+        run_facets={
+            "custom_user_facet": 2,
+            "airflow": {"task": "..."},
+            "debug": AirflowDebugRunFacet(packages=ANY),
+        },
         **expected_err_kwargs,
     )
 
 
+@mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
 @mock.patch("airflow.providers.openlineage.plugins.listener.is_operator_disabled")
 @mock.patch("airflow.providers.openlineage.plugins.listener.OpenLineageAdapter")
 @mock.patch("airflow.providers.openlineage.plugins.listener.get_airflow_run_facet")
@@ -328,6 +341,7 @@ def test_adapter_complete_task_is_called_with_proper_arguments(
     mock_get_airflow_run_facet,
     mocked_adapter,
     mock_disabled,
+    mock_debug_mode,
 ):
     """Tests that the 'complete_task' method of the OpenLineageAdapter is called with the correct arguments.
 
@@ -364,7 +378,11 @@ def test_adapter_complete_task_is_called_with_proper_arguments(
         parent_run_id="execution_date.dag_id",
         run_id=f"execution_date.dag_id.task_id.{EXPECTED_TRY_NUMBER_1}",
         task=listener.extractor_manager.extract_metadata(),
-        run_facets={"custom_user_facet": 2, "airflow": {"task": "..."}},
+        run_facets={
+            "custom_user_facet": 2,
+            "airflow": {"task": "..."},
+            "debug": AirflowDebugRunFacet(packages=ANY),
+        },
     )
 
 
@@ -574,6 +592,7 @@ class TestOpenLineageSelectiveEnable:
     def setup_method(self):
         self.dag = DAG(
             "test_selective_enable",
+            schedule=None,
             start_date=dt.datetime(2022, 1, 1),
         )
 

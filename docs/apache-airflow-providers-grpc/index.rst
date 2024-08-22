@@ -68,7 +68,7 @@ apache-airflow-providers-grpc package
 `gRPC <https://grpc.io/>`__
 
 
-Release: 3.5.2
+Release: 3.6.0
 
 Provider package
 ----------------
@@ -86,12 +86,12 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
 ========================  ==================
 PIP package               Version required
 ========================  ==================
-``apache-airflow``        ``>=2.7.0``
+``apache-airflow``        ``>=2.8.0``
 ``google-auth``           ``>=1.0.0,<3.0.0``
 ``google-auth-httplib2``  ``>=0.0.1``
 ``grpcio``                ``>=1.59.0``

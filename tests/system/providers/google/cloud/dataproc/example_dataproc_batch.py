@@ -69,6 +69,7 @@ with DAG(
         region=REGION,
         batch=BATCH_CONFIG,
         batch_id=BATCH_ID,
+        result_retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
     )
 
     create_batch_2 = DataprocCreateBatchOperator(
@@ -87,6 +88,7 @@ with DAG(
         batch=BATCH_CONFIG,
         batch_id=BATCH_ID_3,
         asynchronous=True,
+        result_retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
     )
     # [END how_to_cloud_dataproc_create_batch_operator]
 
@@ -128,17 +130,9 @@ with DAG(
         task_id="cancel_operation",
         project_id=PROJECT_ID,
         region=REGION,
-        operation_name="{{ task_instance.xcom_pull('create_batch_4') }}",
+        operation_name="{{ task_instance.xcom_pull('create_batch_4')['operation'] }}",
     )
     # [END how_to_cloud_dataproc_cancel_operation_operator]
-
-    batch_cancelled_sensor = DataprocBatchSensor(
-        task_id="batch_cancelled_sensor",
-        region=REGION,
-        project_id=PROJECT_ID,
-        batch_id=BATCH_ID_4,
-        poke_interval=10,
-    )
 
     # [START how_to_cloud_dataproc_delete_batch_operator]
     delete_batch = DataprocDeleteBatchOperator(
@@ -161,7 +155,9 @@ with DAG(
 
     (
         # TEST SETUP
-        [create_batch, create_batch_2, create_batch_3]
+        create_batch
+        >> create_batch_2
+        >> create_batch_3
         # TEST BODY
         >> batch_async_sensor
         >> get_batch
@@ -169,8 +165,9 @@ with DAG(
         >> create_batch_4
         >> cancel_operation
         # TEST TEARDOWN
-        >> [delete_batch, delete_batch_2, delete_batch_3]
-        >> batch_cancelled_sensor
+        >> delete_batch
+        >> delete_batch_2
+        >> delete_batch_3
         >> delete_batch_4
     )
 
@@ -178,10 +175,7 @@ with DAG(
 
     # This test needs watcher in order to properly mark success/failure
     # when "teardown" task with trigger rule is part of the DAG
-
-    # Excluding sensor because we expect it to fail due to cancelled operation
-    [task for task in dag.tasks if task.task_id != "batch_cancelled_sensor"] >> watcher()
-
+    list(dag.tasks) >> watcher()
 
 from tests.system.utils import get_test_run  # noqa: E402
 

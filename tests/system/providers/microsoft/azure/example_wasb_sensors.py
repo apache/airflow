@@ -41,6 +41,7 @@ PREFIX = os.environ.get("PREFIX", "example-prefix")
 with DAG(
     "example_wasb_sensors",
     start_date=datetime(2022, 8, 8),
+    schedule=None,
     catchup=False,
     tags=["example"],
 ) as dag:

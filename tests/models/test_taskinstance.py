@@ -420,7 +420,7 @@ class TestTaskInstance:
         test that try to create a task with pool_slots less than 1
         """
 
-        dag = DAG(dag_id="test_run_pooling_task")
+        dag = DAG(dag_id="test_run_pooling_task", schedule=None)
         with pytest.raises(ValueError, match="pool slots .* cannot be less than 1"):
             EmptyOperator(
                 task_id="test_run_pooling_task_op",
@@ -1443,7 +1443,10 @@ class TestTaskInstance:
     # Parameterized tests to check for the correct firing
     # of the trigger_rule under various circumstances of mapped task
     # Numeric fields are in order:
-    #   successes, skipped, failed, upstream_failed, done,removed
+    #   successes, skipped, failed, upstream_failed, done,remove
+    # Does not work for database isolation mode because there is local test monkeypatching of upstream_failed
+    # That never gets propagated to internal_api
+    @pytest.mark.skip_if_database_isolation_mode
     @pytest.mark.parametrize(
         "trigger_rule, upstream_states, flag_upstream_failed, expect_state, expect_completed",
         [
@@ -1539,8 +1542,10 @@ class TestTaskInstance:
         monkeypatch.setattr(_UpstreamTIStates, "calculate", lambda *_: upstream_states)
         ti = dr.get_task_instance("do_something_else", session=session)
         ti.map_index = 0
+        base_task = ti.task
+
         for map_index in range(1, 5):
-            ti = TaskInstance(dr.task_instances[-1].task, run_id=dr.run_id, map_index=map_index)
+            ti = TaskInstance(base_task, run_id=dr.run_id, map_index=map_index)
             session.add(ti)
             ti.dag_run = dr
         session.flush()
@@ -4037,22 +4042,26 @@ class TestTaskInstance:
         def raise_skip_exception():
             raise AirflowSkipException
 
-        callback_function = mock.MagicMock()
-        callback_function.__name__ = "callback_function"
+        on_skipped_callback_function = mock.MagicMock()
+        on_skipped_callback_function.__name__ = "on_skipped_callback_function"
+
+        on_success_callback_function = mock.MagicMock()
+        on_success_callback_function.__name__ = "on_success_callback_function"
 
         with dag_maker(dag_id="test_skipped_task", serialized=True):
             task = PythonOperator(
                 task_id="test_skipped_task",
                 python_callable=raise_skip_exception,
-                on_skipped_callback=callback_function,
+                on_skipped_callback=on_skipped_callback_function,
+                on_success_callback=on_success_callback_function,
             )
-
         dr = dag_maker.create_dagrun(execution_date=timezone.utcnow())
         ti = dr.task_instances[0]
         ti.task = task
         ti.run()
         assert State.SKIPPED == ti.state
-        assert callback_function.called
+        on_skipped_callback_function.assert_called_once()
+        on_success_callback_function.assert_not_called()
 
     def test_task_instance_history_is_created_when_ti_goes_for_retry(self, dag_maker, session):
         with dag_maker(serialized=True):

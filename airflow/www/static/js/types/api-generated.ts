@@ -1031,8 +1031,6 @@ export interface components {
        * *New in version 2.9.0*
        */
       dag_display_name?: string;
-      /** @description If the DAG is SubDAG then it is the top level DAG identifier. Otherwise, null. */
-      root_dag_id?: string | null;
       /** @description Whether the DAG is paused. */
       is_paused?: boolean | null;
       /**
@@ -1043,8 +1041,6 @@ export interface components {
        * *Changed in version 2.2.0*&#58; Field is read-only.
        */
       is_active?: boolean | null;
-      /** @description Whether the DAG is SubDAG. */
-      is_subdag?: boolean;
       /**
        * Format: date-time
        * @description The last time the DAG was parsed.
@@ -1662,7 +1658,7 @@ export interface components {
         Partial<number> &
         Partial<boolean> &
         Partial<unknown[]> &
-        Partial<{ [key: string]: unknown }>;
+        Partial<{ [key: string]: unknown } | null>;
     };
     /**
      * @description DAG details.
@@ -2090,10 +2086,6 @@ export interface components {
        * @default false
        */
       only_running?: boolean;
-      /** @description Clear tasks in subdags and clear external tasks indicated by ExternalTaskMarker. */
-      include_subdags?: boolean;
-      /** @description Clear tasks in the parent dag of the subdag. */
-      include_parentdag?: boolean;
       /** @description Set state of DAG runs to RUNNING. */
       reset_dag_runs?: boolean;
       /** @description The DagRun ID for this task instance */
@@ -2312,6 +2304,16 @@ export interface components {
       queue?: string[];
       /** @description The value can be repeated to retrieve multiple matching values (OR condition). */
       executor?: string[];
+      /**
+       * @description The name of the field to order the results by. Prefix a field name
+       * with `-` to reverse the sort order. `order_by` defaults to
+       * `map_index` when unspecified.
+       * Supported field names: `state`, `duration`, `start_date`, `end_date`
+       * and `map_index`.
+       *
+       * *New in version 3.0.0*
+       */
+      order_by?: string;
     };
     /**
      * @description Schedule interval. Defines how often DAG runs, this object gets added to your latest task instance's
@@ -2662,6 +2664,16 @@ export interface components {
     FilterMapIndex: number;
     /** @description Filter on try_number for task instance. */
     FilterTryNumber: number;
+    /**
+     * @description The name of the field to order the results by. Prefix a field name
+     * with `-` to reverse the sort order. `order_by` defaults to
+     * `map_index` when unspecified.
+     * Supported field names: `state`, `duration`, `start_date`, `end_date`
+     * and `map_index`.
+     *
+     * *New in version 3.0.0*
+     */
+    TaskInstanceOrderBy: string;
     /**
      * @description The name of the field to order the results by.
      * Prefix a field name with `-` to reverse the sort order.
@@ -4057,6 +4069,16 @@ export interface operations {
         limit?: components["parameters"]["PageLimit"];
         /** The number of items to skip before starting to collect the result set. */
         offset?: components["parameters"]["PageOffset"];
+        /**
+         * The name of the field to order the results by. Prefix a field name
+         * with `-` to reverse the sort order. `order_by` defaults to
+         * `map_index` when unspecified.
+         * Supported field names: `state`, `duration`, `start_date`, `end_date`
+         * and `map_index`.
+         *
+         * *New in version 3.0.0*
+         */
+        order_by?: components["parameters"]["TaskInstanceOrderBy"];
       };
     };
     responses: {
@@ -4284,12 +4306,15 @@ export interface operations {
         /** The value can be repeated to retrieve multiple matching values (OR condition). */
         executor?: components["parameters"]["FilterExecutor"];
         /**
-         * The name of the field to order the results by.
-         * Prefix a field name with `-` to reverse the sort order.
+         * The name of the field to order the results by. Prefix a field name
+         * with `-` to reverse the sort order. `order_by` defaults to
+         * `map_index` when unspecified.
+         * Supported field names: `state`, `duration`, `start_date`, `end_date`
+         * and `map_index`.
          *
-         * *New in version 2.1.0*
+         * *New in version 3.0.0*
          */
-        order_by?: components["parameters"]["OrderBy"];
+        order_by?: components["parameters"]["TaskInstanceOrderBy"];
       };
     };
     responses: {

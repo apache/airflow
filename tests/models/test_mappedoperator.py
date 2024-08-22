@@ -52,7 +52,7 @@ if TYPE_CHECKING:
 
 
 def test_task_mapping_with_dag():
-    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
+    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE) as dag:
         task1 = BaseOperator(task_id="op1")
         literal = ["a", "b", "c"]
         mapped = MockOperator.partial(task_id="task_2").expand(arg2=literal)
@@ -87,7 +87,7 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template
         def execute(self, context: Context):
             pass
 
-    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
+    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE) as dag:
         task1 = CustomOperator(task_id="op1", arg=None)
         unrenderable_values = [UnrenderableClass(), UnrenderableClass()]
         mapped = CustomOperator.partial(task_id="task_2").expand(arg=unrenderable_values)
@@ -101,7 +101,7 @@ def test_task_mapping_with_dag_and_list_of_pandas_dataframe(mock_render_template
 
 
 def test_task_mapping_without_dag_context():
-    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
+    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE) as dag:
         task1 = BaseOperator(task_id="op1")
     literal = ["a", "b", "c"]
     mapped = MockOperator.partial(task_id="task_2").expand(arg2=literal)
@@ -118,7 +118,7 @@ def test_task_mapping_without_dag_context():
 
 def test_task_mapping_default_args():
     default_args = {"start_date": DEFAULT_DATE.now(), "owner": "test"}
-    with DAG("test-dag", start_date=DEFAULT_DATE, default_args=default_args):
+    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE, default_args=default_args):
         task1 = BaseOperator(task_id="op1")
         literal = ["a", "b", "c"]
         mapped = MockOperator.partial(task_id="task_2").expand(arg2=literal)
@@ -131,7 +131,7 @@ def test_task_mapping_default_args():
 
 def test_task_mapping_override_default_args():
     default_args = {"retries": 2, "start_date": DEFAULT_DATE.now()}
-    with DAG("test-dag", start_date=DEFAULT_DATE, default_args=default_args):
+    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE, default_args=default_args):
         literal = ["a", "b", "c"]
         mapped = MockOperator.partial(task_id="task", retries=1).expand(arg2=literal)
 
@@ -150,7 +150,7 @@ def test_map_unknown_arg_raises():
 
 def test_map_xcom_arg():
     """Test that dependencies are correct when mapping with an XComArg"""
-    with DAG("test-dag", start_date=DEFAULT_DATE):
+    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE):
         task1 = BaseOperator(task_id="op1")
         mapped = MockOperator.partial(task_id="task_2").expand(arg2=task1.output)
         finish = MockOperator(task_id="finish")
@@ -803,7 +803,7 @@ def test_all_xcomargs_from_mapped_tasks_are_consumable(dag_maker, session):
 
 
 def test_task_mapping_with_task_group_context():
-    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
+    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE) as dag:
         task1 = BaseOperator(task_id="op1")
         finish = MockOperator(task_id="finish")
 
@@ -824,7 +824,7 @@ def test_task_mapping_with_task_group_context():
 
 
 def test_task_mapping_with_explicit_task_group():
-    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
+    with DAG("test-dag", schedule=None, start_date=DEFAULT_DATE) as dag:
         task1 = BaseOperator(task_id="op1")
         finish = MockOperator(task_id="finish")
 

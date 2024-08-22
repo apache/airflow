@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+import time
+from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, BinaryIO, Literal
 
@@ -24,6 +26,7 @@ from openai import OpenAI
 
 if TYPE_CHECKING:
     from openai.types import FileDeleted, FileObject
+    from openai.types.batch import Batch
     from openai.types.beta import (
         Assistant,
         AssistantDeleted,
@@ -42,8 +45,29 @@ if TYPE_CHECKING:
         ChatCompletionToolMessageParam,
         ChatCompletionUserMessageParam,
     )
-
 from airflow.hooks.base import BaseHook
+from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
+
+
+class BatchStatus(str, Enum):
+    """Enum for the status of a batch."""
+
+    VALIDATING = "validating"
+    FAILED = "failed"
+    IN_PROGRESS = "in_progress"
+    FINALIZING = "finalizing"
+    COMPLETED = "completed"
+    EXPIRED = "expired"
+    CANCELLING = "cancelling"
+    CANCELLED = "cancelled"
+
+    def __str__(self) -> str:
+        return str(self.value)
+
+    @classmethod
+    def is_in_progress(cls, status: str) -> bool:
+        """Check if the batch status is in progress."""
+        return status in (cls.VALIDATING, cls.IN_PROGRESS, cls.FINALIZING)
 
 
 class OpenAIHook(BaseHook):
@@ -288,13 +312,13 @@ class OpenAIHook(BaseHook):
         embeddings: list[float] = response.data[0].embedding
         return embeddings
 
-    def upload_file(self, file: str, purpose: Literal["fine-tune", "assistants"]) -> FileObject:
+    def upload_file(self, file: str, purpose: Literal["fine-tune", "assistants", "batch"]) -> FileObject:
         """
         Upload a file that can be used across various endpoints. The size of all the files uploaded by one organization can be up to 100 GB.
 
         :param file: The File object (not file name) to be uploaded.
         :param purpose: The intended purpose of the uploaded file. Use "fine-tune" for
-            Fine-tuning and "assistants" for Assistants and Messages.
+            Fine-tuning, "assistants" for Assistants and Messages, and "batch" for Batch API.
         """
         with open(file, "rb") as file_stream:
             file_object = self.conn.files.create(file=file_stream, purpose=purpose)
@@ -393,3 +417,76 @@ class OpenAIHook(BaseHook):
         """
         response = self.conn.beta.vector_stores.files.delete(vector_store_id=vector_store_id, file_id=file_id)
         return response
+
+    def create_batch(
+        self,
+        file_id: str,
+        endpoint: Literal["/v1/chat/completions", "/v1/embeddings", "/v1/completions"],
+        metadata: dict[str, str] | None = None,
+        completion_window: Literal["24h"] = "24h",
+    ) -> Batch:
+        """
+        Create a batch for a given model and files.
+
+        :param file_id: The ID of the file to be used for this batch.
+        :param endpoint: The endpoint to use for this batch. Allowed values include:
+            '/v1/chat/completions', '/v1/embeddings', '/v1/completions'.
+        :param metadata: A set of key-value pairs that can be attached to an object.
+        :param completion_window: The time window for the batch to complete. Default is 24 hours.
+        """
+        batch = self.conn.batches.create(
+            input_file_id=file_id, endpoint=endpoint, metadata=metadata, completion_window=completion_window
+        )
+        return batch
+
+    def get_batch(self, batch_id: str) -> Batch:
+        """
+        Get the status of a batch.
+
+        :param batch_id: The ID of the batch to get the status of.
+        """
+        batch = self.conn.batches.retrieve(batch_id=batch_id)
+        return batch
+
+    def wait_for_batch(self, batch_id: str, wait_seconds: float = 3, timeout: float = 3600) -> None:
+        """
+        Poll a batch to check if it finishes.
+
+        :param batch_id: Id of the Batch to wait for.
+        :param wait_seconds: Optional. Number of seconds between checks.
+        :param timeout: Optional. How many seconds wait for batch to be ready.
+            Used only if not ran in deferred operator.
+        """
+        start = time.monotonic()
+        while True:
+            if start + timeout < time.monotonic():
+                self.cancel_batch(batch_id=batch_id)
+                raise OpenAIBatchTimeout(f"Timeout: OpenAI Batch {batch_id} is not ready after {timeout}s")
+            batch = self.get_batch(batch_id=batch_id)
+
+            if BatchStatus.is_in_progress(batch.status):
+                time.sleep(wait_seconds)
+                continue
+            if batch.status == BatchStatus.COMPLETED:
+                return
+            if batch.status == BatchStatus.FAILED:
+                raise OpenAIBatchJobException(f"Batch failed - \n{batch_id}")
+            elif batch.status in (BatchStatus.CANCELLED, BatchStatus.CANCELLING):
+                raise OpenAIBatchJobException(f"Batch failed - batch was cancelled:\n{batch_id}")
+            elif batch.status == BatchStatus.EXPIRED:
+                raise OpenAIBatchJobException(
+                    f"Batch failed - batch couldn't be completed within the hour time window :\n{batch_id}"
+                )
+
+            raise OpenAIBatchJobException(
+                f"Batch failed - encountered unexpected status `{batch.status}` for batch_id `{batch_id}`"
+            )
+
+    def cancel_batch(self, batch_id: str) -> Batch:
+        """
+        Cancel a batch.
+
+        :param batch_id: The ID of the batch to delete.
+        """
+        batch = self.conn.batches.cancel(batch_id=batch_id)
+        return batch

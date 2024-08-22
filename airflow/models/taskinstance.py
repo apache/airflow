@@ -44,7 +44,6 @@ from sqlalchemy import (
     Column,
     DateTime,
     Float,
-    ForeignKey,
     ForeignKeyConstraint,
     Index,
     Integer,
@@ -355,7 +354,8 @@ def _run_raw_task(
         # run on_success_callback before db committing
         # otherwise, the LocalTaskJob sees the state is changed to `success`,
         # but the task_runner is still running, LocalTaskJob then treats the state is set externally!
-        _run_finished_callback(callbacks=ti.task.on_success_callback, context=context)
+        if ti.state == TaskInstanceState.SUCCESS:
+            _run_finished_callback(callbacks=ti.task.on_success_callback, context=context)
 
         if not test_mode:
             _add_log(event=ti.state, task_instance=ti, session=session)
@@ -2099,12 +2099,7 @@ class TaskInstance(Base, LoggingMixin):
         should_pass_filepath = not pickle_id and dag
         path: PurePath | None = None
         if should_pass_filepath:
-            if dag.is_subdag:
-                if TYPE_CHECKING:
-                    assert dag.parent_dag is not None
-                path = dag.parent_dag.relative_fileloc
-            else:
-                path = dag.relative_fileloc
+            path = dag.relative_fileloc
 
             if path:
                 if not path.is_absolute():
@@ -4170,7 +4165,7 @@ class TaskInstanceNote(TaskInstanceDependencies):
 
     __tablename__ = "task_instance_note"
 
-    user_id = Column(Integer, ForeignKey("ab_user.id", name="task_instance_note_user_fkey"), nullable=True)
+    user_id = Column(Integer, nullable=True)
     task_id = Column(StringID(), primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     run_id = Column(StringID(), primary_key=True, nullable=False)
