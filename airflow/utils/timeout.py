@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import os
 import signal
+import threading
 from threading import Timer
 from typing import ContextManager
 
@@ -70,8 +71,9 @@ class TimeoutPosix(_timeout, LoggingMixin):
 
     def __enter__(self):
         try:
-            signal.signal(signal.SIGALRM, self.handle_timeout)
-            signal.setitimer(signal.ITIMER_REAL, self.seconds)
+            if threading.current_thread() is threading.main_thread():
+                signal.signal(signal.SIGALRM, self.handle_timeout)
+                signal.setitimer(signal.ITIMER_REAL, self.seconds)
         except ValueError:
             self.log.warning("timeout can't be used in the current context", exc_info=True)
 
