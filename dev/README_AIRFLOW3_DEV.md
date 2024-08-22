@@ -117,6 +117,10 @@ Note: tracking that the PRs merged as expected is the responsibility of committe
 
 Committer may also request from PR author to raise 2 PRs one against `main` branch and one against `v2-10-test` prior to accepting the code change.
 
+Mistakes happen and such backport PR work might fall through cracks, so PRs that the committer thinks should be back-ported, should get 2.10.x milestone set.
+
+This way release manager can verify (as usual) if all the "expected" PRs have been backported and cherry-pick remaining PRS.
+
 ## Merging PRs 2.10.x
 
 Suggested change
