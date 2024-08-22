@@ -164,7 +164,7 @@ class AwsAuthManager(BaseAuthManager):
     ) -> bool:
         asset_uri = details.uri if details else None
         return self.avp_facade.is_authorized(
-            method=method, entity_type=AvpEntities.DATASET, user=user or self.get_user(), entity_id=asset_uri
+            method=method, entity_type=AvpEntities.ASSET, user=user or self.get_user(), entity_id=asset_uri
         )
 
     def is_authorized_pool(

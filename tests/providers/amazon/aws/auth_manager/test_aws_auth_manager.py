@@ -348,7 +348,7 @@ class TestAwsAuthManager:
         if not user:
             mock_get_user.assert_called_once()
         is_authorized.assert_called_once_with(
-            method=method, entity_type=AvpEntities.DATASET, user=expected_user, entity_id=expected_entity_id
+            method=method, entity_type=AvpEntities.ASSET, user=expected_user, entity_id=expected_entity_id
         )
         assert result
 
@@ -611,7 +611,7 @@ class TestAwsAuthManager:
                 "request": {
                     "principal": {"entityType": "Airflow::User", "entityId": "test_user_id"},
                     "action": {"actionType": "Airflow::Action", "actionId": "Menu.MENU"},
-                    "resource": {"entityType": "Airflow::Menu", "entityId": "Datasets"},
+                    "resource": {"entityType": "Airflow::Menu", "entityId": RESOURCE_ASSET},
                 },
                 "decision": "DENY",
             },
@@ -679,7 +679,7 @@ class TestAwsAuthManager:
                 {
                     "method": "MENU",
                     "entity_type": AvpEntities.MENU,
-                    "entity_id": "Datasets",
+                    "entity_id": RESOURCE_ASSET,
                 },
                 {"method": "MENU", "entity_type": AvpEntities.MENU, "entity_id": "Cluster Activity"},
                 {"method": "MENU", "entity_type": AvpEntities.MENU, "entity_id": "Audit Logs"},
