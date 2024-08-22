@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from airflow.utils.types import DagRunType
 
 
-class _NullDataset(BaseAsset):
+class _NullAsset(BaseAsset):
     """
     Sentinel type that represents "no assets".
 
@@ -189,7 +189,7 @@ class Timetable(Protocol):
     as for :class:`~airflow.timetable.simple.ContinuousTimetable`.
     """
 
-    asset_condition: BaseAsset = _NullDataset()
+    asset_condition: BaseAsset = _NullAsset()
     """The asset condition that triggers a DAG using this timetable.
 
     If this is not *None*, this should be an asset, or a combination of, that
