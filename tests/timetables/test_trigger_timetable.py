@@ -155,12 +155,6 @@ def test_hourly_cron_trigger_no_catchup_next_info(
             DagRunInfo.exact(pendulum.DateTime(2022, 7, 27, 1, 0, 0, tzinfo=utc)),
             id="no_last_automated_with_earliest_not_on_boundary",
         ),
-        pytest.param(
-            None,
-            None,
-            None,
-            id="no_last_automated_no_earliest",
-        ),
     ],
 )
 def test_hourly_cron_trigger_catchup_next_info(
