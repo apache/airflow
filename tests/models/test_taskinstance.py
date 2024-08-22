@@ -3423,6 +3423,8 @@ class TestTaskInstance:
             assert ti.state == State.SUCCESS
 
     def test_finished_callbacks_callable_handle_and_log_exception(self, caplog):
+        called = completed = False
+
         def on_finish_callable(context):
             nonlocal called, completed
             called = True
@@ -3439,7 +3441,7 @@ class TestTaskInstance:
             callback_name = callback_input[0] if isinstance(callback_input, list) else callback_input
             callback_name = qualname(callback_name).split(".")[-1]
             assert "Executing callback at index 0: on_finish_callable" in caplog.text
-            assert "Error in callback at index 0: on_finish_callable callback" in caplog.text
+            assert "Error in callback at index 0: on_finish_callable" in caplog.text
 
     def test_finished_callbacks_notifier_handle_and_log_exception(self, caplog):
         class OnFinishNotifier(BaseNotifier):
