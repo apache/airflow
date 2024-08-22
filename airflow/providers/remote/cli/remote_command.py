@@ -115,13 +115,7 @@ def _fetch_job(hostname: str, queues: list[str] | None, jobs: list[Job]) -> bool
         env["AIRFLOW__CORE__INTERNAL_API_URL"] = conf.get("remote", "api_url")
         env["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
         process = Popen(remote_job.command, close_fds=True, env=env)
-        logfile = RemoteLogs.logfile_path(
-            remote_job.dag_id,
-            remote_job.run_id,
-            remote_job.task_id,
-            remote_job.map_index,
-            remote_job.try_number,
-        )
+        logfile = RemoteLogs.logfile_path(remote_job.key)
         jobs.append(Job(remote_job, process, logfile, 0))
         RemoteJob.set_state(remote_job.key, TaskInstanceState.RUNNING)
         return True
@@ -148,11 +142,7 @@ def _check_running_jobs(jobs: list[Job]) -> None:
                 logfile.seek(job.logsize, os.SEEK_SET)
                 logdata = logfile.read()
                 RemoteLogs.push_logs(
-                    dag_id=job.remote_job.dag_id,
-                    run_id=job.remote_job.run_id,
-                    task_id=job.remote_job.task_id,
-                    map_index=job.remote_job.map_index,
-                    try_number=job.remote_job.try_number,
+                    task=job.remote_job.key,
                     log_chunk_time=datetime.now(),
                     log_chunk_data=logdata,
                 )
