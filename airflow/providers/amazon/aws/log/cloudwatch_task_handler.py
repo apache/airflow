@@ -75,7 +75,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
 
     trigger_should_wrap = True
 
-    def __init__(self, base_log_folder: str, log_group_arn: str):
+    def __init__(self, base_log_folder: str, log_group_arn: str, **kwargs):
         super().__init__(base_log_folder)
         split_arn = log_group_arn.split(":")
 

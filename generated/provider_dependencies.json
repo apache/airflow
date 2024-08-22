@@ -207,7 +207,9 @@
       "apache-airflow>=2.8.0",
       "impyla>=0.18.0,<1.0"
     ],
-    "devel-deps": [],
+    "devel-deps": [
+      "kerberos>=1.3.0"
+    ],
     "plugins": [],
     "cross-providers-deps": [
       "common.sql"
@@ -556,7 +558,9 @@
       "google-re2>=1.0",
       "jmespath>=0.7.0"
     ],
-    "devel-deps": [],
+    "devel-deps": [
+      "kerberos>=1.3.0"
+    ],
     "plugins": [],
     "cross-providers-deps": [],
     "excluded-python-versions": [],
@@ -609,7 +613,7 @@
       "gcloud-aio-bigquery>=6.1.2",
       "gcloud-aio-storage>=9.0.0",
       "gcsfs>=2023.10.0",
-      "google-ads>=24.1.0",
+      "google-ads>=25.0.0",
       "google-analytics-admin>=0.9.0",
       "google-api-core>=2.11.0,!=2.16.0,!=2.18.0",
       "google-api-python-client>=2.0.2",
@@ -1267,7 +1271,7 @@
       "apache.iceberg"
     ],
     "excluded-python-versions": [],
-    "state": "ready"
+    "state": "removed"
   },
   "telegram": {
     "deps": [

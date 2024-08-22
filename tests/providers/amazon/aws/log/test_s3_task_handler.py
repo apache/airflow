@@ -221,3 +221,7 @@ class TestS3TaskHandler:
 
         handler.close()
         assert os.path.exists(handler.handler.baseFilename) == expected_existence_of_local_copy
+
+    def test_filename_template_for_backward_compatibility(self):
+        # filename_template arg support for running the latest provider on airflow 2
+        S3TaskHandler(self.local_log_location, self.remote_log_base, filename_template=None)
