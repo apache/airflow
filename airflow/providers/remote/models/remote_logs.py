@@ -33,6 +33,7 @@ from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.models.base import Base, StringID
 from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.serialization.serialized_objects import add_pydantic_class_type_mapping
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -102,28 +103,26 @@ class RemoteLogs(BaseModelPydantic, LoggingMixin):
     @internal_api_call
     @provide_session
     def push_logs(
-        dag_id: str,
-        task_id: str,
-        run_id: str,
-        map_index: int,
-        try_number: int,
+        task: TaskInstanceKey | tuple,
         log_chunk_time: datetime,
         log_chunk_data: str,
         session: Session = NEW_SESSION,
     ) -> None:
         """Push an incremental log chunk from remote worker to central site."""
+        if isinstance(task, tuple):
+            task = TaskInstanceKey(*task)
         log_chunk = RemoteLogsModel(
-            dag_id=dag_id,
-            task_id=task_id,
-            run_id=run_id,
-            map_index=map_index,
-            try_number=try_number,
+            dag_id=task.dag_id,
+            task_id=task.task_id,
+            run_id=task.run_id,
+            map_index=task.map_index,
+            try_number=task.try_number,
             log_chunk_time=log_chunk_time,
             log_chunk_data=log_chunk_data,
         )
         session.add(log_chunk)
         # Write logs to local file to make them accessible
-        logfile_path = RemoteLogs.logfile_path(dag_id, run_id, task_id, map_index, try_number)
+        logfile_path = RemoteLogs.logfile_path(task)
         if not logfile_path.exists():
             new_folder_permissions = int(
                 conf.get("logging", "file_task_handler_new_folder_permissions", fallback="0o775"), 8
@@ -134,18 +133,18 @@ class RemoteLogs(BaseModelPydantic, LoggingMixin):
 
     @staticmethod
     @lru_cache
-    def logfile_path(dag_id: str, run_id: str, task_id: str, map_index: int, try_number: int) -> Path:
+    def logfile_path(task: TaskInstanceKey) -> Path:
         """Elaborate the path and filename to expect from task execution."""
         ti = TaskInstance.get_task_instance(
-            dag_id=dag_id,
-            run_id=run_id,
-            task_id=task_id,
-            map_index=map_index,
+            dag_id=task.dag_id,
+            run_id=task.run_id,
+            task_id=task.task_id,
+            map_index=task.map_index,
         )
         if TYPE_CHECKING:
             assert ti
         base_log_folder = conf.get("logging", "base_log_folder", fallback="NOT AVAILABLE")
-        return Path(base_log_folder, FileTaskHandler(base_log_folder)._render_filename(ti, try_number))
+        return Path(base_log_folder, FileTaskHandler(base_log_folder)._render_filename(ti, task.try_number))
 
 
 if is_pydantic_2_installed():
