@@ -25,32 +25,37 @@ from airflow.exceptions import AirflowException
 from airflow.models import Base
 from airflow.utils.db import downgrade, initdb, upgradedb
 from airflow.utils.db_manager import BaseDBManager, RunDBManager
+from tests.test_utils.config import conf_vars
 
 pytestmark = [pytest.mark.db_test]
 
 
 class TestRunDBManager:
-    def setup_method(self):
-        self.run_db_manager = RunDBManager()
-        self.manager = self.run_db_manager._managers[0]
-        self.metadata = self.manager.metadata
-
+    @conf_vars(
+        {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
+    )
     def test_fab_db_manager_is_default(self):
         from airflow.providers.fab.auth_manager.models.db import FABDBManager
 
-        assert self.run_db_manager._managers == [FABDBManager]
+        run_db_manager = RunDBManager()
+        assert run_db_manager._managers == [FABDBManager]
 
+    @conf_vars(
+        {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
+    )
     def test_defining_table_same_name_as_airflow_table_name_raises(self):
         from sqlalchemy import Column, Integer, String
 
+        run_db_manager = RunDBManager()
+        metadata = run_db_manager._managers[0].metadata
         # Add dag_run table to metadata
         mytable = Table(
-            "dag_run", self.metadata, Column("id", Integer, primary_key=True), Column("name", String(50))
+            "dag_run", metadata, Column("id", Integer, primary_key=True), Column("name", String(50))
         )
-        self.metadata._add_table("dag_run", None, mytable)
+        metadata._add_table("dag_run", None, mytable)
         with pytest.raises(AirflowException, match="Table 'dag_run' already exists in the Airflow metadata"):
-            self.run_db_manager.validate()
-        self.metadata._remove_table("dag_run", schema=None)
+            run_db_manager.validate()
+        metadata._remove_table("dag_run", None)
 
     @mock.patch.object(RunDBManager, "downgradedb")
     @mock.patch.object(RunDBManager, "upgradedb")
@@ -77,18 +82,26 @@ class TestRunDBManager:
         mock_upgrade_db.assert_not_called()
         mock_downgrade_db.assert_not_called()
 
+    @conf_vars(
+        {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
+    )
     @mock.patch("airflow.providers.fab.auth_manager.models.db.FABDBManager")
     def test_rundbmanager_calls_dbmanager_methods(self, mock_fabdb_manager, session):
+        mock_fabdb_manager.supports_table_dropping = True
+        fabdb_manager = mock_fabdb_manager.return_value
         ext_db = RunDBManager()
         # initdb
         ext_db.initdb(session=session)
-        mock_fabdb_manager.return_value.initdb.assert_called_once()
+        fabdb_manager.initdb.assert_called_once()
         # upgradedb
         ext_db.upgradedb(session=session)
-        mock_fabdb_manager.return_value.upgradedb.assert_called_once()
+        fabdb_manager.upgradedb.assert_called_once()
         # downgradedb
         ext_db.downgradedb(session=session)
         mock_fabdb_manager.return_value.downgradedb.assert_called_once()
+        connection = mock.MagicMock()
+        ext_db.drop_tables(connection)
+        mock_fabdb_manager.metadata.drop_all.assert_called_once_with(connection)
 
 
 class MockDBManager(BaseDBManager):

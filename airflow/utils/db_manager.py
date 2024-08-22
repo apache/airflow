@@ -163,4 +163,5 @@ class RunDBManager(LoggingMixin):
     def drop_tables(self, connection):
         """Drop the external database managers."""
         for manager in self._managers:
-            manager.metadata.drop_all(connection)
+            if manager.supports_table_dropping:
+                manager.metadata.drop_all(connection)
