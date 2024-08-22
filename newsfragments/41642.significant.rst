@@ -1,1 +1,3 @@
-Removed deprecated ``get_conn_uri`` and ``get_connections`` methods from secrets backend. Please use ``get_conn_value`` and ``get_connection`` mehtods.
+Removed deprecated secrets backend methods ``get_conn_uri`` and ``get_connections``.
+
+Please use ``get_conn_value`` and ``get_connection`` instead.
