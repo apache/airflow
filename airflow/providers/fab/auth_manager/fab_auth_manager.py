@@ -33,11 +33,11 @@ from airflow import __version__ as airflow_version
 from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
 from airflow.auth.managers.models.resource_details import (
     AccessView,
+    AssetDetails,
     ConfigurationDetails,
     ConnectionDetails,
     DagAccessEntity,
     DagDetails,
-    DatasetDetails,
     PoolDetails,
     VariableDetails,
 )
@@ -264,7 +264,7 @@ class FabAuthManager(BaseAuthManager):
             )
 
     def is_authorized_dataset(
-        self, *, method: ResourceMethod, details: DatasetDetails | None = None, user: BaseUser | None = None
+        self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_DATASET, user=user)
 

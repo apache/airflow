@@ -35,10 +35,10 @@ try:
         ConnectionDetails,
         DagAccessEntity,
         DagDetails,
-        DatasetDetails,
         PoolDetails,
         VariableDetails,
     )
+    from airflow.providers.common.compat.assets import AssetDetails
 except ImportError:
     if not AIRFLOW_V_2_8_PLUS:
         pytest.skip(
@@ -324,7 +324,7 @@ class TestAwsAuthManager:
         "details, user, expected_user, expected_entity_id",
         [
             (None, None, ANY, None),
-            (DatasetDetails(uri="uri"), mock, mock, "uri"),
+            (AssetDetails(uri="uri"), mock, mock, "uri"),
         ],
     )
     @patch.object(AwsAuthManager, "avp_facade")

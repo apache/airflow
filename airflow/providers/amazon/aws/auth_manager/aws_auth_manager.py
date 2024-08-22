@@ -63,11 +63,9 @@ if TYPE_CHECKING:
         IsAuthorizedPoolRequest,
         IsAuthorizedVariableRequest,
     )
-    from airflow.auth.managers.models.resource_details import (
-        ConfigurationDetails,
-        DatasetDetails,
-    )
+    from airflow.auth.managers.models.resource_details import ConfigurationDetails
     from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
+    from airflow.providers.common.compat.assets import AssetDetails
     from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
 
@@ -162,14 +160,11 @@ class AwsAuthManager(BaseAuthManager):
         )
 
     def is_authorized_dataset(
-        self, *, method: ResourceMethod, details: DatasetDetails | None = None, user: BaseUser | None = None
+        self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
     ) -> bool:
-        dataset_uri = details.uri if details else None
+        asset_uri = details.uri if details else None
         return self.avp_facade.is_authorized(
-            method=method,
-            entity_type=AvpEntities.DATASET,
-            user=user or self.get_user(),
-            entity_id=dataset_uri,
+            method=method, entity_type=AvpEntities.DATASET, user=user or self.get_user(), entity_id=asset_uri
         )
 
     def is_authorized_pool(
