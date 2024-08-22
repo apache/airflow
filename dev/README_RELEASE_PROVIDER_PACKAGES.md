@@ -211,6 +211,7 @@ To set provider as removed do the following:
 
 1. In provider yaml change state from to `ready` to `removed`
 2. Place entry in changelog.txt that notify users about provider being removed.
+3. Update test_get_removed_providers in `/dev/breeze/tests/test_packages.py` by adding the provider to the list
 
 ## Increasing version number
 
