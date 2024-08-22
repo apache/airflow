@@ -472,23 +472,22 @@ class DockerOperator(BaseOperator):
         This uses Docker's ``get_archive`` function. If the file is not yet
         ready, *None* is returned.
         """
-
-        def copy_from_docker(container_id, src):
-            archived_result, stat = self.cli.get_archive(container_id, src)
-            if stat["size"] == 0:
-                # 0 byte file, it can't be anything else than None
-                return None
-            # no need to port to a file since we intend to deserialize
-            with BytesIO(b"".join(archived_result)) as f:
-                tar = tarfile.open(fileobj=f)
-                file = tar.extractfile(stat["name"])
-                lib = getattr(self, "pickling_library", pickle)
-                return lib.load(file)
-
         try:
-            return copy_from_docker(self.container["Id"], self.retrieve_output_path)
+            return self._copy_from_docker(self.container["Id"], self.retrieve_output_path)
         except APIError:
             return None
+
+    def _copy_from_docker(self, container_id, src):
+        archived_result, stat = self.cli.get_archive(container_id, src)
+        if stat["size"] == 0:
+            # 0 byte file, it can't be anything else than None
+            return None
+        # no need to port to a file since we intend to deserialize
+        with BytesIO(b"".join(archived_result)) as f:
+            tar = tarfile.open(fileobj=f)
+            file = tar.extractfile(stat["name"])
+            lib = getattr(self, "pickling_library", pickle)
+            return lib.load(file)
 
     def execute(self, context: Context) -> list[str] | str | None:
         # Pull the docker image if `force_pull` is set or image does not exist locally

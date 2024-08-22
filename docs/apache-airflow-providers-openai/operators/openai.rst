@@ -36,3 +36,28 @@ An example using the operator is in way:
     :language: python
     :start-after: [START howto_operator_openai_embedding]
     :end-before: [END howto_operator_openai_embedding]
+
+.. _howto/operator:OpenAITriggerBatchOperator:
+
+OpenAITriggerBatchOperator
+===========================
+
+Use the :class:`~airflow.providers.open_ai.operators.open_ai.OpenAITriggerBatchOperator` to
+interact with Open APIs to trigger a batch job. This operator is used to trigger a batch job and wait for the job to complete.
+
+
+Using the Operator
+^^^^^^^^^^^^^^^^^^
+
+The OpenAITriggerBatchOperator requires the prepared batch file as an input to trigger the batch job. Provide the ``file_id`` and the ``endpoint`` to trigger the batch job.
+Use the ``conn_id`` parameter to specify the OpenAI connection to use to
+
+
+The OpenAITriggerBatchOperator
+
+An example using the operator is in way:
+
+.. exampleinclude:: /../../tests/system/providers/openai/example_trigger_batch_operator.py
+    :language: python
+    :start-after: [START howto_operator_openai_trigger_operator]
+    :end-before: [END howto_operator_openai_trigger_operator]

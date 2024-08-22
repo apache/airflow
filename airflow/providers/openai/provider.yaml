@@ -57,6 +57,11 @@ operators:
     python-modules:
       - airflow.providers.openai.operators.openai
 
+triggers:
+  - integration-name: OpenAI
+    python-modules:
+      - airflow.providers.openai.triggers.openai
+
 connection-types:
   - hook-class-name: airflow.providers.openai.hooks.openai.OpenAIHook
     connection-type: openai

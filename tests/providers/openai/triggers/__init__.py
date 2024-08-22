@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,29 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Objects relating to sourcing connections from environment variables."""
-
-from __future__ import annotations
-
-import os
-
-from airflow.secrets import BaseSecretsBackend
-
-CONN_ENV_PREFIX = "AIRFLOW_CONN_"
-VAR_ENV_PREFIX = "AIRFLOW_VAR_"
-
-
-class EnvironmentVariablesBackend(BaseSecretsBackend):
-    """Retrieves Connection object and Variable from environment variable."""
-
-    def get_conn_value(self, conn_id: str) -> str | None:
-        return os.environ.get(CONN_ENV_PREFIX + conn_id.upper())
-
-    def get_variable(self, key: str) -> str | None:
-        """
-        Get Airflow Variable from Environment Variable.
-
-        :param key: Variable Key
-        :return: Variable Value
-        """
-        return os.environ.get(VAR_ENV_PREFIX + key.upper())

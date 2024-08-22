@@ -2695,6 +2695,11 @@ class DAG(LoggingMixin):
             # - if ``use_executor`` is True, sends the task instances to the executor with
             #   ``BaseExecutor.queue_task_instance``
             if use_executor:
+                from airflow.models.dagbag import DagBag
+
+                dag_bag = DagBag()
+                dag_bag.bag_dag(self)
+
                 executor = ExecutorLoader.get_default_executor()
                 executor.start()
 
@@ -2743,6 +2748,11 @@ class DAG(LoggingMixin):
                             self.log.exception("Task failed; ti=%s", ti)
                 if use_executor:
                     executor.heartbeat()
+                    from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+
+                    SchedulerJobRunner.process_executor_events(
+                        executor=executor, dag_bag=dag_bag, job_id=None, session=session
+                    )
             if use_executor:
                 executor.end()
         return dr
