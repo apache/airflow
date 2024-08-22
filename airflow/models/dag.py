@@ -1545,7 +1545,7 @@ class DAG(LoggingMixin):
         if start_date:
             tis = tis.where(DagRun.execution_date >= start_date)
         if task_ids is not None:
-            tis = tis.where(TaskInstance.ti_selector_condition(task_ids, session=session))
+            tis = tis.where(TaskInstance.ti_selector_condition(task_ids))
 
         # This allows allow_trigger_in_future config to take affect, rather than mandating exec_date <= UTC
         if end_date or not self.allow_future_exec_dates:

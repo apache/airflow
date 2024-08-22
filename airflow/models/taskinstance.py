@@ -3654,9 +3654,9 @@ class TaskInstance(Base, LoggingMixin):
         return or_(*filter_condition)
 
     @classmethod
-    @provide_session
     def ti_selector_condition(
-        TaskInstance, vals: Collection[str | tuple[str, int]], session: Session = NEW_SESSION
+        cls,
+        vals: Collection[str | tuple[str, int]],
     ) -> ColumnOperators:
         """
         Build an SQLAlchemy filter for a list of task_ids or tuples of (task_id,map_index).
@@ -3670,7 +3670,6 @@ class TaskInstance(Base, LoggingMixin):
 
         task_id_only: list[str] = []
         with_map_index: list[tuple[str, int]] = []
-        task_id_only_copy = task_id_only.copy()
         filters: list[ColumnOperators] = []
 
         for v in vals:
@@ -3679,23 +3678,18 @@ class TaskInstance(Base, LoggingMixin):
 
         are_equal: bool = all(x == y for x, y in zip(task_id_only, vals)) and len(task_id_only) == len(vals)
         if are_equal:  # To check for string only values
-            filters.append(TaskInstance.task_id.in_(task_id_only))
+            filters.append(cls.task_id.in_(task_id_only))
         else:
-            # Test for TaskMap Object
-            task_id_with_internal_map_index = select(TaskInstance.task_id, TaskInstance.map_index).where(
-                TaskInstance.task_id.in_(task_id_only)
-            )
-            ti_map_index = session.execute(task_id_with_internal_map_index).fetchall()
-            for obj in ti_map_index:
-                if obj[1] == -1 and obj[0] in task_id_only:  # TaskMap Object has map_index -1
-                    task_id_only_copy.append(obj[0])
-                    task_id_only.remove(obj[0])
-                    with_map_index.append(obj)
+            # TaskMap Object handling
+            subquery = (
+                select(cls.task_id, cls.map_index).where(cls.task_id.in_(task_id_only), cls.map_index == -1)
+            ).subquery()
+            stmt = select(subquery)
 
             for v in vals:
                 if isinstance(v, tuple) and len(v) == 2 and isinstance(v[0], str) and isinstance(v[1], int):
                     with_map_index.append(v)
-                elif v in task_id_only or v in task_id_only_copy:
+                elif v in task_id_only:
                     continue
                 else:
                     raise AirflowException(
@@ -3709,10 +3703,13 @@ class TaskInstance(Base, LoggingMixin):
             with_map_index.extend(task_id_with_map_new)
 
             if all(v in task_id_only for v in vals):
-                filters.append(TaskInstance.task_id.in_(task_id_only))
+                filters.append(cls.task_id.in_(task_id_only))
 
             elif with_map_index:
-                filters.append(tuple_(TaskInstance.task_id, TaskInstance.map_index).in_(with_map_index))
+                filters.append(
+                    tuple_(cls.task_id, cls.map_index).in_(with_map_index),
+                )
+                filters.append(tuple_(cls.task_id, cls.map_index).in_(stmt))
 
         if not filters:
             return false()
