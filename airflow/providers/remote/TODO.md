@@ -71,6 +71,7 @@ https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor
   - [x] Draft
   - [x] Update specs
   - [x] Vote
+- [ ] Move this TODO to docs/rst of the provider
 
 ## Future Feature Collection
 
