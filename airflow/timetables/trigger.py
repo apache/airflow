@@ -163,18 +163,14 @@ class CronTriggerTimetable(CronMixin, Timetable):
         next_run_time = self._align_to_next(now)
         if self.run_immediately is True:  # not truthy, actually set to True
             return past_run_time
-        elif self.run_immediately is False:
-            return next_run_time
+
         gap_between_runs = next_run_time - past_run_time
         gap_to_past = now - past_run_time
-        if self.run_immediately is False:
-            buffer_between_runs = max(gap_to_past * 10, datetime.timedelta(minutes=5))
-            if gap_between_runs > buffer_between_runs:
-                return past_run_time
-            else:
-                return next_run_time
+        if isinstance(self.run_immediately, datetime.timedelta):
+            buffer_between_runs = self.run_immediately
         else:
-            if gap_to_past < self.run_immediately:
-                return past_run_time
-            else:
-                return next_run_time
+            buffer_between_runs = max(gap_between_runs / 10, datetime.timedelta(minutes=5))
+        if gap_to_past <= buffer_between_runs:
+            return past_run_time
+        else:
+            return next_run_time
