@@ -99,15 +99,33 @@ SBOM_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-version",
                 "--python",
                 "--include-open-psf-scorecard",
+                "--include-github-stats",
             ],
         },
         {
-            "name": "Output flags",
+            "name": "CSV flags",
             "options": [
                 "--csv-file",
+            ],
+        },
+        {
+            "name": "Github auth flags",
+            "options": [
+                "--github-token",
+            ],
+        },
+        {
+            "name": "Google spreadsheet flags",
+            "options": [
                 "--json-credentials-file",
                 "--google-spreadsheet-id",
+            ],
+        },
+        {
+            "name": "Debugging flags",
+            "options": [
                 "--limit-output",
+                "--project-name",
             ],
         },
     ],

@@ -31,6 +31,7 @@ from airflow_breeze.commands.common_options import (
     option_answer,
     option_debug_resources,
     option_dry_run,
+    option_github_token,
     option_historical_python_version,
     option_include_success_outputs,
     option_parallelism,
@@ -658,6 +659,7 @@ def generate_providers_requirements(
     envvar="GOOGLE_SPREADSHEET_ID",
     required=False,
 )
+@option_github_token
 @click.option(
     "--json-credentials-file",
     type=click.Path(file_okay=True, dir_okay=False, path_type=Path, writable=False),
@@ -671,6 +673,14 @@ def generate_providers_requirements(
 @click.option(
     "-s",
     "--include-open-psf-scorecard",
+    help="Include statistics from the Open PSF Scorecard",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "-G",
+    "--include-github-stats",
+    help="Include statistics from GitHub",
     is_flag=True,
     default=False,
 )
@@ -682,6 +692,12 @@ def generate_providers_requirements(
     type=int,
     required=False,
 )
+@click.option(
+    "--project-name",
+    help="Only used for debugging purposes. The name of the project to generate the sbom for.",
+    type=str,
+    required=False,
+)
 @option_dry_run
 @option_answer
 def export_dependency_information(
@@ -689,9 +705,12 @@ def export_dependency_information(
     airflow_version: str,
     csv_file: Path | None,
     google_spreadsheet_id: str | None,
+    github_token: str | None,
     json_credentials_file: Path,
     include_open_psf_scorecard: bool,
+    include_github_stats: bool,
     limit_output: int | None,
+    project_name: str | None,
 ):
     if not google_spreadsheet_id and not csv_file:
         get_console().print("[error]You need to specify either --csv-file or --google-spreadsheet-id")
@@ -724,11 +743,14 @@ def export_dependency_information(
         core_sbom=core_sbom,
         full_sbom=full_sbom,
         include_open_psf_scorecard=include_open_psf_scorecard,
+        include_github_stats=include_github_stats,
         limit_output=limit_output,
+        github_token=github_token,
+        project_name=project_name,
     )
     all_dependency_value_dicts = sorted(all_dependency_value_dicts, key=sort_deps_key)
 
-    fieldnames = get_field_names(include_open_psf_scorecard)
+    fieldnames = get_field_names(include_open_psf_scorecard, include_github_stats)
 
     if csv_file:
         write_to_csv_file(
@@ -912,7 +934,10 @@ def convert_all_sbom_to_value_dictionaries(
     core_sbom: dict[str, Any],
     full_sbom: dict[str, Any],
     include_open_psf_scorecard: bool,
+    include_github_stats: bool,
     limit_output: int | None,
+    github_token: str | None = None,
+    project_name: str | None = None,
 ) -> list[dict[str, Any]]:
     core_dependencies = set()
     dev_deps = set(normalize_package_name(name) for name in DEVEL_DEPS_PATH.read_text().splitlines())
@@ -920,6 +945,8 @@ def convert_all_sbom_to_value_dictionaries(
     all_dependency_value_dicts = []
     for dependency in core_sbom["components"]:
         normalized_name = normalize_package_name(dependency["name"])
+        if project_name and normalized_name != project_name:
+            continue
         core_dependencies.add(normalized_name)
         is_devel = normalized_name in dev_deps
         value_dict = convert_sbom_entry_to_dict(
@@ -927,6 +954,8 @@ def convert_all_sbom_to_value_dictionaries(
             is_core=True,
             is_devel=is_devel,
             include_open_psf_scorecard=include_open_psf_scorecard,
+            include_github_stats=include_github_stats,
+            github_token=github_token,
         )
         if value_dict:
             all_dependency_value_dicts.append(value_dict)
@@ -935,6 +964,8 @@ def convert_all_sbom_to_value_dictionaries(
             return all_dependency_value_dicts
     for dependency in full_sbom["components"]:
         normalized_name = normalize_package_name(dependency["name"])
+        if project_name and normalized_name != project_name:
+            continue
         if normalized_name not in core_dependencies:
             is_devel = normalized_name in dev_deps
             value_dict = convert_sbom_entry_to_dict(
@@ -942,6 +973,8 @@ def convert_all_sbom_to_value_dictionaries(
                 is_core=False,
                 is_devel=is_devel,
                 include_open_psf_scorecard=include_open_psf_scorecard,
+                include_github_stats=include_github_stats,
+                github_token=github_token,
             )
             if value_dict:
                 all_dependency_value_dicts.append(value_dict)

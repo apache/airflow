@@ -618,8 +618,63 @@ KNOWN_STABLE_PROJECTS = [
     "vine",
 ]
 
+KNOWN_LOW_IMPORTANCE_PROJECTS = [
+    "flask-appbuilder",
+]
 
-def get_open_psf_scorecard(vcs: str, project_name: str):
+KNOWN_MEDIUM_IMPORTANCE_PROJECTS: list[str] = []
+
+KNOWN_HIGH_IMPORTANCE_PROJECTS: list[str] = []
+
+# Project we have a relationship with the community
+RELATIONSHIP_PROJECT = [
+    "flask-appbuilder",
+    "thrift-sasl",
+    "python-slugify",
+    "plyvel",
+    "pure-sasl",
+    "python-nvd3",
+    "flask-caching",
+    "universal-pathlib",
+]
+
+
+def get_github_stats(vcs: str, project_name: str, github_token: str | None) -> dict[str, Any]:
+    import requests
+
+    result = {}
+    if vcs and vcs.startswith("https://github.com/"):
+        importance = "Low"
+        api_url = vcs.replace("https://github.com/", "https://api.github.com/repos/")
+        if api_url.endswith("/"):
+            api_url = api_url[:-1]
+        headers = {"Authorization": f"token {github_token}"} if github_token else {}
+        get_console().print(f"[info]Retrieving Github Stats from {api_url}")
+        response = requests.get(api_url, headers=headers)
+        if response.status_code == 404:
+            get_console().print(f"[warning]Github API returned 404 for {api_url}")
+            return {}
+        response.raise_for_status()
+        github_data = response.json()
+        stargazer_count = github_data.get("stargazers_count")
+        forks_count = github_data.get("forks_count")
+        if project_name in KNOWN_LOW_IMPORTANCE_PROJECTS:
+            importance = "Low"
+        elif project_name in KNOWN_MEDIUM_IMPORTANCE_PROJECTS:
+            importance = "Medium"
+        elif project_name in KNOWN_HIGH_IMPORTANCE_PROJECTS:
+            importance = "High"
+        elif forks_count > 1000 or stargazer_count > 1000:
+            importance = "High"
+        elif stargazer_count > 100 or forks_count > 100:
+            importance = "Medium"
+        result["Industry importance"] = importance
+    else:
+        get_console().print(f"[warning]Not retrieving Github Stats for {vcs}")
+    return result
+
+
+def get_open_psf_scorecard(vcs: str, project_name: str) -> dict[str, Any]:
     import requests
 
     repo_url = vcs.split("://")[1]
@@ -674,7 +729,9 @@ def convert_sbom_entry_to_dict(
     dependency: dict[str, Any],
     is_core: bool,
     is_devel: bool,
-    include_open_psf_scorecard: bool = False,
+    include_open_psf_scorecard: bool,
+    include_github_stats: bool,
+    github_token: str | None,
 ) -> dict[str, Any] | None:
     """
     Convert SBOM to Row for CSV or spreadsheet output
@@ -704,17 +761,27 @@ def convert_sbom_entry_to_dict(
     if vcs and include_open_psf_scorecard:
         open_psf_scorecard = get_open_psf_scorecard(vcs, name)
         row.update(open_psf_scorecard)
+    if vcs and include_github_stats:
+        github_stats = get_github_stats(vcs=vcs, project_name=name, github_token=github_token)
+        row.update(github_stats)
+    if name in RELATIONSHIP_PROJECT:
+        row["Relationship"] = "Yes"
     return row
 
 
-def get_field_names(include_open_psf_scorecard: bool) -> list[str]:
+def get_field_names(include_open_psf_scorecard: bool, include_github_stats: bool) -> list[str]:
     names = ["Name", "Author", "Version", "Description", "Core", "Devel", "Licenses", "Purl", "Pypi", "Vcs"]
     if include_open_psf_scorecard:
         names.append("OPSF-Score")
         for check in OPEN_PSF_CHECKS:
             names.append("OPSF-" + check)
             names.append("OPSF-Details-" + check)
-    names.extend(["Governance", "Lifecycle status", "Unpatched Vulns"])
+    names.append("Governance")
+    if include_open_psf_scorecard:
+        names.extend(["Lifecycle status", "Unpatched Vulns"])
+    if include_github_stats:
+        names.append("Industry importance")
+    names.append("Relationship")
     return names
 
 
