@@ -1550,19 +1550,20 @@ def _run_finished_callback(
     if callbacks:
         callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
 
-        def get_callback_name(callback: TaskStateChangeCallback) -> str:
-            if hasattr(callback, "__name__"):
+        def get_callback_representation(callback: TaskStateChangeCallback) -> Any:
+            with contextlib.suppress(AttributeError):
                 return callback.__name__
-            if hasattr(callback, "__class__"):
+            with contextlib.suppress(AttributeError):
                 return callback.__class__.__name__
-            return callback.__str__()
+            return callback
 
         for idx, callback in enumerate(callbacks):
-            log.info("Executing (%d) %s callback", idx, get_callback_name(callback))
+            callback_repr = get_callback_representation(callback)
+            log.info("Executing callback at index %d: %s", idx, callback_repr)
             try:
                 callback(context)
             except Exception:
-                log.exception("Error when executing (%d) %s callback", idx, get_callback_name(callback))
+                log.exception("Error in callback at index %d: %s", idx, callback_repr)
 
 
 def _log_state(*, task_instance: TaskInstance | TaskInstancePydantic, lead_msg: str = "") -> None:
