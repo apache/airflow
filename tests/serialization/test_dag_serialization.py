@@ -142,6 +142,12 @@ serialized_simple_dag_ground_truth = {
             },
         },
         "start_date": 1564617600.0,
+        "timetable": {
+            "__type": "airflow.timetables.interval.DeltaDataIntervalTimetable",
+            "__var": {
+                "delta": 86400.0,
+            },
+        },
         "_task_group": {
             "_group_id": None,
             "prefix_group_id": True,

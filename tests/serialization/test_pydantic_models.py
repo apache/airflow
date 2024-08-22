@@ -27,7 +27,7 @@ from airflow.decorators.python import _PythonDecoratedOperator
 from airflow.jobs.job import Job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.models import MappedOperator
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DAG, DagModel, create_timetable
 from airflow.models.dataset import (
     DagScheduleDatasetReference,
     DatasetEvent,
@@ -175,10 +175,12 @@ def test_serializing_pydantic_dagrun(session, create_task_instance):
     ],
 )
 def test_serializing_pydantic_dagmodel(schedule):
+    timetable = create_timetable(schedule, timezone.utc)
     dag_model = DagModel(
         dag_id="test-dag",
         fileloc="/tmp/dag_1.py",
-        timetable_summary=schedule,
+        timetable_summary=timetable.summary,
+        timetable_description=timetable.description,
         is_active=True,
         is_paused=False,
     )
@@ -189,7 +191,8 @@ def test_serializing_pydantic_dagmodel(schedule):
     deserialized_model = DagModelPydantic.model_validate_json(json_string)
     assert deserialized_model.dag_id == "test-dag"
     assert deserialized_model.fileloc == "/tmp/dag_1.py"
-    assert deserialized_model.timetable_summary == schedule
+    assert deserialized_model.timetable_summary == timetable.summary
+    assert deserialized_model.timetable_description == timetable.description
     assert deserialized_model.is_active is True
     assert deserialized_model.is_paused is False
 

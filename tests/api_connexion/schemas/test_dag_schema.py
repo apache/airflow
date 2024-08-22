@@ -245,6 +245,7 @@ def test_serialize_test_dag_with_dataset_schedule_detail_schema(url_safe_seriali
         "start_date": "2020-06-19T00:00:00+00:00",
         "tags": [{"name": "example1"}, {"name": "example2"}],
         "template_searchpath": None,
+        "timetable_summary": "Dataset",
         "timezone": UTC_JSON_REPR,
         "max_active_runs": 16,
         "max_consecutive_failed_dag_runs": 0,
