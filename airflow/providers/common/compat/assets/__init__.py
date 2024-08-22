@@ -30,6 +30,7 @@ if TYPE_CHECKING:
         AssetAny,
         expand_alias_to_assets,
     )
+    from airflow.auth.managers.models.resource_details import AssetDetails
 else:
     try:
         from airflow.assets import (
@@ -40,6 +41,7 @@ else:
             AssetAny,
             expand_alias_to_assets,
         )
+        from airflow.auth.managers.models.resource_details import AssetDetails
     except ModuleNotFoundError:
         from packaging.version import Version
 
@@ -47,6 +49,7 @@ else:
         _IS_AIRFLOW_2_9_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.9.0")
 
         # dataset is renamed to asset since Airflow 3.0
+        from airflow.auth.managers.models.resource_details import DatasetDetails as AssetDetails
         from airflow.datasets import Dataset as Asset
 
         if _IS_AIRFLOW_2_9_OR_HIGHER:
@@ -69,5 +72,6 @@ __all__ = [
     "AssetAliasEvent",
     "AssetAll",
     "AssetAny",
+    "AssetDetails",
     "expand_alias_to_assets",
 ]
