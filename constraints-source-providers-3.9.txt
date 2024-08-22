@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-21T13:43:25.181319
+# This constraints file was automatically generated on 2024-08-22T07:39:28.106824
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -186,7 +186,7 @@ eventlet==0.36.1
 exceptiongroup==1.2.2
 execnet==2.1.1
 executing==2.0.1
-facebook_business==20.0.0
+facebook_business==20.0.1
 fastavro==1.9.5
 fasteners==0.19
 fastjsonschema==2.20.0
@@ -230,7 +230,7 @@ google-cloud-dataproc==5.10.2
 google-cloud-dlp==3.22.0
 google-cloud-kms==2.24.2
 google-cloud-language==2.14.0
-google-cloud-logging==3.11.1
+google-cloud-logging==3.11.2
 google-cloud-memcache==1.9.5
 google-cloud-monitoring==2.22.2
 google-cloud-orchestration-airflow==1.13.1
@@ -286,7 +286,7 @@ idna==3.7
 ijson==3.3.0
 imagesize==1.4.1
 importlib-metadata==6.11.0
-importlib_resources==6.4.3
+importlib_resources==6.4.4
 impyla==0.19.0
 incremental==24.7.2
 inflection==0.5.1
@@ -341,7 +341,7 @@ mdurl==0.1.2
 mergedeep==1.3.4
 methodtools==0.4.7
 microsoft-kiota-abstractions==1.3.3
-microsoft-kiota-authentication-azure==1.0.0
+microsoft-kiota-authentication-azure==1.1.0
 microsoft-kiota-http==1.3.3
 mmh3==4.1.0
 mongomock==4.1.2
@@ -584,7 +584,7 @@ trove-classifiers==2024.7.2
 twine==5.1.1
 typed-ast==1.5.5
 types-Deprecated==1.2.9.20240311
-types-Markdown==3.6.0.20240316
+types-Markdown==3.7.0.20240822
 types-PyMySQL==1.1.0.20240524
 types-PyYAML==6.0.12.20240808
 types-aiofiles==24.1.0.20240626
@@ -600,7 +600,7 @@ types-python-slugify==8.0.2.20240310
 types-pytz==2024.1.0.20240417
 types-redis==4.6.0.20240819
 types-requests==2.31.0.6
-types-setuptools==72.2.0.20240821
+types-setuptools==73.0.0.20240822
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
