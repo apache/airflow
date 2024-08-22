@@ -3438,8 +3438,9 @@ class TestTaskInstance:
             assert not completed
             callback_name = callback_input[0] if isinstance(callback_input, list) else callback_input
             callback_name = qualname(callback_name).split(".")[-1]
-            assert "Executing on_finish_callable callback" in caplog.text
-            assert "Error when executing on_finish_callable callback" in caplog.text
+            assert "Executing (0) on_finish_callable callback" in caplog.text
+            assert "Executing (1) on_finish_callable callback" in caplog.text
+            assert "Error when executing (1) on_finish_callable callback" in caplog.text
 
         class OnFinishNotifier(BaseNotifier):
             """
@@ -3460,7 +3461,8 @@ class TestTaskInstance:
         for callback_input in [OnFinishNotifier(error=False), OnFinishNotifier(error=True)]:
             caplog.clear()
             _run_finished_callback(callbacks=callback_input, context={})
-            assert "Executing OnFinishNotifier callback" in caplog.text
+            assert "Executing (0) OnFinishNotifier callback" in caplog.text
+            assert "Executing (1) OnFinishNotifier callback" in caplog.text
             assert "KeyError" in caplog.text
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
