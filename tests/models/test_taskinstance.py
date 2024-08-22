@@ -3429,20 +3429,17 @@ class TestTaskInstance:
             raise KeyError
             completed = True
 
-        caplog.clear()
-
-        for callback_input in [on_finish_callable, on_finish_callable]:
+        for callback_input in [[on_finish_callable], on_finish_callable]:
             called = completed = False
+            caplog.clear()
             _run_finished_callback(callbacks=callback_input, context={})
 
             assert called
             assert not completed
             callback_name = callback_input[0] if isinstance(callback_input, list) else callback_input
             callback_name = qualname(callback_name).split(".")[-1]
-
-        assert "Executing callback at index 0: on_finish_callable" in caplog.text
-        assert "Executing callback at index 1: on_finish_callable" in caplog.text
-        assert "Error in callback at index 1: on_finish_callable callback" in caplog.text
+            assert "Executing callback at index 0: on_finish_callable" in caplog.text
+            assert "Error in callback at index 0: on_finish_callable callback" in caplog.text
 
     def test_finished_callbacks_notifier_handle_and_log_exception(self, caplog):
         class OnFinishNotifier(BaseNotifier):
@@ -3462,10 +3459,8 @@ class TestTaskInstance:
                     raise KeyError
 
         caplog.clear()
-
-        for callback_input in [OnFinishNotifier(error=False), OnFinishNotifier(error=True)]:
-            _run_finished_callback(callbacks=callback_input, context={})
-
+        callbacks = [OnFinishNotifier(error=False), OnFinishNotifier(error=True)]
+        _run_finished_callback(callbacks=callbacks, context={})
         assert "Executing callback at index 0: OnFinishNotifier" in caplog.text
         assert "Executing callback at index 1: OnFinishNotifier" in caplog.text
         assert "KeyError" in caplog.text
