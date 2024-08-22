@@ -33,7 +33,6 @@ from airflow import __version__ as airflow_version
 from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
 from airflow.auth.managers.models.resource_details import (
     AccessView,
-    AssetDetails,
     ConfigurationDetails,
     ConnectionDetails,
     DagAccessEntity,
@@ -94,6 +93,7 @@ if TYPE_CHECKING:
     from airflow.cli.cli_config import (
         CLICommand,
     )
+    from airflow.providers.common.compat.assets import AssetDetails
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {
