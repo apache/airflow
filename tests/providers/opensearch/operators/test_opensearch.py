@@ -17,6 +17,9 @@
 from __future__ import annotations
 
 import pytest
+
+opensearchpy = pytest.importorskip("opensearchpy")
+
 from opensearchpy import Document, Keyword, Text
 
 from airflow.models import DAG
