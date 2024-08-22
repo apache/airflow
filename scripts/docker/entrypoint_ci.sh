@@ -120,14 +120,20 @@ function environment_initialization() {
         export AIRFLOW__SCHEDULER__STANDALONE_DAG_PROCESSOR=True
     fi
 
+    RUN_TESTS=${RUN_TESTS:="false"}
     if [[ ${DATABASE_ISOLATION=} == "true" ]]; then
         echo "${COLOR_BLUE}Force database isolation configuration:${COLOR_RESET}"
         export AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION=True
-        export AIRFLOW__CORE__INTERNAL_API_URL=http://localhost:8080
-        export AIRFLOW__WEBSERVER_RUN_INTERNAL_API=True
+        export AIRFLOW__CORE__INTERNAL_API_URL=http://localhost:9080
+        # some random secret keys. Setting them as environment variables will make them used in tests and in
+        # the internal API server
+        export AIRFLOW__CORE__INTERNAL_API_SECRET_KEY="Z27xjUwQTz4txlWZyJzLqg=="
+        export AIRFLOW__CORE__FERNET_KEY="l7KBR9aaH2YumhL1InlNf24gTNna8aW2WiwF2s-n_PE="
+        if [[ ${START_AIRFLOW=} != "true" ]]; then
+            export RUN_TESTS_WITH_DATABASE_ISOLATION="true"
+        fi
     fi
 
-    RUN_TESTS=${RUN_TESTS:="false"}
     CI=${CI:="false"}
 
     # Added to have run-tests on path
@@ -210,15 +216,23 @@ function determine_airflow_to_use() {
             echo
             exit 0
         fi
+        if [[ ${CLEAN_AIRFLOW_INSTALLATION=} == "true" ]]; then
+            echo
+            echo "${COLOR_BLUE}Uninstalling all packages first${COLOR_RESET}"
+            echo
+            pip freeze | grep -ve "^-e" | grep -ve "^#" | grep -ve "^uv" | xargs pip uninstall -y --root-user-action ignore
+            # Now install rich ad click first to use the installation script
+            uv pip install rich rich-click click --python "/usr/local/bin/python" \
+                --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
+        fi
         python "${IN_CONTAINER_DIR}/install_airflow_and_providers.py"
+        echo
+        echo "${COLOR_BLUE}Reinstalling all development dependencies${COLOR_RESET}"
+        echo
+        python "${IN_CONTAINER_DIR}/install_devel_deps.py" \
+           --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
         # Some packages might leave legacy typing module which causes test issues
         pip uninstall -y typing || true
-        # Upgrade pytest and pytest extensions to latest version if they have been accidentally
-        # downgraded by constraints
-        pip install --upgrade pytest pytest aiofiles aioresponses pytest-asyncio pytest-custom-exit-code \
-           pytest-icdiff pytest-instafail pytest-mock pytest-rerunfailures pytest-timeouts \
-           pytest-xdist pytest requests_mock time-machine \
-           --constraint https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt
     fi
 
     if [[ "${USE_AIRFLOW_VERSION}" =~ ^2\.2\..*|^2\.1\..*|^2\.0\..* && "${AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=}" != "" ]]; then
@@ -236,15 +250,21 @@ function check_boto_upgrade() {
     echo "${COLOR_BLUE}Upgrading boto3, botocore to latest version to run Amazon tests with them${COLOR_RESET}"
     echo
     # shellcheck disable=SC2086
-    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs || true
+    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} aiobotocore s3fs yandexcloud opensearch-py || true
     # We need to include few dependencies to pass pip check with other dependencies:
     #   * oss2 as dependency as otherwise jmespath will be bumped (sync with alibaba provider)
-    #   * gcloud-aio-auth limit is needed to be included as it bumps cryptography (sync with google provider)
+    #   * cryptography is kept for snowflake-connector-python limitation (sync with snowflake provider)
     #   * requests needs to be limited to be compatible with apache beam (sync with apache-beam provider)
+    #   * yandexcloud requirements for requests does not match those of apache.beam and latest botocore
+    #   Both requests and yandexcloud exclusion above might be removed after
+    #   https://github.com/apache/beam/issues/32080 is addressed
+    #   This is already addressed and planned for 2.59.0 release.
+    #   When you remove yandexcloud and opensearch from the above list, you can also remove the
+    #   optional providers_dependencies exclusions from "test_example_dags.py" in "tests/always".
     set -x
     # shellcheck disable=SC2086
     ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade boto3 botocore \
-       "oss2>=2.14.0" "gcloud-aio-auth>=4.0.0,<5.0.0" "requests!=2.32.*,<3.0.0,>=2.24.0"
+       "oss2>=2.14.0" "cryptography<43.0.0" "requests!=2.32.*,<3.0.0,>=2.24.0"
     set +x
     pip check
 }
@@ -278,8 +298,9 @@ function check_pydantic() {
         echo
         echo "${COLOR_YELLOW}Downgrading Pydantic to < 2${COLOR_RESET}"
         echo
+        # Pydantic 1.10.17/1.10.15 conflicts with aws-sam-translator so we need to exclude it
         # shellcheck disable=SC2086
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "pydantic<2.0.0"
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "pydantic<2.0.0,!=1.10.17,!=1.10.15"
         pip check
     else
         echo
@@ -334,6 +355,33 @@ function check_run_tests() {
        # Plain asserts should be converted to env variable to make sure they are taken into account
        # otherwise they will not be effective during test collection when plain assert is breaking collection
        export PYTEST_PLAIN_ASSERTS="true"
+    fi
+
+    if [[ ${DATABASE_ISOLATION=} == "true" ]]; then
+        echo "${COLOR_BLUE}Starting internal API server:${COLOR_RESET}"
+        # We need to start the internal API server before running tests
+        airflow db migrate
+        # We set a very large clock grace allowing to have tests running in other time/years
+        AIRFLOW__CORE__INTERNAL_API_CLOCK_GRACE=999999999 airflow internal-api >"${AIRFLOW_HOME}/logs/internal-api.log" 2>&1 &
+        echo
+        echo -n "${COLOR_YELLOW}Waiting for internal API server to listen on 9080. ${COLOR_RESET}"
+        echo
+        for _ in $(seq 1 40)
+        do
+            sleep 0.5
+            nc -z localhost 9080 && echo && echo "${COLOR_GREEN}Internal API server started!!${COLOR_RESET}" && break
+            echo -n "."
+        done
+        if ! nc -z localhost 9080; then
+            echo
+            echo "${COLOR_RED}Internal API server did not start in 20 seconds!!${COLOR_RESET}"
+            echo
+            echo "${COLOR_BLUE}Logs:${COLOR_RESET}"
+            echo
+            cat "${AIRFLOW_HOME}/logs/internal-api.log"
+            echo
+            exit 1
+        fi
     fi
 
     if [[ ${RUN_SYSTEM_TESTS:="false"} == "true" ]]; then

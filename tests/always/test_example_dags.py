@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 from glob import glob
 from importlib import metadata as importlib_metadata
@@ -33,14 +34,16 @@ from tests.test_utils.asserts import assert_queries_count
 AIRFLOW_SOURCES_ROOT = Path(__file__).resolve().parents[2]
 AIRFLOW_PROVIDERS_ROOT = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 CURRENT_PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
-NO_DB_QUERY_EXCEPTION = ("/airflow/example_dags/example_subdag_operator.py",)
 PROVIDERS_PREFIXES = ("airflow/providers/", "tests/system/providers/")
 OPTIONAL_PROVIDERS_DEPENDENCIES: dict[str, dict[str, str | None]] = {
     # Some examples or system tests may depend on additional packages
     # that are not included in certain CI checks.
     # The format of the dictionary is as follows:
-    # key: the prefix of the file to be excluded,
+    # key: the regexp matching the file to be excluded,
     # value: a dictionary containing package distributions with an optional version specifier, e.g., >=2.3.4
+    ".*example_bedrock_retrieve_and_generate.py": {"opensearch-py": None},
+    ".*example_opensearch.py": {"opensearch-py": None},
+    r".*example_yandexcloud.*\.py": {"yandexcloud": None},
 }
 IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     # Certain examples or system tests may trigger AirflowProviderDeprecationWarnings.
@@ -145,15 +148,11 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
                 )
 
             for optional, dependencies in OPTIONAL_PROVIDERS_DEPENDENCIES.items():
-                if candidate.endswith(optional):
+                if re.match(optional, candidate):
                     for distribution_name, specifier in dependencies.items():
                         result, reason = match_optional_dependencies(distribution_name, specifier)
                         if not result:
                             param_marks.append(pytest.mark.skip(reason=reason))
-
-            if xfail_db_exception and candidate.endswith(NO_DB_QUERY_EXCEPTION):
-                # Use strict XFAIL for excluded tests. So if it is not failed, we should remove from the list.
-                param_marks.append(pytest.mark.xfail(reason="Expected DB call", strict=True))
 
             if candidate.startswith(providers_folders):
                 # Do not raise an error for airflow.exceptions.RemovedInAirflow3Warning.
@@ -189,10 +188,11 @@ def test_should_be_importable(example: str):
     assert len(dagbag.dag_ids) >= 1
 
 
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 @pytest.mark.parametrize("example", example_not_excluded_dags(xfail_db_exception=True))
 def test_should_not_do_database_queries(example: str):
-    with assert_queries_count(0, stacklevel_from_module=example.rsplit(os.sep, 1)[-1]):
+    with assert_queries_count(1, stacklevel_from_module=example.rsplit(os.sep, 1)[-1]):
         DagBag(
             dag_folder=example,
             include_examples=False,

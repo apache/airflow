@@ -19,34 +19,31 @@
 
 import React from "react";
 
-import ReactJson from "react-json-view";
+import ReactJson, { ReactJsonViewProps } from "react-json-view";
 
-import { Flex, Button, Code, Spacer, useClipboard } from "@chakra-ui/react";
+import {
+  Flex,
+  Button,
+  Code,
+  Spacer,
+  useClipboard,
+  useTheme,
+  FlexProps,
+} from "@chakra-ui/react";
+import jsonParse from "./utils";
 
-interface Props {
-  content: string;
+interface Props extends FlexProps {
+  content: string | object;
+  jsonProps?: Omit<ReactJsonViewProps, "src">;
 }
 
-const JsonParse = (content: string) => {
-  let contentJson = null;
-  let contentFormatted = "";
-  let isJson = false;
-  try {
-    contentJson = JSON.parse(content);
-    contentFormatted = JSON.stringify(contentJson, null, 4);
-    isJson = true;
-  } catch (e) {
-    // skip
-  }
-  return [isJson, contentJson, contentFormatted];
-};
-
-const RenderedJsonField = ({ content }: Props) => {
-  const [isJson, contentJson, contentFormatted] = JsonParse(content);
+const RenderedJsonField = ({ content, jsonProps, ...rest }: Props) => {
+  const [isJson, contentJson, contentFormatted] = jsonParse(content);
   const { onCopy, hasCopied } = useClipboard(contentFormatted);
+  const theme = useTheme();
 
   return isJson ? (
-    <Flex>
+    <Flex {...rest} p={2}>
       <ReactJson
         src={contentJson}
         name={false}
@@ -55,15 +52,20 @@ const RenderedJsonField = ({ content }: Props) => {
         indentWidth={2}
         displayDataTypes={false}
         enableClipboard={false}
-        style={{ backgroundColor: "inherit" }}
+        style={{
+          backgroundColor: "inherit",
+          fontSize: theme.fontSizes.md,
+          font: theme.fonts.mono,
+        }}
+        {...jsonProps}
       />
       <Spacer />
-      <Button aria-label="Copy" onClick={onCopy}>
+      <Button aria-label="Copy" onClick={onCopy} position="sticky" top={0}>
         {hasCopied ? "Copied!" : "Copy"}
       </Button>
     </Flex>
   ) : (
-    <Code fontSize="md">{content}</Code>
+    <Code fontSize="md">{content as string}</Code>
   );
 };
 

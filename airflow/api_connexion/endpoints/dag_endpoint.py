@@ -106,7 +106,7 @@ def get_dags(
 ) -> APIResponse:
     """Get all DAGs."""
     allowed_attrs = ["dag_id"]
-    dags_query = select(DagModel).where(~DagModel.is_subdag)
+    dags_query = select(DagModel)
     if only_active:
         dags_query = dags_query.where(DagModel.is_active)
     if paused is not None:
@@ -179,10 +179,9 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
         update_mask = update_mask[0]
         patch_body_[update_mask] = patch_body[update_mask]
         patch_body = patch_body_
+    dags_query = select(DagModel)
     if only_active:
-        dags_query = select(DagModel).where(~DagModel.is_subdag, DagModel.is_active)
-    else:
-        dags_query = select(DagModel).where(~DagModel.is_subdag)
+        dags_query = dags_query.where(DagModel.is_active)
 
     if dag_id_pattern == "~":
         dag_id_pattern = "%"

@@ -34,11 +34,109 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from airflow.datasets import Dataset
+from airflow.datasets import Dataset, DatasetAlias
 from airflow.models.base import Base, StringID
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
+
+alias_association_table = Table(
+    "dataset_alias_dataset",
+    Base.metadata,
+    Column("alias_id", ForeignKey("dataset_alias.id", ondelete="CASCADE"), primary_key=True),
+    Column("dataset_id", ForeignKey("dataset.id", ondelete="CASCADE"), primary_key=True),
+    Index("idx_dataset_alias_dataset_alias_id", "alias_id"),
+    Index("idx_dataset_alias_dataset_alias_dataset_id", "dataset_id"),
+    ForeignKeyConstraint(
+        ("alias_id",),
+        ["dataset_alias.id"],
+        name="ds_dsa_alias_id",
+        ondelete="CASCADE",
+    ),
+    ForeignKeyConstraint(
+        ("dataset_id",),
+        ["dataset.id"],
+        name="ds_dsa_dataset_id",
+        ondelete="CASCADE",
+    ),
+)
+
+dataset_alias_dataset_event_assocation_table = Table(
+    "dataset_alias_dataset_event",
+    Base.metadata,
+    Column("alias_id", ForeignKey("dataset_alias.id", ondelete="CASCADE"), primary_key=True),
+    Column("event_id", ForeignKey("dataset_event.id", ondelete="CASCADE"), primary_key=True),
+    Index("idx_dataset_alias_dataset_event_alias_id", "alias_id"),
+    Index("idx_dataset_alias_dataset_event_event_id", "event_id"),
+    ForeignKeyConstraint(
+        ("alias_id",),
+        ["dataset_alias.id"],
+        name="dss_de_alias_id",
+        ondelete="CASCADE",
+    ),
+    ForeignKeyConstraint(
+        ("event_id",),
+        ["dataset_event.id"],
+        name="dss_de_event_id",
+        ondelete="CASCADE",
+    ),
+)
+
+
+class DatasetAliasModel(Base):
+    """
+    A table to store dataset alias.
+
+    :param uri: a string that uniquely identifies the dataset alias
+    """
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(
+        String(length=3000).with_variant(
+            String(
+                length=3000,
+                # latin1 allows for more indexed length in mysql
+                # and this field should only be ascii chars
+                collation="latin1_general_cs",
+            ),
+            "mysql",
+        ),
+        nullable=False,
+    )
+
+    __tablename__ = "dataset_alias"
+    __table_args__ = (
+        Index("idx_name_unique", name, unique=True),
+        {"sqlite_autoincrement": True},  # ensures PK values not reused
+    )
+
+    datasets = relationship(
+        "DatasetModel",
+        secondary=alias_association_table,
+        backref="aliases",
+    )
+    dataset_events = relationship(
+        "DatasetEvent",
+        secondary=dataset_alias_dataset_event_assocation_table,
+        back_populates="source_aliases",
+    )
+    consuming_dags = relationship("DagScheduleDatasetAliasReference", back_populates="dataset_alias")
+
+    @classmethod
+    def from_public(cls, obj: DatasetAlias) -> DatasetAliasModel:
+        return cls(name=obj.name)
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(name={self.name!r})"
+
+    def __hash__(self):
+        return hash(self.name)
+
+    def __eq__(self, other):
+        if isinstance(other, (self.__class__, DatasetAlias)):
+            return self.name == other.name
+        else:
+            return NotImplemented
 
 
 class DatasetModel(Base):
@@ -101,6 +199,50 @@ class DatasetModel(Base):
 
     def __repr__(self):
         return f"{self.__class__.__name__}(uri={self.uri!r}, extra={self.extra!r})"
+
+
+class DagScheduleDatasetAliasReference(Base):
+    """References from a DAG to a dataset alias of which it is a consumer."""
+
+    alias_id = Column(Integer, primary_key=True, nullable=False)
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+
+    dataset_alias = relationship("DatasetAliasModel", back_populates="consuming_dags")
+    dag = relationship("DagModel", back_populates="schedule_dataset_alias_references")
+
+    __tablename__ = "dag_schedule_dataset_alias_reference"
+    __table_args__ = (
+        PrimaryKeyConstraint(alias_id, dag_id, name="dsdar_pkey"),
+        ForeignKeyConstraint(
+            (alias_id,),
+            ["dataset_alias.id"],
+            name="dsdar_dataset_alias_fkey",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            columns=(dag_id,),
+            refcolumns=["dag.dag_id"],
+            name="dsdar_dag_fkey",
+            ondelete="CASCADE",
+        ),
+        Index("idx_dag_schedule_dataset_alias_reference_dag_id", dag_id),
+    )
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.alias_id == other.alias_id and self.dag_id == other.dag_id
+        return NotImplemented
+
+    def __hash__(self):
+        return hash(self.__mapper__.primary_key)
+
+    def __repr__(self):
+        args = []
+        for attr in [x.name for x in self.__mapper__.primary_key]:
+            args.append(f"{attr}={getattr(self, attr)!r}")
+        return f"{self.__class__.__name__}({', '.join(args)})"
 
 
 class DagScheduleDatasetReference(Base):
@@ -294,6 +436,12 @@ class DatasetEvent(Base):
         backref="consumed_dataset_events",
     )
 
+    source_aliases = relationship(
+        "DatasetAliasModel",
+        secondary=dataset_alias_dataset_event_assocation_table,
+        back_populates="dataset_events",
+    )
+
     source_task_instance = relationship(
         "TaskInstance",
         primaryjoin="""and_(
@@ -338,6 +486,7 @@ class DatasetEvent(Base):
             "source_dag_id",
             "source_run_id",
             "source_map_index",
+            "source_aliases",
         ]:
             args.append(f"{attr}={getattr(self, attr)!r}")
         return f"{self.__class__.__name__}({', '.join(args)})"

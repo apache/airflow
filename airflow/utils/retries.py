@@ -21,7 +21,7 @@ import logging
 from inspect import signature
 from typing import Callable, TypeVar, overload
 
-from sqlalchemy.exc import DBAPIError, OperationalError
+from sqlalchemy.exc import DBAPIError
 
 from airflow.configuration import conf
 
@@ -36,7 +36,7 @@ def run_with_db_retries(max_retries: int = MAX_DB_RETRIES, logger: logging.Logge
 
     # Default kwargs
     retry_kwargs = dict(
-        retry=tenacity.retry_if_exception_type(exception_types=(OperationalError, DBAPIError)),
+        retry=tenacity.retry_if_exception_type(exception_types=(DBAPIError)),
         wait=tenacity.wait_random_exponential(multiplier=0.5, max=5),
         stop=tenacity.stop_after_attempt(max_retries),
         reraise=True,
@@ -58,7 +58,7 @@ def retry_db_transaction(_func: F) -> F: ...
 
 def retry_db_transaction(_func: Callable | None = None, *, retries: int = MAX_DB_RETRIES, **retry_kwargs):
     """
-    Retry functions in case of ``OperationalError`` from DB.
+    Retry functions in case of ``DBAPIError`` from DB.
 
     It should not be used with ``@provide_session``.
     """
@@ -76,8 +76,12 @@ def retry_db_transaction(_func: Callable | None = None, *, retries: int = MAX_DB
 
         @functools.wraps(func)
         def wrapped_function(*args, **kwargs):
-            logger = args[0].log if args and hasattr(args[0], "log") else logging.getLogger(func.__module__)
-
+            if args and hasattr(args[0], "logger"):
+                logger = args[0].logger()
+            elif args and hasattr(args[0], "log"):
+                logger = args[0].log
+            else:
+                logger = logging.getLogger(func.__module__)
             # Get session from args or kwargs
             if "session" in kwargs:
                 session = kwargs["session"]
@@ -96,7 +100,7 @@ def retry_db_transaction(_func: Callable | None = None, *, retries: int = MAX_DB
                     )
                     try:
                         return func(*args, **kwargs)
-                    except OperationalError:
+                    except DBAPIError:
                         session.rollback()
                         raise
 

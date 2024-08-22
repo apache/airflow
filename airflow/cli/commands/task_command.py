@@ -278,7 +278,10 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
             print("Could not pickle the DAG")
             print(e)
             raise e
-    executor = ExecutorLoader.get_default_executor()
+    if ti.executor:
+        executor = ExecutorLoader.load_executor(ti.executor)
+    else:
+        executor = ExecutorLoader.get_default_executor()
     executor.job_id = None
     executor.start()
     print("Sending to executor.")
@@ -327,7 +330,6 @@ def _run_task_by_local_task_job(args, ti: TaskInstance | TaskInstancePydantic) -
 
 RAW_TASK_UNSUPPORTED_OPTION = [
     "ignore_all_dependencies",
-    "ignore_depends_on_past",
     "ignore_dependencies",
     "force",
 ]
@@ -463,13 +465,14 @@ def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
 
     log.info("Running %s on host %s", ti, hostname)
 
-    # IMPORTANT, have to re-configure ORM with the NullPool, otherwise, each "run" command may leave
-    # behind multiple open sleeping connections while heartbeating, which could
-    # easily exceed the database connection limit when
-    # processing hundreds of simultaneous tasks.
-    # this should be last thing before running, to reduce likelihood of an open session
-    # which can cause trouble if running process in a fork.
-    settings.reconfigure_orm(disable_connection_pool=True)
+    if not InternalApiConfig.get_use_internal_api():
+        # IMPORTANT, have to re-configure ORM with the NullPool, otherwise, each "run" command may leave
+        # behind multiple open sleeping connections while heartbeating, which could
+        # easily exceed the database connection limit when
+        # processing hundreds of simultaneous tasks.
+        # this should be last thing before running, to reduce likelihood of an open session
+        # which can cause trouble if running process in a fork.
+        settings.reconfigure_orm(disable_connection_pool=True)
     task_return_code = None
     try:
         if args.interactive:
@@ -760,8 +763,6 @@ def task_clear(args) -> None:
         only_failed=args.only_failed,
         only_running=args.only_running,
         confirm_prompt=not args.yes,
-        include_subdags=not args.exclude_subdags,
-        include_parentdag=not args.exclude_parentdag,
     )
 
 

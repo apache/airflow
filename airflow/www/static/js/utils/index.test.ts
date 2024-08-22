@@ -25,6 +25,10 @@ import {
   getTaskSummary,
   highlightByKeywords,
 } from ".";
+import {
+  logGroupStart,
+  logGroupEnd,
+} from "../dag/details/taskInstance/Logs/utils";
 
 const sampleTasks = {
   id: null,
@@ -160,7 +164,9 @@ describe("Test highlightByKeywords", () => {
     const highlightedLine = highlightByKeywords(
       originalLine,
       ["error"],
-      ["warn"]
+      ["warn"],
+      logGroupStart,
+      logGroupEnd
     );
     expect(highlightedLine).toBe(expected);
   });
@@ -170,7 +176,9 @@ describe("Test highlightByKeywords", () => {
     const highlightedLine = highlightByKeywords(
       originalLine,
       ["error"],
-      ["warn"]
+      ["warn"],
+      logGroupStart,
+      logGroupEnd
     );
     expect(highlightedLine).toBe(expected);
   });
@@ -180,16 +188,42 @@ describe("Test highlightByKeywords", () => {
     const highlightedLine = highlightByKeywords(
       originalLine,
       ["error"],
-      ["warn"]
+      ["warn"],
+      logGroupStart,
+      logGroupEnd
     );
     expect(highlightedLine).toBe(expected);
+  });
+  test("No highlight for line with start log marker", async () => {
+    const originalLine = " INFO - ::group::error";
+    const highlightedLine = highlightByKeywords(
+      originalLine,
+      ["error"],
+      ["warn"],
+      logGroupStart,
+      logGroupEnd
+    );
+    expect(highlightedLine).toBe(originalLine);
+  });
+  test("No highlight for line with end log marker", async () => {
+    const originalLine = " INFO - ::endgroup::";
+    const highlightedLine = highlightByKeywords(
+      originalLine,
+      ["endgroup"],
+      ["warn"],
+      logGroupStart,
+      logGroupEnd
+    );
+    expect(highlightedLine).toBe(originalLine);
   });
   test("No highlight", async () => {
     const originalLine = "sample line";
     const highlightedLine = highlightByKeywords(
       originalLine,
       ["error"],
-      ["warn"]
+      ["warn"],
+      logGroupStart,
+      logGroupEnd
     );
     expect(highlightedLine).toBe(originalLine);
   });

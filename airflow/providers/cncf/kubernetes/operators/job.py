@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import copy
+import json
 import logging
 import os
 from functools import cached_property
@@ -39,6 +40,7 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, merge_objects
 from airflow.providers.cncf.kubernetes.triggers.job import KubernetesJobTrigger
+from airflow.providers.cncf.kubernetes.utils.pod_manager import EMPTY_XCOM_RESULT, PodNotFoundException
 from airflow.utils import yaml
 from airflow.utils.context import Context
 
@@ -135,7 +137,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
         return hook
 
     @cached_property
-    def client(self) -> BatchV1Api:
+    def job_client(self) -> BatchV1Api:
         return self.hook.batch_v1_client
 
     def create_job(self, job_request_obj: k8s.V1Job) -> k8s.V1Job:
@@ -150,6 +152,11 @@ class KubernetesJobOperator(KubernetesPodOperator):
                 "Deferrable mode is available only with parameter `wait_until_job_complete=True`. "
                 "Please, set it up."
             )
+        if (self.get_logs or self.do_xcom_push) and not self.wait_until_job_complete:
+            self.log.warning(
+                "Getting Logs and pushing to XCom are available only with parameter `wait_until_job_complete=True`. "
+                "Please, set it up."
+            )
         self.job_request_obj = self.build_job_request_obj(context)
         self.job = self.create_job(  # must set `self.job` for `on_kill`
             job_request_obj=self.job_request_obj
@@ -159,16 +166,34 @@ class KubernetesJobOperator(KubernetesPodOperator):
         ti.xcom_push(key="job_name", value=self.job.metadata.name)
         ti.xcom_push(key="job_namespace", value=self.job.metadata.namespace)
 
+        if self.pod is None:
+            self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
+                pod_request_obj=self.pod_request_obj,
+                context=context,
+            )
+
         if self.wait_until_job_complete and self.deferrable:
             self.execute_deferrable()
             return
 
         if self.wait_until_job_complete:
+            if self.do_xcom_push:
+                self.pod_manager.await_container_completion(
+                    pod=self.pod, container_name=self.base_container_name
+                )
+                self.pod_manager.await_xcom_sidecar_container_start(pod=self.pod)
+                xcom_result = self.extract_xcom(pod=self.pod)
             self.job = self.hook.wait_until_job_complete(
                 job_name=self.job.metadata.name,
                 namespace=self.job.metadata.namespace,
                 job_poll_interval=self.job_poll_interval,
             )
+            if self.get_logs:
+                self.pod_manager.fetch_requested_container_logs(
+                    pod=self.pod,
+                    containers=self.container_logs,
+                    follow_logs=True,
+                )
 
         ti.xcom_push(key="job", value=self.job.to_dict())
         if self.wait_until_job_complete:
@@ -176,17 +201,24 @@ class KubernetesJobOperator(KubernetesPodOperator):
                 raise AirflowException(
                     f"Kubernetes job '{self.job.metadata.name}' is failed with error '{error_message}'"
                 )
+            if self.do_xcom_push:
+                return xcom_result
 
     def execute_deferrable(self):
         self.defer(
             trigger=KubernetesJobTrigger(
                 job_name=self.job.metadata.name,  # type: ignore[union-attr]
                 job_namespace=self.job.metadata.namespace,  # type: ignore[union-attr]
+                pod_name=self.pod.metadata.name,  # type: ignore[union-attr]
+                pod_namespace=self.pod.metadata.namespace,  # type: ignore[union-attr]
+                base_container_name=self.base_container_name,
                 kubernetes_conn_id=self.kubernetes_conn_id,
                 cluster_context=self.cluster_context,
                 config_file=self.config_file,
                 in_cluster=self.in_cluster,
                 poll_interval=self.job_poll_interval,
+                get_logs=self.get_logs,
+                do_xcom_push=self.do_xcom_push,
             ),
             method_name="execute_complete",
         )
@@ -196,6 +228,22 @@ class KubernetesJobOperator(KubernetesPodOperator):
         ti.xcom_push(key="job", value=event["job"])
         if event["status"] == "error":
             raise AirflowException(event["message"])
+
+        if self.get_logs:
+            pod_name = event["pod_name"]
+            pod_namespace = event["pod_namespace"]
+            self.pod = self.hook.get_pod(pod_name, pod_namespace)
+            if not self.pod:
+                raise PodNotFoundException("Could not find pod after resuming from deferral")
+            self._write_logs(self.pod)
+
+        if self.do_xcom_push:
+            xcom_result = event["xcom_result"]
+            if isinstance(xcom_result, str) and xcom_result.rstrip() == EMPTY_XCOM_RESULT:
+                self.log.info("xcom result file is empty.")
+                return None
+            self.log.info("xcom result: \n%s", xcom_result)
+            return json.loads(xcom_result)
 
     @staticmethod
     def deserialize_job_template_file(path: str) -> k8s.V1Job:
@@ -229,7 +277,9 @@ class KubernetesJobOperator(KubernetesPodOperator):
             }
             if self.termination_grace_period is not None:
                 kwargs.update(grace_period_seconds=self.termination_grace_period)
-            self.client.delete_namespaced_job(**kwargs)
+            self.job_client.delete_namespaced_job(**kwargs)
+        if self.pod:
+            super().on_kill()
 
     def build_job_request_obj(self, context: Context | None = None) -> k8s.V1Job:
         """
@@ -254,6 +304,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
             metadata=pod_template.metadata,
             spec=pod_template.spec,
         )
+        self.pod_request_obj = pod_template
 
         job = k8s.V1Job(
             api_version="batch/v1",

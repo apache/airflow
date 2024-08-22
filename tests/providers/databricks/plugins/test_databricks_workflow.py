@@ -20,7 +20,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
-from flask import request
+from flask import url_for
 
 from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
@@ -39,13 +39,11 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
     get_launch_task_id,
     get_task_instance,
 )
-from airflow.utils.dates import days_ago
 from airflow.www.app import create_app
 
 DAG_ID = "test_dag"
 TASK_ID = "test_task"
 RUN_ID = "test_run_1"
-DAG_RUN_DATE = days_ago(1)
 TASK_INSTANCE_KEY = TaskInstanceKey(dag_id=DAG_ID, task_id=TASK_ID, run_id=RUN_ID, try_number=1)
 DATABRICKS_CONN_ID = "databricks_default"
 DATABRICKS_RUN_ID = 12345
@@ -127,36 +125,7 @@ def app():
         yield app
 
 
-def test_repair_databricks_tasks(app):
-    with app.test_request_context("/"):
-        view = RepairDatabricksTasks()
-        request_values = {
-            "databricks_conn_id": "conn_id",
-            "databricks_run_id": "run_id",
-            "run_id": "run_id",
-            "dag_id": "dag_id",
-            "tasks_to_repair": "task1,task2",
-        }
-
-        with patch(
-            "airflow.providers.databricks.plugins.databricks_workflow._repair_task"
-        ) as mock_repair_task, patch(
-            "airflow.providers.databricks.plugins.databricks_workflow._clear_task_instances"
-        ) as mock_clear_task_instances, patch(
-            "airflow.providers.databricks.plugins.databricks_workflow.flash"
-        ) as mock_flash, patch(
-            "airflow.providers.databricks.plugins.databricks_workflow.redirect"
-        ) as mock_redirect:
-            request.values = request_values
-
-            _ = view.repair()
-
-            mock_repair_task.assert_called_once()
-            mock_clear_task_instances.assert_called_once()
-            mock_flash.assert_called_once()
-            mock_redirect.assert_called_once()
-
-
+@pytest.mark.db_test
 def test_get_task_instance(app):
     with app.app_context():
         operator = Mock()
@@ -174,6 +143,19 @@ def test_get_task_instance(app):
             assert result == dag_run
 
 
+@pytest.mark.db_test
+def test_get_return_url_dag_id_run_id(app):
+    dag_id = "example_dag"
+    run_id = "example_run"
+
+    expected_url = url_for("Airflow.grid", dag_id=dag_id, dag_run_id=run_id)
+
+    with app.app_context():
+        actual_url = RepairDatabricksTasks._get_return_url(dag_id, run_id)
+    assert actual_url == expected_url, f"Expected {expected_url}, got {actual_url}"
+
+
+@pytest.mark.db_test
 def test_workflow_job_run_link(app):
     with app.app_context():
         link = WorkflowJobRunLink()
@@ -208,6 +190,7 @@ def test_workflow_job_run_link(app):
                         assert "https://mockhost/#job/1/run/1" in result
 
 
+@pytest.mark.db_test
 def test_workflow_job_repair_single_failed_link(app):
     with app.app_context():
         link = WorkflowJobRepairSingleTaskLink()

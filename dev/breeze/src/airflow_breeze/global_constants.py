@@ -32,9 +32,12 @@ from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 RUNS_ON_PUBLIC_RUNNER = '["ubuntu-22.04"]'
 # we should get more sophisticated logic here in the future, but for now we just check if
 # we use self airflow, vm-based, amd hosted runner as a default
+# TODO: temporarily we need to switch to public runners to avoid issues with self-hosted runners
+RUNS_ON_SELF_HOSTED_RUNNER = '["ubuntu-22.04"]'
+RUNS_ON_SELF_HOSTED_ASF_RUNNER = '["self-hosted", "asf-runner"]'
 # TODO: when we have it properly set-up with labels we should change it to
 # RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "airflow-runner", "vm-runner", "X64"]'
-RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "Linux", "X64"]'
+# RUNS_ON_SELF_HOSTED_RUNNER = '["self-hosted", "Linux", "X64"]'
 SELF_HOSTED_RUNNERS_CPU_COUNT = 8
 
 ANSWER = ""
@@ -50,9 +53,10 @@ ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "none"]
 ALLOWED_PROD_BACKENDS = ["mysql", "postgres"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
+CELERY_INTEGRATION = "celery"
 TESTABLE_INTEGRATIONS = [
     "cassandra",
-    "celery",
+    CELERY_INTEGRATION,
     "drill",
     "kafka",
     "kerberos",
@@ -65,7 +69,7 @@ TESTABLE_INTEGRATIONS = [
     "ydb",
 ]
 OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
-ALLOWED_DEBIAN_VERSIONS = ["bookworm", "bullseye"]
+ALLOWED_DEBIAN_VERSIONS = ["bookworm"]
 ALL_INTEGRATIONS = sorted(
     [
         *TESTABLE_INTEGRATIONS,
@@ -87,7 +91,7 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.26.15", "v1.27.13", "v1.28.9", "v1.29.4", "v1.30.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.28.13", "v1.29.8", "v1.30.4", "v1.31.0"]
 ALLOWED_EXECUTORS = [
     "LocalExecutor",
     "KubernetesExecutor",
@@ -99,6 +103,7 @@ ALLOWED_EXECUTORS = [
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
 START_AIRFLOW_ALLOWED_EXECUTORS = ["LocalExecutor", "CeleryExecutor", "SequentialExecutor"]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR = START_AIRFLOW_ALLOWED_EXECUTORS[0]
+ALLOWED_CELERY_EXECUTORS = ["CeleryExecutor", "CeleryKubernetesExecutor"]
 
 SEQUENTIAL_EXECUTOR = "SequentialExecutor"
 
@@ -159,6 +164,11 @@ REGULAR_DOC_PACKAGES = [
 @lru_cache(maxsize=None)
 def all_selective_test_types() -> tuple[str, ...]:
     return tuple(sorted(e.value for e in SelectiveUnitTestTypes))
+
+
+@lru_cache(maxsize=None)
+def all_selective_test_types_except_providers() -> tuple[str, ...]:
+    return tuple(sorted(e.value for e in SelectiveUnitTestTypes if e != SelectiveUnitTestTypes.PROVIDERS))
 
 
 class SelectiveUnitTestTypes(Enum):
@@ -323,6 +333,7 @@ COMMITTERS = [
     "Fokko",
     "KevinYang21",
     "Lee-W",
+    "RNHTTR",
     "Taragolis",
     "XD-DENG",
     "aijamalnk",
@@ -366,11 +377,12 @@ COMMITTERS = [
     "pingzh",
     "potiuk",
     "r39132",
-    "RNHTTR",
+    "romsharon98",
     "ryanahamilton",
     "ryw",
     "saguziel",
     "sekikn",
+    "shahar1",
     "turbaszek",
     "uranusjr",
     "utkarsharma2",
@@ -412,6 +424,8 @@ PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "provider
 with Path(AIRFLOW_SOURCES_ROOT, "generated", "provider_dependencies.json").open() as f:
     PROVIDER_DEPENDENCIES = json.load(f)
 
+DEVEL_DEPS_PATH = AIRFLOW_SOURCES_ROOT / "generated" / "devel_deps.txt"
+
 # Initialize files for rebuild check
 FILES_FOR_REBUILD_CHECK = [
     "pyproject.toml",
@@ -434,8 +448,8 @@ CURRENT_EXECUTORS = ["KubernetesExecutor"]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.23.0"
-HELM_VERSION = "v3.15.0"
+KIND_VERSION = "v0.24.0"
+HELM_VERSION = "v3.15.3"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
 USE_AIRFLOW_VERSION = None
@@ -491,12 +505,6 @@ CHICKEN_EGG_PROVIDERS = " ".join([])
 
 
 BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
-    {
-        "python-version": "3.8",
-        "airflow-version": "2.7.3",
-        "remove-providers": "common.io fab",
-        "run-tests": "true",
-    },
     {
         "python-version": "3.8",
         "airflow-version": "2.8.4",

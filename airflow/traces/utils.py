@@ -20,8 +20,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
+from airflow.traces import NO_TRACE_ID
 from airflow.utils.hashlib_wrapper import md5
-from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
     from airflow.models import DagRun, TaskInstance
@@ -40,9 +40,12 @@ def _gen_id(seeds: list[str], as_int: bool = False, type: int = TRACE_ID) -> str
 
 
 def gen_trace_id(dag_run: DagRun, as_int: bool = False) -> str | int:
+    if dag_run.start_date is None:
+        return NO_TRACE_ID
+
     """Generate trace id from DagRun."""
     return _gen_id(
-        [dag_run.dag_id, dag_run.run_id, str(dag_run.start_date.timestamp())],
+        [dag_run.dag_id, str(dag_run.run_id), str(dag_run.start_date.timestamp())],
         as_int,
     )
 
@@ -50,7 +53,7 @@ def gen_trace_id(dag_run: DagRun, as_int: bool = False) -> str | int:
 def gen_span_id_from_ti_key(ti_key: TaskInstanceKey, as_int: bool = False) -> str | int:
     """Generate span id from TI key."""
     return _gen_id(
-        [ti_key.dag_id, ti_key.run_id, ti_key.task_id, str(ti_key.try_number)],
+        [ti_key.dag_id, str(ti_key.run_id), ti_key.task_id, str(ti_key.try_number)],
         as_int,
         SPAN_ID,
     )
@@ -58,8 +61,11 @@ def gen_span_id_from_ti_key(ti_key: TaskInstanceKey, as_int: bool = False) -> st
 
 def gen_dag_span_id(dag_run: DagRun, as_int: bool = False) -> str | int:
     """Generate dag's root span id using dag_run."""
+    if dag_run.start_date is None:
+        return NO_TRACE_ID
+
     return _gen_id(
-        [dag_run.dag_id, dag_run.run_id, str(dag_run.start_date.timestamp())],
+        [dag_run.dag_id, str(dag_run.run_id), str(dag_run.start_date.timestamp())],
         as_int,
         SPAN_ID,
     )
@@ -68,12 +74,8 @@ def gen_dag_span_id(dag_run: DagRun, as_int: bool = False) -> str | int:
 def gen_span_id(ti: TaskInstance, as_int: bool = False) -> str | int:
     """Generate span id from the task instance."""
     dag_run = ti.dag_run
-    if ti.state == TaskInstanceState.SUCCESS or ti.state == TaskInstanceState.FAILED:
-        try_number = ti.try_number - 1
-    else:
-        try_number = ti.try_number
     return _gen_id(
-        [dag_run.dag_id, dag_run.run_id, ti.task_id, str(try_number)],
+        [dag_run.dag_id, dag_run.run_id, ti.task_id, str(ti.try_number)],
         as_int,
         SPAN_ID,
     )

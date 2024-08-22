@@ -69,8 +69,8 @@ class MappedArgument(ResolveMixin):
         yield from self._input.iter_references()
 
     @provide_session
-    def resolve(self, context: Context, *, session: Session = NEW_SESSION) -> Any:
-        data, _ = self._input.resolve(context, session=session)
+    def resolve(self, context: Context, *, include_xcom: bool = True, session: Session = NEW_SESSION) -> Any:
+        data, _ = self._input.resolve(context, session=session, include_xcom=include_xcom)
         return data[self._key]
 
 
@@ -165,9 +165,15 @@ class DictOfListsExpandInput(NamedTuple):
         lengths = self._get_map_lengths(run_id, session=session)
         return functools.reduce(operator.mul, (lengths[name] for name in self.value), 1)
 
-    def _expand_mapped_field(self, key: str, value: Any, context: Context, *, session: Session) -> Any:
+    def _expand_mapped_field(
+        self, key: str, value: Any, context: Context, *, session: Session, include_xcom: bool
+    ) -> Any:
         if _needs_run_time_resolution(value):
-            value = value.resolve(context, session=session)
+            value = (
+                value.resolve(context, session=session, include_xcom=include_xcom)
+                if include_xcom
+                else str(value)
+            )
         map_index = context["ti"].map_index
         if map_index < 0:
             raise RuntimeError("can't resolve task-mapping argument without expanding")
@@ -203,8 +209,13 @@ class DictOfListsExpandInput(NamedTuple):
             if isinstance(x, XComArg):
                 yield from x.iter_references()
 
-    def resolve(self, context: Context, session: Session) -> tuple[Mapping[str, Any], set[int]]:
-        data = {k: self._expand_mapped_field(k, v, context, session=session) for k, v in self.value.items()}
+    def resolve(
+        self, context: Context, session: Session, *, include_xcom: bool = True
+    ) -> tuple[Mapping[str, Any], set[int]]:
+        data = {
+            k: self._expand_mapped_field(k, v, context, session=session, include_xcom=include_xcom)
+            for k, v in self.value.items()
+        }
         literal_keys = {k for k, _ in self._iter_parse_time_resolved_kwargs()}
         resolved_oids = {id(v) for k, v in data.items() if k not in literal_keys}
         return data, resolved_oids
@@ -248,7 +259,9 @@ class ListOfDictsExpandInput(NamedTuple):
                 if isinstance(x, XComArg):
                     yield from x.iter_references()
 
-    def resolve(self, context: Context, session: Session) -> tuple[Mapping[str, Any], set[int]]:
+    def resolve(
+        self, context: Context, session: Session, *, include_xcom: bool = True
+    ) -> tuple[Mapping[str, Any], set[int]]:
         map_index = context["ti"].map_index
         if map_index < 0:
             raise RuntimeError("can't resolve task-mapping argument without expanding")
@@ -257,9 +270,9 @@ class ListOfDictsExpandInput(NamedTuple):
         if isinstance(self.value, collections.abc.Sized):
             mapping = self.value[map_index]
             if not isinstance(mapping, collections.abc.Mapping):
-                mapping = mapping.resolve(context, session)
-        else:
-            mappings = self.value.resolve(context, session)
+                mapping = mapping.resolve(context, session, include_xcom=include_xcom)
+        elif include_xcom:
+            mappings = self.value.resolve(context, session, include_xcom=include_xcom)
             if not isinstance(mappings, collections.abc.Sequence):
                 raise ValueError(f"expand_kwargs() expects a list[dict], not {_describe_type(mappings)}")
             mapping = mappings[map_index]
@@ -292,7 +305,7 @@ def get_map_type_key(expand_input: ExpandInput | _ExpandInputRef) -> str:
 
     if isinstance(expand_input, _ExpandInputRef):
         return expand_input.key
-    return next(k for k, v in _EXPAND_INPUT_TYPES.items() if v == type(expand_input))
+    return next(k for k, v in _EXPAND_INPUT_TYPES.items() if isinstance(expand_input, v))
 
 
 def create_expand_input(kind: str, value: Any) -> ExpandInput:

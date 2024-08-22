@@ -17,29 +17,35 @@
  * under the License.
  */
 
-import axios, { AxiosResponse } from "axios";
-import { useQuery } from "react-query";
+import axios from "axios";
+import { useQuery, UseQueryOptions } from "react-query";
 
 import { getMetaValue } from "src/utils";
-import type { API } from "src/types";
+import type {
+  DatasetEventCollection,
+  GetUpstreamDatasetEventsVariables,
+} from "src/types/api-generated";
 
-interface Props {
-  runId: string;
+interface Props extends GetUpstreamDatasetEventsVariables {
+  options?: UseQueryOptions<DatasetEventCollection>;
 }
 
-export default function useUpstreamDatasetEvents({ runId }: Props) {
-  const query = useQuery(["upstreamDatasetEvents", runId], () => {
-    const dagId = getMetaValue("dag_id");
-    const upstreamEventsUrl = (
-      getMetaValue("upstream_dataset_events_api") ||
-      `api/v1/dags/${dagId}/dagRuns/_DAG_RUN_ID_/upstreamDatasetEvents`
-    ).replace("_DAG_RUN_ID_", encodeURIComponent(runId));
-    return axios.get<AxiosResponse, API.DatasetEventCollection>(
-      upstreamEventsUrl
-    );
-  });
+const useUpstreamDatasetEvents = ({ dagId, dagRunId, options }: Props) => {
+  const upstreamEventsUrl = (
+    getMetaValue("upstream_dataset_events_api") ||
+    `api/v1/dags/${dagId}/dagRuns/_DAG_RUN_ID_/upstreamDatasetEvents`
+  ).replace("_DAG_RUN_ID_", encodeURIComponent(dagRunId));
+
+  const query = useQuery<DatasetEventCollection>(
+    ["upstreamDatasetEvents", dagRunId],
+    () => axios.get(upstreamEventsUrl),
+    options
+  );
+
   return {
     ...query,
-    data: query.data || { datasetEvents: [], totalEntries: 0 },
+    data: query.data ?? { datasetEvents: [], totalEntries: 0 },
   };
-}
+};
+
+export default useUpstreamDatasetEvents;

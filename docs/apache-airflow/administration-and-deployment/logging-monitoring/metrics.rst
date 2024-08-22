@@ -68,7 +68,7 @@ Add the following lines to your configuration file e.g. ``airflow.cfg``
 .. code-block:: ini
 
     [metrics]
-    otel_on = False
+    otel_on = True
     otel_host = localhost
     otel_port = 8889
     otel_prefix = airflow
@@ -214,40 +214,44 @@ Name                                                                   Descripti
 Gauges
 ------
 
-=================================================== ========================================================================
-Name                                                Description
-=================================================== ========================================================================
-``dagbag_size``                                     Number of DAGs found when the scheduler ran a scan based on its
-                                                    configuration
-``dag_processing.import_errors``                    Number of errors from trying to parse DAG files
-``dag_processing.total_parse_time``                 Seconds taken to scan and import ``dag_processing.file_path_queue_size`` DAG files
-``dag_processing.file_path_queue_size``             Number of DAG files to be considered for the next scan
-``dag_processing.last_run.seconds_ago.<dag_file>``  Seconds since ``<dag_file>`` was last processed
-``scheduler.tasks.starving``                        Number of tasks that cannot be scheduled because of no open slot in pool
-``scheduler.tasks.executable``                      Number of tasks that are ready for execution (set to queued)
-                                                    with respect to pool limits, DAG concurrency, executor state,
-                                                    and priority.
-``executor.open_slots``                             Number of open slots on executor
-``executor.queued_tasks``                           Number of queued tasks on executor
-``executor.running_tasks``                          Number of running tasks on executor
-``pool.open_slots.<pool_name>``                     Number of open slots in the pool
-``pool.open_slots``                                 Number of open slots in the pool. Metric with pool_name tagging.
-``pool.queued_slots.<pool_name>``                   Number of queued slots in the pool
-``pool.queued_slots``                               Number of queued slots in the pool. Metric with pool_name tagging.
-``pool.running_slots.<pool_name>``                  Number of running slots in the pool
-``pool.running_slots``                              Number of running slots in the pool. Metric with pool_name tagging.
-``pool.deferred_slots.<pool_name>``                 Number of deferred slots in the pool
-``pool.deferred_slots``                             Number of deferred slots in the pool. Metric with pool_name tagging.
-``pool.scheduled_tasks.<pool_name>``                Number of scheduled tasks in the pool
-``pool.scheduled_tasks``                            Number of scheduled tasks in the pool. Metric with pool_name tagging.
-``pool.starving_tasks.<pool_name>``                 Number of starving tasks in the pool
-``pool.starving_tasks``                             Number of starving tasks in the pool. Metric with pool_name tagging.
-``task.cpu_usage_percent.<dag_id>.<task_id>``       Percentage of CPU used by a task
-``task.mem_usage_percent.<dag_id>.<task_id>``       Percentage of memory used by a task
-``triggers.running.<hostname>``                     Number of triggers currently running for a triggerer (described by hostname)
-``triggers.running``                                Number of triggers currently running for a triggerer (described by hostname).
-                                                    Metric with hostname tagging.
-=================================================== ========================================================================
+==================================================== ========================================================================
+Name                                                 Description
+==================================================== ========================================================================
+``dagbag_size``                                      Number of DAGs found when the scheduler ran a scan based on its
+                                                     configuration
+``dag_processing.import_errors``                     Number of errors from trying to parse DAG files
+``dag_processing.total_parse_time``                  Seconds taken to scan and import ``dag_processing.file_path_queue_size`` DAG files
+``dag_processing.file_path_queue_size``              Number of DAG files to be considered for the next scan
+``dag_processing.last_run.seconds_ago.<dag_file>``   Seconds since ``<dag_file>`` was last processed
+``dag_processing.last_num_of_db_queries.<dag_file>`` Number of queries to Airflow database during parsing per ``<dag_file>``
+``scheduler.tasks.starving``                         Number of tasks that cannot be scheduled because of no open slot in pool
+``scheduler.tasks.executable``                       Number of tasks that are ready for execution (set to queued)
+                                                     with respect to pool limits, DAG concurrency, executor state,
+                                                     and priority.
+``executor.open_slots.<executor_class_name>``        Number of open slots on a specific executor. Only emitted when multiple executors are configured.
+``executor.open_slots``                              Number of open slots on executor
+``executor.queued_tasks.<executor_class_name>``      Number of queued tasks on on a specific executor. Only emitted when multiple executors are configured.
+``executor.queued_tasks``                            Number of queued tasks on executor
+``executor.running_tasks.<executor_class_name>``     Number of running tasks on on a specific executor. Only emitted when multiple executors are configured.
+``executor.running_tasks``                           Number of running tasks on executor
+``pool.open_slots.<pool_name>``                      Number of open slots in the pool
+``pool.open_slots``                                  Number of open slots in the pool. Metric with pool_name tagging.
+``pool.queued_slots.<pool_name>``                    Number of queued slots in the pool
+``pool.queued_slots``                                Number of queued slots in the pool. Metric with pool_name tagging.
+``pool.running_slots.<pool_name>``                   Number of running slots in the pool
+``pool.running_slots``                               Number of running slots in the pool. Metric with pool_name tagging.
+``pool.deferred_slots.<pool_name>``                  Number of deferred slots in the pool
+``pool.deferred_slots``                              Number of deferred slots in the pool. Metric with pool_name tagging.
+``pool.scheduled_tasks.<pool_name>``                 Number of scheduled tasks in the pool
+``pool.scheduled_tasks``                             Number of scheduled tasks in the pool. Metric with pool_name tagging.
+``pool.starving_tasks.<pool_name>``                  Number of starving tasks in the pool
+``pool.starving_tasks``                              Number of starving tasks in the pool. Metric with pool_name tagging.
+``task.cpu_usage_percent.<dag_id>.<task_id>``        Percentage of CPU used by a task
+``task.mem_usage_percent.<dag_id>.<task_id>``        Percentage of memory used by a task
+``triggers.running.<hostname>``                      Number of triggers currently running for a triggerer (described by hostname)
+``triggers.running``                                 Number of triggers currently running for a triggerer (described by hostname).
+                                                     Metric with hostname tagging.
+==================================================== ========================================================================
 
 Timers
 ------

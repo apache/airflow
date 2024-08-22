@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import textwrap
 import time
 from typing import TYPE_CHECKING, Any, Callable, Sequence
@@ -38,7 +39,6 @@ from pygments.formatters import HtmlFormatter
 from sqlalchemy import delete, func, select, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
-from airflow.configuration import conf
 from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
@@ -66,6 +66,8 @@ if TYPE_CHECKING:
 
 
 TI = TaskInstance
+
+logger = logging.getLogger(__name__)
 
 
 def datetime_to_string(value: DateTime | None) -> str | None:
@@ -163,28 +165,39 @@ def get_dag_run_conf(
 
 def encode_dag_run(
     dag_run: DagRun | None, *, json_encoder: type[json.JSONEncoder] = json.JSONEncoder
-) -> dict[str, Any] | None:
+) -> tuple[dict[str, Any] | None, None | str]:
     if not dag_run:
-        return None
+        return None, None
 
-    dag_run_conf, conf_is_json = get_dag_run_conf(dag_run.conf, json_encoder=json_encoder)
+    try:
+        dag_run_conf, conf_is_json = get_dag_run_conf(dag_run.conf, json_encoder=json_encoder)
+        encoded_dag_run = {
+            "run_id": dag_run.run_id,
+            "queued_at": datetime_to_string(dag_run.queued_at),
+            "start_date": datetime_to_string(dag_run.start_date),
+            "end_date": datetime_to_string(dag_run.end_date),
+            "state": dag_run.state,
+            "execution_date": datetime_to_string(dag_run.execution_date),
+            "data_interval_start": datetime_to_string(dag_run.data_interval_start),
+            "data_interval_end": datetime_to_string(dag_run.data_interval_end),
+            "run_type": dag_run.run_type,
+            "last_scheduling_decision": datetime_to_string(dag_run.last_scheduling_decision),
+            "external_trigger": dag_run.external_trigger,
+            "conf": dag_run_conf,
+            "conf_is_json": conf_is_json,
+            "note": dag_run.note,
+        }
+    except ValueError as e:
+        logger.error("Error while encoding the DAG Run!", exc_info=e)
+        if str(e) == "Circular reference detected":
+            return None, (
+                f"Circular reference detected in the DAG Run config (#{dag_run.run_id}). "
+                f"You should check your webserver logs for more details."
+            )
+        else:
+            raise e
 
-    return {
-        "run_id": dag_run.run_id,
-        "queued_at": datetime_to_string(dag_run.queued_at),
-        "start_date": datetime_to_string(dag_run.start_date),
-        "end_date": datetime_to_string(dag_run.end_date),
-        "state": dag_run.state,
-        "execution_date": datetime_to_string(dag_run.execution_date),
-        "data_interval_start": datetime_to_string(dag_run.data_interval_start),
-        "data_interval_end": datetime_to_string(dag_run.data_interval_end),
-        "run_type": dag_run.run_type,
-        "last_scheduling_decision": datetime_to_string(dag_run.last_scheduling_decision),
-        "external_trigger": dag_run.external_trigger,
-        "conf": dag_run_conf,
-        "conf_is_json": conf_is_json,
-        "note": dag_run.note,
-    }
+    return encoded_dag_run, None
 
 
 def check_import_errors(fileloc, session):
@@ -625,7 +638,7 @@ def json_render(obj, lexer):
 
 def wrapped_markdown(s, css_class="rich_doc"):
     """Convert a Markdown string to HTML."""
-    md = MarkdownIt("gfm-like", {"html": conf.getboolean("webserver", "allow_raw_html_descriptions")})
+    md = MarkdownIt("gfm-like", {"html": False})
     if s is None:
         return None
     s = textwrap.dedent(s)

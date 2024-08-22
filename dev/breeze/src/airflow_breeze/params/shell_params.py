@@ -55,6 +55,7 @@ from airflow_breeze.global_constants import (
     TESTABLE_INTEGRATIONS,
     USE_AIRFLOW_MOUNT_SOURCES,
     WEBSERVER_HOST_PORT,
+    GithubEvents,
     get_airflow_version,
 )
 from airflow_breeze.utils.console import get_console
@@ -135,6 +136,7 @@ class ShellParams:
     celery_broker: str = DEFAULT_CELERY_BROKER
     celery_flower: bool = False
     chicken_egg_providers: str = ""
+    clean_airflow_installation: bool = False
     collect_only: bool = False
     database_isolation: bool = False
     db_reset: bool = False
@@ -168,6 +170,7 @@ class ShellParams:
     load_example_dags: bool = False
     mount_sources: str = MOUNT_SELECTED
     mysql_version: str = ALLOWED_MYSQL_VERSIONS[0]
+    no_db_cleanup: bool = False
     num_runs: str = ""
     only_min_version_update: bool = False
     package_format: str = ALLOWED_INSTALLATION_PACKAGE_FORMATS[0]
@@ -495,9 +498,10 @@ class ShellParams:
         _set_var(_env, "CELERY_BROKER_URLS_MAP", CELERY_BROKER_URLS_MAP)
         _set_var(_env, "CELERY_FLOWER", self.celery_flower)
         _set_var(_env, "CHICKEN_EGG_PROVIDERS", self.chicken_egg_providers)
+        _set_var(_env, "CLEAN_AIRFLOW_INSTALLATION", self.clean_airflow_installation)
         _set_var(_env, "CI", None, "false")
         _set_var(_env, "CI_BUILD_ID", None, "0")
-        _set_var(_env, "CI_EVENT_TYPE", None, "pull_request")
+        _set_var(_env, "CI_EVENT_TYPE", None, GithubEvents.PULL_REQUEST.value)
         _set_var(_env, "CI_JOB_ID", None, "0")
         _set_var(_env, "CI_TARGET_BRANCH", self.airflow_branch)
         _set_var(_env, "CI_TARGET_REPO", self.github_repository)

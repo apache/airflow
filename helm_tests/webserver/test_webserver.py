@@ -864,6 +864,20 @@ class TestWebserverDeployment:
         assert "annotations" in jmespath.search("metadata", docs[0])
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
 
+    @pytest.mark.parametrize(
+        "webserver_values, expected",
+        [
+            ({}, 30),
+            ({"webserver": {"terminationGracePeriodSeconds": 1200}}, 1200),
+        ],
+    )
+    def test_webserver_termination_grace_period_seconds(self, webserver_values, expected):
+        docs = render_chart(
+            values=webserver_values,
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
+
 
 class TestWebserverService:
     """Tests webserver service."""

@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 from unittest import mock
+from unittest.mock import mock_open
 
 import pytest
 from google.cloud.container_v1.types import Cluster, NodePool
@@ -71,6 +72,7 @@ PROJECT_BODY_CREATE_CLUSTER_NODE_POOLS = Cluster(
 
 TASK_NAME = "test-task-name"
 JOB_NAME = "test-job"
+POD_NAME = "test-pod"
 NAMESPACE = ("default",)
 IMAGE = "bash"
 JOB_POLL_INTERVAL = 20.0
@@ -739,12 +741,15 @@ class TestGKEPodOperatorAsync:
     )
     @mock.patch(f"{GKE_OP_PATH}.fetch_cluster_info")
     def test_async_create_pod_should_execute_successfully(
-        self, fetch_cluster_info_mock, get_con_mock, mocked_pod, mocked_pod_obj
+        self, fetch_cluster_info_mock, get_con_mock, mocked_pod, mocked_pod_obj, mocker
     ):
         """
         Asserts that a task is deferred and the GKEStartPodTrigger will be fired
         when the GKEStartPodOperator is executed in deferrable mode when deferrable=True.
         """
+        mock_file = mock_open(read_data='{"a": "b"}')
+        mocker.patch("builtins.open", mock_file)
+
         self.gke_op._cluster_url = CLUSTER_URL
         self.gke_op._ssl_ca_cert = SSL_CA_CERT
         with pytest.raises(TaskDeferred) as exc:
@@ -893,6 +898,12 @@ class TestGKEStartJobOperator:
             mock_metadata = mock_job.metadata
             mock_metadata.name = TASK_NAME
             mock_metadata.namespace = NAMESPACE
+
+            mock_pod = mock.MagicMock()
+            mock_pod.metadata.name = POD_NAME
+            mock_pod.metadata.namespace = NAMESPACE
+            op.pod = mock_pod
+
             with mock.patch.object(op, "defer") as mock_defer:
                 op.execute_deferrable()
 
@@ -901,13 +912,19 @@ class TestGKEStartJobOperator:
             ssl_ca_cert=SSL_CA_CERT,
             job_name=TASK_NAME,
             job_namespace=NAMESPACE,
+            pod_name=POD_NAME,
+            pod_namespace=NAMESPACE,
+            base_container_name=op.BASE_CONTAINER_NAME,
             gcp_conn_id="google_cloud_default",
             poll_interval=JOB_POLL_INTERVAL,
             impersonation_chain=None,
+            get_logs=True,
+            do_xcom_push=False,
         )
         mock_defer.assert_called_once_with(
             trigger=mock_trigger_instance,
             method_name="execute_complete",
+            kwargs={"cluster_url": CLUSTER_URL, "ssl_ca_cert": SSL_CA_CERT},
         )
 
     def test_config_file_throws_error(self):

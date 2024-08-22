@@ -32,6 +32,8 @@ from airflow.security.permissions import (
 )
 from airflow.www import app as application
 
+pytestmark = pytest.mark.skip_if_database_isolation_mode
+
 
 @pytest.fixture
 def app():

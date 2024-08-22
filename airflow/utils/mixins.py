@@ -64,7 +64,7 @@ class ResolveMixin:
         """
         raise NotImplementedError
 
-    def resolve(self, context: Context) -> typing.Any:
+    def resolve(self, context: Context, *, include_xcom: bool = True) -> typing.Any:
         """
         Resolve this value for runtime.
 

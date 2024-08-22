@@ -28,12 +28,6 @@ from unittest import mock
 import boto3
 import pytest
 from moto import mock_aws
-from openlineage.client.facet import (
-    LifecycleStateChange,
-    LifecycleStateChangeDatasetFacet,
-    LifecycleStateChangeDatasetFacetPreviousIdentifier,
-)
-from openlineage.client.run import Dataset
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -49,6 +43,12 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3ListOperator,
     S3ListPrefixesOperator,
     S3PutBucketTaggingOperator,
+)
+from airflow.providers.common.compat.openlineage.facet import (
+    Dataset,
+    LifecycleStateChange,
+    LifecycleStateChangeDatasetFacet,
+    PreviousIdentifier,
 )
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils.timezone import datetime, utcnow
@@ -773,7 +773,7 @@ class TestS3DeleteObjectsOperator:
             facets={
                 "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
                     lifecycleStateChange=LifecycleStateChange.DROP.value,
-                    previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
+                    previousIdentifier=PreviousIdentifier(
                         namespace=f"s3://{bucket}",
                         name="path/data.txt",
                     ),
@@ -799,7 +799,7 @@ class TestS3DeleteObjectsOperator:
                 facets={
                     "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
                         lifecycleStateChange=LifecycleStateChange.DROP.value,
-                        previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
+                        previousIdentifier=PreviousIdentifier(
                             namespace=f"s3://{bucket}",
                             name="path/data1.txt",
                         ),
@@ -812,7 +812,7 @@ class TestS3DeleteObjectsOperator:
                 facets={
                     "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
                         lifecycleStateChange=LifecycleStateChange.DROP.value,
-                        previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
+                        previousIdentifier=PreviousIdentifier(
                             namespace=f"s3://{bucket}",
                             name="path/data2.txt",
                         ),

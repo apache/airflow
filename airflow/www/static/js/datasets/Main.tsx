@@ -17,138 +17,277 @@
  * under the License.
  */
 
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Flex, Box, Spinner } from "@chakra-ui/react";
+import {
+  Box,
+  Breadcrumb,
+  BreadcrumbLink,
+  BreadcrumbItem,
+  Heading,
+  Tabs,
+  Spinner,
+  Tab,
+  TabList,
+  TabPanel,
+  TabPanels,
+  Text,
+  Flex,
+  useDisclosure,
+  IconButton,
+} from "@chakra-ui/react";
+import { HiDatabase } from "react-icons/hi";
+import { MdEvent, MdAccountTree, MdDetails, MdPlayArrow } from "react-icons/md";
 
+import Time from "src/components/Time";
+import BreadcrumbText from "src/components/BreadcrumbText";
 import { useOffsetTop } from "src/utils";
 import { useDatasetDependencies } from "src/api";
+import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
+import Tooltip from "src/components/Tooltip";
+import { useContainerRef } from "src/context/containerRef";
 
-import DatasetsList from "./List";
-import DatasetDetails from "./Details";
+import DatasetEvents from "./DatasetEvents";
+import DatasetsList from "./DatasetsList";
+import DatasetDetails from "./DatasetDetails";
+import type { OnSelectProps } from "./types";
 import Graph from "./Graph";
+import SearchBar from "./SearchBar";
+import CreateDatasetEventModal from "./CreateDatasetEvent";
 
 const DATASET_URI_PARAM = "uri";
 const DAG_ID_PARAM = "dag_id";
-const minPanelWidth = 300;
+const TIMESTAMP_PARAM = "timestamp";
+const TAB_PARAM = "tab";
+
+const tabToIndex = (tab?: string) => {
+  switch (tab) {
+    case "graph":
+      return 1;
+    case "datasets":
+      return 2;
+    case "details":
+    case "events":
+    default:
+      return 0;
+  }
+};
+
+const indexToTab = (index: number, uri?: string) => {
+  switch (index) {
+    case 0:
+      return uri ? "details" : "events";
+    case 1:
+      return "graph";
+    case 2:
+      if (!uri) return "datasets";
+      return undefined;
+    default:
+      return undefined;
+  }
+};
 
 const Datasets = () => {
-  const [searchParams, setSearchParams] = useSearchParams();
   const contentRef = useRef<HTMLDivElement>(null);
   const offsetTop = useOffsetTop(contentRef);
-  const listRef = useRef<HTMLDivElement>(null);
-  const graphRef = useRef<HTMLDivElement>(null);
-  // 60px for footer height
-  const height = `calc(100vh - ${offsetTop + 60}px)`;
+  const height = `calc(100vh - ${offsetTop + 100}px)`;
 
-  const resizeRef = useRef<HTMLDivElement>(null);
+  const { data: datasetDependencies, isLoading } = useDatasetDependencies();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const { isOpen, onToggle, onClose } = useDisclosure();
+  const containerRef = useContainerRef();
 
   const selectedUri = decodeURIComponent(
     searchParams.get(DATASET_URI_PARAM) || ""
   );
-  const selectedDagId = searchParams.get(DAG_ID_PARAM);
 
-  // We need to load in the raw dependencies in order to generate the list of dagIds
-  const { data: datasetDependencies, isLoading } = useDatasetDependencies();
+  const selectedTimestamp = decodeURIComponent(
+    searchParams.get(TIMESTAMP_PARAM) || ""
+  );
+  const selectedDagId = searchParams.get(DAG_ID_PARAM) || undefined;
 
-  const resize = useCallback(
-    (e: MouseEvent) => {
-      const listEl = listRef.current;
-      if (
-        listEl &&
-        e.x > minPanelWidth &&
-        e.x < window.innerWidth - minPanelWidth
-      ) {
-        const width = `${e.x}px`;
-        listEl.style.width = width;
-      }
+  const tab = searchParams.get(TAB_PARAM) || undefined;
+  const tabIndex = tabToIndex(tab);
+
+  const onChangeTab = useCallback(
+    (index: number) => {
+      const params = new URLSearchParamsWrapper(searchParams);
+      const newTab = indexToTab(index, selectedUri);
+      if (newTab) params.set(TAB_PARAM, newTab);
+      else params.delete(TAB_PARAM);
+      setSearchParams(params);
     },
-    [listRef]
+    [setSearchParams, searchParams, selectedUri]
   );
 
-  useEffect(() => {
-    const resizeEl = resizeRef.current;
-    if (resizeEl) {
-      resizeEl.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        document.addEventListener("mousemove", resize);
-      });
-
-      document.addEventListener("mouseup", () => {
-        document.removeEventListener("mousemove", resize);
-      });
-
-      return () => {
-        resizeEl?.removeEventListener("mousedown", resize);
-        document.removeEventListener("mouseup", resize);
-      };
-    }
-    return () => {};
-  }, [resize]);
-
-  const selectedNodeId = selectedUri || selectedDagId;
-
-  const onSelectNode = (id: string, type: string) => {
-    if (type === "dag") {
-      if (id === selectedDagId) searchParams.delete(DAG_ID_PARAM);
-      else searchParams.set(DAG_ID_PARAM, id);
+  const onSelect = ({ uri, timestamp, dagId }: OnSelectProps = {}) => {
+    if (dagId) {
+      if (dagId === selectedDagId) searchParams.delete(DAG_ID_PARAM);
+      searchParams.set(DAG_ID_PARAM, dagId);
       searchParams.delete(DATASET_URI_PARAM);
-    }
-    if (type === "dataset") {
-      if (id === selectedUri) searchParams.delete(DATASET_URI_PARAM);
-      else searchParams.set(DATASET_URI_PARAM, id);
+    } else if (uri) {
+      searchParams.set(DATASET_URI_PARAM, uri);
+      if (timestamp) searchParams.set(TIMESTAMP_PARAM, timestamp);
+      else searchParams.delete(TIMESTAMP_PARAM);
+      searchParams.delete(DAG_ID_PARAM);
+      if (tab === "datasets") searchParams.delete(TAB_PARAM);
+    } else {
+      searchParams.delete(DATASET_URI_PARAM);
+      searchParams.delete(TIMESTAMP_PARAM);
       searchParams.delete(DAG_ID_PARAM);
     }
     setSearchParams(searchParams);
   };
 
   return (
-    <Flex
-      alignItems="flex-start"
-      justifyContent="space-between"
-      ref={contentRef}
-    >
-      <Box
-        minWidth={minPanelWidth}
-        width={500}
-        height={height}
-        overflowY="auto"
-        ref={listRef}
-        mr={3}
+    <Box alignItems="flex-start" justifyContent="space-between">
+      <Flex
+        grow={1}
+        justifyContent="space-between"
+        alignItems="flex-end"
+        p={3}
+        pb={0}
       >
-        {selectedUri ? (
-          <DatasetDetails
-            uri={selectedUri}
-            onBack={() => onSelectNode(selectedUri, "dataset")}
-          />
-        ) : (
-          <DatasetsList
-            datasetDependencies={datasetDependencies}
-            selectedDagId={selectedDagId || undefined}
-            onSelectNode={onSelectNode}
-          />
+        <Breadcrumb
+          mt={4}
+          separator={
+            <Heading as="h3" size="md" color="gray.300">
+              /
+            </Heading>
+          }
+        >
+          <BreadcrumbItem>
+            <BreadcrumbLink
+              onClick={() => onSelect()}
+              isCurrentPage={!selectedUri}
+            >
+              <Heading as="h3" size="md">
+                Datasets
+              </Heading>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+
+          {selectedUri && (
+            <BreadcrumbItem isCurrentPage={!!selectedUri && !selectedTimestamp}>
+              <BreadcrumbLink onClick={() => onSelect({ uri: selectedUri })}>
+                <BreadcrumbText label="URI" value={selectedUri} />
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+          )}
+
+          {selectedTimestamp && (
+            <BreadcrumbItem isCurrentPage={!!selectedTimestamp}>
+              <BreadcrumbLink>
+                <BreadcrumbText
+                  label="Timestamp"
+                  value={<Time dateTime={selectedTimestamp} />}
+                />
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+          )}
+        </Breadcrumb>
+        {selectedUri && (
+          <Tooltip
+            label="Manually create dataset event"
+            hasArrow
+            portalProps={{ containerRef }}
+          >
+            <IconButton
+              variant="outline"
+              colorScheme="blue"
+              aria-label="Manually create dataset event"
+              onClick={onToggle}
+            >
+              <MdPlayArrow />
+            </IconButton>
+          </Tooltip>
         )}
-      </Box>
-      <Box
-        width={2}
-        cursor="ew-resize"
-        bg="gray.200"
-        ref={resizeRef}
-        zIndex={1}
-        height={height}
-      />
-      <Box
-        ref={graphRef}
-        flex={1}
-        height={height}
-        borderColor="gray.200"
-        borderWidth={1}
-        position="relative"
-      >
-        {isLoading && <Spinner position="absolute" top="50%" left="50%" />}
-        <Graph selectedNodeId={selectedNodeId} onSelectNode={onSelectNode} />
-      </Box>
-    </Flex>
+      </Flex>
+      <Tabs ref={contentRef} isLazy index={tabIndex} onChange={onChangeTab}>
+        <TabList>
+          {!selectedUri && (
+            <Tab>
+              <MdEvent size={16} />
+              <Text as="strong" ml={1}>
+                Dataset Events
+              </Text>
+            </Tab>
+          )}
+          {!!selectedUri && (
+            <Tab>
+              <MdDetails size={16} />
+              <Text as="strong" ml={1}>
+                Details
+              </Text>
+            </Tab>
+          )}
+          <Tab>
+            <MdAccountTree size={16} />
+            <Text as="strong" ml={1}>
+              Dependency Graph
+            </Text>
+          </Tab>
+          {!selectedUri && (
+            <Tab>
+              <HiDatabase size={16} />
+              <Text as="strong" ml={1}>
+                Datasets
+              </Text>
+            </Tab>
+          )}
+        </TabList>
+        <TabPanels>
+          {!selectedUri && (
+            <TabPanel>
+              <DatasetEvents />
+            </TabPanel>
+          )}
+          {!!selectedUri && (
+            <TabPanel>
+              <DatasetDetails uri={selectedUri} />
+            </TabPanel>
+          )}
+          <TabPanel>
+            {isLoading && <Spinner position="absolute" top="50%" left="50%" />}
+            {/* the graph needs a defined height to render properly */}
+            <SearchBar
+              datasetDependencies={datasetDependencies}
+              selectedDagId={selectedDagId}
+              selectedUri={selectedUri}
+              onSelectNode={onSelect}
+            />
+            <Box
+              flex={1}
+              height={height}
+              borderColor="gray.200"
+              borderWidth={1}
+              position="relative"
+              mt={2}
+            >
+              {height && (
+                <Graph
+                  selectedNodeId={selectedUri || selectedDagId}
+                  onSelect={onSelect}
+                />
+              )}
+            </Box>
+          </TabPanel>
+          {!selectedUri && (
+            <TabPanel>
+              <DatasetsList onSelect={onSelect} />
+            </TabPanel>
+          )}
+        </TabPanels>
+      </Tabs>
+      {selectedUri && (
+        <CreateDatasetEventModal
+          isOpen={isOpen}
+          onClose={onClose}
+          uri={selectedUri}
+        />
+      )}
+    </Box>
   );
 };
 

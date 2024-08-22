@@ -45,6 +45,7 @@ from airflow_breeze.commands.common_options import (
     argument_doc_packages,
     option_airflow_extras,
     option_answer,
+    option_clean_airflow_installation,
     option_commit_sha,
     option_debug_resources,
     option_dry_run,
@@ -1215,6 +1216,7 @@ SDIST_INSTALL_PROGRESS_REGEXP = r"Processing .*|Requirement already satisfied:.*
 @option_airflow_constraints_reference
 @option_airflow_extras
 @option_airflow_skip_constraints
+@option_clean_airflow_installation
 @option_debug_resources
 @option_dry_run
 @option_github_repository
@@ -1239,6 +1241,7 @@ def install_provider_packages(
     airflow_constraints_reference: str,
     airflow_skip_constraints: bool,
     airflow_extras: str,
+    clean_airflow_installation: bool,
     debug_resources: bool,
     github_repository: str,
     include_success_outputs: bool,
@@ -1268,6 +1271,7 @@ def install_provider_packages(
         # We just want to install the providers by entrypoint
         # we do not need to run any command in the container
         extra_args=("exit 0",),
+        clean_airflow_installation=clean_airflow_installation,
         github_repository=github_repository,
         install_selected_providers=install_selected_providers,
         mount_sources=mount_sources,
@@ -1361,6 +1365,7 @@ def install_provider_packages(
 @option_airflow_constraints_reference
 @option_airflow_extras
 @option_airflow_skip_constraints
+@option_clean_airflow_installation
 @option_dry_run
 @option_github_repository
 @option_install_airflow_with_constraints
@@ -1380,6 +1385,7 @@ def verify_provider_packages(
     airflow_constraints_mode: str,
     airflow_constraints_reference: str,
     airflow_extras: str,
+    clean_airflow_installation: bool,
     github_repository: str,
     install_airflow_with_constraints: bool,
     install_selected_providers: str,
@@ -1406,6 +1412,7 @@ def verify_provider_packages(
         airflow_constraints_reference=airflow_constraints_reference,
         airflow_extras=airflow_extras,
         airflow_skip_constraints=airflow_skip_constraints,
+        clean_airflow_installation=clean_airflow_installation,
         github_repository=github_repository,
         install_airflow_with_constraints=install_airflow_with_constraints,
         mount_sources=mount_sources,
@@ -3357,7 +3364,7 @@ def generate_issue_content(
                 continue
             # Ignore doc-only and skipped PRs
             label_names = [label.name for label in pr.labels]
-            if "type:doc-only" in label_names or "changelog:skip" in label_names:
+            if not is_helm_chart and ("type:doc-only" in label_names or "changelog:skip" in label_names):
                 continue
 
             pull_requests[pr_number] = pr

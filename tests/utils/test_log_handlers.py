@@ -33,7 +33,6 @@ from kubernetes.client import models as k8s
 from requests.adapters import Response
 
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.executors import executor_loader
 from airflow.jobs.job import Job
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
@@ -57,7 +56,7 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 TASK_LOGGER = "airflow.task"
@@ -79,13 +78,6 @@ class TestFileTaskLogHandler:
     def teardown_method(self):
         self.clean_up()
 
-    def test_deprecated_filename_template(self):
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match="Passing filename_template to a log handler is deprecated and has no effect",
-        ):
-            FileTaskHandler("", filename_template="/foo/bar")
-
     def test_default_task_logging_setup(self):
         # file task handler is used by default.
         logger = logging.getLogger(TASK_LOGGER)
@@ -98,7 +90,7 @@ class TestFileTaskLogHandler:
         def task_callable(ti):
             ti.log.info("test")
 
-        dag = DAG("dag_for_testing_file_task_handler", start_date=DEFAULT_DATE)
+        dag = DAG("dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE)
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
@@ -151,7 +143,7 @@ class TestFileTaskLogHandler:
         def task_callable(ti):
             ti.log.info("test")
 
-        dag = DAG("dag_for_testing_file_task_handler", start_date=DEFAULT_DATE)
+        dag = DAG("dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE)
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
@@ -206,7 +198,7 @@ class TestFileTaskLogHandler:
         def task_callable(ti):
             ti.log.info("test")
 
-        dag = DAG("dag_for_testing_file_task_handler", start_date=DEFAULT_DATE)
+        dag = DAG("dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE)
         task = PythonOperator(
             task_id="task_for_testing_file_log_handler",
             python_callable=task_callable,
@@ -316,58 +308,26 @@ class TestFileTaskLogHandler:
         else:
             mock_k8s_get_task_log.assert_not_called()
 
-    # We are not testing TaskInstanceState.DEFERRED in this test because with the current testing setup,
-    # as it creates an inconsistent tests that succeeds in local but fails in CI. See https://github.com/apache/airflow/pull/39496#issuecomment-2149692239
-    # TODO: Fix the test setup so it is possible to test TaskInstanceState.DEFERRED as well.
-    @pytest.mark.parametrize("state", [TaskInstanceState.RUNNING, TaskInstanceState.UP_FOR_RETRY])
-    def test__read_for_celery_executor_fallbacks_to_worker(self, state, create_task_instance):
+    def test__read_for_celery_executor_fallbacks_to_worker(self, create_task_instance):
         """Test for executors which do not have `get_task_log` method, it fallbacks to reading
-        log from worker if and only if remote logs aren't found"""
+        log from worker"""
         executor_name = "CeleryExecutor"
-        # Reading logs from worker should occur when the task is either running, deferred, or up for retry.
+
         ti = create_task_instance(
-            dag_id=f"dag_for_testing_celery_executor_log_read_{state}",
+            dag_id="dag_for_testing_celery_executor_log_read",
             task_id="task_for_testing_celery_executor_log_read",
             run_type=DagRunType.SCHEDULED,
             execution_date=DEFAULT_DATE,
         )
-        ti.try_number = 2
-        ti.state = state
+        ti.state = TaskInstanceState.RUNNING
         with conf_vars({("core", "executor"): executor_name}):
-            reload(executor_loader)
             fth = FileTaskHandler("")
+
             fth._read_from_logs_server = mock.Mock()
             fth._read_from_logs_server.return_value = ["this message"], ["this\nlog\ncontent"]
-            actual = fth._read(ti=ti, try_number=2)
-            fth._read_from_logs_server.assert_called_once()
-            # If we are in the up for retry state, the log has ended.
-            expected_end_of_log = state in (TaskInstanceState.UP_FOR_RETRY)
-            assert actual == (
-                "*** this message\nthis\nlog\ncontent",
-                {"end_of_log": expected_end_of_log, "log_pos": 16},
-            )
-
-            # Previous try_number should return served logs when remote logs aren't implemented
-            fth._read_from_logs_server = mock.Mock()
-            fth._read_from_logs_server.return_value = ["served logs try_number=1"], ["this\nlog\ncontent"]
             actual = fth._read(ti=ti, try_number=1)
             fth._read_from_logs_server.assert_called_once()
-            assert actual == (
-                "*** served logs try_number=1\nthis\nlog\ncontent",
-                {"end_of_log": True, "log_pos": 16},
-            )
-
-            # When remote_logs is implemented, previous try_number is from remote logs without reaching worker server
-            fth._read_from_logs_server.reset_mock()
-            fth._read_remote_logs = mock.Mock()
-            fth._read_remote_logs.return_value = ["remote logs"], ["remote\nlog\ncontent"]
-            actual = fth._read(ti=ti, try_number=1)
-            fth._read_remote_logs.assert_called_once()
-            fth._read_from_logs_server.assert_not_called()
-            assert actual == (
-                "*** remote logs\nremote\nlog\ncontent",
-                {"end_of_log": True, "log_pos": 18},
-            )
+        assert actual == ("*** this message\nthis\nlog\ncontent", {"end_of_log": True, "log_pos": 16})
 
     @pytest.mark.parametrize(
         "remote_logs, local_logs, served_logs_checked",
@@ -438,7 +398,7 @@ class TestFileTaskLogHandler:
         def task_callable(ti):
             ti.log.info("test")
 
-        with DAG("dag_for_testing_file_task_handler", start_date=DEFAULT_DATE) as dag:
+        with DAG("dag_for_testing_file_task_handler", schedule=None, start_date=DEFAULT_DATE) as dag:
             task = PythonOperator(
                 task_id="task_for_testing_file_log_handler",
                 python_callable=task_callable,
@@ -762,6 +722,21 @@ def test_interleave_logs_correct_ordering():
     """
 
     assert sample_with_dupe == "\n".join(_interleave_logs(sample_with_dupe, "", sample_with_dupe))
+
+
+def test_interleave_logs_correct_dedupe():
+    sample_without_dupe = """test,
+    test,
+    test,
+    test,
+    test,
+    test,
+    test,
+    test,
+    test,
+    test"""
+
+    assert sample_without_dupe == "\n".join(_interleave_logs(",\n    ".join(["test"] * 10)))
 
 
 def test_permissions_for_new_directories(tmp_path):

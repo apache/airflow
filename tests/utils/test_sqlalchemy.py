@@ -43,7 +43,7 @@ from airflow.utils.sqlalchemy import (
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 TEST_POD = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]))
@@ -70,10 +70,7 @@ class TestSqlAlchemyUtils:
         iso_date = start_date.isoformat()
         execution_date = start_date + datetime.timedelta(hours=1, days=1)
 
-        dag = DAG(
-            dag_id=dag_id,
-            start_date=start_date,
-        )
+        dag = DAG(dag_id=dag_id, schedule=datetime.timedelta(days=1), start_date=start_date)
         dag.clear()
 
         run = dag.create_dagrun(
@@ -104,7 +101,7 @@ class TestSqlAlchemyUtils:
 
         # naive
         start_date = datetime.datetime.now()
-        dag = DAG(dag_id=dag_id, start_date=start_date)
+        dag = DAG(dag_id=dag_id, start_date=start_date, schedule=datetime.timedelta(days=1))
         dag.clear()
 
         with pytest.raises((ValueError, StatementError)):

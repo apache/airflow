@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.9.2"
+defaultAirflowTag: "2.10.0"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.9.2"
+airflowVersion: "2.10.0"
 
 # Images
 images:
@@ -105,7 +105,7 @@ images:
     pullPolicy: IfNotPresent
   statsd:
     repository: quay.io/prometheus/statsd-exporter
-    tag: v0.26.1
+    tag: v0.27.1
     pullPolicy: IfNotPresent
   redis:
     repository: redis
@@ -342,6 +342,11 @@ extraSecrets: {}
 #   '{{ .Release.Name }}-other-secret-name-suffix':
 #     data: |
 #        ...
+#   'proxy-config':
+#     stringData: |
+#        HTTP_PROXY: http://proxy_user:proxy_password@192.168.0.10:2080
+#        HTTPS_PROXY: http://proxy_user:proxy_password@192.168.0.10:2080
+#        NO_PROXY: "localhost,127.0.0.1,.svc.cluster.local,kubernetes.default.svc"
 
 # Extra ConfigMaps that will be managed by the chart
 # (You can use them with extraEnv or extraEnvFrom or some of the extraVolumes values).
@@ -858,6 +863,9 @@ scheduler:
   # container level lifecycle hooks
   containerLifecycleHooks: {}
 
+  # Grace period for tasks to finish after SIGTERM is sent from kubernetes
+  terminationGracePeriodSeconds: 10
+
   # Create ServiceAccount
   serviceAccount:
     # default value is true
@@ -1318,6 +1326,9 @@ webserver:
   command: ~
   # Args to use when running the Airflow webserver (templated).
   args: ["bash", "-c", "exec airflow webserver"]
+
+  # Grace period for webserver to finish after SIGTERM is sent from kubernetes
+  terminationGracePeriodSeconds: 30
 
   # Create ServiceAccount
   serviceAccount:
@@ -1987,6 +1998,9 @@ statsd:
   # Annotations to add to the StatsD Deployment.
   annotations: {}
 
+  # Grace period for statsd to finish after SIGTERM is sent from kubernetes
+  terminationGracePeriodSeconds: 30
+
   # Create ServiceAccount
   serviceAccount:
     # default value is true
@@ -2139,6 +2153,7 @@ pgbouncer:
 
   service:
     extraAnnotations: {}
+    clusterIp: ~
 
   # https://www.pgbouncer.org/config.html
   verbose: 0
@@ -2655,6 +2670,11 @@ dags:
     # For backwards compatibility, wait will be used if it is specified.
     period: 5s
     wait: ~
+    # add variables from secret into gitSync containers, such proxy-config
+    envFrom: ~
+    # envFrom: |
+    #   - secretRef:
+    #       name: 'proxy-config'
 
     containerName: git-sync
     uid: 65533

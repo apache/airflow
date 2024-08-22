@@ -24,7 +24,7 @@ from datetime import datetime
 from unittest.mock import patch
 
 import pytest
-from openlineage.client.facet import SourceCodeJobFacet
+from openlineage.client.facet_v2 import source_code_job
 
 from airflow import DAG
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -88,7 +88,7 @@ def test_extract_operator_code_enabled(mocked_source_enabled):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
         result = PythonExtractor(operator).extract()
-    assert result.job_facets["sourceCode"] == SourceCodeJobFacet("python", CODE)
+    assert result.job_facets["sourceCode"] == source_code_job.SourceCodeJobFacet("python", CODE)
     assert "unknownSourceAttribute" in result.run_facets
     unknown_items = result.run_facets["unknownSourceAttribute"]["unknownItems"]
     assert len(unknown_items) == 1

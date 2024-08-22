@@ -286,6 +286,12 @@ class SSHHook(BaseHook):
 
     def get_conn(self) -> paramiko.SSHClient:
         """Establish an SSH connection to the remote host."""
+        if self.client:
+            transport = self.client.get_transport()
+            if transport and transport.is_active():
+                # Return the existing connection
+                return self.client
+
         self.log.debug("Creating SSH client for conn_id: %s", self.ssh_conn_id)
         client = paramiko.SSHClient()
 

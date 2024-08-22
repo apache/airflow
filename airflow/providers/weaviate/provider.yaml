@@ -24,10 +24,11 @@ description: |
     `Weaviate <https://weaviate.io/developers/weaviate>`__
 
 state: ready
-source-date-epoch: 1718605569
+source-date-epoch: 1723970637
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 2.1.0
   - 2.0.0
   - 1.4.1
   - 1.4.0
@@ -48,7 +49,7 @@ integrations:
     tags: [software]
 
 dependencies:
-  - apache-airflow>=2.7.0
+  - apache-airflow>=2.8.0
   - httpx>=0.25.0
   - weaviate-client>=4.4.0
   # In pandas 2.2 minimal version of the sqlalchemy is 2.0

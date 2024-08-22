@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import logging
 from unittest import mock
 
 import pytest
@@ -30,17 +31,21 @@ from airflow.providers.docker.operators.docker_swarm import DockerSwarmOperator
 
 class TestDockerSwarmOperator:
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
-    def test_execute(self, types_mock, docker_api_client_patcher):
+    def test_execute(self, types_mock, docker_api_client_patcher, caplog):
         mock_obj = mock.Mock()
 
         def _client_tasks_side_effect():
             for _ in range(2):
                 yield [{"Status": {"State": "pending"}}]
             while True:
-                yield [{"Status": {"State": "complete"}}]
+                yield [{"Status": {"State": "complete", "ContainerStatus": {"ContainerID": "some_id"}}}]
 
         def _client_service_logs_effect():
-            yield b"2023-12-05T00:00:00.000000000Z Testing is awesome."
+            service_logs = [
+                b"2024-07-09T19:07:04.587918327Z lineone-one\rlineone-two",
+                b"2024-07-09T19:07:04.587918328Z linetwo",
+            ]
+            return (log for log in service_logs)
 
         client_mock = mock.Mock(spec=APIClient)
         client_mock.create_service.return_value = {"ID": "some_id"}
@@ -72,6 +77,7 @@ class TestDockerSwarmOperator:
             networks=["dummy_network"],
             placement=types.Placement(constraints=["node.labels.region==east"]),
         )
+        caplog.clear()
         operator.execute(None)
 
         types_mock.TaskTemplate.assert_called_once_with(
@@ -103,13 +109,21 @@ class TestDockerSwarmOperator:
             "some_id", follow=False, stdout=True, stderr=True, is_tty=True, since=0, timestamps=True
         )
 
+        with caplog.at_level(logging.INFO, logger=operator.log.name):
+            service_logs = [
+                "lineone-one\rlineone-two",
+                "linetwo",
+            ]
+            for log_line in service_logs:
+                assert log_line in caplog.messages
+
         csargs, cskwargs = client_mock.create_service.call_args_list[0]
         assert len(csargs) == 1, "create_service called with different number of arguments than expected"
         assert csargs == (mock_obj,)
         assert cskwargs["labels"] == {"name": "airflow__adhoc_airflow__unittest"}
         assert cskwargs["name"].startswith("airflow-")
         assert cskwargs["mode"] == types.ServiceMode(mode="replicated", replicas=3)
-        assert client_mock.tasks.call_count == 6
+        assert client_mock.tasks.call_count == 8
         client_mock.remove_service.assert_called_once_with("some_id")
 
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
@@ -120,7 +134,9 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [{"Status": {"State": "complete"}}]
+        client_mock.tasks.return_value = [
+            {"Status": {"State": "complete", "ContainerStatus": {"ContainerID": "some_id"}}}
+        ]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
@@ -143,7 +159,9 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [{"Status": {"State": "complete"}}]
+        client_mock.tasks.return_value = [
+            {"Status": {"State": "complete", "ContainerStatus": {"ContainerID": "some_id"}}}
+        ]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
@@ -219,7 +237,9 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [{"Status": {"State": "complete"}}]
+        client_mock.tasks.return_value = [
+            {"Status": {"State": "complete", "ContainerStatus": {"ContainerID": "some_id"}}}
+        ]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
@@ -264,7 +284,9 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [{"Status": {"State": "complete"}}]
+        client_mock.tasks.return_value = [
+            {"Status": {"State": "complete", "ContainerStatus": {"ContainerID": "some_id"}}}
+        ]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
@@ -302,7 +324,9 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [{"Status": {"State": "complete"}}]
+        client_mock.tasks.return_value = [
+            {"Status": {"State": "complete", "ContainerStatus": {"ContainerID": "some_id"}}}
+        ]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj

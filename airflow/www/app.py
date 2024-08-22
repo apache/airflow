@@ -44,7 +44,7 @@ from airflow.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.www.extensions.init_manifest_files import configure_manifest_files
 from airflow.www.extensions.init_robots import init_robots
 from airflow.www.extensions.init_security import (
-    init_api_experimental_auth,
+    init_api_auth,
     init_cache_control,
     init_check_user_active,
     init_xframe_protection,
@@ -54,7 +54,6 @@ from airflow.www.extensions.init_views import (
     init_api_auth_provider,
     init_api_connexion,
     init_api_error_handlers,
-    init_api_experimental,
     init_api_internal,
     init_appbuilder_views,
     init_error_handlers,
@@ -137,7 +136,8 @@ def create_app(config=None, testing=False):
     flask_app.json_provider_class = AirflowJsonProvider
     flask_app.json = AirflowJsonProvider(flask_app)
 
-    InternalApiConfig.force_database_direct_access()
+    if conf.getboolean("core", "database_access_isolation", fallback=False):
+        InternalApiConfig.set_use_database_access("Gunicorn worker initialization")
 
     csrf.init_app(flask_app)
 
@@ -149,7 +149,7 @@ def create_app(config=None, testing=False):
 
     init_dagbag(flask_app)
 
-    init_api_experimental_auth(flask_app)
+    init_api_auth(flask_app)
 
     init_robots(flask_app)
 
@@ -174,7 +174,6 @@ def create_app(config=None, testing=False):
             if not _ENABLE_AIP_44:
                 raise RuntimeError("The AIP_44 is not enabled so you cannot use it.")
             init_api_internal(flask_app)
-        init_api_experimental(flask_app)
         init_api_auth_provider(flask_app)
         init_api_error_handlers(flask_app)  # needs to be after all api inits to let them add their path first
 

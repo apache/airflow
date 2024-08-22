@@ -21,12 +21,15 @@ import contextlib
 import os
 import sys
 import tempfile
+from argparse import Namespace
 from unittest import mock
 from unittest.mock import MagicMock, call, patch
 
 import pytest
 
+from airflow.__main__ import configure_internal_api
 from airflow.api_internal.internal_api_call import InternalApiConfig
+from airflow.configuration import conf
 from airflow.exceptions import AirflowClusterPolicyViolation, AirflowConfigException
 from airflow.settings import _ENABLE_AIP_44, TracebackSession, is_usage_data_collection_enabled
 from airflow.utils.session import create_session
@@ -67,12 +70,21 @@ def task_must_have_owners(task: BaseOperator):
 
 @pytest.fixture
 def clear_internal_api():
+    InternalApiConfig._use_internal_api = False
+    InternalApiConfig._internal_api_endpoint = ""
+    from airflow import settings
+
+    old_engine = settings.engine
+    old_session = settings.Session
+    old_conn = settings.SQL_ALCHEMY_CONN
     try:
         yield
     finally:
-        InternalApiConfig._initialized = False
-        InternalApiConfig._use_internal_api = None
-        InternalApiConfig._internal_api_endpoint = None
+        InternalApiConfig._use_internal_api = False
+        InternalApiConfig._internal_api_endpoint = ""
+        settings.engine = old_engine
+        settings.Session = old_session
+        settings.SQL_ALCHEMY_CONN = old_conn
 
 
 class SettingsContext:
@@ -201,21 +213,15 @@ class TestLocalSettings:
 
 
 class TestUpdatedConfigNames:
-    @conf_vars(
-        {("webserver", "session_lifetime_days"): "5", ("webserver", "session_lifetime_minutes"): "43200"}
-    )
-    def test_updates_deprecated_session_timeout_config_val_when_new_config_val_is_default(self):
+    @conf_vars({("webserver", "session_lifetime_minutes"): "43200"})
+    def test_config_val_is_default(self):
         from airflow import settings
 
-        with pytest.warns(DeprecationWarning):
-            session_lifetime_config = settings.get_session_lifetime_config()
-            minutes_in_five_days = 5 * 24 * 60
-            assert session_lifetime_config == minutes_in_five_days
+        session_lifetime_config = settings.get_session_lifetime_config()
+        assert session_lifetime_config == 43200
 
-    @conf_vars(
-        {("webserver", "session_lifetime_days"): "5", ("webserver", "session_lifetime_minutes"): "43201"}
-    )
-    def test_uses_updated_session_timeout_config_when_val_is_not_default(self):
+    @conf_vars({("webserver", "session_lifetime_minutes"): "43201"})
+    def test_config_val_is_not_default(self):
         from airflow import settings
 
         session_lifetime_config = settings.get_session_lifetime_config()
@@ -294,11 +300,11 @@ class TestEngineArgs:
     {
         ("core", "database_access_isolation"): "true",
         ("core", "internal_api_url"): "http://localhost:8888",
+        ("database", "sql_alchemy_conn"): "none://",
     }
 )
 def test_get_traceback_session_if_aip_44_enabled(clear_internal_api):
-    # ensure we take the database_access_isolation config
-    InternalApiConfig._init_values()
+    configure_internal_api(Namespace(subcommand="worker"), conf)
     assert InternalApiConfig.get_use_internal_api() is True
 
     with create_session() as session:
@@ -319,14 +325,15 @@ def test_get_traceback_session_if_aip_44_enabled(clear_internal_api):
     {
         ("core", "database_access_isolation"): "true",
         ("core", "internal_api_url"): "http://localhost:8888",
+        ("database", "sql_alchemy_conn"): "none://",
     }
 )
 @patch("airflow.utils.session.TracebackSession.__new__")
 def test_create_session_ctx_mgr_no_call_methods(mock_new, clear_internal_api):
+    configure_internal_api(Namespace(subcommand="worker"), conf)
     m = MagicMock()
     mock_new.return_value = m
-    # ensure we take the database_access_isolation config
-    InternalApiConfig._init_values()
+
     assert InternalApiConfig.get_use_internal_api() is True
 
     with create_session() as session:
@@ -348,7 +355,7 @@ def test_create_session_ctx_mgr_no_call_methods(mock_new, clear_internal_api):
         (None, "False", False),  # Default env, conf disables
     ],
 )
-def test_usage_data_collection_disabled(env_var, conf_setting, is_enabled):
+def test_usage_data_collection_disabled(env_var, conf_setting, is_enabled, clear_internal_api):
     conf_patch = conf_vars({("usage_data_collection", "enabled"): conf_setting})
 
     if env_var is not None:

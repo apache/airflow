@@ -25,6 +25,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from google.api_core.retry import Retry
+
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateBatchOperator,
@@ -37,7 +39,7 @@ from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "dataproc_batch_deferrable"
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-REGION = "europe-west1"
+REGION = "europe-north1"
 BATCH_ID = f"batch-{ENV_ID}-{DAG_ID}".replace("_", "-")
 BATCH_CONFIG = {
     "spark_batch": {
@@ -62,6 +64,7 @@ with DAG(
         batch=BATCH_CONFIG,
         batch_id=BATCH_ID,
         deferrable=True,
+        result_retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
     )
     # [END how_to_cloud_dataproc_create_batch_operator_async]
 

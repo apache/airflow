@@ -185,7 +185,7 @@ class MySqlHook(DbApiHook):
 
         :return: a mysql connection object
         """
-        conn = self.connection or self.get_connection(getattr(self, self.conn_name_attr))
+        conn = self.connection or self.get_connection(self.get_conn_id())
 
         client_name = conn.extra_dejson.get("client", "mysqlclient")
 
