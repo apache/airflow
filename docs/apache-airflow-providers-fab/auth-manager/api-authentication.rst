@@ -55,7 +55,7 @@ To enable Kerberos authentication, set the following in the configuration:
 .. code-block:: ini
 
     [api]
-    auth_backends = airflow.api.auth.backend.kerberos_auth
+    auth_backends = airflow.providers.fab.auth_manager.api.auth.backend.kerberos_auth
 
     [kerberos]
     keytab = <KEYTAB>
