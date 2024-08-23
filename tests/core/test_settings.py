@@ -119,30 +119,38 @@ class TestLocalSettings:
     @mock.patch("airflow.settings.import_local_settings")
     @mock.patch("airflow.settings.prepare_syspath_for_dags_folder")
     def test_initialize_order(
-        self, prepare_syspath_for_config_and_plugins, import_local_settings, prepare_syspath_for_dags_folder
+        self,
+        mock_prepare_syspath_for_dags_folder,
+        mock_import_local_settings,
+        mock_prepare_syspath_for_config_and_plugins,
     ):
         """
         Tests that import_local_settings is called between prepare_syspath_for_config_and_plugins
         and prepare_syspath_for_dags_folder
         """
         mock_local_settings = mock.Mock()
+
         mock_local_settings.attach_mock(
-            prepare_syspath_for_config_and_plugins, "prepare_syspath_for_config_and_plugins"
+            mock_prepare_syspath_for_config_and_plugins, "prepare_syspath_for_config_and_plugins"
         )
-        mock_local_settings.attach_mock(import_local_settings, "import_local_settings")
-        mock_local_settings.attach_mock(prepare_syspath_for_dags_folder, "prepare_syspath_for_dags_folder")
+        mock_local_settings.attach_mock(mock_import_local_settings, "import_local_settings")
+        mock_local_settings.attach_mock(
+            mock_prepare_syspath_for_dags_folder, "prepare_syspath_for_dags_folder"
+        )
 
         import airflow.settings
 
         airflow.settings.initialize()
 
-        mock_local_settings.assert_has_calls(
-            [
-                call.prepare_syspath_for_config_and_plugins(),
-                call.import_local_settings(),
-                call.prepare_syspath_for_dags_folder(),
-            ]
-        )
+        expected_calls = [
+            call.prepare_syspath_for_config_and_plugins(),
+            call.import_local_settings(),
+            call.prepare_syspath_for_dags_folder(),
+        ]
+
+        mock_local_settings.assert_has_calls(expected_calls)
+
+        assert mock_local_settings.mock_calls == expected_calls
 
     def test_import_with_dunder_all_not_specified(self):
         """
