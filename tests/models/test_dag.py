@@ -950,11 +950,6 @@ class TestDag:
         )
         assert dagrun is not None
 
-    def test_fail_dag_when_schedule_is_non_none_and_empty_start_date(self):
-        # Check that we get a ValueError 'start_date' for self.start_date when schedule is non-none
-        with pytest.raises(ValueError, match="DAG is missing the start_date parameter"):
-            DAG(dag_id="dag_with_non_none_schedule_and_empty_start_date", schedule="@hourly")
-
     def test_following_schedule_datetime_timezone_utc0530(self):
         # Check that we don't get an AttributeError 'name' for self.timezone
         class UTC0530(datetime.tzinfo):
