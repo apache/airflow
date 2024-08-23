@@ -42,8 +42,10 @@ QUERY_ID = os.environ.get("QUERY_ID", "d3773b5a-56f9-422c-ae60-048eaa90aa33")
 WAREHOUSE_ID = os.environ.get("WAREHOUSE_ID", "368fe30b92228713")
 
 
-## We can use below specs for AWS databricks
-# "job_cluster_key": "Shared_job_cluster",
+# You can use below the job_cluster_spec for Databricks on AWS
+# job_cluster_spec = [
+#     {
+#         "job_cluster_key": "Shared_job_cluster",
 #         "new_cluster": {
 #             "cluster_name": "",
 #             "spark_version": "11.3.x-scala2.12",
@@ -60,6 +62,10 @@ WAREHOUSE_ID = os.environ.get("WAREHOUSE_ID", "368fe30b92228713")
 #             "data_security_mode": "LEGACY_SINGLE_USER_STANDARD",
 #             "runtime_engine": "STANDARD",
 #             "num_workers": 8,
+#         },
+#     }
+# ]
+
 
 job_cluster_spec = [
     {
