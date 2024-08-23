@@ -37,7 +37,7 @@ executors:
 
 plugins:
   - name: remote_executor
-    plugin-class: airflow.providers.remote.plugins.RemoteExecutorPlugin
+    plugin-class: airflow.providers.remote.plugins.remote_executor_plugin.RemoteExecutorPlugin
 
 config:
   remote:
