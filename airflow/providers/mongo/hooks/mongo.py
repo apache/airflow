@@ -26,13 +26,15 @@ from urllib.parse import quote_plus, urlunsplit
 import pymongo
 from pymongo import MongoClient, ReplaceOne
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
     from types import TracebackType
 
     from typing_extensions import Literal
+
+    from airflow.models import Connection
 
 
 class MongoHook(BaseHook):
@@ -92,7 +94,11 @@ class MongoHook(BaseHook):
             mongo_conn_id = conn_id
 
         self.mongo_conn_id = mongo_conn_id
-        self.connection = self.get_connection(self.mongo_conn_id)
+
+        conn = self.get_connection(self.mongo_conn_id)
+        self._validate_connection(conn)
+        self.connection = conn
+
         self.extras = self.connection.extra_dejson.copy()
         self.client: MongoClient | None = None
         self.uri = self._create_uri()
@@ -117,6 +123,14 @@ class MongoHook(BaseHook):
         elif not self.ssl_enabled:
             # Case: HTTP (ssl=False) with allow_insecure not specified
             self.allow_insecure = False
+
+    @staticmethod
+    def _validate_connection(conn: Connection):
+        if conn.conn_type == "mongo":
+            return
+        if conn.conn_type == "mongodb+srv":
+            raise AirflowException()
+        raise AirflowException()
 
     def __enter__(self):
         """Return the object when a context manager is created."""
