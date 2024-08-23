@@ -37,9 +37,11 @@
             <th>First Online</th>
             <th>Last Heart Beat</th>
             <th>Active Jobs</th>
-            <th>Jobs Taken</th>
-            <th>Jobs Success</th>
-            <th>Jobs Failed</th>
+            <!-- Stats are not collected (yet) leave the columns out until available
+              <th>Jobs Taken</th>
+              <th>Jobs Success</th>
+              <th>Jobs Failed</th>
+            -->
             <th>System Information</th>
         </tr>
         {% for host in hosts %}
@@ -69,9 +71,11 @@
             <td><time datetime="{{ host.first_online }}">{{ host.first_online }}</time></td>
             <td>{% if host.last_update %}<time datetime="{{ host.last_update }}">{{ host.last_update }}</time>{% endif %}</td>
             <td>{{ host.jobs_active }}</td>
-            <td>{{ host.jobs_taken }}</td>
-            <td>{{ host.jobs_success }}</td>
-            <td>{{ host.jobs_failed }}</td>
+            <!-- Stats are not collected (yet) leave the columns out until available
+              <td>{{ host.jobs_taken }}</td>
+              <td>{{ host.jobs_success }}</td>
+              <td>{{ host.jobs_failed }}</td>
+            -->
             <td>
               <ul>
                 {% for item in host.sysinfo_json %}
