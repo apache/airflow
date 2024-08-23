@@ -137,7 +137,7 @@ export const parseLogs = (
       const lineWithHyperlinks = coloredLine
         .replace(
           urlRegex,
-          '<a href="$1" target="_blank" style="color: blue; text-decoration: underline;">$1</a>'
+          '<a href="$1" target="_blank" rel="noopener noreferrer" style="color: blue; text-decoration: underline;">$1</a>'
         )
         .replace(logGroupStart, (textLine) => {
           const unfoldIdSuffix = "_unfold";
