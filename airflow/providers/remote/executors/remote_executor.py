@@ -85,7 +85,6 @@ class RemoteExecutor(BaseExecutor):
                 command=str(command),
             )
         )
-        self.queued(key)
 
     @provide_session
     def sync(self, session: Session = NEW_SESSION) -> None:
