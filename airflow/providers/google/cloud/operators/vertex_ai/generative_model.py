@@ -21,20 +21,20 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from deprecated import deprecated
 from google.cloud.aiplatform_v1 import types
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import GenerativeModelHook
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.deprecated import deprecated
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
 @deprecated(
-    reason="The PromptLanguageModelOperator is deprecated and will be removed after 01.01.2025. "
-    "Please use TextGenerationModelPredictOperator instead.",
+    planned_removal_date="January 01, 2025",
+    use_instead="TextGenerationModelPredictOperator",
     category=AirflowProviderDeprecationWarning,
 )
 class PromptLanguageModelOperator(GoogleCloudBaseOperator):
@@ -123,8 +123,8 @@ class PromptLanguageModelOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason="The GenerateTextEmbeddingsOperator is deprecated and will be removed after 01.01.2025. "
-    "Please use TextEmbeddingModelGetEmbeddingsOperator instead.",
+    planned_removal_date="January 01, 2025",
+    use_instead="TextEmbeddingModelGetEmbeddingsOperator",
     category=AirflowProviderDeprecationWarning,
 )
 class GenerateTextEmbeddingsOperator(GoogleCloudBaseOperator):
@@ -192,8 +192,8 @@ class GenerateTextEmbeddingsOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason="The PromptMultimodalModelOperator is deprecated and will be removed after 01.01.2025. "
-    "Please use GenerativeModelGenerateContentOperator instead.",
+    planned_removal_date="January 01, 2025",
+    use_instead="GenerativeModelGenerateContentOperator",
     category=AirflowProviderDeprecationWarning,
 )
 class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
@@ -269,8 +269,8 @@ class PromptMultimodalModelOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason="The PromptMultimodalModelWithMediaOperator is deprecated and will be removed after 01.01.2025. "
-    "Please use GenerativeModelGenerateContentOperator instead.",
+    planned_removal_date="January 01, 2025",
+    use_instead="GenerativeModelGenerateContentOperator",
     category=AirflowProviderDeprecationWarning,
 )
 class PromptMultimodalModelWithMediaOperator(GoogleCloudBaseOperator):

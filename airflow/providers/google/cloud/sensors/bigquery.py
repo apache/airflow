@@ -23,8 +23,6 @@ import warnings
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
-from deprecated import deprecated
-
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
@@ -32,6 +30,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryTableExistenceTrigger,
     BigQueryTablePartitionExistenceTrigger,
 )
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -261,8 +260,9 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
 
 
 @deprecated(
-    reason="The BigQueryTableExistenceAsyncSensor is deprecated and will be removed after 01.11.2024. "
-    "Please use BigQueryTableExistenceSensor and set deferrable attribute to True instead.",
+    planned_removal_date="November 01, 2024",
+    use_instead="BigQueryTableExistenceSensor",
+    instructions="Please use BigQueryTableExistenceSensor and set deferrable attribute to True.",
     category=AirflowProviderDeprecationWarning,
 )
 class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
@@ -299,9 +299,9 @@ class BigQueryTableExistenceAsyncSensor(BigQueryTableExistenceSensor):
 
 
 @deprecated(
-    reason="The BigQueryTableExistencePartitionAsyncSensor is deprecated "
-    "and will be removed after 01.11.2024. "
-    "Please use BigQueryTablePartitionExistenceSensor class and set deferrable attribute to True instead.",
+    planned_removal_date="November 01, 2024",
+    use_instead="BigQueryTablePartitionExistenceSensor",
+    instructions="Please use BigQueryTablePartitionExistenceSensor and set deferrable attribute to True.",
     category=AirflowProviderDeprecationWarning,
 )
 class BigQueryTableExistencePartitionAsyncSensor(BigQueryTablePartitionExistenceSensor):

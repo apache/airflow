@@ -23,7 +23,6 @@ import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from deprecated import deprecated
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform.models import Model
@@ -44,6 +43,7 @@ from airflow.providers.google.cloud.triggers.vertex_ai import (
     CustomPythonPackageTrainingJobTrigger,
     CustomTrainingJobTrigger,
 )
+from airflow.providers.google.common.deprecated import deprecated
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -1633,8 +1633,8 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
 
     @property
     @deprecated(
-        reason="The training_pipeline method is deprecated and will be removed after 01.03.2025. "
-        "Please use training_pipeline_id method instead.",
+        planned_removal_date="March 01, 2025",
+        use_instead="training_pipeline_id",
         category=AirflowProviderDeprecationWarning,
     )
     def training_pipeline(self):
@@ -1643,8 +1643,8 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
 
     @property
     @deprecated(
-        reason="The custom_job method is deprecated and will be removed after 01.03.2025. "
-        "Please use custom_job_id method instead.",
+        planned_removal_date="March 01, 2025",
+        use_instead="custom_job_id",
         category=AirflowProviderDeprecationWarning,
     )
     def custom_job(self):

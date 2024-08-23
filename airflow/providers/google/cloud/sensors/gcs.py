@@ -24,7 +24,6 @@ import textwrap
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
-from deprecated import deprecated
 from google.cloud.storage.retry import DEFAULT_RETRY
 
 from airflow.configuration import conf
@@ -36,6 +35,7 @@ from airflow.providers.google.cloud.triggers.gcs import (
     GCSPrefixBlobTrigger,
     GCSUploadSessionTrigger,
 )
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
 
 if TYPE_CHECKING:
@@ -143,8 +143,9 @@ class GCSObjectExistenceSensor(BaseSensorOperator):
 
 
 @deprecated(
-    reason="The GCSObjectExistenceAsyncSensor is deprecated and will be removed after 01.11.2024. "
-    "Please use GCSObjectExistenceSensor and set deferrable attribute to True instead.",
+    planned_removal_date="November 01, 2024",
+    use_instead="GCSObjectExistenceSensor",
+    instructions="Please use GCSObjectExistenceSensor and set deferrable attribute to True.",
     category=AirflowProviderDeprecationWarning,
 )
 class GCSObjectExistenceAsyncSensor(GCSObjectExistenceSensor):

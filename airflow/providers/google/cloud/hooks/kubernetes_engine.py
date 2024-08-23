@@ -24,7 +24,6 @@ import json
 import time
 from typing import TYPE_CHECKING, Sequence
 
-from deprecated import deprecated
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.auth.transport import requests as google_requests
@@ -43,6 +42,7 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import AsyncKubernetesHook, KubernetesHook
 from airflow.providers.cncf.kubernetes.kube_client import _enable_tcp_keepalive
 from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
     GoogleBaseAsyncHook,
@@ -139,8 +139,8 @@ class GKEHook(GoogleBaseHook):
     # To preserve backward compatibility
     # TODO: remove one day
     @deprecated(
-        reason="The get_conn method is deprecated and will be removed after 01.11.2024. "
-        "Please use the get_cluster_manager_client method instead.",
+        planned_removal_date="November 01, 2024",
+        use_instead="get_cluster_manager_client",
         category=AirflowProviderDeprecationWarning,
     )
     def get_conn(self) -> container_v1.ClusterManagerClient:
@@ -149,8 +149,8 @@ class GKEHook(GoogleBaseHook):
     # To preserve backward compatibility
     # TODO: remove one day
     @deprecated(
-        reason="The get_client method is deprecated and will be removed after 01.11.2024. "
-        "Please use the get_conn method instead.",
+        planned_removal_date="November 01, 2024",
+        use_instead="get_cluster_manager_client",
         category=AirflowProviderDeprecationWarning,
     )
     def get_client(self) -> ClusterManagerClient:
@@ -579,8 +579,8 @@ class GKEKubernetesAsyncHook(GoogleBaseAsyncHook, AsyncKubernetesHook):
 
 
 @deprecated(
-    reason="The GKEDeploymentHook class is deprecated and will be removed after 01.10.2024. "
-    "Please use GKEKubernetesHook instead.",
+    planned_removal_date="October 01, 2024",
+    use_instead="GKEKubernetesHook",
     category=AirflowProviderDeprecationWarning,
 )
 class GKEDeploymentHook(GKEKubernetesHook):
@@ -588,8 +588,8 @@ class GKEDeploymentHook(GKEKubernetesHook):
 
 
 @deprecated(
-    reason="The GKECustomResourceHook class is deprecated and will be removed after 01.10.2024. "
-    "Please use GKEKubernetesHook instead.",
+    planned_removal_date="October 01, 2024",
+    use_instead="GKEKubernetesHook",
     category=AirflowProviderDeprecationWarning,
 )
 class GKECustomResourceHook(GKEKubernetesHook):
@@ -597,8 +597,8 @@ class GKECustomResourceHook(GKEKubernetesHook):
 
 
 @deprecated(
-    reason="The GKEPodHook class is deprecated and will be removed after 01.10.2024. "
-    "Please use GKEKubernetesHook instead.",
+    planned_removal_date="October 01, 2024",
+    use_instead="GKEKubernetesHook",
     category=AirflowProviderDeprecationWarning,
 )
 class GKEPodHook(GKEKubernetesHook):
@@ -624,8 +624,8 @@ class GKEPodHook(GKEKubernetesHook):
 
 
 @deprecated(
-    reason="The GKEJobHook class is deprecated and will be removed after 01.10.2024. "
-    "Please use GKEKubernetesHook instead.",
+    planned_removal_date="October 01, 2024",
+    use_instead="GKEKubernetesHook",
     category=AirflowProviderDeprecationWarning,
 )
 class GKEJobHook(GKEKubernetesHook):
@@ -633,8 +633,8 @@ class GKEJobHook(GKEKubernetesHook):
 
 
 @deprecated(
-    reason="The GKEPodAsyncHook class is deprecated and will be removed after 01.10.2024. "
-    "Please use GKEKubernetesAsyncHook instead.",
+    planned_removal_date="October 01, 2024",
+    use_instead="GKEKubernetesAsyncHook",
     category=AirflowProviderDeprecationWarning,
 )
 class GKEPodAsyncHook(GKEKubernetesAsyncHook):

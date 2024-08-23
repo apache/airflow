@@ -36,7 +36,6 @@ import google_auth_httplib2
 import requests
 import tenacity
 from asgiref.sync import sync_to_async
-from deprecated import deprecated
 from gcloud.aio.auth.token import Token, TokenResponse
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
 from google.auth import _cloud_sdk, compute_engine  # type: ignore[attr-defined]
@@ -57,6 +56,7 @@ from airflow.providers.google.cloud.utils.credentials_provider import (
     get_credentials_and_project_id,
 )
 from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.utils.process_utils import patch_environ
 
 if TYPE_CHECKING:
@@ -451,8 +451,8 @@ class GoogleBaseHook(BaseHook):
 
     @property
     @deprecated(
-        reason="The client_info method is deprecated and will be removed after 01.03.2025. "
-        "Please use airflow.providers.google.common.consts.CLIENT_INFO instead.",
+        planned_removal_date="March 01, 2025",
+        use_instead="airflow.providers.google.common.consts.CLIENT_INFO",
         category=AirflowProviderDeprecationWarning,
     )
     def client_info(self) -> ClientInfo:

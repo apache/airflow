@@ -22,7 +22,6 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any, Sequence
 
-from deprecated import deprecated
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform import (
@@ -44,6 +43,7 @@ from google.cloud.aiplatform_v1 import (
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
 
 if TYPE_CHECKING:
@@ -380,8 +380,8 @@ class CustomJobHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @deprecated(
-        reason="The cancel_pipeline_job method is deprecated and will be removed after 01.03.2025. "
-        "Please use PipelineJobHook.cancel_pipeline_job method instead.",
+        planned_removal_date="March 01, 2025",
+        use_instead="PipelineJobHook.cancel_pipeline_job",
         category=AirflowProviderDeprecationWarning,
     )
     def cancel_pipeline_job(
@@ -510,8 +510,8 @@ class CustomJobHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @deprecated(
-        reason="The create_pipeline_job method is deprecated and will be removed after 01.03.2025. "
-        "Please use PipelineJobHook.create_pipeline_job method instead.",
+        planned_removal_date="March 01, 2025",
+        use_instead="PipelineJobHook.create_pipeline_job",
         category=AirflowProviderDeprecationWarning,
     )
     def create_pipeline_job(
@@ -2982,8 +2982,8 @@ class CustomJobHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @deprecated(
-        reason="The get_pipeline_job method is deprecated and will be removed after 01.03.2025. "
-        "Please use PipelineJobHook.get_pipeline_job method instead.",
+        planned_removal_date="March 01, 2025",
+        use_instead="PipelineJobHook.get_pipeline_job",
         category=AirflowProviderDeprecationWarning,
     )
     def get_pipeline_job(
@@ -3088,8 +3088,8 @@ class CustomJobHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @deprecated(
-        reason="The list_pipeline_jobs method is deprecated and will be removed after 01.03.2025. "
-        "Please use PipelineJobHook.list_pipeline_jobs method instead",
+        planned_removal_date="March 01, 2025",
+        use_instead="PipelineJobHook.list_pipeline_jobs",
         category=AirflowProviderDeprecationWarning,
     )
     def list_pipeline_jobs(
@@ -3305,8 +3305,8 @@ class CustomJobHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @deprecated(
-        reason="The delete_pipeline_job method is deprecated and will be removed after 01.03.2025. "
-        "Please use PipelineJobHook.delete_pipeline_job method instead",
+        planned_removal_date="March 01, 2025",
+        use_instead="PipelineJobHook.delete_pipeline_job",
         category=AirflowProviderDeprecationWarning,
     )
     def delete_pipeline_job(

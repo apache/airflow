@@ -23,11 +23,10 @@ import csv
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any, Sequence
 
-from deprecated import deprecated
-
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.marketing_platform.hooks.analytics import GoogleAnalyticsHook
 
 if TYPE_CHECKING:
@@ -35,9 +34,9 @@ if TYPE_CHECKING:
 
 
 @deprecated(
-    reason="The GoogleAnalyticsListAccountsOperator class is deprecated "
-    "and will be removed after 01.11.2024. Please use GoogleAnalyticsAdminListAccountsOperator instead. "
-    "The Google Analytics API v3 has sunset and is no longer available as of July 1, 2024.",
+    planned_removal_date="November 01, 2024",
+    use_instead="GoogleAnalyticsAdminListAccountsOperator",
+    reason="The Google Analytics API v3 has sunset and is no longer available as of July 1, 2024.",
     category=AirflowProviderDeprecationWarning,
 )
 class GoogleAnalyticsListAccountsOperator(BaseOperator):
@@ -101,9 +100,9 @@ class GoogleAnalyticsListAccountsOperator(BaseOperator):
 
 
 @deprecated(
-    reason="The GoogleAnalyticsGetAdsLinkOperator class is deprecated and will be removed after 01.11.2024. "
-    "Please use GoogleAnalyticsAdminGetGoogleAdsLinkOperator instead. "
-    "The Google Analytics API v3 has sunset and is no longer available as of July 1, 2024.",
+    planned_removal_date="November 01, 2024",
+    use_instead="GoogleAnalyticsAdminGetGoogleAdsLinkOperator",
+    reason="The Google Analytics API v3 has sunset and is no longer available as of July 1, 2024.",
     category=AirflowProviderDeprecationWarning,
 )
 class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
@@ -179,10 +178,9 @@ class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
 
 
 @deprecated(
-    reason="The GoogleAnalyticsRetrieveAdsLinksListOperator is deprecated "
-    "and will be removed after 01.11.2024. "
-    "Please use GoogleAnalyticsAdminListGoogleAdsLinksOperator` instead. "
-    "The Google Analytics API v3 has sunset and is no longer available as of July 1, 2024.",
+    planned_removal_date="November 01, 2024",
+    use_instead="GoogleAnalyticsAdminListGoogleAdsLinksOperator",
+    reason="The Google Analytics API v3 has sunset and is no longer available as of July 1, 2024.",
     category=AirflowProviderDeprecationWarning,
 )
 class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
@@ -253,9 +251,9 @@ class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
 
 
 @deprecated(
-    reason="The GoogleAnalyticsDataImportUploadOperator class is deprecated "
-    "and will be removed after 01.11.2024. Please use GoogleAnalyticsAdminCreateDataStreamOperator instead. "
-    "The Google Analytics API v3 has sunset and is no longer available as of July 1, 2024.",
+    planned_removal_date="November 01, 2024",
+    use_instead="GoogleAnalyticsAdminCreateDataStreamOperator",
+    reason="The Google Analytics API v3 has sunset and is no longer available as of July 1, 2024.",
     category=AirflowProviderDeprecationWarning,
 )
 class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
@@ -359,9 +357,9 @@ class GoogleAnalyticsDataImportUploadOperator(BaseOperator):
 
 
 @deprecated(
-    reason="The GoogleAnalyticsDeletePreviousDataUploadsOperator is deprecated "
-    "and will be removed after 01.11.2024. Please use GoogleAnalyticsAdminDeleteDataStreamOperator instead. "
-    "The Google Analytics API v3 has sunset and is no longer available as of July 1, 2024.",
+    planned_removal_date="November 01, 2024",
+    use_instead="GoogleAnalyticsAdminDeleteDataStreamOperator",
+    reason="The Google Analytics API v3 has sunset and is no longer available as of July 1, 2024.",
     category=AirflowProviderDeprecationWarning,
 )
 class GoogleAnalyticsDeletePreviousDataUploadsOperator(BaseOperator):
