@@ -72,7 +72,8 @@ def test_initialize_method_map():
         RemoteWorker.register_worker,
         RemoteWorker.set_state,
     ]:
-        assert method in method_map.values()
+        method_key = f"{method.__module__}.{method.__qualname__}"
+        assert method_key in method_map.keys()
 
 
 if TYPE_CHECKING:
