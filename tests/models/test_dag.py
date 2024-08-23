@@ -3734,6 +3734,16 @@ def test__tags_duplicates(input_tags: list[str], expected_result: set[str]):
     assert result.tags == expected_result
 
 
+def test__tags_mutable():
+    expected_tags = {"6", "7"}
+    test_dag = DAG("test-dag")
+    test_dag.tags.add("6")
+    test_dag.tags.add("7")
+    test_dag.tags.add("8")
+    test_dag.tags.remove("8")
+    assert test_dag.tags == expected_tags
+
+
 @pytest.mark.need_serialized_dag
 def test_get_dataset_triggered_next_run_info(dag_maker, clear_datasets):
     dataset1 = Dataset(uri="ds1")
