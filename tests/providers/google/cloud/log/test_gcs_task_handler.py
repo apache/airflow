@@ -283,3 +283,12 @@ class TestGCSTaskHandler:
 
         handler.close()
         assert os.path.exists(handler.handler.baseFilename) == expected_existence_of_local_copy
+
+    @pytest.fixture(autouse=True)
+    def test_filename_template_for_backward_compatibility(self, local_log_location):
+        # filename_template arg support for running the latest provider on airflow 2
+        GCSTaskHandler(
+            base_log_folder=local_log_location,
+            gcs_log_folder="gs://bucket/remote/log/location",
+            filename_template=None,
+        )

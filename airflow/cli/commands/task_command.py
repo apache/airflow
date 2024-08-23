@@ -330,7 +330,6 @@ def _run_task_by_local_task_job(args, ti: TaskInstance | TaskInstancePydantic) -
 
 RAW_TASK_UNSUPPORTED_OPTION = [
     "ignore_all_dependencies",
-    "ignore_depends_on_past",
     "ignore_dependencies",
     "force",
 ]

@@ -159,6 +159,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         es_kwargs: dict | None | Literal["default_es_kwargs"] = "default_es_kwargs",
         *,
         log_id_template: str | None = None,
+        **kwargs,
     ):
         es_kwargs = es_kwargs or {}
         if es_kwargs == "default_es_kwargs":
