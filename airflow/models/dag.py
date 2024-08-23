@@ -371,7 +371,7 @@ DAG_ARGS_EXPECTED_TYPES = {
     "doc_md": str,
     "is_paused_upon_creation": bool,
     "render_template_as_native_obj": bool,
-    "tags": list,
+    "tags": abc.MutableSet,
     "auto_register": bool,
     "fail_stop": bool,
     "dag_display_name": str,
@@ -552,7 +552,7 @@ class DAG(LoggingMixin):
         is_paused_upon_creation: bool | None = None,
         jinja_environment_kwargs: dict | None = None,
         render_template_as_native_obj: bool = False,
-        tags: list[str] | None = None,
+        tags: abc.Collection[str] | None = None,
         owner_links: dict[str, str] | None = None,
         auto_register: bool = True,
         fail_stop: bool = False,
@@ -767,7 +767,7 @@ class DAG(LoggingMixin):
 
         self.doc_md = self.get_doc_md(doc_md)
 
-        self.tags = tags or []
+        self.tags: abc.MutableSet[str] = set(tags or [])
         self._task_group = TaskGroup.create_root(self)
         self.validate_schedule_and_params()
         wrong_links = dict(self.iter_invalid_owner_links())
@@ -2948,7 +2948,7 @@ class DAG(LoggingMixin):
             else:
                 orm_dag.calculate_dagrun_date_fields(dag, last_automated_data_interval)
 
-            dag_tags = set(dag.tags or {})
+            dag_tags = dag.tags or set()
             orm_dag_tags = list(orm_dag.tags or [])
             for orm_tag in orm_dag_tags:
                 if orm_tag.name not in dag_tags:
@@ -3825,7 +3825,7 @@ def dag(
     is_paused_upon_creation: bool | None = None,
     jinja_environment_kwargs: dict | None = None,
     render_template_as_native_obj: bool = False,
-    tags: list[str] | None = None,
+    tags: abc.MutableSet[str] | None = None,
     owner_links: dict[str, str] | None = None,
     auto_register: bool = True,
     fail_stop: bool = False,
