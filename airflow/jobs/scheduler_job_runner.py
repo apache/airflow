@@ -471,35 +471,42 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 current_active_tasks_per_dag = concurrency_map.dag_active_tasks_map[dag_id]
                 max_active_tasks_per_dag_limit = task_instance.dag_model.max_active_tasks
 
-                msg_description_0 = "DAG %s has %s/%s running and queued tasks"
-                msg_description_1 = (
-                    "Not executing %s since the number of tasks running or queued from DAG "
-                    "%s is >= to the DAG's max_active_tasks limit of %s"
-                )
-
                 if task_instance.dag_model.max_active_tasks_include_deferred:
                     current_active_tasks_per_dag += concurrency_map_deferred.dag_active_tasks_map[dag_id]
 
-                    msg_description_0 = "DAG %s has %s/%s running, queued and deferred tasks"
-                    msg_description_1 = (
-                        "Not executing %s since the number of tasks running or queued or "
-                        "deferred from DAG"
-                        "%s is >= to the DAG's max_active_tasks limit of %s"
-                    )
-
-                self.log.info(
-                    msg_description_0,
-                    dag_id,
-                    current_active_tasks_per_dag,
-                    max_active_tasks_per_dag_limit,
-                )
-                if current_active_tasks_per_dag >= max_active_tasks_per_dag_limit:
+                if task_instance.dag_model.max_active_tasks_include_deferred:
                     self.log.info(
-                        msg_description_1,
-                        task_instance,
+                        "DAG %s has %s/%s running, queued and deferred tasks",
                         dag_id,
+                        current_active_tasks_per_dag,
                         max_active_tasks_per_dag_limit,
                     )
+                else:
+                    self.log.info(
+                        "DAG %s has %s/%s running and queued tasks",
+                        dag_id,
+                        current_active_tasks_per_dag,
+                        max_active_tasks_per_dag_limit,
+                    )
+
+                if current_active_tasks_per_dag >= max_active_tasks_per_dag_limit:
+                    if task_instance.dag_model.max_active_tasks_include_deferred:
+                        self.log.info(
+                            "Not executing %s since the number of tasks running or queued or "
+                            "deferred from DAG"
+                            "%s is >= to the DAG's max_active_tasks limit of %s",
+                            task_instance,
+                            dag_id,
+                            max_active_tasks_per_dag_limit,
+                        )
+                    else:
+                        self.log.info(
+                            "Not executing %s since the number of tasks running or queued from DAG "
+                            "%s is >= to the DAG's max_active_tasks limit of %s",
+                            task_instance,
+                            dag_id,
+                            max_active_tasks_per_dag_limit,
+                        )
                     starved_dags.add(dag_id)
                     continue
 

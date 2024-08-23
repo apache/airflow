@@ -109,11 +109,10 @@ core:
       default: "16"
     max_active_tasks_include_deferred:
       description: |
-        It includes the active deferred task count in the calculation for max_active_tasks. To calculate
+        If True, deferred tasks are considered active when calculating max_active_tasks. To calculate
         the number of tasks that is running concurrently for a DAG with this config, add up the number of
         running and deferred tasks for all DAG runs of the DAG. This is configurable at the DAG level with
-        ``max_active_tasks_include_deferred``, which is defaulted as
-        ``[core] max_active_tasks_include_deferred``.
+        ``max_active_tasks_include_deferred``, which defaults to this value.
       version_added: ~
       type: boolean
       example: ~
