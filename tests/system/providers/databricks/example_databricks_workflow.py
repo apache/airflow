@@ -67,6 +67,7 @@ WAREHOUSE_ID = os.environ.get("WAREHOUSE_ID", "368fe30b92228713")
 # ]
 
 
+# job_cluster_spec example for Databricks on Azure
 job_cluster_spec = [
     {
         "job_cluster_key": "Shared_job_cluster",
