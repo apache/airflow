@@ -79,14 +79,21 @@ def _hostname() -> str:
         return os.uname()[1]
 
 
-def _pid_file_path(args) -> str:
-    """Define the PID file path."""
-    pid_file_path, _, _, _ = cli_utils.setup_locations(process=REMOTE_WORKER_PROCESS_NAME, pid=args.pid)
+def _get_sysinfo() -> dict:
+    """Produce the sysinfo from worker to post to central site."""
+    return {
+        "airflow_version": airflow_version,
+        "remote_provider_version": remote_provider_version,
+    }
+
+
+def _pid_file_path(pid_file: str | None) -> str:
+    pid_file_path, _, _, _ = cli_utils.setup_locations(process=REMOTE_WORKER_PROCESS_NAME, pid=pid_file)
     return pid_file_path
 
 
 @dataclass
-class Job:
+class _Job:
     """Holds all information for a task/job to be executed as bundle."""
 
     remote_job: RemoteJob
@@ -96,126 +103,154 @@ class Job:
     """Last size of log file, point of last chunk push."""
 
 
-def _get_sysinfo() -> dict:
-    """Produce the sysinfo from worker to post to central site."""
-    return {
-        "airflow_version": airflow_version,
-        "remote_provider_version": remote_provider_version,
-    }
+class _RemoteWorkerCli:
+    """Runner instance which executes the remote worker."""
 
+    jobs: list[_Job] = []
+    """List of jobs that the worker is running currently."""
+    last_hb: datetime | None = None
+    """Timestamp of last heart beat sent to server."""
+    drain: bool = False
+    """Flag if job processing should be completed and no new jobs fetched for a graceful stop/shutdown."""
 
-def _fetch_job(hostname: str, queues: list[str] | None, jobs: list[Job]) -> bool:
-    """Fetch and start a new job from central site."""
-    logger.debug("Attempting to fetch a new job...")
-    remote_job = RemoteJob.reserve_task(hostname, queues)
-    if remote_job:
-        logger.info("Received job: %s", remote_job)
-        env = os.environ.copy()
-        env["AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION"] = "True"
-        env["AIRFLOW__CORE__INTERNAL_API_URL"] = conf.get("remote", "api_url")
-        env["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
-        process = Popen(remote_job.command, close_fds=True, env=env)
-        logfile = RemoteLogs.logfile_path(remote_job.key)
-        jobs.append(Job(remote_job, process, logfile, 0))
-        RemoteJob.set_state(remote_job.key, TaskInstanceState.RUNNING)
-        return True
+    def __init__(
+        self,
+        pid_file_path: Path,
+        hostname: str,
+        queues: list[str] | None,
+        concurrency: int,
+        job_poll_interval: int,
+        heartbeat_interval: int,
+    ):
+        self.pid_file_path = pid_file_path
+        self.job_poll_interval = job_poll_interval
+        self.hb_interval = heartbeat_interval
+        self.hostname = hostname
+        self.queues = queues
+        self.concurrency = concurrency
 
-    logger.info("No new job to process%s", f", {len(jobs)} still running" if jobs else "")
-    return False
+    @staticmethod
+    def signal_handler(sig, frame):
+        logger.info("Request to show down remote worker received, waiting for jobs to complete.")
+        _RemoteWorkerCli.drain = True
 
+    def start(self):
+        """Start the execution in a loop until terminated."""
+        try:
+            self.last_hb = RemoteWorker.register_worker(
+                self.hostname, RemoteWorkerState.STARTING, self.queues, _get_sysinfo()
+            ).last_update
+        except AirflowException as e:
+            if "404:NOT FOUND" in str(e):
+                raise SystemExit("Error: API endpoint is not ready, please set [remote] api_enabled=True.")
+            raise SystemExit(str(e))
+        write_pid_to_pidfile(self.pid_file_path)
+        signal.signal(signal.SIGINT, _RemoteWorkerCli.signal_handler)
+        try:
+            while not _RemoteWorkerCli.drain or self.jobs:
+                self.loop()
 
-def _check_running_jobs(jobs: list[Job]) -> None:
-    """Check which of the running tasks/jobs are completed and report back."""
-    for i in range(len(jobs) - 1, -1, -1):
-        job = jobs[i]
-        job.process.poll()
-        if job.process.returncode is not None:
-            jobs.remove(job)
-            if job.process.returncode == 0:
-                logger.info("Job completed: %s", job.remote_job)
-                RemoteJob.set_state(job.remote_job.key, TaskInstanceState.SUCCESS)
-            else:
-                logger.error("Job failed: %s", job.remote_job)
-                RemoteJob.set_state(job.remote_job.key, TaskInstanceState.FAILED)
-        if job.logfile.exists() and job.logfile.stat().st_size > job.logsize:
-            with job.logfile.open("r") as logfile:
-                logfile.seek(job.logsize, os.SEEK_SET)
-                logdata = logfile.read()
-                RemoteLogs.push_logs(
-                    task=job.remote_job.key,
-                    log_chunk_time=datetime.now(),
-                    log_chunk_data=logdata,
-                )
-                job.logsize += len(logdata)
+            logger.info("Quitting worker, signal being offline.")
+            RemoteWorker.set_state(self.hostname, RemoteWorkerState.OFFLINE, 0, _get_sysinfo())
+        finally:
+            remove_existing_pidfile(self.pid_file_path)
 
+    def loop(self):
+        """Run a loop of scheduling and monitoring tasks."""
+        new_job = False
+        if not _RemoteWorkerCli.drain and len(self.jobs) < self.concurrency:
+            new_job = self.fetch_job()
+        self.check_running_jobs()
 
-def _heartbeat(hostname: str, jobs: list[Job], drain_worker: bool) -> None:
-    """Report liveness state of worker to central site with stats."""
-    state = (
-        (RemoteWorkerState.TERMINATING if drain_worker else RemoteWorkerState.RUNNING)
-        if jobs
-        else RemoteWorkerState.IDLE
-    )
-    sysinfo = _get_sysinfo()
-    RemoteWorker.set_state(hostname, state, len(jobs), sysinfo)
+        if _RemoteWorkerCli.drain or datetime.now().timestamp() - self.last_hb.timestamp() > self.hb_interval:
+            self.heartbeat()
+            self.last_hb = datetime.now()
+
+        if not new_job:
+            self.interruptible_sleep()
+
+    def fetch_job(self) -> bool:
+        """Fetch and start a new job from central site."""
+        logger.debug("Attempting to fetch a new job...")
+        remote_job = RemoteJob.reserve_task(self.hostname, self.queues)
+        if remote_job:
+            logger.info("Received job: %s", remote_job)
+            env = os.environ.copy()
+            env["AIRFLOW__CORE__DATABASE_ACCESS_ISOLATION"] = "True"
+            env["AIRFLOW__CORE__INTERNAL_API_URL"] = conf.get("remote", "api_url")
+            env["_AIRFLOW__SKIP_DATABASE_EXECUTOR_COMPATIBILITY_CHECK"] = "1"
+            process = Popen(remote_job.command, close_fds=True, env=env)
+            logfile = RemoteLogs.logfile_path(remote_job.key)
+            self.jobs.append(_Job(remote_job, process, logfile, 0))
+            RemoteJob.set_state(remote_job.key, TaskInstanceState.RUNNING)
+            return True
+
+        logger.info("No new job to process%s", f", {len(self.jobs)} still running" if self.jobs else "")
+        return False
+
+    def check_running_jobs(self) -> None:
+        """Check which of the running tasks/jobs are completed and report back."""
+        for i in range(len(self.jobs) - 1, -1, -1):
+            job = self.jobs[i]
+            job.process.poll()
+            if job.process.returncode is not None:
+                self.jobs.remove(job)
+                if job.process.returncode == 0:
+                    logger.info("Job completed: %s", job.remote_job)
+                    RemoteJob.set_state(job.remote_job.key, TaskInstanceState.SUCCESS)
+                else:
+                    logger.error("Job failed: %s", job.remote_job)
+                    RemoteJob.set_state(job.remote_job.key, TaskInstanceState.FAILED)
+            if job.logfile.exists() and job.logfile.stat().st_size > job.logsize:
+                with job.logfile.open("r") as logfile:
+                    logfile.seek(job.logsize, os.SEEK_SET)
+                    logdata = logfile.read()
+                    RemoteLogs.push_logs(
+                        task=job.remote_job.key,
+                        log_chunk_time=datetime.now(),
+                        log_chunk_data=logdata,
+                    )
+                    job.logsize += len(logdata)
+
+    def heartbeat(self) -> None:
+        """Report liveness state of worker to central site with stats."""
+        state = (
+            (RemoteWorkerState.TERMINATING if _RemoteWorkerCli.drain else RemoteWorkerState.RUNNING)
+            if self.jobs
+            else RemoteWorkerState.IDLE
+        )
+        sysinfo = _get_sysinfo()
+        RemoteWorker.set_state(self.hostname, state, len(self.jobs), sysinfo)
+
+    def interruptible_sleep(self):
+        """Sleeps but stops sleeping if drain is made."""
+        drain_before_sleep = _RemoteWorkerCli.drain
+        for _ in range(0, self.job_poll_interval * 10):
+            sleep(0.1)
+            if drain_before_sleep != _RemoteWorkerCli.drain:
+                return
 
 
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def worker(args):
     """Start Airflow Remote worker."""
-    job_poll_interval = conf.getint("remote", "job_poll_interval")
-    hb_interval = conf.getint("remote", "heartbeat_interval")
-
-    hostname: str = args.remote_hostname or _hostname()
-    queues: list[str] | None = args.queues.split(",") if args.queues else None
-    concurrency: int = args.concurrency
-    jobs: list[Job] = []
-    new_job = False
-    try:
-        last_hb = RemoteWorker.register_worker(
-            hostname, RemoteWorkerState.STARTING, queues, _get_sysinfo()
-        ).last_update
-    except AirflowException as e:
-        if "404:NOT FOUND" in str(e):
-            raise SystemExit("Error: API endpoint is not ready, please set [remote] api_enabled=True.")
-        raise SystemExit(str(e))
-
-    pid_file_path = _pid_file_path(args)
-    write_pid_to_pidfile(pid_file_path)
-    drain_worker = [False]
-
-    def signal_handler(sig, frame):
-        logger.info("Request to show down remote worker received, waiting for jobs to complete.")
-        drain_worker[0] = True
-
-    try:
-        signal.signal(signal.SIGINT, signal_handler)
-
-        while not drain_worker[0] or jobs:
-            if not drain_worker[0] and len(jobs) < concurrency:
-                new_job = _fetch_job(hostname, queues, jobs)
-            _check_running_jobs(jobs)
-
-            if drain_worker[0] or datetime.now().timestamp() - last_hb.timestamp() > hb_interval:
-                _heartbeat(hostname, jobs, drain_worker[0])
-                last_hb = datetime.now()
-
-            if not new_job:
-                sleep(job_poll_interval)
-                new_job = False
-
-        logger.info("Quitting worker, signal being offline.")
-        RemoteWorker.set_state(hostname, RemoteWorkerState.OFFLINE, 0, _get_sysinfo())
-    finally:
-        remove_existing_pidfile(pid_file_path)
+    remote_worker = _RemoteWorkerCli(
+        pid_file_path=_pid_file_path(args.pid),
+        hostname=args.remote_hostname or _hostname(),
+        queues=args.queues.split(",") if args.queues else None,
+        concurrency=args.concurrency,
+        job_poll_interval=conf.getint("remote", "job_poll_interval"),
+        heartbeat_interval=conf.getint("remote", "heartbeat_interval"),
+    )
+    remote_worker.start()
 
 
 @cli_utils.action_cli(check_db=False)
 @providers_configuration_loaded
 def stop(args):
     """Stop a running Airflow Remote worker."""
-    pid = read_pid_from_pidfile(_pid_file_path(args))
+    pid = read_pid_from_pidfile(_pid_file_path(args.pid))
     # Send SIGINT
     if pid:
         logger.warning("Sending SIGINT to worker pid %i.", pid)
