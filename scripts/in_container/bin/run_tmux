@@ -102,7 +102,7 @@ if [[ ${AIRFLOW__CORE__EXECUTOR,,} == "remoteexecutor" ]]; then
     # Ensure logs are smelling like remote and are not visible to other components
     tmux send-keys 'export AIRFLOW__LOGGING__BASE_LOG_FOLDER=remote_logs' C-m
 
-    tmux send-keys 'airflow remote worker' C-m
+    tmux send-keys 'airflow remote worker --remote-hostname breeze' C-m
 fi
 if [[ ${STANDALONE_DAG_PROCESSOR} == "true" ]]; then
     tmux select-pane -t 3
