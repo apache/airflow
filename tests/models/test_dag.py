@@ -3721,7 +3721,7 @@ def test__tags_length(tags: list[str], should_pass: bool):
 
 
 @pytest.mark.parametrize(
-    "tags, should_pass",
+    "input_tags, expected_result",
     [
         pytest.param([], set(), id="empty tags"),
         pytest.param(["a normal tag"], {"a normal tag",}, id="one tag"),
