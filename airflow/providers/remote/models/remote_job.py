@@ -95,13 +95,7 @@ class RemoteJobModel(Base, LoggingMixin):
 
     @property
     def key(self):
-        return TaskInstanceKey(
-            dag_id=self.dag_id,
-            task_id=self.task_id,
-            run_id=self.run_id,
-            try_number=self.try_number,
-            map_index=self.map_index,
-        )
+        return TaskInstanceKey(self.dag_id, self.task_id, self.run_id, self.try_number, self.map_index)
 
     @property
     def last_update_t(self) -> float:
