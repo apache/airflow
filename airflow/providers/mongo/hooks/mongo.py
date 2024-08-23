@@ -126,11 +126,16 @@ class MongoHook(BaseHook):
 
     @staticmethod
     def _validate_connection(conn: Connection):
-        if conn.conn_type == "mongo":
-            return
-        if conn.conn_type == "mongodb+srv":
-            raise AirflowException()
-        raise AirflowException()
+        conn_type = conn.conn_type
+        if conn_type != "mongo":
+            if conn_type == "mongodb+srv":
+                raise AirflowException("use srv=true")
+            raise AirflowException(
+                f"conn_type '{conn_type}' not allowed for MongoHook; conn_type must be 'mongo'"
+            )
+
+        if conn.port and "srv" in conn.extra_dejson and conn.extra_dejson["srv"] is True:
+            raise AirflowException("srv URI should not specify a port")
 
     def __enter__(self):
         """Return the object when a context manager is created."""
