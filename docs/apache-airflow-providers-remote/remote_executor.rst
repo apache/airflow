@@ -198,3 +198,51 @@ resource perspective (for say very lightweight tasks where one worker
 could take thousands of tasks without a problem), or from an environment
 perspective (you want a worker running from a specific location where required
 infrastructure is available).
+
+Feature Backlog of MVP to Release Readiness
+-------------------------------------------
+
+As noted above the current version of the RemoteExecutor is a MVP (Minimum Viable Product).
+It can be used but must be taken with care if you want to use it productively. Just the
+bare minimum functions are provided currently and missing features will be added over time.
+
+The target implementation is sketched in
+`AIP-69 (Airflow Improvement Proposal for Remote Executor) <https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-69+Remote+Executor>`_
+and this AIP will be completed when open features are implemented and it has production grade stability.
+
+The following features are known missing and will be implemented in increments:
+
+- API token per worker: Today there is a global API token available only
+- Remote Worker Plugin
+
+  - Overview about queues / jobs per queue
+  - Allow starting Remote Worker REST API separate to webserver
+  - Administrative maintenance / temporary disable jobs on worker
+
+- Remote Worker CLI
+
+  - Use WebSockets instead of HTTP calls for communication
+  - Handle SIG-INT/CTRL+C and gracefully terminate and complete job (``remote worker stop`` is working though)
+  - Send logs also to TaskFileHandler if external logging services are used
+  - Integration into telemetry to send metrics from remote
+  - Allow ``remote worker stop`` to wait until completed to terminated
+  - Publish system metrics with heartbeats (CPU, Disk space, RAM, Load)
+  - Be more liberal e.g. on patch version. MVP requires exact version match
+
+- Tests
+
+  - Integration tests in Github
+  - Test/Support on Windows for Remote Worker
+
+- Scaling test - Check and define boundaries of workers/jobs
+- Airflow 3 / AIP-72 Migration
+
+  - Thin deployment based on Task SDK
+  - DAG Code push (no need to GIT Sync)
+  - Implicit with AIP-72: Move task context generation from Remote to Executor
+
+- Documentation
+
+  - Describe more details on deployment options and tuning
+  - Provide scripts and guides to install remote as service (systemd)
+  - Extend Helm-Chart for needed support
