@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-22T13:40:13.590632
+# This constraints file was automatically generated on 2024-08-23T13:40:47.202268
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -47,7 +47,7 @@ WTForms==3.1.2
 Werkzeug==2.2.3
 adal==1.2.7
 adlfs==2024.7.0
-aiobotocore==2.13.2
+aiobotocore==2.13.3
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.0
 aiohttp==3.10.5
@@ -120,8 +120,8 @@ billiard==4.2.0
 bitarray==2.9.2
 black==24.8.0
 blinker==1.8.2
-boto3==1.34.131
-botocore==1.34.131
+boto3==1.34.162
+botocore==1.34.162
 cachelib==0.9.0
 cachetools==5.5.0
 cassandra-driver==3.29.1
@@ -257,7 +257,7 @@ grpcio-gcp==0.2.2
 grpcio-health-checking==1.62.3
 grpcio-status==1.62.3
 grpcio-tools==1.62.3
-grpcio==1.65.5
+grpcio==1.66.0
 gssapi==1.8.3
 gunicorn==23.0.0
 h11==0.14.0
@@ -372,7 +372,7 @@ openlineage-integration-common==1.19.0
 openlineage-python==1.19.0
 openlineage_sql==1.19.0
 openpyxl==3.1.5
-opensearch-py==2.7.0
+opensearch-py==2.7.1
 opentelemetry-api==1.26.0
 opentelemetry-exporter-otlp-proto-common==1.26.0
 opentelemetry-exporter-otlp-proto-grpc==1.26.0
@@ -383,7 +383,7 @@ opentelemetry-proto==1.26.0
 opentelemetry-sdk==1.26.0
 opentelemetry-semantic-conventions==0.47b0
 opsgenie-sdk==2.1.5
-oracledb==2.4.0
+oracledb==2.4.1
 ordered-set==4.1.0
 oss2==2.18.6
 packaging==24.1
