@@ -42,7 +42,31 @@ QUERY_ID = os.environ.get("QUERY_ID", "d3773b5a-56f9-422c-ae60-048eaa90aa33")
 WAREHOUSE_ID = os.environ.get("WAREHOUSE_ID", "368fe30b92228713")
 
 
-# You can use below the job_cluster_spec for Databricks on AWS
+# job_cluster_spec example for Databricks on Azure
+job_cluster_spec = [
+    {
+        "job_cluster_key": "Shared_job_cluster",
+        "new_cluster": {
+            "cluster_name": "",
+            "spark_version": "11.3.x-scala2.12",
+            "azure_attributes": {
+                "availability": "ON_DEMAND_AZURE",
+                "spot_bid_max_price": -1,
+            },
+            "num_workers": 1,
+            "spark_conf": {},
+            "node_type_id": "Standard_D3_v2",
+            "ssh_public_keys": [],
+            "custom_tags": {},
+            "spark_env_vars": {"PYSPARK_PYTHON": "/databricks/python3/bin/python3"},
+            "cluster_source": "JOB",
+            "init_scripts": [],
+        },
+    }
+]
+
+# The above job_cluster_spec is an example of specifying a job_cluster spec for Databricks on Azure.
+# In case you are using Databricks on AWS, you can refer the below job_cluster_spec as an example.
 # job_cluster_spec = [
 #     {
 #         "job_cluster_key": "Shared_job_cluster",
@@ -67,28 +91,6 @@ WAREHOUSE_ID = os.environ.get("WAREHOUSE_ID", "368fe30b92228713")
 # ]
 
 
-# job_cluster_spec example for Databricks on Azure
-job_cluster_spec = [
-    {
-        "job_cluster_key": "Shared_job_cluster",
-        "new_cluster": {
-            "cluster_name": "",
-            "spark_version": "11.3.x-scala2.12",
-            "azure_attributes": {
-                "availability": "ON_DEMAND_AZURE",
-                "spot_bid_max_price": -1,
-            },
-            "num_workers": 1,
-            "spark_conf": {},
-            "node_type_id": "Standard_D3_v2",
-            "ssh_public_keys": [],
-            "custom_tags": {},
-            "spark_env_vars": {"PYSPARK_PYTHON": "/databricks/python3/bin/python3"},
-            "cluster_source": "JOB",
-            "init_scripts": [],
-        },
-    }
-]
 dag = DAG(
     dag_id="example_databricks_workflow",
     start_date=datetime(2022, 1, 1),
