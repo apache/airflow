@@ -230,7 +230,7 @@ webserver_config.py itself if you wish.
             log.debug(f"User info from Github: {user_data}\nTeam info from Github: {teams}")
             return {"username": "github_" + user_data.get("login"), "role_keys": roles}
 
-Example using team based Authorization with keyCloak
+Example using team based Authorization with KeyCloak
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''
 Here is an example of what you might have in your webserver_config.py:
 
@@ -242,7 +242,7 @@ Here is an example of what you might have in your webserver_config.py:
   import logging
   from base64 import b64decode
   from cryptography.hazmat.primitives import serialization
-  from flask_appbuilder.security.manager import (AUTH_DB, AUTH_OAUTH)
+  from flask_appbuilder.security.manager import AUTH_DB, AUTH_OAUTH
   from airflow import configuration as conf
   from airflow.www.security import AirflowSecurityManager
   
@@ -256,31 +256,31 @@ Here is an example of what you might have in your webserver_config.py:
   
   # Make sure you create these role on Keycloak 
   AUTH_ROLES_MAPPING = {
-    "Viewer": ["Viewer"],
-    "Admin": ["Admin"],
-    "User": ["User"],
-    "Public": ["Public"],
-    "Op": ["Op"],
+      "Viewer": ["Viewer"],
+      "Admin": ["Admin"],
+      "User": ["User"],
+      "Public": ["Public"],
+      "Op": ["Op"],
   }
   
   OAUTH_PROVIDERS = [
-    {
-      "name": "keycloak",
-      "icon": "fa-key",
-      "token_key": "access_token",
-      "remote_app": {
-        "client_id": "airflow",
-        "client_secret": "xxxxx",
-        "server_metadata_url": "https://sso.keycloak.me/realms/airflow/.well-known/openid-configuration",
-        "api_base_url": "https://sso.keycloak.me/realms/airflow/protocol/openid-connect",
-        "client_kwargs": {
-            "scope": "email profile"
-        },
-        "access_token_url": "https://sso.keycloak.me/realms/airflow/protocol/openid-connect/token",
-        "authorize_url": "https://sso.keycloak.me/realms/airflow/protocol/openid-connect/auth",
-        "request_token_url": None
+      {
+          "name": "keycloak",
+          "icon": "fa-key",
+          "token_key": "access_token",
+          "remote_app": {
+              "client_id": "airflow",
+              "client_secret": "xxx",
+              "server_metadata_url": "https://sso.keycloak.me/realms/airflow/.well-known/openid-configuration",
+              "api_base_url": "https://sso.keycloak.me/realms/airflow/protocol/openid-connect",
+              "client_kwargs": {
+                  "scope": "email profile"
+              },
+              "access_token_url": "https://sso.keycloak.me/realms/airflow/protocol/openid-connect/token",
+              "authorize_url": "https://sso.keycloak.me/realms/airflow/protocol/openid-connect/auth",
+              "request_token_url": None
+          }
       }
-    }
   ]
   
   # Fetch public key
@@ -290,33 +290,34 @@ Here is an example of what you might have in your webserver_config.py:
   public_key = serialization.load_der_public_key(key_der)
   
   class CustomSecurityManager(AirflowSecurityManager):
-    def oauth_user_info(self, provider, response):
-      if provider == "keycloak":
-        token = response["access_token"]
-        me = jwt.decode(token, public_key, algorithms=['HS256', 'RS256'])
+      def oauth_user_info(self, provider, response):
+          if provider == "keycloak":
+              token = response["access_token"]
+              me = jwt.decode(token, public_key, algorithms=['HS256', 'RS256'])
   
-        # Extract roles from resource access  
-        realm_access = me.get("realm_access", {})
-        groups = realm_access.get("roles", [])
+              # Extract roles from resource access  
+              realm_access = me.get("realm_access", {})
+              groups = realm_access.get("roles", [])
   
-        log.info("groups: {0}".format(groups))
+              log.info("groups: {0}".format(groups))
   
-        if not groups:
-          groups = ["Viewer"]
+              if not groups:
+                  groups = ["Viewer"]
   
-        userinfo = {
-          "username": me.get("preferred_username"),
-          "email": me.get("email"),
-          "first_name": me.get("given_name"),
-          "last_name": me.get("family_name"),
-          "role_keys": groups,
-        }
+              userinfo = {
+                  "username": me.get("preferred_username"),
+                  "email": me.get("email"),
+                  "first_name": me.get("given_name"),
+                  "last_name": me.get("family_name"),
+                  "role_keys": groups,
+              }
   
-        log.info("user info: {0}".format(userinfo))
+              log.info("user info: {0}".format(userinfo))
   
-        return userinfo
-      else:
-        return {}
+              return userinfo
+          else:
+              return {}
   
   # Make sure to replace this with your own implementation of AirflowSecurityManager class
   SECURITY_MANAGER_CLASS = CustomSecurityManager
+
