@@ -40,7 +40,7 @@ from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning, UnknownExecutorException
+from airflow.exceptions import UnknownExecutorException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
@@ -165,7 +165,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         scheduler_idle_sleep_time: float = conf.getfloat("scheduler", "scheduler_idle_sleep_time"),
         do_pickle: bool = False,
         log: logging.Logger | None = None,
-        processor_poll_interval: float | None = None,
     ):
         super().__init__(job)
         self.subdir = subdir
@@ -174,15 +173,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # number of times. This is only to support testing, and isn't something a user is likely to want to
         # configure -- they'll want num_runs
         self.num_times_parse_dags = num_times_parse_dags
-        if processor_poll_interval:
-            # TODO: Remove in Airflow 3.0
-            warnings.warn(
-                "The 'processor_poll_interval' parameter is deprecated. "
-                "Please use 'scheduler_idle_sleep_time'.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            scheduler_idle_sleep_time = processor_poll_interval
         self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
         # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
         self._zombie_threshold_secs = conf.getint("scheduler", "scheduler_zombie_task_threshold")
@@ -749,9 +739,24 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         session.bulk_save_objects(objects=objects, preserve_order=False)
 
     def _process_executor_events(self, executor: BaseExecutor, session: Session) -> int:
-        """Respond to executor events."""
         if not self._standalone_dag_processor and not self.processor_agent:
             raise ValueError("Processor agent is not started.")
+
+        return SchedulerJobRunner.process_executor_events(
+            executor=executor, dag_bag=self.dagbag, job_id=self.job.id, session=session
+        )
+
+    @classmethod
+    def process_executor_events(
+        cls, executor: BaseExecutor, dag_bag: DagBag, job_id: str | None, session: Session
+    ) -> int:
+        """
+        Respond to executor events.
+
+        This is a classmethod because this is also used in `dag.test()`.
+        `dag.test` execute DAGs with no scheduler, therefore it needs to handle the events pushed by the
+        executors as well.
+        """
         ti_primary_key_to_try_number_map: dict[tuple[str, str, str, int], int] = {}
         event_buffer = executor.get_event_buffer()
         tis_with_right_state: list[TaskInstanceKey] = []
@@ -761,7 +766,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # We create map (dag_id, task_id, execution_date) -> in-memory try_number
             ti_primary_key_to_try_number_map[ti_key.primary] = ti_key.try_number
 
-            self.log.info("Received executor event with state %s for task instance %s", state, ti_key)
+            cls.logger().info("Received executor event with state %s for task instance %s", state, ti_key)
             if state in (
                 TaskInstanceState.FAILED,
                 TaskInstanceState.SUCCESS,
@@ -788,7 +793,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             if state in (TaskInstanceState.QUEUED, TaskInstanceState.RUNNING):
                 ti.external_executor_id = info
-                self.log.info("Setting external_id for %s to %s", ti, info)
+                cls.logger().info("Setting external_id for %s to %s", ti, info)
                 continue
 
             msg = (
@@ -798,7 +803,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 "job_id=%s, pool=%s, queue=%s, priority_weight=%d, operator=%s, queued_dttm=%s, "
                 "queued_by_job_id=%s, pid=%s"
             )
-            self.log.info(
+            cls.logger().info(
                 msg,
                 ti.dag_id,
                 ti.task_id,
@@ -886,9 +891,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # All of this could also happen if the state is "running",
             # but that is handled by the zombie detection.
 
-            ti_queued = ti.try_number == buffer_key.try_number and ti.state == TaskInstanceState.QUEUED
+            ti_queued = ti.try_number == buffer_key.try_number and ti.state in (
+                TaskInstanceState.SCHEDULED,
+                TaskInstanceState.QUEUED,
+                TaskInstanceState.RUNNING,
+            )
             ti_requeued = (
-                ti.queued_by_job_id != self.job.id  # Another scheduler has queued this task again
+                ti.queued_by_job_id != job_id  # Another scheduler has queued this task again
                 or executor.has_task(ti)  # This scheduler has this task already
             )
 
@@ -904,15 +913,15 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 if info is not None:
                     msg += " Extra info: %s" % info  # noqa: RUF100, UP031, flynt
-                self.log.error(msg)
+                cls.logger().error(msg)
                 session.add(Log(event="state mismatch", extra=msg, task_instance=ti.key))
 
                 # Get task from the Serialized DAG
                 try:
-                    dag = self.dagbag.get_dag(ti.dag_id)
+                    dag = dag_bag.get_dag(ti.dag_id)
                     task = dag.get_task(ti.task_id)
                 except Exception:
-                    self.log.exception("Marking task instance %s as %s", ti, state)
+                    cls.logger().exception("Marking task instance %s as %s", ti, state)
                     ti.set_state(state)
                     continue
                 ti.task = task

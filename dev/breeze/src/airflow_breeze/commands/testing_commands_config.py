@@ -85,6 +85,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Advanced flag for tests command",
             "options": [
                 "--airflow-constraints-reference",
+                "--clean-airflow-installation",
                 "--force-lowest-dependencies",
                 "--github-repository",
                 "--image-tag",
@@ -150,6 +151,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Advanced flag for tests command",
             "options": [
                 "--airflow-constraints-reference",
+                "--clean-airflow-installation",
                 "--force-lowest-dependencies",
                 "--github-repository",
                 "--image-tag",
@@ -219,6 +221,7 @@ TESTING_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Advanced flag for tests command",
             "options": [
                 "--airflow-constraints-reference",
+                "--clean-airflow-installation",
                 "--force-lowest-dependencies",
                 "--github-repository",
                 "--image-tag",

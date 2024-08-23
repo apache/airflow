@@ -76,6 +76,7 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import LazyXComSelectSequence, XCom
+from airflow.notifications.basenotifier import BaseNotifier
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
@@ -3421,7 +3422,9 @@ class TestTaskInstance:
             ti.refresh_from_db()
             assert ti.state == State.SUCCESS
 
-    def test_finished_callbacks_handle_and_log_exception(self, caplog):
+    def test_finished_callbacks_callable_handle_and_log_exception(self, caplog):
+        called = completed = False
+
         def on_finish_callable(context):
             nonlocal called, completed
             called = True
@@ -3437,8 +3440,32 @@ class TestTaskInstance:
             assert not completed
             callback_name = callback_input[0] if isinstance(callback_input, list) else callback_input
             callback_name = qualname(callback_name).split(".")[-1]
-            assert "Executing on_finish_callable callback" in caplog.text
-            assert "Error when executing on_finish_callable callback" in caplog.text
+            assert "Executing callback at index 0: on_finish_callable" in caplog.text
+            assert "Error in callback at index 0: on_finish_callable" in caplog.text
+
+    def test_finished_callbacks_notifier_handle_and_log_exception(self, caplog):
+        class OnFinishNotifier(BaseNotifier):
+            """
+            error captured by BaseNotifier
+            """
+
+            def __init__(self, error: bool):
+                super().__init__()
+                self.raise_error = error
+
+            def notify(self, context):
+                self.execute()
+
+            def execute(self) -> None:
+                if self.raise_error:
+                    raise KeyError
+
+        caplog.clear()
+        callbacks = [OnFinishNotifier(error=False), OnFinishNotifier(error=True)]
+        _run_finished_callback(callbacks=callbacks, context={})
+        assert "Executing callback at index 0: OnFinishNotifier" in caplog.text
+        assert "Executing callback at index 1: OnFinishNotifier" in caplog.text
+        assert "KeyError" in caplog.text
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @provide_session
@@ -4042,22 +4069,26 @@ class TestTaskInstance:
         def raise_skip_exception():
             raise AirflowSkipException
 
-        callback_function = mock.MagicMock()
-        callback_function.__name__ = "callback_function"
+        on_skipped_callback_function = mock.MagicMock()
+        on_skipped_callback_function.__name__ = "on_skipped_callback_function"
+
+        on_success_callback_function = mock.MagicMock()
+        on_success_callback_function.__name__ = "on_success_callback_function"
 
         with dag_maker(dag_id="test_skipped_task", serialized=True):
             task = PythonOperator(
                 task_id="test_skipped_task",
                 python_callable=raise_skip_exception,
-                on_skipped_callback=callback_function,
+                on_skipped_callback=on_skipped_callback_function,
+                on_success_callback=on_success_callback_function,
             )
-
         dr = dag_maker.create_dagrun(execution_date=timezone.utcnow())
         ti = dr.task_instances[0]
         ti.task = task
         ti.run()
         assert State.SKIPPED == ti.state
-        assert callback_function.called
+        on_skipped_callback_function.assert_called_once()
+        on_success_callback_function.assert_not_called()
 
     def test_task_instance_history_is_created_when_ti_goes_for_retry(self, dag_maker, session):
         with dag_maker(serialized=True):

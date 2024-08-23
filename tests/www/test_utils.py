@@ -45,7 +45,6 @@ from airflow.www.utils import (
     wrapped_markdown,
 )
 from airflow.www.widgets import AirflowDateTimePickerROWidget, BS3TextAreaROWidget, BS3TextFieldROWidget
-from tests.test_utils.config import conf_vars
 
 
 class TestUtils:
@@ -504,53 +503,19 @@ class TestWrappedMarkdown:
             == rendered
         )
 
-    def test_wrapped_markdown_with_collapsible_section(self):
-        with conf_vars({("webserver", "allow_raw_html_descriptions"): "true"}):
-            rendered = wrapped_markdown(
-                """
-# A collapsible section with markdown
-<details>
-  <summary>Click to expand!</summary>
+    @pytest.mark.parametrize(
+        "html",
+        [
+            "test <code>raw HTML</code>",
+            "hidden <script>alert(1)</script> nuggets.",
+        ],
+    )
+    def test_wrapped_markdown_with_raw_html(self, html):
+        """Ensure that HTML code is not ending-up in markdown but is always escaped."""
+        from markupsafe import escape
 
-  ## Heading
-  1. A numbered
-  2. list
-     * With some
-     * Sub bullets
-</details>
-            """
-            )
-
-            assert (
-                """<div class="rich_doc" ><h1>A collapsible section with markdown</h1>
-<details>
-  <summary>Click to expand!</summary>
-<h2>Heading</h2>
-<ol>
-<li>A numbered</li>
-<li>list
-<ul>
-<li>With some</li>
-<li>Sub bullets</li>
-</ul>
-</li>
-</ol>
-</details>
-</div>"""
-                == rendered
-            )
-
-    @pytest.mark.parametrize("allow_html", [False, True])
-    def test_wrapped_markdown_with_raw_html(self, allow_html):
-        with conf_vars({("webserver", "allow_raw_html_descriptions"): str(allow_html)}):
-            HTML = "test <code>raw HTML</code>"
-            rendered = wrapped_markdown(HTML)
-            if allow_html:
-                assert HTML in rendered
-            else:
-                from markupsafe import escape
-
-                assert escape(HTML) in rendered
+        rendered = wrapped_markdown(html)
+        assert escape(html) in rendered
 
     @pytest.mark.parametrize(
         "dag_run,expected_val",

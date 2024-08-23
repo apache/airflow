@@ -270,6 +270,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "pytest-xdist>=3.5.0",
         "pytest>=8.2,<9",
         "requests_mock>=1.11.0",
+        "semver>=3.0.2",
         "time-machine>=2.13.0",
         "wheel>=0.42.0",
     ],

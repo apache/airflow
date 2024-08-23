@@ -354,7 +354,8 @@ def _run_raw_task(
         # run on_success_callback before db committing
         # otherwise, the LocalTaskJob sees the state is changed to `success`,
         # but the task_runner is still running, LocalTaskJob then treats the state is set externally!
-        _run_finished_callback(callbacks=ti.task.on_success_callback, context=context)
+        if ti.state == TaskInstanceState.SUCCESS:
+            _run_finished_callback(callbacks=ti.task.on_success_callback, context=context)
 
         if not test_mode:
             _add_log(event=ti.state, task_instance=ti, session=session)
@@ -1549,12 +1550,21 @@ def _run_finished_callback(
     """
     if callbacks:
         callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
-        for callback in callbacks:
-            log.info("Executing %s callback", callback.__name__)
+
+        def get_callback_representation(callback: TaskStateChangeCallback) -> Any:
+            with contextlib.suppress(AttributeError):
+                return callback.__name__
+            with contextlib.suppress(AttributeError):
+                return callback.__class__.__name__
+            return callback
+
+        for idx, callback in enumerate(callbacks):
+            callback_repr = get_callback_representation(callback)
+            log.info("Executing callback at index %d: %s", idx, callback_repr)
             try:
                 callback(context)
             except Exception:
-                log.exception("Error when executing %s callback", callback.__name__)  # type: ignore[attr-defined]
+                log.exception("Error in callback at index %d: %s", idx, callback_repr)
 
 
 def _log_state(*, task_instance: TaskInstance | TaskInstancePydantic, lead_msg: str = "") -> None:
