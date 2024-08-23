@@ -40,7 +40,6 @@ from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.state import State
 from airflow.www import app
-from tests.test_utils.config import conf_vars
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
@@ -102,15 +101,15 @@ class TestRpcApiEndpoint:
             ]
         )
         def factory() -> Flask:
-            with conf_vars({("remote", "api_enabled"): "true", ("core", "lazy_discover_providers"): "false"}):
-                import airflow.providers.remote.plugins.remote_executor_plugin as plugin_module
+            import airflow.providers.remote.plugins.remote_executor_plugin as plugin_module
 
-                plugin_module.REMOTE_EXECUTOR_ACTIVE = True
-                remote_plugin = plugin_module.RemoteExecutorPlugin()
-                assert len(remote_plugin.flask_blueprints) > 0
-                with mock_plugin_manager(plugins=[remote_plugin]):
-                    print("DEBUG - before create_app")
-                    return app.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
+            class TestingRemoteExecutorPlugin(plugin_module.RemoteExecutorPlugin):
+                flask_blueprints = [plugin_module._get_api_endpoints(), plugin_module.template_bp]
+
+            testing_remote_plugin = TestingRemoteExecutorPlugin()
+            assert len(testing_remote_plugin.flask_blueprints) > 0
+            with mock_plugin_manager(plugins=[testing_remote_plugin]):
+                return app.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
 
         return factory()
 
