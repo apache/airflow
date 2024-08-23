@@ -117,7 +117,7 @@ class TestLocalSettings:
 
     @mock.patch("airflow.settings.prepare_syspath_for_config_and_plugins")
     @mock.patch("airflow.settings.import_local_settings")
-    @mock.patch("airflow.settings.prepare_syspath_for_config_and_plugins")
+    @mock.patch("airflow.settings.prepare_syspath_for_dags_folder")
     def test_initialize_order(
         self, prepare_syspath_for_config_and_plugins, import_local_settings, prepare_syspath_for_dags_folder
     ):
