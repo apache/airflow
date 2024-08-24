@@ -310,12 +310,12 @@ def client_ti_without_dag_edit(app):
         pytest.param(
             f"confirm?task_id=runme_0&dag_id=example_bash_operator&state=success"
             f"&dag_run_id={DEFAULT_DAGRUN}",
-            ["Wait a minute"],
+            ["Please confirm"],
             id="confirm-success",
         ),
         pytest.param(
             f"confirm?task_id=runme_0&dag_id=example_bash_operator&state=failed&dag_run_id={DEFAULT_DAGRUN}",
-            ["Wait a minute"],
+            ["Please confirm"],
             id="confirm-failed",
         ),
         pytest.param(

@@ -169,7 +169,8 @@ jobs:
           nohup airflow webserver --port 8080 &
           echo "Started webserver"
         env:
-          AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth
+          AIRFLOW__API__AUTH_BACKENDS: >-
+            airflow.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
           AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
           AIRFLOW__CORE__LOAD_EXAMPLES: "True"
           AIRFLOW_HOME: "${{ github.workspace }}/airflow_home"
