@@ -306,18 +306,24 @@ class GKEJobTrigger(BaseTrigger):
             pod = await self.hook.get_pod(name=self.pod_name, namespace=self.pod_namespace)
         if self.do_xcom_push:
             await self.hook.wait_until_container_complete(
-                name=self.pod_name, namespace=self.pod_namespace, container_name=self.base_container_name
+                name=self.pod_name,
+                namespace=self.pod_namespace,
+                container_name=self.base_container_name,
+                poll_interval=self.poll_interval,
             )
             self.log.info("Checking if xcom sidecar container is started.")
             await self.hook.wait_until_container_started(
                 name=self.pod_name,
                 namespace=self.pod_namespace,
                 container_name=PodDefaults.SIDECAR_CONTAINER_NAME,
+                poll_interval=self.poll_interval,
             )
             self.log.info("Extracting result from xcom sidecar container.")
             loop = asyncio.get_running_loop()
             xcom_result = await loop.run_in_executor(None, self.pod_manager.extract_xcom, pod)
-        job: V1Job = await self.hook.wait_until_job_complete(name=self.job_name, namespace=self.job_namespace)
+        job: V1Job = await self.hook.wait_until_job_complete(
+            name=self.job_name, namespace=self.job_namespace, poll_interval=self.poll_interval
+        )
         job_dict = job.to_dict()
         error_message = self.hook.is_job_failed(job=job)
         status = "error" if error_message else "success"
