@@ -27,6 +27,8 @@ from airflow.utils.state import TaskInstanceState
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+pytestmark = pytest.mark.db_test
+
 
 class TestRemoteJob:
     @pytest.fixture(autouse=True)

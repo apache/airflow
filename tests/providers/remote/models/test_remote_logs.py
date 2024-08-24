@@ -16,8 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.providers.remote.models.remote_logs import RemoteLogs, RemoteLogsModel
 from airflow.utils import timezone
+
+pytestmark = pytest.mark.db_test
 
 
 def test_serializing_pydantic_remote_logs():

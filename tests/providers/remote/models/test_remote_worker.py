@@ -32,6 +32,8 @@ from airflow.utils import timezone
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
+pytestmark = pytest.mark.db_test
+
 
 class TestRemoteWorker:
     @pytest.fixture(autouse=True)
