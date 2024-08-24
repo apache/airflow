@@ -51,7 +51,6 @@ def mongo_connections():
             conn_id="mongo_default_with_srv",
             conn_type="mongo",
             host="mongo",
-            port=27017,
             extra='{"srv": true}',
         ),
         Connection(conn_id="mongo_invalid_conn_type", conn_type="mongodb", host="mongo", port=27017),
@@ -125,7 +124,10 @@ class TestMongoHook:
             MongoHook(mongo_conn_id="mongo_invalid_conn_type")
 
     def test_invalid_conn_type_srv(self):
-        with pytest.raises(AirflowException, match="use srv=true"):
+        with pytest.raises(
+            AirflowException,
+            match="Mongo SRV connections should have the conn_type 'mongo' and set 'use_srv=true' in extras",
+        ):
             MongoHook(mongo_conn_id="mongo_invalid_conn_type_srv")
 
     def test_invalid_srv_with_port(self):

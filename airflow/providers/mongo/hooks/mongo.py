@@ -89,8 +89,17 @@ class MongoHook(BaseHook):
         from wtforms import BooleanField
 
         return {
-            "srv": BooleanField(label=lazy_gettext("SRV mode"), description="checks srv mode"),
-            "allow_insecure": BooleanField(label=lazy_gettext("SRV mode"), description="checks srv mode"),
+            "srv": BooleanField(
+                label=lazy_gettext("SRV Connection"),
+                description="Check if using an SRV/seed list connection, i.e. one that begins with 'mongdb+srv://' (if so, the port field should be left empty)",
+            ),
+            "ssl": BooleanField(
+                label=lazy_gettext("Use SSL"), description="Check to enable SSL/TLS for the connection"
+            ),
+            "allow_insecure": BooleanField(
+                label=lazy_gettext("Allow Invalid Certificates"),
+                description="Check to bypass verification of certificates during SSL/TLS connections (has no effect for non-SSL/TLS connections)",
+            ),
         }
 
     @classmethod
@@ -100,7 +109,7 @@ class MongoHook(BaseHook):
             "hidden_fields": [],
             "relabeling": {"login": "Username", "schema": "Default DB"},
             "placeholders": {
-                "port": "Note: port should not be set when SRV is True",
+                "port": "Note: port should not be set for SRV connections",
             },
         }
 
@@ -151,7 +160,9 @@ class MongoHook(BaseHook):
         conn_type = conn.conn_type
         if conn_type != "mongo":
             if conn_type == "mongodb+srv":
-                raise AirflowException("use srv=true")
+                raise AirflowException(
+                    "Mongo SRV connections should have the conn_type 'mongo' and set 'use_srv=true' in extras"
+                )
             raise AirflowException(
                 f"conn_type '{conn_type}' not allowed for MongoHook; conn_type must be 'mongo'"
             )
