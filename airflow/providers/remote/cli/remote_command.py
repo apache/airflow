@@ -31,7 +31,7 @@ from time import sleep
 import psutil
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile, write_pid_to_pidfile
 
-from airflow import __version__ as airflow_version
+from airflow import __version__ as airflow_version, settings
 from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.cli.cli_config import ARG_PID, ARG_VERBOSE, ActionCommand, Arg
 from airflow.configuration import conf
@@ -46,6 +46,15 @@ from airflow.utils.state import TaskInstanceState
 
 logger = logging.getLogger(__name__)
 REMOTE_WORKER_PROCESS_NAME = "remote-worker"
+REMOTE_WORKER_HEADER = "\n".join(
+    [
+        r"   ___                 __        _      __         __",
+        r"  / _ \___ __ _  ___  / /____   | | /| / /__  ____/ /_____ ____",
+        r" / , _/ -_)  ' \/ _ \/ __/ -_)  | |/ |/ / _ \/ __/  '_/ -_) __/",
+        r"/_/|_|\__/_/_/_/\___/\__/\__/   |__/|__/\___/_/ /_/\_\\__/_/",
+        r"",
+    ]
+)
 
 
 @providers_configuration_loaded
@@ -235,6 +244,9 @@ class _RemoteWorkerCli:
 @providers_configuration_loaded
 def worker(args):
     """Start Airflow Remote worker."""
+    print(settings.HEADER)
+    print(REMOTE_WORKER_HEADER)
+
     remote_worker = _RemoteWorkerCli(
         pid_file_path=_pid_file_path(args.pid),
         hostname=args.remote_hostname or _hostname(),
