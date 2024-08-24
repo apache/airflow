@@ -27,6 +27,17 @@
 Changelog
 ---------
 
+8.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: 'KubernetesExecutor' failing the task in case the watcher receives an event with the reason ProviderFailed (#41186)``
+* ``fix: 'do_xcom_push' and 'get_logs' functionality for KubernetesJobOperator (#40814)``
+* ``fix: 'KubernetesHook' loading config file with '_is_in_cluster' set as False (#41464)``
+* ``fix: Missing 'slots_occupied' in 'CeleryKubernetesExecutor' and 'LocalKubernetesExecutor' (#41602)``
+
 8.4.0
 .....
 
