@@ -82,6 +82,28 @@ class MongoHook(BaseHook):
     conn_type = "mongo"
     hook_name = "MongoDB"
 
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
+        from flask_babel import lazy_gettext
+        from wtforms import BooleanField
+
+        return {
+            "srv": BooleanField(label=lazy_gettext("SRV mode"), description="checks srv mode"),
+            "allow_insecure": BooleanField(label=lazy_gettext("SRV mode"), description="checks srv mode"),
+        }
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
+        return {
+            "hidden_fields": [],
+            "relabeling": {"login": "Username", "schema": "Default DB"},
+            "placeholders": {
+                "port": "Note: port should not be set when SRV is True",
+            },
+        }
+
     def __init__(self, mongo_conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__()
         if conn_id := kwargs.pop("conn_id", None):
