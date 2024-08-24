@@ -23,6 +23,8 @@ from airflow.utils import timezone
 
 pytestmark = pytest.mark.db_test
 
+pytest.importorskip("pydantic", minversion="2.0.0")
+
 
 def test_serializing_pydantic_remote_logs():
     rlm = RemoteLogsModel(

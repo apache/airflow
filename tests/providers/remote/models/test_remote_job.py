@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
 pytestmark = pytest.mark.db_test
+pytest.importorskip("pydantic", minversion="2.0.0")
 
 
 class TestRemoteJob:

@@ -35,6 +35,8 @@ from airflow.providers.remote.models.remote_worker import RemoteWorker, RemoteWo
 from airflow.utils.state import TaskInstanceState
 from tests.test_utils.config import conf_vars
 
+pytest.importorskip("pydantic", minversion="2.0.0")
+
 # Ignore the following error for mocking
 # mypy: disable-error-code="attr-defined"
 
