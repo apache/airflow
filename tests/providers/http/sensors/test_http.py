@@ -23,11 +23,17 @@ from unittest.mock import patch
 import pytest
 import requests
 
-from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException, TaskDeferred
+from airflow.exceptions import (
+    AirflowException,
+    AirflowSensorTimeout,
+    AirflowSkipException,
+    TaskDeferred,
+)
 from airflow.models.dag import DAG
 from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.http.sensors.http import HttpSensor
 from airflow.providers.http.triggers.http import HttpSensorTrigger
+from airflow.sensors.base import FailPolicy
 from airflow.utils.timezone import datetime
 
 pytestmark = pytest.mark.db_test
@@ -66,16 +72,16 @@ class TestHttpSensor:
             task.execute(context={})
 
     @patch("airflow.providers.http.hooks.http.requests.Session.send")
-    def test_poke_exception_with_soft_fail(self, mock_session_send, create_task_of_operator):
+    def test_poke_exception_with_skip_on_timeout(self, mock_session_send, create_task_of_operator):
         """
-        Exception occurs in poke function should be skipped if soft_fail is True.
+        Exception occurs in poke function should be skipped if skip_on_timeout.
         """
         response = requests.Response()
         response.status_code = 200
         mock_session_send.return_value = response
 
         def resp_check(_):
-            raise AirflowException("AirflowException raised here!")
+            raise AirflowSensorTimeout("AirflowSensorTimeout raised here!")
 
         task = create_task_of_operator(
             HttpSensor,
@@ -87,7 +93,7 @@ class TestHttpSensor:
             response_check=resp_check,
             timeout=5,
             poke_interval=1,
-            soft_fail=True,
+            fail_policy=FailPolicy.SKIP_ON_TIMEOUT,
         )
         with pytest.raises(AirflowSkipException):
             task.execute(context={})
