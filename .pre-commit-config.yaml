@@ -546,6 +546,14 @@ repos:
         description: The core example DAGs have no dependencies other than core Airflow
         entry: "^\\s*from airflow\\.providers.*"
         pass_filenames: true
+        exclude: >
+          (?x)
+          ^airflow/example_dags/example_branch_datetime_operator.py|
+          ^airflow/example_dags/example_branch_day_of_week_operator.py|
+          ^airflow/example_dags/sensors/example_sensors.py|
+          ^airflow/example_dags/sensors/example_sensors.py|
+          ^airflow/example_dags/sensors/example_sensors.py|
+          ^airflow/example_dags/sensors/example_time_delta_sensor_async.py
         files: ^airflow/example_dags/.*\.py$
       - id: check-no-airflow-deprecation-in-providers
         language: pygrep
@@ -937,10 +945,7 @@ repos:
         entry: ./scripts/ci/pre_commit/check_system_tests.py
         language: python
         files: ^tests/system/.*/example_[^/]*\.py$
-        exclude: >
-          (?x)
-          ^tests/system/providers/google/cloud/bigquery/example_bigquery_queries\.py$ |
-          ^tests/system/providers/standard/time/operators/example_branch_datetime_operator.py
+        exclude: ^tests/system/providers/google/cloud/bigquery/example_bigquery_queries\.py$
         pass_filenames: true
         additional_dependencies: ['rich>=12.4.4']
       - id: generate-pypi-readme

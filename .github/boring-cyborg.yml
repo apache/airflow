@@ -190,7 +190,6 @@ labelPRBasedOnFilePath:
     - airflow/providers/standard/**/*
     - docs/apache-airflow-providers-standard/**/*
     - tests/providers/standard/**/*
-    - tests/system/providers/standard/**/*
 
   provider:databricks:
     - airflow/providers/databricks/**/*
