@@ -1130,6 +1130,22 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "remote": {
+    "deps": [
+      "apache-airflow>=2.10.0",
+      "pydantic"
+    ],
+    "devel-deps": [],
+    "plugins": [
+      {
+        "name": "remote_executor",
+        "plugin-class": "airflow.providers.remote.plugins.remote_executor_plugin.RemoteExecutorPlugin"
+      }
+    ],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "ready"
+  },
   "salesforce": {
     "deps": [
       "apache-airflow>=2.8.0",
