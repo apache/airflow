@@ -35,7 +35,6 @@ from airflow.models.base import Base, StringID
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.serialization.serialized_objects import add_pydantic_class_type_mapping
-from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.pydantic import BaseModel as BaseModelPydantic, ConfigDict, is_pydantic_2_installed
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -135,6 +134,8 @@ class RemoteLogs(BaseModelPydantic, LoggingMixin):
     @lru_cache
     def logfile_path(task: TaskInstanceKey) -> Path:
         """Elaborate the path and filename to expect from task execution."""
+        from airflow.utils.log.file_task_handler import FileTaskHandler
+
         ti = TaskInstance.get_task_instance(
             dag_id=task.dag_id,
             run_id=task.run_id,
