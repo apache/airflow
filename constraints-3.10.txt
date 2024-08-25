@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-25T02:11:38.262207
+# This constraints file was automatically generated on 2024-08-25T07:46:27.330680
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -570,7 +570,7 @@ pykerberos==1.2.4
 pymongo==4.8.0
 pymssql==2.3.0
 pyodbc==5.1.0
-pyparsing==3.1.2
+pyparsing==3.1.3
 pypsrp==0.8.1
 pyspark==3.5.2
 pyspnego==0.11.1
