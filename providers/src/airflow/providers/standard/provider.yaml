@@ -38,6 +38,11 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-standard/operators.rst
 
+integrations:
+  - integration-name: Standard
+    external-doc-url: https://airflow.apache.org/
+    tags: [apache]
+
 operators:
   - integration-name: Standard
     python-modules:
