@@ -28,7 +28,7 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.models.abstractoperator import DEFAULT_QUEUE
 from airflow.models.taskinstance import TaskInstanceState
 from airflow.providers.remote.cli.remote_command import REMOTE_COMMANDS
-from airflow.providers.remote.models import RemoteJobModel
+from airflow.providers.remote.models.remote_job import RemoteJobModel
 from airflow.providers.remote.models.remote_logs import RemoteLogsModel
 from airflow.providers.remote.models.remote_worker import RemoteWorkerModel
 from airflow.utils.db import DBLocks, create_global_lock
