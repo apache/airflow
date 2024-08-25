@@ -28,7 +28,6 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
-from airflow.models.variable import Variable
 from airflow.models.xcom import XCom
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.remote.api_endpoints.rpc_api_endpoint import _initialize_method_map
@@ -59,9 +58,6 @@ def test_initialize_method_map():
         XCom.get_one,
         XCom.clear,
         XCom.set,
-        Variable._set,
-        Variable._update,
-        Variable._delete,
         DagRun.get_previous_dagrun,
         DagRun.get_previous_scheduled_dagrun,
         DagRun.get_task_instances,
