@@ -95,6 +95,7 @@ class TestRpcApiEndpoint:
     def minimal_app_for_remote_api(self) -> Flask:
         @dont_initialize_flask_app_submodules(
             skip_all_except=[
+                "init_api_auth",  # This is needed for Airflow 2.10 compat tests
                 "init_appbuilder",
                 "init_plugins",
             ]
