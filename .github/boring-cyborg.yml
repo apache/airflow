@@ -186,11 +186,11 @@ labelPRBasedOnFilePath:
     - tests/providers/common/sql/**/*
     - tests/system/providers/common/sql/**/*
 
-  provider:essentials:
-    - airflow/providers/essentials/**/*
-    - docs/apache-airflow-providers-essentials/**/*
-    - tests/providers/essentials/**/*
-    - tests/system/providers/essentials/**/*
+  provider:standard:
+    - airflow/providers/standard/**/*
+    - docs/apache-airflow-providers-standard/**/*
+    - tests/providers/standard/**/*
+    - tests/system/providers/standard/**/*
 
   provider:databricks:
     - airflow/providers/databricks/**/*

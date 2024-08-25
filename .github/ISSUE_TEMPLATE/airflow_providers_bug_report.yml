@@ -60,7 +60,6 @@ body:
         - docker
         - edge
         - elasticsearch
-        - essentials
         - exasol
         - fab
         - facebook
@@ -107,6 +106,7 @@ body:
         - snowflake
         - sqlite
         - ssh
+        - standard
         - tableau
         - telegram
         - teradata

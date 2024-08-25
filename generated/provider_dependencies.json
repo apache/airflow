@@ -545,16 +545,6 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
-  "essentials": {
-    "deps": [
-      "apache-airflow>=2.8.0"
-    ],
-    "devel-deps": [],
-    "plugins": [],
-    "cross-providers-deps": [],
-    "excluded-python-versions": [],
-    "state": "ready"
-  },
   "exasol": {
     "deps": [
       "apache-airflow-providers-common-sql>=1.14.1",
@@ -1264,6 +1254,16 @@
       "apache-airflow>=2.8.0",
       "paramiko>=2.9.0",
       "sshtunnel>=0.3.2"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "ready"
+  },
+  "standard": {
+    "deps": [
+      "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
     "plugins": [],

@@ -16,10 +16,10 @@
 # under the License.
 
 ---
-package-name: apache-airflow-providers-essentials
-name: Essentials
+package-name: apache-airflow-providers-standard
+name: Standard
 description: |
-    Airflow Essentials Provider
+    Airflow Standard Provider
 state: ready
 source-date-epoch: 1718603992
 
@@ -31,15 +31,15 @@ dependencies:
   - apache-airflow>=2.8.0
 
 operators:
-  - integration-name: Essentials
+  - integration-name: Standard
     python-modules:
-      - airflow.providers.essentials.time.operators.datetime
-      - airflow.providers.essentials.time.operators.weekday
+      - airflow.providers.standard.time.operators.datetime
+      - airflow.providers.standard.time.operators.weekday
 
 sensors:
-  - integration-name: Essentials
+  - integration-name: Standard
     python-modules:
-      - airflow.providers.essentials.time.sensors.date_time
-      - airflow.providers.essentials.time.sensors.time_delta
-      - airflow.providers.essentials.time.sensors.time_sensor
-      - airflow.providers.essentials.time.sensors.weekday
+      - airflow.providers.standard.time.sensors.date_time
+      - airflow.providers.standard.time.sensors.time_delta
+      - airflow.providers.standard.time.sensors.time_sensor
+      - airflow.providers.standard.time.sensors.weekday

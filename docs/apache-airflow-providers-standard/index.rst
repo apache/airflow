@@ -16,7 +16,7 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-essentials``
+``apache-airflow-providers-standard``
 ===========================================
 
 
@@ -34,7 +34,7 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/essentials/index>
+    System Tests <_api/tests/system/providers/standard/index>
 
 .. toctree::
     :hidden:
@@ -48,10 +48,10 @@
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-essentials/|version|/tests/system/providers/essentials>
-    PyPI Repository <https://pypi.org/project/apache-airflow-providers-essentials/>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-standard/|version|/tests/system/providers/standard>
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-standard/>
     Installing from sources <installing-providers-from-sources>
-    Python API <_api/airflow/providers/essentials/index>
+    Python API <_api/airflow/providers/standard/index>
 
 
 
@@ -66,7 +66,7 @@
     Detailed list of commits <commits>
 
 
-apache-airflow-providers-essentials package
+apache-airflow-providers-standard package
 ------------------------------------------------------
 
 
@@ -75,14 +75,14 @@ Release: 1.0.0
 Provider package
 ----------------
 
-This package is for the ``essentials`` provider.
-All classes for this package are included in the ``airflow.providers.essentials`` python package.
+This package is for the ``standard`` provider.
+All classes for this package are included in the ``airflow.providers.standard`` python package.
 
 Installation
 ------------
 
 You can install this package on top of an existing Airflow 2 installation via
-``pip install apache-airflow-providers-essentials``.
+``pip install apache-airflow-providers-standard``.
 For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements

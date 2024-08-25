@@ -26,7 +26,7 @@ from airflow.exceptions import AirflowException
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.essentials.time.operators.datetime import BranchDateTimeOperator
+from airflow.providers.standard.time.operators.datetime import BranchDateTimeOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State

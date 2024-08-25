@@ -940,7 +940,7 @@ repos:
         exclude: >
           (?x)
           ^tests/system/providers/google/cloud/bigquery/example_bigquery_queries\.py$ |
-          ^tests/system/providers/essentials/time/operators/example_branch_datetime_operator.py
+          ^tests/system/providers/standard/time/operators/example_branch_datetime_operator.py
         pass_filenames: true
         additional_dependencies: ['rich>=12.4.4']
       - id: generate-pypi-readme
