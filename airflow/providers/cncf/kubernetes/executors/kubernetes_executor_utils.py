@@ -28,6 +28,11 @@ from kubernetes.client.rest import ApiException
 from urllib3.exceptions import ReadTimeoutError
 
 from airflow.exceptions import AirflowException
+from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
+    ADOPTED,
+    ALL_NAMESPACES,
+    POD_EXECUTOR_DONE_KEY,
+)
 from airflow.providers.cncf.kubernetes.kube_client import get_kube_client
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     annotations_for_logging_task_metadata,
@@ -38,19 +43,6 @@ from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.singleton import Singleton
 from airflow.utils.state import TaskInstanceState
-
-try:
-    from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
-        ADOPTED,
-        ALL_NAMESPACES,
-        POD_EXECUTOR_DONE_KEY,
-    )
-except ImportError:
-    # avoid failing import when Airflow pre 2.7 is installed
-    from airflow.kubernetes.kubernetes_executor_types import (  # type: ignore[no-redef]
-        ALL_NAMESPACES,
-        POD_EXECUTOR_DONE_KEY,
-    )
 
 if TYPE_CHECKING:
     from kubernetes.client import Configuration, models as k8s
