@@ -1169,7 +1169,7 @@ class SelectiveChecks:
     @cached_property
     def runs_on_as_json_docs_build(self) -> str:
         if self._is_canary_run():
-            return RUNS_ON_SELF_HOSTED_ASF_RUNNER
+            return RUNS_ON_SELF_HOSTED_RUNNER
         else:
             return RUNS_ON_PUBLIC_RUNNER
 
@@ -1184,7 +1184,7 @@ class SelectiveChecks:
 
         All self-hosted runners have "self-hosted" label.
         """
-        return "self-hosted" in json.loads(self.runs_on_as_json_default)
+        return "self-hosted" in json.loads(self.runs_on_as_json_default) or self.is_airflow_runner
 
     @cached_property
     def is_airflow_runner(self) -> bool:
@@ -1193,10 +1193,8 @@ class SelectiveChecks:
 
         All Airflow team-managed runners will have "airflow-runner" label.
         """
-        # TODO: when we have it properly set-up with labels we should just check for
-        #       "airflow-runner" presence in runs_on
         runs_on_array = json.loads(self.runs_on_as_json_default)
-        return "Linux" in runs_on_array and "X64" in runs_on_array and "self-hosted" in runs_on_array
+        return runs_on_array[0].startswith("arc")
 
     @cached_property
     def is_amd_runner(self) -> bool:
@@ -1235,20 +1233,6 @@ class SelectiveChecks:
                 for label in json.loads(self.runs_on_as_json_public)
             ]
         )
-
-    @cached_property
-    def is_vm_runner(self) -> bool:
-        """Whether the runner is VM runner (managed by airflow)."""
-        # TODO: when we have it properly set-up with labels we should just check for
-        #       "airflow-runner" presence in runs_on
-        return self.is_airflow_runner
-
-    @cached_property
-    def is_k8s_runner(self) -> bool:
-        """Whether the runner is K8s runner (managed by airflow)."""
-        # TODO: when we have it properly set-up with labels we should just check for
-        #       "k8s-runner" presence in runs_on
-        return False
 
     @cached_property
     def has_migrations(self) -> bool:

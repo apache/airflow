@@ -1126,11 +1126,9 @@ class TestRetryDecorator:  # ptlint: disable=invalid-name
             _retryable_test(custom_fn)
 
 
-def test_raise_no_creds_default_credentials_strategy(tmp_path_factory, monkeypatch):
+@pytest.mark.usefixtures("clear_aws_credentials", "mock_metadata_service")
+def test_raise_no_creds_default_credentials_strategy(tmp_path_factory):
     """Test raise an error if no credentials provided and default boto3 strategy unable to get creds."""
-    for env_key in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_SECURITY_TOKEN"):
-        # Delete aws credentials environment variables
-        monkeypatch.delenv(env_key, raising=False)
 
     hook = AwsBaseHook(aws_conn_id=None, client_type="sts")
     with pytest.raises(NoCredentialsError) as credential_error:

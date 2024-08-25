@@ -20,8 +20,8 @@ name: PROD images extra checks
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-public:
-        description: "The array of labels (in json form) determining public runners."
+      runs-on-as-json-default:
+        description: "The array of labels (in json form) determining default runners."
         required: true
         type: string
       python-versions:
@@ -67,7 +67,7 @@ jobs:
   myssql-client-image:
     uses: ./.github/workflows/prod-image-build.yml
     with:
-      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
+      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       build-type: "MySQL Client"
       upload-package-artifact: "false"
       image-tag: mysql-${{ inputs.image-tag }}
@@ -90,7 +90,7 @@ jobs:
     # Skip testing PIP image on release branches as all images there are built with pip
     if: ${{ inputs.use-uv == 'true' }}
     with:
-      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
+      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       build-type: "pip"
       upload-package-artifact: "false"
       image-tag: mysql-${{ inputs.image-tag }}

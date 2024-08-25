@@ -18,6 +18,9 @@
 from __future__ import annotations
 
 import os
+import shutil
+import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -27,3 +30,18 @@ from docker_tests.constants import DEFAULT_DOCKER_IMAGE
 @pytest.fixture
 def default_docker_image() -> str:
     return os.environ.get("DOCKER_IMAGE") or DEFAULT_DOCKER_IMAGE
+
+
+@pytest.fixture
+def shared_tmp_path():
+    """
+    Create a shared temporary directory for CI runners with DinD enabled.
+    """
+    try:
+        path = Path("/home/runner/_work/")
+        path.mkdir(parents=True, exist_ok=True)
+        tmp_path = Path(tempfile.mkdtemp(dir=path))
+    except Exception:
+        tmp_path = Path(tempfile.mkdtemp())
+    yield tmp_path
+    shutil.rmtree(tmp_path)

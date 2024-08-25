@@ -20,7 +20,7 @@ name: Build PROD images
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-public:
+      runs-on-as-json-default:
         description: "The array of labels (in json form) determining default runner used for the build."
         required: true
         type: string
@@ -119,7 +119,7 @@ jobs:
   build-prod-packages:
     name: "${{ inputs.do-build == 'true' && 'Build' || 'Skip building' }} Airflow and provider packages"
     timeout-minutes: 10
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     env:
       PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
       VERSION_SUFFIX_FOR_PYPI: ${{ inputs.branch == 'main' && 'dev0' || '' }}
@@ -198,7 +198,7 @@ ${{ inputs.do-build == 'true' && 'Build' || 'Skip building' }} \
 PROD ${{ inputs.build-type }} image\
 ${{ matrix.python-version }}${{ inputs.do-build == 'true' && ':' || '' }}\
 ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
-    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     needs:
       - build-prod-packages
     env:

@@ -118,8 +118,6 @@ jobs:
       is-airflow-runner: ${{ steps.selective-checks.outputs.is-airflow-runner }}
       is-amd-runner: ${{ steps.selective-checks.outputs.is-amd-runner }}
       is-arm-runner: ${{ steps.selective-checks.outputs.is-arm-runner }}
-      is-vm-runner: ${{ steps.selective-checks.outputs.is-vm-runner }}
-      is-k8s-runner: ${{ steps.selective-checks.outputs.is-k8s-runner }}
       latest-versions-only: ${{ steps.selective-checks.outputs.latest-versions-only }}
       chicken-egg-providers: ${{ steps.selective-checks.outputs.chicken-egg-providers }}
       has-migrations: ${{ steps.selective-checks.outputs.has-migrations }}
@@ -169,7 +167,7 @@ jobs:
     needs: [build-info]
     uses: ./.github/workflows/basic-tests.yml
     with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       run-ui-tests: ${{needs.build-info.outputs.run-ui-tests}}
       run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
       needs-api-codegen: ${{needs.build-info.outputs.needs-api-codegen}}
@@ -195,8 +193,7 @@ jobs:
       packages: write
     secrets: inherit
     with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       do-build: ${{ needs.build-info.outputs.in-workflow-build }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       platform: "linux/amd64"
@@ -541,7 +538,7 @@ jobs:
       packages: write
     secrets: inherit
     with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       build-type: "Regular"
       do-build: ${{ needs.build-info.outputs.in-workflow-build }}
       upload-package-artifact: "true"
@@ -606,7 +603,7 @@ jobs:
     needs: [build-info, wait-for-prod-images, generate-constraints]
     uses: ./.github/workflows/additional-prod-image-tests.yml
     with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
       default-branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
@@ -626,7 +623,9 @@ jobs:
       packages: read
     secrets: inherit
     with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      # This should be passed to default runs-on once the K8S issue in ARC runners is fixed
+      # runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-public }}
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
       kubernetes-versions-list-as-string: ${{ needs.build-info.outputs.kubernetes-versions-list-as-string }}
