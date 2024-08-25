@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-23T13:40:43.766761
+# This constraints file was automatically generated on 2024-08-25T02:04:19.971130
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -155,7 +155,7 @@ confluent-kafka==2.5.0
 connexion==2.14.2
 coverage==7.6.1
 crcmod==1.7
-cron-descriptor==1.4.3
+cron-descriptor==1.4.5
 croniter==3.0.3
 cryptography==42.0.8
 curlify==2.2.1
@@ -282,7 +282,7 @@ hyperframe==6.0.1
 hyperlink==21.0.0
 icdiff==2.0.7
 identify==2.6.0
-idna==3.7
+idna==3.8
 ijson==3.3.0
 imagesize==1.4.1
 importlib-metadata==6.11.0
@@ -376,9 +376,9 @@ objsize==0.7.0
 openai==1.42.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
-openlineage-integration-common==1.19.0
-openlineage-python==1.19.0
-openlineage_sql==1.19.0
+openlineage-integration-common==1.20.5
+openlineage-python==1.20.5
+openlineage_sql==1.20.5
 openpyxl==3.1.5
 opensearch-py==2.7.1
 opentelemetry-api==1.26.0
@@ -576,7 +576,7 @@ tomli==2.0.1
 tomli_w==1.0.0
 tomlkit==0.13.2
 tornado==6.4.1
-towncrier==24.7.1
+towncrier==24.8.0
 tqdm==4.66.5
 traitlets==5.14.3
 trino==0.329.0
