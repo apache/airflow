@@ -29,7 +29,7 @@ versions:
   - 0.1.0pre0
 
 dependencies:
-  - apache-airflow>=2.10.0,<3.0
+  - apache-airflow>=2.10.0
   - pydantic
 
 executors:
