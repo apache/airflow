@@ -22,7 +22,6 @@ from time import sleep
 from typing import TYPE_CHECKING, Any, NoReturn
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowSkipException
 from airflow.sensors.base import BaseSensorOperator
 from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.utils import timezone
@@ -80,12 +79,8 @@ class TimeDeltaSensorAsync(TimeDeltaSensor):
         if timezone.utcnow() > target_dttm:
             # If the target datetime is in the past, return immediately
             return True
-        try:
-            trigger = DateTimeTrigger(moment=target_dttm, end_from_trigger=self.end_from_trigger)
-        except (TypeError, ValueError) as e:
-            if self.soft_fail:
-                raise AirflowSkipException("Skipping due to soft_fail is set to True.") from e
-            raise
+
+        trigger = DateTimeTrigger(moment=target_dttm, end_from_trigger=self.end_from_trigger)
 
         self.defer(trigger=trigger, method_name="execute_complete")
 
