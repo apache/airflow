@@ -1295,7 +1295,8 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/migration_reference.py
         pass_filenames: false
-        files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
+        files: |
+          ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$|^airflow/providers/fab/alembic/versions/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
       - id: update-er-diagram
         name: Update ER diagram

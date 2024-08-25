@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -18,51 +17,40 @@
 from __future__ import annotations
 
 import contextlib
-import sys
 from logging.config import fileConfig
 
 from alembic import context
 
-from airflow import models, settings
-from airflow.utils.db import compare_server_default, compare_type
-
-
-def include_object(_, name, type_, *args):
-    """Filter objects for autogenerating revisions."""
-    # Ignore the sqlite_sequence table, which is an internal SQLite construct
-    if name == "sqlite_sequence":
-        return False
-    # Only create migrations for objects that are in the target metadata
-    if type_ == "table" and name not in target_metadata.tables:
-        return False
-    else:
-        return True
-
-
-# Make sure everything is imported so that alembic can find it all
-models.import_all_models()
+from airflow import settings
+from airflow.providers.fab.auth_manager.models.db import FABDBManager
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
+version_table = FABDBManager.version_table_name
+
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
-fileConfig(config.config_file_name, disable_existing_loggers=False)
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = models.base.Base.metadata
+target_metadata = FABDBManager.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
 
-# version table
-version_table = "alembic_version"
+
+def include_object(_, name, type_, *args):
+    if type_ == "table" and name not in target_metadata.tables:
+        return False
+    return True
 
 
 def run_migrations_offline():
@@ -82,11 +70,11 @@ def run_migrations_offline():
         url=settings.SQL_ALCHEMY_CONN,
         target_metadata=target_metadata,
         literal_binds=True,
-        compare_type=compare_type,
-        compare_server_default=compare_server_default,
+        compare_type=True,
+        compare_server_default=True,
         render_as_batch=True,
-        include_object=include_object,
         version_table=version_table,
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -119,8 +107,8 @@ def run_migrations_online():
             connection=connection,
             transaction_per_migration=True,
             target_metadata=target_metadata,
-            compare_type=compare_type,
-            compare_server_default=compare_server_default,
+            compare_type=True,
+            compare_server_default=True,
             include_object=include_object,
             render_as_batch=True,
             process_revision_directives=process_revision_directives,
@@ -135,9 +123,3 @@ if context.is_offline_mode():
     run_migrations_offline()
 else:
     run_migrations_online()
-
-if "airflow.www.app" in sys.modules:
-    # Already imported, make sure we clear out any cached app
-    from airflow.www.app import purge_cached_app
-
-    purge_cached_app()
