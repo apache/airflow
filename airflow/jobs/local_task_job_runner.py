@@ -215,8 +215,7 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
                     except Exception as e:
                         # Failing the heartbeat should never kill the localtaskjob
                         # If it repeatedly can't heartbeat, it will be marked as a zombie anyhow
-                        warn_string = f"Heartbeat failed with Exception: {e}"
-                        self.log.warning(warn_string)
+                        self.log.warning("Heartbeat failed with Exception: %s", e)
                         pass
 
                     # If it's been too long since we've heartbeat, then it's possible that
