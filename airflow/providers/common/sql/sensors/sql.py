@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable, Mapping, Sequence
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.sensors.base import BaseSensorOperator
@@ -97,10 +97,7 @@ class SqlSensor(BaseSensorOperator):
         records = hook.get_records(self.sql, self.parameters)
         if not records:
             if self.fail_on_empty:
-                # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
                 message = "No rows returned, raising as per fail_on_empty flag"
-                if self.soft_fail:
-                    raise AirflowSkipException(message)
                 raise AirflowException(message)
             else:
                 return False
@@ -109,25 +106,16 @@ class SqlSensor(BaseSensorOperator):
         if self.failure is not None:
             if callable(self.failure):
                 if self.failure(first_cell):
-                    # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
                     message = f"Failure criteria met. self.failure({first_cell}) returned True"
-                    if self.soft_fail:
-                        raise AirflowSkipException(message)
                     raise AirflowException(message)
             else:
-                # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
                 message = f"self.failure is present, but not callable -> {self.failure}"
-                if self.soft_fail:
-                    raise AirflowSkipException(message)
                 raise AirflowException(message)
 
         if self.success is not None:
             if callable(self.success):
                 return self.success(first_cell)
             else:
-                # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
                 message = f"self.success is present, but not callable -> {self.success}"
-                if self.soft_fail:
-                    raise AirflowSkipException(message)
                 raise AirflowException(message)
         return bool(first_cell)
