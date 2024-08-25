@@ -60,7 +60,6 @@ body:
         - docker
         - edge
         - elasticsearch
-        - essentials
         - exasol
         - fab
         - facebook
