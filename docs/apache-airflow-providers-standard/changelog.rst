@@ -15,4 +15,4 @@
     specific language governing permissions and limitations
     under the License.
 
-.. include:: ../../airflow/providers/essentials/CHANGELOG.rst
+.. include:: ../../airflow/providers/standard/CHANGELOG.rst
