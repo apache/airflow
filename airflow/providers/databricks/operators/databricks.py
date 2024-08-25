@@ -124,7 +124,7 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
     log.info("View run status, Spark UI, and logs at %s", run_page_url)
 
 
-def update_job_for_repair(operator, hook, job_id, run_state) -> None:
+def update_job_for_repair(operator: Any, hook: Any, job_id: int, run_state: RunState) -> None:
     """
     Update job settings(partial) to repair the run with all failed tasks.
 
@@ -141,7 +141,7 @@ def update_job_for_repair(operator, hook, job_id, run_state) -> None:
         ),
         None,
     )
-    if repair_reason is not None and operator.databricks_repair_reason_new_settings:
+    if repair_reason is not None:
         new_settings_json = normalise_json_content(
             operator.databricks_repair_reason_new_settings[repair_reason]
         )

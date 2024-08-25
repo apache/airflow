@@ -181,7 +181,7 @@ JOB_CLUSTERS_REPAIR_AWS_INSUFFICIENT_INSTANCE_CAPACITY_FAILURE: list[dict[str, A
             **cluster["new_cluster"],
             "aws_attributes": {
                 **cluster["new_cluster"]["aws_attributes"],
-                "zone_id": "ua-east-2a",
+                "zone_id": "us-east-2a",
             },
         },
     }
@@ -1799,13 +1799,20 @@ class TestDatabricksRunNowOperator:
             json=run,
             databricks_repair_reason_new_settings=DATABRICKS_REPAIR_REASON_NEW_SETTINGS,
         )
-        op.execute_complete(context=None, event=event)
-
         db_mock = db_mock_class.return_value
         db_mock.run_now.return_value = RUN_ID
         db_mock.get_job_id.return_value = JOB_ID
         db_mock.get_run = make_run_with_state_mock("TERMINATED", "FAILED", state_message)
+
+        op.execute_complete(context=None, event=event)
+
         db_mock.update_job.assert_called_once()
+        db_mock.update_job.assert_called_with(
+            job_id=JOB_ID,
+            json=utils.normalise_json_content(
+                DATABRICKS_REPAIR_REASON_NEW_SETTINGS["AWS_INSUFFICIENT_INSTANCE_CAPACITY_FAILURE"]
+            ),
+        )
         db_mock.repair_run.assert_called_once()
         mock_handle_deferrable_databricks_operator_execution.assert_called_once()
 
