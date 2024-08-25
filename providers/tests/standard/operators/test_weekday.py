@@ -29,6 +29,7 @@ from airflow.models.xcom import XCom
 from airflow.operators.empty import EmptyOperator
 <<<<<<<< HEAD:tests/providers/standard/operators/test_weekday.py
 <<<<<<<< HEAD:tests/providers/standard/operators/test_weekday.py
+<<<<<<<< HEAD:tests/providers/standard/operators/test_weekday.py
 from airflow.providers.standard.operators.weekday import BranchDayOfWeekOperator
 ========
 from airflow.providers.core.time.operators.weekday import BranchDayOfWeekOperator
@@ -36,6 +37,9 @@ from airflow.providers.core.time.operators.weekday import BranchDayOfWeekOperato
 ========
 from airflow.providers.essentials.time.operators.weekday import BranchDayOfWeekOperator
 >>>>>>>> 149f5ecb0d (change core to essentials):tests/providers/essentials/time/operators/test_weekday.py
+========
+from airflow.providers.standard.time.operators.weekday import BranchDayOfWeekOperator
+>>>>>>>> 1a855ce075 (change new provider name to standard):tests/providers/standard/time/operators/test_weekday.py
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
