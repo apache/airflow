@@ -30,6 +30,11 @@ versions:
 dependencies:
   - apache-airflow>=2.8.0
 
+integrations:
+  - integration-name: Standard
+    external-doc-url: https://airflow.apache.org/
+    tags: [apache]
+
 operators:
   - integration-name: Standard
     python-modules:
