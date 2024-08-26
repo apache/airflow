@@ -508,8 +508,8 @@ class GenerativeModelGenerateContentOperator(GoogleCloudBaseOperator):
         gives to the generative model, in order to elicit a specific response.
     :param location: Required. The ID of the Google Cloud location that the
         service belongs to (templated).
-        :param system_instruction: Optional. Instructions for the model to steer it toward better
-            performance. For example, "Answer as concisely as possible"
+    :param system_instruction: Optional. Instructions for the model to steer it toward better
+        performance.
     :param tools: Optional. A piece of code that enables the system to interact with external
         systems to perform an action, or set of actions, outside of knowledge and scope of
         the model.
