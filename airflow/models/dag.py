@@ -2948,7 +2948,7 @@ class DAG(LoggingMixin):
             else:
                 orm_dag.calculate_dagrun_date_fields(dag, last_automated_data_interval)
 
-            dag_tags = dag.tags or set()
+            dag_tags = dag.tags
             orm_dag_tags = list(orm_dag.tags or [])
             for orm_tag in orm_dag_tags:
                 if orm_tag.name not in dag_tags:
