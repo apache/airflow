@@ -24,7 +24,6 @@ from unittest import mock
 import pytest
 from pyodbc import Cursor
 
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, fetch_one_handler
@@ -536,15 +535,6 @@ class TestDbApiHook:
 
     def test_instance_check_works_for_non_db_api_hook(self):
         assert not isinstance(NonDbApiHook(), DbApiHook)
-
-    def test_instance_check_works_for_legacy_db_api_hook(self):
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match="This module is deprecated. Please use `airflow.providers.common.sql.hooks.sql`.",
-        ):
-            from airflow.hooks.dbapi import DbApiHook as LegacyDbApiHook
-
-        assert isinstance(DbApiHookInProvider(), LegacyDbApiHook)
 
     def test_run_fetch_all_handler_select_1(self):
         self.cur.rowcount = -1  # can be -1 according to pep249
