@@ -16,3 +16,6 @@
     under the License.
 
  .. THIS FILE IS UPDATED AUTOMATICALLY_AT_RELEASE_TIME
+
+Package apache-airflow-providers-standard
+------------------------------------------------------
