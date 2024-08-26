@@ -932,7 +932,7 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
     dagbag_mock.collect_dags_from_db = collect_dags_from_db_mock
     dagbag_class_mock = mock.Mock()
     dagbag_class_mock.return_value = dagbag_mock
-    import airflow.www.security
+    import airflow.providers.fab.auth_manager.security_manager
 
     monkeypatch.setitem(
         airflow.providers.fab.auth_manager.security_manager.override.__dict__, "DagBag", dagbag_class_mock
