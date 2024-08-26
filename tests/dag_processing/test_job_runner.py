@@ -816,13 +816,13 @@ class TestDagProcessorJobRunner:
             other_dagbag = DagBag(new_dag_file.name, read_dags_from_db=False)
 
             with create_session() as session:
-                # Add stale DAG to the DB
+                # Add DAG from old dah home to the DB
                 dag = dagbag.get_dag("old_temp_dag")
                 dag.fileloc = old_dag_file.name
                 dag.last_parsed_time = timezone.utcnow()
                 dag.sync_to_db(processor_subdir=old_dag_home)
 
-                # Add stale DAG to the DB
+                # Add DAG from new DAG home to the DB
                 other_dag = other_dagbag.get_dag("new_temp_dag")
                 other_dag.fileloc = new_dag_file.name
                 other_dag.last_parsed_time = timezone.utcnow()
