@@ -815,7 +815,6 @@ def dag_maker(request):
     if serialized_marker:
         (want_serialized,) = serialized_marker.args or (True,)
 
-    from airflow.utils.helpers import NOTSET
     from airflow.utils.log.logging_mixin import LoggingMixin
 
     class DagFactory(LoggingMixin):
@@ -928,7 +927,7 @@ def dag_maker(request):
         def __call__(
             self,
             dag_id="test_dag",
-            schedule=NOTSET,
+            schedule=timedelta(days=1),
             serialized=want_serialized,
             fileloc=None,
             processor_subdir=None,
@@ -959,11 +958,7 @@ def dag_maker(request):
             self.kwargs["start_date"] = self.start_date
             # Set schedule argument to explicitly set value, or a default if no
             # other scheduling arguments are set.
-            if schedule is not NOTSET:
-                self.kwargs["schedule"] = schedule
-            elif "timetable" not in self.kwargs and "schedule_interval" not in self.kwargs:
-                self.kwargs["schedule"] = timedelta(days=1)
-            self.dag = DAG(dag_id, **self.kwargs)
+            self.dag = DAG(dag_id, schedule=schedule, **self.kwargs)
             self.dag.fileloc = fileloc or request.module.__file__
             self.want_serialized = serialized
             self.processor_subdir = processor_subdir
