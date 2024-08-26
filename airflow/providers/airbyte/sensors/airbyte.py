@@ -87,11 +87,9 @@ class AirbyteJobSensor(BaseSensorOperator):
         status = job.status
 
         if status == JobStatusEnum.FAILED:
-            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
             message = f"Job failed: \n{job}"
             raise AirflowException(message)
         elif status == JobStatusEnum.CANCELLED:
-            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
             message = f"Job was cancelled: \n{job}"
             raise AirflowException(message)
         elif status == JobStatusEnum.SUCCEEDED:
