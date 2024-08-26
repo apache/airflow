@@ -245,16 +245,16 @@ Here is an example of what you might have in your webserver_config.py:
   from flask_appbuilder.security.manager import AUTH_DB, AUTH_OAUTH
   from airflow import configuration as conf
   from airflow.www.security import AirflowSecurityManager
-  
+
   log = logging.getLogger(__name__)
-  
+
   AUTH_TYPE = AUTH_OAUTH
   AUTH_USER_REGISTRATION = True
   AUTH_ROLES_SYNC_AT_LOGIN = True
   AUTH_USER_REGISTRATION_ROLE = "Viewer"
   OIDC_ISSUER = "https://sso.keycloak.me/realms/airflow"
-  
-  # Make sure you create these role on Keycloak 
+
+  # Make sure you create these role on Keycloak
   AUTH_ROLES_MAPPING = {
       "Viewer": ["Viewer"],
       "Admin": ["Admin"],
@@ -262,7 +262,7 @@ Here is an example of what you might have in your webserver_config.py:
       "Public": ["Public"],
       "Op": ["Op"],
   }
-  
+
   OAUTH_PROVIDERS = [
       {
           "name": "keycloak",
@@ -273,37 +273,36 @@ Here is an example of what you might have in your webserver_config.py:
               "client_secret": "xxx",
               "server_metadata_url": "https://sso.keycloak.me/realms/airflow/.well-known/openid-configuration",
               "api_base_url": "https://sso.keycloak.me/realms/airflow/protocol/openid-connect",
-              "client_kwargs": {
-                  "scope": "email profile"
-              },
+              "client_kwargs": {"scope": "email profile"},
               "access_token_url": "https://sso.keycloak.me/realms/airflow/protocol/openid-connect/token",
               "authorize_url": "https://sso.keycloak.me/realms/airflow/protocol/openid-connect/auth",
-              "request_token_url": None
-          }
+              "request_token_url": None,
+          },
       }
   ]
-  
+
   # Fetch public key
   req = requests.get(OIDC_ISSUER)
   key_der_base64 = req.json()["public_key"]
   key_der = b64decode(key_der_base64.encode())
   public_key = serialization.load_der_public_key(key_der)
-  
+
+
   class CustomSecurityManager(AirflowSecurityManager):
       def oauth_user_info(self, provider, response):
           if provider == "keycloak":
               token = response["access_token"]
-              me = jwt.decode(token, public_key, algorithms=['HS256', 'RS256'])
-  
-              # Extract roles from resource access  
+              me = jwt.decode(token, public_key, algorithms=["HS256", "RS256"])
+
+              # Extract roles from resource access
               realm_access = me.get("realm_access", {})
               groups = realm_access.get("roles", [])
-  
+
               log.info("groups: {0}".format(groups))
-  
+
               if not groups:
                   groups = ["Viewer"]
-  
+
               userinfo = {
                   "username": me.get("preferred_username"),
                   "email": me.get("email"),
@@ -311,13 +310,13 @@ Here is an example of what you might have in your webserver_config.py:
                   "last_name": me.get("family_name"),
                   "role_keys": groups,
               }
-  
+
               log.info("user info: {0}".format(userinfo))
-  
+
               return userinfo
           else:
               return {}
-  
+
+
   # Make sure to replace this with your own implementation of AirflowSecurityManager class
   SECURITY_MANAGER_CLASS = CustomSecurityManager
-
