@@ -28,7 +28,7 @@ from airflow.api_connexion import security
 from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
-from airflow.api_connexion.schemas.dataset_schema import (
+from airflow.api_connexion.schemas.asset_schema import (
     AssetCollection,
     AssetEventCollection,
     DagScheduleAssetReference,

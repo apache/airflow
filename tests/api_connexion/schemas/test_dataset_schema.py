@@ -19,7 +19,7 @@ from __future__ import annotations
 import pytest
 import time_machine
 
-from airflow.api_connexion.schemas.dataset_schema import (
+from airflow.api_connexion.schemas.asset_schema import (
     AssetCollection,
     AssetEventCollection,
     asset_collection_schema,

@@ -39,6 +39,10 @@ from airflow.api_connexion.parameters import (
     format_datetime,
     format_parameters,
 )
+from airflow.api_connexion.schemas.asset_schema import (
+    AssetEventCollection,
+    asset_event_collection_schema,
+)
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection,
     DAGRunCollectionSchema,
@@ -49,10 +53,6 @@ from airflow.api_connexion.schemas.dag_run_schema import (
     dagruns_batch_form_schema,
     set_dagrun_note_form_schema,
     set_dagrun_state_form_schema,
-)
-from airflow.api_connexion.schemas.dataset_schema import (
-    AssetEventCollection,
-    asset_event_collection_schema,
 )
 from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceReferenceCollection,
