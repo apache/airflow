@@ -97,15 +97,15 @@ class DatasetCollection(NamedTuple):
     total_entries: int
 
 
-class DatasetCollectionSchema(Schema):
-    """Dataset Collection Schema."""
+class AssetCollectionSchema(Schema):
+    """Asset Collection Schema."""
 
     datasets = fields.List(fields.Nested(DatasetSchema))
     total_entries = fields.Int()
 
 
 dataset_schema = DatasetSchema()
-dataset_collection_schema = DatasetCollectionSchema()
+dataset_collection_schema = AssetCollectionSchema()
 
 
 class BasicDAGRunSchema(SQLAlchemySchema):

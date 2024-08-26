@@ -91,7 +91,7 @@ class TestDatasetSchema(TestDatasetSchemaBase):
         }
 
 
-class TestDatasetCollectionSchema(TestDatasetSchemaBase):
+class TestAssetCollectionSchema(TestDatasetSchemaBase):
     def test_serialize(self, session):
         assets = [
             AssetModel(
