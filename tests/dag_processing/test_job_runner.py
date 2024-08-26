@@ -639,7 +639,7 @@ class TestDagProcessorJobRunner:
         manager = DagProcessorJobRunner(
             job=Job(),
             processor=DagFileProcessorManager(
-                dag_directory="directory",
+                dag_directory=str(TEST_DAG_FOLDER),
                 max_runs=1,
                 processor_timeout=timedelta(minutes=10),
                 signal_conn=MagicMock(),
@@ -713,11 +713,11 @@ class TestDagProcessorJobRunner:
         """
         Ensure only dags from current dag_directory are updated
         """
-        dag_directory = "directory"
+        dag_directory = str(TEST_DAG_FOLDER)
         manager = DagProcessorJobRunner(
             job=Job(),
             processor=DagFileProcessorManager(
-                dag_directory=dag_directory,
+                dag_directory=TEST_DAG_FOLDER,
                 max_runs=1,
                 processor_timeout=timedelta(minutes=10),
                 signal_conn=MagicMock(),
@@ -741,7 +741,7 @@ class TestDagProcessorJobRunner:
             # Add stale DAG to the DB
             other_dag = other_dagbag.get_dag("test_start_date_scheduling")
             other_dag.last_parsed_time = timezone.utcnow()
-            other_dag.sync_to_db(processor_subdir="other")
+            other_dag.sync_to_db(processor_subdir="/other")
 
             # Add DAG to the file_parsing_stats
             stat = DagFileStat(
@@ -774,29 +774,17 @@ class TestDagProcessorJobRunner:
          is running as part of scheduler.
         """
 
-        def get_dag_string(dag_id) -> str:
-            return (
-                f"from __future__ import annotations\n"
-                f"import datetime\n"
-                f"from airflow.models.dag import DAG\n"
-                f"from airflow.operators.empty import EmptyOperator\n"
-                f"with DAG(\n"
-                f'  dag_id="{dag_id}",\n'
-                f"  schedule=datetime.timedelta(hours=4),\n"
-                f"  start_date=datetime.datetime(2021, 1, 1),\n"
-                f"  catchup=False,\n"
-                f") as dag:\n"
-                f'    task1 = EmptyOperator(task_id="task1")\n'
-            )
+        def get_dag_string(filename) -> str:
+            return open(TEST_DAG_FOLDER / filename).read()
 
         with tempfile.TemporaryDirectory() as tmpdir:
             old_dag_home = tempfile.mkdtemp(dir=tmpdir)
             old_dag_file = tempfile.NamedTemporaryFile(dir=old_dag_home, suffix=".py")
-            old_dag_file.write(get_dag_string("old_temp_dag").encode())
+            old_dag_file.write(get_dag_string("test_example_bash_operator.py").encode())
             old_dag_file.flush()
             new_dag_home = tempfile.mkdtemp(dir=tmpdir)
             new_dag_file = tempfile.NamedTemporaryFile(dir=new_dag_home, suffix=".py")
-            new_dag_file.write(get_dag_string("new_temp_dag").encode())
+            new_dag_file.write(get_dag_string("test_scheduler_dags.py").encode())
             new_dag_file.flush()
 
             manager = DagProcessorJobRunner(
@@ -817,13 +805,13 @@ class TestDagProcessorJobRunner:
 
             with create_session() as session:
                 # Add DAG from old dah home to the DB
-                dag = dagbag.get_dag("old_temp_dag")
+                dag = dagbag.get_dag("test_example_bash_operator")
                 dag.fileloc = old_dag_file.name
                 dag.last_parsed_time = timezone.utcnow()
                 dag.sync_to_db(processor_subdir=old_dag_home)
 
                 # Add DAG from new DAG home to the DB
-                other_dag = other_dagbag.get_dag("new_temp_dag")
+                other_dag = other_dagbag.get_dag("test_start_date_scheduling")
                 other_dag.fileloc = new_dag_file.name
                 other_dag.last_parsed_time = timezone.utcnow()
                 other_dag.sync_to_db(processor_subdir=new_dag_home)
