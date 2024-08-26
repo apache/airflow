@@ -34,13 +34,12 @@ from sqlalchemy import Column, Date, Float, Integer, String
 from airflow.configuration import initialize_config
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
-from airflow.models.base import Base
 from airflow.models.dag import DAG
 from tests.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
-    from airflow.providers.fab.auth_manager.models import User, assoc_permission_role
+    from airflow.providers.fab.auth_manager.models import assoc_permission_role
     from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 
 from airflow.security import permissions
@@ -1010,12 +1009,6 @@ def test_permissions_work_for_dags_with_dot_in_dagname(
             assert_user_has_dag_perms(perms=["GET", "PUT"], dag_id=dag_id, user=user)
             assert_user_does_not_have_dag_perms(perms=["GET", "PUT"], dag_id=dag_id_2, user=user)
             session.query(DagModel).delete()
-
-
-def test_fab_models_use_airflow_base_meta():
-    # TODO: move this test to appropriate place when we have more tests for FAB models
-    user = User()
-    assert user.metadata is Base.metadata
 
 
 @pytest.fixture
