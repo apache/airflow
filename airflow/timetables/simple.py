@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from sqlalchemy import Session
 
     from airflow.assets import BaseAsset
-    from airflow.models.dataset import AssetEvent
+    from airflow.models.asset import AssetEvent
     from airflow.timetables.base import TimeRestriction
     from airflow.utils.types import DagRunType
 

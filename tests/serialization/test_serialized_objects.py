@@ -40,10 +40,10 @@ from airflow.exceptions import (
     TaskDeferred,
 )
 from airflow.jobs.job import Job
+from airflow.models.asset import AssetEvent
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, DagModel, DagTag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import AssetEvent
 from airflow.models.param import Param
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.models.tasklog import LogTemplate

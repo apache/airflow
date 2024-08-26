@@ -88,7 +88,7 @@ Variable                                    Type                  Description
 ``{{ expanded_ti_count }}``                 int | ``None``        | Number of task instances that a mapped task was expanded into. If
                                                                   | the current task is not mapped, this should be ``None``.
                                                                   | Added in version 2.5.
-``{{ triggering_dataset_events }}``         dict[str,             | If in a Dataset Scheduled DAG, a map of Dataset URI to a list of triggering :class:`~airflow.models.dataset.DatasetEvent`
+``{{ triggering_dataset_events }}``         dict[str,             | If in a Dataset Scheduled DAG, a map of Dataset URI to a list of triggering :class:`~airflow.models.asset.DatasetEvent`
                                             list[DatasetEvent]]   | (there may be more than one, if there are multiple Datasets with different frequencies).
                                                                   | Read more here :doc:`Datasets <authoring-and-scheduling/datasets>`.
                                                                   | Added in version 2.4.

@@ -143,7 +143,7 @@ def extract_event_key(value: str | Dataset | AssetAlias) -> str:
 @provide_session
 def expand_alias_to_datasets(alias: str | AssetAlias, *, session: Session = NEW_SESSION) -> list[BaseAsset]:
     """Expand asset alias to resolved datasets."""
-    from airflow.models.dataset import AssetAliasModel
+    from airflow.models.asset import AssetAliasModel
 
     alias_name = alias.name if isinstance(alias, AssetAlias) else alias
 

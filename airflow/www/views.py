@@ -104,9 +104,9 @@ from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, Trigger, XCom
+from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel, DagScheduleAssetReference
 from airflow.models.dag import get_dataset_triggered_next_run_info
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
-from airflow.models.dataset import AssetDagRunQueue, AssetEvent, AssetModel, DagScheduleAssetReference
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote

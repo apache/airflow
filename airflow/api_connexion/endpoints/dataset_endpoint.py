@@ -45,7 +45,7 @@ from airflow.api_connexion.schemas.dataset_schema import (
 )
 from airflow.assets import Dataset
 from airflow.assets.manager import asset_manager
-from airflow.models.dataset import AssetDagRunQueue, AssetEvent, AssetModel
+from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.utils import timezone
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session

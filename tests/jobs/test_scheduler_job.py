@@ -50,10 +50,10 @@ from airflow.jobs.backfill_job_runner import BackfillJobRunner
 from airflow.jobs.job import Job, run_job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.pool import Pool
 from airflow.models.serialized_dag import SerializedDagModel

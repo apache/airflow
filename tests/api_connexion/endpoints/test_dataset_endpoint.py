@@ -25,14 +25,14 @@ import time_machine
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagModel
-from airflow.models.dagrun import DagRun
-from airflow.models.dataset import (
+from airflow.models.asset import (
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
     DagScheduleAssetReference,
     TaskOutletAssetReference,
 )
+from airflow.models.dagrun import DagRun
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session

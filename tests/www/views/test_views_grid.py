@@ -28,7 +28,7 @@ from airflow.assets import Dataset
 from airflow.decorators import task_group
 from airflow.lineage.entities import File
 from airflow.models import DagBag
-from airflow.models.dataset import AssetDagRunQueue, AssetEvent, AssetModel
+from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState

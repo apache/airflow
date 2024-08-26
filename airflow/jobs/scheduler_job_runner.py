@@ -44,16 +44,16 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
 from airflow.models import Log
-from airflow.models.dag import DAG, DagModel
-from airflow.models.dagbag import DagBag
-from airflow.models.dagrun import DagRun
-from airflow.models.dataset import (
+from airflow.models.asset import (
     AssetDagRunQueue,
     AssetEvent,
     AssetModel,
     DagScheduleAssetReference,
     TaskOutletAssetReference,
 )
+from airflow.models.dag import DAG, DagModel
+from airflow.models.dagbag import DagBag
+from airflow.models.dagrun import DagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.stats import Stats

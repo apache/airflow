@@ -56,7 +56,8 @@ except ImportError:
 
 
 if TYPE_CHECKING:
-    from airflow.models.dataset import (
+    from airflow.models.asset import (
+        AssetAliasModel,
         AssetDagRunQueue,
         AssetEvent,
         AssetModel,
@@ -65,14 +66,15 @@ if TYPE_CHECKING:
     )
 else:
     try:
-        from airflow.models.dataset import (
+        from airflow.models.asset import (
+            AssetAliasModel,
             AssetDagRunQueue,
             AssetEvent,
             AssetModel,
             DagScheduleAssetReference,
             TaskOutletAssetReference,
         )
-    except ImportError:
+    except ModuleNotFoundError:
         # dataset is renamed to asset since Airflow 3.0
         from airflow.models.dataset import (
             DagScheduleDatasetReference as DagScheduleAssetReference,
@@ -81,6 +83,9 @@ else:
             DatasetModel as AssetModel,
             TaskOutletDatasetReference as TaskOutletAssetReference,
         )
+
+        if AIRFLOW_V_2_10_PLUS:
+            from airflow.models.dataset import DatasetAliasModel as AssetAliasModel
 
 
 def deserialize_operator(serialized_operator: dict[str, Any]) -> Operator:

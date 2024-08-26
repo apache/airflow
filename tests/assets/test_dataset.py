@@ -35,7 +35,7 @@ from airflow.assets import (
     _get_normalized_scheme,
     _sanitize_uri,
 )
-from airflow.models.dataset import AssetAliasModel, AssetDagRunQueue, AssetModel
+from airflow.models.asset import AssetAliasModel, AssetDagRunQueue, AssetModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization, SerializedDAG

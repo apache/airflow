@@ -21,7 +21,7 @@ from __future__ import annotations
 import pytest
 
 from airflow.assets import AssetAlias, AssetAliasEvent, Dataset
-from airflow.models.dataset import AssetAliasModel, AssetModel
+from airflow.models.asset import AssetAliasModel, AssetModel
 from airflow.utils.context import OutletEventAccessor, OutletEventAccessors
 
 

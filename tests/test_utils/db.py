@@ -83,7 +83,7 @@ def clear_db_datasets():
         session.query(DagScheduleAssetReference).delete()
         session.query(TaskOutletAssetReference).delete()
         if AIRFLOW_V_2_10_PLUS:
-            from airflow.models.dataset import AssetAliasModel
+            from tests.test_utils.compat import AssetAliasModel
 
             session.query(AssetAliasModel).delete()
 

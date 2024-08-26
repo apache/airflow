@@ -27,13 +27,13 @@ from airflow.decorators.python import _PythonDecoratedOperator
 from airflow.jobs.job import Job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.models import MappedOperator
-from airflow.models.dag import DAG, DagModel, create_timetable
-from airflow.models.dataset import (
+from airflow.models.asset import (
     AssetEvent,
     AssetModel,
     DagScheduleAssetReference,
     TaskOutletAssetReference,
 )
+from airflow.models.dag import DAG, DagModel, create_timetable
 from airflow.serialization.pydantic.dag import DagModelPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.serialization.pydantic.dataset import DatasetEventPydantic

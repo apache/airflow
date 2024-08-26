@@ -26,8 +26,7 @@ from sqlalchemy.orm import joinedload
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
-from airflow.models.dagbag import DagPriorityParsingRequest
-from airflow.models.dataset import (
+from airflow.models.asset import (
     AssetAliasModel,
     AssetDagRunQueue,
     AssetEvent,
@@ -35,6 +34,7 @@ from airflow.models.dataset import (
     DagScheduleAssetAliasReference,
     DagScheduleAssetReference,
 )
+from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
 

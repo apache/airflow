@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from airflow.assets import AssetAlias
-from airflow.models.dataset import AssetAliasModel
+from airflow.models.asset import AssetAliasModel
 
 
 class TestAssetAliasModel:

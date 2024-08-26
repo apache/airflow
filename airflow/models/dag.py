@@ -96,15 +96,15 @@ from airflow.exceptions import (
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import run_job
 from airflow.models.abstractoperator import AbstractOperator, TaskStateChangeCallback
+from airflow.models.asset import (
+    AssetDagRunQueue,
+    AssetModel,
+)
 from airflow.models.base import Base, StringID
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
-from airflow.models.dataset import (
-    AssetDagRunQueue,
-    AssetModel,
-)
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import (
     Context,
@@ -252,7 +252,7 @@ def get_dataset_triggered_next_run_info(
     Given a list of dag_ids, get string representing how close any that are dataset triggered are
     their next run, e.g. "1 of 2 datasets updated".
     """
-    from airflow.models.dataset import AssetDagRunQueue as ADRQ, DagScheduleAssetReference
+    from airflow.models.asset import AssetDagRunQueue as ADRQ, DagScheduleAssetReference
 
     return {
         x.dag_id: {

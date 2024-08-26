@@ -53,11 +53,11 @@ from airflow.exceptions import (
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
 )
+from airflow.models.asset import AssetAliasModel, AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import AssetAliasModel, AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY, NotFullyPopulated
 from airflow.models.param import process_params
 from airflow.models.pool import Pool

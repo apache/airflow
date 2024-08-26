@@ -87,9 +87,9 @@ from airflow.exceptions import (
     XComForMappingNotPushed,
 )
 from airflow.listeners.listener import get_listener_manager
+from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
-from airflow.models.dataset import AssetEvent, AssetModel
 from airflow.models.log import Log
 from airflow.models.param import process_params
 from airflow.models.renderedtifields import get_serialized_template_fields
@@ -158,6 +158,7 @@ if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
+    from airflow.models.dataset import AssetEvent
     from airflow.models.operator import Operator
     from airflow.serialization.pydantic.dag import DagModelPydantic
     from airflow.serialization.pydantic.dataset import DatasetEventPydantic

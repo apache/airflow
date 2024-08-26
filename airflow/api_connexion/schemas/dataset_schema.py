@@ -23,14 +23,14 @@ from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.api_connexion.schemas.common_schema import JsonObjectField
-from airflow.models.dagrun import DagRun
-from airflow.models.dataset import (
+from airflow.models.asset import (
     AssetAliasModel,
     AssetEvent,
     AssetModel,
     DagScheduleAssetReference,
     TaskOutletAssetReference,
 )
+from airflow.models.dagrun import DagRun
 
 
 class TaskOutletAssetReferenceSchema(SQLAlchemySchema):

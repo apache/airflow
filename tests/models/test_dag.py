@@ -51,6 +51,13 @@ from airflow.exceptions import (
 from airflow.executors import executor_loader
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
+from airflow.models.asset import (
+    AssetAliasModel,
+    AssetDagRunQueue,
+    AssetEvent,
+    AssetModel,
+    TaskOutletAssetReference,
+)
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import (
     DAG,
@@ -63,13 +70,6 @@ from airflow.models.dag import (
     get_dataset_triggered_next_run_info,
 )
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import (
-    AssetAliasModel,
-    AssetDagRunQueue,
-    AssetEvent,
-    AssetModel,
-    TaskOutletAssetReference,
-)
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail

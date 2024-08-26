@@ -27,8 +27,8 @@ from sqlalchemy import delete
 from airflow.assets import Dataset
 from airflow.assets.manager import AssetManager
 from airflow.listeners.listener import get_listener_manager
+from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel, DagScheduleAssetReference
 from airflow.models.dag import DagModel
-from airflow.models.dataset import AssetDagRunQueue, AssetEvent, AssetModel, DagScheduleAssetReference
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from tests.listeners import dataset_listener
 

@@ -33,10 +33,10 @@ from sqlalchemy.orm import Session
 
 from airflow.assets import AssetAlias, AssetAliasEvent, Dataset
 from airflow.configuration import AirflowConfigParser
+from airflow.models.asset import AssetEvent
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import AssetEvent
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.pydantic.dag_run import DagRunPydantic

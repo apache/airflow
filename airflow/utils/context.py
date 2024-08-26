@@ -47,7 +47,7 @@ from airflow.assets import (
     extract_event_key,
 )
 from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models.dataset import AssetAliasModel, AssetEvent, AssetModel
+from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.types import NOTSET
 
