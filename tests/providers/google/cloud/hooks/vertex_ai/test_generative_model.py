@@ -41,7 +41,8 @@ TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
 GCP_PROJECT = "test-project"
 GCP_LOCATION = "us-central1"
 
-TEST_PROMPT = "In 10 words or less, what is apache airflow?"
+TEST_PROMPT = "What is apache airflow?"
+TEST_INSTRUCTION = "Respond in 10 words or less."
 TEST_CONTENTS = [TEST_PROMPT]
 TEST_LANGUAGE_PRETRAINED_MODEL = "text-bison"
 TEST_TEMPERATURE = 0.0
@@ -181,13 +182,17 @@ class TestGenerativeModelWithDefaultProjectIdHook:
         self.hook.generative_model_generate_content(
             project_id=GCP_PROJECT,
             contents=TEST_CONTENTS,
+            system_instruction=TEST_INSTRUCTION,
             location=GCP_LOCATION,
             tools=TEST_TOOLS,
             generation_config=TEST_GENERATION_CONFIG,
             safety_settings=TEST_SAFETY_SETTINGS,
             pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL,
         )
-        mock_model.assert_called_once_with(TEST_MULTIMODAL_PRETRAINED_MODEL)
+        mock_model.assert_called_once_with(
+            model_name=TEST_MULTIMODAL_PRETRAINED_MODEL,
+            system_instruction=TEST_INSTRUCTION
+        )
         mock_model.return_value.generate_content.assert_called_once_with(
             contents=TEST_CONTENTS,
             tools=TEST_TOOLS,

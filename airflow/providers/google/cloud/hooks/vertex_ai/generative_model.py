@@ -56,9 +56,13 @@ class GenerativeModelHook(GoogleBaseHook):
         model = TextEmbeddingModel.from_pretrained(pretrained_model)
         return model
 
-    def get_generative_model(self, pretrained_model: str) -> GenerativeModel:
+    def get_generative_model(
+        self,
+        model_name: str,
+        system_instruction: str | None = None,
+    ) -> GenerativeModel:
         """Return a Generative Model object."""
-        model = GenerativeModel(pretrained_model)
+        model = GenerativeModel(model_name=model_name, system_instruction=system_instruction)
         return model
 
     @deprecated(
@@ -317,6 +321,7 @@ class GenerativeModelHook(GoogleBaseHook):
         self,
         contents: list,
         location: str,
+        system_instruction: str | None = None,
         tools: list | None = None,
         generation_config: dict | None = None,
         safety_settings: dict | None = None,
@@ -329,6 +334,8 @@ class GenerativeModelHook(GoogleBaseHook):
         :param contents: Required. The multi-part content of a message that a user or a program
             gives to the generative model, in order to elicit a specific response.
         :param location: Required. The ID of the Google Cloud location that the service belongs to.
+        :param system_instruction: Optional. Instructions for the model to steer it toward better
+            performance. For example, "Answer as concisely as possible"
         :param generation_config: Optional. Generation configuration settings.
         :param safety_settings: Optional. Per request settings for blocking unsafe content.
         :param pretrained_model: By default uses the pre-trained model `gemini-pro`,
@@ -336,10 +343,12 @@ class GenerativeModelHook(GoogleBaseHook):
             tasks, multi-turn text and code chat, and code generation. It can
             output text and code.
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param tools: Optional. A piece of code that enables the system to interact with external
+            systems to perform an action, or set of actions, outside of knowledge and scope of the model.
         """
         vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
 
-        model = self.get_generative_model(pretrained_model)
+        model = self.get_generative_model(model_name=pretrained_model, system_instruction=system_instruction)
         response = model.generate_content(
             contents=contents,
             tools=tools,
