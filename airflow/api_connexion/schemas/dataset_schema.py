@@ -105,7 +105,7 @@ class AssetCollectionSchema(Schema):
 
 
 dataset_schema = AssetSchema()
-dataset_collection_schema = AssetCollectionSchema()
+asset_collection_schema = AssetCollectionSchema()
 
 
 class BasicDAGRunSchema(SQLAlchemySchema):

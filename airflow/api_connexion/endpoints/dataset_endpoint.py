@@ -35,8 +35,8 @@ from airflow.api_connexion.schemas.dataset_schema import (
     QueuedEvent,
     QueuedEventCollection,
     TaskOutletAssetReference,
+    asset_collection_schema,
     create_dataset_event_schema,
-    dataset_collection_schema,
     dataset_event_collection_schema,
     dataset_event_schema,
     dataset_schema,
@@ -109,7 +109,7 @@ def get_datasets(
         .offset(offset)
         .limit(limit)
     ).all()
-    return dataset_collection_schema.dump(AssetCollection(datasets=assets, total_entries=total_entries))
+    return asset_collection_schema.dump(AssetCollection(datasets=assets, total_entries=total_entries))
 
 
 @security.requires_access_dataset("GET")
