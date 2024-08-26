@@ -16,19 +16,19 @@
 # under the License.
 """
 Example DAG for demonstrating the behavior of the AssetAlias feature in Airflow, including conditional and
-dataset expression-based scheduling.
+asset expression-based scheduling.
 
 Notes on usage:
 
 Turn on all the DAGs.
 
 Before running any DAG, the schedule of the "asset_alias_example_alias_consumer_with_no_taskflow" DAG will show as "unresolved AssetAlias".
-This is expected because the asset alias has not been resolved into any dataset yet.
+This is expected because the asset alias has not been resolved into any asset yet.
 
-Once the "dataset_s3_bucket_producer_with_no_taskflow" DAG is triggered, the "dataset_s3_bucket_consumer_with_no_taskflow" DAG should be triggered upon completion.
-This is because the asset alias "example-alias-no-taskflow" is used to add a dataset event to the dataset "s3://bucket/my-task-with-no-taskflow"
+Once the "asset_s3_bucket_producer_with_no_taskflow" DAG is triggered, the "asset_s3_bucket_consumer_with_no_taskflow" DAG should be triggered upon completion.
+This is because the asset alias "example-alias-no-taskflow" is used to add a asset event to the asset "s3://bucket/my-task-with-no-taskflow"
 during the "produce_asset_events_through_asset_alias_with_no_taskflow" task. Also, the schedule of the "asset_alias_example_alias_consumer_with_no_taskflow" DAG should change to "Dataset" as
-the asset alias "example-alias-no-taskflow" is now resolved to the dataset "s3://bucket/my-task-with-no-taskflow" and this DAG should also be triggered.
+the asset alias "example-alias-no-taskflow" is now resolved to the asset "s3://bucket/my-task-with-no-taskflow" and this DAG should also be triggered.
 """
 
 from __future__ import annotations
@@ -40,11 +40,11 @@ from airflow.assets import AssetAlias, Dataset
 from airflow.operators.python import PythonOperator
 
 with DAG(
-    dag_id="dataset_s3_bucket_producer_with_no_taskflow",
+    dag_id="asset_s3_bucket_producer_with_no_taskflow",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=None,
     catchup=False,
-    tags=["producer", "dataset"],
+    tags=["producer", "asset"],
 ):
 
     def produce_asset_events():
@@ -77,11 +77,11 @@ with DAG(
     )
 
 with DAG(
-    dag_id="dataset_s3_bucket_consumer_with_no_taskflow",
+    dag_id="asset_s3_bucket_consumer_with_no_taskflow",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=[Dataset("s3://bucket/my-task-with-no-taskflow")],
     catchup=False,
-    tags=["consumer", "dataset"],
+    tags=["consumer", "asset"],
 ):
 
     def consume_asset_event():

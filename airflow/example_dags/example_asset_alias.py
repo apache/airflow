@@ -16,21 +16,21 @@
 # under the License.
 """
 Example DAG for demonstrating the behavior of the AssetAlias feature in Airflow, including conditional and
-dataset expression-based scheduling.
+asset expression-based scheduling.
 
 Notes on usage:
 
 Turn on all the DAGs.
 
 Before running any DAG, the schedule of the "asset_alias_example_alias_consumer" DAG will show as "Unresolved AssetAlias".
-This is expected because the asset alias has not been resolved into any dataset yet.
+This is expected because the asset alias has not been resolved into any asset yet.
 
-Once the "dataset_s3_bucket_producer" DAG is triggered, the "dataset_s3_bucket_consumer" DAG should be triggered upon completion.
-This is because the asset alias "example-alias" is used to add an asset event to the dataset "s3://bucket/my-task"
+Once the "asset_s3_bucket_producer" DAG is triggered, the "asset_s3_bucket_consumer" DAG should be triggered upon completion.
+This is because the asset alias "example-alias" is used to add an asset event to the asset "s3://bucket/my-task"
 during the "produce_asset_events_through_asset_alias" task.
 As the DAG "asset-alias-consumer" relies on asset alias "example-alias" which was previously unresolved,
 the DAG "asset-alias-consumer" (along with all the DAGs in the same file) will be re-parsed and
-thus update its schedule to the dataset "s3://bucket/my-task" and will also be triggered.
+thus update its schedule to the asset "s3://bucket/my-task" and will also be triggered.
 """
 
 from __future__ import annotations
@@ -42,11 +42,11 @@ from airflow.assets import AssetAlias, Dataset
 from airflow.decorators import task
 
 with DAG(
-    dag_id="dataset_s3_bucket_producer",
+    dag_id="asset_s3_bucket_producer",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=None,
     catchup=False,
-    tags=["producer", "dataset"],
+    tags=["producer", "asset"],
 ):
 
     @task(outlets=[Dataset("s3://bucket/my-task")])
@@ -72,11 +72,11 @@ with DAG(
     produce_asset_events_through_asset_alias()
 
 with DAG(
-    dag_id="dataset_s3_bucket_consumer",
+    dag_id="asset_s3_bucket_consumer",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=[Dataset("s3://bucket/my-task")],
     catchup=False,
-    tags=["consumer", "dataset"],
+    tags=["consumer", "asset"],
 ):
 
     @task

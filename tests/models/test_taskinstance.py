@@ -2274,11 +2274,11 @@ class TestTaskInstance:
         Verify that when we have an outlet dataset on a task, and the task
         completes successfully, a AssetDagRunQueue is logged.
         """
-        from airflow.example_dags import example_datasets
-        from airflow.example_dags.example_datasets import dag1
+        from airflow.example_dags import example_assets
+        from airflow.example_dags.example_assets import dag1
 
         session = settings.Session()
-        dagbag = DagBag(dag_folder=example_datasets.__file__)
+        dagbag = DagBag(dag_folder=example_assets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
         dagbag.sync_to_db(session=session)
         run_id = str(uuid4())
@@ -2307,13 +2307,13 @@ class TestTaskInstance:
         assert session.query(AssetDagRunQueue.target_dag_id).filter_by(dataset_id=event.dataset.id).order_by(
             AssetDagRunQueue.target_dag_id
         ).all() == [
-            ("conditional_dataset_and_time_based_timetable",),
-            ("consume_1_and_2_with_dataset_expressions",),
-            ("consume_1_or_2_with_dataset_expressions",),
-            ("consume_1_or_both_2_and_3_with_dataset_expressions",),
-            ("dataset_consumes_1",),
-            ("dataset_consumes_1_and_2",),
-            ("dataset_consumes_1_never_scheduled",),
+            ("asset_consumes_1",),
+            ("asset_consumes_1_and_2",),
+            ("asset_consumes_1_never_scheduled",),
+            ("conditional_asset_and_time_based_timetable",),
+            ("consume_1_and_2_with_asset_expressions",),
+            ("consume_1_or_2_with_asset_expressions",),
+            ("consume_1_or_both_2_and_3_with_asset_expressions",),
         ]
 
         # check that one event record created for dataset1 and this TI
