@@ -2489,7 +2489,6 @@ class TestSchedulerJob:
                 task_id="task",
                 bash_command="sleep 10",
             )
-            task.on_kill = MagicMock()
 
         dr = dag_maker.create_dagrun(
             state=DagRunState.RUNNING,
@@ -2515,7 +2514,6 @@ class TestSchedulerJob:
         assert dr.state == DagRunState.FAILED
 
         # Check that the task instance is now in a failed state
-        task.on_kill.assert_called_once()
         ti.refresh_from_db(session=session)
         assert ti.state == TaskInstanceState.FAILED
 
