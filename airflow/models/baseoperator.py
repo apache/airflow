@@ -720,7 +720,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         execution, receiving a context dictionary and task result; raising an
         exception will prevent the task from succeeding.
 
-        |experimental| Note that passing a function to the post_execute parameter is experimental,
+        |experimental| Passing a function to this argument is experimental, although
+        (re-)implementing ``post_execute`` in a custom operator subclass is stable.
         while overriding .post_execute in a custom operator is stable.
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
