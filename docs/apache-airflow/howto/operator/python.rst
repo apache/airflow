@@ -566,7 +566,7 @@ value to be True.
     .. tab-item:: @task.sensor
         :sync: taskflow
 
-        .. exampleinclude:: /../../airflow/example_dags/sensors/example_sensor_decorator.py
+        .. exampleinclude:: /../../airflow/example_dags/example_sensor_decorator.py
             :language: python
             :dedent: 4
             :start-after: [START wait_function]
@@ -575,7 +575,7 @@ value to be True.
     .. tab-item:: PythonSensor
         :sync: operator
 
-        .. exampleinclude:: /../../airflow/example_dags/sensors/example_sensors.py
+        .. exampleinclude:: /../../airflow/example_dags/example_sensors.py
             :language: python
             :dedent: 4
             :start-after: [START example_python_sensors]
