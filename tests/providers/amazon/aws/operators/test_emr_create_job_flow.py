@@ -203,3 +203,50 @@ class TestEmrCreateJobFlowOperator:
         assert isinstance(
             exc.value.trigger, EmrCreateJobFlowTrigger
         ), "Trigger is not a EmrCreateJobFlowTrigger"
+
+
+
+class TestEmrCreateJobFlowOperatorExtended(TestEmrCreateJobFlowOperator):
+
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.EmrCreateJobFlowOperator.defer")
+    def test_deferrable_and_wait_for_completion(self, mock_defer, mocked_hook_client):
+       
+        mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
+
+        self.operator.deferrable = True
+        self.operator.wait_for_completion = True
+
+        self.operator.execute(self.mock_context)
+        mock_defer.assert_called_once_with(
+            trigger=EmrCreateJobFlowTrigger(
+                job_flow_id=JOB_FLOW_ID,
+                aws_conn_id=self.operator.aws_conn_id,
+                waiter_delay=None,
+                waiter_max_attempts=None,
+            ),
+            method_name="execute_complete",
+            timeout=timedelta(seconds=None * None + 60),
+        )
+
+    @mock.patch("botocore.waiter.get_service_module_name", return_value="emr")
+    @mock.patch.object(Waiter, "wait")
+    def test_non_deferrable_but_wait_for_completion(self, mock_waiter, _, mocked_hook_client):
+
+        mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
+
+        self.operator.deferrable = False
+        self.operator.wait_for_completion = True
+
+        assert self.operator.execute(self.mock_context) == JOB_FLOW_ID
+        mock_waiter.assert_called_once_with(mock.ANY, ClusterId=JOB_FLOW_ID, WaiterConfig=mock.ANY)
+
+    def test_no_wait_for_completion(self, mocked_hook_client):
+        
+        mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
+
+        self.operator.deferrable = True  
+        self.operator.wait_for_completion = False
+
+        assert self.operator.execute(self.mock_context) == JOB_FLOW_ID
+        assert not mocked_hook_client.get_waiter.called
+
