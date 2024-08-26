@@ -25,7 +25,7 @@ from airflow.api_connexion.schemas.dataset_schema import (
     asset_collection_schema,
     asset_event_collection_schema,
     asset_event_schema,
-    dataset_schema,
+    asset_schema,
 )
 from airflow.assets import Dataset
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
@@ -64,7 +64,7 @@ class TestAssetSchema(TestAssetSchemaBase):
 
         asset_model = session.query(AssetModel).filter_by(uri=dataset.uri).one()
 
-        serialized_data = dataset_schema.dump(asset_model)
+        serialized_data = asset_schema.dump(asset_model)
         serialized_data["id"] = 1
         assert serialized_data == {
             "id": 1,

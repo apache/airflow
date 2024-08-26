@@ -104,7 +104,7 @@ class AssetCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
-dataset_schema = AssetSchema()
+asset_schema = AssetSchema()
 asset_collection_schema = AssetCollectionSchema()
 
 

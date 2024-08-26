@@ -38,8 +38,8 @@ from airflow.api_connexion.schemas.dataset_schema import (
     asset_collection_schema,
     asset_event_collection_schema,
     asset_event_schema,
+    asset_schema,
     create_asset_event_schema,
-    dataset_schema,
     queued_event_collection_schema,
     queued_event_schema,
 )
@@ -74,7 +74,7 @@ def get_dataset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
             "Asset not found",
             detail=f"The Asset with uri: `{uri}` was not found",
         )
-    return dataset_schema.dump(asset)
+    return asset_schema.dump(asset)
 
 
 @security.requires_access_dataset("GET")
