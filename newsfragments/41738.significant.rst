@@ -1,1 +1,3 @@
 Removed deprecated method ``has_access`` from ``airflow.www.auth``. Please use ``has_access_*`` instead.
+
+Removed deprecated method ``requires_access`` from ``airflow.api_connexion.security``. Please use ``requires_access_*`` instead.
