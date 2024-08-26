@@ -660,16 +660,16 @@ class TestDagProcessorJobRunner:
             SerializedDagModel.write_dag(dag)
 
             # Add DAG to the file_parsing_stats
-            stat = DagFileStat(
-                num_dags=1,
-                import_errors=0,
-                last_finish_time=timezone.utcnow() + timedelta(hours=1),
-                last_duration=1,
-                run_count=1,
-                last_num_of_db_queries=1,
-            )
+            # stat = DagFileStat(
+            #     num_dags=1,
+            #     import_errors=0,
+            #     last_finish_time=timezone.utcnow() + timedelta(hours=1),
+            #     last_duration=1,
+            #     run_count=1,
+            #     last_num_of_db_queries=1,
+            # )
             manager.processor._file_paths = [test_dag_path]
-            manager.processor._file_stats[test_dag_path] = stat
+            # manager.processor._file_stats[test_dag_path] = stat
 
             active_dag_count = (
                 session.query(func.count(DagModel.dag_id))
@@ -816,17 +816,7 @@ class TestDagProcessorJobRunner:
                 other_dag.last_parsed_time = timezone.utcnow()
                 other_dag.sync_to_db(processor_subdir=new_dag_home)
 
-                # Add DAG to the file_parsing_stats
-                stat = DagFileStat(
-                    num_dags=1,
-                    import_errors=0,
-                    last_finish_time=timezone.utcnow() + timedelta(hours=1),
-                    last_duration=1,
-                    run_count=1,
-                    last_num_of_db_queries=1,
-                )
                 manager.processor._file_paths = [new_dag_file]
-                manager.processor._file_stats[new_dag_file] = stat
 
                 active_dag_count = (
                     session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
