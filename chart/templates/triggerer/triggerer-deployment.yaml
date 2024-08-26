@@ -295,7 +295,9 @@ spec:
           emptyDir: {{- toYaml (default (dict) .Values.logs.emptyDirConfig) | nindent 12 }}
   {{- else }}
   volumeClaimTemplates:
-    - metadata:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
         name: logs
         {{- if .Values.triggerer.persistence.annotations }}
         annotations: {{- toYaml .Values.triggerer.persistence.annotations | nindent 10 }}
