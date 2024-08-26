@@ -1,0 +1,1 @@
+Removed deprecated method ``task`` from ``airflow.operators.python`` operator. Please use ``python_task`` from ``airflow.decorators.python`` instead.
