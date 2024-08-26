@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-25T07:46:27.330680
+# This constraints file was automatically generated on 2024-08-26T02:08:55.943537
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -568,9 +568,9 @@ pyiceberg==0.7.1
 pyjsparser==2.7.1
 pykerberos==1.2.4
 pymongo==4.8.0
-pymssql==2.3.0
+pymssql==2.3.1
 pyodbc==5.1.0
-pyparsing==3.1.3
+pyparsing==3.1.4
 pypsrp==0.8.1
 pyspark==3.5.2
 pyspnego==0.11.1
@@ -636,7 +636,7 @@ shellingham==1.5.4
 simple-salesforce==1.12.6
 six==1.16.0
 slack_sdk==3.31.0
-smbprotocol==1.13.0
+smbprotocol==1.14.0
 smmap==5.0.1
 sniffio==1.3.1
 snowballstemmer==2.2.0
