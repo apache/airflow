@@ -78,7 +78,6 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.test_utils.compat import BaseOperatorLink
-from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import AirflowLink2, CustomOperator, GoogleLink, MockOperator
 from tests.test_utils.timetables import CustomSerializationTimetable, cron_timetable, delta_timetable
 
@@ -143,6 +142,12 @@ serialized_simple_dag_ground_truth = {
             },
         },
         "start_date": 1564617600.0,
+        "timetable": {
+            "__type": "airflow.timetables.interval.DeltaDataIntervalTimetable",
+            "__var": {
+                "delta": 86400.0,
+            },
+        },
         "_task_group": {
             "_group_id": None,
             "prefix_group_id": True,
@@ -232,7 +237,6 @@ serialized_simple_dag_ground_truth = {
                 },
             },
         ],
-        "schedule_interval": {"__type": "timedelta", "__var": 86400.0},
         "timezone": "UTC",
         "_access_control": {
             "__type": "dict",
@@ -370,10 +374,9 @@ def collect_dags(dag_folder=None):
 
 
 def get_timetable_based_simple_dag(timetable):
-    """Create a simple_dag variant that uses timetable instead of schedule_interval."""
+    """Create a simple_dag variant that uses a timetable."""
     dag = collect_dags(["airflow/example_dags"])["simple_dag"]
     dag.timetable = timetable
-    dag.schedule_interval = timetable.summary
     return dag
 
 
@@ -453,13 +456,12 @@ class TestStringifiedDAGs:
     )
     @pytest.mark.usefixtures("timetable_plugin")
     def test_dag_serialization_to_timetable(self, timetable, serialized_timetable):
-        """Verify a timetable-backed schedule_interval is excluded in serialization."""
+        """Verify a timetable-backed DAG is serialized correctly."""
         dag = get_timetable_based_simple_dag(timetable)
         serialized_dag = SerializedDAG.to_dict(dag)
         SerializedDAG.validate_schema(serialized_dag)
 
         expected = copy.deepcopy(serialized_simple_dag_ground_truth)
-        del expected["dag"]["schedule_interval"]
         expected["dag"]["timetable"] = serialized_timetable
 
         # these tasks are not mapped / in mapped task group
@@ -864,40 +866,6 @@ class TestStringifiedDAGs:
         assert str(ctx.value) == message
 
     @pytest.mark.parametrize(
-        "serialized_schedule_interval, expected_timetable",
-        [
-            (None, NullTimetable()),
-            ("@weekly", cron_timetable("0 0 * * 0")),
-            ("@once", OnceTimetable()),
-            (
-                {"__type": "timedelta", "__var": 86400.0},
-                delta_timetable(timedelta(days=1)),
-            ),
-        ],
-    )
-    def test_deserialization_schedule_interval(
-        self,
-        serialized_schedule_interval,
-        expected_timetable,
-    ):
-        """Test DAGs serialized before 2.2 can be correctly deserialized."""
-        serialized = {
-            "__version": 1,
-            "dag": {
-                "default_args": {"__type": "dict", "__var": {}},
-                "_dag_id": "simple_dag",
-                "fileloc": __file__,
-                "tasks": [],
-                "timezone": "UTC",
-                "schedule_interval": serialized_schedule_interval,
-            },
-        }
-
-        SerializedDAG.validate_schema(serialized)
-        dag = SerializedDAG.from_dict(serialized)
-        assert dag.timetable == expected_timetable
-
-    @pytest.mark.parametrize(
         "val, expected",
         [
             (relativedelta(days=-1), {"__type": "relativedelta", "__var": {"days": -1}}),
@@ -1122,7 +1090,6 @@ class TestStringifiedDAGs:
         link = simple_task.get_extra_links(ti, GoogleLink.name)
         assert "https://www.google.com" == link
 
-    @pytest.mark.db_test
     def test_extra_operator_links_logs_error_for_non_registered_extra_links(self, caplog):
         """
         Assert OperatorLinks not registered via Plugins and if it is not an inbuilt Operator Link,
@@ -1690,57 +1657,6 @@ class TestStringifiedDAGs:
                     "dependency_id": "task1",
                 }
             ]
-
-    @pytest.mark.db_test
-    @conf_vars(
-        {
-            (
-                "scheduler",
-                "dependency_detector",
-            ): "tests.serialization.test_dag_serialization.CustomDependencyDetector"
-        }
-    )
-    def test_custom_dep_detector(self):
-        """
-        Prior to deprecation of custom dependency detector, the return type was DagDependency | None.
-        This class verifies that custom dependency detector classes which assume that return type will still
-        work until support for them is removed in 3.0.
-
-        TODO: remove in Airflow 3.0
-        """
-        from airflow.sensors.external_task import ExternalTaskSensor
-
-        execution_date = datetime(2020, 1, 1)
-        with DAG(dag_id="test", schedule=None, start_date=execution_date) as dag:
-            ExternalTaskSensor(
-                task_id="task1",
-                external_dag_id="external_dag_id",
-                mode="reschedule",
-            )
-            CustomDepOperator(task_id="hello", bash_command="hi")
-            with pytest.warns(
-                RemovedInAirflow3Warning,
-                match=r"Use of a custom dependency detector is deprecated\. "
-                r"Support will be removed in a future release\.",
-            ):
-                dag = SerializedDAG.to_dict(dag)
-            assert sorted(dag["dag"]["dag_dependencies"], key=lambda x: tuple(x.values())) == sorted(
-                [
-                    {
-                        "source": "external_dag_id",
-                        "target": "test",
-                        "dependency_type": "sensor",
-                        "dependency_id": "task1",
-                    },
-                    {
-                        "source": "test",
-                        "target": "nothing",
-                        "dependency_type": "abc",
-                        "dependency_id": "hello",
-                    },
-                ],
-                key=lambda x: tuple(x.values()),
-            )
 
     @pytest.mark.db_test
     def test_dag_deps_datasets_with_duplicate_dataset(self):

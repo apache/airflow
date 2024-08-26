@@ -24,7 +24,6 @@ import pytest
 from airflow.exceptions import (
     AirflowException,
     AirflowProviderDeprecationWarning,
-    AirflowSkipException,
     TaskDeferred,
 )
 from airflow.models.connection import Connection
@@ -84,9 +83,6 @@ class TestDbtCloudJobRunSensor:
         assert self.sensor.poke({}) == expected_poke_result
 
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, DbtCloudJobRunException), (True, AirflowSkipException))
-    )
-    @pytest.mark.parametrize(
         argnames=("job_run_status", "expected_poke_result"),
         argvalues=[
             (20, "exception"),  # ERROR
@@ -94,10 +90,7 @@ class TestDbtCloudJobRunSensor:
         ],
     )
     @patch.object(DbtCloudHook, "get_job_run_status")
-    def test_poke_with_exception(
-        self, mock_job_run_status, job_run_status, expected_poke_result, soft_fail: bool, expected_exception
-    ):
-        self.sensor.soft_fail = soft_fail
+    def test_poke_with_exception(self, mock_job_run_status, job_run_status, expected_poke_result):
         mock_job_run_status.return_value = job_run_status
 
         # The sensor should fail if the job run status is 20 (aka Error) or 30 (aka Cancelled).
@@ -106,7 +99,7 @@ class TestDbtCloudJobRunSensor:
         else:
             error_message = f"Job run {RUN_ID} has been cancelled."
 
-        with pytest.raises(expected_exception, match=error_message):
+        with pytest.raises(DbtCloudJobRunException, match=error_message):
             self.sensor.poke({})
 
     @mock.patch("airflow.providers.dbt.cloud.sensors.dbt.DbtCloudHook")

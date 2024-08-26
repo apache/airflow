@@ -204,7 +204,7 @@ class TestDag:
 
     def test_not_none_schedule_with_non_default_params(self):
         """
-        Test if there is a DAG with not None schedule_interval and have some params that
+        Test if there is a DAG with not None schedule and have some params that
         don't have a default value raise a error while DAG parsing
         """
         params = {"param1": Param(type="string")}
@@ -864,9 +864,9 @@ class TestDag:
             _next = dag.following_schedule(_next)
         assert _next.isoformat() == "2015-01-02T02:00:00+00:00"
 
-    def test_following_schedule_relativedelta_with_deprecated_schedule_interval(self):
+    def test_following_schedule_relativedelta_with_deprecated_schedule(self):
         """
-        Tests following_schedule a dag with a relativedelta schedule_interval
+        Tests following_schedule a dag with a relativedelta schedule
         """
         dag_id = "test_schedule_dag_relativedelta"
         delta = relativedelta(hours=+1)
@@ -887,9 +887,9 @@ class TestDag:
             _next = dag.following_schedule(_next)
         assert _next.isoformat() == "2015-01-02T02:00:00+00:00"
 
-    def test_following_schedule_relativedelta_with_depr_schedule_interval_decorated_dag(self):
+    def test_following_schedule_relativedelta_with_depr_schedule_decorated_dag(self):
         """
-        Tests following_schedule a dag with a relativedelta schedule_interval
+        Tests following_schedule a dag with a relativedelta schedule
         using decorated dag
         """
         from airflow.decorators import dag
@@ -952,8 +952,8 @@ class TestDag:
 
     def test_fail_dag_when_schedule_is_non_none_and_empty_start_date(self):
         # Check that we get a ValueError 'start_date' for self.start_date when schedule is non-none
-        with pytest.raises(ValueError, match="DAG is missing the start_date parameter"):
-            DAG(dag_id="dag_with_non_none_schedule_and_empty_start_date", schedule="@hourly")
+        with pytest.raises(ValueError, match="start_date is required when catchup=True"):
+            DAG(dag_id="dag_with_non_none_schedule_and_empty_start_date", schedule="@hourly", catchup=True)
 
     def test_following_schedule_datetime_timezone_utc0530(self):
         # Check that we don't get an AttributeError 'name' for self.timezone
@@ -1867,7 +1867,7 @@ class TestDag:
             session.query(DagModel).filter(DagModel.dag_id == dag_id).delete(synchronize_session=False)
 
     @pytest.mark.parametrize(
-        "schedule_interval_arg, expected_timetable, interval_description",
+        "schedule_arg, expected_timetable, interval_description",
         [
             (None, NullTimetable(), "Never, external triggers only"),
             ("@daily", cron_timetable("0 0 * * *"), "At 00:00"),
@@ -1881,41 +1881,17 @@ class TestDag:
             ("30 21 * * 5 1", cron_timetable("30 21 * * 5 1"), ""),
         ],
     )
-    def test_timetable_and_description_from_schedule_interval_arg(
-        self, schedule_interval_arg, expected_timetable, interval_description
+    def test_timetable_and_description_from_schedule_arg(
+        self, schedule_arg, expected_timetable, interval_description
     ):
-        dag = DAG("test_schedule_interval_arg", schedule=schedule_interval_arg, start_date=TEST_DATE)
+        dag = DAG("test_schedule_arg", schedule=schedule_arg, start_date=TEST_DATE)
         assert dag.timetable == expected_timetable
-        assert dag.schedule_interval == schedule_interval_arg
         assert dag.timetable.description == interval_description
 
     def test_timetable_and_description_from_dataset(self):
-        dag = DAG("test_schedule_interval_arg", schedule=[Dataset(uri="hello")], start_date=TEST_DATE)
+        dag = DAG("test_schedule_arg", schedule=[Dataset(uri="hello")], start_date=TEST_DATE)
         assert dag.timetable == DatasetTriggeredTimetable(Dataset(uri="hello"))
-        assert dag.schedule_interval == "Dataset"
         assert dag.timetable.description == "Triggered by datasets"
-
-    def test_schedule_interval_still_works(self):
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match="Param `schedule_interval` is deprecated and will be removed in a future release. Please use `schedule` instead.",
-        ):
-            dag = DAG("test_schedule_interval_arg", schedule_interval="*/5 * * * *", start_date=TEST_DATE)
-        assert dag.timetable == cron_timetable("*/5 * * * *")
-        assert dag.schedule_interval == "*/5 * * * *"
-        assert dag.timetable.description == "Every 5 minutes"
-
-    def test_timetable_still_works(self):
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match="Param `timetable` is deprecated and will be removed in a future release. Please use `schedule` instead.",
-        ):
-            dag = DAG(
-                "test_schedule_interval_arg", timetable=cron_timetable("*/6 * * * *"), start_date=TEST_DATE
-            )
-        assert dag.timetable == cron_timetable("*/6 * * * *")
-        assert dag.schedule_interval == "*/6 * * * *"
-        assert dag.timetable.description == "Every 6 minutes"
 
     @pytest.mark.parametrize(
         "timetable, expected_description",
@@ -1938,7 +1914,7 @@ class TestDag:
         ],
     )
     def test_description_from_timetable(self, timetable, expected_description):
-        dag = DAG("test_schedule_interval_description", schedule=timetable, start_date=TEST_DATE)
+        dag = DAG("test_schedule_description", schedule=timetable, start_date=TEST_DATE)
         assert dag.timetable == timetable
         assert dag.timetable.description == expected_description
 
@@ -2472,7 +2448,7 @@ my_postgres_conn:
 
     def test_next_dagrun_after_auto_align(self):
         """
-        Test if the schedule_interval will be auto aligned with the start_date
+        Test if the schedule will be auto aligned with the start_date
         such that if the start_date coincides with the schedule the first
         execution_date will be start_date, otherwise it will be start_date +
         interval.
@@ -2538,6 +2514,63 @@ my_postgres_conn:
         assert len(deprecation_warnings) == 2
         assert "permission is deprecated" in str(deprecation_warnings[0].message)
         assert "permission is deprecated" in str(deprecation_warnings[1].message)
+
+    @pytest.mark.parametrize(
+        "fab_version, perms, expected_exception, expected_perms",
+        [
+            pytest.param(
+                "1.2.0",
+                {
+                    "role1": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},
+                    "role3": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},
+                    # will raise error in old FAB with new access control format
+                },
+                AirflowException,
+                None,
+                id="old_fab_new_access_control_format",
+            ),
+            pytest.param(
+                "1.2.0",
+                {
+                    "role1": [
+                        permissions.ACTION_CAN_READ,
+                        permissions.ACTION_CAN_EDIT,
+                        permissions.ACTION_CAN_READ,
+                    ],
+                },
+                None,
+                {"role1": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}},
+                id="old_fab_old_access_control_format",
+            ),
+            pytest.param(
+                "1.3.0",
+                {
+                    "role1": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},  # old format
+                    "role3": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},  # new format
+                },
+                None,
+                {
+                    "role1": {
+                        permissions.RESOURCE_DAG: {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
+                    },
+                    "role3": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},
+                },
+                id="new_fab_mixed_access_control_format",
+            ),
+        ],
+    )
+    def test_access_control_format(self, fab_version, perms, expected_exception, expected_perms):
+        if expected_exception:
+            with patch("airflow.models.dag.FAB_VERSION", fab_version):
+                with pytest.raises(
+                    expected_exception,
+                    match="Please upgrade the FAB provider to a version >= 1.3.0 to allow use the Dag Level Access Control new format.",
+                ):
+                    DAG(dag_id="dag_test", schedule=None, access_control=perms)
+        else:
+            with patch("airflow.models.dag.FAB_VERSION", fab_version):
+                dag = DAG(dag_id="dag_test", schedule=None, access_control=perms)
+            assert dag.access_control == expected_perms
 
     def test_validate_executor_field_executor_not_configured(self):
         dag = DAG("test-dag", schedule=None)
@@ -2612,25 +2645,7 @@ my_postgres_conn:
         with pytest.raises(AirflowException):
             DAG("dag", schedule=None, start_date=DEFAULT_DATE, owner_links={"owner1": "my-bad-link"})
 
-    @pytest.mark.parametrize(
-        "kwargs",
-        [
-            {"schedule_interval": "@daily", "schedule": "@weekly"},
-            {"timetable": NullTimetable(), "schedule": "@weekly"},
-            {"timetable": NullTimetable(), "schedule_interval": "@daily"},
-        ],
-        ids=[
-            "schedule_interval+schedule",
-            "timetable+schedule",
-            "timetable+schedule_interval",
-        ],
-    )
-    def test_schedule_dag_param(self, kwargs):
-        with pytest.raises(ValueError, match="At most one"):
-            with DAG(dag_id="hello", start_date=TEST_DATE, **kwargs):
-                pass
-
-    def test_continuous_schedule_interval_linmits_max_active_runs(self):
+    def test_continuous_schedule_linmits_max_active_runs(self):
         dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=1)
         assert isinstance(dag.timetable, ContinuousTimetable)
         assert dag.max_active_runs == 1
@@ -3198,9 +3213,10 @@ class TestDagDecorator:
         dag = xcom_pass_to_op()
         assert dag.params["value"] == value
 
+    @pytest.mark.xfail(strict=True, reason="Airflow 3.0 should not have warnings here anymore")
     def test_warning_location(self):
         # NOTE: This only works as long as there is some warning we can emit from `DAG()`
-        @dag_decorator(schedule_interval=None)
+        @dag_decorator(schedule=None)
         def mydag(): ...
 
         with pytest.warns(RemovedInAirflow3Warning) as warnings:
@@ -3210,32 +3226,6 @@ class TestDagDecorator:
         w = warnings.pop(RemovedInAirflow3Warning)
         assert w.filename == __file__
         assert w.lineno == line
-
-
-@pytest.mark.parametrize("timetable", [NullTimetable(), OnceTimetable()])
-def test_dag_timetable_match_schedule_interval(timetable):
-    dag = DAG("my-dag", schedule=timetable, start_date=DEFAULT_DATE)
-    assert dag._check_schedule_interval_matches_timetable()
-
-
-@pytest.mark.parametrize("schedule_interval", [None, "@once", "@daily", timedelta(days=1)])
-def test_dag_schedule_interval_match_timetable(schedule_interval):
-    dag = DAG("my-dag", schedule=schedule_interval, start_date=DEFAULT_DATE)
-    assert dag._check_schedule_interval_matches_timetable()
-
-
-@pytest.mark.parametrize("schedule_interval", [None, "@daily", timedelta(days=1)])
-def test_dag_schedule_interval_change_after_init(schedule_interval):
-    dag = DAG("my-dag", schedule=OnceTimetable(), start_date=DEFAULT_DATE)
-    dag.schedule_interval = schedule_interval
-    assert not dag._check_schedule_interval_matches_timetable()
-
-
-@pytest.mark.parametrize("timetable", [NullTimetable(), OnceTimetable()])
-def test_dag_timetable_change_after_init(timetable):
-    dag = DAG("my-dag", schedule=timedelta(days=1), start_date=DEFAULT_DATE)
-    dag.timetable = timetable
-    assert not dag._check_schedule_interval_matches_timetable()
 
 
 @pytest.mark.parametrize(

@@ -33,7 +33,7 @@ from packaging.version import Version
 from airflow import __version__ as AIRFLOW_VERSION
 from airflow.datasets import Dataset
 from airflow.exceptions import AirflowProviderDeprecationWarning  # TODO: move this maybe to Airflow's logic?
-from airflow.models import DAG, BaseOperator, MappedOperator, Operator
+from airflow.models import DAG, BaseOperator, MappedOperator
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.facets import (
     AirflowDagRunFacet,
@@ -244,7 +244,16 @@ class InfoJsonEncodable(dict):
 class DagInfo(InfoJsonEncodable):
     """Defines encoding DAG object to JSON."""
 
-    includes = ["dag_id", "description", "fileloc", "owner", "schedule_interval", "start_date", "tags"]
+    includes = [
+        "dag_id",
+        "description",
+        "fileloc",
+        "owner",
+        "schedule_interval",  # For Airflow 2.
+        "timetable_summary",  # For Airflow 3.
+        "start_date",
+        "tags",
+    ]
     casts = {"timetable": lambda dag: dag.timetable.serialize() if getattr(dag, "timetable", None) else None}
     renames = {"_dag_id": "dag_id"}
 
@@ -423,7 +432,7 @@ def get_airflow_job_facet(dag_run: DagRun) -> dict[str, AirflowJobFacet]:
         return {}
     return {
         "airflow": AirflowJobFacet(
-            taskTree=_get_parsed_dag_tree(dag_run.dag),
+            taskTree={},  # caused OOM errors, to be removed, see #41587
             taskGroups=_get_task_groups_details(dag_run.dag),
             tasks=_get_tasks_details(dag_run.dag),
         )
@@ -439,43 +448,6 @@ def get_airflow_state_run_facet(dag_run: DagRun) -> dict[str, AirflowStateRunFac
     }
 
 
-def _get_parsed_dag_tree(dag: DAG) -> dict:
-    """
-    Get DAG's tasks hierarchy representation.
-
-    While the task dependencies are defined as following:
-    task >> [task_2, task_4] >> task_7
-    task_3 >> task_5
-    task_6  # has no dependencies, it's a root and a leaf
-
-    The result of this function will look like:
-    {
-        "task": {
-            "task_2": {
-                "task_7": {}
-            },
-            "task_4": {
-                "task_7": {}
-            }
-        },
-        "task_3": {
-            "task_5": {}
-        },
-        "task_6": {}
-    }
-    """
-
-    def get_downstream(task: Operator, current_dict: dict):
-        current_dict[task.task_id] = {}
-        for tmp_task in sorted(task.downstream_list, key=lambda x: x.task_id):
-            get_downstream(tmp_task, current_dict[task.task_id])
-
-    task_dict: dict = {}
-    for t in sorted(dag.roots, key=lambda x: x.task_id):
-        get_downstream(t, task_dict)
-    return task_dict
-
-
 def _get_tasks_details(dag: DAG) -> dict:
     tasks = {
         single_task.task_id: {
@@ -487,8 +459,9 @@ def _get_tasks_details(dag: DAG) -> dict:
             "ui_label": single_task.label,
             "is_setup": single_task.is_setup,
             "is_teardown": single_task.is_teardown,
+            "downstream_task_ids": sorted(single_task.downstream_task_ids),
         }
-        for single_task in dag.tasks
+        for single_task in sorted(dag.tasks, key=lambda x: x.task_id)
     }
 
     return tasks

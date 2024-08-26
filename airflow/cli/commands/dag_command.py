@@ -345,7 +345,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "file_token": None,
         "owners": dag.owner,
         "description": dag.description,
-        "schedule_interval": dag.schedule_interval,
+        "timetable_summary": dag.timetable.summary,
         "timetable_description": dag.timetable.description,
         "tags": dag.tags,
         "max_active_tasks": dag.max_active_tasks,

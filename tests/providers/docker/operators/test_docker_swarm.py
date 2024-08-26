@@ -38,7 +38,7 @@ class TestDockerSwarmOperator:
             for _ in range(2):
                 yield [{"Status": {"State": "pending"}}]
             while True:
-                yield [{"Status": {"State": "complete"}}]
+                yield [{"Status": {"State": "complete", "ContainerStatus": {"ContainerID": "some_id"}}}]
 
         def _client_service_logs_effect():
             service_logs = [
@@ -123,7 +123,7 @@ class TestDockerSwarmOperator:
         assert cskwargs["labels"] == {"name": "airflow__adhoc_airflow__unittest"}
         assert cskwargs["name"].startswith("airflow-")
         assert cskwargs["mode"] == types.ServiceMode(mode="replicated", replicas=3)
-        assert client_mock.tasks.call_count == 6
+        assert client_mock.tasks.call_count == 8
         client_mock.remove_service.assert_called_once_with("some_id")
 
     @mock.patch("airflow.providers.docker.operators.docker_swarm.types")
@@ -134,7 +134,9 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [{"Status": {"State": "complete"}}]
+        client_mock.tasks.return_value = [
+            {"Status": {"State": "complete", "ContainerStatus": {"ContainerID": "some_id"}}}
+        ]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
@@ -157,7 +159,9 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [{"Status": {"State": "complete"}}]
+        client_mock.tasks.return_value = [
+            {"Status": {"State": "complete", "ContainerStatus": {"ContainerID": "some_id"}}}
+        ]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
@@ -233,7 +237,9 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [{"Status": {"State": "complete"}}]
+        client_mock.tasks.return_value = [
+            {"Status": {"State": "complete", "ContainerStatus": {"ContainerID": "some_id"}}}
+        ]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
@@ -278,7 +284,9 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [{"Status": {"State": "complete"}}]
+        client_mock.tasks.return_value = [
+            {"Status": {"State": "complete", "ContainerStatus": {"ContainerID": "some_id"}}}
+        ]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj
@@ -316,7 +324,9 @@ class TestDockerSwarmOperator:
         client_mock.create_service.return_value = {"ID": "some_id"}
         client_mock.images.return_value = []
         client_mock.pull.return_value = [b'{"status":"pull log"}']
-        client_mock.tasks.return_value = [{"Status": {"State": "complete"}}]
+        client_mock.tasks.return_value = [
+            {"Status": {"State": "complete", "ContainerStatus": {"ContainerID": "some_id"}}}
+        ]
         types_mock.TaskTemplate.return_value = mock_obj
         types_mock.ContainerSpec.return_value = mock_obj
         types_mock.RestartPolicy.return_value = mock_obj

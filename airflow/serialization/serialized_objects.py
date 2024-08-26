@@ -23,7 +23,6 @@ import datetime
 import enum
 import inspect
 import logging
-import warnings
 import weakref
 from inspect import signature
 from textwrap import dedent
@@ -37,7 +36,6 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from airflow import macros
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
 from airflow.compat.functools import cache
-from airflow.configuration import conf
 from airflow.datasets import (
     BaseDataset,
     Dataset,
@@ -46,12 +44,12 @@ from airflow.datasets import (
     DatasetAny,
     _DatasetAliasCondition,
 )
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError, TaskDeferred
+from airflow.exceptions import AirflowException, SerializationError, TaskDeferred
 from airflow.jobs.job import Job
 from airflow.models import Trigger
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
-from airflow.models.dag import DAG, DagModel, create_timetable
+from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY, create_expand_input, get_map_type_key
 from airflow.models.mappedoperator import MappedOperator
@@ -1425,31 +1423,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     @classmethod
     def detect_dependencies(cls, op: Operator) -> set[DagDependency]:
         """Detect between DAG dependencies for the operator."""
-
-        def get_custom_dep() -> list[DagDependency]:
-            """
-            If custom dependency detector is configured, use it.
-
-            TODO: Remove this logic in 3.0.
-            """
-            custom_dependency_detector_cls = conf.getimport("scheduler", "dependency_detector", fallback=None)
-            if not (
-                custom_dependency_detector_cls is None or custom_dependency_detector_cls is DependencyDetector
-            ):
-                warnings.warn(
-                    "Use of a custom dependency detector is deprecated. "
-                    "Support will be removed in a future release.",
-                    RemovedInAirflow3Warning,
-                    stacklevel=1,
-                )
-                dep = custom_dependency_detector_cls().detect_task_dependencies(op)
-                if type(dep) is DagDependency:
-                    return [dep]
-            return []
-
         dependency_detector = DependencyDetector()
         deps = set(dependency_detector.detect_task_dependencies(op))
-        deps.update(get_custom_dep())  # todo: remove in 3.0
         return deps
 
     @classmethod
@@ -1604,7 +1579,7 @@ class SerializedDAG(DAG, BaseSerialization):
     not pickle-able. SerializedDAG works for all DAGs.
     """
 
-    _decorated_fields = {"schedule_interval", "default_args", "_access_control"}
+    _decorated_fields = {"default_args", "_access_control"}
 
     @staticmethod
     def __get_constructor_defaults():
@@ -1631,16 +1606,7 @@ class SerializedDAG(DAG, BaseSerialization):
         """Serialize a DAG into a JSON object."""
         try:
             serialized_dag = cls.serialize_to_json(dag, cls._decorated_fields)
-
             serialized_dag["_processor_dags_folder"] = DAGS_FOLDER
-
-            # If schedule_interval is backed by timetable, serialize only
-            # timetable; vice versa for a timetable backed by schedule_interval.
-            if dag.timetable.summary == dag.schedule_interval:
-                del serialized_dag["schedule_interval"]
-            else:
-                del serialized_dag["timetable"]
-
             serialized_dag["tasks"] = [cls.serialize(task) for _, task in dag.task_dict.items()]
 
             dag_deps = [
@@ -1706,14 +1672,6 @@ class SerializedDAG(DAG, BaseSerialization):
             # else use v as it is
 
             setattr(dag, k, v)
-
-        # A DAG is always serialized with only one of schedule_interval and
-        # timetable. This back-populates the other to ensure the two attributes
-        # line up correctly on the DAG instance.
-        if "timetable" in encoded_dag:
-            dag.schedule_interval = dag.timetable.summary
-        else:
-            dag.timetable = create_timetable(dag.schedule_interval, dag.timezone)
 
         # Set _task_group
         if "_task_group" in encoded_dag:

@@ -22,7 +22,7 @@ import pytest
 from flask import Response
 from flask_appbuilder.const import AUTH_LDAP
 
-from airflow.api.auth.backend.basic_auth import requires_authentication
+from airflow.providers.fab.auth_manager.api.auth.backend.basic_auth import requires_authentication
 from airflow.www import app as application
 from tests.test_utils.compat import AIRFLOW_V_2_9_PLUS
 

@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Sequence
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.workflows.executions_v1beta import Execution
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.workflows import WorkflowsHook
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.sensors.base import BaseSensorOperator
@@ -101,13 +101,10 @@ class WorkflowExecutionSensor(BaseSensorOperator):
 
         state = execution.state
         if state in self.failure_states:
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = (
                 f"Execution {self.execution_id} for workflow {self.execution_id} "
                 f"failed and is in `{state}` state"
             )
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
 
         if state in self.success_states:
