@@ -33,9 +33,7 @@ from airflow.providers.amazon.aws.auth_manager.avp.facade import (
 from airflow.providers.amazon.aws.auth_manager.cli.definition import (
     AWS_AUTH_MANAGER_COMMANDS,
 )
-from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
-    AwsSecurityManagerOverride,
-)
+from airflow.providers.amazon.aws.auth_manager.views.auth import AwsAuthManagerAuthenticationViews
 
 try:
     from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
@@ -408,10 +406,6 @@ class AwsAuthManager(BaseAuthManager):
     def get_url_logout(self) -> str:
         return url_for("AwsAuthManagerAuthenticationViews.logout")
 
-    @cached_property
-    def security_manager(self) -> AwsSecurityManagerOverride:
-        return AwsSecurityManagerOverride(self.appbuilder)
-
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
         """Vends CLI commands to be included in Airflow CLI."""
@@ -422,6 +416,9 @@ class AwsAuthManager(BaseAuthManager):
                 subcommands=AWS_AUTH_MANAGER_COMMANDS,
             ),
         ]
+
+    def register_views(self) -> None:
+        self.appbuilder.add_view_no_menu(AwsAuthManagerAuthenticationViews())
 
     @staticmethod
     def _get_menu_item_request(resource_name: str) -> IsAuthorizedRequest:

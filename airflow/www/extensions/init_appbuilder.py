@@ -342,7 +342,7 @@ class AirflowAppBuilder:
         self.add_view_no_menu(self.indexview)
         self.add_view_no_menu(UtilView())
         self.bm.register_views()
-        self.sm.register_views()
+        get_auth_manager().register_views()
 
     def _add_addon_views(self):
         """Register declared addons."""
