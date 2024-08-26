@@ -147,8 +147,8 @@ class DatasetEventSchema(SQLAlchemySchema):
     timestamp = auto_field()
 
 
-class DatasetEventCollection(NamedTuple):
-    """List of Dataset events with meta."""
+class AssetEventCollection(NamedTuple):
+    """List of Asset events with meta."""
 
     dataset_events: list[AssetEvent]
     total_entries: int

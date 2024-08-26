@@ -20,8 +20,8 @@ import pytest
 import time_machine
 
 from airflow.api_connexion.schemas.dataset_schema import (
+    AssetEventCollection,
     DatasetCollection,
-    DatasetEventCollection,
     dataset_collection_schema,
     dataset_event_collection_schema,
     dataset_event_schema,
@@ -219,7 +219,7 @@ class TestAssetEventCollectionSchema(TestDatasetSchemaBase):
         session.add_all(events)
         session.flush()
         serialized_data = dataset_event_collection_schema.dump(
-            DatasetEventCollection(dataset_events=events, total_entries=2)
+            AssetEventCollection(dataset_events=events, total_entries=2)
         )
         assert serialized_data == {
             "dataset_events": [

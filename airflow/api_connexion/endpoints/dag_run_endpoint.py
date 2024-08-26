@@ -51,7 +51,7 @@ from airflow.api_connexion.schemas.dag_run_schema import (
     set_dagrun_state_form_schema,
 )
 from airflow.api_connexion.schemas.dataset_schema import (
-    DatasetEventCollection,
+    AssetEventCollection,
     dataset_event_collection_schema,
 )
 from airflow.api_connexion.schemas.task_instance_schema import (
@@ -131,7 +131,7 @@ def get_upstream_dataset_events(
         )
     events = dag_run.consumed_dataset_events
     return dataset_event_collection_schema.dump(
-        DatasetEventCollection(dataset_events=events, total_entries=len(events))
+        AssetEventCollection(dataset_events=events, total_entries=len(events))
     )
 
 
