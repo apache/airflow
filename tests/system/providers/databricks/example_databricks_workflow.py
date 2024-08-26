@@ -41,7 +41,6 @@ USER = os.environ.get("USER")
 QUERY_ID = os.environ.get("QUERY_ID", "d3773b5a-56f9-422c-ae60-048eaa90aa33")
 WAREHOUSE_ID = os.environ.get("WAREHOUSE_ID", "368fe30b92228713")
 
-
 # job_cluster_spec example for Databricks on Azure
 job_cluster_spec = [
     {
@@ -64,32 +63,6 @@ job_cluster_spec = [
         },
     }
 ]
-
-# The above job_cluster_spec is an example of specifying a job_cluster spec for Databricks on Azure.
-# In case you are using Databricks on AWS, you can refer the below job_cluster_spec as an example.
-# job_cluster_spec = [
-#     {
-#         "job_cluster_key": "Shared_job_cluster",
-#         "new_cluster": {
-#             "cluster_name": "",
-#             "spark_version": "11.3.x-scala2.12",
-#             "aws_attributes": {
-#                 "first_on_demand": 1,
-#                 "availability": "SPOT_WITH_FALLBACK",
-#                 "zone_id": "us-east-2b",
-#                 "spot_bid_price_percent": 100,
-#                 "ebs_volume_count": 0,
-#             },
-#             "node_type_id": "i3.xlarge",
-#             "spark_env_vars": {"PYSPARK_PYTHON": "/databricks/python3/bin/python3"},
-#             "enable_elastic_disk": False,
-#             "data_security_mode": "LEGACY_SINGLE_USER_STANDARD",
-#             "runtime_engine": "STANDARD",
-#             "num_workers": 8,
-#         },
-#     }
-# ]
-
 
 dag = DAG(
     dag_id="example_databricks_workflow",
