@@ -34,7 +34,7 @@ from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow import macros
-from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
+from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.compat.functools import cache
 from airflow.datasets import (
     BaseDataset,
@@ -758,8 +758,6 @@ class BaseSerialization:
             return cls._encode(var.to_json(), type_=DAT.TASK_CALLBACK_REQUEST)
         elif isinstance(var, DagCallbackRequest):
             return cls._encode(var.to_json(), type_=DAT.DAG_CALLBACK_REQUEST)
-        elif isinstance(var, SlaCallbackRequest):
-            return cls._encode(var.to_json(), type_=DAT.SLA_CALLBACK_REQUEST)
         elif var.__class__ == Context:
             d = {}
             for k, v in var._context.items():
@@ -890,8 +888,6 @@ class BaseSerialization:
             return TaskCallbackRequest.from_json(var)
         elif type_ == DAT.DAG_CALLBACK_REQUEST:
             return DagCallbackRequest.from_json(var)
-        elif type_ == DAT.SLA_CALLBACK_REQUEST:
-            return SlaCallbackRequest.from_json(var)
         elif type_ == DAT.TASK_INSTANCE_KEY:
             return TaskInstanceKey(**var)
         elif use_pydantic_models and _ENABLE_AIP_44:
@@ -1289,7 +1285,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 continue
             elif k == "downstream_task_ids":
                 v = set(v)
-            elif k in {"retry_delay", "execution_timeout", "sla", "max_retry_delay"}:
+            elif k in {"retry_delay", "execution_timeout", "max_retry_delay"}:
                 v = cls._deserialize_timedelta(v)
             elif k in encoded_op["template_fields"]:
                 pass

@@ -250,7 +250,6 @@ def partial(
     retry_exponential_backoff: bool | ArgNotSet = NOTSET,
     priority_weight: int | ArgNotSet = NOTSET,
     weight_rule: str | PriorityWeightStrategy | ArgNotSet = NOTSET,
-    sla: timedelta | None | ArgNotSet = NOTSET,
     map_index_template: str | None | ArgNotSet = NOTSET,
     max_active_tis_per_dag: int | None | ArgNotSet = NOTSET,
     max_active_tis_per_dagrun: int | None | ArgNotSet = NOTSET,
@@ -319,7 +318,6 @@ def partial(
         "retry_exponential_backoff": retry_exponential_backoff,
         "priority_weight": priority_weight,
         "weight_rule": weight_rule,
-        "sla": sla,
         "max_active_tis_per_dag": max_active_tis_per_dag,
         "max_active_tis_per_dagrun": max_active_tis_per_dagrun,
         "on_execute_callback": on_execute_callback,
@@ -677,17 +675,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         way to limit concurrency for certain tasks
     :param pool_slots: the number of pool slots this task should use (>= 1)
         Values less than 1 are not allowed.
-    :param sla: time by which the job is expected to succeed. Note that
-        this represents the ``timedelta`` after the period is closed. For
-        example if you set an SLA of 1 hour, the scheduler would send an email
-        soon after 1:00AM on the ``2016-01-02`` if the ``2016-01-01`` instance
-        has not succeeded yet.
-        The scheduler pays special attention for jobs with an SLA and
-        sends alert
-        emails for SLA misses. SLA misses are also recorded in the database
-        for future reference. All tasks that share the same SLA time
-        get bundled in a single email, sent soon after that time. SLA
-        notification are sent once and only once for each task instance.
     :param execution_timeout: max time allowed for the execution of
         this task instance, if it goes beyond it will raise and fail.
     :param on_failure_callback: a function or list of functions to be called when a task instance
@@ -822,7 +809,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "depends_on_past",
         "wait_for_downstream",
         "priority_weight",
-        "sla",
         "execution_timeout",
         "on_execute_callback",
         "on_failure_callback",
@@ -884,7 +870,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         queue: str = DEFAULT_QUEUE,
         pool: str | None = None,
         pool_slots: int = DEFAULT_POOL_SLOTS,
-        sla: timedelta | None = None,
         execution_timeout: timedelta | None = DEFAULT_TASK_EXECUTION_TIMEOUT,
         on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
         on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
@@ -975,7 +960,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if self.pool_slots < 1:
             dag_str = f" in dag {dag.dag_id}" if dag else ""
             raise ValueError(f"pool slots for {self.task_id}{dag_str} cannot be less than 1")
-        self.sla = sla
 
         if not TriggerRule.is_valid(trigger_rule):
             raise AirflowException(
