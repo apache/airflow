@@ -36,7 +36,7 @@ from airflow.api_connexion.schemas.dataset_schema import (
     QueuedEventCollection,
     TaskOutletAssetReference,
     asset_collection_schema,
-    create_dataset_event_schema,
+    create_asset_event_schema,
     dataset_event_collection_schema,
     dataset_event_schema,
     dataset_schema,
@@ -329,7 +329,7 @@ def create_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
     """Create asset event."""
     body = get_json_request_dict()
     try:
-        json_body = create_dataset_event_schema.load(body)
+        json_body = create_asset_event_schema.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 

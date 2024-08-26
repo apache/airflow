@@ -170,7 +170,7 @@ class CreateAssetEventSchema(Schema):
 
 dataset_event_schema = AssetEventSchema()
 dataset_event_collection_schema = AssetEventCollectionSchema()
-create_dataset_event_schema = CreateAssetEventSchema()
+create_asset_event_schema = CreateAssetEventSchema()
 
 
 class QueuedEvent(NamedTuple):
