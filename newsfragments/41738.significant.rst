@@ -1,3 +1,5 @@
 Removed deprecated method ``has_access`` from ``airflow.www.auth``. Please use ``has_access_*`` instead.
 
 Removed deprecated method ``requires_access`` from ``airflow.api_connexion.security``. Please use ``requires_access_*`` instead.
+
+Removed deprecated method ``get_sensitive_variables_fields`` and ``should_hide_value_for_key`` from ``airflow.www.utils``. Please use ``airflow.utils.log.secrets_masker.get_sensitive_variables_fields`` and ``airflow.utils.log.secrets_masker.should_hide_value_for_key`` instead.
