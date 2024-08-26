@@ -1,1 +1,1 @@
-Removed deprecated module ``airflow.hooks.dbapi``.
+Removed deprecated module ``airflow.hooks.dbapi``. You can access the module from common.sql provider
