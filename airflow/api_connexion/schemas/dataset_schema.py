@@ -155,14 +155,14 @@ class DatasetEventCollection(NamedTuple):
 
 
 class AssetEventCollectionSchema(Schema):
-    """Dataset Event Collection Schema."""
+    """Asset Event Collection Schema."""
 
     dataset_events = fields.List(fields.Nested(DatasetEventSchema))
     total_entries = fields.Int()
 
 
-class CreateDatasetEventSchema(Schema):
-    """Create Dataset Event Schema."""
+class CreateAssetEventSchema(Schema):
+    """Create Asset Event Schema."""
 
     dataset_uri = fields.String()
     extra = JsonObjectField()
@@ -170,7 +170,7 @@ class CreateDatasetEventSchema(Schema):
 
 dataset_event_schema = DatasetEventSchema()
 dataset_event_collection_schema = AssetEventCollectionSchema()
-create_dataset_event_schema = CreateDatasetEventSchema()
+create_dataset_event_schema = CreateAssetEventSchema()
 
 
 class QueuedEvent(NamedTuple):
