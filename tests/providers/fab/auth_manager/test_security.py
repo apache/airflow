@@ -34,13 +34,12 @@ from sqlalchemy import Column, Date, Float, Integer, String
 from airflow.configuration import initialize_config
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
-from airflow.models.base import Base
 from airflow.models.dag import DAG
 from tests.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
-    from airflow.providers.fab.auth_manager.models import User, assoc_permission_role
+    from airflow.providers.fab.auth_manager.models import assoc_permission_role
     from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 
 from airflow.security import permissions
@@ -265,25 +264,6 @@ def assert_user_does_not_have_dag_perms(has_dag_perm):
             assert not has_dag_perm(perm, dag_id, user), f"User should not have '{perm}' on DAG '{dag_id}'"
 
     return _assert_user_does_not_have_dag_perms
-
-
-@pytest.mark.parametrize(
-    "role",
-    [{"name": "MyRole7", "permissions": [("can_some_other_action", "AnotherBaseView")], "create": False}],
-    indirect=True,
-)
-def test_init_role_baseview(app, security_manager, role):
-    _, params = role
-
-    with pytest.warns(
-        DeprecationWarning,
-        match="`init_role` has been deprecated\\. Please use `bulk_sync_roles` instead\\.",
-    ):
-        security_manager.init_role(params["name"], params["permissions"])
-
-    _role = security_manager.find_role(params["name"])
-    assert _role is not None
-    assert len(_role.permissions) == len(params["permissions"])
 
 
 @pytest.mark.parametrize(
@@ -514,7 +494,10 @@ def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, sessio
             ],
         ) as user:
             mock_is_logged_in.return_value = True
-            dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
+            if hasattr(DagModel, "schedule_interval"):  # Airflow 2 compat.
+                dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
+            else:  # Airflow 3.
+                dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", timetable_summary="2 2 * * *")
             session.add(dag_model)
             session.commit()
 
@@ -545,7 +528,10 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
             ],
         ) as user:
             mock_is_logged_in.return_value = True
-            dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
+            if hasattr(DagModel, "schedule_interval"):  # Airflow 2 compat.
+                dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
+            else:  # Airflow 3.
+                dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", timetable_summary="2 2 * * *")
             session.add(dag_model)
             session.commit()
 
@@ -997,17 +983,6 @@ def test_get_all_roles_with_permissions(security_manager):
     assert "Admin" in roles
 
 
-def test_prefixed_dag_id_is_deprecated(security_manager):
-    with pytest.warns(
-        DeprecationWarning,
-        match=(
-            "`prefixed_dag_id` has been deprecated. "
-            "Please use `airflow.security.permissions.resource_name` instead."
-        ),
-    ):
-        security_manager.prefixed_dag_id("hello")
-
-
 def test_permissions_work_for_dags_with_dot_in_dagname(
     app, security_manager, assert_user_has_dag_perms, assert_user_does_not_have_dag_perms, session
 ):
@@ -1040,12 +1015,6 @@ def test_permissions_work_for_dags_with_dot_in_dagname(
             assert_user_has_dag_perms(perms=["GET", "PUT"], dag_id=dag_id, user=user)
             assert_user_does_not_have_dag_perms(perms=["GET", "PUT"], dag_id=dag_id_2, user=user)
             session.query(DagModel).delete()
-
-
-def test_fab_models_use_airflow_base_meta():
-    # TODO: move this test to appropriate place when we have more tests for FAB models
-    user = User()
-    assert user.metadata is Base.metadata
 
 
 @pytest.fixture

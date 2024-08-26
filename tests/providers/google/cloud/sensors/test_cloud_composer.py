@@ -26,7 +26,6 @@ import pytest
 from airflow.exceptions import (
     AirflowException,
     AirflowProviderDeprecationWarning,
-    AirflowSkipException,
     TaskDeferred,
 )
 from airflow.providers.google.cloud.sensors.cloud_composer import (
@@ -86,10 +85,9 @@ class TestCloudComposerEnvironmentSensor:
             exc.value.trigger, CloudComposerExecutionTrigger
         ), "Trigger is not a CloudComposerExecutionTrigger"
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
-    def test_cloud_composer_existence_sensor_async_execute_failure(self, soft_fail, expected_exception):
+    def test_cloud_composer_existence_sensor_async_execute_failure(
+        self,
+    ):
         """Tests that an expected exception is raised in case of error event."""
         with pytest.warns(AirflowProviderDeprecationWarning, match=DEPRECATION_MESSAGE):
             task = CloudComposerEnvironmentSensor(
@@ -97,9 +95,8 @@ class TestCloudComposerEnvironmentSensor:
                 project_id=TEST_PROJECT_ID,
                 region=TEST_REGION,
                 operation_name=TEST_OPERATION_NAME,
-                soft_fail=soft_fail,
             )
-        with pytest.raises(expected_exception, match="No event received in trigger callback"):
+        with pytest.raises(AirflowException, match="No event received in trigger callback"):
             task.execute_complete(context={}, event=None)
 
     def test_cloud_composer_existence_sensor_async_execute_complete(self):

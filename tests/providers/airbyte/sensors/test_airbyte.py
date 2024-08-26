@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.airbyte.sensors.airbyte import AirbyteJobSensor
 
 
@@ -48,20 +48,16 @@ class TestAirbyteJobSensor:
         mock_get_job.assert_called_once_with(job_id=self.job_id)
         assert ret
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job")
-    def test_failed(self, mock_get_job, soft_fail: bool, expected_exception: type[AirflowException]):
+    def test_failed(self, mock_get_job):
         mock_get_job.return_value = self.get_job("failed")
 
         sensor = AirbyteJobSensor(
             task_id=self.task_id,
             airbyte_job_id=self.job_id,
             airbyte_conn_id=self.airbyte_conn_id,
-            soft_fail=soft_fail,
         )
-        with pytest.raises(expected_exception, match="Job failed"):
+        with pytest.raises(AirflowException, match="Job failed"):
             sensor.poke(context={})
 
         mock_get_job.assert_called_once_with(job_id=self.job_id)
@@ -81,20 +77,16 @@ class TestAirbyteJobSensor:
 
         assert not ret
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job")
-    def test_cancelled(self, mock_get_job, soft_fail: bool, expected_exception: type[AirflowException]):
+    def test_cancelled(self, mock_get_job):
         mock_get_job.return_value = self.get_job("cancelled")
 
         sensor = AirbyteJobSensor(
             task_id=self.task_id,
             airbyte_job_id=self.job_id,
             airbyte_conn_id=self.airbyte_conn_id,
-            soft_fail=soft_fail,
         )
-        with pytest.raises(expected_exception, match="Job was cancelled"):
+        with pytest.raises(AirflowException, match="Job was cancelled"):
             sensor.poke(context={})
 
         mock_get_job.assert_called_once_with(job_id=self.job_id)
