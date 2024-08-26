@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
-from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException, TaskDeferred
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
 
@@ -98,23 +98,19 @@ class TestPubSubPullSensor:
         )
         assert generated_dicts == response
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowSensorTimeout), (True, AirflowSkipException))
-    )
     @mock.patch("airflow.providers.google.cloud.sensors.pubsub.PubSubHook")
-    def test_execute_timeout(self, mock_hook, soft_fail, expected_exception):
+    def test_execute_timeout(self, mock_hook):
         operator = PubSubPullSensor(
             task_id=TASK_ID,
             project_id=TEST_PROJECT,
             subscription=TEST_SUBSCRIPTION,
             poke_interval=0,
             timeout=1,
-            soft_fail=soft_fail,
         )
 
         mock_hook.return_value.pull.return_value = []
 
-        with pytest.raises(expected_exception):
+        with pytest.raises(AirflowException):
             operator.execute({})
 
     @mock.patch("airflow.providers.google.cloud.sensors.pubsub.PubSubHook")
@@ -171,10 +167,7 @@ class TestPubSubPullSensor:
             task.execute(context={})
         assert isinstance(exc.value.trigger, PubsubPullTrigger), "Trigger is not a PubsubPullTrigger"
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
-    def test_pubsub_pull_sensor_async_execute_should_throw_exception(self, soft_fail, expected_exception):
+    def test_pubsub_pull_sensor_async_execute_should_throw_exception(self):
         """Tests that an AirflowException is raised in case of error event"""
 
         operator = PubSubPullSensor(
@@ -183,10 +176,9 @@ class TestPubSubPullSensor:
             project_id=TEST_PROJECT,
             subscription=TEST_SUBSCRIPTION,
             deferrable=True,
-            soft_fail=soft_fail,
         )
 
-        with pytest.raises(expected_exception):
+        with pytest.raises(AirflowException):
             operator.execute_complete(
                 context=mock.MagicMock(), event={"status": "error", "message": "test failure message"}
             )

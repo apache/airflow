@@ -1121,7 +1121,6 @@ class TestStringifiedDAGs:
         link = simple_task.get_extra_links(ti, GoogleLink.name)
         assert "https://www.google.com" == link
 
-    @pytest.mark.db_test
     def test_extra_operator_links_logs_error_for_non_registered_extra_links(self, caplog):
         """
         Assert OperatorLinks not registered via Plugins and if it is not an inbuilt Operator Link,

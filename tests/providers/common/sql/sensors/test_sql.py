@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.common.sql.sensors.sql import SqlSensor
@@ -124,26 +124,20 @@ class TestSqlSensor:
         mock_get_records.return_value = [["1"]]
         assert op.poke({})
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @mock.patch("airflow.providers.common.sql.sensors.sql.BaseHook")
-    def test_sql_sensor_postgres_poke_fail_on_empty(
-        self, mock_hook, soft_fail: bool, expected_exception: type[AirflowException]
-    ):
+    def test_sql_sensor_postgres_poke_fail_on_empty(self, mock_hook):
         op = SqlSensor(
             task_id="sql_sensor_check",
             conn_id="postgres_default",
             sql="SELECT 1",
             fail_on_empty=True,
-            soft_fail=soft_fail,
         )
 
         mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = []
-        with pytest.raises(expected_exception):
+        with pytest.raises(AirflowException):
             op.poke({})
 
     @mock.patch("airflow.providers.common.sql.sensors.sql.BaseHook")
@@ -164,19 +158,16 @@ class TestSqlSensor:
         mock_get_records.return_value = [["1"]]
         assert not op.poke({})
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @mock.patch("airflow.providers.common.sql.sensors.sql.BaseHook")
     def test_sql_sensor_postgres_poke_failure(
-        self, mock_hook, soft_fail: bool, expected_exception: type[AirflowException]
+        self,
+        mock_hook,
     ):
         op = SqlSensor(
             task_id="sql_sensor_check",
             conn_id="postgres_default",
             sql="SELECT 1",
             failure=lambda x: x in [1],
-            soft_fail=soft_fail,
         )
 
         mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
@@ -186,15 +177,13 @@ class TestSqlSensor:
         assert not op.poke({})
 
         mock_get_records.return_value = [[1]]
-        with pytest.raises(expected_exception):
+        with pytest.raises(AirflowException):
             op.poke({})
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @mock.patch("airflow.providers.common.sql.sensors.sql.BaseHook")
     def test_sql_sensor_postgres_poke_failure_success(
-        self, mock_hook, soft_fail: bool, expected_exception: type[AirflowException]
+        self,
+        mock_hook,
     ):
         op = SqlSensor(
             task_id="sql_sensor_check",
@@ -202,7 +191,6 @@ class TestSqlSensor:
             sql="SELECT 1",
             failure=lambda x: x in [1],
             success=lambda x: x in [2],
-            soft_fail=soft_fail,
         )
 
         mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
@@ -212,26 +200,20 @@ class TestSqlSensor:
         assert not op.poke({})
 
         mock_get_records.return_value = [[1]]
-        with pytest.raises(expected_exception):
+        with pytest.raises(AirflowException):
             op.poke({})
 
         mock_get_records.return_value = [[2]]
         assert op.poke({})
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @mock.patch("airflow.providers.common.sql.sensors.sql.BaseHook")
-    def test_sql_sensor_postgres_poke_failure_success_same(
-        self, mock_hook, soft_fail: bool, expected_exception: type[AirflowException]
-    ):
+    def test_sql_sensor_postgres_poke_failure_success_same(self, mock_hook):
         op = SqlSensor(
             task_id="sql_sensor_check",
             conn_id="postgres_default",
             sql="SELECT 1",
             failure=lambda x: x in [1],
             success=lambda x: x in [1],
-            soft_fail=soft_fail,
         )
 
         mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
@@ -241,52 +223,43 @@ class TestSqlSensor:
         assert not op.poke({})
 
         mock_get_records.return_value = [[1]]
-        with pytest.raises(expected_exception):
+        with pytest.raises(AirflowException):
             op.poke({})
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @mock.patch("airflow.providers.common.sql.sensors.sql.BaseHook")
-    def test_sql_sensor_postgres_poke_invalid_failure(
-        self, mock_hook, soft_fail: bool, expected_exception: type[AirflowException]
-    ):
+    def test_sql_sensor_postgres_poke_invalid_failure(self, mock_hook):
         op = SqlSensor(
             task_id="sql_sensor_check",
             conn_id="postgres_default",
             sql="SELECT 1",
             failure=[1],  # type: ignore[arg-type]
-            soft_fail=soft_fail,
         )
 
         mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = [[1]]
-        with pytest.raises(expected_exception) as ctx:
+        with pytest.raises(AirflowException) as ctx:
             op.poke({})
         assert "self.failure is present, but not callable -> [1]" == str(ctx.value)
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @mock.patch("airflow.providers.common.sql.sensors.sql.BaseHook")
     def test_sql_sensor_postgres_poke_invalid_success(
-        self, mock_hook, soft_fail: bool, expected_exception: type[AirflowException]
+        self,
+        mock_hook,
     ):
         op = SqlSensor(
             task_id="sql_sensor_check",
             conn_id="postgres_default",
             sql="SELECT 1",
             success=[1],  # type: ignore[arg-type]
-            soft_fail=soft_fail,
         )
 
         mock_hook.get_connection.return_value.get_hook.return_value = mock.MagicMock(spec=DbApiHook)
         mock_get_records = mock_hook.get_connection.return_value.get_hook.return_value.get_records
 
         mock_get_records.return_value = [[1]]
-        with pytest.raises(expected_exception) as ctx:
+        with pytest.raises(AirflowException) as ctx:
             op.poke({})
         assert "self.success is present, but not callable -> [1]" == str(ctx.value)
 

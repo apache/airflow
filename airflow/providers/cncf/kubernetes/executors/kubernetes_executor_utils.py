@@ -220,6 +220,16 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
             # However, need to free the executor slot from the current executor.
             self.log.info("Event: pod %s adopted, annotations: %s", pod_name, annotations_string)
             self.watcher_queue.put((pod_name, namespace, ADOPTED, annotations, resource_version))
+        elif hasattr(pod.status, "reason") and pod.status.reason == "ProviderFailed":
+            # Most likely this happens due to Kubernetes setup (virtual kubelet, virtual nodes, etc.)
+            self.log.error(
+                "Event: %s failed to start with reason ProviderFailed, annotations: %s",
+                pod_name,
+                annotations_string,
+            )
+            self.watcher_queue.put(
+                (pod_name, namespace, TaskInstanceState.FAILED, annotations, resource_version)
+            )
         elif status == "Pending":
             # deletion_timestamp is set by kube server when a graceful deletion is requested.
             # since kube server have received request to delete pod set TI state failed

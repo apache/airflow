@@ -22,6 +22,9 @@ from typing import Literal
 from unittest import mock
 
 import pytest
+
+openai = pytest.importorskip("openai")
+
 from openai.types import Batch
 
 from airflow.providers.openai.hooks.openai import BatchStatus

@@ -50,6 +50,7 @@ from airflow.utils.db import (
     resetdb,
     upgradedb,
 )
+from airflow.utils.db_manager import RunDBManager
 from airflow.utils.session import NEW_SESSION
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
@@ -61,8 +62,14 @@ class TestDb:
 
         airflow.models.import_all_models()
         all_meta_data = MetaData()
+        # Airflow DB
         for table_name, table in airflow_base.metadata.tables.items():
             all_meta_data._add_table(table_name, table.schema, table)
+        # External DB Managers
+        external_db_managers = RunDBManager()
+        for dbmanager in external_db_managers._managers:
+            for table_name, table in dbmanager.metadata.tables.items():
+                all_meta_data._add_table(table_name, table.schema, table)
 
         # create diff between database schema and SQLAlchemy model
         mctx = MigrationContext.configure(
@@ -70,6 +77,7 @@ class TestDb:
             opts={"compare_type": compare_type, "compare_server_default": compare_server_default},
         )
         diff = compare_metadata(mctx, all_meta_data)
+
         # known diffs to ignore
         ignores = [
             # ignore tables created by celery
@@ -86,6 +94,8 @@ class TestDb:
             lambda t: (t[0] == "remove_index" and t[1].name == "session_session_id_uq"),
             # sqlite sequence is used for autoincrementing columns created with `sqlite_autoincrement` option
             lambda t: (t[0] == "remove_table" and t[1].name == "sqlite_sequence"),
+            # fab version table
+            lambda t: (t[0] == "remove_table" and t[1].name == "fab_alembic_version"),
         ]
 
         for ignore in ignores:

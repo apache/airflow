@@ -38,11 +38,14 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.11.0
 ......
 
-Latest change: 2024-08-15
+Latest change: 2024-08-23
 
 =================================================================================================  ===========  ===============================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===============================================================================================
+`4b42691021 <https://github.com/apache/airflow/commit/4b42691021df8cb9ff6bd7a5e1ce447d17c0d660>`_  2024-08-23   ``feat: openlineage listener captures hook-level lineage (#41482)``
+`86e12a9a30 <https://github.com/apache/airflow/commit/86e12a9a307c3e5ac5d0294ee1a5c973f080ad53>`_  2024-08-21   ``fix: replace dagTree with downstream_task_ids (#41587)``
+`75fb7acbac <https://github.com/apache/airflow/commit/75fb7acbaca09a040067f0a5a37637ff44eb9e14>`_  2024-08-19   ``Prepare docs for Aug 2nd wave of providers (#41559)``
 `0e7c757a1b <https://github.com/apache/airflow/commit/0e7c757a1b2432bcf32ba7c9b8d1a0f82d33487e>`_  2024-08-15   ``fix: get task dependencies without serializing task tree to string (#41494)``
 `fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
 `d12eb43960 <https://github.com/apache/airflow/commit/d12eb439603f896f22e4cd6f4e5daef22ae86254>`_  2024-08-12   ``feat: add debug facet to all OpenLineage events (#41217)``

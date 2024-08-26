@@ -154,8 +154,11 @@ jobs:
         env:
           HATCH_ENV: "test"
         working-directory: ./clients/python
+      - name: "Prepare FAB provider packages: wheel"
+        run: >
+            breeze release-management prepare-provider-packages fab --package-format wheel --skip-tag-check
       - name: "Install Airflow with fab for webserver tests"
-        run: pip install ".[fab]"
+        run: pip install . dist/apache_airflow_providers_fab-*.whl
       - name: "Install Python client"
         run: pip install ./dist/apache_airflow_client-*.whl
       - name: "Initialize Airflow DB and start webserver"
@@ -169,7 +172,8 @@ jobs:
           nohup airflow webserver --port 8080 &
           echo "Started webserver"
         env:
-          AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth
+          AIRFLOW__API__AUTH_BACKENDS: >-
+            airflow.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
           AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
           AIRFLOW__CORE__LOAD_EXAMPLES: "True"
           AIRFLOW_HOME: "${{ github.workspace }}/airflow_home"

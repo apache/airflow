@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.marketing_platform.sensors.display_video import (
     GoogleDisplayVideo360GetSDFDownloadOperationSensor,
     GoogleDisplayVideo360RunQuerySensor,
@@ -71,22 +71,20 @@ class TestGoogleDisplayVideo360Sensor:
             operation_name=operation_name
         )
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @mock.patch(f"{MODULE_NAME}.GoogleDisplayVideo360Hook")
     @mock.patch(f"{MODULE_NAME}.BaseSensorOperator")
     def test_poke_with_exception(
-        self, mock_base_op, hook_mock, soft_fail: bool, expected_exception: type[AirflowException]
+        self,
+        mock_base_op,
+        hook_mock,
     ):
         operation_name = "operation_name"
         op = GoogleDisplayVideo360GetSDFDownloadOperationSensor(
             operation_name=operation_name,
             api_version=API_VERSION,
             task_id="test_task",
-            soft_fail=soft_fail,
         )
         hook_mock.return_value.get_sdf_download_operation.return_value = {"error": "error"}
 
-        with pytest.raises(expected_exception, match="The operation finished in error with error"):
+        with pytest.raises(AirflowException, match="The operation finished in error with error"):
             op.poke(context={})

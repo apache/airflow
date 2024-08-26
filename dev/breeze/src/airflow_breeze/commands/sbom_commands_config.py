@@ -22,6 +22,7 @@ SBOM_COMMANDS: dict[str, str | list[str]] = {
         "update-sbom-information",
         "build-all-airflow-images",
         "generate-providers-requirements",
+        "export-dependency-information",
     ],
 }
 
@@ -95,11 +96,37 @@ SBOM_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
         {
             "name": "Export dependency information flags",
             "options": [
-                "--csv-file",
                 "--airflow-version",
                 "--python",
                 "--include-open-psf-scorecard",
+                "--include-github-stats",
             ],
-        }
+        },
+        {
+            "name": "CSV flags",
+            "options": [
+                "--csv-file",
+            ],
+        },
+        {
+            "name": "Github auth flags",
+            "options": [
+                "--github-token",
+            ],
+        },
+        {
+            "name": "Google spreadsheet flags",
+            "options": [
+                "--json-credentials-file",
+                "--google-spreadsheet-id",
+            ],
+        },
+        {
+            "name": "Debugging flags",
+            "options": [
+                "--limit-output",
+                "--project-name",
+            ],
+        },
     ],
 }

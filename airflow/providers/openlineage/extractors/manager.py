@@ -25,6 +25,7 @@ from airflow.providers.openlineage.extractors.bash import BashExtractor
 from airflow.providers.openlineage.extractors.python import PythonExtractor
 from airflow.providers.openlineage.utils.utils import (
     get_unknown_source_attribute_run_facet,
+    translate_airflow_dataset,
     try_import_from_string,
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -90,7 +91,6 @@ class ExtractorManager(LoggingMixin):
             f"task_id={task.task_id} "
             f"airflow_run_id={dagrun.run_id} "
         )
-
         if extractor:
             # Extracting advanced metadata is only possible when extractor for particular operator
             # is defined. Without it, we can't extract any input or output data.
@@ -105,14 +105,22 @@ class ExtractorManager(LoggingMixin):
                 task_metadata = self.validate_task_metadata(task_metadata)
                 if task_metadata:
                     if (not task_metadata.inputs) and (not task_metadata.outputs):
-                        self.extract_inlets_and_outlets(task_metadata, task.inlets, task.outlets)
-
+                        if (hook_lineage := self.get_hook_lineage()) is not None:
+                            inputs, outputs = hook_lineage
+                            task_metadata.inputs = inputs
+                            task_metadata.outputs = outputs
+                        else:
+                            self.extract_inlets_and_outlets(task_metadata, task.inlets, task.outlets)
                     return task_metadata
 
             except Exception as e:
                 self.log.warning(
                     "Failed to extract metadata using found extractor %s - %s %s", extractor, e, task_info
                 )
+        elif (hook_lineage := self.get_hook_lineage()) is not None:
+            inputs, outputs = hook_lineage
+            task_metadata = OperatorLineage(inputs=inputs, outputs=outputs)
+            return task_metadata
         else:
             self.log.debug("Unable to find an extractor %s", task_info)
 
@@ -167,6 +175,30 @@ class ExtractorManager(LoggingMixin):
             d = self.convert_to_ol_dataset(o)
             if d:
                 task_metadata.outputs.append(d)
+
+    def get_hook_lineage(self) -> tuple[list[Dataset], list[Dataset]] | None:
+        try:
+            from airflow.lineage.hook import get_hook_lineage_collector
+        except ImportError:
+            return None
+
+        if not get_hook_lineage_collector().has_collected:
+            return None
+
+        return (
+            [
+                dataset
+                for dataset_info in get_hook_lineage_collector().collected_datasets.inputs
+                if (dataset := translate_airflow_dataset(dataset_info.dataset, dataset_info.context))
+                is not None
+            ],
+            [
+                dataset
+                for dataset_info in get_hook_lineage_collector().collected_datasets.outputs
+                if (dataset := translate_airflow_dataset(dataset_info.dataset, dataset_info.context))
+                is not None
+            ],
+        )
 
     @staticmethod
     def convert_to_ol_dataset_from_object_storage_uri(uri: str) -> Dataset | None:

@@ -1024,7 +1024,7 @@ def _deploy_helm_chart(
             "-v",
             "1",
             "--set",
-            "config.api.auth_backends=airflow.api.auth.backend.basic_auth",
+            "config.api.auth_backends=airflow.providers.fab.auth_manager.api.auth.backend.basic_auth",
             "--set",
             "config.logging.logging_level=DEBUG",
             "--set",

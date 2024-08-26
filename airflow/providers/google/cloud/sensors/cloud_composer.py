@@ -28,7 +28,7 @@ from deprecated import deprecated
 from google.cloud.orchestration.airflow.service_v1.types import ExecuteAirflowCommandResponse
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
 from airflow.providers.google.cloud.triggers.cloud_composer import (
     CloudComposerDAGRunTrigger,
@@ -118,15 +118,9 @@ class CloudComposerEnvironmentSensor(BaseSensorOperator):
             if event.get("operation_done"):
                 return event["operation_done"]
 
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-            if self.soft_fail:
-                raise AirflowSkipException(event["message"])
             raise AirflowException(event["message"])
 
-        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
         message = "No event received in trigger callback"
-        if self.soft_fail:
-            raise AirflowSkipException(message)
         raise AirflowException(message)
 
 

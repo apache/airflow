@@ -22,6 +22,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -30,6 +31,7 @@ from airflow_breeze.commands.common_options import (
     option_answer,
     option_debug_resources,
     option_dry_run,
+    option_github_token,
     option_historical_python_version,
     option_include_success_outputs,
     option_parallelism,
@@ -45,12 +47,13 @@ from airflow_breeze.global_constants import (
     PROVIDER_DEPENDENCIES,
 )
 from airflow_breeze.utils.cdxgen import (
+    CHECK_DOCS,
     PROVIDER_REQUIREMENTS_DIR_PATH,
     SbomApplicationJob,
     SbomCoreJob,
     SbomProviderJob,
     build_all_airflow_versions_base_image,
-    convert_sbom_to_csv,
+    convert_sbom_entry_to_dict,
     get_cdxgen_port_mapping,
     get_field_names,
     get_requirements_for_provider,
@@ -70,6 +73,7 @@ from airflow_breeze.utils.parallel import (
     run_with_pool,
 )
 from airflow_breeze.utils.path_utils import FILES_SBOM_DIR, PROVIDER_METADATA_JSON_FILE_PATH
+from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.shared_options import get_dry_run
 
 
@@ -643,24 +647,83 @@ def generate_providers_requirements(
     "-f",
     "--csv-file",
     type=click.Path(file_okay=True, dir_okay=False, path_type=Path, writable=True),
-    help="CSV file to produce.",
+    help="CSV file to produce. Mutually exclusive with Google Spreadsheet Id.",
     envvar="CSV_FILE",
-    required=True,
+    required=False,
+)
+@click.option(
+    "-g",
+    "--google-spreadsheet-id",
+    type=str,
+    help="Google Spreadsheet Id to produce. Mutually exclusive with CSV file.",
+    envvar="GOOGLE_SPREADSHEET_ID",
+    required=False,
+)
+@option_github_token
+@click.option(
+    "--json-credentials-file",
+    type=click.Path(file_okay=True, dir_okay=False, path_type=Path, writable=False),
+    help="Gsheet JSON credentials file (defaults to ~/.config/gsheet/credentials.json",
+    envvar="JSON_CREDENTIALS_FILE",
+    default=Path.home() / ".config" / "gsheet" / "credentials.json"
+    if not generating_command_images()
+    else "credentials.json",
+    required=False,
 )
 @click.option(
     "-s",
     "--include-open-psf-scorecard",
+    help="Include statistics from the Open PSF Scorecard",
     is_flag=True,
     default=False,
+)
+@click.option(
+    "-G",
+    "--include-github-stats",
+    help="Include statistics from GitHub",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "-l",
+    "--limit-output",
+    help="Limit the output to the first N dependencies. Default is to output all dependencies. "
+    "If you want to output all dependencies, do not specify this option.",
+    type=int,
+    required=False,
+)
+@click.option(
+    "--project-name",
+    help="Only used for debugging purposes. The name of the project to generate the sbom for.",
+    type=str,
+    required=False,
 )
 @option_dry_run
 @option_answer
 def export_dependency_information(
     python: str,
     airflow_version: str,
-    csv_file: Path,
+    csv_file: Path | None,
+    google_spreadsheet_id: str | None,
+    github_token: str | None,
+    json_credentials_file: Path,
     include_open_psf_scorecard: bool,
+    include_github_stats: bool,
+    limit_output: int | None,
+    project_name: str | None,
 ):
+    if not google_spreadsheet_id and not csv_file:
+        get_console().print("[error]You need to specify either --csv-file or --google-spreadsheet-id")
+        sys.exit(1)
+    if google_spreadsheet_id and csv_file:
+        get_console().print("[error]You cannot specify both --csv-file and --google-spreadsheet-id")
+        sys.exit(1)
+    if google_spreadsheet_id and not json_credentials_file.exists():
+        get_console().print(
+            f"[error]The JSON credentials file {json_credentials_file} does not exist. "
+            "Please specify a valid path to the JSON credentials file."
+        )
+        sys.exit(1)
     import requests
 
     base_url = f"https://airflow.apache.org/docs/apache-airflow/{airflow_version}/sbom"
@@ -673,43 +736,250 @@ def export_dependency_information(
     full_sbom_r = requests.get(sbom_full_url)
     full_sbom_r.raise_for_status()
 
-    core_dependencies = set()
-
     core_sbom = core_sbom_r.json()
-
     full_sbom = full_sbom_r.json()
 
-    dev_deps = set(normalize_package_name(name) for name in DEVEL_DEPS_PATH.read_text().splitlines())
-    num_deps = 0
+    all_dependency_value_dicts = convert_all_sbom_to_value_dictionaries(
+        core_sbom=core_sbom,
+        full_sbom=full_sbom,
+        include_open_psf_scorecard=include_open_psf_scorecard,
+        include_github_stats=include_github_stats,
+        limit_output=limit_output,
+        github_token=github_token,
+        project_name=project_name,
+    )
+    all_dependency_value_dicts = sorted(all_dependency_value_dicts, key=sort_deps_key)
+
+    fieldnames = get_field_names(include_open_psf_scorecard, include_github_stats)
+
+    if csv_file:
+        write_to_csv_file(
+            csv_file=csv_file, all_dependencies=all_dependency_value_dicts, fieldnames=fieldnames
+        )
+    elif google_spreadsheet_id:
+        write_to_google_spreadsheet(
+            google_spreadsheet_id=google_spreadsheet_id,
+            json_credentials_file=json_credentials_file,
+            all_dependencies=all_dependency_value_dicts,
+            fieldnames=fieldnames,
+        )
+
+
+def calculate_range(num_columns: int, row: int) -> str:
+    import string
+
+    # Generate column letters
+    columns = list(string.ascii_uppercase)
+    if num_columns > 26:
+        columns += [f"{a}{b}" for a in string.ascii_uppercase for b in string.ascii_uppercase]
+
+    # Calculate the range
+    end_column = columns[num_columns - 1]
+    return f"A{row}:{end_column}{row}"
+
+
+def convert_sbom_dict_to_spreadsheet_data(headers: list[str], value_dict: dict[str, Any]):
+    return [value_dict.get(header, "") for header in headers]
+
+
+INTERESTING_OPSF_FIELDS = [
+    "Score",
+    "Code-Review",
+    "Maintained",
+    "Dangerous-Workflow",
+    "Security-Policy",
+    "Packaging",
+    "Vulnerabilities",
+]
+
+INTERESTING_OPSF_SCORES = ["OPSF-" + field for field in INTERESTING_OPSF_FIELDS]
+INTERESTING_OPSF_DETAILS = ["OPSF-Details-" + field for field in INTERESTING_OPSF_FIELDS]
+
+
+def write_to_google_spreadsheet(
+    google_spreadsheet_id: str,
+    json_credentials_file: Path,
+    all_dependencies: list[dict[str, Any]],
+    fieldnames: list[str],
+):
+    token_path = Path.home() / ".config" / "gsheet" / "token.json"
+
+    sheet = authorize_gsheet(json_credentials_file, token_path)
+
+    # Use only interesting values from the scorecard
+    cell_field_names = [
+        fieldname
+        for fieldname in fieldnames
+        if fieldname in INTERESTING_OPSF_SCORES or not fieldname.startswith("OPSF-")
+    ]
+
+    num_rows = update_field_values(all_dependencies, cell_field_names, google_spreadsheet_id, sheet)
+    update_opsf_detailed_comments(all_dependencies, fieldnames, num_rows, google_spreadsheet_id, sheet)
+
+
+def update_opsf_detailed_comments(
+    all_dependencies: list[dict[str, Any]],
+    fieldnames: list[str],
+    num_rows: int,
+    google_spreadsheet_id: str,
+    sheet,
+):
+    opsf_details_field_names = [
+        fieldname for fieldname in fieldnames if fieldname in INTERESTING_OPSF_DETAILS
+    ]
+    start_opsf_column = fieldnames.index(opsf_details_field_names[0]) - 1
+    opsf_details = []
+    opsf_details.append(
+        {
+            "values": [
+                {"note": CHECK_DOCS[check]}
+                for check in INTERESTING_OPSF_FIELDS
+                if check != INTERESTING_OPSF_FIELDS[0]
+            ]
+        }
+    )
+    for dependency in all_dependencies:
+        note_row = convert_sbom_dict_to_spreadsheet_data(opsf_details_field_names, dependency)
+        opsf_details.append({"values": [{"note": note} for note in note_row]})
+    notes = {
+        "updateCells": {
+            "range": {
+                "startRowIndex": 1,
+                "endRowIndex": num_rows + 1,
+                "startColumnIndex": start_opsf_column,
+                "endColumnIndex": start_opsf_column + len(opsf_details_field_names) + 1,
+            },
+            "rows": opsf_details,
+            "fields": "note",
+        },
+    }
+    update_note_body = {"requests": [notes]}
+    sheet.batchUpdate(spreadsheetId=google_spreadsheet_id, body=update_note_body).execute()
+
+
+def simplify_field_names(fieldname: str):
+    if fieldname.startswith("OPSF-"):
+        return fieldname[5:]
+    return fieldname
+
+
+def update_field_values(
+    all_dependencies: list[dict[str, Any]], cell_field_names: list[str], google_spreadsheet_id, sheet
+) -> int:
+    num_fields = len(cell_field_names)
+    data = []
+    top_header = []
+    for field in cell_field_names:
+        if field.startswith("OPSF-"):
+            top_header.append("Relevant OPSF Scores and details")
+            break
+        else:
+            top_header.append("")
+
+    simplified_cell_field_names = [simplify_field_names(field) for field in cell_field_names]
+
+    data.append({"range": calculate_range(num_fields, 1), "values": [top_header]})
+    data.append({"range": calculate_range(num_fields, 2), "values": [simplified_cell_field_names]})
+    row = 3
+    for dependency in all_dependencies:
+        spreadsheet_row = convert_sbom_dict_to_spreadsheet_data(cell_field_names, dependency)
+        data.append({"range": calculate_range(num_fields, row), "values": [spreadsheet_row]})
+        row += 1
+    body = {"valueInputOption": "RAW", "data": data}
+    result = sheet.values().batchUpdate(spreadsheetId=google_spreadsheet_id, body=body).execute()
+    get_console().print(f"{result.get('totalUpdatedCells')} cells values set in the Google spreadsheet.")
+    return row
+
+
+def authorize_gsheet(json_credentials_file: Path, token_path: Path):
+    from google.auth.transport.requests import Request
+    from google.oauth2.credentials import Credentials
+    from google_auth_oauthlib.flow import InstalledAppFlow
+    from googleapiclient.discovery import build
+
+    SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+    creds = None
+    if token_path.exists():
+        creds = Credentials.from_authorized_user_file(token_path.as_posix(), SCOPES)
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(json_credentials_file.as_posix(), SCOPES)
+            creds = flow.run_local_server(port=0)
+            # Save the credentials for the next run
+        token_path.write_text(creds.to_json())
+    service = build("sheets", "v4", credentials=creds)
+    sheet = service.spreadsheets()
+    return sheet
+
+
+def write_to_csv_file(csv_file: Path, all_dependencies: list[dict[str, Any]], fieldnames: list[str]):
     with csv_file.open("w") as csvfile:
-        fieldnames = get_field_names(include_open_psf_scorecard)
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
-        for dependency in core_sbom["components"]:
-            name = dependency["name"]
-            normalized_name = normalize_package_name(name)
-            core_dependencies.add(normalized_name)
+        for dependency_value_dict in all_dependencies:
+            writer.writerow(dependency_value_dict)
+    get_console().print(f"[info]Exported {len(all_dependencies)} dependencies to {csv_file}")
+
+
+def sort_deps_key(dependency: dict[str, Any]) -> str:
+    if dependency.get("Vcs"):
+        return "0:" + dependency["Name"]
+    else:
+        return "1:" + dependency["Name"]
+
+
+def convert_all_sbom_to_value_dictionaries(
+    core_sbom: dict[str, Any],
+    full_sbom: dict[str, Any],
+    include_open_psf_scorecard: bool,
+    include_github_stats: bool,
+    limit_output: int | None,
+    github_token: str | None = None,
+    project_name: str | None = None,
+) -> list[dict[str, Any]]:
+    core_dependencies = set()
+    dev_deps = set(normalize_package_name(name) for name in DEVEL_DEPS_PATH.read_text().splitlines())
+    num_deps = 0
+    all_dependency_value_dicts = []
+    for dependency in core_sbom["components"]:
+        normalized_name = normalize_package_name(dependency["name"])
+        if project_name and normalized_name != project_name:
+            continue
+        core_dependencies.add(normalized_name)
+        is_devel = normalized_name in dev_deps
+        value_dict = convert_sbom_entry_to_dict(
+            dependency,
+            is_core=True,
+            is_devel=is_devel,
+            include_open_psf_scorecard=include_open_psf_scorecard,
+            include_github_stats=include_github_stats,
+            github_token=github_token,
+        )
+        if value_dict:
+            all_dependency_value_dicts.append(value_dict)
+        num_deps += 1
+        if limit_output and num_deps >= limit_output:
+            return all_dependency_value_dicts
+    for dependency in full_sbom["components"]:
+        normalized_name = normalize_package_name(dependency["name"])
+        if project_name and normalized_name != project_name:
+            continue
+        if normalized_name not in core_dependencies:
             is_devel = normalized_name in dev_deps
-            convert_sbom_to_csv(
-                writer,
+            value_dict = convert_sbom_entry_to_dict(
                 dependency,
-                is_core=True,
+                is_core=False,
                 is_devel=is_devel,
                 include_open_psf_scorecard=include_open_psf_scorecard,
+                include_github_stats=include_github_stats,
+                github_token=github_token,
             )
+            if value_dict:
+                all_dependency_value_dicts.append(value_dict)
             num_deps += 1
-        for dependency in full_sbom["components"]:
-            name = dependency["name"]
-            normalized_name = normalize_package_name(name)
-            if normalized_name not in core_dependencies:
-                is_devel = normalized_name in dev_deps
-                convert_sbom_to_csv(
-                    writer,
-                    dependency,
-                    is_core=False,
-                    is_devel=is_devel,
-                    include_open_psf_scorecard=include_open_psf_scorecard,
-                )
-                num_deps += 1
-
-    get_console().print(f"[info]Exported {num_deps} dependencies to {csv_file}")
+        if limit_output and num_deps >= limit_output:
+            return all_dependency_value_dicts
+    get_console().print(f"[info]Processed {num_deps} dependencies")
+    return all_dependency_value_dicts

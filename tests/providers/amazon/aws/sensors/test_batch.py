@@ -106,14 +106,10 @@ class TestBatchSensor:
         ),
     )
     @mock.patch.object(BatchClientHook, "get_job_description")
-    def test_fail_poke(
-        self,
-        mock_get_job_description,
-        batch_sensor: BatchSensor,
-        state,
-    ):
+    def test_fail_poke(self, mock_get_job_description, state):
         mock_get_job_description.return_value = {"status": state}
-        with pytest.raises(AirflowException, match=f"Batch sensor failed. AWS Batch job status: {state}"):
+        batch_sensor = BatchSensor(task_id="batch_job_sensor", job_id=JOB_ID)
+        with pytest.raises(AirflowException):
             batch_sensor.poke({})
 
 

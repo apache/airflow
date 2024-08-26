@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.looker import JobStatus
 from airflow.providers.google.cloud.sensors.looker import LookerCheckPdtBuildSensor
 
@@ -51,11 +51,8 @@ class TestLookerCheckPdtBuildSensor:
         # assert we got a response
         assert ret
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @mock.patch(SENSOR_PATH.format("LookerHook"))
-    def test_error(self, mock_hook, soft_fail, expected_exception):
+    def test_error(self, mock_hook):
         mock_hook.return_value.pdt_build_status.return_value = {
             "status": JobStatus.ERROR.value,
             "message": "test",
@@ -66,10 +63,9 @@ class TestLookerCheckPdtBuildSensor:
             task_id=TASK_ID,
             looker_conn_id=LOOKER_CONN_ID,
             materialization_id=TEST_JOB_ID,
-            soft_fail=soft_fail,
         )
 
-        with pytest.raises(expected_exception, match="PDT materialization job failed"):
+        with pytest.raises(AirflowException, match="PDT materialization job failed"):
             sensor.poke(context={})
 
         # assert hook.pdt_build_status called once
@@ -93,11 +89,8 @@ class TestLookerCheckPdtBuildSensor:
         # assert we got NO response
         assert not ret
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @mock.patch(SENSOR_PATH.format("LookerHook"))
-    def test_cancelled(self, mock_hook, soft_fail, expected_exception):
+    def test_cancelled(self, mock_hook):
         mock_hook.return_value.pdt_build_status.return_value = {"status": JobStatus.CANCELLED.value}
 
         # run task in mock context
@@ -105,23 +98,19 @@ class TestLookerCheckPdtBuildSensor:
             task_id=TASK_ID,
             looker_conn_id=LOOKER_CONN_ID,
             materialization_id=TEST_JOB_ID,
-            soft_fail=soft_fail,
         )
 
-        with pytest.raises(expected_exception, match="PDT materialization job was cancelled"):
+        with pytest.raises(AirflowException, match="PDT materialization job was cancelled"):
             sensor.poke(context={})
 
         # assert hook.pdt_build_status called once
         mock_hook.return_value.pdt_build_status.assert_called_once_with(materialization_id=TEST_JOB_ID)
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
-    def test_empty_materialization_id(self, soft_fail, expected_exception):
+    def test_empty_materialization_id(self):
         # run task in mock context
         sensor = LookerCheckPdtBuildSensor(
-            task_id=TASK_ID, looker_conn_id=LOOKER_CONN_ID, materialization_id="", soft_fail=soft_fail
+            task_id=TASK_ID, looker_conn_id=LOOKER_CONN_ID, materialization_id=""
         )
 
-        with pytest.raises(expected_exception, match="^Invalid `materialization_id`.$"):
+        with pytest.raises(AirflowException, match="^Invalid `materialization_id`.$"):
             sensor.poke(context={})

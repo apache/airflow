@@ -788,7 +788,7 @@ def test_success_fail_for_read_only_task_instance_access(client_only_dags_tis):
         past="false",
     )
     resp = client_only_dags_tis.post("success", data=form)
-    check_content_not_in_response("Wait a minute", resp, resp_code=302)
+    check_content_not_in_response("Please confirm", resp, resp_code=302)
 
 
 GET_LOGS_WITH_METADATA_URL = (

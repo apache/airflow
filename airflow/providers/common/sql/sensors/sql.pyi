@@ -32,10 +32,7 @@ Definition of the public interface for airflow.providers.common.sql.sensors.sql
 isort:skip_file
 """
 from _typeshed import Incomplete
-from airflow.exceptions import (
-    AirflowException as AirflowException,
-    AirflowSkipException as AirflowSkipException,
-)
+from airflow.exceptions import AirflowException as AirflowException
 from airflow.hooks.base import BaseHook as BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook as DbApiHook
 from airflow.sensors.base import BaseSensorOperator as BaseSensorOperator

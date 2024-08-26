@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+3.8.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: Missing 'slots_occupied' in 'CeleryKubernetesExecutor' and 'LocalKubernetesExecutor' (#41602)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.8.0
 .....
 

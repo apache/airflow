@@ -176,7 +176,7 @@ info:
     `airflow config get-value api auth_backends` command as in the example below.
     ```bash
     $ airflow config get-value api auth_backends
-    airflow.api.auth.backend.basic_auth
+    airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
     ```
     The default is to deny all requests.
 

@@ -103,7 +103,7 @@ def test_action_logging_post(session, admin_client):
         only_failed="false",
     )
     resp = admin_client.post("clear", data=form)
-    check_content_in_response(["example_bash_operator", "Wait a minute"], resp)
+    check_content_in_response(["example_bash_operator", "Please confirm"], resp)
     # In mysql backend, this commit() is needed to write down the logs
     session.commit()
     _check_last_log(

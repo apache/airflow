@@ -21,7 +21,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.glue import (
@@ -177,8 +177,6 @@ class GlueDataQualityRuleSetEvaluationRunSensor(AwsBaseSensor[GlueDataQualityHoo
 
         if event["status"] != "success":
             message = f"Error: AWS Glue data quality ruleset evaluation run: {event}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
 
         self.hook.validate_evaluation_run_results(
@@ -300,8 +298,6 @@ class GlueDataQualityRuleRecommendationRunSensor(AwsBaseSensor[GlueDataQualityHo
 
         if event["status"] != "success":
             message = f"Error: AWS Glue data quality recommendation run: {event}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
 
         if self.show_results:

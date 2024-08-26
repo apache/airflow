@@ -136,7 +136,7 @@ Here is an example of what you might have in your webserver_config.py:
 
 .. code-block:: python
 
-    from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
+    from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
     from flask_appbuilder.security.manager import AUTH_OAUTH
     import os
 
@@ -180,7 +180,7 @@ webserver_config.py itself if you wish.
 
 .. code-block:: python
 
-    from airflow.auth.managers.fab.security_manager.override import FabAirflowSecurityManagerOverride
+    from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
     import logging
     from typing import Any, List, Union
     import os

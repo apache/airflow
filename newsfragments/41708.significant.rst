@@ -1,0 +1,1 @@
+Removed deprecated auth manager ``airflow.auth.managers.fab.fab_auth_manager`` and ``airflow.auth.managers.fab.security_manager.override``. Please use ``airflow.providers.fab.auth_manager.security_manager.override`` instead.

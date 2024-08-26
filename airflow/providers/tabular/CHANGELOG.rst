@@ -26,6 +26,21 @@
 Changelog
 ---------
 
+1.6.1
+.....
+
+.. note::
+  This release is the last release for this provider.
+  Please migrate to apache-airflow-providers-apache-iceberg
+
+Misc
+~~~~~
+
+* ``Mark tabular provider as removed (#41629)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.6.0
 .....
 

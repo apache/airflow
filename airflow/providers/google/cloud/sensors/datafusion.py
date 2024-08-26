@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable, Sequence
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionHook
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.sensors.base import BaseSensorOperator
@@ -111,22 +111,16 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
             )
             pipeline_status = pipeline_workflow["status"]
         except AirflowNotFoundException:
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = "Specified Pipeline ID was not found."
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
         except AirflowException:
             pass  # Because the pipeline may not be visible in system yet
         if pipeline_status is not None:
             if self.failure_statuses and pipeline_status in self.failure_statuses:
-                # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
                 message = (
                     f"Pipeline with id '{self.pipeline_id}' state is: {pipeline_status}. "
                     f"Terminating sensor..."
                 )
-                if self.soft_fail:
-                    raise AirflowSkipException(message)
                 raise AirflowException(message)
 
         self.log.debug(
