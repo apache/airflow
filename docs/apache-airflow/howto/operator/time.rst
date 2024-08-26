@@ -25,7 +25,7 @@ TimeDeltaSensor
 Use the :class:`~airflow.providers.standard.sensors.time_delta.TimeDeltaSensor` to end sensing after specific time.
 
 
-.. exampleinclude:: /../../airflow/example_dags/example_sensors.py
+.. exampleinclude:: /../../airflow/example_dags/sensors/example_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START example_time_delta_sensor]
@@ -41,7 +41,7 @@ Use the :class:`~airflow.providers.standard.sensors.time_delta.TimeDeltaSensorAs
 It is an async version of the operator and requires Triggerer to run.
 
 
-.. exampleinclude:: /../../airflow/example_dags/example_sensors.py
+.. exampleinclude:: /../../airflow/example_dags/sensors/example_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START example_time_delta_sensor_async]
@@ -56,7 +56,7 @@ TimeSensor
 
 Use the :class:`~airflow.providers.standard.sensors.time_sensor.TimeSensor` to end sensing after time specified.
 
-.. exampleinclude:: /../../airflow/example_dags/example_sensors.py
+.. exampleinclude:: /../../airflow/example_dags/sensors/example_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START example_time_sensors]
@@ -71,7 +71,7 @@ TimeSensorAsync
 Use the :class:`~airflow.providers.standard.sensors.time_sensor.TimeSensorAsync` to end sensing after time specified.
 It is an async version of the operator and requires Triggerer to run.
 
-.. exampleinclude:: /../../airflow/example_dags/example_sensors.py
+.. exampleinclude:: /../../airflow/example_dags/sensors/example_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START example_time_sensors_async]
