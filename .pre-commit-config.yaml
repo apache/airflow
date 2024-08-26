@@ -550,10 +550,10 @@ repos:
           (?x)
           ^airflow/example_dags/example_branch_datetime_operator.py|
           ^airflow/example_dags/example_branch_day_of_week_operator.py|
-          ^airflow/example_dags/sensors/example_sensors.py|
-          ^airflow/example_dags/sensors/example_sensors.py|
-          ^airflow/example_dags/sensors/example_sensors.py|
-          ^airflow/example_dags/sensors/example_time_delta_sensor_async.py
+          ^airflow/example_dags/example_sensors.py|
+          ^airflow/example_dags/example_sensors.py|
+          ^airflow/example_dags/example_sensors.py|
+          ^airflow/example_dags/example_time_delta_sensor_async.py
         files: ^airflow/example_dags/.*\.py$
       - id: check-no-airflow-deprecation-in-providers
         language: pygrep

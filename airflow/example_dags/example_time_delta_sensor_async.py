@@ -40,9 +40,3 @@ with DAG(
     wait = TimeDeltaSensorAsync(task_id="wait", delta=datetime.timedelta(seconds=30))
     finish = EmptyOperator(task_id="finish")
     wait >> finish
-
-
-from tests.system.utils import get_test_run
-
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
-test_run = get_test_run(dag)

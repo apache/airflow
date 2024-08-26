@@ -37,7 +37,7 @@ DayOfWeekSensor
 
 Use the :class:`~airflow.sensors.weekday.DayOfWeekSensor` to sense for day of week.
 
-.. exampleinclude:: /../../airflow/example_dags/sensors/example_sensors.py
+.. exampleinclude:: /../../airflow/example_dags/example_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START example_day_of_week_sensor]
