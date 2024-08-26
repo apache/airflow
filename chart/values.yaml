@@ -222,6 +222,66 @@ ingress:
       # the name of a pre-created Secret containing a TLS private key and certificate
       secretName: ""
 
+  # Configs for the Ingress of the flower Service
+  statsd:
+    # Enable web ingress resource
+    enabled: false
+
+    # Annotations for the statsd Ingress
+    annotations: {}
+
+    # The path for the statsd Ingress
+    path: "/metrics"
+
+    # The pathType for the above path (used only with Kubernetes v1.19 and above)
+    pathType: "ImplementationSpecific"
+
+    # The hostname for the statsd Ingress (Deprecated - renamed to `ingress.statsd.hosts`)
+    host: ""
+
+    # The hostnames or hosts configuration for the statsd Ingress
+    hosts: []
+    #   # The hostname for the statsd Ingress (can be templated)
+    # - name: ""
+    #   tls:
+    #     # Enable TLS termination for the statsd Ingress
+    #     enabled: false
+    #     # the name of a pre-created Secret containing a TLS private key and certificate
+    #     secretName: ""
+
+    # The Ingress Class for the statsd Ingress (used only with Kubernetes v1.19 and above)
+    ingressClassName: ""
+
+  # Configs for the Ingress of the flower Service
+  pgbouncer:
+    # Enable web ingress resource
+    enabled: false
+
+    # Annotations for the pgbouncer Ingress
+    annotations: {}
+
+    # The path for the pgbouncer Ingress
+    path: "/metrics"
+
+    # The pathType for the above path (used only with Kubernetes v1.19 and above)
+    pathType: "ImplementationSpecific"
+
+    # The hostname for the pgbouncer Ingress (Deprecated - renamed to `ingress.pgbouncer.hosts`)
+    host: ""
+
+    # The hostnames or hosts configuration for the pgbouncer Ingress
+    hosts: []
+    #   # The hostname for the statsd Ingress (can be templated)
+    # - name: ""
+    #   tls:
+    #     # Enable TLS termination for the pgbouncer Ingress
+    #     enabled: false
+    #     # the name of a pre-created Secret containing a TLS private key and certificate
+    #     secretName: ""
+
+    # The Ingress Class for the pgbouncer Ingress (used only with Kubernetes v1.19 and above)
+    ingressClassName: ""
+
 # Network policy configuration
 networkPolicies:
   # Enabled network policies

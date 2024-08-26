@@ -376,3 +376,32 @@ class TestStatsdServiceAccount:
             show_only=["templates/statsd/statsd-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
+
+
+class TestStatsdIngress:
+    """Tests Statsd Ingress."""
+
+    def test_statsd_ingress(self):
+        docs = render_chart(
+            values={
+                "statsd": {"enabled": True},
+                "ingress": {
+                    "statsd": {
+                        "enabled": True,
+                        "hosts": [
+                            {"name": "some-host", "tls": {"enabled": True, "secretName": "some-secret"}}
+                        ],
+                    }
+                },
+            },
+            show_only=["templates/statsd/statsd-ingress.yaml"],
+        )
+
+        assert {"name": "release-name-statsd", "port": {"name": "statsd-metrics"}} == jmespath.search(
+            "spec.rules[0].http.paths[0].backend.service", docs[0]
+        )
+        assert "/metrics" == jmespath.search("spec.rules[0].http.paths[0].path", docs[0])
+        assert "some-host" == jmespath.search("spec.rules[0].host", docs[0])
+        assert {"hosts": ["some-host"], "secretName": "some-secret"} == jmespath.search(
+            "spec.tls[0]", docs[0]
+        )

@@ -837,3 +837,32 @@ class TestPgbouncerNetworkPolicy:
         )
 
         assert expected_selector == jmespath.search("spec.ingress[0].from[1:]", docs[0])
+
+
+class TestPgbouncerIngress:
+    """Tests PgBouncer Ingress."""
+
+    def test_pgbouncer_ingress(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {"enabled": True},
+                "ingress": {
+                    "pgbouncer": {
+                        "enabled": True,
+                        "hosts": [
+                            {"name": "some-host", "tls": {"enabled": True, "secretName": "some-secret"}}
+                        ],
+                    }
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-ingress.yaml"],
+        )
+
+        assert {"name": "release-name-pgbouncer", "port": {"name": "pgbouncer-metrics"}} == jmespath.search(
+            "spec.rules[0].http.paths[0].backend.service", docs[0]
+        )
+        assert "/metrics" == jmespath.search("spec.rules[0].http.paths[0].path", docs[0])
+        assert "some-host" == jmespath.search("spec.rules[0].host", docs[0])
+        assert {"hosts": ["some-host"], "secretName": "some-secret"} == jmespath.search(
+            "spec.tls[0]", docs[0]
+        )
