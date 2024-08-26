@@ -413,7 +413,7 @@ BashSensor
 Use the :class:`~airflow.providers.standard.sensors.bash.BashSensor` to use arbitrary command for sensing. The command
 should return 0 when it succeeds, any other value otherwise.
 
-.. exampleinclude:: /../../airflow/example_dags/sensors/example_sensors.py
+.. exampleinclude:: /../../airflow/example_dags/example_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START example_bash_sensors]
