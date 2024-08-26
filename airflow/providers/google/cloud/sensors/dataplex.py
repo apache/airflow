@@ -30,7 +30,7 @@ from google.api_core.exceptions import GoogleAPICallError
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.dataplex_v1.types import DataScanJob
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataplex import (
     AirflowDataQualityScanException,
     AirflowDataQualityScanResultTimeoutException,
@@ -118,10 +118,7 @@ class DataplexTaskStateSensor(BaseSensorOperator):
         task_status = task.state
 
         if task_status == TaskState.DELETING:
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Task is going to be deleted {self.dataplex_task_id}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
 
         self.log.info("Current status of the Dataplex task %s => %s", self.dataplex_task_id, task_status)
@@ -202,12 +199,9 @@ class DataplexDataQualityJobStatusSensor(BaseSensorOperator):
         if self.result_timeout:
             duration = self._duration()
             if duration > self.result_timeout:
-                # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
                 message = (
                     f"Timeout: Data Quality scan {self.job_id} is not ready after {self.result_timeout}s"
                 )
-                if self.soft_fail:
-                    raise AirflowSkipException(message)
                 raise AirflowDataQualityScanResultTimeoutException(message)
 
         hook = DataplexHook(
@@ -227,10 +221,7 @@ class DataplexDataQualityJobStatusSensor(BaseSensorOperator):
                 metadata=self.metadata,
             )
         except GoogleAPICallError as e:
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Error occurred when trying to retrieve Data Quality scan job: {self.data_scan_id}"
-            if self.soft_fail:
-                raise AirflowSkipException(message, e)
             raise AirflowException(message, e)
 
         job_status = job.state
@@ -238,26 +229,17 @@ class DataplexDataQualityJobStatusSensor(BaseSensorOperator):
             "Current status of the Dataplex Data Quality scan job %s => %s", self.job_id, job_status
         )
         if job_status == DataScanJob.State.FAILED:
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Data Quality scan job failed: {self.job_id}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
         if job_status == DataScanJob.State.CANCELLED:
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Data Quality scan job cancelled: {self.job_id}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
         if self.fail_on_dq_failure:
             if job_status == DataScanJob.State.SUCCEEDED and not job.data_quality_result.passed:
-                # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
                 message = (
                     f"Data Quality job {self.job_id} execution failed due to failure of its scanning "
                     f"rules: {self.data_scan_id}"
                 )
-                if self.soft_fail:
-                    raise AirflowSkipException(message)
                 raise AirflowDataQualityScanException(message)
         return job_status == DataScanJob.State.SUCCEEDED
 
@@ -330,12 +312,9 @@ class DataplexDataProfileJobStatusSensor(BaseSensorOperator):
         if self.result_timeout:
             duration = self._duration()
             if duration > self.result_timeout:
-                # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
                 message = (
                     f"Timeout: Data Profile scan {self.job_id} is not ready after {self.result_timeout}s"
                 )
-                if self.soft_fail:
-                    raise AirflowSkipException(message)
                 raise AirflowDataQualityScanResultTimeoutException(message)
 
         hook = DataplexHook(
@@ -355,10 +334,7 @@ class DataplexDataProfileJobStatusSensor(BaseSensorOperator):
                 metadata=self.metadata,
             )
         except GoogleAPICallError as e:
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Error occurred when trying to retrieve Data Profile scan job: {self.data_scan_id}"
-            if self.soft_fail:
-                raise AirflowSkipException(message, e)
             raise AirflowException(message, e)
 
         job_status = job.state
@@ -366,15 +342,9 @@ class DataplexDataProfileJobStatusSensor(BaseSensorOperator):
             "Current status of the Dataplex Data Profile scan job %s => %s", self.job_id, job_status
         )
         if job_status == DataScanJob.State.FAILED:
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Data Profile scan job failed: {self.job_id}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
         if job_status == DataScanJob.State.CANCELLED:
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Data Profile scan job cancelled: {self.job_id}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
         return job_status == DataScanJob.State.SUCCEEDED
