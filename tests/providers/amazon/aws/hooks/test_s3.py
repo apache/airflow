@@ -58,6 +58,21 @@ def s3_bucket(mocked_s3_res):
     return bucket
 
 
+if AIRFLOW_V_2_10_PLUS:
+
+    @pytest.fixture
+    def hook_lineage_collector():
+        from airflow.lineage import hook
+        from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+
+        hook._hook_lineage_collector = None
+        hook._hook_lineage_collector = hook.HookLineageCollector()
+
+        yield get_hook_lineage_collector()
+
+        hook._hook_lineage_collector = None
+
+
 class TestAwsS3Hook:
     @mock_aws
     def test_get_conn(self):
@@ -429,6 +444,7 @@ class TestAwsS3Hook:
     @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
     def test_load_string_exposes_lineage(self, s3_bucket, hook_lineage_collector):
         hook = S3Hook()
+
         hook.load_string("Contént", "my_key", s3_bucket)
         assert len(hook_lineage_collector.collected_assets.outputs) == 1
         assert hook_lineage_collector.collected_assets.outputs[0].asset == Dataset(

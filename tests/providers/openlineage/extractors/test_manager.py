@@ -39,6 +39,20 @@ from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
+if AIRFLOW_V_2_10_PLUS:
+
+    @pytest.fixture
+    def hook_lineage_collector():
+        from airflow.lineage import hook
+        from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+
+        hook._hook_lineage_collector = None
+        hook._hook_lineage_collector = hook.HookLineageCollector()
+
+        yield get_hook_lineage_collector()
+
+        hook._hook_lineage_collector = None
+
 
 @pytest.mark.parametrize(
     ("uri", "dataset"),
@@ -213,8 +227,8 @@ def test_extractor_manager_uses_hook_level_lineage(hook_lineage_collector):
     del task.get_openlineage_facets_on_complete
     ti = MagicMock()
 
-    hook_lineage_collector.add_input_dataset(None, uri="s3://bucket/input_key")
-    hook_lineage_collector.add_output_dataset(None, uri="s3://bucket/output_key")
+    hook_lineage_collector.add_input_asset(None, uri="s3://bucket/input_key")
+    hook_lineage_collector.add_output_asset(None, uri="s3://bucket/output_key")
     extractor_manager = ExtractorManager()
     metadata = extractor_manager.extract_metadata(dagrun=dagrun, task=task, complete=True, task_instance=ti)
 
@@ -236,7 +250,7 @@ def test_extractor_manager_does_not_use_hook_level_lineage_when_operator(hook_li
     dagrun = MagicMock()
     task = FakeSupportedOperator(task_id="test_task_extractor")
     ti = MagicMock()
-    hook_lineage_collector.add_input_dataset(None, uri="s3://bucket/input_key")
+    hook_lineage_collector.add_input_asset(None, uri="s3://bucket/input_key")
 
     extractor_manager = ExtractorManager()
     metadata = extractor_manager.extract_metadata(dagrun=dagrun, task=task, complete=True, task_instance=ti)
@@ -269,7 +283,7 @@ def test_extractor_manager_gets_data_from_pythonoperator(session, dag_maker, hoo
 
     ti.run()
 
-    datasets = hook_lineage_collector.collected_datasets
+    datasets = hook_lineage_collector.collected_assets
 
     assert len(datasets.outputs) == 1
-    assert datasets.outputs[0].dataset == Dataset(uri=path)
+    assert datasets.outputs[0].asset == Dataset(uri=path)

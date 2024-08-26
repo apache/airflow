@@ -650,6 +650,13 @@ def translate_airflow_dataset(dataset: Dataset, lineage_context) -> OpenLineageD
     """
     try:
         from airflow.assets import _get_normalized_scheme
+    except ModuleNotFoundError:
+        try:
+            from airflow.datasets import _get_normalized_scheme  # type: ignore[no-redef]
+        except ImportError:
+            return None
+
+    try:
         from airflow.providers_manager import ProvidersManager
 
         ol_converters = ProvidersManager().dataset_to_openlineage_converters

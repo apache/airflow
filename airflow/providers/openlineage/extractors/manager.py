@@ -178,7 +178,7 @@ class ExtractorManager(LoggingMixin):
 
     def get_hook_lineage(self) -> tuple[list[Dataset], list[Dataset]] | None:
         try:
-            from airflow.lineage.hook import get_hook_lineage_collector
+            from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
         except ImportError:
             return None
 
@@ -187,16 +187,14 @@ class ExtractorManager(LoggingMixin):
 
         return (
             [
-                dataset
-                for dataset_info in get_hook_lineage_collector().collected_datasets.inputs
-                if (dataset := translate_airflow_dataset(dataset_info.dataset, dataset_info.context))
-                is not None
+                asset
+                for asset_info in get_hook_lineage_collector().collected_assets.inputs
+                if (asset := translate_airflow_dataset(asset_info.asset, asset_info.context)) is not None
             ],
             [
-                dataset
-                for dataset_info in get_hook_lineage_collector().collected_datasets.outputs
-                if (dataset := translate_airflow_dataset(dataset_info.dataset, dataset_info.context))
-                is not None
+                asset
+                for asset_info in get_hook_lineage_collector().collected_assets.outputs
+                if (asset := translate_airflow_dataset(asset_info.asset, asset_info.context)) is not None
             ],
         )
 
