@@ -169,7 +169,7 @@ class CreateAssetEventSchema(Schema):
 
 
 dataset_event_schema = AssetEventSchema()
-dataset_event_collection_schema = AssetEventCollectionSchema()
+asset_event_collection_schema = AssetEventCollectionSchema()
 create_asset_event_schema = CreateAssetEventSchema()
 
 

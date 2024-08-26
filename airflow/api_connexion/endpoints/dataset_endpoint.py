@@ -36,8 +36,8 @@ from airflow.api_connexion.schemas.dataset_schema import (
     QueuedEventCollection,
     TaskOutletAssetReference,
     asset_collection_schema,
+    asset_event_collection_schema,
     create_asset_event_schema,
-    dataset_event_collection_schema,
     dataset_event_schema,
     dataset_schema,
     queued_event_collection_schema,
@@ -148,7 +148,7 @@ def get_dataset_events(
     total_entries = get_query_count(query, session=session)
     query = apply_sorting(query, order_by, {}, allowed_attrs)
     events = session.scalars(query.offset(offset).limit(limit)).all()
-    return dataset_event_collection_schema.dump(
+    return asset_event_collection_schema.dump(
         AssetEventCollection(dataset_events=events, total_entries=total_entries)
     )
 

@@ -23,7 +23,7 @@ from airflow.api_connexion.schemas.dataset_schema import (
     AssetCollection,
     AssetEventCollection,
     asset_collection_schema,
-    dataset_event_collection_schema,
+    asset_event_collection_schema,
     dataset_event_schema,
     dataset_schema,
 )
@@ -218,7 +218,7 @@ class TestAssetEventCollectionSchema(TestAssetSchemaBase):
         events = [AssetEvent(id=i, **common) for i in [1, 2]]
         session.add_all(events)
         session.flush()
-        serialized_data = dataset_event_collection_schema.dump(
+        serialized_data = asset_event_collection_schema.dump(
             AssetEventCollection(dataset_events=events, total_entries=2)
         )
         assert serialized_data == {
