@@ -772,11 +772,11 @@ class TestConnection:
         assert res[1] == "Hook GrpcHook doesn't implement or inherit test_connection method"
 
     def test_extra_warnings_non_json(self):
-        with pytest.warns(DeprecationWarning, match="non-JSON"):
+        with pytest.raises(ValueError, match="non-JSON"):
             Connection(conn_id="test_extra", conn_type="none", extra="hi")
 
     def test_extra_warnings_non_dict_json(self):
-        with pytest.warns(DeprecationWarning, match="not parse as a dictionary"):
+        with pytest.raises(ValueError, match="not parse as a dictionary"):
             Connection(conn_id="test_extra", conn_type="none", extra='"hi"')
 
     def test_get_uri_no_conn_type(self):
