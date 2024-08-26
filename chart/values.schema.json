@@ -539,17 +539,17 @@
                     }
                 },
                 "pgbouncer": {
-                    "description": "Configuration for the Ingress of the pgbouncer Service.",
+                    "description": "Configuration for the Ingress of the PgBouncer Service.",
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "enabled": {
-                            "description": "Enable pgbouncer ingress resource.",
+                            "description": "Enable PgBouncer ingress resource.",
                             "type": "boolean",
                             "default": false
                         },
                         "annotations": {
-                            "description": "Annotations for the pgbouncer Ingress.",
+                            "description": "Annotations for the PgBouncer Ingress.",
                             "type": "object",
                             "default": {},
                             "additionalProperties": {
@@ -557,22 +557,22 @@
                             }
                         },
                         "path": {
-                            "description": "The path for the pgbouncer Ingress.",
+                            "description": "The path for the PgBouncer Ingress.",
                             "type": "string",
                             "default": "/metrics"
                         },
                         "pathType": {
-                            "description": "The pathType for the pgbouncer Ingress (required for Kubernetes 1.19 and above).",
+                            "description": "The pathType for the PgBouncer Ingress (required for Kubernetes 1.19 and above).",
                             "type": "string",
                             "default": "ImplementationSpecific"
                         },
                         "host": {
-                            "description": "The hostname for the pgbouncer Ingress. (Deprecated - renamed to `ingress.pgbouncer.hosts`)",
+                            "description": "The hostname for the PgBouncer Ingress. (Deprecated - renamed to `ingress.pgbouncer.hosts`)",
                             "type": "string",
                             "default": ""
                         },
                         "hosts": {
-                            "description": "The hostnames or hosts configuration for the pgbouncer Ingress.",
+                            "description": "The hostnames or hosts configuration for the PgBouncer Ingress.",
                             "type": "array",
                             "default": [],
                             "items": {
@@ -617,7 +617,7 @@
                             }
                         },
                         "ingressClassName": {
-                            "description": "The Ingress Class for the pgbouncer Ingress.",
+                            "description": "The Ingress Class for the PgBouncer Ingress.",
                             "type": "string",
                             "default": ""
                         }
