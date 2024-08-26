@@ -430,7 +430,7 @@ An Operator inside the Airflow DAG can be annotated with inlets and outlets like
 
     with DAG(
         dag_id="example_operator",
-        schedule_interval="@once",
+        schedule="@once",
         start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     ) as dag:
         task1 = BashOperator(

@@ -321,7 +321,7 @@ sample_objects = {
     DagModelPydantic: DagModel(
         dag_id="TEST_DAG_1",
         fileloc="/tmp/dag_1.py",
-        schedule_interval="2 2 * * *",
+        timetable_summary="2 2 * * *",
         is_paused=True,
     ),
     LogTemplatePydantic: LogTemplate(
@@ -370,7 +370,7 @@ sample_objects = {
             sample_objects.get(DagModelPydantic),
             DagModelPydantic,
             DAT.DAG_MODEL,
-            lambda a, b: a.fileloc == b.fileloc and a.schedule_interval == b.schedule_interval,
+            lambda a, b: a.fileloc == b.fileloc and a.timetable_summary == b.timetable_summary,
         ),
         (
             sample_objects.get(LogTemplatePydantic),

@@ -50,7 +50,7 @@ class DatasetOrTimeSchedule(DatasetTriggeredSchedule):
 
         self.description = f"Triggered by datasets or {timetable.description}"
         self.periodic = timetable.periodic
-        self._can_be_scheduled = timetable._can_be_scheduled
+        self.can_be_scheduled = timetable.can_be_scheduled
         self.active_runs_limit = timetable.active_runs_limit
 
     @classmethod

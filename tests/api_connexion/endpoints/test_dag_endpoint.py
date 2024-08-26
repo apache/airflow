@@ -137,7 +137,7 @@ class TestDagEndpoint:
             dag_model = DagModel(
                 dag_id=f"{dag_id_prefix}_{num}",
                 fileloc=f"/tmp/dag_{num}.py",
-                schedule_interval="2 2 * * *",
+                timetable_summary="2 2 * * *",
                 is_active=True,
                 is_paused=is_paused,
             )
@@ -148,7 +148,7 @@ class TestDagEndpoint:
         dag_model = DagModel(
             dag_id=dag_id,
             fileloc="/tmp/dag.py",
-            schedule_interval="2 2 * * *",
+            timetable_summary="2 2 * * *",
             is_active=True,
             is_paused=False,
         )
@@ -159,7 +159,7 @@ class TestDagEndpoint:
         dag_model = DagModel(
             dag_id=dag_id,
             fileloc="/tmp/dag.py",
-            schedule_interval="2 2 * * *",
+            timetable_summary="2 2 * * *",
             is_active=True,
             is_paused=False,
             dataset_expression={
@@ -176,7 +176,7 @@ class TestDagEndpoint:
         dag_model = DagModel(
             dag_id="TEST_DAG_DELETED_1",
             fileloc="/tmp/dag_del_1.py",
-            schedule_interval="2 2 * * *",
+            timetable_summary="2 2 * * *",
             is_active=False,
         )
         session.add(dag_model)
@@ -197,7 +197,7 @@ class TestGetDag(TestDagEndpoint):
             "is_paused": False,
             "is_active": True,
             "owners": [],
-            "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
+            "timetable_summary": "2 2 * * *",
             "tags": [],
             "next_dagrun": None,
             "has_task_concurrency_limits": True,
@@ -218,11 +218,11 @@ class TestGetDag(TestDagEndpoint):
         } == response.json
 
     @conf_vars({("webserver", "secret_key"): "mysecret"})
-    def test_should_respond_200_with_schedule_interval_none(self, session):
+    def test_should_respond_200_with_schedule_none(self, session):
         dag_model = DagModel(
             dag_id="TEST_DAG_1",
             fileloc="/tmp/dag_1.py",
-            schedule_interval=None,
+            timetable_summary=None,
             is_paused=False,
         )
         session.add(dag_model)
@@ -238,7 +238,7 @@ class TestGetDag(TestDagEndpoint):
             "is_paused": False,
             "is_active": False,
             "owners": [],
-            "schedule_interval": None,
+            "timetable_summary": None,
             "tags": [],
             "next_dagrun": None,
             "has_task_concurrency_limits": True,
@@ -294,7 +294,7 @@ class TestGetDag(TestDagEndpoint):
         [
             ["dag_id"],  # only one
             ["fileloc", "file_token", "owners"],  # auto_field and fields.Method
-            ["schedule_interval", "tags"],  # fields.List
+            ["tags"],  # fields.List
         ],
     )
     def test_should_return_specified_fields(self, fields):
@@ -331,7 +331,7 @@ class TestGetDag(TestDagEndpoint):
         dag_model = DagModel(
             dag_id="TEST_DAG_1",
             fileloc="/tmp/dag_1.py",
-            schedule_interval=None,
+            timetable_summary=None,
             is_paused=False,
         )
         session.add(dag_model)
@@ -391,7 +391,7 @@ class TestGetDagDetails(TestDagEndpoint):
             },
             "pickle_id": None,
             "render_template_as_native_obj": False,
-            "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
+            "timetable_summary": "2 2 * * *",
             "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
@@ -455,7 +455,7 @@ class TestGetDagDetails(TestDagEndpoint):
             },
             "pickle_id": None,
             "render_template_as_native_obj": False,
-            "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
+            "timetable_summary": "2 2 * * *",
             "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
@@ -507,7 +507,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "params": {},
             "pickle_id": None,
             "render_template_as_native_obj": False,
-            "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
+            "timetable_summary": "2 2 * * *",
             "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
@@ -559,7 +559,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "params": {},
             "pickle_id": None,
             "render_template_as_native_obj": False,
-            "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
+            "timetable_summary": "2 2 * * *",
             "scheduler_lock": None,
             "start_date": None,
             "tags": [],
@@ -620,7 +620,7 @@ class TestGetDagDetails(TestDagEndpoint):
             },
             "pickle_id": None,
             "render_template_as_native_obj": False,
-            "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
+            "timetable_summary": "2 2 * * *",
             "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
@@ -682,7 +682,7 @@ class TestGetDagDetails(TestDagEndpoint):
             },
             "pickle_id": None,
             "render_template_as_native_obj": False,
-            "schedule_interval": {"__type": "CronExpression", "value": "2 2 * * *"},
+            "timetable_summary": "2 2 * * *",
             "scheduler_lock": None,
             "start_date": "2020-06-15T00:00:00+00:00",
             "tags": [],
@@ -715,7 +715,7 @@ class TestGetDagDetails(TestDagEndpoint):
         [
             ["dag_id"],  # only one
             ["doc_md", "file_token", "owners"],  # fields.String and fields.Method
-            ["schedule_interval", "tags"],  # fields.List
+            ["tags"],  # fields.List
         ],
     )
     def test_should_return_specified_fields(self, fields):
@@ -777,10 +777,7 @@ class TestGetDags(TestDagEndpoint):
                     "is_paused": False,
                     "is_active": True,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,
@@ -808,10 +805,7 @@ class TestGetDags(TestDagEndpoint):
                     "is_paused": False,
                     "is_active": True,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,
@@ -851,10 +845,7 @@ class TestGetDags(TestDagEndpoint):
                     "is_paused": False,
                     "is_active": True,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,
@@ -895,10 +886,7 @@ class TestGetDags(TestDagEndpoint):
                     "is_paused": False,
                     "is_active": True,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,
@@ -926,10 +914,7 @@ class TestGetDags(TestDagEndpoint):
                     "is_paused": False,
                     "is_active": False,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,
@@ -1095,10 +1080,7 @@ class TestGetDags(TestDagEndpoint):
                     "is_paused": True,
                     "is_active": True,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,
@@ -1138,10 +1120,7 @@ class TestGetDags(TestDagEndpoint):
                     "is_paused": False,
                     "is_active": True,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,
@@ -1181,10 +1160,7 @@ class TestGetDags(TestDagEndpoint):
                     "is_paused": True,
                     "is_active": True,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,
@@ -1212,10 +1188,7 @@ class TestGetDags(TestDagEndpoint):
                     "is_paused": False,
                     "is_active": True,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,
@@ -1301,10 +1274,7 @@ class TestPatchDag(TestDagEndpoint):
             "is_paused": False,
             "is_active": False,
             "owners": [],
-            "schedule_interval": {
-                "__type": "CronExpression",
-                "value": "2 2 * * *",
-            },
+            "timetable_summary": "2 2 * * *",
             "tags": [],
             "next_dagrun": None,
             "has_task_concurrency_limits": True,
@@ -1343,16 +1313,13 @@ class TestPatchDag(TestDagEndpoint):
     def test_should_respond_400_on_invalid_request(self):
         patch_body = {
             "is_paused": True,
-            "schedule_interval": {
-                "__type": "CronExpression",
-                "value": "1 1 * * *",
-            },
+            "timetable_summary": "1 1 * * *",
         }
         dag_model = self._create_dag_model()
         response = self.client.patch(f"/api/v1/dags/{dag_model.dag_id}", json=patch_body)
         assert response.status_code == 400
         assert response.json == {
-            "detail": "Property is read-only - 'schedule_interval'",
+            "detail": "Property is read-only - 'timetable_summary'",
             "status": 400,
             "title": "Bad Request",
             "type": EXCEPTIONS_LINK_MAP[400],
@@ -1398,7 +1365,7 @@ class TestPatchDag(TestDagEndpoint):
     @provide_session
     def _create_dag_model(self, session=None):
         dag_model = DagModel(
-            dag_id="TEST_DAG_1", fileloc="/tmp/dag_1.py", schedule_interval="2 2 * * *", is_paused=True
+            dag_id="TEST_DAG_1", fileloc="/tmp/dag_1.py", timetable_summary="2 2 * * *", is_paused=True
         )
         session.add(dag_model)
         return dag_model
@@ -1436,10 +1403,7 @@ class TestPatchDag(TestDagEndpoint):
             "is_paused": False,
             "is_active": False,
             "owners": [],
-            "schedule_interval": {
-                "__type": "CronExpression",
-                "value": "2 2 * * *",
-            },
+            "timetable_summary": "2 2 * * *",
             "tags": [],
             "next_dagrun": None,
             "has_task_concurrency_limits": True,
@@ -1474,7 +1438,7 @@ class TestPatchDag(TestDagEndpoint):
                 {
                     "is_paused": True,
                 },
-                "update_mask=schedule_interval, description",
+                "update_mask=timetable_summary, description",
                 "Only `is_paused` field can be updated through the REST API",
             ),
         ],
@@ -1552,10 +1516,7 @@ class TestPatchDags(TestDagEndpoint):
                     "is_paused": False,
                     "is_active": True,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,
@@ -1583,10 +1544,7 @@ class TestPatchDags(TestDagEndpoint):
                     "is_paused": False,
                     "is_active": True,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,
@@ -1639,10 +1597,7 @@ class TestPatchDags(TestDagEndpoint):
                     "is_paused": False,
                     "is_active": True,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,
@@ -1670,10 +1625,7 @@ class TestPatchDags(TestDagEndpoint):
                     "is_paused": False,
                     "is_active": True,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,
@@ -1766,10 +1718,7 @@ class TestPatchDags(TestDagEndpoint):
                     "is_paused": False,
                     "is_active": True,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,
@@ -1818,10 +1767,7 @@ class TestPatchDags(TestDagEndpoint):
                     "is_paused": False,
                     "is_active": True,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,
@@ -1849,10 +1795,7 @@ class TestPatchDags(TestDagEndpoint):
                     "is_paused": False,
                     "is_active": False,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,
@@ -2064,10 +2007,7 @@ class TestPatchDags(TestDagEndpoint):
                     "is_paused": True,
                     "is_active": True,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,
@@ -2095,10 +2035,7 @@ class TestPatchDags(TestDagEndpoint):
                     "is_paused": True,
                     "is_active": True,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,
@@ -2147,10 +2084,7 @@ class TestPatchDags(TestDagEndpoint):
                     "is_paused": True,
                     "is_active": True,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,
@@ -2178,10 +2112,7 @@ class TestPatchDags(TestDagEndpoint):
                     "is_paused": True,
                     "is_active": True,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,
@@ -2232,10 +2163,7 @@ class TestPatchDags(TestDagEndpoint):
                     "is_paused": False,
                     "is_active": True,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,
@@ -2263,10 +2191,7 @@ class TestPatchDags(TestDagEndpoint):
                     "is_paused": False,
                     "is_active": True,
                     "owners": [],
-                    "schedule_interval": {
-                        "__type": "CronExpression",
-                        "value": "2 2 * * *",
-                    },
+                    "timetable_summary": "2 2 * * *",
                     "tags": [],
                     "next_dagrun": None,
                     "has_task_concurrency_limits": True,

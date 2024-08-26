@@ -147,10 +147,10 @@ describe("Test Logs Utils.", () => {
 
     const lines = parsedLogs!.split("\n");
     expect(lines[lines.length - 1]).toContain(
-      '<a href="https://apple.com" target="_blank" style="color: blue; text-decoration: underline;">https://apple.com</a>'
+      '<a href="https://apple.com" target="_blank" rel="noopener noreferrer" style="color: blue; text-decoration: underline;">https://apple.com</a>'
     );
     expect(lines[lines.length - 1]).toContain(
-      '<a href="https://google.com" target="_blank" style="color: blue; text-decoration: underline;">https://google.com</a>'
+      '<a href="https://google.com" target="_blank" rel="noopener noreferrer" style="color: blue; text-decoration: underline;">https://google.com</a>'
     );
   });
 });

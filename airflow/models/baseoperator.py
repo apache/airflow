@@ -50,7 +50,6 @@ from typing import (
 
 import attr
 import pendulum
-from dateutil.relativedelta import relativedelta
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -119,8 +118,6 @@ if TYPE_CHECKING:
     from airflow.triggers.base import BaseTrigger, StartTriggerArgs
     from airflow.utils.task_group import TaskGroup
     from airflow.utils.types import ArgNotSet
-
-ScheduleInterval = Union[str, timedelta, relativedelta]
 
 TaskPreExecuteHook = Callable[[Context], None]
 TaskPostExecuteHook = Callable[[Context, Any], None]
@@ -612,10 +609,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param start_date: The ``start_date`` for the task, determines
         the ``execution_date`` for the first task instance. The best practice
         is to have the start_date rounded
-        to your DAG's ``schedule_interval``. Daily jobs have their start_date
+        to your DAG's schedule. Daily jobs have their start_date
         some day at 00:00:00, hourly jobs have their start_date at 00:00
         of a specific hour. Note that Airflow simply looks at the latest
-        ``execution_date`` and adds the ``schedule_interval`` to determine
+        ``execution_date`` and adds the schedule to determine
         the next ``execution_date``. It is also very important
         to note that different tasks' dependencies
         need to line up in time. If task A depends on task B and their

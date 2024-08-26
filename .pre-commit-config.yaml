@@ -67,7 +67,7 @@ repos:
       - id: insert-license
         name: Add license for all CSS/JS/JSX/PUML/TS/TSX files
         files: \.(css|jsx?|puml|tsx?)$
-        exclude: ^\.github/.*$|^.*/.*_vendor/
+        exclude: ^\.github/.*$|^.*/.*_vendor/|^airflow/www/static/js/types/api-generated.ts$
         args:
           - --comment-style
           - "/*!| *| */"

@@ -24,7 +24,6 @@ import typing
 import marshmallow
 from dateutil import relativedelta
 from marshmallow import Schema, fields, validate
-from marshmallow_oneofschema import OneOfSchema
 
 from airflow.models.mappedoperator import MappedOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
@@ -88,42 +87,6 @@ class CronExpressionSchema(Schema):
     def make_cron_expression(self, data, **kwargs):
         """Create cron expression based on data."""
         return CronExpression(data["value"])
-
-
-class ScheduleIntervalSchema(OneOfSchema):
-    """
-    Schedule interval.
-
-    It supports the following types:
-
-    * TimeDelta
-    * RelativeDelta
-    * CronExpression
-    """
-
-    type_field = "__type"
-    type_schemas = {
-        "TimeDelta": TimeDeltaSchema,
-        "RelativeDelta": RelativeDeltaSchema,
-        "CronExpression": CronExpressionSchema,
-    }
-
-    def _dump(self, obj, update_fields=True, **kwargs):
-        if isinstance(obj, str):
-            obj = CronExpression(obj)
-
-        return super()._dump(obj, update_fields=update_fields, **kwargs)
-
-    def get_obj_type(self, obj):
-        """Select schema based on object type."""
-        if isinstance(obj, datetime.timedelta):
-            return "TimeDelta"
-        elif isinstance(obj, relativedelta.relativedelta):
-            return "RelativeDelta"
-        elif isinstance(obj, CronExpression):
-            return "CronExpression"
-        else:
-            raise TypeError(f"Unknown object type: {obj.__class__.__name__}")
 
 
 class ColorField(fields.String):

@@ -989,7 +989,7 @@ class Airflow(AirflowBaseView):
                     else:
                         current_dags = current_dags.order_by(null_case, sort_column)
 
-            dags = (
+            dags: list[DagModel] = (
                 session.scalars(
                     current_dags.options(joinedload(DagModel.tags)).offset(start).limit(dags_per_page)
                 )
@@ -997,7 +997,7 @@ class Airflow(AirflowBaseView):
                 .all()
             )
 
-            dataset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.schedule_interval == "Dataset"}
+            dataset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.dataset_expression is not None}
             if dataset_triggered_dag_ids:
                 dataset_triggered_next_run_info = get_dataset_triggered_next_run_info(
                     dataset_triggered_dag_ids, session=session
@@ -1210,16 +1210,11 @@ class Airflow(AirflowBaseView):
         else:
             filter_dag_ids = allowed_dag_ids
 
-        dataset_triggered_dag_ids = [
-            dag_id
-            for dag_id in (
-                session.scalars(
-                    select(DagModel.dag_id)
-                    .where(DagModel.dag_id.in_(filter_dag_ids))
-                    .where(DagModel.schedule_interval == "Dataset")
-                )
-            )
-        ]
+        dataset_triggered_dag_ids = session.scalars(
+            select(DagModel.dag_id)
+            .where(DagModel.dag_id.in_(filter_dag_ids))
+            .where(DagModel.dataset_expression.is_not(None))
+        ).all()
 
         dataset_triggered_next_run_info = get_dataset_triggered_next_run_info(
             dataset_triggered_dag_ids, session=session

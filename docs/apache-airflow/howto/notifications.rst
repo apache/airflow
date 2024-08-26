@@ -66,7 +66,7 @@ Here's an example of using the above notifier:
     with DAG(
         dag_id="example_notifier",
         start_date=datetime(2022, 1, 1),
-        schedule_interval=None,
+        schedule=None,
         on_success_callback=MyNotifier(message="Success!"),
         on_failure_callback=MyNotifier(message="Failure!"),
     ):
