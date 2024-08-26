@@ -59,9 +59,3 @@ with DAG(
     # Run empty_task_3 if it's a weekend, empty_task_4 otherwise
     empty_task_2 >> branch_weekend >> [empty_task_3, empty_task_4]
     # [END howto_operator_day_of_week_branch]
-
-
-from tests.system.utils import get_test_run
-
-# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
-test_run = get_test_run(dag)
