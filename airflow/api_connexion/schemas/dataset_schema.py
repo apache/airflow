@@ -90,8 +90,8 @@ class DatasetSchema(SQLAlchemySchema):
     aliases = fields.List(fields.Nested(AssetAliasSchema))
 
 
-class DatasetCollection(NamedTuple):
-    """List of Datasets with meta."""
+class AssetCollection(NamedTuple):
+    """List of Assets with meta."""
 
     datasets: list[AssetModel]
     total_entries: int

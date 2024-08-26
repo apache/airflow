@@ -29,9 +29,9 @@ from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
 from airflow.api_connexion.schemas.dataset_schema import (
+    AssetCollection,
     AssetEventCollection,
     DagScheduleAssetReference,
-    DatasetCollection,
     QueuedEvent,
     QueuedEventCollection,
     TaskOutletAssetReference,
@@ -109,7 +109,7 @@ def get_datasets(
         .offset(offset)
         .limit(limit)
     ).all()
-    return dataset_collection_schema.dump(DatasetCollection(datasets=assets, total_entries=total_entries))
+    return dataset_collection_schema.dump(AssetCollection(datasets=assets, total_entries=total_entries))
 
 
 @security.requires_access_dataset("GET")
