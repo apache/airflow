@@ -526,6 +526,9 @@ class DagFileProcessorManager(LoggingMixin):
         dags_parsed = session.execute(query)
 
         for dag in dags_parsed:
+            # When the DAG processor runs as part of the scheduler, and the user changes the DAG home folder,
+            # DAGs from the previous DAG home will be marked as stale. Note that this change has no impact
+            # on standalone DAG processors.
             if not Path(dag.fileloc).is_relative_to(dag_directory):
                 to_deactivate.add(dag.dag_id)
                 continue
