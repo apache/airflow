@@ -321,6 +321,7 @@ class Job(Base, LoggingMixin):
     def _kill(job_id: str, session: Session = NEW_SESSION) -> Job | JobPydantic:
         job = session.scalar(select(Job).where(Job.id == job_id).limit(1))
         job.end_date = timezone.utcnow()
+        job.state = JobState.FAILED
         session.merge(job)
         session.commit()
         return job
