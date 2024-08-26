@@ -18,7 +18,7 @@
 
 
 Plugins
-=======
+========
 
 Airflow has a simple plugin manager built-in that can integrate external
 features to its core by simply dropping files in your
