@@ -35,7 +35,7 @@ from tests.test_utils.db import clear_db_dags, clear_db_datasets
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
-class TestDatasetSchemaBase:
+class TestAssetSchemaBase:
     def setup_method(self) -> None:
         clear_db_dags()
         clear_db_datasets()
@@ -49,7 +49,7 @@ class TestDatasetSchemaBase:
         clear_db_datasets()
 
 
-class TestDatasetSchema(TestDatasetSchemaBase):
+class TestAssetSchema(TestAssetSchemaBase):
     def test_serialize(self, dag_maker, session):
         dataset = Dataset(
             uri="s3://bucket/key",
@@ -91,7 +91,7 @@ class TestDatasetSchema(TestDatasetSchemaBase):
         }
 
 
-class TestAssetCollectionSchema(TestDatasetSchemaBase):
+class TestAssetCollectionSchema(TestAssetSchemaBase):
     def test_serialize(self, session):
         assets = [
             AssetModel(
@@ -141,7 +141,7 @@ class TestAssetCollectionSchema(TestDatasetSchemaBase):
         }
 
 
-class TestAssetEventSchema(TestDatasetSchemaBase):
+class TestAssetEventSchema(TestAssetSchemaBase):
     def test_serialize(self, session):
         assetssetsset = AssetModel("s3://abc")
         session.add(assetssetsset)
@@ -172,7 +172,7 @@ class TestAssetEventSchema(TestDatasetSchemaBase):
         }
 
 
-class TestDatasetEventCreateSchema(TestDatasetSchemaBase):
+class TestDatasetEventCreateSchema(TestAssetSchemaBase):
     def test_serialize(self, session):
         asset = AssetModel("s3://abc")
         session.add(asset)
@@ -203,7 +203,7 @@ class TestDatasetEventCreateSchema(TestDatasetSchemaBase):
         }
 
 
-class TestAssetEventCollectionSchema(TestDatasetSchemaBase):
+class TestAssetEventCollectionSchema(TestAssetSchemaBase):
     def test_serialize(self, session):
         common = {
             "dataset_id": 10,

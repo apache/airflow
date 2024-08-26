@@ -72,8 +72,8 @@ class AssetAliasSchema(SQLAlchemySchema):
     name = auto_field()
 
 
-class DatasetSchema(SQLAlchemySchema):
-    """Dataset DB schema."""
+class AssetSchema(SQLAlchemySchema):
+    """Asset DB schema."""
 
     class Meta:
         """Meta."""
@@ -100,11 +100,11 @@ class AssetCollection(NamedTuple):
 class AssetCollectionSchema(Schema):
     """Asset Collection Schema."""
 
-    datasets = fields.List(fields.Nested(DatasetSchema))
+    datasets = fields.List(fields.Nested(AssetSchema))
     total_entries = fields.Int()
 
 
-dataset_schema = DatasetSchema()
+dataset_schema = AssetSchema()
 dataset_collection_schema = AssetCollectionSchema()
 
 
