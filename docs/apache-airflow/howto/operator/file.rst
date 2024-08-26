@@ -26,7 +26,7 @@ Use the :class:`~airflow.sensors.filesystem.FileSensor` to detect files appearin
 filesystem. You need to have connection defined to use it (pass connection id via ``fs_conn_id``).
 Default connection is ``fs_default``.
 
-.. exampleinclude:: /../../airflow/example_dags/sensors/example_sensors.py
+.. exampleinclude:: /../../airflow/example_dags/example_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START example_file_sensor]
@@ -34,7 +34,7 @@ Default connection is ``fs_default``.
 
 Also for this job you can use sensor in the deferrable mode:
 
-.. exampleinclude:: /../../airflow/example_dags/sensors/example_sensors.py
+.. exampleinclude:: /../../airflow/example_dags/example_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START example_file_sensor_async]
