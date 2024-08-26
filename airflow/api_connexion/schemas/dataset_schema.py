@@ -168,7 +168,7 @@ class CreateAssetEventSchema(Schema):
     extra = JsonObjectField()
 
 
-dataset_event_schema = AssetEventSchema()
+asset_event_schema = AssetEventSchema()
 asset_event_collection_schema = AssetEventCollectionSchema()
 create_asset_event_schema = CreateAssetEventSchema()
 

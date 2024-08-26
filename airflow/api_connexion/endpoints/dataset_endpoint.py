@@ -37,8 +37,8 @@ from airflow.api_connexion.schemas.dataset_schema import (
     TaskOutletAssetReference,
     asset_collection_schema,
     asset_event_collection_schema,
+    asset_event_schema,
     create_asset_event_schema,
-    dataset_event_schema,
     dataset_schema,
     queued_event_collection_schema,
     queued_event_schema,
@@ -349,5 +349,5 @@ def create_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
     if not asset_event:
         raise NotFound(title="Asset not found", detail=f"Asset with uri: '{uri}' not found")
     session.flush()  # So we can dump the timestamp.
-    event = dataset_event_schema.dump(asset_event)
+    event = asset_event_schema.dump(asset_event)
     return event
