@@ -203,7 +203,7 @@ class TestDatasetEventCreateSchema(TestDatasetSchemaBase):
         }
 
 
-class TestDatasetEventCollectionSchema(TestDatasetSchemaBase):
+class TestAssetEventCollectionSchema(TestDatasetSchemaBase):
     def test_serialize(self, session):
         common = {
             "dataset_id": 10,

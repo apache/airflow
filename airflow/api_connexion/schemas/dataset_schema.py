@@ -154,7 +154,7 @@ class DatasetEventCollection(NamedTuple):
     total_entries: int
 
 
-class DatasetEventCollectionSchema(Schema):
+class AssetEventCollectionSchema(Schema):
     """Dataset Event Collection Schema."""
 
     dataset_events = fields.List(fields.Nested(DatasetEventSchema))
@@ -169,7 +169,7 @@ class CreateDatasetEventSchema(Schema):
 
 
 dataset_event_schema = DatasetEventSchema()
-dataset_event_collection_schema = DatasetEventCollectionSchema()
+dataset_event_collection_schema = AssetEventCollectionSchema()
 create_dataset_event_schema = CreateDatasetEventSchema()
 
 
