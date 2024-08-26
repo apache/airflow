@@ -141,7 +141,7 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
         }
 
 
-class TestDatasetEventSchema(TestDatasetSchemaBase):
+class TestAssetEventSchema(TestDatasetSchemaBase):
     def test_serialize(self, session):
         assetssetsset = AssetModel("s3://abc")
         session.add(assetssetsset)

@@ -127,8 +127,8 @@ class BasicDAGRunSchema(SQLAlchemySchema):
     data_interval_end = auto_field(dump_only=True)
 
 
-class DatasetEventSchema(SQLAlchemySchema):
-    """Dataset Event DB schema."""
+class AssetEventSchema(SQLAlchemySchema):
+    """Asset Event DB schema."""
 
     class Meta:
         """Meta."""
@@ -157,7 +157,7 @@ class AssetEventCollection(NamedTuple):
 class AssetEventCollectionSchema(Schema):
     """Asset Event Collection Schema."""
 
-    dataset_events = fields.List(fields.Nested(DatasetEventSchema))
+    dataset_events = fields.List(fields.Nested(AssetEventSchema))
     total_entries = fields.Int()
 
 
@@ -168,7 +168,7 @@ class CreateAssetEventSchema(Schema):
     extra = JsonObjectField()
 
 
-dataset_event_schema = DatasetEventSchema()
+dataset_event_schema = AssetEventSchema()
 dataset_event_collection_schema = AssetEventCollectionSchema()
 create_dataset_event_schema = CreateAssetEventSchema()
 
