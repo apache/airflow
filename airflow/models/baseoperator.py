@@ -714,8 +714,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         execution, receiving a context dictionary; raising an exception will
         prevent the task from being executed.
 
-        |experimental| Note that passing a function to the pre_execute parameter is experimental,
-        while overriding .pre_execute in a custom operator is stable.
+        |experimental| Passing a function to this argument is experimental, although
+        (re-)implementing ``pre_execute`` in a custom operator subclass is stable.
     :param post_execute: a function to be called immediately after task
         execution, receiving a context dictionary and task result; raising an
         exception will prevent the task from succeeding.
