@@ -26,6 +26,7 @@ import pathlib
 import random
 import socket
 import sys
+import tempfile
 import textwrap
 import threading
 import time
@@ -761,6 +762,95 @@ class TestDagProcessorJobRunner:
 
             active_dag_count = session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
             assert active_dag_count == 1
+
+    @conf_vars(
+        {
+            ("scheduler", "standalone_dag_processor"): "False",
+        }
+    )
+    def test_scan_stale_dags_when_dag_folder_change(self):
+        """
+        Ensure dags from old dag_folder is marked as stale when dag processor
+         is running as part of scheduler.
+        """
+
+        def get_dag_string(dag_id) -> str:
+            return (
+                f"from __future__ import annotations\n"
+                f"import datetime\n"
+                f"from airflow.models.dag import DAG\n"
+                f"from airflow.operators.empty import EmptyOperator\n"
+                f"with DAG(\n"
+                f'  dag_id="{dag_id}",\n'
+                f"  schedule=datetime.timedelta(hours=4),\n"
+                f"  start_date=datetime.datetime(2021, 1, 1),\n"
+                f"  catchup=False,\n"
+                f") as dag:\n"
+                f'    task1 = EmptyOperator(task_id="task1")\n'
+            )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_dag_home = tempfile.mkdtemp(dir=tmpdir)
+            old_dag_file = tempfile.NamedTemporaryFile(dir=old_dag_home, suffix=".py")
+            old_dag_file.write(get_dag_string("old_temp_dag").encode())
+            old_dag_file.flush()
+            new_dag_home = tempfile.mkdtemp(dir=tmpdir)
+            new_dag_file = tempfile.NamedTemporaryFile(dir=new_dag_home, suffix=".py")
+            new_dag_file.write(get_dag_string("new_temp_dag").encode())
+            new_dag_file.flush()
+
+            manager = DagProcessorJobRunner(
+                job=Job(),
+                processor=DagFileProcessorManager(
+                    dag_directory=new_dag_home,
+                    max_runs=1,
+                    processor_timeout=timedelta(minutes=10),
+                    signal_conn=MagicMock(),
+                    dag_ids=[],
+                    pickle_dags=False,
+                    async_mode=True,
+                ),
+            )
+
+            dagbag = DagBag(old_dag_file.name, read_dags_from_db=False)
+            other_dagbag = DagBag(new_dag_file.name, read_dags_from_db=False)
+
+            with create_session() as session:
+                # Add stale DAG to the DB
+                dag = dagbag.get_dag("old_temp_dag")
+                dag.fileloc = old_dag_file.name
+                dag.last_parsed_time = timezone.utcnow()
+                dag.sync_to_db(processor_subdir=old_dag_home)
+
+                # Add stale DAG to the DB
+                other_dag = other_dagbag.get_dag("new_temp_dag")
+                other_dag.fileloc = new_dag_file.name
+                other_dag.last_parsed_time = timezone.utcnow()
+                other_dag.sync_to_db(processor_subdir=new_dag_home)
+
+                # Add DAG to the file_parsing_stats
+                stat = DagFileStat(
+                    num_dags=1,
+                    import_errors=0,
+                    last_finish_time=timezone.utcnow() + timedelta(hours=1),
+                    last_duration=1,
+                    run_count=1,
+                    last_num_of_db_queries=1,
+                )
+                manager.processor._file_paths = [new_dag_file]
+                manager.processor._file_stats[new_dag_file] = stat
+
+                active_dag_count = (
+                    session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
+                )
+                assert active_dag_count == 2
+
+                manager.processor._scan_stale_dags()
+
+                active_dag_count = (
+                    session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
+                )
+                assert active_dag_count == 1
 
     @mock.patch(
         "airflow.dag_processing.processor.DagFileProcessorProcess.waitable_handle", new_callable=PropertyMock
