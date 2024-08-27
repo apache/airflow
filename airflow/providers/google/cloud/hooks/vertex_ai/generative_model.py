@@ -58,11 +58,11 @@ class GenerativeModelHook(GoogleBaseHook):
 
     def get_generative_model(
         self,
-        model_name: str,
+        pretrained_model: str,
         system_instruction: str | None = None,
     ) -> GenerativeModel:
         """Return a Generative Model object."""
-        model = GenerativeModel(model_name=model_name, system_instruction=system_instruction)
+        model = GenerativeModel(model_name=pretrained_model, system_instruction=system_instruction)
         return model
 
     @deprecated(
@@ -348,7 +348,7 @@ class GenerativeModelHook(GoogleBaseHook):
         """
         vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
 
-        model = self.get_generative_model(model_name=pretrained_model, system_instruction=system_instruction)
+        model = self.get_generative_model(pretrained_model=pretrained_model, system_instruction=system_instruction)
         response = model.generate_content(
             contents=contents,
             tools=tools,
