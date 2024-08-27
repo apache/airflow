@@ -14,19 +14,35 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from __future__ import annotations
 
-from fastapi import APIRouter
+import os
 
-from airflow.api_ui.app import create_app
-from airflow.api_ui.views.datasets import dataset_router
+from fastapi import FastAPI
 
-app = create_app()
-
-root_router = APIRouter(prefix="/ui")
-
-root_router.include_router(dataset_router)
+from airflow.models.dagbag import DagBag
+from airflow.settings import DAGS_FOLDER
 
 
-app.include_router(root_router)
+def init_dag_bag(app: FastAPI) -> None:
+    """
+    Create global DagBag for the FastAPI application.
+
+    To access it use ``request.app.state.dag_bag``.
+    """
+    if os.environ.get("SKIP_DAGS_PARSING") == "True":
+        app.state.dag_bag = DagBag(os.devnull, include_examples=False)
+    else:
+        app.state.dag_bag = DagBag(DAGS_FOLDER, read_dags_from_db=True)
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(
+        description="Internal Rest API for the UI frontend. It is subject to breaking change "
+        "depending on the need of the frontend. Users should not rely on this API but use the "
+        "public API instead."
+    )
+
+    init_dag_bag(app)
+
+    return app

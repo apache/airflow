@@ -14,19 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from __future__ import annotations
-
-from fastapi import APIRouter
-
-from airflow.api_ui.app import create_app
-from airflow.api_ui.views.datasets import dataset_router
-
-app = create_app()
-
-root_router = APIRouter(prefix="/ui")
-
-root_router.include_router(dataset_router)
-
-
-app.include_router(root_router)
