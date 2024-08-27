@@ -222,7 +222,7 @@ ingress:
       # the name of a pre-created Secret containing a TLS private key and certificate
       secretName: ""
 
-  # Configs for the Ingress of the flower Service
+  # Configs for the Ingress of the statsd Service
   statsd:
     # Enable web ingress resource
     enabled: false
@@ -252,7 +252,7 @@ ingress:
     # The Ingress Class for the statsd Ingress (used only with Kubernetes v1.19 and above)
     ingressClassName: ""
 
-  # Configs for the Ingress of the flower Service
+  # Configs for the Ingress of the pgbouncer Service
   pgbouncer:
     # Enable web ingress resource
     enabled: false

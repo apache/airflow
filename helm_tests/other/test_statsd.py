@@ -391,6 +391,7 @@ class TestStatsdIngress:
                         "hosts": [
                             {"name": "some-host", "tls": {"enabled": True, "secretName": "some-secret"}}
                         ],
+                        "ingressClassName": "ingress-class",
                     }
                 },
             },
@@ -405,3 +406,4 @@ class TestStatsdIngress:
         assert {"hosts": ["some-host"], "secretName": "some-secret"} == jmespath.search(
             "spec.tls[0]", docs[0]
         )
+        assert "ingress-class" == jmespath.search("spec.ingressClassName", docs[0])
