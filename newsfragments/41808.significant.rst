@@ -1,0 +1,3 @@
+Removed deprecations in ``airflow.models.taskreschedule``.
+
+Note: there are no replacements, if data is needed, you need to query via sqlalchemy.
