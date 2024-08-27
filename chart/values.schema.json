@@ -7421,6 +7421,34 @@
                     "type": "integer",
                     "default": 600
                 },
+                "service": {
+                    "description": "service configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "type": {
+                            "description": "Service type.",
+                            "enum": [
+                                "ClusterIP",
+                                "NodePort",
+                                "LoadBalancer"
+                            ],
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": "ClusterIP"
+                        },
+                        "nodePort": {
+                            "description": "If service type is NodePort, a nodePort can be specified.",
+                            "type": [
+                                "integer",
+                                "null"
+                            ],
+                            "default": null
+                        }
+                    }
+                },
                 "persistence": {
                     "description": "Persistence configuration.",
                     "type": "object",
