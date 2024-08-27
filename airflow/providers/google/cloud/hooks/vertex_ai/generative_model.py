@@ -348,7 +348,9 @@ class GenerativeModelHook(GoogleBaseHook):
         """
         vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
 
-        model = self.get_generative_model(pretrained_model=pretrained_model, system_instruction=system_instruction)
+        model = self.get_generative_model(
+            pretrained_model=pretrained_model, system_instruction=system_instruction
+        )
         response = model.generate_content(
             contents=contents,
             tools=tools,
