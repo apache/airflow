@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-26T02:01:31.945870
+# This constraints file was automatically generated on 2024-08-27T02:02:22.982798
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -9,7 +9,7 @@
 # They represent "latest" and greatest set of constraints that HEAD of the "apache-airflow" package should
 # Install with "HEAD" of providers. Those are the only constraints that are used by our CI builds.
 #
-Authlib==1.3.1
+Authlib==1.3.2
 ConfigUpdater==3.2
 Deprecated==1.2.14
 Events==0.5
@@ -33,7 +33,7 @@ Mako==1.3.5
 Markdown==3.7
 MarkupSafe==2.1.5
 PyAthena==3.9.0
-PyGithub==2.3.0
+PyGithub==2.4.0
 PyHive==0.7.0
 PyJWT==2.9.0
 PyNaCl==1.5.0
@@ -245,7 +245,7 @@ google-cloud-speech==2.27.0
 google-cloud-storage-transfer==1.12.0
 google-cloud-storage==2.18.2
 google-cloud-tasks==2.16.5
-google-cloud-texttospeech==2.17.1
+google-cloud-texttospeech==2.17.2
 google-cloud-translate==3.16.0
 google-cloud-videointelligence==2.13.5
 google-cloud-vision==3.7.4
@@ -253,7 +253,7 @@ google-cloud-workflows==1.14.5
 google-crc32c==1.5.0
 google-re2==1.1.20240702
 google-resumable-media==2.7.2
-googleapis-common-protos==1.63.2
+googleapis-common-protos==1.64.0
 graphql-core==3.2.3
 graphviz==0.20.3
 greenlet==3.0.3
@@ -486,7 +486,7 @@ python3-saml==1.16.0
 pytz==2024.1
 pywinrm==0.5.0
 pyzmq==26.2.0
-qdrant-client==1.11.0
+qdrant-client==1.11.1
 reactivex==4.0.4
 readme_renderer==43.0
 redis==5.0.8
@@ -506,7 +506,7 @@ rfc3339-validator==0.1.4
 rfc3986==2.0.0
 rich-argparse==1.5.2
 rich-click==1.8.3
-rich==13.7.1
+rich==13.8.0
 rpds-py==0.20.0
 rsa==4.9
 ruff==0.5.5
@@ -634,7 +634,7 @@ yarl==1.9.4
 ydb==3.16.0
 zeep==4.2.1
 zenpy==2.0.50
-zipp==3.20.0
+zipp==3.20.1
 zope.event==5.0
-zope.interface==7.0.1
+zope.interface==7.0.2
 zstandard==0.23.0

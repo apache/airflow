@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-26T02:01:43.249161
+# This constraints file was automatically generated on 2024-08-27T02:02:33.593094
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -8,7 +8,7 @@
 # Those constraints represent the "newest" dependencies airflow could use, if providers did not limit
 # Airflow in any way.
 #
-Authlib==1.3.1
+Authlib==1.3.2
 ConfigUpdater==3.2
 Deprecated==1.2.14
 Flask-AppBuilder==4.5.0
@@ -82,7 +82,7 @@ frozenlist==1.4.1
 fsspec==2024.6.1
 gevent==24.2.1
 google-re2==1.1.20240702
-googleapis-common-protos==1.63.2
+googleapis-common-protos==1.64.0
 graphviz==0.20.3
 greenlet==3.0.3
 grpcio==1.66.0
@@ -160,7 +160,7 @@ requests-toolbelt==1.0.0
 requests==2.32.3
 rfc3339-validator==0.1.4
 rich-argparse==1.5.2
-rich==13.7.1
+rich==13.8.0
 rpds-py==0.20.0
 s3fs==2024.6.1
 sentry-sdk==2.13.0
@@ -189,6 +189,6 @@ wirerope==0.4.7
 wrapt==1.16.0
 xmlsec==1.3.14
 yarl==1.9.4
-zipp==3.20.0
+zipp==3.20.1
 zope.event==5.0
-zope.interface==7.0.1
+zope.interface==7.0.2
