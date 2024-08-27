@@ -24,7 +24,6 @@ import signal
 import sys
 import time
 from abc import abstractmethod
-from csv import DictWriter
 from dataclasses import dataclass
 from multiprocessing.pool import Pool
 from pathlib import Path
@@ -538,7 +537,7 @@ def get_vcs(dependency: dict[str, Any]) -> str:
     if "externalReferences" in dependency:
         for reference in dependency["externalReferences"]:
             if reference["type"] == "vcs":
-                return reference["url"]
+                return reference["url"].replace("http://", "https://")
     return ""
 
 
@@ -570,8 +569,112 @@ OPEN_PSF_CHECKS = [
     "SAST",
 ]
 
+CHECK_DOCS: dict[str, str] = {}
 
-def get_open_psf_scorecard(vcs):
+
+KNOWN_REPUTABLE_FOUNDATIONS = [
+    "apache",
+    "python",
+    "zopefoundation",
+    "uqfoundation",
+    "numpy",
+    "django",
+]
+
+KNOWN_STRONG_COMMUNITIES = ["pallets-eco", "celery", "fsspec", "aio-libs", "pyasn1", "pytest-dev", "aio-libs"]
+
+KNOWN_COMPANIES = ["getsentry", "prometheus", "Textualize", "google", "googleapis", "boto"]
+
+KNOWN_STABLE_PROJECTS = [
+    "Deprecated",
+    "Flask-Bcrypt",
+    "SQLAlchemy-Utils",
+    "aiohttp",
+    "aiosignal",
+    "async-timeout",
+    "backoff",
+    "botocore",
+    "cgroupspy",
+    "charset-normalizer",
+    "colorlog",
+    "decorator",
+    "google-re2",
+    "h11",
+    "inflection",
+    "isodate",
+    "jmespath",
+    "lazy-object-proxy",
+    "ldap3",
+    "multidict",
+    "prison",
+    "prometheus_client",
+    "pure-sasl",
+    "rfc3339-validator",
+    "six",
+    "setproctitle",
+    "text-unidecode",
+    "thrift-sasl",
+    "tzdata",
+    "vine",
+]
+
+KNOWN_LOW_IMPORTANCE_PROJECTS = [
+    "flask-appbuilder",
+]
+
+KNOWN_MEDIUM_IMPORTANCE_PROJECTS: list[str] = []
+
+KNOWN_HIGH_IMPORTANCE_PROJECTS: list[str] = []
+
+# Project we have a relationship with the community
+RELATIONSHIP_PROJECT = [
+    "flask-appbuilder",
+    "thrift-sasl",
+    "python-slugify",
+    "plyvel",
+    "pure-sasl",
+    "python-nvd3",
+    "flask-caching",
+    "universal-pathlib",
+]
+
+
+def get_github_stats(vcs: str, project_name: str, github_token: str | None) -> dict[str, Any]:
+    import requests
+
+    result = {}
+    if vcs and vcs.startswith("https://github.com/"):
+        importance = "Low"
+        api_url = vcs.replace("https://github.com/", "https://api.github.com/repos/")
+        if api_url.endswith("/"):
+            api_url = api_url[:-1]
+        headers = {"Authorization": f"token {github_token}"} if github_token else {}
+        get_console().print(f"[info]Retrieving Github Stats from {api_url}")
+        response = requests.get(api_url, headers=headers)
+        if response.status_code == 404:
+            get_console().print(f"[warning]Github API returned 404 for {api_url}")
+            return {}
+        response.raise_for_status()
+        github_data = response.json()
+        stargazer_count = github_data.get("stargazers_count")
+        forks_count = github_data.get("forks_count")
+        if project_name in KNOWN_LOW_IMPORTANCE_PROJECTS:
+            importance = "Low"
+        elif project_name in KNOWN_MEDIUM_IMPORTANCE_PROJECTS:
+            importance = "Medium"
+        elif project_name in KNOWN_HIGH_IMPORTANCE_PROJECTS:
+            importance = "High"
+        elif forks_count > 1000 or stargazer_count > 1000:
+            importance = "High"
+        elif stargazer_count > 100 or forks_count > 100:
+            importance = "Medium"
+        result["Industry importance"] = importance
+    else:
+        get_console().print(f"[warning]Not retrieving Github Stats for {vcs}")
+    return result
+
+
+def get_open_psf_scorecard(vcs: str, project_name: str) -> dict[str, Any]:
     import requests
 
     repo_url = vcs.split("://")[1]
@@ -586,34 +689,64 @@ def get_open_psf_scorecard(vcs):
     if "checks" in open_psf_scorecard:
         for check in open_psf_scorecard["checks"]:
             check_name = check["name"]
+            score = check["score"]
             results["OPSF-" + check_name] = check["score"]
             reason = check.get("reason") or ""
             if check.get("details"):
                 reason += "\n".join(check["details"])
             results["OPSF-Details-" + check_name] = reason
+            CHECK_DOCS[check_name] = check["documentation"]["short"] + "\n" + check["documentation"]["url"]
+            if check_name == "Maintained":
+                if project_name in KNOWN_STABLE_PROJECTS:
+                    lifecycle_status = "Stable"
+                else:
+                    if score == 0:
+                        lifecycle_status = "Abandoned"
+                    elif score < 6:
+                        lifecycle_status = "Somewhat maintained"
+                    else:
+                        lifecycle_status = "Actively maintained"
+                results["Lifecycle status"] = lifecycle_status
+            if check_name == "Vulnerabilities":
+                results["Unpatched Vulns"] = "Yes" if score != 10 else ""
     return results
 
 
-def convert_sbom_to_csv(
-    writer: DictWriter,
+def get_governance(vcs: str | None):
+    if not vcs or not vcs.startswith("https://github.com/"):
+        return ""
+    organization = vcs.split("/")[3]
+    if organization.lower() in KNOWN_REPUTABLE_FOUNDATIONS:
+        return "Reputable Foundation"
+    if organization.lower() in KNOWN_STRONG_COMMUNITIES:
+        return "Strong Community"
+    if organization.lower() in KNOWN_COMPANIES:
+        return "Company"
+    return "Loose community/ Single Person"
+
+
+def convert_sbom_entry_to_dict(
     dependency: dict[str, Any],
     is_core: bool,
     is_devel: bool,
-    include_open_psf_scorecard: bool = False,
-) -> None:
+    include_open_psf_scorecard: bool,
+    include_github_stats: bool,
+    github_token: str | None,
+) -> dict[str, Any] | None:
     """
-    Convert SBOM to CSV
-    :param writer: CSV writer
+    Convert SBOM to Row for CSV or spreadsheet output
     :param dependency: Dependency to convert
     :param is_core: Whether the dependency is core or not
+    :param is_devel: Whether the dependency is devel or not
+    :param include_open_psf_scorecard: Whether to include Open PSF Scorecard
     """
     get_console().print(f"[info]Converting {dependency['name']} to CSV")
     vcs = get_vcs(dependency)
     name = dependency.get("name", "")
     if name.startswith("apache-airflow"):
-        return
+        return None
     row = {
-        "Name": dependency.get("name", ""),
+        "Name": normalize_package_name(dependency.get("name", "")),
         "Author": dependency.get("author", ""),
         "Version": dependency.get("version", ""),
         "Description": dependency.get("description"),
@@ -623,20 +756,32 @@ def convert_sbom_to_csv(
         "Purl": dependency.get("purl"),
         "Pypi": get_pypi_link(dependency),
         "Vcs": vcs,
+        "Governance": get_governance(vcs),
     }
     if vcs and include_open_psf_scorecard:
-        open_psf_scorecard = get_open_psf_scorecard(vcs)
+        open_psf_scorecard = get_open_psf_scorecard(vcs, name)
         row.update(open_psf_scorecard)
-    writer.writerow(row)
+    if vcs and include_github_stats:
+        github_stats = get_github_stats(vcs=vcs, project_name=name, github_token=github_token)
+        row.update(github_stats)
+    if name in RELATIONSHIP_PROJECT:
+        row["Relationship"] = "Yes"
+    return row
 
 
-def get_field_names(include_open_psf_scorecard: bool) -> list[str]:
+def get_field_names(include_open_psf_scorecard: bool, include_github_stats: bool) -> list[str]:
     names = ["Name", "Author", "Version", "Description", "Core", "Devel", "Licenses", "Purl", "Pypi", "Vcs"]
     if include_open_psf_scorecard:
         names.append("OPSF-Score")
         for check in OPEN_PSF_CHECKS:
             names.append("OPSF-" + check)
             names.append("OPSF-Details-" + check)
+    names.append("Governance")
+    if include_open_psf_scorecard:
+        names.extend(["Lifecycle status", "Unpatched Vulns"])
+    if include_github_stats:
+        names.append("Industry importance")
+    names.append("Relationship")
     return names
 
 

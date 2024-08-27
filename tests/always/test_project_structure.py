@@ -155,6 +155,7 @@ class TestProjectStructure:
             "tests/providers/snowflake/triggers/test_snowflake_trigger.py",
             "tests/providers/yandex/hooks/test_yandexcloud_dataproc.py",
             "tests/providers/yandex/operators/test_yandexcloud_dataproc.py",
+            "tests/providers/fab/migrations/test_env.py",
         ]
 
         # TODO: Should we extend this test to cover other directories?

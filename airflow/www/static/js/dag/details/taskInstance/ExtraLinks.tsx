@@ -53,6 +53,14 @@ const ExtraLinks = ({
   const isExternal = (url: string | null) =>
     url && /^(?:[a-z]+:)?\/\//.test(url);
 
+  const isSanitised = (url: string | null) => {
+    if (!url) {
+      return true;
+    }
+    const urlRegex = /^(https?:)/i;
+    return urlRegex.test(url);
+  };
+
   return (
     <Box my={3}>
       <Text as="strong">Extra Links</Text>
@@ -63,7 +71,7 @@ const ExtraLinks = ({
             as={Link}
             colorScheme="blue"
             href={url}
-            isDisabled={!url}
+            isDisabled={!isSanitised(url)}
             target={isExternal(url) ? "_blank" : undefined}
             mr={2}
           >

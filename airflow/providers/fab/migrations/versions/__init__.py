@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,20 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use :mod:`airflow.providers.common.sql.hooks.sql`."""
-
-from __future__ import annotations
-
-import warnings
-
-from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.providers.common.sql.hooks.sql import (  # noqa: F401
-    ConnectorProtocol,
-    DbApiHook,
-)
-
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.common.sql.hooks.sql`.",
-    RemovedInAirflow3Warning,
-    stacklevel=2,
-)

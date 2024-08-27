@@ -67,7 +67,7 @@ repos:
       - id: insert-license
         name: Add license for all CSS/JS/JSX/PUML/TS/TSX files
         files: \.(css|jsx?|puml|tsx?)$
-        exclude: ^\.github/.*$|^.*/.*_vendor/
+        exclude: ^\.github/.*$|^.*/.*_vendor/|^airflow/www/static/js/types/api-generated.ts$
         args:
           - --comment-style
           - "/*!| *| */"
@@ -627,6 +627,7 @@ repos:
           ^docs/apache-airflow-providers-cncf-kubernetes/operators.rst$|
           ^docs/conf.py$|
           ^docs/exts/removemarktransform.py$|
+          ^newsfragments/41761.significant.rst$|
           ^scripts/ci/pre_commit/vendor_k8s_json_schema.py$|
           ^tests/|
           ^.pre-commit-config\.yaml$|
@@ -1295,7 +1296,8 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/migration_reference.py
         pass_filenames: false
-        files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
+        files: |
+          ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$|^airflow/providers/fab/alembic/versions/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
       - id: update-er-diagram
         name: Update ER diagram

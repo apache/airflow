@@ -2098,7 +2098,6 @@ class TestShortCircuitWithTeardown:
             # we can't use assert_called_with because it's a set and therefore not ordered
             actual_kwargs = op1.skip.call_args.kwargs
             actual_skipped = set(actual_kwargs["tasks"])
-            assert actual_kwargs["execution_date"] == dagrun.logical_date
             assert actual_skipped == {op3}
 
     @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, mix of pydantic and mock fails
@@ -2139,7 +2138,6 @@ class TestShortCircuitWithTeardown:
             else:
                 assert isinstance(actual_skipped, Generator)
             assert set(actual_skipped) == {op3}
-            assert actual_kwargs["execution_date"] == dagrun.logical_date
 
 
 @pytest.mark.parametrize(

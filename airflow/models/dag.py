@@ -86,7 +86,6 @@ from airflow.configuration import conf as airflow_conf, secrets_backend_list
 from airflow.datasets import BaseDataset, Dataset, DatasetAlias, DatasetAll
 from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
-    AirflowDagInconsistent,
     AirflowException,
     DuplicateTaskIdFound,
     FailStopDagInvalidTriggerRule,
@@ -134,19 +133,13 @@ from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.decorators import fixup_decorator_warning_stack
-from airflow.utils.helpers import at_most_one, exactly_one, validate_instance_args, validate_key
+from airflow.utils.helpers import exactly_one, validate_instance_args, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import (
-    Interval,
-    UtcDateTime,
-    lock_rows,
-    tuple_in_condition,
-    with_row_locks,
-)
+from airflow.utils.sqlalchemy import UtcDateTime, lock_rows, tuple_in_condition, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import NOTSET, ArgNotSet, DagRunType, EdgeInfoType
+from airflow.utils.types import NOTSET, DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -174,19 +167,14 @@ TAG_MAX_LEN = 100
 DagStateChangeCallback = Callable[[Context], None]
 ScheduleInterval = Union[None, str, timedelta, relativedelta]
 
-# FIXME: Ideally this should be Union[Literal[NOTSET], ScheduleInterval],
-# but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
-# See also: https://discuss.python.org/t/9126/7
-ScheduleIntervalArg = Union[ArgNotSet, ScheduleInterval]
 ScheduleArg = Union[
-    ArgNotSet, ScheduleInterval, Timetable, BaseDataset, Collection[Union["Dataset", "DatasetAlias"]]
+    ScheduleInterval,
+    Timetable,
+    BaseDataset,
+    Collection[Union["Dataset", "DatasetAlias"]],
 ]
 
 SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
-
-# Backward compatibility: If neither schedule_interval nor timetable is
-# *provided by the user*, default to a one-day interval.
-DEFAULT_SCHEDULE_INTERVAL = timedelta(days=1)
 
 
 class InconsistentDataInterval(AirflowException):
@@ -228,10 +216,8 @@ def _get_model_data_interval(
     return DataInterval(start, end)
 
 
-def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone | FixedTimezone) -> Timetable:
-    """Create a Timetable instance from a ``schedule_interval`` argument."""
-    if interval is NOTSET:
-        return DeltaDataIntervalTimetable(DEFAULT_SCHEDULE_INTERVAL)
+def create_timetable(interval: ScheduleInterval, timezone: Timezone | FixedTimezone) -> Timetable:
+    """Create a Timetable instance from a plain ``schedule`` value."""
     if interval is None:
         return NullTimetable()
     if interval == "@once":
@@ -245,7 +231,7 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone | FixedTi
             return CronDataIntervalTimetable(interval, timezone)
         else:
             return CronTriggerTimetable(interval, timezone=timezone)
-    raise ValueError(f"{interval!r} is not a valid schedule_interval.")
+    raise ValueError(f"{interval!r} is not a valid schedule.")
 
 
 def get_last_dagrun(dag_id, session, include_externally_triggered=False):
@@ -398,21 +384,22 @@ class DAG(LoggingMixin):
         The *schedule* argument to specify either time-based scheduling logic
         (timetable), or dataset-driven triggers.
 
-    .. deprecated:: 2.4
-        The arguments *schedule_interval* and *timetable*. Their functionalities
-        are merged into the new *schedule* argument.
+    .. versionchanged:: 3.0
+        The default value of *schedule* has been changed to *None* (no schedule).
+        The previous default was ``timedelta(days=1)``.
 
     :param dag_id: The id of the DAG; must consist exclusively of alphanumeric
         characters, dashes, dots and underscores (all ASCII)
     :param description: The description for the DAG to e.g. be shown on the webserver
-    :param schedule: Defines the rules according to which DAG runs are scheduled. Can
-        accept cron string, timedelta object, Timetable, or list of Dataset objects.
-        If this is not provided, the DAG will be set to the default
-        schedule ``timedelta(days=1)``. See also :doc:`/howto/timetable`.
+    :param schedule: If provided, this defines the rules according to which DAG
+        runs are scheduled. Possible values include a cron expression string,
+        timedelta object, Timetable, or list of Dataset objects.
+        See also :doc:`/howto/timetable`.
     :param start_date: The timestamp from which the scheduler will
-        attempt to backfill
+        attempt to backfill. If this is not provided, backfilling must be done
+        manually with an explicit time range.
     :param end_date: A date beyond which your DAG won't run, leave to None
-        for open-ended scheduling
+        for open-ended scheduling.
     :param template_searchpath: This list of folders (non-relative)
         defines where jinja will look for your templates. Order matters.
         Note that jinja/airflow includes the path of your DAG file by
@@ -500,7 +487,6 @@ class DAG(LoggingMixin):
         "task_ids",
         "start_date",
         "end_date",
-        "schedule_interval",
         "fileloc",
         "template_searchpath",
         "last_loaded",
@@ -522,9 +508,7 @@ class DAG(LoggingMixin):
         self,
         dag_id: str,
         description: str | None = None,
-        schedule: ScheduleArg = NOTSET,
-        schedule_interval: ScheduleIntervalArg = NOTSET,
-        timetable: Timetable | None = None,
+        schedule: ScheduleArg = None,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
         full_filepath: str | None = None,
@@ -636,63 +620,20 @@ class DAG(LoggingMixin):
         if "end_date" in self.default_args:
             self.default_args["end_date"] = timezone.convert_to_utc(self.default_args["end_date"])
 
-        # sort out DAG's scheduling behavior
-        scheduling_args = [schedule_interval, timetable, schedule]
-
-        has_scheduling_args = any(a is not NOTSET and bool(a) for a in scheduling_args)
-        has_empty_start_date = not ("start_date" in self.default_args or self.start_date)
-
-        if has_scheduling_args and has_empty_start_date:
-            raise ValueError("DAG is missing the start_date parameter")
-
-        if not at_most_one(*scheduling_args):
-            raise ValueError("At most one allowed for args 'schedule_interval', 'timetable', and 'schedule'.")
-        if schedule_interval is not NOTSET:
-            warnings.warn(
-                "Param `schedule_interval` is deprecated and will be removed in a future release. "
-                "Please use `schedule` instead. ",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-        if timetable is not None:
-            warnings.warn(
-                "Param `timetable` is deprecated and will be removed in a future release. "
-                "Please use `schedule` instead. ",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-
-        if timetable is not None:
-            schedule = timetable
-        elif schedule_interval is not NOTSET:
-            schedule = schedule_interval
-
-        # Kept for compatibility. Do not use in new code.
-        self.schedule_interval: ScheduleInterval
-
         if isinstance(schedule, Timetable):
             self.timetable = schedule
-            self.schedule_interval = schedule.summary
         elif isinstance(schedule, BaseDataset):
             self.timetable = DatasetTriggeredTimetable(schedule)
-            self.schedule_interval = self.timetable.summary
         elif isinstance(schedule, Collection) and not isinstance(schedule, str):
             if not all(isinstance(x, (Dataset, DatasetAlias)) for x in schedule):
                 raise ValueError("All elements in 'schedule' should be datasets or dataset aliases")
             self.timetable = DatasetTriggeredTimetable(DatasetAll(*schedule))
-            self.schedule_interval = self.timetable.summary
-        elif isinstance(schedule, ArgNotSet):
-            warnings.warn(
-                "Creating a DAG with an implicit schedule is deprecated, and will stop working "
-                "in a future release. Set `schedule=datetime.timedelta(days=1)` explicitly.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            self.timetable = create_timetable(schedule, self.timezone)
-            self.schedule_interval = DEFAULT_SCHEDULE_INTERVAL
         else:
             self.timetable = create_timetable(schedule, self.timezone)
-            self.schedule_interval = schedule
+
+        requires_automatic_backfilling = self.timetable.can_be_scheduled and catchup
+        if requires_automatic_backfilling and not ("start_date" in self.default_args or self.start_date):
+            raise ValueError("start_date is required when catchup=True")
 
         if isinstance(template_searchpath, str):
             template_searchpath = [template_searchpath]
@@ -796,46 +737,12 @@ class DAG(LoggingMixin):
 
         return doc_md
 
-    def _check_schedule_interval_matches_timetable(self) -> bool:
-        """
-        Check ``schedule_interval`` and ``timetable`` match.
-
-        This is done as a part of the DAG validation done before it's bagged, to
-        guard against the DAG's ``timetable`` (or ``schedule_interval``) from
-        being changed after it's created, e.g.
-
-        .. code-block:: python
-
-            dag1 = DAG("d1", timetable=MyTimetable())
-            dag1.schedule_interval = "@once"
-
-            dag2 = DAG("d2", schedule="@once")
-            dag2.timetable = MyTimetable()
-
-        Validation is done by creating a timetable and check its summary matches
-        ``schedule_interval``. The logic is not bullet-proof, especially if a
-        custom timetable does not provide a useful ``summary``. But this is the
-        best we can do.
-        """
-        if self.schedule_interval == self.timetable.summary:
-            return True
-        try:
-            timetable = create_timetable(self.schedule_interval, self.timezone)
-        except ValueError:
-            return False
-        return timetable.summary == self.timetable.summary
-
     def validate(self):
         """
         Validate the DAG has a coherent setup.
 
         This is called by the DAG bag before bagging the DAG.
         """
-        if not self._check_schedule_interval_matches_timetable():
-            raise AirflowDagInconsistent(
-                f"inconsistent schedule: timetable {self.timetable.summary!r} "
-                f"does not match schedule_interval {self.schedule_interval!r}",
-            )
         self.validate_executor_field()
         self.validate_schedule_and_params()
         self.timetable.validate()
@@ -1237,6 +1144,10 @@ class DAG(LoggingMixin):
     @dag_id.setter
     def dag_id(self, value: str) -> None:
         self._dag_id = value
+
+    @property
+    def timetable_summary(self) -> str:
+        return self.timetable.summary
 
     @property
     def max_active_tasks(self) -> int:
@@ -2695,6 +2606,11 @@ class DAG(LoggingMixin):
             # - if ``use_executor`` is True, sends the task instances to the executor with
             #   ``BaseExecutor.queue_task_instance``
             if use_executor:
+                from airflow.models.dagbag import DagBag
+
+                dag_bag = DagBag()
+                dag_bag.bag_dag(self)
+
                 executor = ExecutorLoader.get_default_executor()
                 executor.start()
 
@@ -2743,6 +2659,11 @@ class DAG(LoggingMixin):
                             self.log.exception("Task failed; ti=%s", ti)
                 if use_executor:
                     executor.heartbeat()
+                    from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
+
+                    SchedulerJobRunner.process_executor_events(
+                        executor=executor, dag_bag=dag_bag, job_id=None, session=session
+                    )
             if use_executor:
                 executor.end()
         return dr
@@ -2932,7 +2853,7 @@ class DAG(LoggingMixin):
                 t.max_active_tis_per_dag is not None or t.max_active_tis_per_dagrun is not None
                 for t in dag.tasks
             )
-            orm_dag.schedule_interval = dag.schedule_interval
+            orm_dag.timetable_summary = dag.timetable.summary
             orm_dag.timetable_description = dag.timetable.description
             orm_dag.dataset_expression = dag.timetable.dataset_condition.as_expression()
 
@@ -3438,9 +3359,9 @@ class DagModel(Base):
     description = Column(Text)
     # Default view of the DAG inside the webserver
     default_view = Column(String(25))
-    # Schedule interval
-    schedule_interval = Column(Interval)
-    # Timetable/Schedule Interval description
+    # Timetable summary
+    timetable_summary = Column(Text, nullable=True)
+    # Timetable description
     timetable_description = Column(String(1000), nullable=True)
     # Dataset expression based on dataset triggers
     dataset_expression = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
@@ -3785,7 +3706,7 @@ class DagModel(Base):
 
     @provide_session
     def get_dataset_triggered_next_run_info(self, *, session=NEW_SESSION) -> dict[str, int | str] | None:
-        if self.schedule_interval != "Dataset":
+        if self.dataset_expression is None:
             return None
         return get_dataset_triggered_next_run_info([self.dag_id], session=session)[self.dag_id]
 
@@ -3795,9 +3716,7 @@ class DagModel(Base):
 def dag(
     dag_id: str = "",
     description: str | None = None,
-    schedule: ScheduleArg = NOTSET,
-    schedule_interval: ScheduleIntervalArg = NOTSET,
-    timetable: Timetable | None = None,
+    schedule: ScheduleArg = None,
     start_date: datetime | None = None,
     end_date: datetime | None = None,
     full_filepath: str | None = None,
@@ -3854,8 +3773,6 @@ def dag(
             with DAG(
                 dag_id or f.__name__,
                 description=description,
-                schedule_interval=schedule_interval,
-                timetable=timetable,
                 start_date=start_date,
                 end_date=end_date,
                 full_filepath=full_filepath,

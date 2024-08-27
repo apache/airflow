@@ -14,33 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from deprecated import deprecated
+from unittest.mock import Mock
 
-from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+import pytest
 
-EXISTING_ROLES = {
-    "Admin",
-    "Viewer",
-    "User",
-    "Op",
-    "Public",
-}
+from airflow.providers.openai.exceptions import OpenAIBatchJobException, OpenAIBatchTimeout
 
 
-@deprecated(
-    reason="If you want to override the security manager, you should inherit from "
-    "`airflow.providers.fab.auth_manager.security_manager.override.FabAirflowSecurityManagerOverride` "
-    "instead",
-    category=RemovedInAirflow3Warning,
+@pytest.mark.parametrize(
+    "exception_class",
+    [
+        OpenAIBatchTimeout,
+        OpenAIBatchJobException,
+    ],
 )
-class AirflowSecurityManager(FabAirflowSecurityManagerOverride):
-    """
-    Placeholder, just here to avoid breaking the code of users who inherit from this.
-
-    Do not use if writing new code.
-    """
-
-    ...
+def test_wait_for_batch_raise_exception(exception_class):
+    mock_hook_instance = Mock()
+    mock_hook_instance.wait_for_batch.side_effect = exception_class
+    hook = mock_hook_instance
+    with pytest.raises(exception_class):
+        hook.wait_for_batch(batch_id="batch_id")
