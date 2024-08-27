@@ -79,7 +79,6 @@ from airflow.exceptions import (
     AirflowSkipException,
     AirflowTaskTerminated,
     AirflowTaskTimeout,
-    DagRunNotFound,
     RemovedInAirflow3Warning,
     TaskDeferralError,
     TaskDeferred,
