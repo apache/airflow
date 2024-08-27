@@ -7439,6 +7439,14 @@
                             ],
                             "default": "ClusterIP"
                         },
+                        "clusterIP": {
+                            "description": "If service type is ClusterIP, a clusterIP can be specified.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
                         "nodePort": {
                             "description": "If service type is NodePort, a nodePort can be specified.",
                             "type": [

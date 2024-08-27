@@ -472,7 +472,7 @@ class TestRedisService:
             show_only=["templates/redis/redis-service.yaml"],
         )
         assert expected == jmespath.search("spec.type", docs[0])
-
+    
     def test_redis_service_nodeport(self):
         docs = render_chart(
             values={
@@ -483,3 +483,14 @@ class TestRedisService:
             show_only=["templates/redis/redis-service.yaml"],
         )
         assert 11111 == jmespath.search("spec.ports[0].nodePort", docs[0])
+
+    def test_redis_service_clusterIP(self):
+        docs = render_chart(
+            values={
+                "redis": {
+                    "service": {"type": "ClusterIP", "clusterIP": "127.0.0.1"},
+                },
+            },
+            show_only=["templates/redis/redis-service.yaml"],
+        )
+        assert "127.0.0.1" == jmespath.search("spec.clusterIP", docs[0])
