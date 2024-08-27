@@ -83,6 +83,7 @@ from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
 from airflow.datasets import BaseDataset, Dataset, DatasetAlias, DatasetAll
 from airflow.datasets.manager import dataset_manager
+from airflow.datasets.references import resolve_dag_schedule_reference, resolve_task_outlet_reference
 from airflow.exceptions import (
     AirflowException,
     DuplicateTaskIdFound,
@@ -100,11 +101,7 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
-from airflow.models.dataset import (
-    DatasetAliasModel,
-    DatasetDagRunQueue,
-    DatasetModel,
-)
+from airflow.models.dataset import DatasetAliasModel, DatasetDagRunQueue, DatasetModel
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import (
     Context,
@@ -2642,8 +2639,6 @@ class DAG(LoggingMixin):
         if not dags:
             return
 
-        from airflow.models.dataset import DagScheduleDatasetAliasReference
-
         log.info("Sync %s DAGs", len(dags))
         dag_by_ids = {dag.dag_id: dag for dag in dags}
 
@@ -2742,19 +2737,20 @@ class DAG(LoggingMixin):
         DagCode.bulk_sync_to_db(filelocs, session=session)
 
         from airflow.datasets import Dataset
-        from airflow.models.dataset import (
-            DagScheduleDatasetReference,
-            DatasetModel,
-            TaskOutletDatasetReference,
+        from airflow.datasets.references import (
+            DatasetOrAliasReference,
+            DatasetReference,
+            create_dag_dataset_alias_reference,
+            create_dag_dataset_reference,
         )
+        from airflow.models.dataset import DatasetModel
 
-        dag_references: dict[str, set[Dataset | DatasetAlias]] = defaultdict(set)
-        outlet_references = defaultdict(set)
+        dag_references: dict[str, set[DatasetOrAliasReference]] = defaultdict(set)
+        outlet_references: dict[tuple[str, str], set[DatasetReference]] = defaultdict(set)
         # We can't use a set here as we want to preserve order
         outlet_datasets: dict[DatasetModel, None] = {}
         input_datasets: dict[DatasetModel, None] = {}
-        outlet_dataset_alias_models: set[DatasetAliasModel] = set()
-        input_dataset_aliases: set[DatasetAliasModel] = set()
+        lineage_dataset_alias_models: list[DatasetAliasModel] = []
 
         # here we go through dags and tasks to check for dataset references
         # if there are now None and previously there were some, we delete them
@@ -2770,105 +2766,111 @@ class DAG(LoggingMixin):
                         curr_orm_dag.schedule_dataset_alias_references = []
             else:
                 for _, dataset in dataset_condition.iter_datasets():
-                    dag_references[dag.dag_id].add(Dataset(uri=dataset.uri))
+                    dag_references[dag.dag_id].add(create_dag_dataset_reference(dataset))
                     input_datasets[DatasetModel.from_public(dataset)] = None
 
                 for dataset_alias in dataset_condition.iter_dataset_aliases():
-                    dag_references[dag.dag_id].add(dataset_alias)
-                    input_dataset_aliases.add(DatasetAliasModel.from_public(dataset_alias))
+                    dag_references[dag.dag_id].add(create_dag_dataset_alias_reference(dataset_alias))
+                    lineage_dataset_alias_models.append(DatasetAliasModel.from_public(dataset_alias))
 
             curr_outlet_references = curr_orm_dag and curr_orm_dag.task_outlet_dataset_references
             for task in dag.tasks:
                 dataset_outlets: list[Dataset] = []
-                dataset_alias_outlets: set[DatasetAlias] = set()
                 for outlet in task.outlets:
                     if isinstance(outlet, Dataset):
                         dataset_outlets.append(outlet)
                     elif isinstance(outlet, DatasetAlias):
-                        dataset_alias_outlets.add(outlet)
+                        lineage_dataset_alias_models.append(DatasetAliasModel.from_public(outlet))
 
-                if not dataset_outlets:
-                    if curr_outlet_references:
-                        this_task_outlet_refs = [
-                            x
-                            for x in curr_outlet_references
-                            if x.dag_id == dag.dag_id and x.task_id == task.task_id
-                        ]
-                        for ref in this_task_outlet_refs:
-                            curr_outlet_references.remove(ref)
+                if not dataset_outlets and curr_outlet_references:
+                    this_task_outlet_refs = [
+                        x
+                        for x in curr_outlet_references
+                        if x.dag_id == dag.dag_id and x.task_id == task.task_id
+                    ]
+                    for ref in this_task_outlet_refs:
+                        curr_outlet_references.remove(ref)
 
                 for d in dataset_outlets:
-                    outlet_references[(task.dag_id, task.task_id)].add(d.uri)
+                    outlet_references[(task.dag_id, task.task_id)].add(create_dag_dataset_reference(d))
                     outlet_datasets[DatasetModel.from_public(d)] = None
-
-                for d_a in dataset_alias_outlets:
-                    outlet_dataset_alias_models.add(DatasetAliasModel.from_public(d_a))
 
         all_datasets = outlet_datasets
         all_datasets.update(input_datasets)
 
         # store datasets
-        stored_datasets: dict[str, DatasetModel] = {}
+        stored_datasets_by_name: dict[str, DatasetModel] = {}
+        stored_datasets_by_uri: dict[str, DatasetModel] = {}
         new_datasets: list[DatasetModel] = []
         for dataset in all_datasets:
-            stored_dataset = session.scalar(
-                select(DatasetModel).where(DatasetModel.uri == dataset.uri).limit(1)
-            )
-            if stored_dataset:
+            stmt = select(DatasetModel)
+            if dataset.name:
+                stmt = stmt.where(DatasetModel.name == dataset.name)
+            else:
+                # We match both name and URI here because a new unnamed dataset
+                # will use the URI as the default name, and that would cause a
+                # conflict if another dataset (with a different URI) uses that
+                # same value as the name.
+                stmt = (
+                    stmt.where(or_(DatasetModel.uri == dataset.uri, DatasetModel.name == dataset.uri))
+                    # If both cases are found, prefer the dataset with matching URI.
+                    .order_by(case((DatasetModel.uri == dataset.uri, 0), else_=1))
+                )
+            if stored_dataset := session.scalar(stmt.where(DatasetModel.uri == dataset.uri).limit(1)):
                 # Some datasets may have been previously unreferenced, and therefore orphaned by the
                 # scheduler. But if we're here, then we have found that dataset again in our DAGs, which
                 # means that it is no longer an orphan, so set is_orphaned to False.
                 stored_dataset.is_orphaned = expression.false()
-                stored_datasets[stored_dataset.uri] = stored_dataset
+                if dataset.name:
+                    stored_dataset.name = dataset.name
+                if dataset.uri:
+                    stored_dataset.uri = dataset.uri
+                stored_dataset.extra = dataset.extra
+                stored_datasets_by_name[stored_dataset.name] = stored_dataset
+                stored_datasets_by_uri[stored_dataset.uri] = stored_dataset
             else:
                 new_datasets.append(dataset)
         dataset_manager.create_datasets(dataset_models=new_datasets, session=session)
-        stored_datasets.update({dataset.uri: dataset for dataset in new_datasets})
+        stored_datasets_by_name.update((ds.name, ds) for ds in new_datasets)
+        stored_datasets_by_uri.update((ds.uri, ds) for ds in new_datasets)
 
         del new_datasets
         del all_datasets
 
         # store dataset aliases
-        all_datasets_alias_models = input_dataset_aliases | outlet_dataset_alias_models
         stored_dataset_aliases: dict[str, DatasetAliasModel] = {}
-        new_dataset_alias_models: set[DatasetAliasModel] = set()
-        if all_datasets_alias_models:
-            all_dataset_alias_names = {dataset_alias.name for dataset_alias in all_datasets_alias_models}
-
+        new_dataset_alias_models: dict[str, DatasetAliasModel] = {}
+        if lineage_dataset_alias_models:
+            all_dataset_alias_names = {dataset_alias.name for dataset_alias in lineage_dataset_alias_models}
             stored_dataset_aliases = {
                 dsa_m.name: dsa_m
                 for dsa_m in session.scalars(
                     select(DatasetAliasModel).where(DatasetAliasModel.name.in_(all_dataset_alias_names))
-                ).fetchall()
+                )
             }
-
-            if stored_dataset_aliases:
-                new_dataset_alias_models = {
-                    dataset_alias_model
-                    for dataset_alias_model in all_datasets_alias_models
-                    if dataset_alias_model.name not in stored_dataset_aliases.keys()
-                }
-            else:
-                new_dataset_alias_models = all_datasets_alias_models
-
-            session.add_all(new_dataset_alias_models)
+            new_dataset_alias_models = {
+                dataset_alias_model.name: dataset_alias_model
+                for dataset_alias_model in lineage_dataset_alias_models
+                if dataset_alias_model.name not in stored_dataset_aliases
+            }
+            session.add_all(new_dataset_alias_models.values())
         session.flush()
-        stored_dataset_aliases.update(
-            {dataset_alias.name: dataset_alias for dataset_alias in new_dataset_alias_models}
-        )
+        stored_dataset_aliases.update(new_dataset_alias_models)
 
         del new_dataset_alias_models
-        del all_datasets_alias_models
+        del lineage_dataset_alias_models
 
         # reconcile dag-schedule-on-dataset and dag-schedule-on-dataset-alias references
-        for dag_id, base_dataset_list in dag_references.items():
+        for dag_id, dag_refs in dag_references.items():
             dag_refs_needed = {
-                DagScheduleDatasetReference(dataset_id=stored_datasets[base_dataset.uri].id, dag_id=dag_id)
-                if isinstance(base_dataset, Dataset)
-                else DagScheduleDatasetAliasReference(
-                    alias_id=stored_dataset_aliases[base_dataset.name].id, dag_id=dag_id
+                resolve_dag_schedule_reference(
+                    ref,
+                    dag_id=dag_id,
+                    dataset_names=stored_datasets_by_name,
+                    dataset_uris=stored_datasets_by_uri,
+                    alias_names=stored_dataset_aliases,
                 )
-                for base_dataset in base_dataset_list
+                for ref in dag_refs
             }
 
             dag_refs_stored = (
@@ -2888,10 +2890,16 @@ class DAG(LoggingMixin):
                 existing_task_outlet_refs_dict[(dag_id, todr.task_id)].add(todr)
 
         # reconcile task-outlet-dataset references
-        for (dag_id, task_id), uri_list in outlet_references.items():
+        for (dag_id, task_id), outlet_refs in outlet_references.items():
             task_refs_needed = {
-                TaskOutletDatasetReference(dataset_id=stored_datasets[uri].id, dag_id=dag_id, task_id=task_id)
-                for uri in uri_list
+                resolve_task_outlet_reference(
+                    ref,
+                    dag_id=dag_id,
+                    task_id=task_id,
+                    dataset_names=stored_datasets_by_name,
+                    dataset_uris=stored_datasets_by_uri,
+                )
+                for ref in outlet_refs
             }
             task_refs_stored = existing_task_outlet_refs_dict[(dag_id, task_id)]
             task_refs_to_add = {x for x in task_refs_needed if x not in task_refs_stored}

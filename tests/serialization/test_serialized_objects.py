@@ -328,7 +328,7 @@ sample_objects = {
         id=1, filename="test_file", elasticsearch_id="test_id", created_at=datetime.now()
     ),
     DagTagPydantic: DagTag(),
-    DatasetPydantic: Dataset("uri", {}),
+    DatasetPydantic: Dataset("uri"),
     DatasetEventPydantic: DatasetEvent(),
 }
 

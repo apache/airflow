@@ -233,9 +233,6 @@ class DatasetAlias(BaseDataset):
             return self.name == other.name
         return NotImplemented
 
-    def __hash__(self) -> int:
-        return hash(self.name)
-
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
         Iterate a dataset alias as dag dependency.

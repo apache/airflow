@@ -106,7 +106,7 @@ class DatasetAliasModel(Base):
 
     __tablename__ = "dataset_alias"
     __table_args__ = (
-        Index("idx_name_unique", name, unique=True),
+        Index("idx_dataset_alias_name_unique", name, unique=True),
         {"sqlite_autoincrement": True},  # ensures PK values not reused
     )
 
@@ -182,13 +182,17 @@ class DatasetModel(Base):
 
     __tablename__ = "dataset"
     __table_args__ = (
-        Index("idx_uri_unique", uri, unique=True),
+        Index("idx_dataset_name_unique", name, unique=True),
+        Index("idx_dataset_uri_unique", uri, unique=True),
         {"sqlite_autoincrement": True},  # ensures PK values not reused
     )
 
     @classmethod
     def from_public(cls, obj: Dataset) -> DatasetModel:
-        return cls(uri=obj.uri, extra=obj.extra)
+        return cls(name=obj.name, uri=obj.uri, extra=obj.extra)
+
+    def as_public(self) -> Dataset:
+        return Dataset(name=self.name, uri=self.uri, extra=self.extra)
 
     def __init__(self, uri: str, **kwargs):
         try:

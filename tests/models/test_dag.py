@@ -2651,10 +2651,10 @@ class TestDagModel:
         dag = DAG(
             dag_id="test_dag_dataset_expression",
             schedule=DatasetAny(
-                Dataset("s3://dag1/output_1.txt", {"hi": "bye"}),
+                Dataset("s3://dag1/output_1.txt", extra={"hi": "bye"}),
                 DatasetAll(
-                    Dataset("s3://dag2/output_1.txt", {"hi": "bye"}),
-                    Dataset("s3://dag3/output_3.txt", {"hi": "bye"}),
+                    Dataset("s3://dag2/output_1.txt", extra={"hi": "bye"}),
+                    Dataset("s3://dag3/output_3.txt", extra={"hi": "bye"}),
                 ),
                 DatasetAlias(name="test_name"),
             ),
