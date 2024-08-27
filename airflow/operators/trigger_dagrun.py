@@ -20,6 +20,7 @@ from __future__ import annotations
 import datetime
 import json
 import time
+import warnings
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from sqlalchemy import select
@@ -33,6 +34,7 @@ from airflow.exceptions import (
     AirflowSkipException,
     DagNotFound,
     DagRunAlreadyExists,
+    RemovedInAirflow3Warning,
 )
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.baseoperatorlink import BaseOperatorLink
@@ -108,6 +110,7 @@ class TriggerDagRunOperator(BaseOperator):
         DAG for the same logical date already exists.
     :param deferrable: If waiting for completion, whether or not to defer the task until done,
         default is ``False``.
+    :param execution_date: Deprecated parameter; same as ``logical_date``.
     """
 
     template_fields: Sequence[str] = (
@@ -136,6 +139,7 @@ class TriggerDagRunOperator(BaseOperator):
         failed_states: list[str | DagRunState] | None = None,
         skip_when_already_exists: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        execution_date: str | datetime.datetime | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -155,6 +159,14 @@ class TriggerDagRunOperator(BaseOperator):
             self.failed_states = [DagRunState.FAILED]
         self.skip_when_already_exists = skip_when_already_exists
         self._defer = deferrable
+
+        if execution_date is not None:
+            warnings.warn(
+                "Parameter 'execution_date' is deprecated. Use 'logical_date' instead.",
+                RemovedInAirflow3Warning,
+                stacklevel=2,
+            )
+            logical_date = execution_date
 
         if logical_date is not None and not isinstance(logical_date, (str, datetime.datetime)):
             type_name = type(logical_date).__name__
