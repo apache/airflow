@@ -797,7 +797,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
             orig_start = pendulum.instance(context["execution_date"])
             next_dagrun = context["dag"].next_dagrun_info(last_automated_dagrun=None, restricted=False)
             if next_dagrun and next_dagrun.data_interval and next_dagrun.data_interval.end:
-                orig_end = pendulum.instance(next_dagrun.data_interval.end)
+                orig_end = next_dagrun.data_interval.end
             else:
                 orig_end = None
 
