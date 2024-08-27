@@ -21,7 +21,7 @@ import typing
 
 from airflow.assets import AssetAll, BaseAsset
 from airflow.exceptions import AirflowTimetableInvalid
-from airflow.timetables.simple import AssetTriggeredTimetable as DatasetTriggeredSchedule
+from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.utils.types import DagRunType
 
 if typing.TYPE_CHECKING:
@@ -33,7 +33,7 @@ if typing.TYPE_CHECKING:
     from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 
 
-class AssetOrTimeSchedule(DatasetTriggeredSchedule):
+class AssetOrTimeSchedule(AssetTriggeredTimetable):
     """Combine time-based scheduling with event-based scheduling."""
 
     def __init__(
@@ -71,7 +71,7 @@ class AssetOrTimeSchedule(DatasetTriggeredSchedule):
         }
 
     def validate(self) -> None:
-        if isinstance(self.timetable, DatasetTriggeredSchedule):
+        if isinstance(self.timetable, AssetTriggeredTimetable):
             raise AirflowTimetableInvalid("cannot nest asset timetables")
         if not isinstance(self.asset_condition, BaseAsset):
             raise AirflowTimetableInvalid("all elements in 'assets' must be assets")

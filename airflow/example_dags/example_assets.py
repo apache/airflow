@@ -57,7 +57,7 @@ import pendulum
 from airflow.assets import Dataset
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
-from airflow.timetables.datasets import AssetOrTimeSchedule
+from airflow.timetables.assets import AssetOrTimeSchedule
 from airflow.timetables.trigger import CronTriggerTimetable
 
 # [START asset_def]

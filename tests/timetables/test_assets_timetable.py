@@ -25,8 +25,8 @@ from pendulum import DateTime
 
 from airflow.assets import AssetAlias, Dataset
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
+from airflow.timetables.assets import AssetOrTimeSchedule
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
-from airflow.timetables.datasets import AssetOrTimeSchedule
 from airflow.timetables.simple import AssetTriggeredTimetable
 from airflow.utils.types import DagRunType
 

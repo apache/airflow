@@ -190,7 +190,7 @@ Here's an example of a DAG using ``DatasetOrTimeSchedule``:
 
 .. code-block:: python
 
-    from airflow.timetables.datasets import DatasetOrTimeSchedule
+    from airflow.timetables.assets import DatasetOrTimeSchedule
     from airflow.timetables.trigger import CronTriggerTimetable
 
 
