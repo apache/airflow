@@ -111,8 +111,6 @@ def mock_response(status_code, content: Any = None, headers: dict | None = None)
 
 
 def mock_context(task) -> Context:
-    from datetime import datetime
-
     from airflow.models import TaskInstance
     from airflow.utils.session import NEW_SESSION
     from airflow.utils.state import TaskInstanceState
@@ -150,7 +148,6 @@ def mock_context(task) -> Context:
             self,
             key: str,
             value: Any,
-            execution_date: datetime | None = None,
             session: Session = NEW_SESSION,
         ) -> None:
             values[f"{self.task_id}_{self.dag_id}_{key}_{self.map_index}"] = value
