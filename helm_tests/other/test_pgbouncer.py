@@ -62,7 +62,7 @@ class TestPgbouncer:
         assert {"name": "pgbouncer", "protocol": "TCP", "port": 6543} in jmespath.search(
             "spec.ports", docs[0]
         )
-        assert {"name": "pgbouncer-metrics", "protocol": "TCP", "port": 9127} in jmespath.search(
+        assert {"name": "pgb-metrics", "protocol": "TCP", "port": 9127} in jmespath.search(
             "spec.ports", docs[0]
         )
 
@@ -80,7 +80,7 @@ class TestPgbouncer:
         assert {"name": "pgbouncer", "protocol": "TCP", "port": 1111} in jmespath.search(
             "spec.ports", docs[0]
         )
-        assert {"name": "pgbouncer-metrics", "protocol": "TCP", "port": 2222} in jmespath.search(
+        assert {"name": "pgb-metrics", "protocol": "TCP", "port": 2222} in jmespath.search(
             "spec.ports", docs[0]
         )
 
@@ -859,7 +859,7 @@ class TestPgbouncerIngress:
             show_only=["templates/pgbouncer/pgbouncer-ingress.yaml"],
         )
 
-        assert {"name": "release-name-pgbouncer", "port": {"name": "pgbouncer-metrics"}} == jmespath.search(
+        assert {"name": "release-name-pgbouncer", "port": {"name": "pgb-metrics"}} == jmespath.search(
             "spec.rules[0].http.paths[0].backend.service", docs[0]
         )
         assert "/metrics" == jmespath.search("spec.rules[0].http.paths[0].path", docs[0])

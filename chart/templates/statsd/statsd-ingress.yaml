@@ -68,7 +68,7 @@ spec:
               service:
                 name: {{ $.Release.Name }}-statsd
                 port:
-                  name: statsd-metrics
+                  name: statsd-scrape
             {{- if $.Values.ingress.statsd.path }}
             path: {{ $.Values.ingress.statsd.path }}
             pathType: {{ $.Values.ingress.statsd.pathType }}

@@ -68,7 +68,7 @@ spec:
               service:
                 name: {{ $.Release.Name }}-pgbouncer
                 port:
-                  name: pgbouncer-metrics
+                  name: pgb-metrics
             {{- if $.Values.ingress.pgbouncer.path }}
             path: {{ $.Values.ingress.pgbouncer.path }}
             pathType: {{ $.Values.ingress.pgbouncer.pathType }}
