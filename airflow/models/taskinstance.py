@@ -38,7 +38,6 @@ import dill
 import jinja2
 import lazy_object_proxy
 import pendulum
-from deprecated import deprecated
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
     Column,
@@ -425,7 +424,6 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance | TaskInstancePydantic,
 def clear_task_instances(
     tis: list[TaskInstance],
     session: Session,
-    activate_dag_runs: None = None,
     dag: DAG | None = None,
     dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
 ) -> None:
@@ -443,7 +441,6 @@ def clear_task_instances(
     :param dag_run_state: state to set finished DagRuns to.
         If set to False, DagRuns state will not be changed.
     :param dag: DAG object
-    :param activate_dag_runs: Deprecated parameter, do not pass
     """
     job_ids = []
     # Keys: dag_id -> run_id -> map_indexes -> try_numbers -> task_id
@@ -520,16 +517,6 @@ def clear_task_instances(
         from airflow.jobs.job import Job
 
         session.execute(update(Job).where(Job.id.in_(job_ids)).values(state=JobState.RESTARTING))
-
-    if activate_dag_runs is not None:
-        warnings.warn(
-            "`activate_dag_runs` parameter to clear_task_instances function is deprecated. "
-            "Please use `dag_run_state`",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        if not activate_dag_runs:
-            dag_run_state = False
 
     if dag_run_state is not False and tis:
         from airflow.models.dagrun import DagRun  # Avoid circular import
@@ -1990,26 +1977,6 @@ class TaskInstance(Base, LoggingMixin):
         return hash((self.task_id, self.dag_id, self.run_id, self.map_index))
 
     @property
-    @deprecated(reason="Use try_number instead.", version="2.10.0", category=RemovedInAirflow3Warning)
-    def _try_number(self):
-        """
-        Do not use. For semblance of backcompat.
-
-        :meta private:
-        """
-        return self.try_number
-
-    @_try_number.setter
-    @deprecated(reason="Use try_number instead.", version="2.10.0", category=RemovedInAirflow3Warning)
-    def _try_number(self, val):
-        """
-        Do not use. For semblance of backcompat.
-
-        :meta private:
-        """
-        self.try_number = val
-
-    @property
     def stats_tags(self) -> dict[str, str]:
         """Returns task instance tags."""
         return _stats_tags(task_instance=self)
@@ -2050,23 +2017,6 @@ class TaskInstance(Base, LoggingMixin):
     def init_on_load(self) -> None:
         """Initialize the attributes that aren't stored in the DB."""
         self.test_mode = False  # can be changed when calling 'run'
-
-    @property
-    @deprecated(reason="Use try_number instead.", version="2.10.0", category=RemovedInAirflow3Warning)
-    def prev_attempted_tries(self) -> int:
-        """
-        Calculate the total number of attempted tries, defaulting to 0.
-
-        This used to be necessary because try_number did not always tell the truth.
-
-        :meta private:
-        """
-        return self.try_number
-
-    @property
-    def next_try_number(self) -> int:
-        # todo (dstandish): deprecate this property; we don't need a property that is just + 1
-        return self.try_number + 1
 
     @property
     def operator_name(self) -> str | None:
@@ -2498,40 +2448,6 @@ class TaskInstance(Base, LoggingMixin):
         """
         return _get_previous_ti(task_instance=self, state=state, session=session)
 
-    @property
-    def previous_ti(self) -> TaskInstance | TaskInstancePydantic | None:
-        """
-        This attribute is deprecated.
-
-        Please use :class:`airflow.models.taskinstance.TaskInstance.get_previous_ti`.
-        """
-        warnings.warn(
-            """
-            This attribute is deprecated.
-            Please use `airflow.models.taskinstance.TaskInstance.get_previous_ti` method.
-            """,
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        return self.get_previous_ti()
-
-    @property
-    def previous_ti_success(self) -> TaskInstance | TaskInstancePydantic | None:
-        """
-        This attribute is deprecated.
-
-        Please use :class:`airflow.models.taskinstance.TaskInstance.get_previous_ti`.
-        """
-        warnings.warn(
-            """
-            This attribute is deprecated.
-            Please use `airflow.models.taskinstance.TaskInstance.get_previous_ti` method.
-            """,
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        return self.get_previous_ti(state=DagRunState.SUCCESS)
-
     @provide_session
     def get_previous_execution_date(
         self,
@@ -2557,23 +2473,6 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         """
         return _get_previous_start_date(task_instance=self, state=state, session=session)
-
-    @property
-    def previous_start_date_success(self) -> pendulum.DateTime | None:
-        """
-        This attribute is deprecated.
-
-        Please use :class:`airflow.models.taskinstance.TaskInstance.get_previous_start_date`.
-        """
-        warnings.warn(
-            """
-            This attribute is deprecated.
-            Please use `airflow.models.taskinstance.TaskInstance.get_previous_start_date` method.
-            """,
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        return self.get_previous_start_date(state=DagRunState.SUCCESS)
 
     @provide_session
     def are_dependencies_met(
@@ -4115,21 +4014,6 @@ class SimpleTaskInstance:
             return self.__dict__ == other.__dict__
         return NotImplemented
 
-    def as_dict(self):
-        warnings.warn(
-            "This method is deprecated. Use BaseSerialization.serialize.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        new_dict = dict(self.__dict__)
-        for key in new_dict:
-            if key in ["start_date", "end_date"]:
-                val = new_dict[key]
-                if not val or isinstance(val, str):
-                    continue
-                new_dict.update({key: val.isoformat()})
-        return new_dict
-
     @classmethod
     def from_ti(cls, ti: TaskInstance) -> SimpleTaskInstance:
         return cls(
@@ -4149,24 +4033,6 @@ class SimpleTaskInstance:
             run_as_user=ti.run_as_user if hasattr(ti, "run_as_user") else None,
             priority_weight=ti.priority_weight if hasattr(ti, "priority_weight") else None,
         )
-
-    @classmethod
-    def from_dict(cls, obj_dict: dict) -> SimpleTaskInstance:
-        warnings.warn(
-            "This method is deprecated. Use BaseSerialization.deserialize.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        ti_key = TaskInstanceKey(*obj_dict.pop("key"))
-        start_date = None
-        end_date = None
-        start_date_str: str | None = obj_dict.pop("start_date")
-        end_date_str: str | None = obj_dict.pop("end_date")
-        if start_date_str:
-            start_date = timezone.parse(start_date_str)
-        if end_date_str:
-            end_date = timezone.parse(end_date_str)
-        return cls(**obj_dict, start_date=start_date, end_date=end_date, key=ti_key)
 
 
 class TaskInstanceNote(TaskInstanceDependencies):
