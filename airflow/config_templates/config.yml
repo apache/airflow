@@ -1090,7 +1090,7 @@ metrics:
       version_added: 2.6.0
       type: string
       example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
-      or \"^scheduler,^executor,heartbeat|timeout\""
+        or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
     metrics_block_list:
       description: |
@@ -1104,7 +1104,7 @@ metrics:
       version_added: 2.6.0
       type: string
       example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
-      or \"^scheduler,^executor,heartbeat|timeout\""
+        or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
     statsd_on:
       description: |
@@ -1517,15 +1517,6 @@ operators:
       type: string
       example: ~
       default: "default"
-    allow_illegal_arguments:
-      description: |
-        Is allowed to pass additional/unused arguments (args, kwargs) to the BaseOperator operator.
-        If set to ``False``, an exception will be thrown,
-        otherwise only the console message will be displayed.
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "False"
 webserver:
   description: ~
   options:
