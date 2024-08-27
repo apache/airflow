@@ -24,6 +24,7 @@ from sqlalchemy import exc, select
 from sqlalchemy.orm import joinedload
 
 from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.assets import Asset
 from airflow.configuration import conf
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import (
@@ -41,7 +42,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
-    from airflow.assets import AssetAlias, Dataset
+    from airflow.assets import Asset, AssetAlias
     from airflow.models.dag import DagModel
     from airflow.models.taskinstance import TaskInstance
 
@@ -55,10 +56,10 @@ class AssetManager(LoggingMixin):
     """
 
     @classmethod
-    def create_assets(cls, assets: list[Dataset], *, session: Session) -> list[AssetModel]:
+    def create_assets(cls, assets: list[Asset], *, session: Session) -> list[AssetModel]:
         """Create new assets."""
 
-        def _add_one(asset: Dataset) -> AssetModel:
+        def _add_one(asset: Asset) -> AssetModel:
             model = AssetModel.from_public(asset)
             session.add(model)
             cls.notify_asset_created(asset=asset)
@@ -87,16 +88,16 @@ class AssetManager(LoggingMixin):
     def _add_dataset_alias_association(
         cls,
         alias_names: Collection[str],
-        dataset: AssetModel,
+        asset: AssetModel,
         *,
         session: Session,
     ) -> None:
-        already_related = {m.name for m in dataset.aliases}
+        already_related = {m.name for m in asset.aliases}
         existing_aliases = {
             m.name: m
             for m in session.scalars(select(AssetAliasModel).where(AssetAliasModel.name.in_(alias_names)))
         }
-        dataset.aliases.extend(
+        asset.aliases.extend(
             existing_aliases.get(name, AssetAliasModel(name=name))
             for name in alias_names
             if name not in already_related
@@ -108,7 +109,7 @@ class AssetManager(LoggingMixin):
         cls,
         *,
         task_instance: TaskInstance | None = None,
-        asset: Dataset,
+        asset: Asset,
         extra=None,
         aliases: Collection[AssetAlias] = (),
         source_alias_names: Iterable[str] | None = None,
@@ -189,7 +190,7 @@ class AssetManager(LoggingMixin):
         return asset_event
 
     @staticmethod
-    def notify_asset_created(asset: Dataset):
+    def notify_asset_created(asset: Asset):
         """Run applicable notification actions when an asset is created."""
         get_listener_manager().hook.on_asset_created(asset=asset)
 
@@ -199,7 +200,7 @@ class AssetManager(LoggingMixin):
         get_listener_manager().hook.on_dataset_alias_created(dataset_alias=asset_assets)
 
     @staticmethod
-    def notify_asset_changed(asset: Dataset):
+    def notify_asset_changed(asset: Asset):
         """Run applicable notification actions when an asset is changed."""
         get_listener_manager().hook.on_asset_changed(asset=asset)
 

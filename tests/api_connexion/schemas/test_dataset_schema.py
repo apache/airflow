@@ -27,10 +27,10 @@ from airflow.api_connexion.schemas.asset_schema import (
     asset_event_schema,
     asset_schema,
 )
-from airflow.assets import Dataset
+from airflow.assets import Asset
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
 from airflow.operators.empty import EmptyOperator
-from tests.test_utils.db import clear_db_dags, clear_db_datasets
+from tests.test_utils.db import clear_db_assets, clear_db_dags
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -38,7 +38,7 @@ pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 class TestAssetSchemaBase:
     def setup_method(self) -> None:
         clear_db_dags()
-        clear_db_datasets()
+        clear_db_assets()
         self.timestamp = "2022-06-10T12:02:44+00:00"
         self.freezer = time_machine.travel(self.timestamp, tick=False)
         self.freezer.start()
@@ -46,12 +46,12 @@ class TestAssetSchemaBase:
     def teardown_method(self) -> None:
         self.freezer.stop()
         clear_db_dags()
-        clear_db_datasets()
+        clear_db_assets()
 
 
 class TestAssetSchema(TestAssetSchemaBase):
     def test_serialize(self, dag_maker, session):
-        dataset = Dataset(
+        dataset = Asset(
             uri="s3://bucket/key",
             extra={"foo": "bar"},
         )

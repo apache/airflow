@@ -67,7 +67,7 @@ from sqlalchemy.sql.expression import case, select
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
-from airflow.assets import AssetAlias, Dataset
+from airflow.assets import Asset, AssetAlias
 from airflow.assets.manager import asset_manager
 from airflow.compat.functools import cache
 from airflow.configuration import conf
@@ -2891,14 +2891,14 @@ class TaskInstance(Base, LoggingMixin):
         if TYPE_CHECKING:
             assert self.task
 
-        # One task only triggers one asset event for each dataset with the same extra.
-        # This tuple[dataset uri, extra] to sets alias names mapping is used to find whether
-        # there're datasets with same uri but different extra that we need to emit more than one asset events.
+        # One task only triggers one asset event for each asset with the same extra.
+        # This tuple[asset uri, extra] to sets alias names mapping is used to find whether
+        # there're assets with same uri but different extra that we need to emit more than one asset events.
         asset_alias_names: dict[tuple[str, frozenset], set[str]] = defaultdict(set)
         for obj in self.task.outlets or []:
             self.log.debug("outlet obj %s", obj)
-            # Lineage can have other types of objects besides datasets
-            if isinstance(obj, Dataset):
+            # Lineage can have other types of objects besides assets
+            if isinstance(obj, Asset):
                 asset_manager.register_asset_change(
                     task_instance=self,
                     asset=obj,
@@ -2918,7 +2918,7 @@ class TaskInstance(Base, LoggingMixin):
                 select(AssetModel).where(AssetModel.uri.in_(uri for uri, _ in asset_alias_names))
             )
         }
-        if missing_datasets := [Dataset(uri=u) for u, _ in asset_alias_names if u not in dataset_models]:
+        if missing_datasets := [Asset(uri=u) for u, _ in asset_alias_names if u not in dataset_models]:
             dataset_models.update(
                 (dataset_obj.uri, dataset_obj)
                 for dataset_obj in asset_manager.create_assets(missing_datasets, session=session)
@@ -2927,15 +2927,15 @@ class TaskInstance(Base, LoggingMixin):
             session.flush()  # Needed because we need the id for fk.
 
         for (uri, extra_items), alias_names in asset_alias_names.items():
-            dataset_obj = dataset_models[uri]
+            asset_obj = dataset_models[uri]
             self.log.info(
                 'Creating event for %r through aliases "%s"',
-                dataset_obj,
+                asset_obj,
                 ", ".join(alias_names),
             )
             asset_manager.register_asset_change(
                 task_instance=self,
-                asset=dataset_obj,
+                asset=asset_obj,
                 aliases=[AssetAlias(name) for name in alias_names],
                 extra=dict(extra_items),
                 session=session,

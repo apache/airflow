@@ -35,11 +35,11 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow import macros
 from airflow.assets import (
+    Asset,
     AssetAlias,
     AssetAll,
     AssetAny,
     BaseAsset,
-    Dataset,
     _AssetAliasCondition,
 )
 from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
@@ -248,12 +248,12 @@ class _PriorityWeightStrategyNotRegistered(AirflowException):
 
 def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
     """
-    Encode a dataset condition.
+    Encode a asset condition.
 
     :meta private:
     """
-    if isinstance(var, Dataset):
-        return {"__type": DAT.DATASET, "uri": var.uri, "extra": var.extra}
+    if isinstance(var, Asset):
+        return {"__type": DAT.ASSET, "uri": var.uri, "extra": var.extra}
     if isinstance(var, AssetAlias):
         return {"__type": DAT.ASSET_ALIAS, "name": var.name}
     if isinstance(var, AssetAll):
@@ -270,8 +270,8 @@ def decode_asset_condition(var: dict[str, Any]) -> BaseAsset:
     :meta private:
     """
     dat = var["__type"]
-    if dat == DAT.DATASET:
-        return Dataset(var["uri"], extra=var["extra"])
+    if dat == DAT.ASSET:
+        return Asset(var["uri"], extra=var["extra"])
     if dat == DAT.ASSET_ALL:
         return AssetAll(*(decode_asset_condition(x) for x in var["objects"]))
     if dat == DAT.ASSET_ANY:
@@ -477,7 +477,7 @@ _orm_to_model = {
     DagRun: DagRunPydantic,
     DagModel: DagModelPydantic,
     LogTemplate: LogTemplatePydantic,
-    Dataset: DatasetPydantic,
+    Asset: DatasetPydantic,
     Trigger: TriggerPydantic,
 }
 _type_to_class: dict[DAT | str, list] = {
@@ -486,7 +486,7 @@ _type_to_class: dict[DAT | str, list] = {
     DAT.DAG_RUN: [DagRunPydantic, DagRun],
     DAT.DAG_MODEL: [DagModelPydantic, DagModel],
     DAT.LOG_TEMPLATE: [LogTemplatePydantic, LogTemplate],
-    DAT.DATA_SET: [DatasetPydantic, Dataset],
+    DAT.DATA_SET: [DatasetPydantic, Asset],
     DAT.TRIGGER: [TriggerPydantic, Trigger],
 }
 _class_to_type = {cls_: type_ for type_, classes in _type_to_class.items() for cls_ in classes}
@@ -867,8 +867,8 @@ class BaseSerialization:
             return cls._deserialize_param(var)
         elif type_ == DAT.XCOM_REF:
             return _XComRef(var)  # Delay deserializing XComArg objects until we have the entire DAG.
-        elif type_ == DAT.DATASET:
-            return Dataset(**var)
+        elif type_ == DAT.ASSET:
+            return Asset(**var)
         elif type_ == DAT.ASSET_ALIAS:
             return AssetAlias(**var)
         elif type_ == DAT.ASSET_ANY:
@@ -1036,7 +1036,7 @@ class DependencyDetector:
                 )
             )
         for obj in task.outlets or []:
-            if isinstance(obj, Dataset):
+            if isinstance(obj, Asset):
                 deps.append(
                     DagDependency(
                         source=task.dag_id,

@@ -38,7 +38,7 @@ import time_machine
 from sqlalchemy import inspect, select
 
 from airflow import settings
-from airflow.assets import AssetAlias, AssetAll, AssetAny, Dataset
+from airflow.assets import Asset, AssetAlias, AssetAll, AssetAny
 from airflow.configuration import conf
 from airflow.decorators import setup, task as task_decorator, teardown
 from airflow.exceptions import (
@@ -105,7 +105,7 @@ from tests.plugins.priority_weight_strategy import (
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, clear_db_serialized_dags
+from tests.test_utils.db import clear_db_assets, clear_db_dags, clear_db_runs, clear_db_serialized_dags
 from tests.test_utils.mapping import expand_mapped_task
 from tests.test_utils.mock_plugins import mock_plugin_manager
 from tests.test_utils.timetables import cron_timetable, delta_timetable
@@ -133,24 +133,24 @@ def clear_dags():
 
 
 @pytest.fixture
-def clear_datasets():
-    clear_db_datasets()
+def clear_assets():
+    clear_db_assets()
     yield
-    clear_db_datasets()
+    clear_db_assets()
 
 
 class TestDag:
     def setup_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
-        clear_db_datasets()
+        clear_db_assets()
         self.patcher_dag_code = mock.patch("airflow.models.dag.DagCode.bulk_sync_to_db")
         self.patcher_dag_code.start()
 
     def teardown_method(self) -> None:
         clear_db_runs()
         clear_db_dags()
-        clear_db_datasets()
+        clear_db_assets()
         self.patcher_dag_code.stop()
 
     @staticmethod
@@ -1004,21 +1004,21 @@ class TestDag:
         assert not model.has_import_errors
         session.close()
 
-    def test_bulk_write_to_db_datasets(self):
+    def test_bulk_write_to_db_assets(self):
         """
-        Ensure that datasets referenced in a dag are correctly loaded into the database.
+        Ensure that assets referenced in a dag are correctly loaded into the database.
         """
-        dag_id1 = "test_dataset_dag1"
-        dag_id2 = "test_dataset_dag2"
-        task_id = "test_dataset_task"
-        uri1 = "s3://dataset/1"
-        d1 = Dataset(uri1, extra={"not": "used"})
-        d2 = Dataset("s3://dataset/2")
-        d3 = Dataset("s3://dataset/3")
+        dag_id1 = "test_asset_dag1"
+        dag_id2 = "test_asset_dag2"
+        task_id = "test_asset_task"
+        uri1 = "s3://asset/1"
+        d1 = Asset(uri1, extra={"not": "used"})
+        d2 = Asset("s3://asset/2")
+        d3 = Asset("s3://asset/3")
         dag1 = DAG(dag_id=dag_id1, start_date=DEFAULT_DATE, schedule=[d1])
         EmptyOperator(task_id=task_id, dag=dag1, outlets=[d2, d3])
         dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE, schedule=None)
-        EmptyOperator(task_id=task_id, dag=dag2, outlets=[Dataset(uri1, extra={"should": "be used"})])
+        EmptyOperator(task_id=task_id, dag=dag2, outlets=[Asset(uri1, extra={"should": "be used"})])
         session = settings.Session()
         dag1.clear()
         DAG.bulk_write_to_db([dag1, dag2], session=session)
@@ -1044,7 +1044,7 @@ class TestDag:
             (task_id, dag_id2, asset1_orm.id),
         }
 
-        # now that we have verified that a new dag has its dataset references recorded properly,
+        # now that we have verified that a new dag has its asset references recorded properly,
         # we need to verify that *changes* are recorded properly.
         # so if any references are *removed*, they should also be deleted from the DB
         # so let's remove some references and see what happens
@@ -1069,24 +1069,24 @@ class TestDag:
             .all()
         ) == {(task_id, dag_id1, asset2_orm.id)}
 
-    def test_bulk_write_to_db_unorphan_datasets(self):
+    def test_bulk_write_to_db_unorphan_assets(self):
         """
-        Datasets can lose their last reference and be orphaned, but then if a reference to them reappears, we
-        need to un-orphan those datasets
+        Assets can lose their last reference and be orphaned, but then if a reference to them reappears, we
+        need to un-orphan those assets
         """
         with create_session() as session:
-            # Create four datasets - two that have references and two that are unreferenced and marked as
+            # Create four assets - two that have references and two that are unreferenced and marked as
             # orphans
-            dataset1 = Dataset(uri="ds1")
-            dataset2 = Dataset(uri="ds2")
-            session.add(AssetModel(uri=dataset2.uri, is_orphaned=True))
-            dataset3 = Dataset(uri="ds3")
-            dataset4 = Dataset(uri="ds4")
-            session.add(AssetModel(uri=dataset4.uri, is_orphaned=True))
+            asset1 = Asset(uri="ds1")
+            asset2 = Asset(uri="ds2")
+            session.add(AssetModel(uri=asset2.uri, is_orphaned=True))
+            asset3 = Asset(uri="ds3")
+            asset4 = Asset(uri="ds4")
+            session.add(AssetModel(uri=asset4.uri, is_orphaned=True))
             session.flush()
 
-            dag1 = DAG(dag_id="datasets-1", start_date=DEFAULT_DATE, schedule=[dataset1])
-            BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[dataset3])
+            dag1 = DAG(dag_id="assets-1", start_date=DEFAULT_DATE, schedule=[asset1])
+            BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[asset3])
 
             DAG.bulk_write_to_db([dag1], session=session)
 
@@ -1106,9 +1106,9 @@ class TestDag:
             ]
             assert orphaned_assets == ["ds2", "ds4"]
 
-            # Now add references to the two unreferenced datasets
-            dag1 = DAG(dag_id="datasets-1", start_date=DEFAULT_DATE, schedule=[dataset1, dataset2])
-            BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[dataset3, dataset4])
+            # Now add references to the two unreferenced assets
+            dag1 = DAG(dag_id="assets-1", start_date=DEFAULT_DATE, schedule=[asset1, asset2])
+            BashOperator(dag=dag1, task_id="task", bash_command="echo 1", outlets=[asset3, asset4])
 
             DAG.bulk_write_to_db([dag1], session=session)
 
@@ -1122,9 +1122,9 @@ class TestDag:
         """
         Ensure that asset aliases referenced in a dag are correctly loaded into the database.
         """
-        dag_id1 = "test_dataset_alias_dag1"
-        dag_id2 = "test_dataset_alias_dag2"
-        task_id = "test_dataset_task"
+        dag_id1 = "test_asset_alias_dag1"
+        dag_id2 = "test_asset_alias_dag2"
+        task_id = "test_asset_task"
         asset_alias_1 = AssetAlias(name="asset_alias_1")
         asset_alias_2 = AssetAlias(name="asset_alias_2")
         asset_alias_2_2 = AssetAlias(name="asset_alias_2")
@@ -1664,9 +1664,9 @@ class TestDag:
         assert dag.timetable == expected_timetable
         assert dag.timetable.description == interval_description
 
-    def test_timetable_and_description_from_dataset(self):
-        dag = DAG("test_schedule_arg", schedule=[Dataset(uri="hello")], start_date=TEST_DATE)
-        assert dag.timetable == AssetTriggeredTimetable(Dataset(uri="hello"))
+    def test_timetable_and_description_from_asset(self):
+        dag = DAG("test_schedule_interval_arg", schedule=[Asset(uri="hello")], start_date=TEST_DATE)
+        assert dag.timetable == AssetTriggeredTimetable(Asset(uri="hello"))
         assert dag.timetable.description == "Triggered by assets"
 
     @pytest.mark.parametrize(
@@ -2400,7 +2400,7 @@ my_postgres_conn:
 class TestDagModel:
     def _clean(self):
         clear_db_dags()
-        clear_db_datasets()
+        clear_db_assets()
         clear_db_runs()
 
     def setup_method(self):
@@ -2432,13 +2432,13 @@ class TestDagModel:
         session.rollback()
         session.close()
 
-    def test_dags_needing_dagruns_datasets(self, dag_maker, session):
-        dataset = Dataset(uri="hello")
+    def test_dags_needing_dagruns_assets(self, dag_maker, session):
+        asset = Asset(uri="hello")
         with dag_maker(
             session=session,
             dag_id="my_dag",
             max_active_runs=1,
-            schedule=[dataset],
+            schedule=[asset],
             start_date=pendulum.now().add(days=-2),
         ) as dag:
             EmptyOperator(task_id="dummy")
@@ -2475,7 +2475,7 @@ class TestDagModel:
         assert dag_models == [dag_model]
 
     def test_dags_needing_dagruns_asset_aliases(self, dag_maker, session):
-        # link dataset_alias hello_alias to dataset hello
+        # link asset_alias hello_alias to asset hello
         asset_model = AssetModel(uri="hello")
         asset_alias_model = AssetAliasModel(name="hello_alias")
         asset_alias_model.datasets.append(asset_model)
@@ -2663,16 +2663,16 @@ class TestDagModel:
         assert sdm.dag._processor_dags_folder == settings.DAGS_FOLDER
 
     @pytest.mark.need_serialized_dag
-    def test_dags_needing_dagruns_dataset_triggered_dag_info_queued_times(self, session, dag_maker):
-        dataset1 = Dataset(uri="ds1")
-        dataset2 = Dataset(uri="ds2")
+    def test_dags_needing_dagruns_asset_triggered_dag_info_queued_times(self, session, dag_maker):
+        asset1 = Asset(uri="ds1")
+        asset2 = Asset(uri="ds2")
 
-        for dag_id, dataset in [("datasets-1", dataset1), ("datasets-2", dataset2)]:
+        for dag_id, asset in [("assets-1", asset1), ("assets-2", asset2)]:
             with dag_maker(dag_id=dag_id, start_date=timezone.utcnow(), session=session):
-                EmptyOperator(task_id="task", outlets=[dataset])
+                EmptyOperator(task_id="task", outlets=[asset])
             dr = dag_maker.create_dagrun()
 
-            asset_id = session.query(AssetModel.id).filter_by(uri=dataset.uri).scalar()
+            asset_id = session.query(AssetModel.id).filter_by(uri=asset.uri).scalar()
 
             session.add(
                 AssetEvent(
@@ -2684,10 +2684,10 @@ class TestDagModel:
                 )
             )
 
-        asset1_id = session.query(AssetModel.id).filter_by(uri=dataset1.uri).scalar()
-        asset2_id = session.query(AssetModel.id).filter_by(uri=dataset2.uri).scalar()
+        asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
+        asset2_id = session.query(AssetModel.id).filter_by(uri=asset2.uri).scalar()
 
-        with dag_maker(dag_id="datasets-consumer-multiple", schedule=[dataset1, dataset2]) as dag:
+        with dag_maker(dag_id="assets-consumer-multiple", schedule=[asset1, asset2]) as dag:
             pass
 
         session.flush()
@@ -2710,14 +2710,14 @@ class TestDagModel:
         assert first_queued_time == DEFAULT_DATE
         assert last_queued_time == DEFAULT_DATE + timedelta(hours=1)
 
-    def test_dataset_expression(self, session: Session) -> None:
+    def test_asset_expression(self, session: Session) -> None:
         dag = DAG(
-            dag_id="test_dag_dataset_expression",
+            dag_id="test_dag_asset_expression",
             schedule=AssetAny(
-                Dataset("s3://dag1/output_1.txt", {"hi": "bye"}),
+                Asset("s3://dag1/output_1.txt", {"hi": "bye"}),
                 AssetAll(
-                    Dataset("s3://dag2/output_1.txt", {"hi": "bye"}),
-                    Dataset("s3://dag3/output_3.txt", {"hi": "bye"}),
+                    Asset("s3://dag2/output_1.txt", {"hi": "bye"}),
+                    Asset("s3://dag3/output_3.txt", {"hi": "bye"}),
                 ),
                 AssetAlias(name="test_name"),
             ),
@@ -3426,24 +3426,24 @@ def test__tags_mutable():
 
 
 @pytest.mark.need_serialized_dag
-def test_get_asset_triggered_next_run_info(dag_maker, clear_datasets):
-    dataset1 = Dataset(uri="ds1")
-    dataset2 = Dataset(uri="ds2")
-    dataset3 = Dataset(uri="ds3")
-    with dag_maker(dag_id="datasets-1", schedule=[dataset2]):
+def test_get_asset_triggered_next_run_info(dag_maker, clear_assets):
+    asset1 = Asset(uri="ds1")
+    asset2 = Asset(uri="ds2")
+    asset3 = Asset(uri="ds3")
+    with dag_maker(dag_id="assets-1", schedule=[asset2]):
         pass
     dag1 = dag_maker.dag
 
-    with dag_maker(dag_id="datasets-2", schedule=[dataset1, dataset2]):
+    with dag_maker(dag_id="assets-2", schedule=[asset1, asset2]):
         pass
     dag2 = dag_maker.dag
 
-    with dag_maker(dag_id="datasets-3", schedule=[dataset1, dataset2, dataset3]):
+    with dag_maker(dag_id="assets-3", schedule=[asset1, asset2, asset3]):
         pass
     dag3 = dag_maker.dag
 
     session = dag_maker.session
-    asset1_id = session.query(AssetModel.id).filter_by(uri=dataset1.uri).scalar()
+    asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
     session.bulk_save_objects(
         [
             AssetDagRunQueue(dataset_id=asset1_id, target_dag_id=dag2.dag_id),

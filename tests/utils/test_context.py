@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.assets import AssetAlias, AssetAliasEvent, Dataset
+from airflow.assets import Asset, AssetAlias, AssetAliasEvent
 from airflow.models.asset import AssetAliasModel, AssetModel
 from airflow.utils.context import OutletEventAccessor, OutletEventAccessors
 
@@ -33,12 +33,12 @@ class TestOutletEventAccessor:
                 AssetAlias("test_alias"),
                 [AssetAliasEvent(source_alias_name="test_alias", dest_asset_uri="test_uri", extra={})],
             ),
-            (Dataset("test_uri"), []),
+            (Asset("test_uri"), []),
         ),
     )
     def test_add(self, raw_key, asset_alias_events):
         outlet_event_accessor = OutletEventAccessor(raw_key=raw_key, extra={})
-        outlet_event_accessor.add(Dataset("test_uri"))
+        outlet_event_accessor.add(Asset("test_uri"))
         assert outlet_event_accessor.asset_alias_events == asset_alias_events
 
     @pytest.mark.db_test
@@ -47,13 +47,13 @@ class TestOutletEventAccessor:
         (
             (
                 AssetAlias("test_alias"),
-                [AssetAliasEvent(source_alias_name="test_alias", dest_dataset_uri="test_uri", extra={})],
+                [AssetAliasEvent(source_alias_name="test_alias", dest_asset_uri="test_uri", extra={})],
             ),
             (
                 "test_alias",
-                [AssetAliasEvent(source_alias_name="test_alias", dest_dataset_uri="test_uri", extra={})],
+                [AssetAliasEvent(source_alias_name="test_alias", dest_asset_uri="test_uri", extra={})],
             ),
-            (Dataset("test_uri"), []),
+            (Asset("test_uri"), []),
         ),
     )
     def test_add_with_db(self, raw_key, asset_alias_events, session):
@@ -68,7 +68,7 @@ class TestOutletEventAccessor:
 
 
 class TestOutletEventAccessors:
-    @pytest.mark.parametrize("key", ("test", Dataset("test"), AssetAlias("test_alias")))
+    @pytest.mark.parametrize("key", ("test", Asset("test"), AssetAlias("test_alias")))
     def test____get_item___dict_key_not_exists(self, key):
         outlet_event_accessors = OutletEventAccessors()
         assert len(outlet_event_accessors) == 0

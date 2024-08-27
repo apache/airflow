@@ -33,7 +33,7 @@ from packaging.version import Version
 from airflow import __version__ as AIRFLOW_VERSION
 from airflow.exceptions import AirflowProviderDeprecationWarning  # TODO: move this maybe to Airflow's logic?
 from airflow.models import DAG, BaseOperator, DagRun, MappedOperator
-from airflow.providers.common.compat.assets import Dataset
+from airflow.providers.common.compat.assets import Asset
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.facets import (
     AirflowDagRunFacet,
@@ -284,7 +284,7 @@ class TaskInstanceInfo(InfoJsonEncodable):
 
 
 class DatasetInfo(InfoJsonEncodable):
-    """Defines encoding Airflow Dataset object to JSON."""
+    """Defines encoding Airflow Asset object to JSON."""
 
     includes = ["uri", "extra"]
 
@@ -335,8 +335,8 @@ class TaskInfo(InfoJsonEncodable):
             if hasattr(task, "task_group") and getattr(task.task_group, "_group_id", None)
             else None
         ),
-        "inlets": lambda task: [DatasetInfo(i) for i in task.inlets if isinstance(i, Dataset)],
-        "outlets": lambda task: [DatasetInfo(o) for o in task.outlets if isinstance(o, Dataset)],
+        "inlets": lambda task: [DatasetInfo(i) for i in task.inlets if isinstance(i, Asset)],
+        "outlets": lambda task: [DatasetInfo(o) for o in task.outlets if isinstance(o, Asset)],
     }
 
 
@@ -641,9 +641,9 @@ def should_use_external_connection(hook) -> bool:
     return True
 
 
-def translate_airflow_dataset(dataset: Dataset, lineage_context) -> OpenLineageDataset | None:
+def translate_airflow_dataset(dataset: Asset, lineage_context) -> OpenLineageDataset | None:
     """
-    Convert a Dataset with an AIP-60 compliant URI to an OpenLineageDataset.
+    Convert a Asset with an AIP-60 compliant URI to an OpenLineageDataset.
 
     This function returns None if no URI normalizer is defined, no dataset converter is found or
     some core Airflow changes are missing and ImportError is raised.
@@ -673,4 +673,4 @@ def translate_airflow_dataset(dataset: Dataset, lineage_context) -> OpenLineageD
     if (airflow_to_ol_converter := ol_converters.get(normalized_scheme)) is None:
         return None
 
-    return airflow_to_ol_converter(Dataset(uri=normalized_uri, extra=dataset.extra), lineage_context)
+    return airflow_to_ol_converter(Asset(uri=normalized_uri, extra=dataset.extra), lineage_context)

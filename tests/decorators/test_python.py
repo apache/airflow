@@ -983,8 +983,8 @@ def test_no_warnings(reset_logging_config, caplog):
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
-def test_task_decorator_dataset(dag_maker, session):
-    from airflow.assets import Dataset
+def test_task_decorator_asset(dag_maker, session):
+    from airflow.assets import Asset
 
     result = None
     uri = "s3://bucket/name"
@@ -992,11 +992,11 @@ def test_task_decorator_dataset(dag_maker, session):
     with dag_maker(session=session) as dag:
 
         @dag.task()
-        def up1() -> Dataset:
-            return Dataset(uri)
+        def up1() -> Asset:
+            return Asset(uri)
 
         @dag.task()
-        def up2(src: Dataset) -> str:
+        def up2(src: Asset) -> str:
             return src.uri
 
         @dag.task()

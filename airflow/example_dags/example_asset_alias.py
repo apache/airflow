@@ -38,7 +38,7 @@ from __future__ import annotations
 import pendulum
 
 from airflow import DAG
-from airflow.assets import AssetAlias, Dataset
+from airflow.assets import Asset, AssetAlias
 from airflow.decorators import task
 
 with DAG(
@@ -49,7 +49,7 @@ with DAG(
     tags=["producer", "asset"],
 ):
 
-    @task(outlets=[Dataset("s3://bucket/my-task")])
+    @task(outlets=[Asset("s3://bucket/my-task")])
     def produce_asset_events():
         pass
 
@@ -67,14 +67,14 @@ with DAG(
     def produce_asset_events_through_asset_alias(*, outlet_events=None):
         bucket_name = "bucket"
         object_path = "my-task"
-        outlet_events["example-alias"].add(Dataset(f"s3://{bucket_name}/{object_path}"))
+        outlet_events["example-alias"].add(Asset(f"s3://{bucket_name}/{object_path}"))
 
     produce_asset_events_through_asset_alias()
 
 with DAG(
     dag_id="asset_s3_bucket_consumer",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    schedule=[Dataset("s3://bucket/my-task")],
+    schedule=[Asset("s3://bucket/my-task")],
     catchup=False,
     tags=["consumer", "asset"],
 ):

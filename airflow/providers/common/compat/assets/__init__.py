@@ -23,22 +23,22 @@ from airflow import __version__ as AIRFLOW_VERSION
 
 if TYPE_CHECKING:
     from airflow.assets import (
+        Asset,
         AssetAlias,
         AssetAliasEvent,
         AssetAll,
         AssetAny,
-        Dataset,
-        expand_alias_to_datasets,
+        expand_alias_to_assets,
     )
 else:
     try:
         from airflow.assets import (
+            Asset,
             AssetAlias,
             AssetAliasEvent,
             AssetAll,
             AssetAny,
-            Dataset,
-            expand_alias_to_datasets,
+            expand_alias_to_assets,
         )
     except ModuleNotFoundError:
         from packaging.version import Version
@@ -47,7 +47,7 @@ else:
         _IS_AIRFLOW_2_9_OR_HIGHER = Version(Version(AIRFLOW_VERSION).base_version) >= Version("2.9.0")
 
         # dataset is renamed to asset since Airflow 3.0
-        from airflow.datasets import Dataset
+        from airflow.datasets import Dataset as Asset
 
         if _IS_AIRFLOW_2_9_OR_HIGHER:
             from airflow.datasets import (
@@ -59,15 +59,15 @@ else:
             from airflow.datasets import (
                 DatasetAlias as AssetAlias,
                 DatasetAliasEvent as AssetAliasEvent,
-                expand_alias_to_datasets,
+                expand_alias_to_datasets as expand_alias_to_assets,
             )
 
 
 __all__ = [
-    "Dataset",
+    "Asset",
     "AssetAlias",
     "AssetAliasEvent",
     "AssetAll",
     "AssetAny",
-    "expand_alias_to_datasets",
+    "expand_alias_to_assets",
 ]

@@ -27,7 +27,7 @@ This is expected because the asset alias has not been resolved into any asset ye
 
 Once the "asset_s3_bucket_producer_with_no_taskflow" DAG is triggered, the "asset_s3_bucket_consumer_with_no_taskflow" DAG should be triggered upon completion.
 This is because the asset alias "example-alias-no-taskflow" is used to add a asset event to the asset "s3://bucket/my-task-with-no-taskflow"
-during the "produce_asset_events_through_asset_alias_with_no_taskflow" task. Also, the schedule of the "asset_alias_example_alias_consumer_with_no_taskflow" DAG should change to "Dataset" as
+during the "produce_asset_events_through_asset_alias_with_no_taskflow" task. Also, the schedule of the "asset_alias_example_alias_consumer_with_no_taskflow" DAG should change to "Asset" as
 the asset alias "example-alias-no-taskflow" is now resolved to the asset "s3://bucket/my-task-with-no-taskflow" and this DAG should also be triggered.
 """
 
@@ -36,7 +36,7 @@ from __future__ import annotations
 import pendulum
 
 from airflow import DAG
-from airflow.assets import AssetAlias, Dataset
+from airflow.assets import Asset, AssetAlias
 from airflow.operators.python import PythonOperator
 
 with DAG(
@@ -52,7 +52,7 @@ with DAG(
 
     PythonOperator(
         task_id="produce_asset_events",
-        outlets=[Dataset("s3://bucket/my-task-with-no-taskflow")],
+        outlets=[Asset("s3://bucket/my-task-with-no-taskflow")],
         python_callable=produce_asset_events,
     )
 
@@ -68,7 +68,7 @@ with DAG(
     def produce_asset_events_through_asset_alias_with_no_taskflow(*, outlet_events=None):
         bucket_name = "bucket"
         object_path = "my-task"
-        outlet_events["example-alias-no-taskflow"].add(Dataset(f"s3://{bucket_name}/{object_path}"))
+        outlet_events["example-alias-no-taskflow"].add(Asset(f"s3://{bucket_name}/{object_path}"))
 
     PythonOperator(
         task_id="produce_asset_events_through_asset_alias_with_no_taskflow",
@@ -79,7 +79,7 @@ with DAG(
 with DAG(
     dag_id="asset_s3_bucket_consumer_with_no_taskflow",
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-    schedule=[Dataset("s3://bucket/my-task-with-no-taskflow")],
+    schedule=[Asset("s3://bucket/my-task-with-no-taskflow")],
     catchup=False,
     tags=["consumer", "asset"],
 ):

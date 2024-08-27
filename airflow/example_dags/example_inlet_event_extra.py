@@ -25,12 +25,12 @@ from __future__ import annotations
 
 import datetime
 
-from airflow.assets import Dataset
+from airflow.assets import Asset
 from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 
-ds = Dataset("s3://output/1.txt")
+asset = Asset("s3://output/1.txt")
 
 with DAG(
     dag_id="read_asset_event",
@@ -40,9 +40,9 @@ with DAG(
     tags=["consumes"],
 ):
 
-    @task(inlets=[ds])
+    @task(inlets=[asset])
     def read_asset_event(*, inlet_events=None):
-        for event in inlet_events[ds][:-2]:
+        for event in inlet_events[asset][:-2]:
             print(event.extra["hi"])
 
     read_asset_event()
@@ -56,6 +56,6 @@ with DAG(
 ):
     BashOperator(
         task_id="read_asset_event_from_classic",
-        inlets=[ds],
+        inlets=[asset],
         bash_command="echo '{{ inlet_events['s3://output/1.txt'][-1].extra | tojson }}'",
     )

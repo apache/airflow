@@ -31,7 +31,7 @@ from typing import Any, Collection, Container, Iterable, Iterator, Mapping, Sequ
 from pendulum import DateTime
 from sqlalchemy.orm import Session
 
-from airflow.assets import AssetAlias, AssetAliasEvent, Dataset
+from airflow.assets import Asset, AssetAlias, AssetAliasEvent
 from airflow.configuration import AirflowConfigParser
 from airflow.models.asset import AssetEvent
 from airflow.models.baseoperator import BaseOperator
@@ -62,18 +62,18 @@ class OutletEventAccessor:
         self,
         *,
         extra: dict[str, Any],
-        raw_key: str | Dataset | AssetAlias,
+        raw_key: str | Asset | AssetAlias,
         asset_alias_events: list[AssetAliasEvent],
     ) -> None: ...
-    def add(self, dataset: Dataset | str, extra: dict[str, Any] | None = None) -> None: ...
+    def add(self, asset: Asset | str, extra: dict[str, Any] | None = None) -> None: ...
     extra: dict[str, Any]
-    raw_key: str | Dataset | AssetAlias
+    raw_key: str | Asset | AssetAlias
     asset_alias_events: list[AssetAliasEvent]
 
 class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
     def __iter__(self) -> Iterator[str]: ...
     def __len__(self) -> int: ...
-    def __getitem__(self, key: str | Dataset | AssetAlias) -> OutletEventAccessor: ...
+    def __getitem__(self, key: str | Asset | AssetAlias) -> OutletEventAccessor: ...
 
 class InletEventsAccessor(Sequence[AssetEvent]):
     @overload
@@ -86,7 +86,7 @@ class InletEventsAccessors(Mapping[str, InletEventsAccessor]):
     def __init__(self, inlets: list, *, session: Session) -> None: ...
     def __iter__(self) -> Iterator[str]: ...
     def __len__(self) -> int: ...
-    def __getitem__(self, key: int | str | Dataset | AssetAlias) -> InletEventsAccessor: ...
+    def __getitem__(self, key: int | str | Asset | AssetAlias) -> InletEventsAccessor: ...
 
 # NOTE: Please keep this in sync with the following:
 # * KNOWN_CONTEXT_KEYS in airflow/utils/context.py

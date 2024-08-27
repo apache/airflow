@@ -25,13 +25,13 @@ from __future__ import annotations
 
 import datetime
 
-from airflow.assets import Dataset
+from airflow.assets import Asset
 from airflow.assets.metadata import Metadata
 from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 
-ds = Dataset("s3://output/1.txt")
+ds = Asset("s3://output/1.txt")
 
 with DAG(
     dag_id="dataset_with_extra_by_yield",

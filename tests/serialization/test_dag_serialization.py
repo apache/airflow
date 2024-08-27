@@ -42,7 +42,6 @@ from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
 
 import airflow
-from airflow.assets import Dataset
 from airflow.decorators import teardown
 from airflow.decorators.base import DecoratedOperator
 from airflow.exceptions import (
@@ -63,6 +62,7 @@ from airflow.models.xcom import XCom
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+from airflow.providers.common.compat.assets import Asset
 from airflow.security import permissions
 from airflow.sensors.bash import BashSensor
 from airflow.serialization.dag_dependency import DagDependency
@@ -1662,10 +1662,10 @@ class TestStringifiedDAGs:
         """
         from airflow.sensors.external_task import ExternalTaskSensor
 
-        d1 = Dataset("d1")
-        d2 = Dataset("d2")
-        d3 = Dataset("d3")
-        d4 = Dataset("d4")
+        d1 = Asset("d1")
+        d2 = Asset("d2")
+        d3 = Asset("d3")
+        d4 = Asset("d4")
         execution_date = datetime(2020, 1, 1)
         with DAG(dag_id="test", start_date=execution_date, schedule=[d1, d1, d1, d1, d1]) as dag:
             ExternalTaskSensor(
@@ -1751,10 +1751,10 @@ class TestStringifiedDAGs:
         """
         from airflow.sensors.external_task import ExternalTaskSensor
 
-        d1 = Dataset("d1")
-        d2 = Dataset("d2")
-        d3 = Dataset("d3")
-        d4 = Dataset("d4")
+        d1 = Asset("d1")
+        d2 = Asset("d2")
+        d3 = Asset("d3")
+        d4 = Asset("d4")
         execution_date = datetime(2020, 1, 1)
         with DAG(dag_id="test", start_date=execution_date, schedule=[d1]) as dag:
             ExternalTaskSensor(

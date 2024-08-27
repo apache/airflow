@@ -19,14 +19,14 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow.assets import Dataset
+from airflow.assets import Asset
 from airflow.exceptions import AirflowFailException, AirflowSkipException
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 
-skip_task_dag_dataset = Dataset("s3://dag_with_skip_task/output_1.txt", extra={"hi": "bye"})
-fail_task_dag_dataset = Dataset("s3://dag_with_fail_task/output_1.txt", extra={"hi": "bye"})
+skip_task_dag_dataset = Asset("s3://dag_with_skip_task/output_1.txt", extra={"hi": "bye"})
+fail_task_dag_dataset = Asset("s3://dag_with_fail_task/output_1.txt", extra={"hi": "bye"})
 
 
 def raise_skip_exc():

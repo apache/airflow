@@ -30,7 +30,7 @@ from airflow.lineage.entities import Column, File, Table, User
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance
 from airflow.operators.python import PythonOperator
-from airflow.providers.common.compat.assets import Dataset
+from airflow.providers.common.compat.assets import Asset
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.utils.state import State
@@ -286,4 +286,4 @@ def test_extractor_manager_gets_data_from_pythonoperator(session, dag_maker, hoo
     datasets = hook_lineage_collector.collected_assets
 
     assert len(datasets.outputs) == 1
-    assert datasets.outputs[0].asset == Dataset(uri=path)
+    assert datasets.outputs[0].asset == Asset(uri=path)

@@ -81,7 +81,7 @@ from sqlalchemy.sql import Select, expression
 import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.assets import AssetAlias, AssetAll, BaseAsset, Dataset
+from airflow.assets import Asset, AssetAlias, AssetAll, BaseAsset
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
 from airflow.exceptions import (
     AirflowException,
@@ -167,7 +167,7 @@ ScheduleArg = Union[
     ScheduleInterval,
     Timetable,
     BaseAsset,
-    Collection[Union["Dataset", "AssetAlias"]],
+    Collection[Union["Asset", "AssetAlias"]],
 ]
 
 
@@ -389,7 +389,7 @@ class DAG(LoggingMixin):
     :param description: The description for the DAG to e.g. be shown on the webserver
     :param schedule: If provided, this defines the rules according to which DAG
         runs are scheduled. Possible values include a cron expression string,
-        timedelta object, Timetable, or list of Dataset objects.
+        timedelta object, Timetable, or list of Asset objects.
         See also :doc:`/howto/timetable`.
     :param start_date: The timestamp from which the scheduler will
         attempt to backfill. If this is not provided, backfilling must be done
@@ -601,8 +601,8 @@ class DAG(LoggingMixin):
         elif isinstance(schedule, BaseAsset):
             self.timetable = AssetTriggeredTimetable(schedule)
         elif isinstance(schedule, Collection) and not isinstance(schedule, str):
-            if not all(isinstance(x, (Dataset, AssetAlias)) for x in schedule):
-                raise ValueError("All elements in 'schedule' should be datasets or asset aliases")
+            if not all(isinstance(x, (Asset, AssetAlias)) for x in schedule):
+                raise ValueError("All elements in 'schedule' should be assets or asset aliases")
             self.timetable = AssetTriggeredTimetable(AssetAll(*schedule))
         else:
             self.timetable = create_timetable(schedule, self.timezone)

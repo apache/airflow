@@ -87,7 +87,7 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
     set_state,
 )
-from airflow.assets import AssetAlias, Dataset
+from airflow.assets import Asset, AssetAlias
 from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
 from airflow.compat.functools import cache
 from airflow.configuration import AIRFLOW_CONFIG, conf
@@ -469,9 +469,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
                 "label": item.label,
                 "extra_links": item.extra_links,
                 "is_mapped": item_is_mapped,
-                "has_outlet_datasets": any(
-                    isinstance(i, (Dataset, AssetAlias)) for i in (item.outlets or [])
-                ),
+                "has_outlet_datasets": any(isinstance(i, (Asset, AssetAlias)) for i in (item.outlets or [])),
                 "operator": item.operator_name,
                 "trigger_rule": item.trigger_rule,
                 **setup_teardown_type,
@@ -1176,7 +1174,7 @@ class Airflow(AirflowBaseView):
     @expose("/datasets")
     @auth.has_access_dataset("GET")
     def datasets(self):
-        """Datasets view."""
+        """Assets view."""
         state_color_mapping = State.state_color.copy()
         state_color_mapping["null"] = state_color_mapping.pop(None)
         return self.render_template(

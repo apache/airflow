@@ -43,7 +43,7 @@ from airflow.api_connexion.schemas.asset_schema import (
     queued_event_collection_schema,
     queued_event_schema,
 )
-from airflow.assets import Dataset
+from airflow.assets import Asset
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.utils import timezone
@@ -341,7 +341,7 @@ def create_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
     extra = json_body.get("extra", {})
     extra["from_rest_api"] = True
     asset_event = asset_manager.register_asset_change(
-        asset=Dataset(uri),
+        asset=Asset(uri),
         timestamp=timestamp,
         extra=extra,
         session=session,

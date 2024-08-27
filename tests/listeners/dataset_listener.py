@@ -23,11 +23,11 @@ import typing
 from airflow.listeners import hookimpl
 
 if typing.TYPE_CHECKING:
-    from airflow.assets import Dataset
+    from airflow.assets import Asset
 
 
-changed: list[Dataset] = []
-created: list[Dataset] = []
+changed: list[Asset] = []
+created: list[Asset] = []
 
 
 @hookimpl

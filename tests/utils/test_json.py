@@ -26,7 +26,7 @@ import numpy as np
 import pendulum
 import pytest
 
-from airflow.assets import Dataset
+from airflow.assets import Asset
 from airflow.utils import json as utils_json
 
 
@@ -85,11 +85,11 @@ class TestXComEncoder:
                 cls=utils_json.XComEncoder,
             )
 
-    def test_encode_xcom_dataset(self):
-        dataset = Dataset("mytest://dataset")
-        s = json.dumps(dataset, cls=utils_json.XComEncoder)
+    def test_encode_xcom_asset(self):
+        asset = Asset("mytest://asset")
+        s = json.dumps(asset, cls=utils_json.XComEncoder)
         obj = json.loads(s, cls=utils_json.XComDecoder)
-        assert dataset.uri == obj.uri
+        assert asset.uri == obj.uri
 
     @pytest.mark.parametrize(
         "data",

@@ -29,7 +29,7 @@ if typing.TYPE_CHECKING:
 
     import pendulum
 
-    from airflow.assets import Dataset
+    from airflow.assets import Asset
     from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 
 
@@ -40,7 +40,7 @@ class AssetOrTimeSchedule(AssetTriggeredTimetable):
         self,
         *,
         timetable: Timetable,
-        assets: Collection[Dataset] | BaseAsset,
+        assets: Collection[Asset] | BaseAsset,
     ) -> None:
         self.timetable = timetable
         if isinstance(assets, BaseAsset):

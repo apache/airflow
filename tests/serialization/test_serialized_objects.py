@@ -31,7 +31,7 @@ from kubernetes.client import models as k8s
 from pendulum.tz.timezone import Timezone
 from pydantic import BaseModel
 
-from airflow.assets import AssetAlias, AssetAliasEvent, Dataset
+from airflow.assets import Asset, AssetAlias, AssetAliasEvent
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
@@ -232,7 +232,7 @@ class MockLazySelectSequence(LazySelectSequence):
             None,
         ),
         (MockLazySelectSequence(), None, lambda a, b: len(a) == len(b) and isinstance(b, list)),
-        (Dataset(uri="test"), DAT.DATASET, equals),
+        (Asset(uri="test"), DAT.ASSET, equals),
         (SimpleTaskInstance.from_ti(ti=TI), DAT.SIMPLE_TASK_INSTANCE, equals),
         (
             Connection(conn_id="TEST_ID", uri="mysql://"),
@@ -240,7 +240,7 @@ class MockLazySelectSequence(LazySelectSequence):
             lambda a, b: a.get_uri() == b.get_uri(),
         ),
         (
-            OutletEventAccessor(raw_key=Dataset(uri="test"), extra={"key": "value"}, asset_alias_events=[]),
+            OutletEventAccessor(raw_key=Asset(uri="test"), extra={"key": "value"}, asset_alias_events=[]),
             DAT.ASSET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
         ),
@@ -326,7 +326,7 @@ sample_objects = {
         id=1, filename="test_file", elasticsearch_id="test_id", created_at=datetime.now()
     ),
     DagTagPydantic: DagTag(),
-    DatasetPydantic: Dataset("uri", {}),
+    DatasetPydantic: Asset("uri", {}),
     DatasetEventPydantic: AssetEvent(),
 }
 
@@ -354,9 +354,9 @@ sample_objects = {
             lambda a, b: equal_time(a.execution_date, b.execution_date)
             and equal_time(a.start_date, b.start_date),
         ),
-        # DataSet is already serialized by non-Pydantic serialization. Is DatasetPydantic needed then?
+        # Asset is already serialized by non-Pydantic serialization. Is DatasetPydantic needed then?
         # (
-        #     Dataset(
+        #     Asset(
         #         uri="foo://bar",
         #         extra={"foo": "bar"},
         #     ),

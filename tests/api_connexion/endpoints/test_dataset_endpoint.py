@@ -40,7 +40,7 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_datasets, clear_db_runs
+from tests.test_utils.db import clear_db_assets, clear_db_runs
 from tests.test_utils.www import _check_last_log
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
@@ -84,11 +84,11 @@ class TestDatasetEndpoint:
     def setup_attrs(self, configured_app) -> None:
         self.app = configured_app
         self.client = self.app.test_client()
-        clear_db_datasets()
+        clear_db_assets()
         clear_db_runs()
 
     def teardown_method(self) -> None:
-        clear_db_datasets()
+        clear_db_assets()
         clear_db_runs()
 
     def _create_dataset(self, session):

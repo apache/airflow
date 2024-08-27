@@ -19,7 +19,7 @@ from __future__ import annotations
 import urllib.parse
 from typing import TYPE_CHECKING
 
-from airflow.providers.common.compat.assets import Dataset
+from airflow.providers.common.compat.assets import Asset
 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
@@ -27,9 +27,9 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 
 
-def create_dataset(*, path: str, extra=None) -> Dataset:
+def create_dataset(*, path: str, extra=None) -> Asset:
     # We assume that we get absolute path starting with /
-    return Dataset(uri=f"file://{path}", extra=extra)
+    return Asset(uri=f"file://{path}", extra=extra)
 
 
 def sanitize_uri(uri: SplitResult) -> SplitResult:
@@ -38,9 +38,9 @@ def sanitize_uri(uri: SplitResult) -> SplitResult:
     return uri
 
 
-def convert_dataset_to_openlineage(dataset: Dataset, lineage_context) -> OpenLineageDataset:
+def convert_dataset_to_openlineage(dataset: Asset, lineage_context) -> OpenLineageDataset:
     """
-    Translate Dataset with valid AIP-60 uri to OpenLineage with assistance from the context.
+    Translate Asset with valid AIP-60 uri to OpenLineage with assistance from the context.
 
     Windows paths are not standardized and can produce unexpected behaviour.
     """

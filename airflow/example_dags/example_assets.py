@@ -54,17 +54,17 @@ from __future__ import annotations
 
 import pendulum
 
-from airflow.assets import Dataset
+from airflow.assets import Asset
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.timetables.assets import AssetOrTimeSchedule
 from airflow.timetables.trigger import CronTriggerTimetable
 
 # [START asset_def]
-dag1_asset = Dataset("s3://dag1/output_1.txt", extra={"hi": "bye"})
+dag1_asset = Asset("s3://dag1/output_1.txt", extra={"hi": "bye"})
 # [END asset_def]
-dag2_asset = Dataset("s3://dag2/output_1.txt", extra={"hi": "bye"})
-dag3_asset = Dataset("s3://dag3/output_3.txt", extra={"hi": "bye"})
+dag2_asset = Asset("s3://dag2/output_1.txt", extra={"hi": "bye"})
+dag3_asset = Asset("s3://dag3/output_3.txt", extra={"hi": "bye"})
 
 with DAG(
     dag_id="asset_produces_1",
@@ -96,7 +96,7 @@ with DAG(
 ) as dag3:
     # [END dag_dep]
     BashOperator(
-        outlets=[Dataset("s3://consuming_1_task/asset_other.txt")],
+        outlets=[Asset("s3://consuming_1_task/asset_other.txt")],
         task_id="consuming_1",
         bash_command="sleep 5",
     )
@@ -109,7 +109,7 @@ with DAG(
     tags=["consumes", "asset-scheduled"],
 ) as dag4:
     BashOperator(
-        outlets=[Dataset("s3://consuming_2_task/asset_other_unknown.txt")],
+        outlets=[Asset("s3://consuming_2_task/asset_other_unknown.txt")],
         task_id="consuming_2",
         bash_command="sleep 5",
     )
@@ -120,12 +120,12 @@ with DAG(
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=[
         dag1_asset,
-        Dataset("s3://unrelated/this-asset-doesnt-get-triggered"),
+        Asset("s3://unrelated/this-asset-doesnt-get-triggered"),
     ],
     tags=["consumes", "asset-scheduled"],
 ) as dag5:
     BashOperator(
-        outlets=[Dataset("s3://consuming_2_task/asset_other_unknown.txt")],
+        outlets=[Asset("s3://consuming_2_task/asset_other_unknown.txt")],
         task_id="consuming_3",
         bash_command="sleep 5",
     )
@@ -135,14 +135,14 @@ with DAG(
     catchup=False,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     schedule=[
-        Dataset("s3://unrelated/asset3.txt"),
-        Dataset("s3://unrelated/asset_other_unknown.txt"),
+        Asset("s3://unrelated/asset3.txt"),
+        Asset("s3://unrelated/asset_other_unknown.txt"),
     ],
     tags=["asset-scheduled"],
 ) as dag6:
     BashOperator(
         task_id="unrelated_task",
-        outlets=[Dataset("s3://unrelated_task/asset_other_unknown.txt")],
+        outlets=[Asset("s3://unrelated_task/asset_other_unknown.txt")],
         bash_command="sleep 5",
     )
 
@@ -152,7 +152,7 @@ with DAG(
     schedule=(dag1_asset & dag2_asset),
 ) as dag5:
     BashOperator(
-        outlets=[Dataset("s3://consuming_2_task/asset_other_unknown.txt")],
+        outlets=[Asset("s3://consuming_2_task/asset_other_unknown.txt")],
         task_id="consume_1_and_2_with_asset_expressions",
         bash_command="sleep 5",
     )
@@ -162,7 +162,7 @@ with DAG(
     schedule=(dag1_asset | dag2_asset),
 ) as dag6:
     BashOperator(
-        outlets=[Dataset("s3://consuming_2_task/asset_other_unknown.txt")],
+        outlets=[Asset("s3://consuming_2_task/asset_other_unknown.txt")],
         task_id="consume_1_or_2_with_asset_expressions",
         bash_command="sleep 5",
     )
@@ -172,7 +172,7 @@ with DAG(
     schedule=(dag1_asset | (dag2_asset & dag3_asset)),
 ) as dag7:
     BashOperator(
-        outlets=[Dataset("s3://consuming_2_task/asset_other_unknown.txt")],
+        outlets=[Asset("s3://consuming_2_task/asset_other_unknown.txt")],
         task_id="consume_1_or_both_2_and_3_with_asset_expressions",
         bash_command="sleep 5",
     )
@@ -186,7 +186,7 @@ with DAG(
     tags=["asset-time-based-timetable"],
 ) as dag8:
     BashOperator(
-        outlets=[Dataset("s3://asset_time_based/asset_other_unknown.txt")],
+        outlets=[Asset("s3://asset_time_based/asset_other_unknown.txt")],
         task_id="conditional_asset_and_time_based_timetable",
         bash_command="sleep 5",
     )

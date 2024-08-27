@@ -25,7 +25,7 @@ import pendulum
 import pytest
 
 import airflow.example_dags as example_dags_module
-from airflow.assets import Dataset
+from airflow.assets import Asset
 from airflow.models.dag import DAG
 from airflow.models.dagbag import DagBag
 from airflow.models.dagcode import DagCode
@@ -237,16 +237,16 @@ class TestSerializedDagModel:
                 dag_id="example",
                 start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
                 schedule=[
-                    Dataset("1"),
-                    Dataset("2"),
-                    Dataset("3"),
-                    Dataset("4"),
-                    Dataset("5"),
+                    Asset("1"),
+                    Asset("2"),
+                    Asset("3"),
+                    Asset("4"),
+                    Asset("5"),
                 ],
             ) as dag6:
                 BashOperator(
                     task_id="any",
-                    outlets=[Dataset("0*"), Dataset("6*")],
+                    outlets=[Asset("0*"), Asset("6*")],
                     bash_command="sleep 5",
                 )
             deps_order = [x["dependency_id"] for x in SerializedDAG.serialize_dag(dag6)["dag_dependencies"]]

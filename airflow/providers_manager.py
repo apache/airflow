@@ -91,7 +91,7 @@ def _ensure_prefix_for_placeholders(field_behaviors: dict[str, Any], conn_type: 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult
 
-    from airflow.assets import Dataset
+    from airflow.assets import Asset
     from airflow.decorators.base import TaskDecorator
     from airflow.hooks.base import BaseHook
     from airflow.typing_compat import Literal
@@ -427,7 +427,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._hooks_dict: dict[str, HookInfo] = {}
         self._fs_set: set[str] = set()
         self._dataset_uri_handlers: dict[str, Callable[[SplitResult], SplitResult]] = {}
-        self._dataset_factories: dict[str, Callable[..., Dataset]] = {}
+        self._dataset_factories: dict[str, Callable[..., Asset]] = {}
         self._dataset_to_openlineage_converters: dict[str, Callable] = {}
         self._taskflow_decorators: dict[str, Callable] = LazyDictWithCache()  # type: ignore[assignment]
         # keeps mapping between connection_types and hook class, package they come from
@@ -1325,7 +1325,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         return sorted(self._fs_set)
 
     @property
-    def dataset_factories(self) -> dict[str, Callable[..., Dataset]]:
+    def dataset_factories(self) -> dict[str, Callable[..., Asset]]:
         self.initialize_providers_dataset_uri_resources()
         return self._dataset_factories
 

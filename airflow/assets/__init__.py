@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
 from airflow.configuration import conf
 
-__all__ = ["Dataset", "AssetAll", "AssetAny"]
+__all__ = ["Asset", "AssetAll", "AssetAny"]
 
 
 def normalize_noop(parts: SplitResult) -> SplitResult:
@@ -112,7 +112,7 @@ def _sanitize_uri(uri: str) -> str:
             if conf.getboolean("core", "strict_dataset_uri_validation", fallback=False):
                 raise
             warnings.warn(
-                f"The dataset URI {uri} is not AIP-60 compliant: {exception}. "
+                f"The Asset URI {uri} is not AIP-60 compliant: {exception}. "
                 f"In Airflow 3, this will raise an exception.",
                 UserWarning,
                 stacklevel=3,
@@ -120,12 +120,12 @@ def _sanitize_uri(uri: str) -> str:
     return urllib.parse.urlunsplit(parsed)
 
 
-def extract_event_key(value: str | Dataset | AssetAlias) -> str:
+def extract_event_key(value: str | Asset | AssetAlias) -> str:
     """
     Extract the key of an inlet or an outlet event.
 
     If the input value is a string, it is treated as a URI and sanitized. If the
-    input is a :class:`Dataset`, the URI it contains is considered sanitized and
+    input is a :class:`Asset`, the URI it contains is considered sanitized and
     returned directly. If the input is a :class:`AssetAlias`, the name it contains
     will be returned directly.
 
@@ -134,15 +134,15 @@ def extract_event_key(value: str | Dataset | AssetAlias) -> str:
     if isinstance(value, AssetAlias):
         return value.name
 
-    if isinstance(value, Dataset):
+    if isinstance(value, Asset):
         return value.uri
     return _sanitize_uri(str(value))
 
 
 @internal_api_call
 @provide_session
-def expand_alias_to_datasets(alias: str | AssetAlias, *, session: Session = NEW_SESSION) -> list[BaseAsset]:
-    """Expand asset alias to resolved datasets."""
+def expand_alias_to_assets(alias: str | AssetAlias, *, session: Session = NEW_SESSION) -> list[BaseAsset]:
+    """Expand asset alias to resolved assets."""
     from airflow.models.asset import AssetAliasModel
 
     alias_name = alias.name if isinstance(alias, AssetAlias) else alias
@@ -151,7 +151,7 @@ def expand_alias_to_datasets(alias: str | AssetAlias, *, session: Session = NEW_
         select(AssetAliasModel).where(AssetAliasModel.name == alias_name).limit(1)
     )
     if asset_alias_obj:
-        return [Dataset(uri=dataset.uri, extra=dataset.extra) for dataset in asset_alias_obj.datasets]
+        return [Asset(uri=asset.uri, extra=asset.extra) for asset in asset_alias_obj.datasets]
     return []
 
 
@@ -189,7 +189,7 @@ class BaseAsset:
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         raise NotImplementedError
 
-    def iter_assets(self) -> Iterator[tuple[str, Dataset]]:
+    def iter_assets(self) -> Iterator[tuple[str, Asset]]:
         raise NotImplementedError
 
     def iter_dataset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
@@ -197,7 +197,7 @@ class BaseAsset:
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
-        Iterate a base dataset as dag dependency.
+        Iterate a base asset as dag dependency.
 
         :meta private:
         """
@@ -206,11 +206,11 @@ class BaseAsset:
 
 @attr.define(unsafe_hash=False)
 class AssetAlias(BaseAsset):
-    """A represeation of asset alias which is used to create dataset during the runtime."""
+    """A represeation of asset alias which is used to create asset during the runtime."""
 
     name: str
 
-    def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
+    def iter_assets(self) -> Iterator[tuple[str, Asset]]:
         return iter(())
 
     def iter_dataset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
@@ -242,7 +242,7 @@ def _set_extra_default(extra: dict | None) -> dict:
     """
     Automatically convert None to an empty dict.
 
-    This allows the caller site to continue doing ``Dataset(uri, extra=None)``,
+    This allows the caller site to continue doing ``Asset(uri, extra=None)``,
     but still allow the ``extra`` attribute to always be a dict.
     """
     if extra is None:
@@ -251,7 +251,7 @@ def _set_extra_default(extra: dict | None) -> dict:
 
 
 @attr.define(unsafe_hash=False)
-class Dataset(os.PathLike, BaseAsset):
+class Asset(os.PathLike, BaseAsset):
     """A representation of data dependencies between workflows."""
 
     uri: str = attr.field(
@@ -289,13 +289,13 @@ class Dataset(os.PathLike, BaseAsset):
 
     def as_expression(self) -> Any:
         """
-        Serialize the dataset into its scheduling expression.
+        Serialize the asset into its scheduling expression.
 
         :meta private:
         """
         return self.uri
 
-    def iter_assets(self) -> Iterator[tuple[str, Dataset]]:
+    def iter_assets(self) -> Iterator[tuple[str, Asset]]:
         yield self.uri, self
 
     def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
@@ -306,7 +306,7 @@ class Dataset(os.PathLike, BaseAsset):
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
-        Iterate a dataset as dag dependency.
+        Iterate a asset as dag dependency.
 
         :meta private:
         """
@@ -334,7 +334,7 @@ class _AssetBooleanCondition(BaseAsset):
     def evaluate(self, statuses: dict[str, bool]) -> bool:
         return self.agg_func(x.evaluate(statuses=statuses) for x in self.objects)
 
-    def iter_assets(self) -> Iterator[tuple[str, Dataset]]:
+    def iter_assets(self) -> Iterator[tuple[str, Asset]]:
         seen = set()  # We want to keep the first instance.
         for o in self.objects:
             for k, v in o.iter_assets():
@@ -350,7 +350,7 @@ class _AssetBooleanCondition(BaseAsset):
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
-        Iterate dataset, asset aliases and their resolved datasets  as dag dependency.
+        Iterate asset, asset aliases and their resolved assets  as dag dependency.
 
         :meta private:
         """
@@ -383,14 +383,14 @@ class AssetAny(_AssetBooleanCondition):
 
 class _AssetAliasCondition(AssetAny):
     """
-    Use to expand AssetAlias as AssetAny of its resolved Datasets.
+    Use to expand AssetAlias as AssetAny of its resolved Assets.
 
     :meta private:
     """
 
     def __init__(self, name: str) -> None:
         self.name = name
-        self.objects = expand_alias_to_datasets(name)
+        self.objects = expand_alias_to_assets(name)
 
     def __repr__(self) -> str:
         return f"_AssetAliasCondition({', '.join(map(str, self.objects))})"
@@ -414,8 +414,8 @@ class _AssetAliasCondition(AssetAny):
         """
         if self.objects:
             for obj in self.objects:
-                dataset = cast(Dataset, obj)
-                uri = dataset.uri
+                asset = cast(Asset, obj)
+                uri = asset.uri
                 # asset
                 yield DagDependency(
                     source=f"dataset-alias:{self.name}" if source else "dataset",

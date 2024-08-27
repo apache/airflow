@@ -40,7 +40,7 @@ from airflow.providers.amazon.aws.hooks.s3 import (
     provide_bucket_name,
     unify_bucket_name_and_key,
 )
-from airflow.providers.common.compat.assets import Dataset
+from airflow.providers.common.compat.assets import Asset
 from airflow.utils.timezone import datetime
 from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
@@ -447,7 +447,7 @@ class TestAwsS3Hook:
 
         hook.load_string("Contént", "my_key", s3_bucket)
         assert len(hook_lineage_collector.collected_assets.outputs) == 1
-        assert hook_lineage_collector.collected_assets.outputs[0].asset == Dataset(
+        assert hook_lineage_collector.collected_assets.outputs[0].asset == Asset(
             uri=f"s3://{s3_bucket}/my_key"
         )
 
@@ -1040,7 +1040,7 @@ class TestAwsS3Hook:
         path.write_text("Content")
         hook.load_file(path, "my_key", s3_bucket)
         assert len(hook_lineage_collector.collected_assets.outputs) == 1
-        assert hook_lineage_collector.collected_assets.outputs[0].asset == Dataset(
+        assert hook_lineage_collector.collected_assets.outputs[0].asset == Asset(
             uri=f"s3://{s3_bucket}/my_key"
         )
 
@@ -1112,12 +1112,12 @@ class TestAwsS3Hook:
         ):
             mock_hook.copy_object("my_key", "my_key3", s3_bucket, s3_bucket)
             assert len(hook_lineage_collector.collected_assets.inputs) == 1
-            assert hook_lineage_collector.collected_assets.inputs[0].asset == Dataset(
+            assert hook_lineage_collector.collected_assets.inputs[0].asset == Asset(
                 uri=f"s3://{s3_bucket}/my_key"
             )
 
             assert len(hook_lineage_collector.collected_assets.outputs) == 1
-            assert hook_lineage_collector.collected_assets.outputs[0].asset == Dataset(
+            assert hook_lineage_collector.collected_assets.outputs[0].asset == Asset(
                 uri=f"s3://{s3_bucket}/my_key3"
             )
 
@@ -1250,7 +1250,7 @@ class TestAwsS3Hook:
         s3_hook.download_file(key=key, bucket_name=bucket)
 
         assert len(hook_lineage_collector.collected_assets.inputs) == 1
-        assert hook_lineage_collector.collected_assets.inputs[0].asset == Dataset(
+        assert hook_lineage_collector.collected_assets.inputs[0].asset == Asset(
             uri="s3://test_bucket/test_key"
         )
 
@@ -1302,12 +1302,12 @@ class TestAwsS3Hook:
         )
 
         assert len(hook_lineage_collector.collected_assets.inputs) == 1
-        assert hook_lineage_collector.collected_assets.inputs[0].asset == Dataset(
+        assert hook_lineage_collector.collected_assets.inputs[0].asset == Asset(
             uri="s3://test_bucket/test_key/test.log"
         )
 
         assert len(hook_lineage_collector.collected_assets.outputs) == 1
-        assert hook_lineage_collector.collected_assets.outputs[0].asset == Dataset(
+        assert hook_lineage_collector.collected_assets.outputs[0].asset == Asset(
             uri=f"file://{local_path}/test.log",
         )
 

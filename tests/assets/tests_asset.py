@@ -26,11 +26,11 @@ import pytest
 from sqlalchemy.sql import select
 
 from airflow.assets import (
+    Asset,
     AssetAlias,
     AssetAll,
     AssetAny,
     BaseAsset,
-    Dataset,
     _AssetAliasCondition,
     _get_normalized_scheme,
     _sanitize_uri,
@@ -43,12 +43,12 @@ from tests.test_utils.config import conf_vars
 
 
 @pytest.fixture
-def clear_datasets():
-    from tests.test_utils.db import clear_db_datasets
+def clear_assets():
+    from tests.test_utils.db import clear_db_assets
 
-    clear_db_datasets()
+    clear_db_assets()
     yield
-    clear_db_datasets()
+    clear_db_assets()
 
 
 @pytest.mark.parametrize(
@@ -63,7 +63,7 @@ def clear_datasets():
 )
 def test_invalid_uris(uri):
     with pytest.raises(ValueError):
-        Dataset(uri=uri)
+        Asset(uri=uri)
 
 
 @pytest.mark.parametrize(
@@ -77,95 +77,95 @@ def test_invalid_uris(uri):
     ],
 )
 def test_uri_with_scheme(uri: str, normalized: str) -> None:
-    dataset = Dataset(uri)
-    EmptyOperator(task_id="task1", outlets=[dataset])
-    assert dataset.uri == normalized
-    assert os.fspath(dataset) == normalized
+    asset = Asset(uri)
+    EmptyOperator(task_id="task1", outlets=[asset])
+    assert asset.uri == normalized
+    assert os.fspath(asset) == normalized
 
 
 def test_uri_with_auth() -> None:
     with pytest.warns(UserWarning) as record:
-        dataset = Dataset("ftp://user@localhost/foo.txt")
+        asset = Asset("ftp://user@localhost/foo.txt")
     assert len(record) == 1
     assert str(record[0].message) == (
         "An Asset URI should not contain auth info (e.g. username or "
         "password). It has been automatically dropped."
     )
-    EmptyOperator(task_id="task1", outlets=[dataset])
-    assert dataset.uri == "ftp://localhost/foo.txt"
-    assert os.fspath(dataset) == "ftp://localhost/foo.txt"
+    EmptyOperator(task_id="task1", outlets=[asset])
+    assert asset.uri == "ftp://localhost/foo.txt"
+    assert os.fspath(asset) == "ftp://localhost/foo.txt"
 
 
 def test_uri_without_scheme():
-    dataset = Dataset(uri="example_dataset")
-    EmptyOperator(task_id="task1", outlets=[dataset])
+    asset = Asset(uri="example_asset")
+    EmptyOperator(task_id="task1", outlets=[asset])
 
 
 def test_fspath():
-    uri = "s3://example/dataset"
-    dataset = Dataset(uri=uri)
-    assert os.fspath(dataset) == uri
+    uri = "s3://example/asset"
+    asset = Asset(uri=uri)
+    assert os.fspath(asset) == uri
 
 
 def test_equal_when_same_uri():
-    uri = "s3://example/dataset"
-    dataset1 = Dataset(uri=uri)
-    dataset2 = Dataset(uri=uri)
-    assert dataset1 == dataset2
+    uri = "s3://example/asset"
+    asset1 = Asset(uri=uri)
+    asset2 = Asset(uri=uri)
+    assert asset1 == asset2
 
 
 def test_not_equal_when_different_uri():
-    dataset1 = Dataset(uri="s3://example/dataset")
-    dataset2 = Dataset(uri="s3://other/dataset")
-    assert dataset1 != dataset2
+    asset1 = Asset(uri="s3://example/asset")
+    asset2 = Asset(uri="s3://other/asset")
+    assert asset1 != asset2
 
 
-def test_dataset_logic_operations():
-    result_or = dataset1 | dataset2
+def test_asset_logic_operations():
+    result_or = asset1 | asset2
     assert isinstance(result_or, AssetAny)
-    result_and = dataset1 & dataset2
+    result_and = asset1 & asset2
     assert isinstance(result_and, AssetAll)
 
 
-def test_dataset_iter_assets():
-    assert list(dataset1.iter_assets()) == [("s3://bucket1/data1", dataset1)]
+def test_asset_iter_assets():
+    assert list(asset1.iter_assets()) == [("s3://bucket1/data1", asset1)]
 
 
 @pytest.mark.db_test
-def test_dataset_iter_asset_aliases():
-    base_dataset = AssetAll(
+def test_asset_iter_asset_aliases():
+    base_asset = AssetAll(
         AssetAlias("example-alias-1"),
-        Dataset("1"),
+        Asset("1"),
         AssetAny(
-            Dataset("2"),
+            Asset("2"),
             AssetAlias("example-alias-2"),
-            Dataset("3"),
-            AssetAll(AssetAlias("example-alias-3"), Dataset("4"), AssetAlias("example-alias-4")),
+            Asset("3"),
+            AssetAll(AssetAlias("example-alias-3"), Asset("4"), AssetAlias("example-alias-4")),
         ),
-        AssetAll(AssetAlias("example-alias-5"), Dataset("5")),
+        AssetAll(AssetAlias("example-alias-5"), Asset("5")),
     )
-    assert list(base_dataset.iter_asset_aliases()) == [
+    assert list(base_asset.iter_asset_aliases()) == [
         (f"example-alias-{i}", AssetAlias(f"example-alias-{i}")) for i in range(1, 6)
     ]
 
 
-def test_dataset_evaluate():
-    assert dataset1.evaluate({"s3://bucket1/data1": True}) is True
-    assert dataset1.evaluate({"s3://bucket1/data1": False}) is False
+def test_asset_evaluate():
+    assert asset1.evaluate({"s3://bucket1/data1": True}) is True
+    assert asset1.evaluate({"s3://bucket1/data1": False}) is False
 
 
 def test_asset_any_operations():
-    result_or = (dataset1 | dataset2) | dataset3
+    result_or = (asset1 | asset2) | asset3
     assert isinstance(result_or, AssetAny)
     assert len(result_or.objects) == 3
-    result_and = (dataset1 | dataset2) & dataset3
+    result_and = (asset1 | asset2) & asset3
     assert isinstance(result_and, AssetAll)
 
 
 def test_asset_all_operations():
-    result_or = (dataset1 & dataset2) | dataset3
+    result_or = (asset1 & asset2) | asset3
     assert isinstance(result_or, AssetAny)
-    result_and = (dataset1 & dataset2) & dataset3
+    result_and = (asset1 & asset2) & asset3
     assert isinstance(result_and, AssetAll)
 
 
@@ -173,18 +173,18 @@ def test_assset_boolean_condition_evaluate_iter():
     """
     Tests _AssetBooleanCondition's evaluate and iter_assets methods through AssetAny and AssetAll.
     Ensures AssetAny evaluate returns True with any true condition, AssetAll evaluate returns False if
-    any condition is false, and both classes correctly iterate over datasets without duplication.
+    any condition is false, and both classes correctly iterate over assets without duplication.
     """
-    any_condition = AssetAny(dataset1, dataset2)
-    all_condition = AssetAll(dataset1, dataset2)
+    any_condition = AssetAny(asset1, asset2)
+    all_condition = AssetAll(asset1, asset2)
     assert any_condition.evaluate({"s3://bucket1/data1": False, "s3://bucket2/data2": True}) is True
     assert all_condition.evaluate({"s3://bucket1/data1": True, "s3://bucket2/data2": False}) is False
 
-    # Testing iter_datasets indirectly through the subclasses
-    datasets_any = dict(any_condition.iter_assets())
-    datasets_all = dict(all_condition.iter_assets())
-    assert datasets_any == {"s3://bucket1/data1": dataset1, "s3://bucket2/data2": dataset2}
-    assert datasets_all == {"s3://bucket1/data1": dataset1, "s3://bucket2/data2": dataset2}
+    # Testing iter_assets indirectly through the subclasses
+    assets_any = dict(any_condition.iter_assets())
+    assets_all = dict(all_condition.iter_assets())
+    assert assets_any == {"s3://bucket1/data1", asset1, "s3://bucket2/data2", asset2}
+    assert assets_all == {"s3://bucket1/data1", asset1, "s3://bucket2/data2", asset2}
 
 
 @pytest.mark.parametrize(
@@ -210,12 +210,12 @@ def test_assset_boolean_condition_evaluate_iter():
         ((False, False, False), "all", False),
     ],
 )
-def test_dataset_logical_conditions_evaluation_and_serialization(inputs, scenario, expected):
+def test_asset_logical_conditions_evaluation_and_serialization(inputs, scenario, expected):
     class_ = AssetAny if scenario == "any" else AssetAll
-    datasets = [Dataset(uri=f"s3://abc/{i}") for i in range(123, 126)]
-    condition = class_(*datasets)
+    assets = [Asset(uri=f"s3://abc/{i}") for i in range(123, 126)]
+    condition = class_(*assets)
 
-    statuses = {dataset.uri: status for dataset, status in zip(datasets, inputs)}
+    statuses = {asset.uri: status for asset, status in zip(assets, inputs)}
     assert (
         condition.evaluate(statuses) == expected
     ), f"Condition evaluation failed for inputs {inputs} and scenario '{scenario}'"
@@ -236,10 +236,10 @@ def test_dataset_logical_conditions_evaluation_and_serialization(inputs, scenari
     ],
 )
 def test_nested_asset_conditions_with_serialization(status_values, expected_evaluation):
-    # Define datasets
-    d1 = Dataset(uri="s3://abc/123")
-    d2 = Dataset(uri="s3://abc/124")
-    d3 = Dataset(uri="s3://abc/125")
+    # Define assets
+    d1 = Asset(uri="s3://abc/123")
+    d2 = Asset(uri="s3://abc/124")
+    d3 = Asset(uri="s3://abc/125")
 
     # Create a nested condition: AssetAll with d1 and AssetAny with d2 and d3
     nested_condition = AssetAll(d1, AssetAny(d2, d3))
@@ -261,28 +261,26 @@ def test_nested_asset_conditions_with_serialization(status_values, expected_eval
 
 
 @pytest.fixture
-def create_test_datasets(session):
-    """Fixture to create test datasets and corresponding models."""
-    assets = [Dataset(uri=f"hello{i}") for i in range(1, 3)]
-    for dataset in assets:
-        session.add(AssetModel(uri=dataset.uri))
+def create_test_assets(session):
+    """Fixture to create test assets and corresponding models."""
+    assets = [Asset(uri=f"hello{i}") for i in range(1, 3)]
+    for asset in assets:
+        session.add(AssetModel(uri=asset.uri))
     session.commit()
     return assets
 
 
 @pytest.mark.db_test
-@pytest.mark.usefixtures("clear_datasets")
-def test_dataset_trigger_setup_and_serialization(session, dag_maker, create_test_datasets):
-    datasets = create_test_datasets
+@pytest.mark.usefixtures("clear_assets")
+def test_asset_trigger_setup_and_serialization(session, dag_maker, create_test_assets):
+    assets = create_test_assets
 
-    # Create DAG with dataset triggers
-    with dag_maker(schedule=AssetAny(*datasets)) as dag:
+    # Create DAG with asset triggers
+    with dag_maker(schedule=AssetAny(*assets)) as dag:
         EmptyOperator(task_id="hello")
 
-    # Verify datasets are set up correctly
-    assert isinstance(
-        dag.timetable.asset_condition, AssetAny
-    ), "DAG datasets should be an instance of AssetAny"
+    # Verify assets are set up correctly
+    assert isinstance(dag.timetable.asset_condition, AssetAny), "DAG assets should be an instance of AssetAny"
 
     # Round-trip the DAG through serialization
     deserialized_dag = SerializedDAG.deserialize_dag(SerializedDAG.serialize_dag(dag))
@@ -290,19 +288,19 @@ def test_dataset_trigger_setup_and_serialization(session, dag_maker, create_test
     # Verify serialization and deserialization integrity
     assert isinstance(
         deserialized_dag.timetable.asset_condition, AssetAny
-    ), "Deserialized datasets should maintain type AssetAny"
+    ), "Deserialized assets should maintain type AssetAny"
     assert (
         deserialized_dag.timetable.asset_condition.objects == dag.timetable.asset_condition.objects
-    ), "Deserialized datasets should match original"
+    ), "Deserialized assets should match original"
 
 
 @pytest.mark.db_test
-@pytest.mark.usefixtures("clear_datasets")
-def test_dataset_dag_run_queue_processing(session, clear_datasets, dag_maker, create_test_datasets):
-    datasets = create_test_datasets
+@pytest.mark.usefixtures("clear_assets")
+def test_asset_dag_run_queue_processing(session, clear_assets, dag_maker, create_test_assets):
+    assets = create_test_assets
     asset_models = session.query(AssetModel).all()
 
-    with dag_maker(schedule=AssetAny(*datasets)) as dag:
+    with dag_maker(schedule=AssetAny(*assets)) as dag:
         EmptyOperator(task_id="hello")
 
     # Add AssetDagRunQueue entries to simulate asset event processing
@@ -310,7 +308,7 @@ def test_dataset_dag_run_queue_processing(session, clear_datasets, dag_maker, cr
         session.add(AssetDagRunQueue(dataset_id=am.id, target_dag_id=dag.dag_id))
     session.commit()
 
-    # Fetch and evaluate dataset triggers for all DAGs affected by asset events
+    # Fetch and evaluate asset triggers for all DAGs affected by asset events
     records = session.scalars(select(AssetDagRunQueue)).all()
     dag_statuses = defaultdict(lambda: defaultdict(bool))
     for record in records:
@@ -322,17 +320,17 @@ def test_dataset_dag_run_queue_processing(session, clear_datasets, dag_maker, cr
 
     for (serialized_dag,) in serialized_dags:
         dag = SerializedDAG.deserialize(serialized_dag.data)
-        for dataset_uri, status in dag_statuses[dag.dag_id].items():
+        for asset_uri, status in dag_statuses[dag.dag_id].items():
             cond = dag.timetable.asset_condition
-            assert cond.evaluate({dataset_uri: status}), "DAG trigger evaluation failed"
+            assert cond.evaluate({asset_uri: status}), "DAG trigger evaluation failed"
 
 
 @pytest.mark.db_test
-@pytest.mark.usefixtures("clear_datasets")
+@pytest.mark.usefixtures("clear_assets")
 def test_dag_with_complex_asset_condition(session, dag_maker):
-    # Create Dataset instances
-    d1 = Dataset(uri="hello1")
-    d2 = Dataset(uri="hello2")
+    # Create Asset instances
+    d1 = Asset(uri="hello1")
+    d2 = Asset(uri="hello2")
 
     # Create and add AssetModel instances to the session
     am1 = AssetModel(uri=d1.uri)
@@ -340,16 +338,16 @@ def test_dag_with_complex_asset_condition(session, dag_maker):
     session.add_all([am1, am2])
     session.commit()
 
-    # Setup a DAG with complex dataset triggers (AssetAny with AssetAll)
+    # Setup a DAG with complex asset triggers (AssetAny with AssetAll)
     with dag_maker(schedule=AssetAny(d1, AssetAll(d2, d1))) as dag:
         EmptyOperator(task_id="hello")
 
     assert isinstance(
         dag.timetable.asset_condition, AssetAny
-    ), "DAG's dataset trigger should be an instance of AssetAny"
+    ), "DAG's asset trigger should be an instance of AssetAny"
     assert any(
         isinstance(trigger, AssetAll) for trigger in dag.timetable.asset_condition.objects
-    ), "DAG's dataset trigger should include AssetAll"
+    ), "DAG's asset trigger should include AssetAll"
 
     serialized_triggers = SerializedDAG.serialize(dag.timetable.asset_condition)
 
@@ -371,11 +369,11 @@ def test_dag_with_complex_asset_condition(session, dag_maker):
     ), "Serialized 'asset_condition' should be a dict"
 
 
-def datasets_equal(a1: BaseAsset, a2: BaseAsset) -> bool:
+def assets_equal(a1: BaseAsset, a2: BaseAsset) -> bool:
     if type(a1) is not type(a2):
         return False
 
-    if isinstance(a1, Dataset) and isinstance(a2, Dataset):
+    if isinstance(a1, Asset) and isinstance(a2, Asset):
         return a1.uri == a2.uri
 
     elif isinstance(a1, (AssetAny, AssetAll)) and isinstance(a2, (AssetAny, AssetAll)):
@@ -384,85 +382,85 @@ def datasets_equal(a1: BaseAsset, a2: BaseAsset) -> bool:
 
         # Compare each pair of objects
         for obj1, obj2 in zip(a1.objects, a2.objects):
-            # If obj1 or obj2 is a Dataset, AssetAny, or AssetAll instance,
-            # recursively call datasets_equal
-            if not datasets_equal(obj1, obj2):
+            # If obj1 or obj2 is a Asset, AssetAny, or AssetAll instance,
+            # recursively call assets_equal
+            if not assets_equal(obj1, obj2):
                 return False
         return True
 
     return False
 
 
-dataset1 = Dataset(uri="s3://bucket1/data1")
-dataset2 = Dataset(uri="s3://bucket2/data2")
-dataset3 = Dataset(uri="s3://bucket3/data3")
-dataset4 = Dataset(uri="s3://bucket4/data4")
-dataset5 = Dataset(uri="s3://bucket5/data5")
+asset1 = Asset(uri="s3://bucket1/data1")
+asset2 = Asset(uri="s3://bucket2/data2")
+asset3 = Asset(uri="s3://bucket3/data3")
+asset4 = Asset(uri="s3://bucket4/data4")
+asset5 = Asset(uri="s3://bucket5/data5")
 
 test_cases = [
-    (lambda: dataset1, dataset1),
-    (lambda: dataset1 & dataset2, AssetAll(dataset1, dataset2)),
-    (lambda: dataset1 | dataset2, AssetAny(dataset1, dataset2)),
-    (lambda: dataset1 | (dataset2 & dataset3), AssetAny(dataset1, AssetAll(dataset2, dataset3))),
-    (lambda: dataset1 | dataset2 & dataset3, AssetAny(dataset1, AssetAll(dataset2, dataset3))),
+    (lambda: asset1, asset1),
+    (lambda: asset1 & asset2, AssetAll(asset1, asset2)),
+    (lambda: asset1 | asset2, AssetAny(asset1, asset2)),
+    (lambda: asset1 | (asset2 & asset3), AssetAny(asset1, AssetAll(asset2, asset3))),
+    (lambda: asset1 | asset2 & asset3, AssetAny(asset1, AssetAll(asset2, asset3))),
     (
-        lambda: ((dataset1 & dataset2) | dataset3) & (dataset4 | dataset5),
-        AssetAll(AssetAny(AssetAll(dataset1, dataset2), dataset3), AssetAny(dataset4, dataset5)),
+        lambda: ((asset1 & asset2) | asset3) & (asset4 | asset5),
+        AssetAll(AssetAny(AssetAll(asset1, asset2), asset3), AssetAny(asset4, asset5)),
     ),
-    (lambda: dataset1 & dataset2 | dataset3, AssetAny(AssetAll(dataset1, dataset2), dataset3)),
+    (lambda: asset1 & asset2 | asset3, AssetAny(AssetAll(asset1, asset2), asset3)),
     (
-        lambda: (dataset1 | dataset2) & (dataset3 | dataset4),
-        AssetAll(AssetAny(dataset1, dataset2), AssetAny(dataset3, dataset4)),
-    ),
-    (
-        lambda: (dataset1 & dataset2) | (dataset3 & (dataset4 | dataset5)),
-        AssetAny(AssetAll(dataset1, dataset2), AssetAll(dataset3, AssetAny(dataset4, dataset5))),
+        lambda: (asset1 | asset2) & (asset3 | asset4),
+        AssetAll(AssetAny(asset1, asset2), AssetAny(asset3, asset4)),
     ),
     (
-        lambda: (dataset1 & dataset2) & (dataset3 & dataset4),
-        AssetAll(dataset1, dataset2, AssetAll(dataset3, dataset4)),
+        lambda: (asset1 & asset2) | (asset3 & (asset4 | asset5)),
+        AssetAny(AssetAll(asset1, asset2), AssetAll(asset3, AssetAny(asset4, asset5))),
     ),
-    (lambda: dataset1 | dataset2 | dataset3, AssetAny(dataset1, dataset2, dataset3)),
-    (lambda: dataset1 & dataset2 & dataset3, AssetAll(dataset1, dataset2, dataset3)),
     (
-        lambda: ((dataset1 & dataset2) | dataset3) & (dataset4 | dataset5),
-        AssetAll(AssetAny(AssetAll(dataset1, dataset2), dataset3), AssetAny(dataset4, dataset5)),
+        lambda: (asset1 & asset2) & (asset3 & asset4),
+        AssetAll(asset1, asset2, AssetAll(asset3, asset4)),
+    ),
+    (lambda: asset1 | asset2 | asset3, AssetAny(asset1, asset2, asset3)),
+    (lambda: asset1 & asset2 & asset3, AssetAll(asset1, asset2, asset3)),
+    (
+        lambda: ((asset1 & asset2) | asset3) & (asset4 | asset5),
+        AssetAll(AssetAny(AssetAll(asset1, asset2), asset3), AssetAny(asset4, asset5)),
     ),
 ]
 
 
 @pytest.mark.parametrize("expression, expected", test_cases)
-def test_evaluate_datasets_expression(expression, expected):
+def test_evaluate_assets_expression(expression, expected):
     expr = expression()
-    assert datasets_equal(expr, expected)
+    assert assets_equal(expr, expected)
 
 
 @pytest.mark.parametrize(
     "expression, error",
     [
         pytest.param(
-            lambda: dataset1 & 1,  # type: ignore[operator]
-            "unsupported operand type(s) for &: 'Dataset' and 'int'",
+            lambda: asset1 & 1,  # type: ignore[operator]
+            "unsupported operand type(s) for &: 'Asset' and 'int'",
             id="&",
         ),
         pytest.param(
-            lambda: dataset1 | 1,  # type: ignore[operator]
-            "unsupported operand type(s) for |: 'Dataset' and 'int'",
+            lambda: asset1 | 1,  # type: ignore[operator]
+            "unsupported operand type(s) for |: 'Asset' and 'int'",
             id="|",
         ),
         pytest.param(
-            lambda: AssetAll(1, dataset1),  # type: ignore[arg-type]
+            lambda: AssetAll(1, asset1),  # type: ignore[arg-type]
             "expect asset expressions in condition",
             id="AssetAll",
         ),
         pytest.param(
-            lambda: AssetAny(1, dataset1),  # type: ignore[arg-type]
+            lambda: AssetAny(1, asset1),  # type: ignore[arg-type]
             "expect asset expressions in condition",
             id="AssetAny",
         ),
     ],
 )
-def test_datasets_expression_error(expression: Callable[[], None], error: str) -> None:
+def test_assets_expression_error(expression: Callable[[], None], error: str) -> None:
     with pytest.raises(TypeError) as info:
         expression()
     assert str(info.value) == error
@@ -498,7 +496,7 @@ def _mock_get_uri_normalizer_noop(normalized_scheme):
 def test_sanitize_uri_raises_warning(mock_warn):
     _sanitize_uri("postgres://localhost:5432/database.schema.table")
     msg = mock_warn.call_args.args[0]
-    assert "The dataset URI postgres://localhost:5432/database.schema.table is not AIP-60 compliant" in msg
+    assert "The Asset URI postgres://localhost:5432/database.schema.table is not AIP-60 compliant" in msg
     assert "In Airflow 3, this will raise an exception." in msg
 
 
@@ -513,26 +511,26 @@ def test_sanitize_uri_raises_exception():
 
 @patch("airflow.assets._get_uri_normalizer", lambda x: None)
 def test_normalize_uri_no_normalizer_found():
-    dataset = Dataset(uri="any_uri_without_normalizer_defined")
-    assert dataset.normalized_uri is None
+    asset = Asset(uri="any_uri_without_normalizer_defined")
+    assert asset.normalized_uri is None
 
 
 @patch("airflow.assets._get_uri_normalizer", _mock_get_uri_normalizer_raising_error)
 def test_normalize_uri_invalid_uri():
-    dataset = Dataset(uri="any_uri_not_aip60_compliant")
-    assert dataset.normalized_uri is None
+    asset = Asset(uri="any_uri_not_aip60_compliant")
+    assert asset.normalized_uri is None
 
 
 @patch("airflow.assets._get_uri_normalizer", _mock_get_uri_normalizer_noop)
 @patch("airflow.assets._get_normalized_scheme", lambda x: "valid_scheme")
 def test_normalize_uri_valid_uri():
-    dataset = Dataset(uri="valid_aip60_uri")
-    assert dataset.normalized_uri == "valid_aip60_uri"
+    asset = Asset(uri="valid_aip60_uri")
+    assert asset.normalized_uri == "valid_aip60_uri"
 
 
 @pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
-@pytest.mark.usefixtures("clear_datasets")
+@pytest.mark.usefixtures("clear_assets")
 class Test_AssetAliasCondition:
     @pytest.fixture
     def asset_1(self, session):
@@ -547,7 +545,7 @@ class Test_AssetAliasCondition:
 
     @pytest.fixture
     def asset_alias_1(self, session):
-        """Example asset alias links to no datasets."""
+        """Example asset alias links to no assets."""
         alias_name = "test_name"
         asset_alias_model = AssetAliasModel(name=alias_name)
 
@@ -558,7 +556,7 @@ class Test_AssetAliasCondition:
 
     @pytest.fixture
     def resolved_asset_alias_2(self, session, asset_1):
-        """Example asset alias links to dataset asset_alias_1."""
+        """Example asset alias links to asset asset_alias_1."""
         asset_name = "test_name_2"
         asset_alias_2 = AssetAliasModel(name=asset_name)
         asset_alias_2.datasets.append(asset_1)
@@ -573,7 +571,7 @@ class Test_AssetAliasCondition:
         assert cond.objects == []
 
         cond = _AssetAliasCondition(name=resolved_asset_alias_2.name)
-        assert cond.objects == [Dataset(uri=asset_1.uri)]
+        assert cond.objects == [Asset(uri=asset_1.uri)]
 
     def test_as_expression(self, asset_alias_1, resolved_asset_alias_2):
         for assset_alias in (asset_alias_1, resolved_asset_alias_2):

@@ -75,7 +75,7 @@ def clear_db_backfills():
         session.query(Backfill).delete()
 
 
-def clear_db_datasets():
+def clear_db_assets():
     with create_session() as session:
         session.query(AssetEvent).delete()
         session.query(AssetModel).delete()
@@ -232,7 +232,7 @@ def clear_dag_specific_permissions():
 
 def clear_all():
     clear_db_runs()
-    clear_db_datasets()
+    clear_db_assets()
     clear_db_dags()
     clear_db_serialized_dags()
     clear_db_sla_miss()

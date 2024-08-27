@@ -20,7 +20,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import pytest
 
-from airflow.providers.common.compat.assets import Dataset
+from airflow.providers.common.compat.assets import Asset
 from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 from airflow.providers.common.io.datasets.file import (
     convert_dataset_to_openlineage,
@@ -48,7 +48,7 @@ def test_sanitize_uri_invalid(uri):
 
 
 def test_file_dataset():
-    assert create_dataset(path="/asdf/fdsa") == Dataset(uri="file:///asdf/fdsa")
+    assert create_dataset(path="/asdf/fdsa") == Asset(uri="file:///asdf/fdsa")
 
 
 @pytest.mark.parametrize(
@@ -63,5 +63,5 @@ def test_file_dataset():
     ),
 )
 def test_convert_dataset_to_openlineage(uri, ol_dataset):
-    result = convert_dataset_to_openlineage(Dataset(uri=uri), None)
+    result = convert_dataset_to_openlineage(Asset(uri=uri), None)
     assert result == ol_dataset

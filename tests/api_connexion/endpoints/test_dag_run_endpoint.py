@@ -24,7 +24,7 @@ import pytest
 import time_machine
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.assets import Dataset
+from airflow.assets import Asset
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
@@ -1911,14 +1911,14 @@ class TestClearDagRun(TestDagRunEndpoint):
 @pytest.mark.need_serialized_dag
 class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
     def test_should_respond_200(self, dag_maker, session):
-        dataset1 = Dataset(uri="ds1")
+        asset1 = Asset(uri="ds1")
 
         with dag_maker(dag_id="source_dag", start_date=timezone.utcnow(), session=session):
-            EmptyOperator(task_id="task", outlets=[dataset1])
+            EmptyOperator(task_id="task", outlets=[asset1])
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
 
-        asset1_id = session.query(AssetModel.id).filter_by(uri=dataset1.uri).scalar()
+        asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
         event = AssetEvent(
             dataset_id=asset1_id,
             source_task_id=ti.task_id,
@@ -1946,7 +1946,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
                 {
                     "timestamp": event.timestamp.isoformat(),
                     "dataset_id": asset1_id,
-                    "dataset_uri": dataset1.uri,
+                    "dataset_uri": asset1.uri,
                     "extra": {},
                     "id": event.id,
                     "source_dag_id": ti.dag_id,
@@ -2007,14 +2007,14 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         indirect=["set_auto_role_public"],
     )
     def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, dag_maker, session):
-        dataset1 = Dataset(uri="ds1")
+        asset1 = Asset(uri="ds1")
 
         with dag_maker(dag_id="source_dag", start_date=timezone.utcnow(), session=session):
-            EmptyOperator(task_id="task", outlets=[dataset1])
+            EmptyOperator(task_id="task", outlets=[asset1])
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
 
-        asset1_id = session.query(AssetModel.id).filter_by(uri=dataset1.uri).scalar()
+        asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
         event = AssetEvent(
             dataset_id=asset1_id,
             source_task_id=ti.task_id,

@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from pendulum import DateTime
 
-from airflow.assets import AssetAlias, Dataset
+from airflow.assets import Asset, AssetAlias
 from airflow.models.asset import AssetAliasModel, AssetEvent, AssetModel
 from airflow.timetables.assets import AssetOrTimeSchedule
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
@@ -103,20 +103,20 @@ def test_timetable() -> MockTimetable:
 
 
 @pytest.fixture
-def test_datasets() -> list[Dataset]:
-    """Pytest fixture for creating a list of Dataset objects."""
-    return [Dataset("test_dataset")]
+def test_assets() -> list[Asset]:
+    """Pytest fixture for creating a list of Asset objects."""
+    return [Asset("test_asset")]
 
 
 @pytest.fixture
-def asset_timetable(test_timetable: MockTimetable, test_datasets: list[Dataset]) -> AssetOrTimeSchedule:
+def asset_timetable(test_timetable: MockTimetable, test_assets: list[Asset]) -> AssetOrTimeSchedule:
     """
     Pytest fixture for creating a AssetOrTimeSchedule object.
 
     :param test_timetable: The test timetable instance.
-    :param test_datasets: A list of Dataset instances.
+    :param test_assets: A list of Asset instances.
     """
-    return AssetOrTimeSchedule(timetable=test_timetable, assets=test_datasets)
+    return AssetOrTimeSchedule(timetable=test_timetable, assets=test_assets)
 
 
 def test_serialization(asset_timetable: AssetOrTimeSchedule, monkeypatch: Any) -> None:
@@ -134,7 +134,7 @@ def test_serialization(asset_timetable: AssetOrTimeSchedule, monkeypatch: Any) -
         "timetable": "mock_serialized_timetable",
         "asset_condition": {
             "__type": "asset_all",
-            "objects": [{"__type": "dataset", "uri": "test_dataset", "extra": {}}],
+            "objects": [{"__type": "asset", "uri": "test_asset", "extra": {}}],
         },
     }
 
@@ -152,7 +152,7 @@ def test_deserialization(monkeypatch: Any) -> None:
         "timetable": "mock_serialized_timetable",
         "asset_condition": {
             "__type": "asset_all",
-            "objects": [{"__type": "dataset", "uri": "test_dataset", "extra": None}],
+            "objects": [{"__type": "asset", "uri": "test_asset", "extra": None}],
         },
     }
     deserialized = AssetOrTimeSchedule.deserialize(mock_serialized_data)
@@ -256,7 +256,7 @@ def test_run_ordering_inheritance(asset_timetable: AssetOrTimeSchedule) -> None:
 
 @pytest.mark.db_test
 def test_summary(session: Session) -> None:
-    asset_model = AssetModel(uri="test_dataset")
+    asset_model = AssetModel(uri="test_asset")
     asset_alias_model = AssetAliasModel(name="test_asset_alias")
     session.add_all([asset_model, asset_alias_model])
     session.commit()

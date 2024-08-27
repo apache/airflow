@@ -40,7 +40,7 @@ import attr
 import re2
 import typing_extensions
 
-from airflow.assets import Dataset
+from airflow.assets import Asset
 from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
 from airflow.models.baseoperator import (
     BaseOperator,
@@ -261,7 +261,7 @@ class DecoratedOperator(BaseOperator):
         # todo make this more generic (move to prepare_lineage) so it deals with non taskflow operators
         #  as well
         for arg in itertools.chain(self.op_args, self.op_kwargs.values()):
-            if isinstance(arg, Dataset):
+            if isinstance(arg, Asset):
                 self.inlets.append(arg)
         return_value = super().execute(context)
         return self._handle_output(return_value=return_value, context=context, xcom_push=self.xcom_push)
@@ -270,17 +270,17 @@ class DecoratedOperator(BaseOperator):
         """
         Handle logic for whether a decorator needs to push a single return value or multiple return values.
 
-        It sets outlets if any datasets are found in the returned value(s)
+        It sets outlets if any assets are found in the returned value(s)
 
         :param return_value:
         :param context:
         :param xcom_push:
         """
-        if isinstance(return_value, Dataset):
+        if isinstance(return_value, Asset):
             self.outlets.append(return_value)
         if isinstance(return_value, list):
             for item in return_value:
-                if isinstance(item, Dataset):
+                if isinstance(item, Asset):
                     self.outlets.append(item)
         return return_value
 

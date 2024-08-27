@@ -54,7 +54,7 @@ log = logging.getLogger(__name__)
 @functools.lru_cache
 def initialize_method_map() -> dict[str, Callable]:
     from airflow.api.common.trigger_dag import trigger_dag
-    from airflow.assets import expand_alias_to_datasets
+    from airflow.assets import expand_alias_to_assets
     from airflow.assets.manager import AssetManager
     from airflow.cli.commands.task_command import _get_ti_db_access
     from airflow.dag_processing.manager import DagFileProcessorManager
@@ -109,7 +109,7 @@ def initialize_method_map() -> dict[str, Callable]:
         DagFileProcessorManager.clear_nonexistent_import_errors,
         DagFileProcessorManager.deactivate_stale_dags,
         DagWarning.purge_inactive_dag_warnings,
-        expand_alias_to_datasets,
+        expand_alias_to_assets,
         AssetManager.register_asset_change,
         FileTaskHandler._render_filename_db_access,
         Job._add_to_db,

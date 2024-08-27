@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Union
 
 import attr
 
-from airflow.assets import Dataset
+from airflow.assets import Asset
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -47,7 +47,7 @@ class AssetLineageInfo:
     the count of how many times it has been encountered, and the context in which it was encountered.
     """
 
-    asset: Dataset
+    asset: Asset
     count: int
     context: LineageContext
 
@@ -77,12 +77,12 @@ class HookLineageCollector(LoggingMixin):
         super().__init__(**kwargs)
         # Dictionary to store input assets, counted by unique key (asset URI, MD5 hash of extra
         # dictionary, and LineageContext's unique identifier)
-        self._inputs: dict[str, tuple[Dataset, LineageContext]] = {}
-        self._outputs: dict[str, tuple[Dataset, LineageContext]] = {}
+        self._inputs: dict[str, tuple[Asset, LineageContext]] = {}
+        self._outputs: dict[str, tuple[Asset, LineageContext]] = {}
         self._input_counts: dict[str, int] = defaultdict(int)
         self._output_counts: dict[str, int] = defaultdict(int)
 
-    def _generate_key(self, asset: Dataset, context: LineageContext) -> str:
+    def _generate_key(self, asset: Asset, context: LineageContext) -> str:
         """
         Generate a unique key for the given asset and context.
 
@@ -96,7 +96,7 @@ class HookLineageCollector(LoggingMixin):
 
     def create_asset(
         self, scheme: str | None, uri: str | None, asset_kwargs: dict | None, asset_extra: dict | None
-    ) -> Dataset | None:
+    ) -> Asset | None:
         """
         Create an asset instance using the provided parameters.
 
@@ -112,7 +112,7 @@ class HookLineageCollector(LoggingMixin):
         """
         if uri:
             # Fallback to default factory using the provided URI
-            return Dataset(uri=uri, extra=asset_extra)
+            return Asset(uri=uri, extra=asset_extra)
 
         if not scheme:
             self.log.debug(

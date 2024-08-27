@@ -21,11 +21,11 @@ import pendulum
 import pytest
 from dateutil.tz import UTC
 
-from airflow.assets import Dataset
+from airflow.assets import Asset
 from airflow.models.asset import AssetEvent, AssetModel
 from airflow.operators.empty import EmptyOperator
 from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.db import clear_db_datasets
+from tests.test_utils.db import clear_db_assets
 
 pytestmark = pytest.mark.db_test
 
@@ -33,9 +33,9 @@ pytestmark = pytest.mark.db_test
 class TestDatasetEndpoint:
     @pytest.fixture(autouse=True)
     def cleanup(self):
-        clear_db_datasets()
+        clear_db_assets()
         yield
-        clear_db_datasets()
+        clear_db_assets()
 
 
 class TestGetDatasets(TestDatasetEndpoint):
@@ -118,7 +118,7 @@ class TestGetDatasets(TestDatasetEndpoint):
             for i in range(1, 4)
         ]
         session.add_all(assets)
-        # Update datasets, one per day, starting with datasets[0], ending with datasets[2]
+        # Update assets, one per day, starting with assets[0], ending with assets[2]
         asset_events = [
             AssetEvent(
                 dataset_id=assets[i].id,
@@ -145,7 +145,7 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert [json_dict["id"] for json_dict in response.json["datasets"]] == [1, 2]
 
     @pytest.mark.parametrize(
-        "order_by, ordered_dataset_ids",
+        "order_by, ordered_asset_ids",
         [
             ("uri", [1, 2, 3, 4]),
             ("-uri", [4, 3, 2, 1]),
@@ -153,13 +153,13 @@ class TestGetDatasets(TestDatasetEndpoint):
             ("-last_dataset_update", [2, 3, 1, 4]),
         ],
     )
-    def test_order_by(self, admin_client, session, order_by, ordered_dataset_ids):
+    def test_order_by(self, admin_client, session, order_by, ordered_asset_ids):
         assets = [
             AssetModel(
                 id=i,
                 uri=f"s3://bucket/key/{i}",
             )
-            for i in range(1, len(ordered_dataset_ids) + 1)
+            for i in range(1, len(ordered_asset_ids) + 1)
         ]
         session.add_all(assets)
         asset_events = [
@@ -178,13 +178,13 @@ class TestGetDatasets(TestDatasetEndpoint):
         ]
         session.add_all(asset_events)
         session.commit()
-        assert session.query(AssetModel).count() == len(ordered_dataset_ids)
+        assert session.query(AssetModel).count() == len(ordered_asset_ids)
 
         response = admin_client.get(f"/object/datasets_summary?order_by={order_by}")
 
         assert response.status_code == 200
-        assert ordered_dataset_ids == [json_dict["id"] for json_dict in response.json["datasets"]]
-        assert response.json["total_entries"] == len(ordered_dataset_ids)
+        assert ordered_asset_ids == [json_dict["id"] for json_dict in response.json["datasets"]]
+        assert response.json["total_entries"] == len(ordered_asset_ids)
 
     def test_search_uri_pattern(self, admin_client, session):
         assets = [
@@ -241,9 +241,9 @@ class TestGetDatasets(TestDatasetEndpoint):
     @pytest.mark.need_serialized_dag
     def test_correct_counts_update(self, admin_client, session, dag_maker, app, monkeypatch):
         with monkeypatch.context() as m:
-            assets = [Dataset(uri=f"s3://bucket/key/{i}") for i in [1, 2, 3, 4, 5]]
+            assets = [Asset(uri=f"s3://bucket/key/{i}") for i in [1, 2, 3, 4, 5]]
 
-            # DAG that produces dataset #1
+            # DAG that produces asset #1
             with dag_maker(dag_id="upstream", schedule=None, serialized=True, session=session):
                 EmptyOperator(task_id="task1", outlets=[assets[0]])
 
@@ -251,15 +251,15 @@ class TestGetDatasets(TestDatasetEndpoint):
             with dag_maker(dag_id="downstream", schedule=assets[:2], serialized=True, session=session):
                 EmptyOperator(task_id="task1")
 
-            # We create multiple dataset-producing and dataset-consuming DAGs because the query requires
+            # We create multiple asset-producing and asset-consuming DAGs because the query requires
             # COUNT(DISTINCT ...) for total_updates, or else it returns a multiple of the correct number due
             # to the outer joins with DagScheduleAssetReference and TaskOutletAssetReference
-            # Two independent DAGs that produce dataset #3
+            # Two independent DAGs that produce asset #3
             with dag_maker(dag_id="independent_producer_1", serialized=True, session=session):
                 EmptyOperator(task_id="task1", outlets=[assets[2]])
             with dag_maker(dag_id="independent_producer_2", serialized=True, session=session):
                 EmptyOperator(task_id="task1", outlets=[assets[2]])
-            # Two independent DAGs that consume dataset #4
+            # Two independent DAGs that consume asset #4
             with dag_maker(
                 dag_id="independent_consumer_1",
                 schedule=[assets[3]],
@@ -275,7 +275,7 @@ class TestGetDatasets(TestDatasetEndpoint):
             ):
                 EmptyOperator(task_id="task1")
 
-            # Independent DAG that is produces and consumes the same dataset, #5
+            # Independent DAG that is produces and consumes the same asset, #5
             with dag_maker(
                 dag_id="independent_producer_self_consumer",
                 schedule=[assets[4]],
@@ -292,7 +292,7 @@ class TestGetDatasets(TestDatasetEndpoint):
             asset4_id = session.query(AssetModel.id).filter_by(uri=assets[3].uri).scalar()
             asset5_id = session.query(AssetModel.id).filter_by(uri=assets[4].uri).scalar()
 
-            # dataset 1 events
+            # asset 1 events
             session.add_all(
                 [
                     AssetEvent(
@@ -302,7 +302,7 @@ class TestGetDatasets(TestDatasetEndpoint):
                     for i in range(3)
                 ]
             )
-            # dataset 3 events
+            # asset 3 events
             session.add_all(
                 [
                     AssetEvent(
@@ -312,7 +312,7 @@ class TestGetDatasets(TestDatasetEndpoint):
                     for i in range(3)
                 ]
             )
-            # dataset 4 events
+            # asset 4 events
             session.add_all(
                 [
                     AssetEvent(
@@ -322,7 +322,7 @@ class TestGetDatasets(TestDatasetEndpoint):
                     for i in range(4)
                 ]
             )
-            # dataset 5 events
+            # asset 5 events
             session.add_all(
                 [
                     AssetEvent(
@@ -441,7 +441,7 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
 
 class TestGetDatasetNextRunSummary(TestDatasetEndpoint):
     def test_next_run_dataset_summary(self, dag_maker, admin_client):
-        with dag_maker(dag_id="upstream", schedule=[Dataset(uri="s3://bucket/key/1")], serialized=True):
+        with dag_maker(dag_id="upstream", schedule=[Asset(uri="s3://bucket/key/1")], serialized=True):
             EmptyOperator(task_id="task1")
 
         response = admin_client.post("/next_run_datasets_summary", data={"dag_ids": ["upstream"]})

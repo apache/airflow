@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow import plugins_manager
-from airflow.assets import Dataset
+from airflow.assets import Asset
 from airflow.hooks.base import BaseHook
 from airflow.lineage import hook
 from airflow.lineage.hook import (
@@ -48,19 +48,19 @@ class TestHookLineageCollector:
         self.collector.add_input_asset(input_hook, uri="s3://in_bucket/file")
         self.collector.add_output_asset(output_hook, uri="postgres://example.com:5432/database/default/table")
         assert self.collector.collected_assets == HookLineage(
-            [AssetLineageInfo(asset=Dataset("s3://in_bucket/file"), count=1, context=input_hook)],
+            [AssetLineageInfo(asset=Asset("s3://in_bucket/file"), count=1, context=input_hook)],
             [
                 AssetLineageInfo(
-                    asset=Dataset("postgres://example.com:5432/database/default/table"),
+                    asset=Asset("postgres://example.com:5432/database/default/table"),
                     count=1,
                     context=output_hook,
                 )
             ],
         )
 
-    @patch("airflow.lineage.hook.Dataset")
+    @patch("airflow.lineage.hook.Asset")
     def test_add_input_asset(self, mock_asset):
-        asset = MagicMock(spec=Dataset, extra={})
+        asset = MagicMock(spec=Asset, extra={})
         mock_asset.return_value = asset
 
         hook = MagicMock()
@@ -94,18 +94,18 @@ class TestHookLineageCollector:
     @patch("airflow.lineage.hook.ProvidersManager")
     def test_create_asset(self, mock_providers_manager):
         def create_asset(arg1, arg2="default", extra=None):
-            return Dataset(uri=f"myscheme://{arg1}/{arg2}", extra=extra or {})
+            return Asset(uri=f"myscheme://{arg1}/{arg2}", extra=extra or {})
 
         mock_providers_manager.return_value.dataset_factories = {"myscheme": create_asset}
         assert self.collector.create_asset(
             scheme="myscheme", uri=None, asset_kwargs={"arg1": "value_1"}, asset_extra=None
-        ) == Dataset("myscheme://value_1/default")
+        ) == Asset("myscheme://value_1/default")
         assert self.collector.create_asset(
             scheme="myscheme",
             uri=None,
             asset_kwargs={"arg1": "value_1", "arg2": "value_2"},
             asset_extra={"key": "value"},
-        ) == Dataset("myscheme://value_1/value_2", extra={"key": "value"})
+        ) == Asset("myscheme://value_1/value_2", extra={"key": "value"})
 
     @patch("airflow.lineage.hook.ProvidersManager")
     def test_create_asset_no_factory(self, mock_providers_manager):
@@ -157,7 +157,7 @@ class TestHookLineageCollector:
         collector = HookLineageCollector()
         assert not collector.has_collected
 
-        collector._inputs = {"unique_key": (MagicMock(spec=Dataset), MagicMock())}
+        collector._inputs = {"unique_key": (MagicMock(spec=Asset), MagicMock())}
         assert collector.has_collected
 
 

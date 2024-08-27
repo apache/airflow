@@ -55,7 +55,7 @@ class DagAttributeTypes(str, Enum):
     EDGE_INFO = "edgeinfo"
     PARAM = "param"
     XCOM_REF = "xcomref"
-    DATASET = "dataset"
+    ASSET = "asset"
     ASSET_ALIAS = "asset_alias"
     ASSET_ANY = "asset_any"
     ASSET_ALL = "asset_all"

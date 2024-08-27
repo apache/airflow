@@ -34,7 +34,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from airflow.assets import AssetAlias, Dataset
+from airflow.assets import Asset, AssetAlias
 from airflow.models.base import Base, StringID
 from airflow.settings import json
 from airflow.utils import timezone
@@ -178,7 +178,7 @@ class AssetModel(Base):
     )
 
     @classmethod
-    def from_public(cls, obj: Dataset) -> AssetModel:
+    def from_public(cls, obj: Asset) -> AssetModel:
         return cls(uri=obj.uri, extra=obj.extra)
 
     def __init__(self, uri: str, **kwargs):
@@ -192,7 +192,7 @@ class AssetModel(Base):
         super().__init__(uri=uri, **kwargs)
 
     def __eq__(self, other):
-        if isinstance(other, (self.__class__, Dataset)):
+        if isinstance(other, (self.__class__, Asset)):
             return self.uri == other.uri
         else:
             return NotImplemented
@@ -203,8 +203,8 @@ class AssetModel(Base):
     def __repr__(self):
         return f"{self.__class__.__name__}(uri={self.uri!r}, extra={self.extra!r})"
 
-    def to_public(self) -> Dataset:
-        return Dataset(uri=self.uri, extra=self.extra)
+    def to_public(self) -> Asset:
+        return Asset(uri=self.uri, extra=self.extra)
 
 
 class DagScheduleAssetAliasReference(Base):
@@ -407,14 +407,14 @@ association_table = Table(
 
 class AssetEvent(Base):
     """
-    A table to store datasets events.
+    A table to store assets events.
 
     :param dataset_id: reference to AssetModel record
     :param extra: JSON field for arbitrary extra info
-    :param source_task_id: the task_id of the TI which updated the dataset
-    :param source_dag_id: the dag_id of the TI which updated the dataset
-    :param source_run_id: the run_id of the TI which updated the dataset
-    :param source_map_index: the map_index of the TI which updated the dataset
+    :param source_task_id: the task_id of the TI which updated the asset
+    :param source_dag_id: the dag_id of the TI which updated the asset
+    :param source_run_id: the run_id of the TI which updated the asset
+    :param source_map_index: the map_index of the TI which updated the asset
     :param timestamp: the time the event was logged
 
     We use relationships instead of foreign keys so that asset events are not deleted even
