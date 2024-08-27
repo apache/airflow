@@ -32,13 +32,6 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
-    :caption: Guides
-
-    Connection types <connections>
-
-.. toctree::
-    :hidden:
-    :maxdepth: 1
     :caption: Resources
 
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-standard/>
