@@ -398,7 +398,7 @@ class TestStatsdIngress:
             show_only=["templates/statsd/statsd-ingress.yaml"],
         )
 
-        assert {"name": "release-name-statsd", "port": {"name": "statsd-metrics"}} == jmespath.search(
+        assert {"name": "release-name-statsd", "port": {"name": "statsd-scrape"}} == jmespath.search(
             "spec.rules[0].http.paths[0].backend.service", docs[0]
         )
         assert "/metrics" == jmespath.search("spec.rules[0].http.paths[0].path", docs[0])
