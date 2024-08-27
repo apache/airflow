@@ -208,9 +208,14 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
 
                     if span.is_recording():
                         span.add_event(name="perform_heartbeat")
-                    perform_heartbeat(
-                        job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=False
-                    )
+                    try:
+                        perform_heartbeat(
+                            job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=False
+                        )
+                    except Exception as e:
+                        # Failing the heartbeat should never kill the localtaskjob
+                        # If it repeatedly can't heartbeat, it will be marked as a zombie anyhow
+                        self.log.warning("Heartbeat failed with Exception: %s", e)
 
                     # If it's been too long since we've heartbeat, then it's possible that
                     # the scheduler rescheduled this task, so kill launched processes.

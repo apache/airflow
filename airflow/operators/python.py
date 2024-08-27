@@ -32,7 +32,7 @@ from abc import ABCMeta, abstractmethod
 from collections.abc import Container
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence
 
 import lazy_object_proxy
 
@@ -63,8 +63,6 @@ from airflow.utils.session import create_session
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from pendulum.datetime import DateTime
-
     from airflow.serialization.enums import Encoding
     from airflow.utils.context import Context
 
@@ -341,7 +339,6 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
         self.skip(
             dag_run=dag_run,
-            execution_date=cast("DateTime", dag_run.execution_date),
             tasks=to_skip,
             map_index=context["ti"].map_index,
         )
