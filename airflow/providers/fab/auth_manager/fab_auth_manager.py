@@ -47,6 +47,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.models import DagModel
 from airflow.providers.fab.auth_manager.cli_commands.definition import (
+    DB_COMMANDS,
     ROLES_COMMANDS,
     SYNC_PERM_COMMAND,
     USERS_COMMANDS,
@@ -144,6 +145,7 @@ class FabAuthManager(BaseAuthManager):
                 subcommands=ROLES_COMMANDS,
             ),
             SYNC_PERM_COMMAND,  # not in a command group
+            GroupCommand(name="fab-db", help="Manage FAB", subcommands=DB_COMMANDS),
         ]
 
     def get_api_endpoints(self) -> None | Blueprint:

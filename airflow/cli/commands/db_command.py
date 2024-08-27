@@ -72,15 +72,17 @@ def upgradedb(args):
     migratedb(args)
 
 
-def get_version_revision(version: str, recursion_limit=10) -> str | None:
+def get_version_revision(
+    version: str, recursion_limit=10, revision_heads_map=_REVISION_HEADS_MAP
+) -> str | None:
     """
     Recursively search for the revision of the given version.
 
     This searches REVISION_HEADS_MAP for the revision of the given version, recursively
     searching for the previous version if the given version is not found.
     """
-    if version in _REVISION_HEADS_MAP:
-        return _REVISION_HEADS_MAP[version]
+    if version in revision_heads_map:
+        return revision_heads_map[version]
     try:
         major, minor, patch = map(int, version.split("."))
     except ValueError:
