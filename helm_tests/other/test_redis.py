@@ -463,7 +463,6 @@ class TestRedisService:
             ({"redis": {"service": {"type": "ClusterIP"}}}, "ClusterIP"),
             ({"redis": {"service": {"type": "NodePort"}}}, "NodePort"),
             ({"redis": {"service": {"type": "LoadBalancer"}}}, "LoadBalancer"),
-            ({"redis": {"service": {"type": None}}}, "ClusterIP"),
         ],
     )
     def test_redis_service_type(self, redis_values, expected):

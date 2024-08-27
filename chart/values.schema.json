@@ -7433,10 +7433,7 @@
                                 "NodePort",
                                 "LoadBalancer"
                             ],
-                            "type": [
-                                "string",
-                                "null"
-                            ],
+                            "type": "string",
                             "default": "ClusterIP"
                         },
                         "clusterIP": {

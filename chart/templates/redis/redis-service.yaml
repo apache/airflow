@@ -37,8 +37,8 @@ metadata:
 spec:
 {{- if (or (eq .Values.redis.service.type "ClusterIP") (empty .Values.redis.service.type)) }}
   type: ClusterIP
-  {{- if .Values.server.service.clusterIP }}
-  clusterIP: {{ .Values.server.service.clusterIP }}
+  {{- if .Values.redis.service.clusterIP }}
+  clusterIP: {{ .Values.redis.service.clusterIP }}
   {{- end }}
 {{- else }}
   type: {{ .Values.redis.service.type }}
