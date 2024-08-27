@@ -190,7 +190,7 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL,
         )
         mock_model.assert_called_once_with(
-            model_name=TEST_MULTIMODAL_PRETRAINED_MODEL, system_instruction=TEST_INSTRUCTION
+            pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL, system_instruction=TEST_INSTRUCTION
         )
         mock_model.return_value.generate_content.assert_called_once_with(
             contents=TEST_CONTENTS,
