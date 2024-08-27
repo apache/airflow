@@ -105,7 +105,7 @@ from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, Trigger, XCom
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel, DagScheduleAssetReference
-from airflow.models.dag import get_dataset_triggered_next_run_info
+from airflow.models.dag import get_asset_triggered_next_run_info
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
@@ -1005,13 +1005,13 @@ class Airflow(AirflowBaseView):
                 .all()
             )
 
-            dataset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.dataset_expression is not None}
-            if dataset_triggered_dag_ids:
-                dataset_triggered_next_run_info = get_dataset_triggered_next_run_info(
-                    dataset_triggered_dag_ids, session=session
+            asset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.dataset_expression is not None}
+            if asset_triggered_dag_ids:
+                asset_triggered_next_run_info = get_asset_triggered_next_run_info(
+                    asset_triggered_dag_ids, session=session
                 )
             else:
-                dataset_triggered_next_run_info = {}
+                asset_triggered_next_run_info = {}
 
             file_tokens = {}
             for dag in dags:
@@ -1168,7 +1168,7 @@ class Airflow(AirflowBaseView):
             sorting_key=arg_sorting_key,
             sorting_direction=arg_sorting_direction,
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
-            dataset_triggered_next_run_info=dataset_triggered_next_run_info,
+            asset_triggered_next_run_info=asset_triggered_next_run_info,
             scarf_url=scarf_url,
             file_tokens=file_tokens,
         )
@@ -1222,11 +1222,11 @@ class Airflow(AirflowBaseView):
             .where(DagModel.dataset_expression.is_not(None))
         ).all()
 
-        dataset_triggered_next_run_info = get_dataset_triggered_next_run_info(
+        asset_triggered_next_run_info = get_asset_triggered_next_run_info(
             dataset_triggered_dag_ids, session=session
         )
 
-        return flask.json.jsonify(dataset_triggered_next_run_info)
+        return flask.json.jsonify(asset_triggered_next_run_info)
 
     @expose("/dag_stats", methods=["POST"])
     @auth.has_access_dag("GET", DagAccessEntity.RUN)

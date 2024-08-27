@@ -67,7 +67,7 @@ from airflow.models.dag import (
     DagTag,
     ExecutorLoader,
     dag as dag_decorator,
-    get_dataset_triggered_next_run_info,
+    get_asset_triggered_next_run_info,
 )
 from airflow.models.dagrun import DagRun
 from airflow.models.param import DagParam, Param, ParamsDict
@@ -3426,7 +3426,7 @@ def test__tags_mutable():
 
 
 @pytest.mark.need_serialized_dag
-def test_get_dataset_triggered_next_run_info(dag_maker, clear_datasets):
+def test_get_asset_triggered_next_run_info(dag_maker, clear_datasets):
     dataset1 = Dataset(uri="ds1")
     dataset2 = Dataset(uri="ds2")
     dataset3 = Dataset(uri="ds3")
@@ -3454,7 +3454,7 @@ def test_get_dataset_triggered_next_run_info(dag_maker, clear_datasets):
 
     assets = session.query(AssetModel.uri).order_by(AssetModel.id).all()
 
-    info = get_dataset_triggered_next_run_info([dag1.dag_id], session=session)
+    info = get_asset_triggered_next_run_info([dag1.dag_id], session=session)
     assert info[dag1.dag_id] == {
         "ready": 0,
         "total": 1,
@@ -3462,7 +3462,7 @@ def test_get_dataset_triggered_next_run_info(dag_maker, clear_datasets):
     }
 
     # This time, check both dag2 and dag3 at the same time (tests filtering)
-    info = get_dataset_triggered_next_run_info([dag2.dag_id, dag3.dag_id], session=session)
+    info = get_asset_triggered_next_run_info([dag2.dag_id, dag3.dag_id], session=session)
     assert info[dag2.dag_id] == {
         "ready": 1,
         "total": 2,
@@ -3476,7 +3476,7 @@ def test_get_dataset_triggered_next_run_info(dag_maker, clear_datasets):
 
 
 @pytest.mark.need_serialized_dag
-def test_get_dataset_triggered_next_run_info_with_unresolved_dataset_alias(dag_maker, clear_datasets):
+def test_get_dataset_triggered_next_run_info_with_unresolved_dataset_alias(dag_maker, clear_assets):
     dataset_alias1 = AssetAlias(name="alias")
     with dag_maker(dag_id="dag-1", schedule=[dataset_alias1]):
         pass
@@ -3484,11 +3484,11 @@ def test_get_dataset_triggered_next_run_info_with_unresolved_dataset_alias(dag_m
     session = dag_maker.session
     session.flush()
 
-    info = get_dataset_triggered_next_run_info([dag1.dag_id], session=session)
+    info = get_asset_triggered_next_run_info([dag1.dag_id], session=session)
     assert info == {}
 
     dag1_model = DagModel.get_dagmodel(dag1.dag_id)
-    assert dag1_model.get_dataset_triggered_next_run_info(session=session) is None
+    assert dag1_model.get_asset_triggered_next_run_info(session=session) is None
 
 
 def test_dag_uses_timetable_for_run_id(session):

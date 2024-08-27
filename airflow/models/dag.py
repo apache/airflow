@@ -243,14 +243,14 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     return session.scalar(query.limit(1))
 
 
-def get_dataset_triggered_next_run_info(
+def get_asset_triggered_next_run_info(
     dag_ids: list[str], *, session: Session
 ) -> dict[str, dict[str, int | str]]:
     """
     Get next run info for a list of dag_ids.
 
-    Given a list of dag_ids, get string representing how close any that are dataset triggered are
-    their next run, e.g. "1 of 2 datasets updated".
+    Given a list of dag_ids, get string representing how close any that are asset triggered are
+    their next run, e.g. "1 of 2 assets updated".
     """
     from airflow.models.asset import AssetDagRunQueue as ADRQ, DagScheduleAssetReference
 
@@ -3268,13 +3268,13 @@ class DagModel(Base):
         )
 
     @provide_session
-    def get_dataset_triggered_next_run_info(self, *, session=NEW_SESSION) -> dict[str, int | str] | None:
+    def get_asset_triggered_next_run_info(self, *, session=NEW_SESSION) -> dict[str, int | str] | None:
         if self.dataset_expression is None:
             return None
 
-        # When a dataset alias does not resolve into datasets, get_dataset_triggered_next_run_info returns
-        # an empty dict as there's no dataset info to get. This method should thus return None.
-        return get_dataset_triggered_next_run_info([self.dag_id], session=session).get(self.dag_id, None)
+        # When an asset alias does not resolve into assets, get_asset_triggered_next_run_info returns
+        # an empty dict as there's no asset info to get. This method should thus return None.
+        return get_asset_triggered_next_run_info([self.dag_id], session=session).get(self.dag_id, None)
 
 
 # NOTE: Please keep the list of arguments in sync with DAG.__init__.
