@@ -37,9 +37,11 @@ from flask_appbuilder.const import (
 from flask_appbuilder.filters import TemplateFilters
 from flask_appbuilder.menu import Menu
 from flask_appbuilder.views import IndexView, UtilView
+from packaging import version
 
 from airflow import settings
 from airflow.configuration import conf
+from airflow.providers.fab import __version__ as FAB_VERSION
 from airflow.www.extensions.init_auth_manager import get_auth_manager, init_auth_manager
 
 if TYPE_CHECKING:
@@ -342,7 +344,11 @@ class AirflowAppBuilder:
         self.add_view_no_menu(self.indexview)
         self.add_view_no_menu(UtilView())
         self.bm.register_views()
-        get_auth_manager().register_views()
+
+        if version.parse(FAB_VERSION) >= version.parse("1.3.0"):
+            get_auth_manager().register_views()
+        else:
+            self.sm.register_views()
 
     def _add_addon_views(self):
         """Register declared addons."""
