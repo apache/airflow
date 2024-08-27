@@ -1,0 +1,153 @@
+* Rename configuration ``core.strict_dataset_uri_validation`` as ``core.strict_asset_uri_validation``
+* Rename configuration ``core.dataset_manager_class`` as ``core.asset_manager_class``
+* Rename configuration ``core.dataset_manager_class`` as ``core.asset_manager_class``
+* Rename example dags  ``example_dataset_alias.py``, ``example_dataset_alias_with_no_taskflow.py``, ``example_datasets.py`` as ``example_asset_alias.py``, ``example_asset_alias_with_no_taskflow.py``, ``example_assets.py``
+* Rename DagDependency name ``dataset-alias``, ``dataset`` as ``asset-alias``, ``asset``
+* Rename context ``triggering_dataset_events`` as ``triggering_asset_events``
+* Rename metadata ``asset-uris`` as ``asset-uris`` for providers amazon, common.io, mysql, fab, postgress, trino
+* Add module ``airflow.providers.common.compat.assets``
+* Add module ``airflow.providers.common.compat.openlineage.utils.utils``
+* Add moddule ``airflow.providers.common.compat.security.permissions.RESOURCE_ASSET``
+
+* airflow.api_connexion.schemas.dataset_schema -> airflow.api_connexion.schemas.asset_schema
+    * create_dataset_event_schema -> create_asset_event_schema
+    * dataset_collection_schema -> asset_collection_schema
+    * dataset_event_collection_schema -> asset_event_collection_schema
+    * dataset_event_schema -> asset_event_schema
+    * dataset_schema -> asset_schema
+    * TaskOutletDatasetReferenceSchema -> TaskOutletAssetReferenceSchema
+    * DagScheduleDatasetReferenceSchema -> DagScheduleAssetReferenceSchema
+    * DatasetAliasSchema -> AssetAliasSchema
+    * DatasetSchema -> AssetSchema
+    * DatasetCollection -> AssetCollection
+    * DatasetEventSchema -> AssetEventSchema
+    * DatasetEventCollection -> AssetEventCollection
+    * DatasetEventCollectionSchema -> AssetEventCollectionSchema
+    * CreateDatasetEventSchema -> CreateAssetEventSchema
+* airflow.datasets -> airflow.assets
+    * DatasetAlias -> AssetAlias
+    * DatasetAliasEvent -> AssetAliasEvent
+        * dest_dataset_uri -> dest_asset_uri
+    * BaseDataset -> BaseAsset
+        * iter_datasets -> iter_assets
+        * iter_dataset_aliases -> iter_asset_aliases
+    * Dataset -> Asset
+        * iter_datasets -> iter_assets
+        * iter_dataset_aliases -> iter_asset_aliases
+    * ``_DatasetBooleanCondition`` -> ``_AssetBooleanCondition``
+        * iter_datasets -> iter_assets
+        * iter_dataset_aliases -> iter_asset_aliases
+    * DatasetAll -> AssetAll
+    * DatasetAny -> AssetAny
+    * expand_alias_to_datasets -> expand_alias_to_assets
+* airflow.datasets.manager -> airflow.assets.manager
+    * dataset_manager -> asset_manager
+    * DatasetManager -> AssetManager
+        * register_dataset_change -> register_asset_change
+        * create_datasets -> create_assets
+        * register_dataset_change -> notify_asset_created
+        * notify_dataset_changed -> notify_asset_changed
+    * resolve_dataset_manager -> resolve_asset_manager
+* airflow.datasets.metadata -> airflow.assets.metadata
+* airflow.models.dataset -> airflow.models.asset
+    * DatasetDagRunQueue -> AssetDagRunQueue
+    * DatasetEvent -> AssetEvent
+    * DatasetModel -> AssetModel
+    * DatasetAliasModel -> AssetAliasModel
+    * DagScheduleDatasetReference -> DagScheduleAssetReference
+    * TaskOutletDatasetReference -> TaskOutletAssetReference
+    * DagScheduleDatasetAliasReference -> DagScheduleAssetAliasReference
+* airflow.api_connexion.security
+    * requires_access_dataset -> requires_access_asset
+* airflow.auth.managers.models.resource_details
+    * DatasetDetails -> AssetDetails
+* airflow.api_ui.views.datasets -> airflow.api_ui.views.assets
+    * dataset_router -> asset_rounter
+* airflow.auth.managers.base_auth_manager
+    * is_authorized_dataset -> is_authorized_asset
+* airflow.jobs.scheduler_job_runner
+    * SchedulerJobRunner
+        * ``_create_dag_runs_dataset_triggered`` -> ``_create_dag_runs_asset_triggered``
+        * ``_orphan_unreferenced_datasets`` -> ``_orphan_unreferenced_datasets``
+* airflow.timetables.simple
+    * DatasetTriggeredTimetable -> AssetTriggeredTimetable
+* airflow.lineage.hook
+    * DatasetLineageInfo -> AssetLineageInfo
+        * dataset -> asset
+    * HookLineageCollector
+        * create_dataset -> create_asset
+        * add_input_dataset -> add_input_asset
+        * add_output_dataset -> add_output_asset
+        * collected_datasets -> collected_assets
+* airflow.listeners.spec.dataset -> airflow.listeners.spec.asset
+    * on_dataset_created -> on_asset_created
+    * on_dataset_changed -> on_asset_changed
+* airflow.models.dag
+    * get_dataset_triggered_next_run_info -> get_asset_triggered_next_run_info
+    * DagModel
+        * get_dataset_triggered_next_run_info -> get_asset_triggered_next_run_info
+* airflow.models.taskinstance
+    * TaskInstance
+        * ``_register_dataset_changes`` -> ``_register_asset_changes``
+
+
+* airflow.providers.amazon.aws.datasets -> airflow.providers.amazon.aws.assets
+    * s3
+        * create_dataset -> create_asset
+        * convert_dataset_to_openlineage -> convert_asset_to_openlineage
+* airflow.providers.amazon.aws.auth_manager.avp.entities
+    * AvpEntities.DATASET -> AvpEntities.ASSET
+* airflow.providers.amazon.aws.auth_manager.aws_auth_manager
+    * is_authorized_dataset -> is_authorized_asset
+* airflow.providers.common.io.datasets ->airflow.providers.common.io.assets
+    * file
+        * create_dataset -> create_asset
+        * convert_dataset_to_openlineage -> convert_asset_to_openlineage
+* airflow.providers.fab.auth_manager.fab_auth_manager
+    * is_authorized_dataset -> is_authorized_asset
+* airflow.providers.openlineage.utils.utils
+    * DatasetInfo -> AssetInfo
+    * translate_airflow_dataset -> translate_airflow_asset
+* airflow.providers.postgres.datasets ->  airflow.providers.postgres.assets.
+* airflow.providers.mysql.datasets -> airflow.providers.mysql.assets
+* airflow.providers.trino.datasets -> airflow.providers.trino.assets
+* airflow.providers_manager
+    * ProvidersManager
+        * initialize_providers_dataset_uri_resources -> initialize_providers_asset_uri_resources
+        * ``_discover_dataset_uri_resources`` -> ``_discover_asset_uri_resources``
+        * ``_dataset_uri_handlers`` -> ``_asset_uri_handlers``
+        * ``_dataset_factories`` -> ``_asset_factories``
+        * ``_dataset_to_openlineage_converters`` -> ``_asset_to_openlineage_converters``
+        * dataset_factories -> asset_factories
+        * dataset_uri_handlers -> asset_uri_handlers
+        * dataset_to_openlineage_converters -> asset_to_openlineage_converters
+* airflow.security.permissions
+    * RESOURCE_DATASET -> RESOURCE_ASSET
+* airflow.serialization.enums
+    * DagAttributeTypes
+        * DATASET_EVENT_ACCESSORS -> ASSET_EVENT_ACCESSORS
+        * DATASET_EVENT_ACCESSOR -> ASSET_EVENT_ACCESSOR
+        * DATASET -> ASSET
+        * DATASET_ALIAS -> ASSET_ALIAS
+        * DATASET_ANY -> ASSET_ANY
+        * DATASET_ALL -> ASSET_ALL
+* airflow.serialization.pydantic.dataset ->airflow.serialization.pydantic.asset
+    * DagScheduleDatasetReferencePydantic -> DagScheduleAssetReferencePydantic
+    * TaskOutletDatasetReferencePydantic -> TaskOutletAssetReferencePydantic
+    * DatasetPydantic -> AssetPydantic
+    * DatasetEventPydantic -> AssetEventPydantic
+* airflow.serialization.pydantic.taskinstance
+    * TaskInstancePydantic
+        * ``_register_dataset_changes`` -> ``_register_dataset_changes``
+* airflow.serialization.serialized_objects
+    * encode_dataset_condition -> encode_asset_condition
+    * decode_dataset_condition -> decode_asset_condition
+* airflow.timetables.datasets -> airflow.timetables.assets
+    * DatasetOrTimeSchedule -> AssetOrTimeSchedule
+* airflow.timetables.base
+    * `_NullDataset` -> `_NullAsset`
+        * iter_datasets -> iter_assets
+* airflow.utils.context
+    * LazyDatasetEventSelectSequence -> LazyAssetEventSelectSequence
+* airflow.www.auth
+    * has_access_dataset -> has_access_asset
