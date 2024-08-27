@@ -23,7 +23,8 @@ Useful decorators and context managers used when testing the performance of vari
 
 
 Content
-=======
+========
+
 The following decorators and context managers are included.
 
 .. autofunction:: tests.utils.perf.perf_kit.memory.trace_memory

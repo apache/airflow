@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.providers.snowflake.utils.openlineage import fix_snowflake_sqlalchemy_uri
+from airflow.providers.snowflake.utils.openlineage import fix_account_name, fix_snowflake_sqlalchemy_uri
 
 
 @pytest.mark.parametrize(
@@ -60,3 +60,27 @@ from airflow.providers.snowflake.utils.openlineage import fix_snowflake_sqlalche
 )
 def test_snowflake_sqlite_account_urls(source, target):
     assert fix_snowflake_sqlalchemy_uri(source) == target
+
+
+# Unit Tests using pytest.mark.parametrize
+@pytest.mark.parametrize(
+    "name, expected",
+    [
+        ("xy12345", "xy12345.us-west-1.aws"),  # No '-' or '_' in name
+        ("xy12345.us-west-1.aws", "xy12345.us-west-1.aws"),  # Already complete locator
+        ("xy12345.us-west-2.gcp", "xy12345.us-west-2.gcp"),  # Already complete locator for GCP
+        ("xy12345aws", "xy12345aws.us-west-1.aws"),  # AWS without '-' or '_'
+        ("xy12345-aws", "xy12345-aws"),  # AWS with '-'
+        ("xy12345_gcp-europe-west1", "xy12345.europe-west1.gcp"),  # GCP with '_'
+        ("myaccount_gcp-asia-east1", "myaccount.asia-east1.gcp"),  # GCP with region and '_'
+        ("myaccount_azure-eastus", "myaccount.eastus.azure"),  # Azure with region
+        ("myorganization-1234", "myorganization-1234"),  # No change needed
+        ("my.organization", "my.organization.us-west-1.aws"),  # Dot in name
+    ],
+)
+def test_fix_account_name(name, expected):
+    assert fix_account_name(name) == expected
+    assert (
+        fix_snowflake_sqlalchemy_uri(f"snowflake://{name}/database/schema")
+        == f"snowflake://{expected}/database/schema"
+    )

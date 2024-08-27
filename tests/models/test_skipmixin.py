@@ -20,12 +20,11 @@ from __future__ import annotations
 import datetime
 from unittest.mock import Mock, patch
 
-import pendulum
 import pytest
 
 from airflow import settings
 from airflow.decorators import task, task_group
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.operators.empty import EmptyOperator
@@ -66,34 +65,8 @@ class TestSkipMixin:
             execution_date=now,
             state=State.FAILED,
         )
-        SkipMixin().skip(dag_run=dag_run, execution_date=now, tasks=tasks)
+        SkipMixin().skip(dag_run=dag_run, tasks=tasks)
 
-        session.query(TI).filter(
-            TI.dag_id == "dag",
-            TI.task_id == "task",
-            TI.state == State.SKIPPED,
-            TI.start_date == now,
-            TI.end_date == now,
-        ).one()
-
-    @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    @patch("airflow.utils.timezone.utcnow")
-    def test_skip_none_dagrun(self, mock_now, dag_maker):
-        now = datetime.datetime.now(tz=pendulum.timezone("UTC"))
-        mock_now.return_value = now
-        with dag_maker(
-            "dag",
-        ):
-            tasks = [EmptyOperator(task_id="task")]
-        dag_maker.create_dagrun(execution_date=now)
-
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match=r"Passing an execution_date to `skip\(\)` is deprecated in favour of passing a dag_run",
-        ):
-            SkipMixin().skip(dag_run=None, execution_date=now, tasks=tasks)
-
-        session = dag_maker.session
         session.query(TI).filter(
             TI.dag_id == "dag",
             TI.task_id == "task",
@@ -104,7 +77,7 @@ class TestSkipMixin:
 
     def test_skip_none_tasks(self):
         session = Mock()
-        SkipMixin().skip(dag_run=None, execution_date=None, tasks=[])
+        SkipMixin().skip(dag_run=None, tasks=[])
         assert not session.query.called
         assert not session.commit.called
 

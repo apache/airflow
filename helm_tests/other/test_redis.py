@@ -403,6 +403,16 @@ class TestRedis:
             "spec.volumeClaimTemplates[0].spec.storageClassName", docs[0]
         )
 
+    def test_redis_template_persistence_storage_existing_claim(self):
+        docs = render_chart(
+            values={"redis": {"persistence": {"existingClaim": "test-existing-claim"}}},
+            show_only=["templates/redis/redis-statefulset.yaml"],
+        )
+        assert {
+            "name": "redis-db",
+            "persistentVolumeClaim": {"claimName": "test-existing-claim"},
+        } in jmespath.search("spec.template.spec.volumes", docs[0])
+
     @pytest.mark.parametrize(
         "redis_values, expected",
         [

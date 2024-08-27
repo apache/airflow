@@ -2294,6 +2294,8 @@ redis:
     storageClassName:
     # Annotations to add to redis volumes
     annotations: {}
+    # the name of an existing PVC to use
+    existingClaim:
 
   # Configuration for empty dir volume (if redis.persistence.enabled == false)
   # emptyDirConfig:

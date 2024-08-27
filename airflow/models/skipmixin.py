@@ -17,14 +17,13 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from types import GeneratorType
 from typing import TYPE_CHECKING, Iterable, Sequence
 
-from sqlalchemy import select, update
+from sqlalchemy import update
 
 from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -33,7 +32,6 @@ from airflow.utils.sqlalchemy import tuple_in_condition
 from airflow.utils.state import TaskInstanceState
 
 if TYPE_CHECKING:
-    from pendulum import DateTime
     from sqlalchemy import Session
 
     from airflow.models.dagrun import DagRun
@@ -98,16 +96,13 @@ class SkipMixin(LoggingMixin):
     def skip(
         self,
         dag_run: DagRun | DagRunPydantic,
-        execution_date: DateTime,
         tasks: Iterable[DAGNode],
         map_index: int = -1,
     ):
         """Facade for compatibility for call to internal API."""
         # SkipMixin may not necessarily have a task_id attribute. Only store to XCom if one is available.
         task_id: str | None = getattr(self, "task_id", None)
-        SkipMixin._skip(
-            dag_run=dag_run, task_id=task_id, execution_date=execution_date, tasks=tasks, map_index=map_index
-        )
+        SkipMixin._skip(dag_run=dag_run, task_id=task_id, tasks=tasks, map_index=map_index)
 
     @staticmethod
     @internal_api_call
@@ -115,7 +110,6 @@ class SkipMixin(LoggingMixin):
     def _skip(
         dag_run: DagRun | DagRunPydantic,
         task_id: str | None,
-        execution_date: DateTime,
         tasks: Iterable[DAGNode],
         session: Session = NEW_SESSION,
         map_index: int = -1,
@@ -128,7 +122,6 @@ class SkipMixin(LoggingMixin):
         are cleared.
 
         :param dag_run: the DagRun for which to set the tasks to skipped
-        :param execution_date: execution_date
         :param tasks: tasks to skip (not task_ids)
         :param session: db session to use
         :param map_index: map_index of the current task instance
@@ -136,26 +129,6 @@ class SkipMixin(LoggingMixin):
         task_list = _ensure_tasks(tasks)
         if not task_list:
             return
-
-        if execution_date and not dag_run:
-            from airflow.models.dagrun import DagRun
-
-            warnings.warn(
-                "Passing an execution_date to `skip()` is deprecated in favour of passing a dag_run",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-
-            dag_run = session.scalars(
-                select(DagRun).where(
-                    DagRun.dag_id == task_list[0].dag_id, DagRun.execution_date == execution_date
-                )
-            ).one()
-
-        elif execution_date and dag_run and execution_date != dag_run.execution_date:
-            raise ValueError(
-                "execution_date has a different value to  dag_run.execution_date -- please only pass dag_run"
-            )
 
         if dag_run is None:
             raise ValueError("dag_run is required")
