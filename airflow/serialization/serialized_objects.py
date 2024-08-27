@@ -1822,12 +1822,7 @@ def _has_kubernetes() -> bool:
     try:
         from kubernetes.client import models as k8s
 
-        try:
-            from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-        except ImportError:
-            from airflow.kubernetes.pre_7_4_0_compatibility.pod_generator import (  # type: ignore[assignment]
-                PodGenerator,
-            )
+        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 
         globals()["k8s"] = k8s
         globals()["PodGenerator"] = PodGenerator
