@@ -1909,7 +1909,6 @@ class TaskInstance(Base, LoggingMixin):
     def __init__(
         self,
         task: Operator,
-        execution_date: datetime | None = None,
         run_id: str | None = None,
         state: str | None = None,
         map_index: int = -1,
@@ -1925,42 +1924,7 @@ class TaskInstance(Base, LoggingMixin):
         # init_on_load will config the log
         self.init_on_load()
 
-        if run_id is None and execution_date is not None:
-            from airflow.models.dagrun import DagRun  # Avoid circular import
-
-            warnings.warn(
-                "Passing an execution_date to `TaskInstance()` is deprecated in favour of passing a run_id",
-                RemovedInAirflow3Warning,
-                # Stack level is 4 because SQLA adds some wrappers around the constructor
-                stacklevel=4,
-            )
-            # make sure we have a localized execution_date stored in UTC
-            if execution_date and not timezone.is_localized(execution_date):
-                self.log.warning(
-                    "execution date %s has no timezone information. Using default from dag or system",
-                    execution_date,
-                )
-                if self.task.has_dag():
-                    if TYPE_CHECKING:
-                        assert self.task.dag
-                    execution_date = timezone.make_aware(execution_date, self.task.dag.timezone)
-                else:
-                    execution_date = timezone.make_aware(execution_date)
-
-                execution_date = timezone.convert_to_utc(execution_date)
-            with create_session() as session:
-                run_id = (
-                    session.query(DagRun.run_id)
-                    .filter_by(dag_id=self.dag_id, execution_date=execution_date)
-                    .scalar()
-                )
-                if run_id is None:
-                    raise DagRunNotFound(
-                        f"DagRun for {self.dag_id!r} with date {execution_date} not found"
-                    ) from None
-
         self.run_id = run_id
-
         self.try_number = 0
         self.max_tries = self.task.retries
         self.unixname = getuser()
