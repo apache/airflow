@@ -124,14 +124,11 @@ def mock_context(task) -> Context:
         def __init__(
             self,
             task,
-            execution_date: datetime | None = None,
             run_id: str | None = "run_id",
             state: str | None = TaskInstanceState.RUNNING,
             map_index: int = -1,
         ):
-            super().__init__(
-                task=task, execution_date=execution_date, run_id=run_id, state=state, map_index=map_index
-            )
+            super().__init__(task=task, run_id=run_id, state=state, map_index=map_index)
             self.values: dict[str, Any] = {}
 
         def xcom_pull(
