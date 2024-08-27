@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module contains Google Vertex AI Generative AI operators."""
+"""This module contains Google Vertex AI Supervised Fine Tuning operators."""
 
 from __future__ import annotations
 

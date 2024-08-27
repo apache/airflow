@@ -112,7 +112,7 @@ dependencies:
   - google-api-python-client>=2.0.2
   - google-auth>=2.29.0
   - google-auth-httplib2>=0.0.1
-  - google-cloud-aiplatform>=1.57.0
+  - google-cloud-aiplatform>=1.63.0
   - google-cloud-automl>=2.12.0
   # google-cloud-bigquery version 3.21.0 introduced a performance enhancement in QueryJob.result(),
   # which has led to backward compatibility issues
@@ -691,6 +691,7 @@ operators:
       - airflow.providers.google.cloud.operators.vertex_ai.model_service
       - airflow.providers.google.cloud.operators.vertex_ai.pipeline_job
       - airflow.providers.google.cloud.operators.vertex_ai.generative_model
+      - airflow.providers.google.cloud.operators.vertex_ai.supervised_fine_tuning
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.operators.looker
@@ -951,6 +952,7 @@ hooks:
       - airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job
       - airflow.providers.google.cloud.hooks.vertex_ai.generative_model
       - airflow.providers.google.cloud.hooks.vertex_ai.prediction_service
+      - airflow.providers.google.cloud.hooks.vertex_ai.supervised_fine_tuning
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.hooks.looker
