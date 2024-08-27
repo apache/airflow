@@ -71,7 +71,7 @@ DEFAULT_DATAFLOW_LOCATION = "us-central1"
 
 
 JOB_ID_PATTERN = re.compile(
-    r"Submitted job: (?P<job_id_java>[^\"\n]*)|Created job with id: \[(?P<job_id_python>[^\"\n]*)\]"
+    r"Submitted job: (?P<job_id_java>[^\"\n\s]*)|Created job with id: \[(?P<job_id_python>[^\"\n\s]*)\]"
 )
 
 T = TypeVar("T", bound=Callable)

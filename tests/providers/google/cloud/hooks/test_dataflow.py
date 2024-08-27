@@ -2091,6 +2091,18 @@ INFO: To cancel the job using the 'gcloud' tool, run:
 > gcloud dataflow jobs --project=XXX cancel --region=europe-west3 {TEST_JOB_ID}
 """
 
+# using logback pattern: [%d] %-5level %msg \(%c\) \(%t\)%n
+APACHE_BEAM_V_2_58_1_JAVA_SDK_LOG = f""""\
+[2024-08-28 08:06:39,298] INFO  Dataflow SDK version: 2.58.1 (org.apache.beam.runners.dataflow.DataflowRunner) (main)
+[2024-08-28 08:06:40,305] INFO  To access the Dataflow monitoring console, please navigate to\
+https://console.cloud.google.com/dataflow/jobs/europe-west1/{TEST_JOB_ID}?project=XXXX\
+(org.apache.beam.runners.dataflow.DataflowRunner) (main)
+[2024-08-28 08:06:40,305] INFO  Submitted job: {TEST_JOB_ID} (org.apache.beam.runners.dataflow.DataflowRunner) (main)
+[2024-08-28 08:06:40,305] INFO  To cancel the job using the 'gcloud' tool, run:
+> gcloud dataflow jobs --project=gowish-develop cancel --region=europe-west1 {TEST_JOB_ID}\
+(org.apache.beam.runners.dataflow.DataflowRunner) (main)
+"""
+
 CLOUD_COMPOSER_CLOUD_LOGGING_APACHE_BEAM_V_2_56_0_JAVA_SDK_LOG = f"""\
 WARNING - {{"message":"org.apache.beam.runners.dataflow.DataflowRunner - Dataflow SDK version: 2.56.0",\
 "severity":"INFO"}}
@@ -2153,6 +2165,7 @@ class TestDataflow:
         [
             pytest.param(APACHE_BEAM_V_2_14_0_JAVA_SDK_LOG, id="apache-beam-2.14.0-JDK"),
             pytest.param(APACHE_BEAM_V_2_22_0_JAVA_SDK_LOG, id="apache-beam-2.22.0-JDK"),
+            pytest.param(APACHE_BEAM_V_2_58_1_JAVA_SDK_LOG, id="apache-beam-2.58.1-JDK"),
             pytest.param(
                 CLOUD_COMPOSER_CLOUD_LOGGING_APACHE_BEAM_V_2_56_0_JAVA_SDK_LOG,
                 id="cloud-composer-cloud-logging-apache-beam-2.56.0-JDK",
