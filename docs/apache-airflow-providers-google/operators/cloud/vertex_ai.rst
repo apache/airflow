@@ -615,6 +615,20 @@ The operator returns the model's response in :ref:`XCom <concepts:xcom>` under `
     :start-after: [START how_to_cloud_vertex_ai_generative_model_generate_content_operator]
     :end-before: [END how_to_cloud_vertex_ai_generative_model_generate_content_operator]
 
+
+Performing Supervised Fine Tuning
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To train and deploy a tuned generative model to an endpoint you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.supervised_fine_tuning.SupervisedFineTuningTrainOperator`.
+The operator returns the tuned model's endpoint name in :ref:`XCom <concepts:xcom>` under ``tuned_model_endpoint_name`` key.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_supervised_fine_tuning.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
+    :end-before: [END how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
+
 Reference
 ^^^^^^^^^
 

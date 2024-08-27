@@ -525,7 +525,7 @@ class GenerativeModelGenerateContentOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("location", "project_id", "impersonation_chain", "contents")
+    template_fields = ("location", "project_id", "impersonation_chain", "contents", "pretrained_model")
 
     def __init__(
         self,
