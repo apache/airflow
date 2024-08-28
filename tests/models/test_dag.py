@@ -40,6 +40,7 @@ import pendulum
 import pytest
 import time_machine
 from dateutil.relativedelta import relativedelta
+from packaging import version as packaging_version
 from pendulum.tz.timezone import Timezone
 from sqlalchemy import inspect, select
 from sqlalchemy.exc import SAWarning
@@ -85,6 +86,7 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.operators.subdag import SubDagOperator
+from airflow.providers.fab import __version__ as FAB_VERSION
 from airflow.security import permissions
 from airflow.templates import NativeEnvironment, SandboxedEnvironment
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
@@ -2767,12 +2769,20 @@ my_postgres_conn:
         outdated_permissions = {
             "role1": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},
             "role2": {permissions.DEPRECATED_ACTION_CAN_DAG_READ, permissions.DEPRECATED_ACTION_CAN_DAG_EDIT},
-            "role3": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},
+            "role3": self._get_compatible_access_control(
+                {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}}
+            ),
         }
         updated_permissions = {
-            "role1": {permissions.RESOURCE_DAG: {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}},
-            "role2": {permissions.RESOURCE_DAG: {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}},
-            "role3": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},
+            "role1": self._get_compatible_access_control(
+                {permissions.RESOURCE_DAG: {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}}
+            ),
+            "role2": self._get_compatible_access_control(
+                {permissions.RESOURCE_DAG: {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}}
+            ),
+            "role3": self._get_compatible_access_control(
+                {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}}
+            ),
         }
 
         with pytest.warns(DeprecationWarning) as deprecation_warnings:
@@ -2788,6 +2798,68 @@ my_postgres_conn:
         assert len(deprecation_warnings) == 2
         assert "permission is deprecated" in str(deprecation_warnings[0].message)
         assert "permission is deprecated" in str(deprecation_warnings[1].message)
+
+    def _get_compatible_access_control(self, perms):
+        if packaging_version.parse(FAB_VERSION) >= packaging_version.parse("1.3.0"):
+            return perms
+        return perms.get(permissions.RESOURCE_DAG, set())
+
+    @pytest.mark.parametrize(
+        "fab_version, perms, expected_exception, expected_perms",
+        [
+            pytest.param(
+                "1.2.0",
+                {
+                    "role1": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},
+                    "role3": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},
+                    # will raise error in old FAB with new access control format
+                },
+                AirflowException,
+                None,
+                id="old_fab_new_access_control_format",
+            ),
+            pytest.param(
+                "1.2.0",
+                {
+                    "role1": [
+                        permissions.ACTION_CAN_READ,
+                        permissions.ACTION_CAN_EDIT,
+                        permissions.ACTION_CAN_READ,
+                    ],
+                },
+                None,
+                {"role1": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}},
+                id="old_fab_old_access_control_format",
+            ),
+            pytest.param(
+                "1.3.0",
+                {
+                    "role1": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},  # old format
+                    "role3": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},  # new format
+                },
+                None,
+                {
+                    "role1": {
+                        permissions.RESOURCE_DAG: {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
+                    },
+                    "role3": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},
+                },
+                id="new_fab_mixed_access_control_format",
+            ),
+        ],
+    )
+    def test_access_control_format(self, fab_version, perms, expected_exception, expected_perms):
+        if expected_exception:
+            with patch("airflow.models.dag.FAB_VERSION", fab_version):
+                with pytest.raises(
+                    expected_exception,
+                    match="Please upgrade the FAB provider to a version >= 1.3.0 to allow use the Dag Level Access Control new format.",
+                ):
+                    DAG(dag_id="dag_test", schedule=None, access_control=perms)
+        else:
+            with patch("airflow.models.dag.FAB_VERSION", fab_version):
+                dag = DAG(dag_id="dag_test", schedule=None, access_control=perms)
+            assert dag.access_control == expected_perms
 
     def test_validate_executor_field_executor_not_configured(self):
         dag = DAG("test-dag", schedule=None)

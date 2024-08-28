@@ -40,6 +40,7 @@ import pendulum
 import pytest
 from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
+from packaging import version as packaging_version
 
 import airflow
 from airflow.datasets import Dataset
@@ -58,6 +59,7 @@ from airflow.models.xcom import XCom
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+from airflow.providers.fab import __version__ as FAB_VERSION
 from airflow.security import permissions
 from airflow.sensors.bash import BashSensor
 from airflow.serialization.dag_dependency import DagDependency
@@ -245,6 +247,11 @@ serialized_simple_dag_ground_truth = {
                             "__var": [permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT],
                         }
                     },
+                }
+                if packaging_version.parse(FAB_VERSION) >= packaging_version.parse("1.3.0")
+                else {
+                    "__type": "set",
+                    "__var": [permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT],
                 }
             },
         },
