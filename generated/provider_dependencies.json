@@ -1,14 +1,12 @@
 {
   "airbyte": {
     "deps": [
-      "apache-airflow-providers-http",
+      "airbyte-api>=0.51.0",
       "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [
-      "http"
-    ],
+    "cross-providers-deps": [],
     "excluded-python-versions": [],
     "state": "ready"
   },
