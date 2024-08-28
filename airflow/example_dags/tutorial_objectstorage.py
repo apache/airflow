@@ -72,7 +72,7 @@ def tutorial_objectstorage():
         """
         import pandas as pd
 
-        execution_date = kwargs["logical_date"]
+        logical_date = kwargs["logical_date"]
         start_time = kwargs["data_interval_start"]
 
         params = {
@@ -83,7 +83,7 @@ def tutorial_objectstorage():
             "area": "Uusimaa",
             "param": ",".join(aq_fields.keys()),
             "starttime": start_time.isoformat(timespec="seconds"),
-            "endtime": execution_date.isoformat(timespec="seconds"),
+            "endtime": logical_date.isoformat(timespec="seconds"),
             "tz": "UTC",
         }
 
@@ -93,7 +93,7 @@ def tutorial_objectstorage():
         # ensure the bucket exists
         base.mkdir(exist_ok=True)
 
-        formatted_date = execution_date.format("YYYYMMDD")
+        formatted_date = logical_date.format("YYYYMMDD")
         path = base / f"air_quality_{formatted_date}.parquet"
 
         df = pd.DataFrame(response.json()).astype(aq_fields)
