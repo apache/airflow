@@ -488,11 +488,6 @@ labelPRBasedOnFilePath:
     - tests/providers/tableau/**/*
     - tests/system/providers/tableau/**/*
 
-  provider:tabular:
-    - airflow/providers/tabular/**/*
-    - docs/apache-airflow-providers-tabular/**/*
-    - tests/providers/tabular/**/*
-
   provider:telegram:
     - airflow/providers/telegram/**/*
     - docs/apache-airflow-providers-telegram/**/*
