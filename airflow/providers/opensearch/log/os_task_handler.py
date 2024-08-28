@@ -150,7 +150,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
         password: str,
         host_field: str = "host",
         offset_field: str = "offset",
-        index_patterns: str = conf.get("opensearch", "index_patterns"),
+        index_patterns: str = conf.get("opensearch", "index_patterns", fallback="_all"),
         index_patterns_callable: str = conf.get("opensearch", "index_patterns_callable", fallback=""),
         os_kwargs: dict | None | Literal["default_os_kwargs"] = "default_os_kwargs",
     ):
@@ -343,7 +343,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
 
         offset = metadata["offset"]
         log_id = self._render_log_id(ti, try_number)
-        response = self._es_read(log_id, offset, ti)
+        response = self._os_read(log_id, offset, ti)
         if response is not None and response.hits:
             logs_by_host = self._group_logs_by_host(response)
             next_offset = attrgetter(self.offset_field)(response[-1])
@@ -400,7 +400,7 @@ class OpensearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin)
             message = []
         return message, metadata
 
-    def _es_read(self, log_id: str, offset: int | str, ti: TaskInstance) -> OpensearchResponse | None:
+    def _os_read(self, log_id: str, offset: int | str, ti: TaskInstance) -> OpensearchResponse | None:
         """
         Return the logs matching log_id in Elasticsearch and next offset or ''.
 

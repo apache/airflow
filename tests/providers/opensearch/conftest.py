@@ -54,7 +54,7 @@ class MockClient(OpenSearch):
     def count(self, index: Any = None, body: Any = None):
         return {"count": 1, "_shards": {"total": 1, "successful": 1, "skipped": 0, "failed": 0}}
 
-    def search(self, index=None, doc_type=None, query=None, params=None, headers=None):
+    def search(self, index=None, body=None, sort=None, size=None, from_=None):
         return self.sample_log_response()
 
     def sample_log_response(self):
