@@ -540,7 +540,12 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
     dag_id = "dag_id"
     run_id = str(uuid.uuid4())
 
-    with DAG(dag_id=dag_id, description="dag desc", start_date=datetime.datetime(2024, 6, 1)) as dag:
+    with DAG(
+        dag_id=dag_id,
+        schedule=datetime.timedelta(days=1),
+        start_date=datetime.datetime(2024, 6, 1),
+        description="dag desc",
+    ) as dag:
         tg = TaskGroup(group_id="tg1")
         tg2 = TaskGroup(group_id="tg2", parent_group=tg)
         task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")  # noqa: F841
@@ -567,6 +572,20 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
         job_facets=job_facets,
     )
 
+    expected_dag_info = {
+        "timetable": {"delta": 86400.0},
+        "dag_id": dag_id,
+        "description": "dag desc",
+        "owner": "airflow",
+        "start_date": "2024-06-01T00:00:00+00:00",
+        "tags": [],
+        "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+    }
+    if hasattr(dag, "schedule_interval"):  # Airflow 2 compat.
+        expected_dag_info["schedule_interval"] = "86400.0 seconds"
+    else:  # Airflow 3 and up.
+        expected_dag_info["timetable_summary"] = "1 day, 0:00:00"
+
     assert len(client.emit.mock_calls) == 1
     assert (
         call(
@@ -581,16 +600,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
                             nominalEndTime=event_time.isoformat(),
                         ),
                         "airflowDagRun": AirflowDagRunFacet(
-                            dag={
-                                "timetable": {"delta": 86400.0},
-                                "dag_id": dag_id,
-                                "description": "dag desc",
-                                "owner": "airflow",
-                                "schedule_interval": "86400.0 seconds",
-                                "start_date": "2024-06-01T00:00:00+00:00",
-                                "tags": [],
-                                "fileloc": pathlib.Path(__file__).resolve().as_posix(),
-                            },
+                            dag=expected_dag_info,
                             dagRun={
                                 "conf": {},
                                 "dag_id": "dag_id",
@@ -648,7 +658,7 @@ def test_emit_dag_complete_event(
     dag_id = "dag_id"
     run_id = str(uuid.uuid4())
 
-    with DAG(dag_id=dag_id, start_date=datetime.datetime(2024, 6, 1)):
+    with DAG(dag_id=dag_id, schedule=None, start_date=datetime.datetime(2024, 6, 1)):
         task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
         task_1 = BashOperator(task_id="task_1", bash_command="exit 0;")
         task_2 = EmptyOperator(
@@ -730,7 +740,7 @@ def test_emit_dag_failed_event(
     dag_id = "dag_id"
     run_id = str(uuid.uuid4())
 
-    with DAG(dag_id=dag_id, start_date=datetime.datetime(2024, 6, 1)):
+    with DAG(dag_id=dag_id, schedule=None, start_date=datetime.datetime(2024, 6, 1)):
         task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
         task_1 = BashOperator(task_id="task_1", bash_command="exit 0;")
         task_2 = EmptyOperator(task_id="task_2.test")

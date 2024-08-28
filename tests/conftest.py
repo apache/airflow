@@ -369,12 +369,9 @@ def initial_db_init():
     from airflow.utils import db
     from airflow.www.extensions.init_appbuilder import init_appbuilder
     from airflow.www.extensions.init_auth_manager import get_auth_manager
-    from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_2_10_PLUS
+    from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
-    if AIRFLOW_V_2_10_PLUS:
-        db.resetdb(use_migration_files=True)
-    else:
-        db.resetdb()
+    db.resetdb()
     db.bootstrap_dagbag()
     # minimal app to add roles
     flask_app = Flask(__name__)
@@ -847,6 +844,13 @@ def dag_maker(request):
                 return json.loads(data)
             return data
 
+        def _bag_dag_compat(self, dag):
+            # This is a compatibility shim for the old bag_dag method in Airflow <3.0
+            # TODO: Remove this when we drop support for Airflow <3.0 in Providers
+            if hasattr(dag, "parent_dag"):
+                return self.dagbag.bag_dag(dag, root_dag=dag)
+            return self.dagbag.bag_dag(dag)
+
         def __exit__(self, type, value, traceback):
             from airflow.models import DagModel
             from airflow.models.serialized_dag import SerializedDagModel
@@ -866,10 +870,10 @@ def dag_maker(request):
                 )
                 self.session.merge(self.serialized_model)
                 serialized_dag = self._serialized_dag()
-                self.dagbag.bag_dag(serialized_dag, root_dag=serialized_dag)
+                self._bag_dag_compat(serialized_dag)
                 self.session.flush()
             else:
-                self.dagbag.bag_dag(self.dag, self.dag)
+                self._bag_dag_compat(self.dag)
 
         def create_dagrun(self, **kwargs):
             from airflow.utils import timezone
@@ -923,6 +927,7 @@ def dag_maker(request):
         def __call__(
             self,
             dag_id="test_dag",
+            schedule=timedelta(days=1),
             serialized=want_serialized,
             fileloc=None,
             processor_subdir=None,
@@ -951,7 +956,9 @@ def dag_maker(request):
                     DEFAULT_DATE = timezone.datetime(2016, 1, 1)
                     self.start_date = DEFAULT_DATE
             self.kwargs["start_date"] = self.start_date
-            self.dag = DAG(dag_id, **self.kwargs)
+            # Set schedule argument to explicitly set value, or a default if no
+            # other scheduling arguments are set.
+            self.dag = DAG(dag_id, schedule=schedule, **self.kwargs)
             self.dag.fileloc = fileloc or request.module.__file__
             self.want_serialized = serialized
             self.processor_subdir = processor_subdir

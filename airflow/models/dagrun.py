@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import itertools
 import os
-import warnings
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator, NamedTuple, Sequence, TypeVar, overload
 
@@ -51,7 +50,7 @@ from airflow import settings
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, TaskNotFound
+from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.listeners.listener import get_listener_manager
 from airflow.models import Log
 from airflow.models.abstractoperator import NotMapped
@@ -590,7 +589,6 @@ class DagRun(Base, LoggingMixin):
             )
             filter_query = [
                 DagModel.dag_id == self.dag_id,
-                DagModel.root_dag_id == self.dag_id,  # for sub-dags
             ]
             session.execute(
                 update(DagModel)
@@ -1501,31 +1499,6 @@ class DagRun(Base, LoggingMixin):
             session.flush()
             yield ti
 
-    @staticmethod
-    def get_run(session: Session, dag_id: str, execution_date: datetime) -> DagRun | None:
-        """
-        Get a single DAG Run.
-
-        :meta private:
-        :param session: Sqlalchemy ORM Session
-        :param dag_id: DAG ID
-        :param execution_date: execution date
-        :return: DagRun corresponding to the given dag_id and execution date
-            if one exists. None otherwise.
-        """
-        warnings.warn(
-            "This method is deprecated. Please use SQLAlchemy directly",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        return session.scalar(
-            select(DagRun).where(
-                DagRun.dag_id == dag_id,
-                DagRun.external_trigger == False,  # noqa: E712
-                DagRun.execution_date == execution_date,
-            )
-        )
-
     @property
     def is_backfill(self) -> bool:
         return self.run_type == DagRunType.BACKFILL_JOB
@@ -1669,15 +1642,6 @@ class DagRun(Base, LoggingMixin):
             )
         return template
 
-    @provide_session
-    def get_log_filename_template(self, *, session: Session = NEW_SESSION) -> str:
-        warnings.warn(
-            "This method is deprecated. Please use get_log_template instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        return self.get_log_template(session=session).filename
-
     @staticmethod
     def _get_partial_task_ids(dag: DAG | None) -> list[str] | None:
         return dag.task_ids if dag and dag.partial else None
@@ -1688,11 +1652,7 @@ class DagRunNote(Base):
 
     __tablename__ = "dag_run_note"
 
-    user_id = Column(
-        Integer,
-        ForeignKey("ab_user.id", name="dag_run_note_user_fkey"),
-        nullable=True,
-    )
+    user_id = Column(Integer, nullable=True)
     dag_run_id = Column(Integer, primary_key=True, nullable=False)
     content = Column(String(1000).with_variant(Text(1000), "mysql"))
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)

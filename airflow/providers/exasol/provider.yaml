@@ -22,9 +22,10 @@ description: |
     `Exasol <https://www.exasol.com/>`__
 
 state: ready
-source-date-epoch: 1722663904
+source-date-epoch: 1723970121
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.6.0
   - 4.5.3
   - 4.5.2
   - 4.5.1

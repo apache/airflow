@@ -23,7 +23,6 @@ import datetime
 import enum
 import inspect
 import logging
-import warnings
 import weakref
 from inspect import signature
 from textwrap import dedent
@@ -37,7 +36,6 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from airflow import macros
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
 from airflow.compat.functools import cache
-from airflow.configuration import conf
 from airflow.datasets import (
     BaseDataset,
     Dataset,
@@ -46,12 +44,12 @@ from airflow.datasets import (
     DatasetAny,
     _DatasetAliasCondition,
 )
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError, TaskDeferred
+from airflow.exceptions import AirflowException, SerializationError, TaskDeferred
 from airflow.jobs.job import Job
 from airflow.models import Trigger
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
-from airflow.models.dag import DAG, DagModel, create_timetable
+from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY, create_expand_input, get_map_type_key
 from airflow.models.mappedoperator import MappedOperator
@@ -692,6 +690,15 @@ class BaseSerialization:
                 ),
                 type_=DAT.AIRFLOW_EXC_SER,
             )
+        elif isinstance(var, (KeyError, AttributeError)):
+            return cls._encode(
+                cls.serialize(
+                    {"exc_cls_name": var.__class__.__name__, "args": [var.args], "kwargs": {}},
+                    use_pydantic_models=use_pydantic_models,
+                    strict=strict,
+                ),
+                type_=DAT.BASE_EXC_SER,
+            )
         elif isinstance(var, BaseTrigger):
             return cls._encode(
                 cls.serialize(var.serialize(), use_pydantic_models=use_pydantic_models, strict=strict),
@@ -834,13 +841,16 @@ class BaseSerialization:
             return decode_timezone(var)
         elif type_ == DAT.RELATIVEDELTA:
             return decode_relativedelta(var)
-        elif type_ == DAT.AIRFLOW_EXC_SER:
+        elif type_ == DAT.AIRFLOW_EXC_SER or type_ == DAT.BASE_EXC_SER:
             deser = cls.deserialize(var, use_pydantic_models=use_pydantic_models)
             exc_cls_name = deser["exc_cls_name"]
             args = deser["args"]
             kwargs = deser["kwargs"]
             del deser
-            exc_cls = import_string(exc_cls_name)
+            if type_ == DAT.AIRFLOW_EXC_SER:
+                exc_cls = import_string(exc_cls_name)
+            else:
+                exc_cls = import_string(f"builtins.{exc_cls_name}")
             return exc_cls(*args, **kwargs)
         elif type_ == DAT.BASE_TRIGGER:
             tr_cls_name, kwargs = cls.deserialize(var, use_pydantic_models=use_pydantic_models)
@@ -1273,8 +1283,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 continue
             elif k == "downstream_task_ids":
                 v = set(v)
-            elif k == "subdag":
-                v = SerializedDAG.deserialize_dag(v)
             elif k in {"retry_delay", "execution_timeout", "sla", "max_retry_delay"}:
                 v = cls._deserialize_timedelta(v)
             elif k in encoded_op["template_fields"]:
@@ -1359,9 +1367,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             if getattr(task, date_attr, None) is None:
                 setattr(task, date_attr, getattr(dag, date_attr, None))
 
-        if task.subdag is not None:
-            task.subdag.parent_dag = dag
-
         # Dereference expand_input and op_kwargs_expand_input.
         for k in ("expand_input", "op_kwargs_expand_input"):
             if isinstance(kwargs_ref := getattr(task, k, None), _ExpandInputRef):
@@ -1418,31 +1423,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     @classmethod
     def detect_dependencies(cls, op: Operator) -> set[DagDependency]:
         """Detect between DAG dependencies for the operator."""
-
-        def get_custom_dep() -> list[DagDependency]:
-            """
-            If custom dependency detector is configured, use it.
-
-            TODO: Remove this logic in 3.0.
-            """
-            custom_dependency_detector_cls = conf.getimport("scheduler", "dependency_detector", fallback=None)
-            if not (
-                custom_dependency_detector_cls is None or custom_dependency_detector_cls is DependencyDetector
-            ):
-                warnings.warn(
-                    "Use of a custom dependency detector is deprecated. "
-                    "Support will be removed in a future release.",
-                    RemovedInAirflow3Warning,
-                    stacklevel=1,
-                )
-                dep = custom_dependency_detector_cls().detect_task_dependencies(op)
-                if type(dep) is DagDependency:
-                    return [dep]
-            return []
-
         dependency_detector = DependencyDetector()
         deps = set(dependency_detector.detect_task_dependencies(op))
-        deps.update(get_custom_dep())  # todo: remove in 3.0
         return deps
 
     @classmethod
@@ -1597,7 +1579,7 @@ class SerializedDAG(DAG, BaseSerialization):
     not pickle-able. SerializedDAG works for all DAGs.
     """
 
-    _decorated_fields = {"schedule_interval", "default_args", "_access_control"}
+    _decorated_fields = {"default_args", "_access_control"}
 
     @staticmethod
     def __get_constructor_defaults():
@@ -1624,7 +1606,6 @@ class SerializedDAG(DAG, BaseSerialization):
         """Serialize a DAG into a JSON object."""
         try:
             serialized_dag = cls.serialize_to_json(dag, cls._decorated_fields)
-
             serialized_dag["_processor_dags_folder"] = DAGS_FOLDER
 
             if dag.call_on_kill_on_dagrun_timeout:
@@ -1666,7 +1647,7 @@ class SerializedDAG(DAG, BaseSerialization):
     @classmethod
     def deserialize_dag(cls, encoded_dag: dict[str, Any]) -> SerializedDAG:
         """Deserializes a DAG from a JSON object."""
-        dag = SerializedDAG(dag_id=encoded_dag["_dag_id"])
+        dag = SerializedDAG(dag_id=encoded_dag["_dag_id"], schedule=None)
 
         for k, v in encoded_dag.items():
             if k == "_downstream_task_ids":
@@ -1704,14 +1685,6 @@ class SerializedDAG(DAG, BaseSerialization):
             # else use v as it is
 
             setattr(dag, k, v)
-
-        # A DAG is always serialized with only one of schedule_interval and
-        # timetable. This back-populates the other to ensure the two attributes
-        # line up correctly on the DAG instance.
-        if "timetable" in encoded_dag:
-            dag.schedule_interval = dag.timetable.summary
-        else:
-            dag.timetable = create_timetable(dag.schedule_interval, dag.timezone)
 
         # Set _task_group
         if "_task_group" in encoded_dag:
@@ -1862,12 +1835,7 @@ def _has_kubernetes() -> bool:
     try:
         from kubernetes.client import models as k8s
 
-        try:
-            from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-        except ImportError:
-            from airflow.kubernetes.pre_7_4_0_compatibility.pod_generator import (  # type: ignore[assignment]
-                PodGenerator,
-            )
+        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 
         globals()["k8s"] = k8s
         globals()["PodGenerator"] = PodGenerator

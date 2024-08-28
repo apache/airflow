@@ -18,7 +18,7 @@
 
 
 Lineage
-=======
+========
 
 .. note:: Lineage support is very experimental and subject to change.
 

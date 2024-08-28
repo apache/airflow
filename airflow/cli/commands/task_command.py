@@ -330,7 +330,6 @@ def _run_task_by_local_task_job(args, ti: TaskInstance | TaskInstancePydantic) -
 
 RAW_TASK_UNSUPPORTED_OPTION = [
     "ignore_all_dependencies",
-    "ignore_depends_on_past",
     "ignore_dependencies",
     "force",
 ]
@@ -764,8 +763,6 @@ def task_clear(args) -> None:
         only_failed=args.only_failed,
         only_running=args.only_running,
         confirm_prompt=not args.yes,
-        include_subdags=not args.exclude_subdags,
-        include_parentdag=not args.exclude_parentdag,
     )
 
 

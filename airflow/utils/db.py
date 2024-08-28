@@ -65,6 +65,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import import_all_models
 from airflow.utils import helpers
+from airflow.utils.db_manager import RunDBManager
 
 # TODO: remove create_session once we decide to break backward compatibility
 from airflow.utils.session import NEW_SESSION, create_session, provide_session  # noqa: F401
@@ -94,31 +95,8 @@ T = TypeVar("T")
 log = logging.getLogger(__name__)
 
 _REVISION_HEADS_MAP = {
-    "2.0.0": "e959f08ac86c",
-    "2.0.1": "82b7c48c147f",
-    "2.0.2": "2e42bb497a22",
-    "2.1.0": "a13f7613ad25",
-    "2.1.3": "97cdd93827b8",
-    "2.1.4": "ccde3e26fe78",
-    "2.2.0": "7b2661a43ba3",
-    "2.2.3": "be2bfac3da23",
-    "2.2.4": "587bdf053233",
-    "2.3.0": "b1b348e02d07",
-    "2.3.1": "1de7bc13c950",
-    "2.3.2": "3c94c427fdf6",
-    "2.3.3": "f5fcbda3e651",
-    "2.4.0": "ecb43d2a1842",
-    "2.4.2": "b0d31815b5a6",
-    "2.4.3": "e07f49787c9d",
-    "2.5.0": "290244fb8b83",
-    "2.6.0": "98ae134e6fff",
-    "2.6.2": "c804e5c76e3e",
-    "2.7.0": "405de8318b3a",
-    "2.8.0": "10b52ebd31f7",
-    "2.8.1": "88344c1d9134",
-    "2.9.0": "1949afb29106",
-    "2.9.2": "686269002441",
     "2.10.0": "22ed7efa9da2",
+    "3.0.0": "0bfc26bc256e",
 }
 
 
@@ -771,7 +749,6 @@ def _create_db_from_orm(session):
     from alembic import command
 
     from airflow.models.base import Base
-    from airflow.providers.fab.auth_manager.models import Model
 
     def _create_flask_session_tbl(sql_database_uri):
         db = _get_flask_db(sql_database_uri)
@@ -780,7 +757,6 @@ def _create_db_from_orm(session):
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         engine = session.get_bind().engine
         Base.metadata.create_all(engine)
-        Model.metadata.create_all(engine)
         _create_flask_session_tbl(engine.url)
         # stamp the migration head
         config = _get_alembic_config()
@@ -788,15 +764,21 @@ def _create_db_from_orm(session):
 
 
 @provide_session
-def initdb(session: Session = NEW_SESSION, load_connections: bool = True, use_migration_files: bool = False):
+def initdb(session: Session = NEW_SESSION, load_connections: bool = True):
     """Initialize Airflow database."""
+    # First validate external DB managers before running migration
+    external_db_manager = RunDBManager()
+    external_db_manager.validate()
+
     import_all_models()
 
     db_exists = _get_current_revision(session)
-    if db_exists or use_migration_files:
-        upgradedb(session=session, use_migration_files=use_migration_files)
+    if db_exists:
+        upgradedb(session=session)
     else:
         _create_db_from_orm(session=session)
+
+    external_db_manager.initdb(session)
     if conf.getboolean("database", "LOAD_DEFAULT_CONNECTIONS") and load_connections:
         create_default_connections(session=session)
     # Add default pool & sync log_template
@@ -1581,7 +1563,7 @@ def _revisions_above_min_for_offline(config, revisions) -> None:
     dbname = settings.engine.dialect.name
     if dbname == "sqlite":
         raise SystemExit("Offline migration not supported for SQLite.")
-    min_version, min_revision = ("2.2.0", "7b2661a43ba3") if dbname == "mssql" else ("2.0.0", "e959f08ac86c")
+    min_version, min_revision = ("3.0.0", "22ed7efa9da2")
 
     # Check if there is history between the revisions and the start revision
     # This ensures that the revisions are above `min_revision`
@@ -1603,7 +1585,6 @@ def upgradedb(
     show_sql_only: bool = False,
     reserialize_dags: bool = True,
     session: Session = NEW_SESSION,
-    use_migration_files: bool = False,
 ):
     """
     Upgrades the DB.
@@ -1640,11 +1621,6 @@ def upgradedb(
             print_happy_cat("No migrations to apply; nothing to do.")
             return
 
-        if not _revision_greater(config, to_revision, from_revision):
-            raise ValueError(
-                f"Requested *to* revision {to_revision} is older than *from* revision {from_revision}. "
-                "Please check your requested versions / revisions."
-            )
         _revisions_above_min_for_offline(config=config, revisions=[from_revision, to_revision])
 
         _offline_migration(command.upgrade, config, f"{from_revision}:{to_revision}")
@@ -1660,12 +1636,11 @@ def upgradedb(
     if errors_seen:
         exit(1)
 
-    if not to_revision and not _get_current_revision(session=session) and not use_migration_files:
+    if not _get_current_revision(session=session):
         # Don't load default connections
         # New DB; initialize and exit
         initdb(session=session, load_connections=False)
         return
-
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         import sqlalchemy.pool
 
@@ -1679,6 +1654,7 @@ def upgradedb(
             os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE"] = "1"
             settings.reconfigure_orm(pool_class=sqlalchemy.pool.SingletonThreadPool)
             command.upgrade(config, revision=to_revision or "heads")
+
         finally:
             if val is None:
                 os.environ.pop("AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE")
@@ -1695,7 +1671,7 @@ def upgradedb(
 
 
 @provide_session
-def resetdb(session: Session = NEW_SESSION, skip_init: bool = False, use_migration_files: bool = False):
+def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
     """Clear out the database."""
     if not settings.engine:
         raise RuntimeError("The settings.engine must be set. This is a critical assertion")
@@ -1708,9 +1684,11 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False, use_migrati
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS), connection.begin():
         drop_airflow_models(connection)
         drop_airflow_moved_tables(connection)
+        external_db_manager = RunDBManager()
+        external_db_manager.drop_tables(connection)
 
     if not skip_init:
-        initdb(session=session, use_migration_files=use_migration_files)
+        initdb(session=session)
 
 
 @provide_session
@@ -1774,10 +1752,8 @@ def drop_airflow_models(connection):
     :return: None
     """
     from airflow.models.base import Base
-    from airflow.providers.fab.auth_manager.models import Model
 
     Base.metadata.drop_all(connection)
-    Model.metadata.drop_all(connection)
     db = _get_flask_db(connection.engine.url)
     db.drop_all()
     # alembic adds significant import time, so we import it lazily

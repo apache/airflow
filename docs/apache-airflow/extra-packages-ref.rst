@@ -51,8 +51,6 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | cgroups             | ``pip install 'apache-airflow[cgroups]'``           | Needed To use CgroupTaskRunner                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
-| deprecated-api      | ``pip install 'apache-airflow[deprecated-api]'``    | Deprecated, experimental API that is replaced with the new REST API        |
-+---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | github-enterprise   | ``pip install 'apache-airflow[github-enterprise]'`` | GitHub Enterprise auth backend                                             |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | google-auth         | ``pip install 'apache-airflow[google-auth]'``       | Google auth backend                                                        |

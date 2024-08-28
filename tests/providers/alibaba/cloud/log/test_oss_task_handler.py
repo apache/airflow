@@ -178,3 +178,7 @@ class TestOSSTaskHandler:
 
         handler.close()
         assert os.path.exists(handler.handler.baseFilename) == expected_existence_of_local_copy
+
+    def test_filename_template_for_backward_compatibility(self):
+        # filename_template arg support for running the latest provider on airflow 2
+        OSSTaskHandler(self.base_log_folder, self.oss_log_folder, filename_template=None)

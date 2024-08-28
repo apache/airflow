@@ -77,7 +77,7 @@ class TestDagStatsEndpoint:
         with create_session() as session:
             session.add(dag_instance)
         dag = DAG(dag_id=dag_id, schedule=None)
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.app.dag_bag.bag_dag(dag)
         return dag_instance
 
     def test_should_respond_200(self, session):
