@@ -591,31 +591,21 @@ class DagRun(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def find_duplicate(
-        cls,
-        dag_id: str,
-        run_id: str,
-        logical_date: datetime,
-        session: Session = NEW_SESSION,
-    ) -> DagRun | None:
+    def find_duplicate(cls, dag_id: str, run_id: str, *, session: Session = NEW_SESSION) -> DagRun | None:
         """
-        Return an existing run for the DAG with a specific run_id or logical date.
+        Return an existing run for the DAG with a specific run_id.
+
+        *None* is returned if no such DAG run is found.
 
         :param dag_id: the dag_id to find duplicates for
         :param run_id: defines the run id for this dag run
-        :param logical_date: the logical date
         :param session: database session
         """
-        return session.scalars(
-            select(cls).where(
-                cls.dag_id == dag_id,
-                or_(cls.run_id == run_id, cls.logical_date == logical_date),
-            )
-        ).one_or_none()
+        return session.scalars(select(cls).where(cls.dag_id == dag_id, cls.run_id == run_id)).one_or_none()
 
     @staticmethod
     def generate_run_id(run_type: DagRunType, logical_date: datetime) -> str:
-        """Generate Run ID based on Run Type and Logical Date."""
+        """Generate Run ID based on Run Type and logical Date."""
         # _Ensure_ run_type is a DagRunType, not just a string from user code
         return DagRunType(run_type).generate_run_id(logical_date)
 

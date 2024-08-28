@@ -838,6 +838,10 @@ EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not CAN_FORK or conf.getboolean(
 
 ALLOW_FUTURE_LOGICAL_DATES = conf.getboolean("scheduler", "allow_trigger_in_future", fallback=False)
 
+ALLOW_TRIGGER_DAGRUN_IN_FUTURE = conf.getboolean("scheduler", "allow_trigger_in_future", fallback=False)
+
+ALLOW_TRIGGER_DAGRUN_IN_FUTURE = conf.getboolean("scheduler", "allow_trigger_in_future", fallback=False)
+
 USE_JOB_SCHEDULE = conf.getboolean("scheduler", "use_job_schedule", fallback=True)
 
 # By default Airflow plugins are lazily-loaded (only loaded when required). Set it to False,

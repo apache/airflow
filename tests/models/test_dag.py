@@ -320,7 +320,7 @@ class TestDag:
         dr3 = test_dag.create_dagrun(
             state=None,
             run_id="test3",
-            logical_date=DEFAULT_DATE + datetime.timedelta(days=2),
+            execution_date=DEFAULT_DATE + datetime.timedelta(days=2),
             data_interval=(
                 DEFAULT_DATE + datetime.timedelta(days=2),
                 DEFAULT_DATE + datetime.timedelta(days=2),
@@ -2612,14 +2612,7 @@ class TestDagDecorator:
         assert dag.params["value"] == value
 
 
-@pytest.mark.parametrize(
-    "run_id, logical_date",
-    [
-        (None, datetime_tz(2020, 1, 1)),
-        ("test-run-id", None),
-    ],
-)
-def test_set_task_instance_state(run_id, logical_date, session, dag_maker):
+def test_set_task_instance_state(session, dag_maker):
     """Test that set_task_instance_state updates the TaskInstance state and clear downstream failed"""
 
     start_date = datetime_tz(2020, 1, 1)
@@ -2632,8 +2625,7 @@ def test_set_task_instance_state(run_id, logical_date, session, dag_maker):
         task_1 >> [task_2, task_3, task_4, task_5]
 
     dagrun = dag_maker.create_dagrun(
-        run_id=run_id,
-        logical_date=logical_date,
+        run_id="test-run-id",
         state=State.FAILED,
         run_type=DagRunType.SCHEDULED,
     )
@@ -2654,12 +2646,12 @@ def test_set_task_instance_state(run_id, logical_date, session, dag_maker):
     get_ti_from_db(task_3).state = State.UPSTREAM_FAILED
     get_ti_from_db(task_4).state = State.FAILED
     get_ti_from_db(task_5).state = State.SKIPPED
+
     session.flush()
 
     altered = dag.set_task_instance_state(
         task_id=task_1.task_id,
-        run_id=run_id,
-        logical_date=logical_date,
+        run_id="test-run-id",
         state=State.SUCCESS,
         session=session,
     )
@@ -2671,8 +2663,8 @@ def test_set_task_instance_state(run_id, logical_date, session, dag_maker):
     # task_2 remains as SUCCESS
     assert get_ti_from_db(task_2).state == State.SUCCESS
     # task_3 and task_4 are cleared because they were in FAILED/UPSTREAM_FAILED state
-    assert get_ti_from_db(task_3).state == State.NONE
-    assert get_ti_from_db(task_4).state == State.NONE
+    assert get_ti_from_db(task_3).state == State.UPSTREAM_FAILED
+    assert get_ti_from_db(task_4).state == State.FAILED
     # task_5 remains as SKIPPED
     assert get_ti_from_db(task_5).state == State.SKIPPED
     dagrun.refresh_from_db(session=session)

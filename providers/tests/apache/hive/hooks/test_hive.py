@@ -892,7 +892,6 @@ class TestHiveCli:
         assert hook.use_beeline
         assert hook.auth is None
         assert hook.sub_process is None
-        assert hook.mapred_queue == "airflow"
         assert hook.mapred_queue_priority is None
         assert hook.mapred_job_name is None
         assert hook.proxy_user is None

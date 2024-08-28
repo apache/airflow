@@ -1295,9 +1295,10 @@ def run_tasks(
             start_date=logical_date,
             run_type=DagRunType.MANUAL,
             session=session,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            data_interval=(logical_date, logical_date),
             triggered_by=triggered_by,
         )
+        runs[dag.dag_id] = dagrun
         # we use sorting by task_id here because for the test DAG structure of ours
         # this is equivalent to topological sort. It would not work in general case
         # but it works for our case because we specifically constructed test DAGS
@@ -1375,7 +1376,7 @@ def test_external_task_marker_clear_activate(dag_bag_parent_child, session):
 
     # Assert that dagruns of all the affected dags are set to SUCCESS before tasks are cleared.
     for dag, logical_date in itertools.product(dag_bag.dags.values(), [day_1, day_2]):
-        dagrun = dag.get_dagrun(logical_date=logical_date, session=session)
+        dagrun = dag.get_dagrun(session=session)
         dagrun.set_state(State.SUCCESS)
     session.flush()
 
@@ -1385,10 +1386,10 @@ def test_external_task_marker_clear_activate(dag_bag_parent_child, session):
 
     # Assert that dagruns of all the affected dags are set to QUEUED after tasks are cleared.
     # Unaffected dagruns should be left as SUCCESS.
-    dagrun_0_1 = dag_bag.get_dag("parent_dag_0").get_dagrun(logical_date=day_1, session=session)
-    dagrun_0_2 = dag_bag.get_dag("parent_dag_0").get_dagrun(logical_date=day_2, session=session)
-    dagrun_1_1 = dag_bag.get_dag("child_dag_1").get_dagrun(logical_date=day_1, session=session)
-    dagrun_1_2 = dag_bag.get_dag("child_dag_1").get_dagrun(logical_date=day_2, session=session)
+    dagrun_0_1 = dag_bag.get_dag("parent_dag_0").get_dagrun(session=session)
+    dagrun_0_2 = dag_bag.get_dag("parent_dag_0").get_dagrun(session=session)
+    dagrun_1_1 = dag_bag.get_dag("child_dag_1").get_dagrun(session=session)
+    dagrun_1_2 = dag_bag.get_dag("child_dag_1").get_dagrun(session=session)
 
     assert dagrun_0_1.state == State.QUEUED
     assert dagrun_0_2.state == State.QUEUED

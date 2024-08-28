@@ -43,6 +43,8 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.common.links.storage import FileDetailsLink, StorageLink
 from airflow.utils import timezone
 
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
 
 class GCSCreateBucketOperator(GoogleCloudBaseOperator):
     """

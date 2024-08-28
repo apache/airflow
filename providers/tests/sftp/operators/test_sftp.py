@@ -316,6 +316,7 @@ class TestSFTPOperator:
                 operation=SFTPOperation.GET,
                 create_intermediate_dirs=True,
             )
+        from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
         for ti in dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances:
             with pytest.warns(

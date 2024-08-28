@@ -2133,12 +2133,7 @@ export interface components {
       /** @description The task ID. */
       task_id?: string;
       /**
-       * Format: datetime
-       * @description The logical date. Either set this or dag_run_id but not both.
-       */
-      logical_date?: string;
-      /**
-       * @description The task instance's DAG run ID. Either set this or logical_date but not both.
+       * @description The task instance's DAG run ID.
        *
        * *New in version 2.3.0*
        */
