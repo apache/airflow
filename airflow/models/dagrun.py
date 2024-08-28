@@ -708,7 +708,7 @@ class DagRun(Base, LoggingMixin):
     @internal_api_call
     @provide_session
     def get_previous_scheduled_dagrun(
-        dag_run_id: int,
+        dag_run_id: str,
         session: Session = NEW_SESSION,
     ) -> DagRun | None:
         """
