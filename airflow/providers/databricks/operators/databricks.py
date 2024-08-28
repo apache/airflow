@@ -100,7 +100,16 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                         f"and with the error {run_state.state_message}"
                     )
 
-                if isinstance(operator, DatabricksRunNowOperator) and operator.repair_run:
+                should_repair = (
+                    isinstance(operator, DatabricksRunNowOperator)
+                    and operator.repair_run
+                    and (
+                        not operator.databricks_repair_reason_new_settings
+                        or is_repair_reason_match_exist(operator, run_state)
+                    )
+                )
+
+                if should_repair:
                     operator.repair_run = False
                     log.warning(
                         "%s but since repair run is set, repairing the run with all failed tasks",
@@ -122,6 +131,17 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
             time.sleep(operator.polling_period_seconds)
 
     log.info("View run status, Spark UI, and logs at %s", run_page_url)
+
+
+def is_repair_reason_match_exist(operator: Any, run_state: RunState) -> bool:
+    """
+    Check if the repair reason matches the run state message.
+
+    :param operator: Databricks operator being handled
+    :param run_state: Run state of the Databricks job
+    :return: True if repair reason matches the run state message, False otherwise
+    """
+    return any(reason in run_state.state_message for reason in operator.databricks_repair_reason_new_settings)
 
 
 def update_job_for_repair(operator: Any, hook: Any, job_id: int, run_state: RunState) -> None:
@@ -791,10 +811,11 @@ class DatabricksRunNowOperator(BaseOperator):
     :param deferrable: Run operator in the deferrable mode.
     :param repair_run: Repair the databricks run in case of failure.
     :param databricks_repair_reason_new_settings: A dict of reason and new_settings JSON object for which
-            to repair the run. `None` by default. `None` means to repair in all reasons with existing job
+            to repair the run. `None` by default. `None` means to repair at all cases with existing job
             settings otherwise check whether `RunState` state_message contains reason and
             update job settings as per new_settings using databricks partial job update endpoint
-            (https://docs.databricks.com/api/workspace/jobs/update)
+            (https://docs.databricks.com/api/workspace/jobs/update). If nothing is matched, then repair
+            will not get triggered.
     :param cancel_previous_runs: Cancel all existing running jobs before submitting new one.
     """
 
@@ -903,9 +924,13 @@ class DatabricksRunNowOperator(BaseOperator):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         if event:
             _handle_deferrable_databricks_operator_completion(event, self.log)
-            if event["repair_run"]:
+            run_state = RunState.from_json(event["run_state"])
+            should_repair = event["repair_run"] and (
+                not self.databricks_repair_reason_new_settings
+                or is_repair_reason_match_exist(self, run_state)
+            )
+            if should_repair:
                 self.repair_run = False
-                run_state = RunState.from_json(event["run_state"])
                 self.run_id = event["run_id"]
                 job_id = self._hook.get_job_id(self.run_id)
                 update_job_for_repair(self, self._hook, job_id, run_state)
