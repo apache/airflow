@@ -357,7 +357,7 @@ class TestRedis:
             show_only=["templates/secrets/redis-secrets.yaml"],
         )
         annotations = jmespath.search("metadata.annotations", docs[0])
-        assert annotations["helm.sh/hook-weight"] == "0"
+        assert annotations["helm.sh/hook-weight"] == "-1"
 
     def test_persistence_volume_annotations(self):
         docs = render_chart(

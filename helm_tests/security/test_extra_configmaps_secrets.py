@@ -211,7 +211,7 @@ class TestExtraConfigMapsSecrets:
         expected_annotations = {
             "helm.sh/hook": "pre-install,pre-upgrade",
             "helm.sh/hook-delete-policy": "before-hook-creation",
-            "helm.sh/hook-weight": "0",
+            "helm.sh/hook-weight": "-1",
             "test_annotation": "test_annotation_value",
         }
 

@@ -309,7 +309,7 @@ class TestAirflowCommon:
             show_only=["templates/secrets/fernetkey-secret.yaml"],
         )
         annotations = jmespath.search("metadata.annotations", docs[0])
-        assert annotations["helm.sh/hook-weight"] == "0"
+        assert annotations["helm.sh/hook-weight"] == "-1"
 
     def test_should_disable_some_variables(self):
         docs = render_chart(
