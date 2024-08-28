@@ -2747,10 +2747,8 @@ class DAG(LoggingMixin):
 
         dag_references: dict[str, set[DatasetOrAliasReference]] = defaultdict(set)
         outlet_references: dict[tuple[str, str], set[DatasetReference]] = defaultdict(set)
-        # We can't use a set here as we want to preserve order
-        outlet_datasets: dict[DatasetModel, None] = {}
-        input_datasets: dict[DatasetModel, None] = {}
-        lineage_dataset_alias_models: list[DatasetAliasModel] = []
+        all_datasets: list[DatasetModel] = []
+        all_dataset_aliases: list[DatasetAliasModel] = []
 
         # here we go through dags and tasks to check for dataset references
         # if there are now None and previously there were some, we delete them
@@ -2767,11 +2765,11 @@ class DAG(LoggingMixin):
             else:
                 for _, dataset in dataset_condition.iter_datasets():
                     dag_references[dag.dag_id].add(create_dag_dataset_reference(dataset))
-                    input_datasets[DatasetModel.from_public(dataset)] = None
+                    all_datasets.append(DatasetModel.from_public(dataset))
 
                 for dataset_alias in dataset_condition.iter_dataset_aliases():
                     dag_references[dag.dag_id].add(create_dag_dataset_alias_reference(dataset_alias))
-                    lineage_dataset_alias_models.append(DatasetAliasModel.from_public(dataset_alias))
+                    all_dataset_aliases.append(DatasetAliasModel.from_public(dataset_alias))
 
             curr_outlet_references = curr_orm_dag and curr_orm_dag.task_outlet_dataset_references
             for task in dag.tasks:
@@ -2780,7 +2778,7 @@ class DAG(LoggingMixin):
                     if isinstance(outlet, Dataset):
                         dataset_outlets.append(outlet)
                     elif isinstance(outlet, DatasetAlias):
-                        lineage_dataset_alias_models.append(DatasetAliasModel.from_public(outlet))
+                        all_dataset_aliases.append(DatasetAliasModel.from_public(outlet))
 
                 if not dataset_outlets and curr_outlet_references:
                     this_task_outlet_refs = [
@@ -2793,10 +2791,7 @@ class DAG(LoggingMixin):
 
                 for d in dataset_outlets:
                     outlet_references[(task.dag_id, task.task_id)].add(create_dag_dataset_reference(d))
-                    outlet_datasets[DatasetModel.from_public(d)] = None
-
-        all_datasets = outlet_datasets
-        all_datasets.update(input_datasets)
+                    all_datasets.append(DatasetModel.from_public(d))
 
         # store datasets
         stored_datasets_by_name: dict[str, DatasetModel] = {}
@@ -2839,26 +2834,26 @@ class DAG(LoggingMixin):
 
         # store dataset aliases
         stored_dataset_aliases: dict[str, DatasetAliasModel] = {}
-        new_dataset_alias_models: dict[str, DatasetAliasModel] = {}
-        if lineage_dataset_alias_models:
-            all_dataset_alias_names = {dataset_alias.name for dataset_alias in lineage_dataset_alias_models}
+        new_dataset_aliases: dict[str, DatasetAliasModel] = {}
+        if all_dataset_aliases:
+            all_dataset_alias_names = {dataset_alias.name for dataset_alias in all_dataset_aliases}
             stored_dataset_aliases = {
                 dsa_m.name: dsa_m
                 for dsa_m in session.scalars(
                     select(DatasetAliasModel).where(DatasetAliasModel.name.in_(all_dataset_alias_names))
                 )
             }
-            new_dataset_alias_models = {
-                dataset_alias_model.name: dataset_alias_model
-                for dataset_alias_model in lineage_dataset_alias_models
-                if dataset_alias_model.name not in stored_dataset_aliases
+            new_dataset_aliases = {
+                dataset_alias.name: dataset_alias
+                for dataset_alias in all_dataset_aliases
+                if dataset_alias.name not in stored_dataset_aliases
             }
-            session.add_all(new_dataset_alias_models.values())
+            session.add_all(new_dataset_aliases.values())
         session.flush()
-        stored_dataset_aliases.update(new_dataset_alias_models)
+        stored_dataset_aliases.update(new_dataset_aliases)
 
-        del new_dataset_alias_models
-        del lineage_dataset_alias_models
+        del new_dataset_aliases
+        del all_dataset_aliases
 
         # reconcile dag-schedule-on-dataset and dag-schedule-on-dataset-alias references
         for dag_id, dag_refs in dag_references.items():

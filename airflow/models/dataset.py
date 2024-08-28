@@ -129,9 +129,6 @@ class DatasetAliasModel(Base):
     def __repr__(self):
         return f"{self.__class__.__name__}(name={self.name!r})"
 
-    def __hash__(self):
-        return hash(self.name)
-
     def __eq__(self, other):
         if isinstance(other, (self.__class__, DatasetAlias)):
             return self.name == other.name
@@ -194,24 +191,21 @@ class DatasetModel(Base):
     def as_public(self) -> Dataset:
         return Dataset(name=self.name, uri=self.uri, extra=self.extra)
 
-    def __init__(self, uri: str, **kwargs):
-        try:
-            uri.encode("ascii")
-        except UnicodeEncodeError:
-            raise ValueError("URI must be ascii")
-        parsed = urlsplit(uri)
-        if parsed.scheme and parsed.scheme.lower() == "airflow":
-            raise ValueError("Scheme `airflow` is reserved.")
-        super().__init__(uri=uri, **kwargs)
+    def __init__(self, *, name: str | None = None, uri: str | None = None, **kwargs):
+        if name and not name.isascii():
+            raise ValueError("name must be ascii")
+        if uri:
+            if not uri.isascii():
+                raise ValueError("URI must be ascii")
+            parsed = urlsplit(uri)
+            if parsed.scheme and parsed.scheme.lower() == "airflow":
+                raise ValueError("Scheme `airflow` is reserved.")
+        super().__init__(name=name, uri=uri, **kwargs)
 
     def __eq__(self, other):
         if isinstance(other, (self.__class__, Dataset)):
             return self.uri == other.uri
-        else:
-            return NotImplemented
-
-    def __hash__(self):
-        return hash(self.uri)
+        return NotImplemented
 
     def __repr__(self):
         return f"{self.__class__.__name__}(uri={self.uri!r}, extra={self.extra!r})"
