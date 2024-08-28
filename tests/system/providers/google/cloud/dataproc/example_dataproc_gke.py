@@ -31,6 +31,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from google.api_core.retry import Retry
+
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
     DataprocCreateClusterOperator,
@@ -110,6 +112,7 @@ with DAG(
         region=REGION,
         cluster_name=CLUSTER_NAME,
         virtual_cluster_config=VIRTUAL_CLUSTER_CONFIG,
+        retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
     )
     # [END how_to_cloud_dataproc_create_cluster_operator_in_gke]
 

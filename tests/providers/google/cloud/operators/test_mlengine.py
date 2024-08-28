@@ -1495,7 +1495,7 @@ def test_async_create_training_job_should_throw_exception():
 
 
 def create_context(task):
-    dag = DAG(dag_id="dag")
+    dag = DAG(dag_id="dag", schedule=None)
     logical_date = datetime(2022, 1, 1, 0, 0, 0)
     dag_run = DagRun(
         dag_id=dag.dag_id,

@@ -34,7 +34,7 @@ class TestDagTISlotsAvailableDep:
         """
         dag = Mock(concurrency=1, get_concurrency_reached=Mock(return_value=True))
         task = Mock(dag=dag, pool_slots=1)
-        ti = TaskInstance(task, execution_date=None)
+        ti = TaskInstance(task)
 
         assert not DagTISlotsAvailableDep().is_met(ti=ti)
 
@@ -44,6 +44,6 @@ class TestDagTISlotsAvailableDep:
         """
         dag = Mock(concurrency=1, get_concurrency_reached=Mock(return_value=False))
         task = Mock(dag=dag, pool_slots=1)
-        ti = TaskInstance(task, execution_date=None)
+        ti = TaskInstance(task)
 
         assert DagTISlotsAvailableDep().is_met(ti=ti)

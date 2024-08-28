@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.9.3"
+defaultAirflowTag: "2.10.0"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.9.3"
+airflowVersion: "2.10.0"
 
 # Images
 images:
@@ -105,7 +105,7 @@ images:
     pullPolicy: IfNotPresent
   statsd:
     repository: quay.io/prometheus/statsd-exporter
-    tag: v0.26.1
+    tag: v0.27.1
     pullPolicy: IfNotPresent
   redis:
     repository: redis
@@ -863,6 +863,9 @@ scheduler:
   # container level lifecycle hooks
   containerLifecycleHooks: {}
 
+  # Grace period for tasks to finish after SIGTERM is sent from kubernetes
+  terminationGracePeriodSeconds: 10
+
   # Create ServiceAccount
   serviceAccount:
     # default value is true
@@ -1323,6 +1326,9 @@ webserver:
   command: ~
   # Args to use when running the Airflow webserver (templated).
   args: ["bash", "-c", "exec airflow webserver"]
+
+  # Grace period for webserver to finish after SIGTERM is sent from kubernetes
+  terminationGracePeriodSeconds: 30
 
   # Create ServiceAccount
   serviceAccount:
@@ -1992,6 +1998,9 @@ statsd:
   # Annotations to add to the StatsD Deployment.
   annotations: {}
 
+  # Grace period for statsd to finish after SIGTERM is sent from kubernetes
+  terminationGracePeriodSeconds: 30
+
   # Create ServiceAccount
   serviceAccount:
     # default value is true
@@ -2285,6 +2294,8 @@ redis:
     storageClassName:
     # Annotations to add to redis volumes
     annotations: {}
+    # the name of an existing PVC to use
+    existingClaim:
 
   # Configuration for empty dir volume (if redis.persistence.enabled == false)
   # emptyDirConfig:

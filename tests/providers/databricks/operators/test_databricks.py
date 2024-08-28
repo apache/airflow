@@ -389,7 +389,7 @@ class TestDatabricksCreateJobsOperator:
     def test_init_with_templating(self):
         json = {"name": "test-{{ ds }}"}
 
-        dag = DAG("test", start_date=datetime.now())
+        dag = DAG("test", schedule=None, start_date=datetime.now())
         op = DatabricksCreateJobsOperator(dag=dag, task_id=TASK_ID, json=json)
         op.render_template_fields(context={"ds": DATE})
         expected = utils.normalise_json_content({"name": f"test-{DATE}"})
@@ -765,7 +765,7 @@ class TestDatabricksSubmitRunOperator:
             "new_cluster": NEW_CLUSTER,
             "notebook_task": TEMPLATED_NOTEBOOK_TASK,
         }
-        dag = DAG("test", start_date=datetime.now())
+        dag = DAG("test", schedule=None, start_date=datetime.now())
         op = DatabricksSubmitRunOperator(dag=dag, task_id=TASK_ID, json=json)
         op.render_template_fields(context={"ds": DATE})
         expected = utils.normalise_json_content(
@@ -1197,7 +1197,7 @@ class TestDatabricksRunNowOperator:
     def test_init_with_templating(self):
         json = {"notebook_params": NOTEBOOK_PARAMS, "jar_params": TEMPLATED_JAR_PARAMS}
 
-        dag = DAG("test", start_date=datetime.now())
+        dag = DAG("test", schedule=None, start_date=datetime.now())
         op = DatabricksRunNowOperator(dag=dag, task_id=TASK_ID, job_id=JOB_ID, json=json)
         op.render_template_fields(context={"ds": DATE})
         expected = utils.normalise_json_content(
@@ -2039,7 +2039,7 @@ class TestDatabricksNotebookOperator:
 
     def test_convert_to_databricks_workflow_task(self):
         """Test that the operator can convert itself to a Databricks workflow task."""
-        dag = DAG(dag_id="example_dag", start_date=datetime.now())
+        dag = DAG(dag_id="example_dag", schedule=None, start_date=datetime.now())
         operator = DatabricksNotebookOperator(
             notebook_path="/path/to/notebook",
             source="WORKSPACE",

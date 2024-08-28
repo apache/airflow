@@ -47,7 +47,7 @@ class TestEmrModifyClusterOperator:
             cluster_id="j-8989898989",
             step_concurrency_level=1,
             aws_conn_id="aws_default",
-            dag=DAG("test_dag_id", default_args=args),
+            dag=DAG("test_dag_id", schedule=None, default_args=args),
         )
 
     def test_init(self):

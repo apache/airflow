@@ -79,9 +79,6 @@ CORE_EXTRAS: dict[str, list[str]] = {
     "cloudpickle": [
         "cloudpickle",
     ],
-    "deprecated-api": [
-        "requests>=2.27.0,<3",
-    ],
     "github-enterprise": [
         "apache-airflow[fab]",
         "authlib>=1.0.0",
@@ -273,6 +270,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "pytest-xdist>=3.5.0",
         "pytest>=8.2,<9",
         "requests_mock>=1.11.0",
+        "semver>=3.0.2",
         "time-machine>=2.13.0",
         "wheel>=0.42.0",
     ],
@@ -498,7 +496,8 @@ DEPENDENCIES = [
     # We should also remove "3rd-party-licenses/LICENSE-unicodecsv.txt" file when we remove this dependency
     "unicodecsv>=0.14.1",
     # The Universal Pathlib provides  Pathlib-like interface for FSSPEC
-    "universal-pathlib>=0.2.2",
+    # https://github.com/apache/airflow/issues/41723  describes the issue
+    "universal-pathlib==0.2.2",  # Temporarily pin to 0.2.2 as 0.2.3 generates mypy errors
     # Werkzug 3 breaks Flask-Login 0.6.2, also connexion needs to be updated to >= 3.0
     # we should remove this limitation when FAB supports Flask 2.3 and we migrate connexion to 3+
     "werkzeug>=2.0,<3",

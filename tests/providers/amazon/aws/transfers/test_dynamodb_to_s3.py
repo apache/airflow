@@ -297,7 +297,7 @@ class TestDynamodbToS3:
 
     @pytest.mark.db_test
     def test_render_template(self, session):
-        dag = DAG("test_render_template_dag_id", start_date=datetime(2020, 1, 1))
+        dag = DAG("test_render_template_dag_id", schedule=None, start_date=datetime(2020, 1, 1))
         operator = DynamoDBToS3Operator(
             task_id="dynamodb_to_s3_test_render",
             dag=dag,
@@ -348,6 +348,7 @@ class TestDynamodbToS3:
             dynamodb_table_name="airflow_rocks",
             s3_bucket_name="airflow-bucket",
             file_size=4000,
+            point_in_time_export=True,
             export_time=datetime(year=1983, month=1, day=1),
         )
         dynamodb_to_s3_operator.execute(context={})
@@ -362,5 +363,6 @@ class TestDynamodbToS3:
                 dynamodb_table_name="airflow_rocks",
                 s3_bucket_name="airflow-bucket",
                 file_size=4000,
+                point_in_time_export=True,
                 export_time=datetime(year=3000, month=1, day=1),
             ).execute(context={})

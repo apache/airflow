@@ -73,7 +73,7 @@ class DummyTestOperator(BaseOperator):
 
 @pytest.fixture(scope="module")
 def dag():
-    return DAG("dag", start_date=DEFAULT_DATE)
+    return DAG("dag", start_date=DEFAULT_DATE, schedule="0 0 * * *")
 
 
 @pytest.fixture(scope="module")

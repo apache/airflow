@@ -17,11 +17,15 @@
 
 from __future__ import annotations
 
+import time
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Literal, Sequence
 
+from airflow.configuration import conf
 from airflow.models import BaseOperator
+from airflow.providers.openai.exceptions import OpenAIBatchJobException
 from airflow.providers.openai.hooks.openai import OpenAIHook
+from airflow.providers.openai.triggers.openai import OpenAIBatchTrigger
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -74,3 +78,91 @@ class OpenAIEmbeddingOperator(BaseOperator):
         embeddings = self.hook.create_embeddings(self.input_text, model=self.model, **self.embedding_kwargs)
         self.log.info("Generated embeddings for %d items", len(embeddings))
         return embeddings
+
+
+class OpenAITriggerBatchOperator(BaseOperator):
+    """
+    Operator that triggers an OpenAI Batch API endpoint and waits for the batch to complete.
+
+    :param file_id: Required. The ID of the batch file to trigger.
+    :param endpoint: Required. The OpenAI Batch API endpoint to trigger.
+    :param conn_id: Optional. The OpenAI connection ID to use. Defaults to 'openai_default'.
+    :param deferrable: Optional. Run operator in the deferrable mode.
+    :param wait_seconds: Optional. Number of seconds between checks. Only used when ``deferrable`` is False.
+        Defaults to 3 seconds.
+    :param timeout: Optional. The amount of time, in seconds, to wait for the request to complete.
+        Only used when ``deferrable`` is False. Defaults to 24 hour, which is the SLA for OpenAI Batch API.
+    :param wait_for_completion: Optional. Whether to wait for the batch to complete. If set to False, the operator
+        will return immediately after triggering the batch. Defaults to True.
+
+    .. seealso::
+        For more information on how to use this operator, please take a look at the guide:
+        :ref:`howto/operator:OpenAITriggerBatchOperator`
+    """
+
+    template_fields: Sequence[str] = ("file_id",)
+
+    def __init__(
+        self,
+        file_id: str,
+        endpoint: Literal["/v1/chat/completions", "/v1/embeddings", "/v1/completions"],
+        conn_id: str = OpenAIHook.default_conn_name,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        wait_seconds: float = 3,
+        timeout: float = 24 * 60 * 60,
+        wait_for_completion: bool = True,
+        **kwargs: Any,
+    ):
+        super().__init__(**kwargs)
+        self.conn_id = conn_id
+        self.file_id = file_id
+        self.endpoint = endpoint
+        self.deferrable = deferrable
+        self.wait_seconds = wait_seconds
+        self.timeout = timeout
+        self.wait_for_completion = wait_for_completion
+        self.batch_id: str | None = None
+
+    @cached_property
+    def hook(self) -> OpenAIHook:
+        """Return an instance of the OpenAIHook."""
+        return OpenAIHook(conn_id=self.conn_id)
+
+    def execute(self, context: Context) -> str:
+        batch = self.hook.create_batch(file_id=self.file_id, endpoint=self.endpoint)
+        self.batch_id = batch.id
+        if self.wait_for_completion:
+            if self.deferrable:
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=OpenAIBatchTrigger(
+                        conn_id=self.conn_id,
+                        batch_id=self.batch_id,
+                        poll_interval=60,
+                        end_time=time.time() + self.timeout,
+                    ),
+                    method_name="execute_complete",
+                )
+            else:
+                self.log.info("Waiting for batch %s to complete", self.batch_id)
+                self.hook.wait_for_batch(self.batch_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
+        return self.batch_id
+
+    def execute_complete(self, context: Context, event: Any = None) -> str:
+        """
+        Invoke this callback when the trigger fires; return immediately.
+
+        Relies on trigger to throw an exception, otherwise it assumes execution was
+        successful.
+        """
+        if event["status"] == "error":
+            raise OpenAIBatchJobException(event["message"])
+
+        self.log.info("%s completed successfully.", self.task_id)
+        return event["batch_id"]
+
+    def on_kill(self) -> None:
+        """Cancel the batch if task is cancelled."""
+        if self.batch_id:
+            self.log.info("on_kill: cancel the OpenAI Batch %s", self.batch_id)
+            self.hook.cancel_batch(self.batch_id)

@@ -20,9 +20,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.tableau.sensors.tableau import (
-    TableauJobFailedException,
     TableauJobFinishCode,
     TableauJobStatusSensor,
 )
@@ -51,9 +50,6 @@ class TestTableauJobStatusSensor:
         mock_tableau_hook.get_job_status.assert_called_once_with(job_id=sensor.job_id)
 
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, TableauJobFailedException), (True, AirflowSkipException))
-    )
-    @pytest.mark.parametrize(
         "finish_code",
         [
             pytest.param(TableauJobFinishCode.ERROR, id="ERROR"),
@@ -61,15 +57,14 @@ class TestTableauJobStatusSensor:
         ],
     )
     @patch("airflow.providers.tableau.sensors.tableau.TableauHook")
-    def test_poke_failed(self, mock_tableau_hook, finish_code, soft_fail: bool, expected_exception):
+    def test_poke_failed(self, mock_tableau_hook, finish_code):
         """
         Test poke failed
         """
         mock_tableau_hook.return_value.__enter__ = Mock(return_value=mock_tableau_hook)
         mock_tableau_hook.get_job_status.return_value = finish_code
         sensor = TableauJobStatusSensor(**self.kwargs)
-        sensor.soft_fail = soft_fail
 
-        with pytest.raises(expected_exception):
+        with pytest.raises(AirflowException):
             sensor.poke({})
         mock_tableau_hook.get_job_status.assert_called_once_with(job_id=sensor.job_id)

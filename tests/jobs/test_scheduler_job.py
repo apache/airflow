@@ -2827,10 +2827,10 @@ class TestSchedulerJob:
         assert dag_listener.success[0].state == DagRunState.SUCCESS
 
     def test_do_not_schedule_removed_task(self, dag_maker):
-        schedule_interval = datetime.timedelta(days=1)
+        interval = datetime.timedelta(days=1)
         with dag_maker(
             dag_id="test_scheduler_do_not_schedule_removed_task",
-            schedule=schedule_interval,
+            schedule=interval,
         ):
             EmptyOperator(task_id="dummy")
 
@@ -2844,8 +2844,8 @@ class TestSchedulerJob:
         session.query(DagModel).delete()
         with dag_maker(
             dag_id="test_scheduler_do_not_schedule_removed_task",
-            schedule=schedule_interval,
-            start_date=DEFAULT_DATE + schedule_interval,
+            schedule=interval,
+            start_date=DEFAULT_DATE + interval,
         ):
             pass
 
@@ -3136,12 +3136,12 @@ class TestSchedulerJob:
             dag_id = "test_task_start_date_scheduling"
             dag = self.dagbag.get_dag(dag_id)
             dag.is_paused_upon_creation = False
-            dagbag.bag_dag(dag=dag, root_dag=dag)
+            dagbag.bag_dag(dag=dag)
 
             # Deactivate other dags in this file so the scheduler doesn't waste time processing them
             other_dag = self.dagbag.get_dag("test_start_date_scheduling")
             other_dag.is_paused_upon_creation = True
-            dagbag.bag_dag(dag=other_dag, root_dag=other_dag)
+            dagbag.bag_dag(dag=other_dag)
 
             dagbag.sync_to_db()
 
@@ -3607,6 +3607,7 @@ class TestSchedulerJob:
                 dag_id="test_retry_still_in_executor",
                 schedule="@once",
                 session=session,
+                fileloc=os.devnull + "/test_retry_still_in_executor.py",
             ):
                 dag_task1 = BashOperator(
                     task_id="test_retry_handling_op",
@@ -5323,16 +5324,17 @@ class TestSchedulerJob:
             self.job_runner._find_zombies()
 
         scheduler_job.executor.callback_sink.send.assert_called_once()
-        requests = scheduler_job.executor.callback_sink.send.call_args.args
-        assert 1 == len(requests)
-        assert requests[0].full_filepath == dag.fileloc
-        assert requests[0].msg == str(self.job_runner._generate_zombie_message_details(ti))
-        assert requests[0].is_failure_callback is True
-        assert isinstance(requests[0].simple_task_instance, SimpleTaskInstance)
-        assert ti.dag_id == requests[0].simple_task_instance.dag_id
-        assert ti.task_id == requests[0].simple_task_instance.task_id
-        assert ti.run_id == requests[0].simple_task_instance.run_id
-        assert ti.map_index == requests[0].simple_task_instance.map_index
+        callback_requests = scheduler_job.executor.callback_sink.send.call_args.args
+        assert len(callback_requests) == 1
+        callback_request = callback_requests[0]
+        assert isinstance(callback_request.simple_task_instance, SimpleTaskInstance)
+        assert callback_request.full_filepath == dag.fileloc
+        assert callback_request.msg == str(self.job_runner._generate_zombie_message_details(ti))
+        assert callback_request.is_failure_callback is True
+        assert callback_request.simple_task_instance.dag_id == ti.dag_id
+        assert callback_request.simple_task_instance.task_id == ti.task_id
+        assert callback_request.simple_task_instance.run_id == ti.run_id
+        assert callback_request.simple_task_instance.map_index == ti.map_index
 
         with create_session() as session:
             session.query(TaskInstance).delete()
@@ -6036,7 +6038,7 @@ class TestSchedulerJobQueriesCount:
                     self.job_runner._run_scheduler_loop()
 
     @pytest.mark.parametrize(
-        "expected_query_counts, dag_count, task_count, start_ago, schedule_interval, shape",
+        "expected_query_counts, dag_count, task_count, start_ago, schedule, shape",
         [
             # One DAG with one task per DAG file.
             ([10, 10, 10, 10], 1, 1, "1d", "None", "no_structure"),
@@ -6071,7 +6073,7 @@ class TestSchedulerJobQueriesCount:
         ],
     )
     def test_process_dags_queries_count(
-        self, expected_query_counts, dag_count, task_count, start_ago, schedule_interval, shape
+        self, expected_query_counts, dag_count, task_count, start_ago, schedule, shape
     ):
         with mock.patch.dict(
             "os.environ",
@@ -6079,7 +6081,7 @@ class TestSchedulerJobQueriesCount:
                 "PERF_DAGS_COUNT": str(dag_count),
                 "PERF_TASKS_COUNT": str(task_count),
                 "PERF_START_AGO": start_ago,
-                "PERF_SCHEDULE_INTERVAL": schedule_interval,
+                "PERF_SCHEDULE_INTERVAL": schedule,
                 "PERF_SHAPE": shape,
             },
         ), conf_vars(

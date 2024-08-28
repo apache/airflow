@@ -35,6 +35,7 @@ POOL_ID = os.environ.get("POOL_ID", "example-pool")
 
 with DAG(
     dag_id="example_azure_batch",
+    schedule=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
     doc_md=__doc__,

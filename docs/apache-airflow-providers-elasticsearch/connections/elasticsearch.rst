@@ -55,7 +55,7 @@ Scheme
     Specify the schema for the Elasticsearch API. `http` by default
 
 Extra (Optional)
-    Specify the extra parameters (as json dictionary) that can be used in Azure connection.
+    Specify the extra parameters (as json dictionary) that can be used in Elasticsearch connection.
     The following parameters are all optional:
 
     * ``http_compress``: specify whether or not to use ``http_compress``. False by default.
