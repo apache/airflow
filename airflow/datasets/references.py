@@ -101,7 +101,7 @@ def resolve_dag_schedule_reference(
         return DagScheduleDatasetReference(dataset_id=dataset_names[ref.name].id, dag_id=dag_id)
     elif isinstance(ref, DatasetURIReference):
         return DagScheduleDatasetReference(dataset_id=dataset_uris[ref.uri].id, dag_id=dag_id)
-    return DagScheduleDatasetAliasReference(alias_id=alias_names[ref.name], dag_id=dag_id)
+    return DagScheduleDatasetAliasReference(alias_id=alias_names[ref.name].id, dag_id=dag_id)
 
 
 def resolve_task_outlet_reference(
