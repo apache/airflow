@@ -19,6 +19,7 @@
 .rat-excludes
 .stylelintignore
 .stylelintrc
+.venv
 requirements
 requirements.txt
 .*log

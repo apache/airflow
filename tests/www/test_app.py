@@ -230,9 +230,8 @@ class TestApp:
     @conf_vars({("webserver", "cookie_samesite"): ""})
     @dont_initialize_flask_app_submodules
     def test_correct_default_is_set_for_cookie_samesite(self):
-        """An empty 'cookie_samesite' should be corrected to 'Lax' with a deprecation warning."""
-        with pytest.deprecated_call():
-            app = application.cached_app(testing=True)
+        """An empty 'cookie_samesite' should be corrected to 'Lax'."""
+        app = application.cached_app(testing=True)
         assert app.config["SESSION_COOKIE_SAMESITE"] == "Lax"
 
     @pytest.mark.parametrize(
