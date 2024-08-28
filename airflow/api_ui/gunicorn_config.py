@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,11 +16,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-services:
-  airflow:
-    ports:
-      - "${SSH_PORT}:22"
-      - "${WEBSERVER_HOST_PORT}:8080"
-      - "${UI_API_HOST_PORT}:9091"
-      - "${FLOWER_HOST_PORT}:5555"
+from __future__ import annotations
+
+import setproctitle
+
+from airflow import settings
+
+
+def post_worker_init(_):
+    """
+    Set process title.
+
+    This is used by airflow.cli.commands.ui_api_command to track the status of the worker.
+    """
+    old_title = setproctitle.getproctitle()
+    setproctitle.setproctitle(settings.GUNICORN_WORKER_READY_PREFIX + old_title)
