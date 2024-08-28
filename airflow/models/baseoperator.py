@@ -50,7 +50,6 @@ from typing import (
 
 import attr
 import pendulum
-from dateutil.relativedelta import relativedelta
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -58,7 +57,6 @@ from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     FailStopDagInvalidTriggerRule,
-    RemovedInAirflow3Warning,
     TaskDeferralError,
     TaskDeferred,
 )
@@ -119,8 +117,6 @@ if TYPE_CHECKING:
     from airflow.triggers.base import BaseTrigger, StartTriggerArgs
     from airflow.utils.task_group import TaskGroup
     from airflow.utils.types import ArgNotSet
-
-ScheduleInterval = Union[str, timedelta, relativedelta]
 
 TaskPreExecuteHook = Callable[[Context], None]
 TaskPostExecuteHook = Callable[[Context, Any], None]
@@ -613,10 +609,10 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     :param start_date: The ``start_date`` for the task, determines
         the ``execution_date`` for the first task instance. The best practice
         is to have the start_date rounded
-        to your DAG's ``schedule_interval``. Daily jobs have their start_date
+        to your DAG's schedule. Daily jobs have their start_date
         some day at 00:00:00, hourly jobs have their start_date at 00:00
         of a specific hour. Note that Airflow simply looks at the latest
-        ``execution_date`` and adds the ``schedule_interval`` to determine
+        ``execution_date`` and adds the schedule to determine
         the next ``execution_date``. It is also very important
         to note that different tasks' dependencies
         need to line up in time. If task A depends on task B and their
@@ -855,10 +851,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     _dag: DAG | None = None
     task_group: TaskGroup | None = None
 
-    # subdag parameter is only set for SubDagOperator.
-    # Setting it to None by default as other Operators do not have that field
-    subdag: DAG | None = None
-
     start_date: pendulum.DateTime | None = None
     end_date: pendulum.DateTime | None = None
 
@@ -905,7 +897,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         trigger_rule: str = DEFAULT_TRIGGER_RULE,
         resources: dict[str, Any] | None = None,
         run_as_user: str | None = None,
-        task_concurrency: int | None = None,
         map_index_template: str | None = None,
         max_active_tis_per_dag: int | None = None,
         max_active_tis_per_dagrun: int | None = None,
@@ -936,17 +927,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         kwargs.pop("_airflow_mapped_validation_only", None)
         if kwargs:
-            if not conf.getboolean("operators", "ALLOW_ILLEGAL_ARGUMENTS"):
-                raise AirflowException(
-                    f"Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). "
-                    f"Invalid arguments were:\n**kwargs: {kwargs}",
-                )
-            warnings.warn(
+            raise AirflowException(
                 f"Invalid arguments were passed to {self.__class__.__name__} (task_id: {task_id}). "
-                "Support for passing such arguments will be dropped in future. "
                 f"Invalid arguments were:\n**kwargs: {kwargs}",
-                category=RemovedInAirflow3Warning,
-                stacklevel=3,
             )
         validate_key(task_id)
 
@@ -997,23 +980,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             raise ValueError(f"pool slots for {self.task_id}{dag_str} cannot be less than 1")
         self.sla = sla
 
-        if trigger_rule == "dummy":
-            warnings.warn(
-                "dummy Trigger Rule is deprecated. Please use `TriggerRule.ALWAYS`.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            trigger_rule = TriggerRule.ALWAYS
-
-        if trigger_rule == "none_failed_or_skipped":
-            warnings.warn(
-                "none_failed_or_skipped Trigger Rule is deprecated. "
-                "Please use `none_failed_min_one_success`.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            trigger_rule = TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS
-
         if not TriggerRule.is_valid(trigger_rule):
             raise AirflowException(
                 f"The trigger_rule must be one of {TriggerRule.all_triggers()},"
@@ -1048,14 +1014,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.priority_weight = priority_weight
         self.weight_rule = validate_and_load_priority_weight_strategy(weight_rule)
         self.resources = coerce_resources(resources)
-        if task_concurrency and not max_active_tis_per_dag:
-            # TODO: Remove in Airflow 3.0
-            warnings.warn(
-                "The 'task_concurrency' parameter is deprecated. Please use 'max_active_tis_per_dag'.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            max_active_tis_per_dag = task_concurrency
         self.max_active_tis_per_dag: int | None = max_active_tis_per_dag
         self.max_active_tis_per_dagrun: int | None = max_active_tis_per_dagrun
         self.do_xcom_push: bool = do_xcom_push
@@ -1727,7 +1685,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     "end_date",
                     "_task_type",
                     "_operator_name",
-                    "subdag",
                     "ui_color",
                     "ui_fgcolor",
                     "template_ext",
@@ -2092,32 +2049,3 @@ def chain_linear(*elements: DependencyMixin | Sequence[DependencyMixin]):
         prev_elem = [curr_elem] if isinstance(curr_elem, DependencyMixin) else curr_elem
     if not deps_set:
         raise ValueError("No dependencies were set. Did you forget to expand with `*`?")
-
-
-def __getattr__(name):
-    """
-    PEP-562: Lazy loaded attributes on python modules.
-
-    :meta private:
-    """
-    path = __deprecated_imports.get(name)
-    if not path:
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
-    from airflow.utils.module_loading import import_string
-
-    warnings.warn(
-        f"Import `{__name__}.{name}` is deprecated. Please use `{path}.{name}`.",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    val = import_string(f"{path}.{name}")
-
-    # Store for next time
-    globals()[name] = val
-    return val
-
-
-__deprecated_imports = {
-    "BaseOperatorLink": "airflow.models.baseoperatorlink",
-}

@@ -53,7 +53,7 @@ from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.secrets.cache import SecretCache
 from airflow.stats import Stats
-from airflow.traces.tracer import Trace, span
+from airflow.traces.tracer import Trace, add_span
 from airflow.utils import timezone
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.file import list_py_file_paths, might_contain_dag
@@ -526,14 +526,20 @@ class DagFileProcessorManager(LoggingMixin):
         dags_parsed = session.execute(query)
 
         for dag in dags_parsed:
+            # When the DAG processor runs as part of the scheduler, and the user changes the DAGs folder,
+            # DAGs from the previous DAGs folder will be marked as stale. Note that this change has no impact
+            # on standalone DAG processors.
+            dag_not_in_current_dag_folder = os.path.commonpath([dag.fileloc, dag_directory]) != dag_directory
             # The largest valid difference between a DagFileStat's last_finished_time and a DAG's
             # last_parsed_time is the processor_timeout. Longer than that indicates that the DAG is
             # no longer present in the file. We have a stale_dag_threshold configured to prevent a
             # significant delay in deactivation of stale dags when a large timeout is configured
-            if (
+            dag_removed_from_dag_folder_or_file = (
                 dag.fileloc in last_parsed
                 and (dag.last_parsed_time + timedelta(seconds=stale_dag_threshold)) < last_parsed[dag.fileloc]
-            ):
+            )
+
+            if dag_not_in_current_dag_folder or dag_removed_from_dag_folder_or_file:
                 cls.logger().info("DAG %s is missing and will be deactivated.", dag.dag_id)
                 to_deactivate.add(dag.dag_id)
 
@@ -1210,7 +1216,7 @@ class DagFileProcessorManager(LoggingMixin):
             callback_requests=callback_requests,
         )
 
-    @span
+    @add_span
     def start_new_processes(self):
         """Start more processors if we have enough slots and files to process."""
         # initialize cache to mutualize calls to Variable.get in DAGs
@@ -1248,7 +1254,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             Stats.gauge("dag_processing.file_path_queue_size", len(self._file_path_queue))
 
-    @span
+    @add_span
     def add_new_file_path_to_queue(self):
         for file_path in self.file_paths:
             if file_path not in self._file_stats:

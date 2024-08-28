@@ -23,7 +23,7 @@ from unittest.mock import patch
 import pytest
 import requests
 
-from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException, TaskDeferred
+from airflow.exceptions import AirflowException, AirflowSensorTimeout, TaskDeferred
 from airflow.models.dag import DAG
 from airflow.providers.http.operators.http import HttpOperator
 from airflow.providers.http.sensors.http import HttpSensor
@@ -63,33 +63,6 @@ class TestHttpSensor:
             poke_interval=1,
         )
         with pytest.raises(AirflowException, match="AirflowException raised here!"):
-            task.execute(context={})
-
-    @patch("airflow.providers.http.hooks.http.requests.Session.send")
-    def test_poke_exception_with_soft_fail(self, mock_session_send, create_task_of_operator):
-        """
-        Exception occurs in poke function should be skipped if soft_fail is True.
-        """
-        response = requests.Response()
-        response.status_code = 200
-        mock_session_send.return_value = response
-
-        def resp_check(_):
-            raise AirflowException("AirflowException raised here!")
-
-        task = create_task_of_operator(
-            HttpSensor,
-            dag_id="http_sensor_poke_exception",
-            task_id="http_sensor_poke_exception",
-            http_conn_id="http_default",
-            endpoint="",
-            request_params={},
-            response_check=resp_check,
-            timeout=5,
-            poke_interval=1,
-            soft_fail=True,
-        )
-        with pytest.raises(AirflowSkipException):
             task.execute(context={})
 
     @patch("airflow.providers.http.hooks.http.requests.Session.send")
@@ -289,7 +262,7 @@ class FakeSession:
 class TestHttpOpSensor:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE_ISO}
-        dag = DAG(TEST_DAG_ID, default_args=args)
+        dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
         self.dag = dag
 
     @mock.patch("requests.Session", FakeSession)

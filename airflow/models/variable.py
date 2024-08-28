@@ -154,8 +154,36 @@ class Variable(Base, LoggingMixin):
 
     @staticmethod
     @provide_session
-    @internal_api_call
     def set(
+        key: str,
+        value: Any,
+        description: str | None = None,
+        serialize_json: bool = False,
+        session: Session = None,
+    ) -> None:
+        """
+        Set a value for an Airflow Variable with a given Key.
+
+        This operation overwrites an existing variable.
+
+        :param key: Variable Key
+        :param value: Value to set for the Variable
+        :param description: Description of the Variable
+        :param serialize_json: Serialize the value to a JSON string
+        :param session: Session
+        """
+        Variable._set(
+            key=key, value=value, description=description, serialize_json=serialize_json, session=session
+        )
+        # invalidate key in cache for faster propagation
+        # we cannot save the value set because it's possible that it's shadowed by a custom backend
+        # (see call to check_for_write_conflict above)
+        SecretCache.invalidate_variable(key)
+
+    @staticmethod
+    @provide_session
+    @internal_api_call
+    def _set(
         key: str,
         value: Any,
         description: str | None = None,
@@ -190,8 +218,28 @@ class Variable(Base, LoggingMixin):
 
     @staticmethod
     @provide_session
-    @internal_api_call
     def update(
+        key: str,
+        value: Any,
+        serialize_json: bool = False,
+        session: Session = None,
+    ) -> None:
+        """
+        Update a given Airflow Variable with the Provided value.
+
+        :param key: Variable Key
+        :param value: Value to set for the Variable
+        :param serialize_json: Serialize the value to a JSON string
+        :param session: Session
+        """
+        Variable._update(key=key, value=value, serialize_json=serialize_json, session=session)
+        # We need to invalidate the cache for internal API cases on the client side
+        SecretCache.invalidate_variable(key)
+
+    @staticmethod
+    @provide_session
+    @internal_api_call
+    def _update(
         key: str,
         value: Any,
         serialize_json: bool = False,
@@ -219,8 +267,20 @@ class Variable(Base, LoggingMixin):
 
     @staticmethod
     @provide_session
-    @internal_api_call
     def delete(key: str, session: Session = None) -> int:
+        """
+        Delete an Airflow Variable for a given key.
+
+        :param key: Variable Keys
+        """
+        rows = Variable._delete(key=key, session=session)
+        SecretCache.invalidate_variable(key)
+        return rows
+
+    @staticmethod
+    @provide_session
+    @internal_api_call
+    def _delete(key: str, session: Session = None) -> int:
         """
         Delete an Airflow Variable for a given key.
 

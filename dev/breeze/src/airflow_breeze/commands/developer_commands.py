@@ -36,6 +36,7 @@ from airflow_breeze.commands.common_options import (
     option_answer,
     option_backend,
     option_builder,
+    option_clean_airflow_installation,
     option_database_isolation,
     option_db_reset,
     option_docker_host,
@@ -86,8 +87,10 @@ from airflow_breeze.commands.testing_commands import (
 )
 from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
+    ALLOWED_CELERY_EXECUTORS,
     ALLOWED_EXECUTORS,
     ALLOWED_TTY,
+    CELERY_INTEGRATION,
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -262,6 +265,7 @@ option_install_airflow_with_constraints_default_true = click.option(
 @option_builder
 @option_celery_broker
 @option_celery_flower
+@option_clean_airflow_installation
 @option_database_isolation
 @option_db_reset
 @option_docker_host
@@ -317,6 +321,7 @@ def shell(
     builder: str,
     celery_broker: str,
     celery_flower: bool,
+    clean_airflow_installation: bool,
     database_isolation: bool,
     db_reset: bool,
     downgrade_sqlalchemy: bool,
@@ -385,6 +390,7 @@ def shell(
         builder=builder,
         celery_broker=celery_broker,
         celery_flower=celery_flower,
+        clean_airflow_installation=clean_airflow_installation,
         database_isolation=database_isolation,
         db_reset=db_reset,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
@@ -457,9 +463,8 @@ option_load_default_connection = click.option(
 option_executor_start_airflow = click.option(
     "--executor",
     type=click.Choice(START_AIRFLOW_ALLOWED_EXECUTORS, case_sensitive=False),
-    help="Specify the executor to use with start-airflow command.",
-    default=START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
-    show_default=True,
+    help="Specify the executor to use with start-airflow (defaults to LocalExecutor "
+    "or CeleryExecutor depending on the integration used).",
 )
 
 
@@ -485,6 +490,7 @@ option_executor_start_airflow = click.option(
 @option_answer
 @option_backend
 @option_builder
+@option_clean_airflow_installation
 @option_celery_broker
 @option_celery_flower
 @option_database_isolation
@@ -528,11 +534,12 @@ def start_airflow(
     builder: str,
     celery_broker: str,
     celery_flower: bool,
+    clean_airflow_installation: bool,
     database_isolation: bool,
     db_reset: bool,
     dev_mode: bool,
     docker_host: str | None,
-    executor: str,
+    executor: str | None,
     extra_args: tuple,
     force_build: bool,
     forward_credentials: bool,
@@ -576,6 +583,14 @@ def start_airflow(
         airflow_constraints_reference, use_airflow_version
     )
 
+    if not executor:
+        if CELERY_INTEGRATION in integration:
+            # Default to a celery executor if that's the integration being used
+            executor = ALLOWED_CELERY_EXECUTORS[0]
+        else:
+            # Otherwise default to LocalExecutor
+            executor = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
+
     shell_params = ShellParams(
         airflow_constraints_location=airflow_constraints_location,
         airflow_constraints_mode=airflow_constraints_mode,
@@ -586,6 +601,7 @@ def start_airflow(
         builder=builder,
         celery_broker=celery_broker,
         celery_flower=celery_flower,
+        clean_airflow_installation=clean_airflow_installation,
         database_isolation=database_isolation,
         db_reset=db_reset,
         dev_mode=dev_mode,
@@ -623,6 +639,12 @@ def start_airflow(
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
     fix_ownership_using_docker()
+    if CELERY_INTEGRATION in integration and executor not in ALLOWED_CELERY_EXECUTORS:
+        get_console().print(
+            "[warning]A non-Celery executor was used with start-airflow in combination with the Celery "
+            "integration, this will lead to some processes failing to start (e.g.  celery worker)\n"
+        )
+
     sys.exit(result.returncode)
 
 

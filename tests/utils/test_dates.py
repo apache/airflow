@@ -17,9 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 
-import pendulum
 import pytest
 from dateutil.relativedelta import relativedelta
 
@@ -27,21 +26,6 @@ from airflow.utils import dates, timezone
 
 
 class TestDates:
-    @pytest.mark.filterwarnings(
-        "ignore:Function `days_ago` is deprecated.*:airflow.exceptions.RemovedInAirflow3Warning"
-    )
-    def test_days_ago(self):
-        today = pendulum.today()
-        today_midnight = pendulum.instance(datetime.fromordinal(today.date().toordinal()))
-
-        assert dates.days_ago(0) == today_midnight
-        assert dates.days_ago(100) == today_midnight + timedelta(days=-100)
-
-        assert dates.days_ago(0, hour=3) == today_midnight + timedelta(hours=3)
-        assert dates.days_ago(0, minute=3) == today_midnight + timedelta(minutes=3)
-        assert dates.days_ago(0, second=3) == today_midnight + timedelta(seconds=3)
-        assert dates.days_ago(0, microsecond=3) == today_midnight + timedelta(microseconds=3)
-
     def test_parse_execution_date(self):
         execution_date_str_wo_ms = "2017-11-02 00:00:00"
         execution_date_str_w_ms = "2017-11-05 16:18:30.989729"
@@ -103,48 +87,3 @@ class TestDates:
 
         arr4 = dates.scale_time_units([200000, 100000], "days")
         assert arr4 == pytest.approx([2.3147, 1.1574], rel=1e-3)
-
-
-@pytest.mark.filterwarnings(
-    r"ignore:`airflow.utils.dates.date_range\(\)` is deprecated:airflow.exceptions.RemovedInAirflow3Warning"
-)
-class TestUtilsDatesDateRange:
-    def test_no_delta(self):
-        assert dates.date_range(datetime(2016, 1, 1), datetime(2016, 1, 3)) == []
-
-    def test_end_date_before_start_date(self):
-        with pytest.raises(ValueError, match="Wait. start_date needs to be before end_date"):
-            dates.date_range(datetime(2016, 2, 1), datetime(2016, 1, 1), delta=timedelta(seconds=1))
-
-    def test_both_end_date_and_num_given(self):
-        with pytest.raises(ValueError, match="Wait. Either specify end_date OR num"):
-            dates.date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), num=2, delta=timedelta(seconds=1))
-
-    def test_invalid_delta(self):
-        exception_msg = "Wait. delta must be either datetime.timedelta or cron expression as str"
-        with pytest.raises(TypeError, match=exception_msg):
-            dates.date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta=1)
-
-    def test_positive_num_given(self):
-        for num in range(1, 10):
-            result = dates.date_range(datetime(2016, 1, 1), num=num, delta=timedelta(1))
-            assert len(result) == num
-
-            for i in range(num):
-                assert timezone.is_localized(result[i])
-
-    def test_negative_num_given(self):
-        for num in range(-1, -5, -10):
-            result = dates.date_range(datetime(2016, 1, 1), num=num, delta=timedelta(1))
-            assert len(result) == -num
-
-            for i in range(num):
-                assert timezone.is_localized(result[i])
-
-    def test_delta_cron_presets(self):
-        preset_range = dates.date_range(datetime(2016, 1, 1), num=2, delta="@hourly")
-        timedelta_range = dates.date_range(datetime(2016, 1, 1), num=2, delta=timedelta(hours=1))
-        cron_range = dates.date_range(datetime(2016, 1, 1), num=2, delta="0 * * * *")
-
-        assert preset_range == timedelta_range
-        assert preset_range == cron_range

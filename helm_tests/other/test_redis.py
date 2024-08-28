@@ -403,6 +403,30 @@ class TestRedis:
             "spec.volumeClaimTemplates[0].spec.storageClassName", docs[0]
         )
 
+    def test_redis_template_persistence_storage_existing_claim(self):
+        docs = render_chart(
+            values={"redis": {"persistence": {"existingClaim": "test-existing-claim"}}},
+            show_only=["templates/redis/redis-statefulset.yaml"],
+        )
+        assert {
+            "name": "redis-db",
+            "persistentVolumeClaim": {"claimName": "test-existing-claim"},
+        } in jmespath.search("spec.template.spec.volumes", docs[0])
+
+    @pytest.mark.parametrize(
+        "redis_values, expected",
+        [
+            ({}, 600),
+            ({"redis": {"terminationGracePeriodSeconds": 1200}}, 1200),
+        ],
+    )
+    def test_redis_termination_grace_period_seconds(self, redis_values, expected):
+        docs = render_chart(
+            values=redis_values,
+            show_only=["templates/redis/redis-statefulset.yaml"],
+        )
+        assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
+
 
 class TestRedisServiceAccount:
     """Tests redis service account."""

@@ -26,6 +26,7 @@ import pathlib
 import random
 import socket
 import sys
+import tempfile
 import textwrap
 import threading
 import time
@@ -62,7 +63,13 @@ from tests.core.test_logging_config import SETTINGS_FILE_VALID, settings_context
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.compat import ParseImportError
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_callbacks, clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests.test_utils.db import (
+    clear_db_callbacks,
+    clear_db_dags,
+    clear_db_import_errors,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -148,7 +155,12 @@ class TestDagProcessorJobRunner:
                     return results
             raise RuntimeError("Shouldn't get here - nothing to read, but manager not finished!")
 
+    @pytest.fixture
+    def clear_parse_import_errors(self):
+        clear_db_import_errors()
+
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
+    @pytest.mark.usefixtures("clear_parse_import_errors")
     @conf_vars({("core", "load_examples"): "False"})
     def test_remove_file_clears_import_error(self, tmp_path):
         path_to_parse = tmp_path / "temp_dag.py"
@@ -627,7 +639,7 @@ class TestDagProcessorJobRunner:
         manager = DagProcessorJobRunner(
             job=Job(),
             processor=DagFileProcessorManager(
-                dag_directory="directory",
+                dag_directory=str(TEST_DAG_FOLDER),
                 max_runs=1,
                 processor_timeout=timedelta(minutes=10),
                 signal_conn=MagicMock(),
@@ -701,11 +713,11 @@ class TestDagProcessorJobRunner:
         """
         Ensure only dags from current dag_directory are updated
         """
-        dag_directory = "directory"
+        dag_directory = str(TEST_DAG_FOLDER)
         manager = DagProcessorJobRunner(
             job=Job(),
             processor=DagFileProcessorManager(
-                dag_directory=dag_directory,
+                dag_directory=TEST_DAG_FOLDER,
                 max_runs=1,
                 processor_timeout=timedelta(minutes=10),
                 signal_conn=MagicMock(),
@@ -729,7 +741,7 @@ class TestDagProcessorJobRunner:
             # Add stale DAG to the DB
             other_dag = other_dagbag.get_dag("test_start_date_scheduling")
             other_dag.last_parsed_time = timezone.utcnow()
-            other_dag.sync_to_db(processor_subdir="other")
+            other_dag.sync_to_db(processor_subdir="/other")
 
             # Add DAG to the file_parsing_stats
             stat = DagFileStat(
@@ -750,6 +762,68 @@ class TestDagProcessorJobRunner:
 
             active_dag_count = session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
             assert active_dag_count == 1
+
+    def test_scan_stale_dags_when_dag_folder_change(self):
+        """
+        Ensure dags from old dag_folder is marked as stale when dag processor
+         is running as part of scheduler.
+        """
+
+        def get_dag_string(filename) -> str:
+            return open(TEST_DAG_FOLDER / filename).read()
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_dag_home = tempfile.mkdtemp(dir=tmpdir)
+            old_dag_file = tempfile.NamedTemporaryFile(dir=old_dag_home, suffix=".py")
+            old_dag_file.write(get_dag_string("test_example_bash_operator.py").encode())
+            old_dag_file.flush()
+            new_dag_home = tempfile.mkdtemp(dir=tmpdir)
+            new_dag_file = tempfile.NamedTemporaryFile(dir=new_dag_home, suffix=".py")
+            new_dag_file.write(get_dag_string("test_scheduler_dags.py").encode())
+            new_dag_file.flush()
+
+            manager = DagProcessorJobRunner(
+                job=Job(),
+                processor=DagFileProcessorManager(
+                    dag_directory=new_dag_home,
+                    max_runs=1,
+                    processor_timeout=timedelta(minutes=10),
+                    signal_conn=MagicMock(),
+                    dag_ids=[],
+                    pickle_dags=False,
+                    async_mode=True,
+                ),
+            )
+
+            dagbag = DagBag(old_dag_file.name, read_dags_from_db=False)
+            other_dagbag = DagBag(new_dag_file.name, read_dags_from_db=False)
+
+            with create_session() as session:
+                # Add DAG from old dah home to the DB
+                dag = dagbag.get_dag("test_example_bash_operator")
+                dag.fileloc = old_dag_file.name
+                dag.last_parsed_time = timezone.utcnow()
+                dag.sync_to_db(processor_subdir=old_dag_home)
+
+                # Add DAG from new DAG home to the DB
+                other_dag = other_dagbag.get_dag("test_start_date_scheduling")
+                other_dag.fileloc = new_dag_file.name
+                other_dag.last_parsed_time = timezone.utcnow()
+                other_dag.sync_to_db(processor_subdir=new_dag_home)
+
+                manager.processor._file_paths = [new_dag_file]
+
+                active_dag_count = (
+                    session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
+                )
+                assert active_dag_count == 2
+
+                manager.processor._scan_stale_dags()
+
+                active_dag_count = (
+                    session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
+                )
+                assert active_dag_count == 1
 
     @mock.patch(
         "airflow.dag_processing.processor.DagFileProcessorProcess.waitable_handle", new_callable=PropertyMock

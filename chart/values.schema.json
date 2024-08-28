@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.9.3",
+            "default": "2.10.0",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.9.3",
+            "default": "2.10.0",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -671,7 +671,7 @@
                         "tag": {
                             "description": "The StatsD image tag.",
                             "type": "string",
-                            "default": "v0.26.1"
+                            "default": "v0.27.1"
                         },
                         "pullPolicy": {
                             "description": "The StatsD image pull policy.",
@@ -2403,6 +2403,11 @@
                         "object"
                     ],
                     "default": null
+                },
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for scheduler to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer",
+                    "default": 10
                 },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
@@ -5363,6 +5368,11 @@
                     ],
                     "default": null
                 },
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for webserver to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer",
+                    "default": 30
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
@@ -6546,6 +6556,11 @@
                         }
                     }
                 },
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for statsd to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer",
+                    "default": 30
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
@@ -7436,6 +7451,14 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        },
+                        "existingClaim": {
+                            "description": "The name of an existing PVC to use.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 },

@@ -22,7 +22,7 @@ from itsdangerous import URLSafeSerializer
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from airflow.api_connexion.schemas.common_schema import ScheduleIntervalSchema, TimeDeltaSchema, TimezoneField
+from airflow.api_connexion.schemas.common_schema import TimeDeltaSchema, TimezoneField
 from airflow.configuration import conf
 from airflow.models.dag import DagModel, DagTag
 
@@ -51,10 +51,8 @@ class DAGSchema(SQLAlchemySchema):
 
     dag_id = auto_field(dump_only=True)
     dag_display_name = fields.String(attribute="dag_display_name", dump_only=True)
-    root_dag_id = auto_field(dump_only=True)
     is_paused = auto_field()
     is_active = auto_field(dump_only=True)
-    is_subdag = auto_field(dump_only=True)
     last_parsed_time = auto_field(dump_only=True)
     last_pickled = auto_field(dump_only=True)
     last_expired = auto_field(dump_only=True)
@@ -65,7 +63,7 @@ class DAGSchema(SQLAlchemySchema):
     file_token = fields.Method("get_token", dump_only=True)
     owners = fields.Method("get_owners", dump_only=True)
     description = auto_field(dump_only=True)
-    schedule_interval = fields.Nested(ScheduleIntervalSchema)
+    timetable_summary = auto_field(dump_only=True)
     timetable_description = auto_field(dump_only=True)
     tags = fields.List(fields.Nested(DagTagSchema), dump_only=True)
     max_active_tasks = auto_field(dump_only=True)

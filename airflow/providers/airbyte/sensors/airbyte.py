@@ -24,7 +24,7 @@ import warnings
 from typing import TYPE_CHECKING, Any, Literal, Sequence
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.providers.airbyte.triggers.airbyte import AirbyteSyncTrigger
 from airflow.sensors.base import BaseSensorOperator
@@ -93,16 +93,10 @@ class AirbyteJobSensor(BaseSensorOperator):
             status = job.json()["status"]
 
         if status == hook.FAILED:
-            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
             message = f"Job failed: \n{job}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
         elif status == hook.CANCELLED:
-            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
             message = f"Job was cancelled: \n{job}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
         elif status == hook.SUCCEEDED:
             self.log.info("Job %s completed successfully.", self.airbyte_job_id)
