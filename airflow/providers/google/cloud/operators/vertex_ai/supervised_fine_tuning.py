@@ -114,4 +114,3 @@ class SupervisedFineTuningTrainOperator(GoogleCloudBaseOperator):
 
         self.xcom_push(context, key="tuned_model_name", value=response.tuned_model_name)
         self.xcom_push(context, key="tuned_model_endpoint_name", value=response.tuned_model_endpoint_name)
-        return response
