@@ -21,7 +21,7 @@ import inspect
 import json
 import logging
 import pickle
-from typing import TYPE_CHECKING, Any, Iterable, cast, overload
+from typing import TYPE_CHECKING, Any, Iterable, cast
 
 from sqlalchemy import (
     Column,
@@ -127,8 +127,9 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             return f'<XCom "{self.key}" ({self.task_id} @ {self.run_id})>'
         return f'<XCom "{self.key}" ({self.task_id}[{self.map_index}] @ {self.run_id})>'
 
-    @overload
     @classmethod
+    @internal_api_call
+    @provide_session
     def set(
         cls,
         key: str,
@@ -152,42 +153,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             The default is ``-1`` (set for a non-mapped task).
         :param session: Database session. If not given, a new session will be
             created for this function.
-        """
-
-    @overload
-    @classmethod
-    def set(
-        cls,
-        key: str,
-        value: Any,
-        task_id: str,
-        dag_id: str,
-        session: Session = NEW_SESSION,
-    ) -> None:
-        """
-        Store an XCom value.
-
-        :sphinx-autoapi-skip:
-        """
-
-    @classmethod
-    @internal_api_call
-    @provide_session
-    def set(
-        cls,
-        key: str,
-        value: Any,
-        task_id: str,
-        dag_id: str,
-        session: Session = NEW_SESSION,
-        *,
-        run_id: str | None = None,
-        map_index: int = -1,
-    ) -> None:
-        """
-        Store an XCom value.
-
-        :sphinx-autoapi-skip:
         """
         from airflow.models.dagrun import DagRun
 
@@ -284,8 +249,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             session=session,
         )
 
-    @overload
     @staticmethod
+    @provide_session
     @internal_api_call
     def get_one(
         *,
@@ -295,6 +260,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         run_id: str | None = None,
         map_index: int | None = None,
         session: Session = NEW_SESSION,
+        include_prior_dates: bool = False,
     ) -> Any | None:
         """
         Retrieve an XCom value, optionally meeting certain criteria.
@@ -324,41 +290,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
-
-    @overload
-    @staticmethod
-    @internal_api_call
-    def get_one(
-        key: str | None = None,
-        task_id: str | None = None,
-        dag_id: str | None = None,
-        include_prior_dates: bool = False,
-        session: Session = NEW_SESSION,
-    ) -> Any | None:
-        """
-        Retrieve an XCom value, optionally meeting certain criteria.
-
-        :sphinx-autoapi-skip:
-        """
-
-    @staticmethod
-    @provide_session
-    @internal_api_call
-    def get_one(
-        key: str | None = None,
-        task_id: str | None = None,
-        dag_id: str | None = None,
-        include_prior_dates: bool = False,
-        session: Session = NEW_SESSION,
-        *,
-        run_id: str | None = None,
-        map_index: int | None = None,
-    ) -> Any | None:
-        """
-        Retrieve an XCom value, optionally meeting certain criteria.
-
-        :sphinx-autoapi-skip:
-        """
         if not run_id:
             raise ValueError("run_id must be passed")
 
@@ -378,8 +309,11 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             return XCom.deserialize_value(result)
         return None
 
-    @overload
+    # The 'get_many` is not supported via database isolation mode. Attempting to use it in DB isolation
+    # mode will result in a crash - Resulting Query object cannot be **really** serialized
+    # TODO(potiuk) - document it in AIP-44 docs
     @staticmethod
+    @provide_session
     def get_many(
         *,
         run_id: str,
@@ -412,46 +346,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         :param session: Database session. If not given, a new session will be
             created for this function.
         :param limit: Limiting returning XComs
-        """
-
-    @overload
-    @staticmethod
-    @internal_api_call
-    def get_many(
-        key: str | None = None,
-        task_ids: str | Iterable[str] | None = None,
-        dag_ids: str | Iterable[str] | None = None,
-        map_indexes: int | Iterable[int] | None = None,
-        include_prior_dates: bool = False,
-        limit: int | None = None,
-        session: Session = NEW_SESSION,
-    ) -> Query:
-        """
-        Composes a query to get one or more XCom entries.
-
-        :sphinx-autoapi-skip:
-        """
-
-    # The 'get_many` is not supported via database isolation mode. Attempting to use it in DB isolation
-    # mode will result in a crash - Resulting Query object cannot be **really** serialized
-    # TODO(potiuk) - document it in AIP-44 docs
-    @staticmethod
-    @provide_session
-    def get_many(
-        key: str | None = None,
-        task_ids: str | Iterable[str] | None = None,
-        dag_ids: str | Iterable[str] | None = None,
-        map_indexes: int | Iterable[int] | None = None,
-        include_prior_dates: bool = False,
-        limit: int | None = None,
-        session: Session = NEW_SESSION,
-        *,
-        run_id: str | None = None,
-    ) -> Query:
-        """
-        Composes a query to get one or more XCom entries.
-
-        :sphinx-autoapi-skip:
         """
         from airflow.models.dagrun import DagRun
 
@@ -511,8 +405,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         """Purge an XCom entry from underlying storage implementations."""
         pass
 
-    @overload
     @staticmethod
+    @provide_session
     @internal_api_call
     def clear(
         *,
@@ -532,37 +426,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             task. The default ``None`` clears *all* XComs from the task.
         :param session: Database session. If not given, a new session will be
             created for this function.
-        """
-
-    @overload
-    @staticmethod
-    @internal_api_call
-    def clear(
-        dag_id: str,
-        task_id: str,
-        session: Session = NEW_SESSION,
-    ) -> None:
-        """
-        Clear all XCom data from the database for the given task instance.
-
-        :sphinx-autoapi-skip:
-        """
-
-    @staticmethod
-    @provide_session
-    @internal_api_call
-    def clear(
-        dag_id: str | None = None,
-        task_id: str | None = None,
-        session: Session = NEW_SESSION,
-        *,
-        run_id: str | None = None,
-        map_index: int | None = None,
-    ) -> None:
-        """
-        Clear all XCom data from the database for the given task instance.
-
-        :sphinx-autoapi-skip:
         """
         # Given the historic order of this function (execution_date was first argument) to add a new optional
         # param we need to add default values for everything :(
