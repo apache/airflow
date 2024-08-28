@@ -26,6 +26,21 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. note::
+  This version introduce a new way to handle the connection to Airbyte using ``client_id`` and ``client_secret`` instead of ``login`` and ``password``.
+  You can get them accessing the Airbyte UI and creating a new Application in the Settings page.
+
+  There is a large refactor to create a connection.
+  You must specify the Full Qualified Domain Name in the ``host`` parameter, eg: ``https://my.company:8000/airbyte/v1/``.
+  The ``token_url`` parameter is optional and it is used to create the access token, the default value is ``v1/applications/token`` used by Airbyte Cloud.
+  You must remove the ``api_type`` parameter from your DAG it isn't required anymore.
+
 3.9.0
 .....
 
