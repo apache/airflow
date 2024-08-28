@@ -64,7 +64,6 @@ class DagAttributeTypes(str, Enum):
     TASK_INSTANCE = "task_instance"
     DAG_RUN = "dag_run"
     DAG_MODEL = "dag_model"
-    DATA_SET = "data_set"
     LOG_TEMPLATE = "log_template"
     CONNECTION = "connection"
     TASK_CONTEXT = "task_context"

@@ -361,7 +361,7 @@ sample_objects = {
         #         extra={"foo": "bar"},
         #     ),
         #     AssetPydantic,
-        #     DAT.DATA_SET,
+        #     DAT.ASSET,
         #     lambda a, b: a.uri == b.uri and a.extra == b.extra,
         # ),
         (

@@ -486,7 +486,7 @@ _type_to_class: dict[DAT | str, list] = {
     DAT.DAG_RUN: [DagRunPydantic, DagRun],
     DAT.DAG_MODEL: [DagModelPydantic, DagModel],
     DAT.LOG_TEMPLATE: [LogTemplatePydantic, LogTemplate],
-    DAT.DATA_SET: [AssetPydantic, Asset],
+    DAT.ASSET: [AssetPydantic, Asset],
     DAT.TRIGGER: [TriggerPydantic, Trigger],
 }
 _class_to_type = {cls_: type_ for type_, classes in _type_to_class.items() for cls_ in classes}
