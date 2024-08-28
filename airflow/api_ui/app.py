@@ -16,12 +16,9 @@
 # under the License.
 from __future__ import annotations
 
-import os
-
 from fastapi import FastAPI
 
-from airflow.models.dagbag import DagBag
-from airflow.settings import DAGS_FOLDER
+from airflow.www.extensions.init_dagbag import get_dag_bag
 
 
 def init_dag_bag(app: FastAPI) -> None:
@@ -30,10 +27,7 @@ def init_dag_bag(app: FastAPI) -> None:
 
     To access it use ``request.app.state.dag_bag``.
     """
-    if os.environ.get("SKIP_DAGS_PARSING") == "True":
-        app.state.dag_bag = DagBag(os.devnull, include_examples=False)
-    else:
-        app.state.dag_bag = DagBag(DAGS_FOLDER, read_dags_from_db=True)
+    app.state.dag_bag = get_dag_bag()
 
 
 def create_app() -> FastAPI:
