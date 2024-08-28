@@ -123,6 +123,9 @@ spec:
         {{- end }}
       tolerations: {{- toYaml $tolerations | nindent 8 }}
       topologySpreadConstraints: {{- toYaml $topologySpreadConstraints | nindent 8 }}
+      {{- if .Values.triggerer.hostAliases }}
+      hostAliases: {{- toYaml .Values.triggerer.hostAliases | nindent 8 }}
+      {{- end }}
       terminationGracePeriodSeconds: {{ .Values.triggerer.terminationGracePeriodSeconds }}
       restartPolicy: Always
       serviceAccountName: {{ include "triggerer.serviceAccountName" . }}
