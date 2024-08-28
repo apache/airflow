@@ -49,6 +49,7 @@ from airflow.utils.db import (
     upgradedb,
 )
 from airflow.utils.db_manager import RunDBManager
+from tests.test_utils.config import conf_vars
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -200,6 +201,10 @@ class TestDb:
         assert actual == "abc"
 
     @pytest.mark.parametrize("skip_init", [False, True])
+    @conf_vars(
+        {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
+    )
+    @mock.patch("airflow.providers.fab.auth_manager.models.db.FABDBManager")
     @mock.patch("airflow.utils.db.create_global_lock", new=MagicMock)
     @mock.patch("airflow.utils.db.drop_airflow_models")
     @mock.patch("airflow.utils.db.drop_airflow_moved_tables")
@@ -211,6 +216,7 @@ class TestDb:
         mock_init,
         mock_drop_moved,
         mock_drop_airflow,
+        mock_fabdb_manager,
         skip_init,
     ):
         session_mock = MagicMock()

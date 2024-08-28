@@ -1027,7 +1027,7 @@ def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
         yield from check_fn(session=session)
 
 
-def offline_migration(migration_func: Callable, config, revision):
+def _offline_migration(migration_func: Callable, config, revision):
     """
     Run offline migration.
 
@@ -1135,7 +1135,7 @@ def upgradedb(
 
         _revisions_above_min_for_offline(config=config, revisions=[from_revision, to_revision])
 
-        offline_migration(command.upgrade, config, f"{from_revision}:{to_revision}")
+        _offline_migration(command.upgrade, config, f"{from_revision}:{to_revision}")
         return  # only running sql; our job is done
 
     errors_seen = False
@@ -1255,7 +1255,7 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
             if not from_revision:
                 from_revision = _get_current_revision(session)
             revision_range = f"{from_revision}:{to_revision}"
-            offline_migration(command.downgrade, config=config, revision=revision_range)
+            _offline_migration(command.downgrade, config=config, revision=revision_range)
         else:
             log.info("Applying downgrade migrations.")
             command.downgrade(config, revision=to_revision, sql=show_sql_only)

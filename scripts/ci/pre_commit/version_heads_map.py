@@ -71,7 +71,7 @@ if __name__ == "__main__":
         with open(dbfile) as file:
             content = file.read()
 
-        pattern = r"_REVISION_HEADS_MAP\s*=\s*\{[^}]*\}"
+        pattern = r"_REVISION_HEADS_MAP:\s*dict\[\s*str\s*,\s*str\s*\]\s*=\s*\{[^}]*\}"
         match = re2.search(pattern, content)
         if not match:
             print(
@@ -82,14 +82,13 @@ if __name__ == "__main__":
 
         existing_revision_heads_map = match.group(0)
         rh_map = revision_heads_map(mpath)
-        updated_revision_heads_map = "_REVISION_HEADS_MAP = {\n"
+        updated_revision_heads_map = "_REVISION_HEADS_MAP: dict[str, str] = {\n"
         for k, v in rh_map.items():
             updated_revision_heads_map += f'    "{k}": "{v}",\n'
         updated_revision_heads_map += "}"
-        if (
-            existing_revision_heads_map != updated_revision_heads_map
-            and updated_revision_heads_map != "_REVISION_HEADS_MAP = {\n}"
-        ):
+        if updated_revision_heads_map == "_REVISION_HEADS_MAP: dict[str, str] = {\n}":
+            updated_revision_heads_map = "_REVISION_HEADS_MAP: dict[str, str] = {}"
+        if existing_revision_heads_map != updated_revision_heads_map:
             new_content = content.replace(existing_revision_heads_map, updated_revision_heads_map)
 
             with open(dbfile, "w") as file:

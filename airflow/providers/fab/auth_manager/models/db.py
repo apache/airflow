@@ -22,12 +22,12 @@ import airflow
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.providers.fab.auth_manager.models import metadata
-from airflow.utils.db import offline_migration, print_happy_cat
+from airflow.utils.db import _offline_migration, print_happy_cat
 from airflow.utils.db_manager import BaseDBManager
 
 PACKAGE_DIR = os.path.dirname(airflow.__file__)
 
-_REVISION_HEADS_MAP = {}
+_REVISION_HEADS_MAP: dict[str, str] = {}
 
 
 class FABDBManager(BaseDBManager):
@@ -62,7 +62,7 @@ class FABDBManager(BaseDBManager):
             if to_revision == from_revision:
                 print_happy_cat("No migrations to apply; nothing to do.")
                 return
-            offline_migration(command.upgrade, config, f"{from_revision}:{to_revision}")
+            _offline_migration(command.upgrade, config, f"{from_revision}:{to_revision}")
             return  # only running sql; our job is done
 
         if not self.get_current_revision():
@@ -93,7 +93,7 @@ class FABDBManager(BaseDBManager):
             if not from_revision:
                 from_revision = self.get_current_revision()
             revision_range = f"{from_revision}:{to_revision}"
-            offline_migration(command.downgrade, config=config, revision=revision_range)
+            _offline_migration(command.downgrade, config=config, revision=revision_range)
         else:
             self.log.info("Applying FAB downgrade migrations.")
             command.downgrade(config, revision=to_revision, sql=show_sql_only)

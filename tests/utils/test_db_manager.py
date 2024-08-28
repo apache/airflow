@@ -100,8 +100,8 @@ class TestRunDBManager:
         ext_db.downgradedb(session=session)
         mock_fabdb_manager.return_value.downgradedb.assert_called_once()
         connection = mock.MagicMock()
-        ext_db.drop_tables(connection)
-        mock_fabdb_manager.metadata.drop_all.assert_called_once_with(connection)
+        ext_db.drop_tables(session, connection)
+        mock_fabdb_manager.return_value.drop_tables.assert_called_once_with(connection)
 
 
 class MockDBManager(BaseDBManager):
