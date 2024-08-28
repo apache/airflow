@@ -21,15 +21,15 @@ from unittest import mock
 
 import pytest
 
+# For no Pydantic environment, we need to skip the tests
+pytest.importorskip("google.cloud.aiplatform_v1")
+
 from airflow.providers.google.cloud.hooks.vertex_ai.supervised_fine_tuning import (
     SupervisedFineTuningHook,
 )
 from tests.providers.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
 )
-
-# For no Pydantic environment, we need to skip the tests
-pytest.importorskip("google.cloud.aiplatform_v1")
 
 TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
 GCP_PROJECT = "test-project"
@@ -39,7 +39,6 @@ SOURCE_MODEL = "gemini-1.0-pro-002"
 TRAIN_DATASET = "gs://cloud-samples-data/ai-platform/generative_ai/sft_train_data.jsonl"
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
-SUPERVISED_FINE_TUNING_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.supervised_fine_tuning.{}"
 
 
 def assert_warning(msg: str, warnings):
