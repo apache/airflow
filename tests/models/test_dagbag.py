@@ -31,6 +31,7 @@ from unittest.mock import patch
 
 import pytest
 import time_machine
+from packaging import version as packaging_version
 from sqlalchemy import func
 from sqlalchemy.exc import OperationalError
 
@@ -40,6 +41,7 @@ from airflow.exceptions import RemovedInAirflow3Warning, SerializationError
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
+from airflow.providers.fab import __version__ as FAB_VERSION
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.dates import timezone as tz
 from airflow.utils.session import create_session
@@ -996,11 +998,19 @@ class TestDagBag:
             dag.access_control = {"Public": {"can_read"}}
             _sync_perms()
             mock_sync_perm_for_dag.assert_called_once_with(
-                "test_example_bash_operator", {"Public": {"DAGs": {"can_read"}}}
+                "test_example_bash_operator",
+                {
+                    "Public": {"DAGs": {"can_read"}}
+                    if packaging_version.parse(FAB_VERSION) >= packaging_version.parse("1.3.0")
+                    else {"can_read"}
+                },
             )
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @patch("airflow.www.security_appless.ApplessAirflowSecurityManager")
+    @pytest.mark.skipif(
+        packaging_version.parse(FAB_VERSION) < packaging_version.parse("1.3.0"), reason="Requires FAB 1.3.0+"
+    )
     def test_sync_perm_for_dag_with_dict_access_control(self, mock_security_manager):
         """
         Test that dagbag._sync_perm_for_dag will call ApplessAirflowSecurityManager.sync_perm_for_dag
