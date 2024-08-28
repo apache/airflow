@@ -30,8 +30,6 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
 
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
-vertexai = pytest.importorskip("vertexai.preview.tuning.sft")
-
 
 TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
 GCP_PROJECT = "test-project"
