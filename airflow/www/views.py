@@ -3469,7 +3469,7 @@ class Airflow(AirflowBaseView):
             dag_node_id = f"dag:{dag}"
             if dag_node_id not in nodes_dict:
                 for dep in dependencies:
-                    if dep.dependency_type in ("dag", "dataset", "dataset-alias"):
+                    if dep.dependency_type in ("dag", "asset", "asset-alias"):
                         # add node
                         nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, "dag")
                         if dep.node_id not in nodes_dict:

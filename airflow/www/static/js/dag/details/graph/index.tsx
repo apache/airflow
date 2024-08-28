@@ -105,7 +105,7 @@ const getUpstreamDatasets = (
       nodes.push({
         id: d,
         value: {
-          class: "dataset",
+          class: "asset",
           label: d,
         },
       });
@@ -202,7 +202,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
           datasetNodes.push({
             id: dataset.uri,
             value: {
-              class: "dataset",
+              class: "asset",
               label: dataset.uri,
             },
           });
@@ -221,7 +221,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
         datasetNodes.push({
           id: de.datasetUri,
           value: {
-            class: "dataset",
+            class: "asset",
             label: de.datasetUri,
           },
         });

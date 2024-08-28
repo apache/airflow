@@ -1040,8 +1040,8 @@ class DependencyDetector:
                 deps.append(
                     DagDependency(
                         source=task.dag_id,
-                        target="dataset",
-                        dependency_type="dataset",
+                        target="asset",
+                        dependency_type="asset",
                         dependency_id=obj.uri,
                     )
                 )

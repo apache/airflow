@@ -223,9 +223,9 @@ class AssetAlias(BaseAsset):
         :meta private:
         """
         yield DagDependency(
-            source=source or "dataset-alias",
-            target=target or "dataset-alias",
-            dependency_type="dataset-alias",
+            source=source or "asset-alias",
+            target=target or "asset-alias",
+            dependency_type="asset-alias",
             dependency_id=self.name,
         )
 
@@ -311,9 +311,9 @@ class Asset(os.PathLike, BaseAsset):
         :meta private:
         """
         yield DagDependency(
-            source=source or "dataset",
-            target=target or "dataset",
-            dependency_type="dataset",
+            source=source or "asset",
+            target=target or "asset",
+            dependency_type="asset",
             dependency_id=self.uri,
         )
 
@@ -418,23 +418,23 @@ class _AssetAliasCondition(AssetAny):
                 uri = asset.uri
                 # asset
                 yield DagDependency(
-                    source=f"dataset-alias:{self.name}" if source else "dataset",
-                    target="dataset" if source else f"dataset-alias:{self.name}",
-                    dependency_type="dataset",
+                    source=f"asset-alias:{self.name}" if source else "asset",
+                    target="asset" if source else f"asset-alias:{self.name}",
+                    dependency_type="asset",
                     dependency_id=uri,
                 )
                 # asset alias
                 yield DagDependency(
-                    source=source or f"dataset:{uri}",
-                    target=target or f"dataset:{uri}",
-                    dependency_type="dataset-alias",
+                    source=source or f"asset:{uri}",
+                    target=target or f"asset:{uri}",
+                    dependency_type="asset-alias",
                     dependency_id=self.name,
                 )
         else:
             yield DagDependency(
-                source=source or "dataset-alias",
-                target=target or "dataset-alias",
-                dependency_type="dataset-alias",
+                source=source or "asset-alias",
+                target=target or "asset-alias",
+                dependency_type="asset-alias",
                 dependency_id=self.name,
             )
 
