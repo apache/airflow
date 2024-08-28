@@ -2288,9 +2288,9 @@ redis:
   service:
     # service type, default: ClusterIP
     type: "ClusterIP"
-    # if service type is ClusterIP, a clusterIP can be specified
+    # If using ClusterIP service type, custom IP address can be specified
     clusterIP:
-    # if service type is NodePort, a nodePort can be specified
+    # If using NodePort service type, custom node port can be specified
     nodePort:
 
   persistence:

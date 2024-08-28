@@ -471,7 +471,7 @@ class TestRedisService:
             show_only=["templates/redis/redis-service.yaml"],
         )
         assert expected == jmespath.search("spec.type", docs[0])
-    
+
     def test_redis_service_nodeport(self):
         docs = render_chart(
             values={
