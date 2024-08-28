@@ -54,11 +54,9 @@ def migratedb(args):
         from_revision = args.from_revision
     elif args.from_version:
         try:
-            parsed_version = parse_version(args.from_version)
+            parse_version(args.from_version)
         except InvalidVersion:
             raise SystemExit(f"Invalid version {args.from_version!r} supplied as `--from-version`.")
-        if parsed_version < parse_version("2.0.0"):
-            raise SystemExit("--from-version must be greater or equal to than 2.0.0")
         from_revision = get_version_revision(args.from_version, revision_heads_map=_REVISION_HEADS_MAP)
         if not from_revision:
             raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
