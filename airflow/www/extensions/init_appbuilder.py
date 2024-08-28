@@ -345,10 +345,10 @@ class AirflowAppBuilder:
         self.add_view_no_menu(UtilView())
         self.bm.register_views()
 
-        if version.parse(FAB_VERSION) >= version.parse("1.3.0"):
-            get_auth_manager().register_views()
-        else:
+        if version.parse(FAB_VERSION) < version.parse("1.3.0"):
             self.sm.register_views()
+        else:
+            get_auth_manager().register_views()
 
     def _add_addon_views(self):
         """Register declared addons."""

@@ -23,6 +23,9 @@ import pytest
 from flask import Flask, session
 from flask_appbuilder.menu import MenuItem
 
+from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
+    AwsSecurityManagerOverride,
+)
 from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_2_9_PLUS
 
 try:
@@ -774,6 +777,10 @@ class TestAwsAuthManager:
     def test_get_url_logout(self, mock_url_for, auth_manager):
         auth_manager.get_url_logout()
         mock_url_for.assert_called_once_with("AwsAuthManagerAuthenticationViews.logout")
+
+    @pytest.mark.db_test
+    def test_security_manager_return_default_security_manager(self, auth_manager_with_appbuilder):
+        assert isinstance(auth_manager_with_appbuilder.security_manager, AwsSecurityManagerOverride)
 
     def test_get_cli_commands_return_cli_commands(self, auth_manager):
         assert len(auth_manager.get_cli_commands()) > 0

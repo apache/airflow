@@ -33,6 +33,9 @@ from airflow.providers.amazon.aws.auth_manager.avp.facade import (
 from airflow.providers.amazon.aws.auth_manager.cli.definition import (
     AWS_AUTH_MANAGER_COMMANDS,
 )
+from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
+    AwsSecurityManagerOverride,
+)
 from airflow.providers.amazon.aws.auth_manager.views.auth import AwsAuthManagerAuthenticationViews
 
 try:
@@ -405,6 +408,10 @@ class AwsAuthManager(BaseAuthManager):
 
     def get_url_logout(self) -> str:
         return url_for("AwsAuthManagerAuthenticationViews.logout")
+
+    @cached_property
+    def security_manager(self) -> AwsSecurityManagerOverride:
+        return AwsSecurityManagerOverride(self.appbuilder)
 
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
