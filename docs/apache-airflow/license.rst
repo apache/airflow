@@ -18,7 +18,7 @@
 
 
 License
-=======
+========
 
 .. image:: img/apache.jpg
     :width: 150

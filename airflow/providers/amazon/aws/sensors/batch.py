@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from deprecated import deprecated
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.triggers.batch import BatchJobTrigger
 from airflow.sensors.base import BaseSensorOperator
@@ -265,6 +265,4 @@ class BatchJobQueueSensor(BaseSensorOperator):
             return False
 
         message = f"AWS Batch job queue failed. AWS Batch job queue status: {status}"
-        if self.soft_fail:
-            raise AirflowSkipException(message)
         raise AirflowException(message)

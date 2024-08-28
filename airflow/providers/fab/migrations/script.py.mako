@@ -15,22 +15,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
 
-from deprecated import deprecated
+"""${message}
 
-from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager as FabAuthManagerProvider
+Revision ID: ${up_revision}
+Revises: ${down_revision | comma,n}
+Create Date: ${create_date}
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+${imports if imports else ""}
+
+# revision identifiers, used by Alembic.
+revision: str = ${repr(up_revision)}
+down_revision: Union[str, None] = ${repr(down_revision)}
+branch_labels: Union[str, Sequence[str], None] = ${repr(branch_labels)}
+depends_on: Union[str, Sequence[str], None] = ${repr(depends_on)}
 
 
-@deprecated(
-    reason="Use airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager instead",
-    version="2.9.0",
-    category=RemovedInAirflow3Warning,
-)
-class FabAuthManager(FabAuthManagerProvider):
-    """
-    This class is deprecated.
+def upgrade() -> None:
+    ${upgrades if upgrades else "pass"}
 
-    Please use `airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager` instead.
-    """
+
+def downgrade() -> None:
+    ${downgrades if downgrades else "pass"}

@@ -49,7 +49,6 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTerminated,
-    RemovedInAirflow3Warning,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
@@ -3009,13 +3008,13 @@ class TestTaskInstance:
 
     @staticmethod
     def _test_previous_dates_setup(
-        schedule_interval: str | datetime.timedelta | None,
+        schedule: str | datetime.timedelta | None,
         catchup: bool,
         scenario: list[TaskInstanceState],
         dag_maker,
     ) -> list:
         dag_id = "test_previous_dates"
-        with dag_maker(dag_id=dag_id, schedule=schedule_interval, catchup=catchup, serialized=True):
+        with dag_maker(dag_id=dag_id, schedule=schedule, catchup=catchup, serialized=True):
             task = EmptyOperator(task_id="task")
 
         def get_test_ti(execution_date: pendulum.DateTime, state: str) -> TI:
@@ -3051,11 +3050,11 @@ class TestTaskInstance:
         pytest.param(datetime.timedelta(days=1), False, id="timedelta/no-catchup"),
     ]
 
-    @pytest.mark.parametrize("schedule_interval, catchup", _prev_dates_param_list)
-    def test_previous_ti(self, schedule_interval, catchup, dag_maker) -> None:
+    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
+    def test_previous_ti(self, schedule, catchup, dag_maker) -> None:
         scenario = [State.SUCCESS, State.FAILED, State.SUCCESS]
 
-        ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario, dag_maker)
+        ti_list = self._test_previous_dates_setup(schedule, catchup, scenario, dag_maker)
 
         assert ti_list[0].get_previous_ti() is None
 
@@ -3063,11 +3062,11 @@ class TestTaskInstance:
 
         assert ti_list[2].get_previous_ti().run_id != ti_list[0].run_id
 
-    @pytest.mark.parametrize("schedule_interval, catchup", _prev_dates_param_list)
-    def test_previous_ti_success(self, schedule_interval, catchup, dag_maker) -> None:
+    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
+    def test_previous_ti_success(self, schedule, catchup, dag_maker) -> None:
         scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
 
-        ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario, dag_maker)
+        ti_list = self._test_previous_dates_setup(schedule, catchup, scenario, dag_maker)
 
         assert ti_list[0].get_previous_ti(state=State.SUCCESS) is None
         assert ti_list[1].get_previous_ti(state=State.SUCCESS) is None
@@ -3076,11 +3075,11 @@ class TestTaskInstance:
 
         assert ti_list[3].get_previous_ti(state=State.SUCCESS).run_id != ti_list[2].run_id
 
-    @pytest.mark.parametrize("schedule_interval, catchup", _prev_dates_param_list)
-    def test_previous_execution_date_success(self, schedule_interval, catchup, dag_maker) -> None:
+    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
+    def test_previous_execution_date_success(self, schedule, catchup, dag_maker) -> None:
         scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
 
-        ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario, dag_maker)
+        ti_list = self._test_previous_dates_setup(schedule, catchup, scenario, dag_maker)
         # vivify
         for ti in ti_list:
             ti.execution_date
@@ -3091,11 +3090,11 @@ class TestTaskInstance:
         assert ti_list[3].get_previous_execution_date(state=State.SUCCESS) != ti_list[2].execution_date
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    @pytest.mark.parametrize("schedule_interval, catchup", _prev_dates_param_list)
-    def test_previous_start_date_success(self, schedule_interval, catchup, dag_maker) -> None:
+    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
+    def test_previous_start_date_success(self, schedule, catchup, dag_maker) -> None:
         scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
 
-        ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario, dag_maker)
+        ti_list = self._test_previous_dates_setup(schedule, catchup, scenario, dag_maker)
 
         assert ti_list[0].get_previous_start_date(state=State.SUCCESS) is None
         assert ti_list[1].get_previous_start_date(state=State.SUCCESS) is None
@@ -3368,17 +3367,13 @@ class TestTaskInstance:
         assert recorded_message[0].startswith(message_beginning)
 
     def test_template_with_custom_timetable_deprecated_context(self, create_task_instance, session):
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match="Param `timetable` is deprecated and will be removed in a future release. Please use `schedule` instead.",
-        ):
-            ti = create_task_instance(
-                start_date=DEFAULT_DATE,
-                timetable=AfterWorkdayTimetable(),
-                run_type=DagRunType.SCHEDULED,
-                execution_date=timezone.datetime(2021, 9, 6),
-                data_interval=(timezone.datetime(2021, 9, 6), timezone.datetime(2021, 9, 7)),
-            )
+        ti = create_task_instance(
+            start_date=DEFAULT_DATE,
+            schedule=AfterWorkdayTimetable(),
+            run_type=DagRunType.SCHEDULED,
+            execution_date=timezone.datetime(2021, 9, 6),
+            data_interval=(timezone.datetime(2021, 9, 6), timezone.datetime(2021, 9, 7)),
+        )
         session.add(ti)
         session.commit()
         context = ti.get_template_context()

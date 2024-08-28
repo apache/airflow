@@ -16,31 +16,20 @@
 # under the License.
 from __future__ import annotations
 
-from deprecated import deprecated
+import os
 
-from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+import airflow
+from airflow.providers.fab.auth_manager.models import metadata
+from airflow.utils.db_manager import BaseDBManager
 
-EXISTING_ROLES = {
-    "Admin",
-    "Viewer",
-    "User",
-    "Op",
-    "Public",
-}
+PACKAGE_DIR = os.path.dirname(airflow.__file__)
 
 
-@deprecated(
-    reason="If you want to override the security manager, you should inherit from "
-    "`airflow.providers.fab.auth_manager.security_manager.override.FabAirflowSecurityManagerOverride` "
-    "instead",
-    category=RemovedInAirflow3Warning,
-)
-class AirflowSecurityManager(FabAirflowSecurityManagerOverride):
-    """
-    Placeholder, just here to avoid breaking the code of users who inherit from this.
+class FABDBManager(BaseDBManager):
+    """Manages FAB database."""
 
-    Do not use if writing new code.
-    """
-
-    ...
+    metadata = metadata
+    version_table_name = "fab_alembic_version"
+    migration_dir = os.path.join(PACKAGE_DIR, "providers/fab/migrations")
+    alembic_file = os.path.join(PACKAGE_DIR, "providers/fab/alembic.ini")
+    supports_table_dropping = True
