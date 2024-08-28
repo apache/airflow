@@ -71,7 +71,7 @@ class TestBigQueryCreateDataTransferOperator:
             retry=DEFAULT,
             timeout=None,
         )
-        ti.xcom_push.assert_called_with(execution_date=None, key="transfer_config_id", value="1a2b3c")
+        ti.xcom_push.assert_called_with(key="transfer_config_id", value="1a2b3c")
 
         assert "secret_access_key" not in return_value.get("params", {})
         assert "access_key_id" not in return_value.get("params", {})
@@ -126,7 +126,7 @@ class TestBigQueryDataTransferServiceStartTransferRunsOperator:
             retry=DEFAULT,
             timeout=None,
         )
-        ti.xcom_push.assert_called_with(execution_date=None, key="run_id", value="123")
+        ti.xcom_push.assert_called_with(key="run_id", value="123")
 
     @mock.patch(
         f"{OPERATOR_MODULE_PATH}.BiqQueryDataTransferServiceHook",

@@ -76,7 +76,6 @@ class TestBaseAwsLink:
 
         ti = mock_context["ti"]
         ti.xcom_push.assert_called_once_with(
-            execution_date=None,
             key=XCOM_KEY,
             value=expected_value,
         )

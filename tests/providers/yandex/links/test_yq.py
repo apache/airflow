@@ -35,7 +35,6 @@ def test_persist():
 
     ti = mock_context["ti"]
     ti.xcom_push.assert_called_once_with(
-        execution_date=None,
         key="web_link",
         value="g.com",
     )
