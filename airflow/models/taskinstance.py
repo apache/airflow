@@ -161,7 +161,7 @@ if TYPE_CHECKING:
     from airflow.models.dataset import AssetEvent
     from airflow.models.operator import Operator
     from airflow.serialization.pydantic.dag import DagModelPydantic
-    from airflow.serialization.pydantic.dataset import DatasetEventPydantic
+    from airflow.serialization.pydantic.dataset import AssetEventPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Literal, TypeGuard
@@ -1078,7 +1078,7 @@ def _get_template_context(
             return None
         return prev_ds.replace("-", "")
 
-    def get_triggering_events() -> dict[str, list[AssetEvent | DatasetEventPydantic]]:
+    def get_triggering_events() -> dict[str, list[AssetEvent | AssetEventPydantic]]:
         if TYPE_CHECKING:
             assert session is not None
 
@@ -1089,7 +1089,7 @@ def _get_template_context(
         if dag_run not in session:
             dag_run = session.merge(dag_run, load=False)
         asset_events = dag_run.consumed_dataset_events
-        triggering_events: dict[str, list[AssetEvent | DatasetEventPydantic]] = defaultdict(list)
+        triggering_events: dict[str, list[AssetEvent | AssetEventPydantic]] = defaultdict(list)
         for event in asset_events:
             if event.dataset:
                 triggering_events[event.dataset.uri].append(event)

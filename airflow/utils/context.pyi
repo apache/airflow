@@ -40,7 +40,7 @@ from airflow.models.dagrun import DagRun
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
-from airflow.serialization.pydantic.dataset import DatasetEventPydantic
+from airflow.serialization.pydantic.dataset import AssetEventPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.typing_compat import TypedDict
 
@@ -132,7 +132,7 @@ class Context(TypedDict, total=False):
     ti: TaskInstance | TaskInstancePydantic
     tomorrow_ds: str
     tomorrow_ds_nodash: str
-    triggering_dataset_events: Mapping[str, Collection[AssetEvent | DatasetEventPydantic]]
+    triggering_dataset_events: Mapping[str, Collection[AssetEvent | AssetEventPydantic]]
     ts: str
     ts_nodash: str
     ts_nodash_with_tz: str

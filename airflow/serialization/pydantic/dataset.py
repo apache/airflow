@@ -59,8 +59,8 @@ class DatasetPydantic(BaseModelPydantic):
     model_config = ConfigDict(from_attributes=True)
 
 
-class DatasetEventPydantic(BaseModelPydantic):
-    """Serializable representation of the DatasetEvent ORM SqlAlchemyModel used by internal API."""
+class AssetEventPydantic(BaseModelPydantic):
+    """Serializable representation of the AssetEvent ORM SqlAlchemyModel used by internal API."""
 
     id: int
     dataset_id: Optional[int]

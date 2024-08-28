@@ -248,7 +248,7 @@ class _PriorityWeightStrategyNotRegistered(AirflowException):
 
 def encode_asset_condition(var: BaseAsset) -> dict[str, Any]:
     """
-    Encode a asset condition.
+    Encode an asset condition.
 
     :meta private:
     """

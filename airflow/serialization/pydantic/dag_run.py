@@ -23,7 +23,7 @@ from pydantic import BaseModel as BaseModelPydantic, ConfigDict
 
 from airflow.models.dagrun import DagRun
 from airflow.serialization.pydantic.dag import PydanticDag
-from airflow.serialization.pydantic.dataset import DatasetEventPydantic
+from airflow.serialization.pydantic.dataset import AssetEventPydantic
 from airflow.utils.types import DagRunTriggeredByType
 
 if TYPE_CHECKING:
@@ -55,7 +55,7 @@ class DagRunPydantic(BaseModelPydantic):
     dag_hash: Optional[str]
     updated_at: Optional[datetime]
     dag: Optional[PydanticDag]
-    consumed_dataset_events: List[DatasetEventPydantic]  # noqa: UP006
+    consumed_dataset_events: List[AssetEventPydantic]  # noqa: UP006
     log_template_id: Optional[int]
     triggered_by: Optional[DagRunTriggeredByType]
 

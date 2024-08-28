@@ -53,7 +53,7 @@ from airflow.operators.python import PythonOperator
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.pydantic.dag import DagModelPydantic, DagTagPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
-from airflow.serialization.pydantic.dataset import DatasetEventPydantic, DatasetPydantic
+from airflow.serialization.pydantic.dataset import AssetEventPydantic, DatasetPydantic
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
@@ -327,7 +327,7 @@ sample_objects = {
     ),
     DagTagPydantic: DagTag(),
     DatasetPydantic: Asset("uri", {}),
-    DatasetEventPydantic: AssetEvent(),
+    AssetEventPydantic: AssetEvent(),
 }
 
 
@@ -434,7 +434,7 @@ def test_all_pydantic_models_round_trip():
         "DagScheduleAssetReferencePydantic",
         "TaskOutletAssetReferencePydantic",
         "DagOwnerAttributesPydantic",
-        "DatasetEventPydantic",
+        "AssetEventPydantic",
         "TriggerPydantic",
     }
     for c in sorted(classes, key=str):

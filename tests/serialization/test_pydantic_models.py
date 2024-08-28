@@ -36,7 +36,7 @@ from airflow.models.asset import (
 from airflow.models.dag import DAG, DagModel, create_timetable
 from airflow.serialization.pydantic.dag import DagModelPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
-from airflow.serialization.pydantic.dataset import DatasetEventPydantic
+from airflow.serialization.pydantic.dataset import AssetEventPydantic
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.serialized_objects import BaseSerialization
@@ -268,11 +268,11 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
     TracebackSessionForTests.set_allow_db_access(session, False)
 
     print(asset2_event_2.dataset.consuming_dags)
-    pydantic_dse1 = DatasetEventPydantic.model_validate(asset1_event)
+    pydantic_dse1 = AssetEventPydantic.model_validate(asset1_event)
     json_string1 = pydantic_dse1.model_dump_json()
     print(json_string1)
 
-    pydantic_dse2 = DatasetEventPydantic.model_validate(asset2_event_1)
+    pydantic_dse2 = AssetEventPydantic.model_validate(asset2_event_1)
     json_string2 = pydantic_dse2.model_dump_json()
     print(json_string2)
 
@@ -280,13 +280,13 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
     json_string_dr = pydantic_dag_run.model_dump_json()
     print(json_string_dr)
 
-    deserialized_model1 = DatasetEventPydantic.model_validate_json(json_string1)
+    deserialized_model1 = AssetEventPydantic.model_validate_json(json_string1)
     assert deserialized_model1.dataset.id == 1
     assert deserialized_model1.dataset.uri == "one"
     assert len(deserialized_model1.dataset.consuming_dags) == 1
     assert len(deserialized_model1.dataset.producing_tasks) == 1
 
-    deserialized_model2 = DatasetEventPydantic.model_validate_json(json_string2)
+    deserialized_model2 = AssetEventPydantic.model_validate_json(json_string2)
     assert deserialized_model2.dataset.id == 2
     assert deserialized_model2.dataset.uri == "two"
     assert len(deserialized_model2.dataset.consuming_dags) == 0
