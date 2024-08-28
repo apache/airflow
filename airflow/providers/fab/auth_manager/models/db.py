@@ -52,6 +52,8 @@ class FABDBManager(BaseDBManager):
         config = self.get_alembic_config()
 
         if show_sql_only:
+            if settings.engine.dialect.name == "sqlite":
+                raise SystemExit("Offline migration not supported for SQLite.")
             if not from_revision:
                 from_revision = self.get_current_revision()
 
@@ -71,7 +73,7 @@ class FABDBManager(BaseDBManager):
             return
         command.upgrade(config, revision=to_revision or "heads")
 
-    def downgradedb(self, to_revision, from_revision=None, show_sql_only=False):
+    def downgrade(self, to_revision, from_revision=None, show_sql_only=False):
         if from_revision and not show_sql_only:
             raise ValueError(
                 "`from_revision` can't be combined with `show_sql_only=False`. When actually "
@@ -92,6 +94,9 @@ class FABDBManager(BaseDBManager):
             self.log.warning("Generating sql scripts for manual migration.")
             if not from_revision:
                 from_revision = self.get_current_revision()
+            if from_revision is None:
+                self.log.info("No revision found")
+                return
             revision_range = f"{from_revision}:{to_revision}"
             _offline_migration(command.downgrade, config=config, revision=revision_range)
         else:

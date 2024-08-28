@@ -124,7 +124,7 @@ class BaseDBManager(LoggingMixin):
         config = self.get_alembic_config()
         command.upgrade(config, revision=to_revision or "heads", sql=show_sql_only)
 
-    def downgradedb(self, to_version, from_version=None, show_sql_only=False):
+    def downgrade(self, to_version, from_version=None, show_sql_only=False):
         """Downgrade the database."""
         raise NotImplementedError
 
@@ -200,11 +200,11 @@ class RunDBManager(LoggingMixin):
             m = manager(session)
             m.upgradedb()
 
-    def downgradedb(self, session):
+    def downgrade(self, session):
         """Downgrade the external database managers."""
         for manager in self._managers:
             m = manager(session)
-            m.downgradedb()
+            m.downgrade()
 
     def drop_tables(self, session, connection):
         """Drop the external database managers."""

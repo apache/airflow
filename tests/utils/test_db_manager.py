@@ -57,7 +57,7 @@ class TestRunDBManager:
             run_db_manager.validate()
         metadata._remove_table("dag_run", None)
 
-    @mock.patch.object(RunDBManager, "downgradedb")
+    @mock.patch.object(RunDBManager, "downgrade")
     @mock.patch.object(RunDBManager, "upgradedb")
     @mock.patch.object(RunDBManager, "initdb")
     def test_init_db_calls_rundbmanager(self, mock_initdb, mock_upgrade_db, mock_downgrade_db, session):
@@ -67,7 +67,7 @@ class TestRunDBManager:
         mock_upgrade_db.assert_not_called()
         mock_downgrade_db.assert_not_called()
 
-    @mock.patch.object(RunDBManager, "downgradedb")
+    @mock.patch.object(RunDBManager, "downgrade")
     @mock.patch.object(RunDBManager, "upgradedb")
     @mock.patch.object(RunDBManager, "initdb")
     @mock.patch("alembic.command")
@@ -96,9 +96,9 @@ class TestRunDBManager:
         # upgradedb
         ext_db.upgradedb(session=session)
         fabdb_manager.upgradedb.assert_called_once()
-        # downgradedb
-        ext_db.downgradedb(session=session)
-        mock_fabdb_manager.return_value.downgradedb.assert_called_once()
+        # downgrade
+        ext_db.downgrade(session=session)
+        mock_fabdb_manager.return_value.downgrade.assert_called_once()
         connection = mock.MagicMock()
         ext_db.drop_tables(session, connection)
         mock_fabdb_manager.return_value.drop_tables.assert_called_once_with(connection)
@@ -127,8 +127,14 @@ class TestBaseDBManager:
 
     @mock.patch.object(BaseDBManager, "get_alembic_config")
     @mock.patch("alembic.command.upgrade")
-    def test_upgradedb(self, mock_alembic_cmd, mock_alembic_config, session, caplog):
+    def test_upgrade(self, mock_alembic_cmd, mock_alembic_config, session, caplog):
         manager = MockDBManager(session)
         manager.upgradedb()
         mock_alembic_cmd.assert_called_once()
         assert "Upgrading the MockDBManager database" in caplog.text
+
+    @mock.patch.object(BaseDBManager, "get_script_object")
+    @mock.patch.object(BaseDBManager, "get_current_revision")
+    def test_check_migration(self, mock_script_obj, mock_current_revision, session):
+        manager = MockDBManager(session)
+        manager.check_migration()  # just ensure this can be called

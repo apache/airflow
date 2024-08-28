@@ -75,9 +75,9 @@ def migratedb(args):
         to_revision = args.to_revision
 
     if not args.show_sql_only:
-        print(f"Performing upgrade to the FAB metadata database {settings.engine.url!r}")
+        print(f"Performing upgradedb to the FAB metadata database {settings.engine.url!r}")
     else:
-        print("Generating sql for upgrade -- FAB upgrade commands will *not* be submitted.")
+        print("Generating sql for upgradedb -- FAB upgradedb commands will *not* be submitted.")
 
     FABDBManager(session).upgradedb(
         to_revision=to_revision,
@@ -126,12 +126,12 @@ def downgrade(args):
         args.yes
         or input(
             "\nWarning: About to reverse schema migrations for the FAB metastore. "
-            "Please ensure you have backed up your database before any upgrade or "
+            "Please ensure you have backed up your database before any upgradedb or "
             "downgrade operation. Proceed? (y/n)\n"
         ).upper()
         == "Y"
     ):
-        FABDBManager(session).downgradedb(
+        FABDBManager(session).downgrade(
             to_revision=to_revision, from_revision=from_revision, show_sql_only=args.show_sql_only
         )
         if not args.show_sql_only:
