@@ -65,7 +65,7 @@ from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import load_dag_schema
 from airflow.serialization.pydantic.dag import DagModelPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
-from airflow.serialization.pydantic.dataset import DatasetPydantic
+from airflow.serialization.pydantic.dataset import AssetPydantic
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
@@ -477,7 +477,7 @@ _orm_to_model = {
     DagRun: DagRunPydantic,
     DagModel: DagModelPydantic,
     LogTemplate: LogTemplatePydantic,
-    Asset: DatasetPydantic,
+    Asset: AssetPydantic,
     Trigger: TriggerPydantic,
 }
 _type_to_class: dict[DAT | str, list] = {
@@ -486,7 +486,7 @@ _type_to_class: dict[DAT | str, list] = {
     DAT.DAG_RUN: [DagRunPydantic, DagRun],
     DAT.DAG_MODEL: [DagModelPydantic, DagModel],
     DAT.LOG_TEMPLATE: [LogTemplatePydantic, LogTemplate],
-    DAT.DATA_SET: [DatasetPydantic, Asset],
+    DAT.DATA_SET: [AssetPydantic, Asset],
     DAT.TRIGGER: [TriggerPydantic, Trigger],
 }
 _class_to_type = {cls_: type_ for type_, classes in _type_to_class.items() for cls_ in classes}

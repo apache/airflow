@@ -53,7 +53,7 @@ from airflow.operators.python import PythonOperator
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.pydantic.dag import DagModelPydantic, DagTagPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
-from airflow.serialization.pydantic.dataset import AssetEventPydantic, DatasetPydantic
+from airflow.serialization.pydantic.dataset import AssetEventPydantic, AssetPydantic
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.pydantic.tasklog import LogTemplatePydantic
@@ -326,7 +326,7 @@ sample_objects = {
         id=1, filename="test_file", elasticsearch_id="test_id", created_at=datetime.now()
     ),
     DagTagPydantic: DagTag(),
-    DatasetPydantic: Asset("uri", {}),
+    AssetPydantic: Asset("uri", {}),
     AssetEventPydantic: AssetEvent(),
 }
 
@@ -354,13 +354,13 @@ sample_objects = {
             lambda a, b: equal_time(a.execution_date, b.execution_date)
             and equal_time(a.start_date, b.start_date),
         ),
-        # Asset is already serialized by non-Pydantic serialization. Is DatasetPydantic needed then?
+        # Asset is already serialized by non-Pydantic serialization. Is AssetPydantic needed then?
         # (
         #     Asset(
         #         uri="foo://bar",
         #         extra={"foo": "bar"},
         #     ),
-        #     DatasetPydantic,
+        #     AssetPydantic,
         #     DAT.DATA_SET,
         #     lambda a, b: a.uri == b.uri and a.extra == b.extra,
         # ),
@@ -429,7 +429,7 @@ def test_all_pydantic_models_round_trip():
                     continue
                 classes.add(obj)
     exclusion_list = {
-        "DatasetPydantic",
+        "AssetPydantic",
         "DagTagPydantic",
         "DagScheduleAssetReferencePydantic",
         "TaskOutletAssetReferencePydantic",

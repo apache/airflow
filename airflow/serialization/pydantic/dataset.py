@@ -43,8 +43,8 @@ class TaskOutletAssetReferencePydantic(BaseModelPydantic):
     model_config = ConfigDict(from_attributes=True)
 
 
-class DatasetPydantic(BaseModelPydantic):
-    """Serializable representation of the Dataset ORM SqlAlchemyModel used by internal API."""
+class AssetPydantic(BaseModelPydantic):
+    """Serializable representation of the Asset ORM SqlAlchemyModel used by internal API."""
 
     id: int
     uri: str
@@ -70,6 +70,6 @@ class AssetEventPydantic(BaseModelPydantic):
     source_run_id: Optional[str]
     source_map_index: Optional[int]
     timestamp: datetime
-    dataset: Optional[DatasetPydantic]
+    dataset: Optional[AssetPydantic]
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
