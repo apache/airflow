@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-27T13:48:12.710565
+# This constraints file was automatically generated on 2024-08-28T07:51:00.606334
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -87,7 +87,7 @@ alibabacloud_openapi_util==0.2.2
 alibabacloud_tea_openapi==0.3.11
 alibabacloud_tea_util==0.3.13
 alibabacloud_tea_xml==0.0.2
-aliyun-python-sdk-core==2.15.1
+aliyun-python-sdk-core==2.15.2
 aliyun-python-sdk-kms==2.16.4
 amqp==5.2.0
 analytics-python==1.2.9
@@ -246,7 +246,7 @@ celery==5.4.0
 certifi==2024.7.4
 cffi==1.17.0
 cfgv==3.4.0
-cfn-lint==1.10.3
+cfn-lint==1.11.0
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -316,12 +316,12 @@ gevent==24.2.1
 gitdb==4.0.11
 google-ads==25.0.0
 google-analytics-admin==0.23.0
-google-api-core==2.19.1
+google-api-core==2.19.2
 google-api-python-client==2.142.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.34.0
-google-cloud-aiplatform==1.63.0
+google-cloud-aiplatform==1.64.0
 google-cloud-appengine-logging==1.4.5
 google-cloud-audit-log==0.3.0
 google-cloud-automl==2.13.5
@@ -365,7 +365,7 @@ google-cloud-workflows==1.14.5
 google-crc32c==1.5.0
 google-re2==1.1.20240702
 google-resumable-media==2.7.2
-googleapis-common-protos==1.64.0
+googleapis-common-protos==1.65.0
 graphql-core==3.2.3
 graphviz==0.20.3
 greenlet==3.0.3
@@ -488,9 +488,9 @@ objsize==0.7.0
 openai==1.42.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
-openlineage-integration-common==1.20.5
-openlineage-python==1.20.5
-openlineage_sql==1.20.5
+openlineage-integration-common==1.20.6
+openlineage-python==1.20.6
+openlineage_sql==1.20.6
 openpyxl==3.1.5
 opensearch-py==2.7.1
 opentelemetry-api==1.26.0
@@ -741,12 +741,12 @@ xmlsec==1.3.14
 xmltodict==0.13.0
 yamllint==1.35.1
 yandex-query-client==0.1.4
-yandexcloud==0.313.0
+yandexcloud==0.314.0
 yarl==1.9.4
 ydb==3.16.0
 zeep==4.2.1
 zenpy==2.0.50
 zipp==3.20.1
 zope.event==5.0
-zope.interface==7.0.2
+zope.interface==7.0.3
 zstandard==0.23.0
