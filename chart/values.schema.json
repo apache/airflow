@@ -7437,7 +7437,7 @@
                             "default": "ClusterIP"
                         },
                         "clusterIP": {
-                            "description": "If service type is ClusterIP, a clusterIP can be specified.",
+                            "description": "If using `ClusterIP` service type, custom IP address can be specified.",
                             "type": [
                                 "string",
                                 "null"
@@ -7445,7 +7445,7 @@
                             "default": null
                         },
                         "nodePort": {
-                            "description": "If service type is NodePort, a nodePort can be specified.",
+                            "description": "If using `NodePort` service type, custom node port can be specified.",
                             "type": [
                                 "integer",
                                 "null"
