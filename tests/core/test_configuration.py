@@ -1635,7 +1635,6 @@ def test_sensitive_values():
         ("celery", "broker_url"),
         ("celery", "flower_basic_auth"),
         ("celery", "result_backend"),
-        ("opensearch", "password"),
     }
     all_keys = {(s, k) for s, v in conf.configuration_description.items() for k in v.get("options")}
     suspected_sensitive = {(s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))}
@@ -1643,6 +1642,7 @@ def test_sensitive_values():
         ("aws_batch_executor", "submit_job_kwargs"),
         ("kubernetes_executor", "delete_option_kwargs"),
         ("aws_ecs_executor", "run_task_kwargs"),  # Only a constrained set of values, none are sensitive
+        ("opensearch", "password"),
     }
     suspected_sensitive -= exclude_list
     sensitive_values.update(suspected_sensitive)

@@ -103,7 +103,7 @@ class TestHitAndHitMetaAndOpenSearchResponse:
         expected_dict["doc_type"] = expected_dict.pop("type")
         assert hitmeta.to_dict() == expected_dict
 
-    def test_elasticsearchresponse_initialization_and_hits_and_bool(self):
+    def test_opensearchresponse_initialization_and_hits_and_bool(self):
         task_handler = OpensearchTaskHandler(
             base_log_folder="local/log/location",
             end_of_log_mark="end_of_log\n",
