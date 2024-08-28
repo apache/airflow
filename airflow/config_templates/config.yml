@@ -483,9 +483,9 @@ core:
       sensitive: true
       default: ~
       example: '{"some_param": "some_value"}'
-    strict_dataset_uri_validation:
+    strict_asset_uri_validation:
       description: |
-        Dataset URI validation should raise an exception if it is not compliant with AIP-60.
+        Asset URI validation should raise an exception if it is not compliant with AIP-60.
         By default this configuration is false, meaning that Airflow 2.x only warns the user.
         In Airflow 3, this configuration will be enabled by default.
       default: "False"

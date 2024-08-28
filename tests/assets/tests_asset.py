@@ -501,7 +501,7 @@ def test_sanitize_uri_raises_warning(mock_warn):
 
 
 @patch("airflow.assets._get_uri_normalizer", _mock_get_uri_normalizer_raising_error)
-@conf_vars({("core", "strict_dataset_uri_validation"): "True"})
+@conf_vars({("core", "strict_asset_uri_validation"): "True"})
 def test_sanitize_uri_raises_exception():
     with pytest.raises(ValueError) as e_info:
         _sanitize_uri("postgres://localhost:5432/database.schema.table")

@@ -26,7 +26,7 @@ Before running any DAG, the schedule of the "asset_alias_example_alias_consumer_
 This is expected because the asset alias has not been resolved into any asset yet.
 
 Once the "asset_s3_bucket_producer_with_no_taskflow" DAG is triggered, the "asset_s3_bucket_consumer_with_no_taskflow" DAG should be triggered upon completion.
-This is because the asset alias "example-alias-no-taskflow" is used to add a asset event to the asset "s3://bucket/my-task-with-no-taskflow"
+This is because the asset alias "example-alias-no-taskflow" is used to add an asset event to the asset "s3://bucket/my-task-with-no-taskflow"
 during the "produce_asset_events_through_asset_alias_with_no_taskflow" task. Also, the schedule of the "asset_alias_example_alias_consumer_with_no_taskflow" DAG should change to "Asset" as
 the asset alias "example-alias-no-taskflow" is now resolved to the asset "s3://bucket/my-task-with-no-taskflow" and this DAG should also be triggered.
 """

@@ -109,7 +109,7 @@ def _sanitize_uri(uri: str) -> str:
         try:
             parsed = normalizer(parsed)
         except ValueError as exception:
-            if conf.getboolean("core", "strict_dataset_uri_validation", fallback=False):
+            if conf.getboolean("core", "strict_asset_uri_validation", fallback=False):
                 raise
             warnings.warn(
                 f"The Asset URI {uri} is not AIP-60 compliant: {exception}. "
@@ -306,7 +306,7 @@ class Asset(os.PathLike, BaseAsset):
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
-        Iterate a asset as dag dependency.
+        Iterate an asset as dag dependency.
 
         :meta private:
         """
