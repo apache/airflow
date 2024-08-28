@@ -3035,6 +3035,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
             self.log.info("Starting batch. The batch ID will be generated since it was not provided.")
 
         try:
+            self.log.info("Creating batch: %s", self.batch)
             self.operation = self.hook.create_batch(
                 region=self.region,
                 project_id=self.project_id,

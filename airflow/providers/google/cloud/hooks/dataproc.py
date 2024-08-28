@@ -995,8 +995,6 @@ class DataprocHook(GoogleBaseHook):
         """
         client = self.get_batch_client(region)
         parent = f"projects/{project_id}/regions/{region}"
-        
-        self.log.debug(f"Creating batch: {batch}")
 
         result = client.create_batch(
             request={
@@ -1036,9 +1034,6 @@ class DataprocHook(GoogleBaseHook):
         """
         client = self.get_batch_client(region)
         name = f"projects/{project_id}/locations/{region}/batches/{batch_id}"
-        
-        self.log.debug(f"Deleting batch with batch id: {batch_id}")
-
         client.delete_batch(
             request={
                 "name": name,
@@ -1073,8 +1068,6 @@ class DataprocHook(GoogleBaseHook):
         """
         client = self.get_batch_client(region)
         name = f"projects/{project_id}/locations/{region}/batches/{batch_id}"
-        
-        self.log.debug(f"Getting batch with batch id: {batch_id}")
 
         result = client.get_batch(
             request={
@@ -1857,7 +1850,6 @@ class DataprocAsyncHook(GoogleBaseHook):
         """
         client = self.get_batch_client(region)
         parent = f"projects/{project_id}/regions/{region}"
-        self.log.debug(f"Creating batch: {batch}")
 
         result = await client.create_batch(
             request={
@@ -1897,7 +1889,6 @@ class DataprocAsyncHook(GoogleBaseHook):
         """
         client = self.get_batch_client(region)
         name = f"projects/{project_id}/locations/{region}/batches/{batch_id}"
-        self.log.debug(f"Deleting batch with batch id: {batch_id}")
 
         await client.delete_batch(
             request={
@@ -1933,7 +1924,6 @@ class DataprocAsyncHook(GoogleBaseHook):
         """
         client = self.get_batch_client(region)
         name = f"projects/{project_id}/locations/{region}/batches/{batch_id}"
-        self.log.debug(f"Getting batch with batch id: {batch_id}")
 
         result = await client.get_batch(
             request={
