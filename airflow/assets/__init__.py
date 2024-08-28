@@ -108,15 +108,9 @@ def _sanitize_uri(uri: str) -> str:
     if (normalizer := _get_uri_normalizer(normalized_scheme)) is not None:
         try:
             parsed = normalizer(parsed)
-        except ValueError as exception:
+        except ValueError:
             if conf.getboolean("core", "strict_asset_uri_validation", fallback=False):
                 raise
-            warnings.warn(
-                f"The Asset URI {uri} is not AIP-60 compliant: {exception}. "
-                f"In Airflow 3, this will raise an exception.",
-                UserWarning,
-                stacklevel=3,
-            )
     return urllib.parse.urlunsplit(parsed)
 
 
