@@ -2796,7 +2796,8 @@ class DAG(LoggingMixin):
         # store datasets
         stored_datasets_by_name: dict[str, DatasetModel] = {}
         stored_datasets_by_uri: dict[str, DatasetModel] = {}
-        new_datasets: list[DatasetModel] = []
+        new_datasets_by_name: dict[str, DatasetModel] = {}
+        new_datasets_by_uri: dict[str, DatasetModel] = {}
         for dataset in all_datasets:
             stmt = select(DatasetModel)
             if dataset.name:
@@ -2824,12 +2825,17 @@ class DAG(LoggingMixin):
                 stored_datasets_by_name[stored_dataset.name] = stored_dataset
                 stored_datasets_by_uri[stored_dataset.uri] = stored_dataset
             else:
-                new_datasets.append(dataset)
-        dataset_manager.create_datasets(dataset_models=new_datasets, session=session)
-        stored_datasets_by_name.update((ds.name, ds) for ds in new_datasets)
-        stored_datasets_by_uri.update((ds.uri, ds) for ds in new_datasets)
+                if (dataset.name and dataset.name not in new_datasets_by_name) or (
+                    dataset.uri and dataset.uri not in new_datasets_by_uri
+                ):
+                    new_datasets_by_name[dataset.name] = dataset
+                    new_datasets_by_uri[dataset.uri] = dataset
+        dataset_manager.create_datasets(dataset_models=new_datasets_by_name.values(), session=session)
+        stored_datasets_by_name.update(new_datasets_by_name)
+        stored_datasets_by_uri.update(new_datasets_by_uri)
 
-        del new_datasets
+        del new_datasets_by_name
+        del new_datasets_by_uri
         del all_datasets
 
         # store dataset aliases
