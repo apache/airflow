@@ -113,5 +113,26 @@ try:
                 dialect.name = "sqlite"
                 with pytest.raises(SystemExit, match="Offline migration not supported for SQLite"):
                     FABDBManager(session).upgradedb(from_revision=None, to_revision=None, show_sql_only=True)
+
+        @mock.patch("airflow.utils.db_manager.inspect")
+        @mock.patch.object(FABDBManager, "metadata")
+        def test_drop_tables(self, mock_metadata, mock_inspect, session):
+            manager = FABDBManager(session)
+            connection = mock.MagicMock()
+            manager.drop_tables(connection)
+            mock_metadata.drop_all.assert_called_once_with(connection)
+
+        @pytest.mark.parametrize("skip_init", [True, False])
+        @mock.patch.object(FABDBManager, "drop_tables")
+        @mock.patch.object(FABDBManager, "initdb")
+        @mock.patch("airflow.utils.db.create_global_lock", new=mock.MagicMock)
+        def test_resetdb(self, mock_initdb, mock_drop_tables, session, skip_init):
+            manager = FABDBManager(session)
+            manager.resetdb(skip_init=skip_init)
+            mock_drop_tables.assert_called_once()
+            if skip_init:
+                mock_initdb.assert_not_called()
+            else:
+                mock_initdb.assert_called_once()
 except ModuleNotFoundError:
     pass
