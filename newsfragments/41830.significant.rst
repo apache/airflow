@@ -1,0 +1,1 @@
+Deprected module ``airflow.providers.cncf.kubernetes.pod_launcher_deprecated`` removed. Please use ``airflow.providers.cncf.kubernetes.utils.pod_manager`` instead.
