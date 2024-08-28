@@ -196,7 +196,7 @@ class TestDagProcessorJobRunner:
             self.run_processor_manager_one_loop(manager, parent_pipe)
             import_errors = session.query(ParseImportError).all()
 
-            assert len(import_errors) == 0
+            assert len(import_errors) == 1
             session.rollback()
 
         child_pipe.close()

@@ -40,7 +40,7 @@ const generateRuns = (length: number): DagRun[] =>
     startDate: "2021-11-08T21:14:19.704433+00:00",
     endDate: "2021-11-08T21:17:13.206426+00:00",
     lastSchedulingDecision: datestring,
-    executionDate: datestring,
+    logicalDate: datestring,
     externalTrigger: false,
     conf: null,
     note: "someRandomValue",
@@ -59,7 +59,7 @@ describe("Test DagRuns", () => {
         endDate: "2021-11-08T21:17:13.206426+00:00",
         state: "failed",
         runType: "scheduled",
-        executionDate: "2021-11-08T21:14:19.704433+00:00",
+        logicalDate: "2021-11-08T21:14:19.704433+00:00",
         lastSchedulingDecision: datestring,
         externalTrigger: false,
         conf: null,
@@ -74,7 +74,7 @@ describe("Test DagRuns", () => {
         queuedAt: "2021-11-08T21:14:18.21521+00:00",
         startDate: "2021-11-09T00:19:43.023200+00:00",
         endDate: "2021-11-09T00:22:18.607167+00:00",
-        executionDate: "2021-11-08T21:14:19.704433+00:00",
+        logicalDate: "2021-11-08T21:14:19.704433+00:00",
         lastSchedulingDecision: datestring,
         externalTrigger: false,
         conf: null,
@@ -102,7 +102,7 @@ describe("Test DagRuns", () => {
     expect(getByText("00:01:26")).toBeInTheDocument();
     expect(
       // @ts-ignore
-      queryByText(moment.utc(dagRuns[0].executionDate).format("MMM DD, HH:mm"))
+      queryByText(moment.utc(dagRuns[0].logicalDate).format("MMM DD, HH:mm"))
     ).toBeNull();
 
     spy.mockRestore();

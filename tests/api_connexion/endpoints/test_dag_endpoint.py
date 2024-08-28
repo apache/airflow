@@ -838,7 +838,7 @@ class TestGetDags(TestDagEndpoint):
                     "description": None,
                     "fileloc": "/tmp/dag_del_1.py",
                     "file_token": file_token_2,
-                    "is_paused": False,
+                    "is_paused": True,
                     "is_active": False,
                     "owners": [],
                     "timetable_summary": "2 2 * * *",

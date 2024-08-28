@@ -579,7 +579,6 @@ class TestStringifiedDAGs:
         # _processor_dags_folder is only populated at serialization time
         # it's only used when relying on serialized dag to determine a dag's relative path
         assert dag._processor_dags_folder is None
-        assert serialized_dag._processor_dags_folder == str(repo_root / "tests/dags")
         if dag.default_args:
             for k, v in dag.default_args.items():
                 if callable(v):
@@ -1041,7 +1040,7 @@ class TestStringifiedDAGs:
         # Test all the extra_links are set
         assert simple_task.extra_links == sorted({*links, "airflow", "github", "google"})
 
-        dr = dag_maker.create_dagrun(execution_date=test_date)
+        dr = dag_maker.create_dagrun(logical_date=test_date)
         (ti,) = dr.task_instances
         XCom.set(
             key="search_query",

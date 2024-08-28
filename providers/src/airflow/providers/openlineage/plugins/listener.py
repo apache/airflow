@@ -139,11 +139,15 @@ class OpenLineageListener:
                 logical_date=dagrun.logical_date,
             )
 
+            if hasattr(task_instance, "logical_date"):
+                logical_date = task_instance.logical_date
+            else:
+                logical_date = task_instance.execution_date
             task_uuid = self.adapter.build_task_instance_run_id(
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
                 try_number=task_instance.try_number,
-                execution_date=task_instance.execution_date,
+                logical_date=logical_date,
             )
             event_type = RunState.RUNNING.value.lower()
             operator_name = task.task_type.lower()
@@ -213,16 +217,20 @@ class OpenLineageListener:
 
         @print_warning(self.log)
         def on_success():
-            parent_run_id = OpenLineageAdapter.build_dag_run_id(
+            parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=dag.dag_id,
                 logical_date=dagrun.logical_date,
             )
 
-            task_uuid = OpenLineageAdapter.build_task_instance_run_id(
+            if hasattr(task_instance, "logical_date"):
+                logical_date = task_instance.logical_date
+            else:
+                logical_date = task_instance.execution_date
+            task_uuid = self.adapter.build_task_instance_run_id(
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
                 try_number=_get_try_number_success(task_instance),
-                execution_date=task_instance.execution_date,
+                logical_date=logical_date,
             )
             event_type = RunState.COMPLETE.value.lower()
             operator_name = task.task_type.lower()
@@ -312,16 +320,20 @@ class OpenLineageListener:
 
         @print_warning(self.log)
         def on_failure():
-            parent_run_id = OpenLineageAdapter.build_dag_run_id(
+            parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=dag.dag_id,
                 logical_date=dagrun.logical_date,
             )
 
-            task_uuid = OpenLineageAdapter.build_task_instance_run_id(
+            if hasattr(task_instance, "logical_date"):
+                logical_date = task_instance.logical_date
+            else:
+                logical_date = task_instance.execution_date
+            task_uuid = self.adapter.build_task_instance_run_id(
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
                 try_number=task_instance.try_number,
-                execution_date=task_instance.execution_date,
+                logical_date=logical_date,
             )
             event_type = RunState.FAIL.value.lower()
             operator_name = task.task_type.lower()

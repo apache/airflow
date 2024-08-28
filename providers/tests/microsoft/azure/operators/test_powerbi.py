@@ -131,7 +131,6 @@ class TestPowerBIDatasetRefreshOperator(Base):
         ti = create_task_instance_of_operator(
             PowerBIDatasetRefreshOperator,
             dag_id="test_powerbi_refresh_op_link",
-            execution_date=DEFAULT_DATE,
             task_id=TASK_ID,
             conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
             group_id=GROUP_ID,

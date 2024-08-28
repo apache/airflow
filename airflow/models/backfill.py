@@ -134,7 +134,7 @@ class BackfillDagRun(Base):
 def _create_backfill_dag_run(dag, info, backfill_id, dag_run_conf, backfill_sort_ordinal, session):
     from airflow.models import DagRun
 
-    dr = session.scalar(select(DagRun).where(DagRun.execution_date == info.logical_date).limit(1))
+    dr = session.scalar(select(DagRun).where(DagRun.logical_date == info.logical_date).limit(1))
     if dr:
         session.add(
             BackfillDagRun(
@@ -154,7 +154,7 @@ def _create_backfill_dag_run(dag, info, backfill_id, dag_run_conf, backfill_sort
         return
     dr = dag.create_dagrun(
         triggered_by=DagRunTriggeredByType.BACKFILL,
-        execution_date=info.logical_date,
+        logical_date=info.logical_date,
         data_interval=info.data_interval,
         start_date=timezone.utcnow(),
         state=DagRunState.QUEUED,

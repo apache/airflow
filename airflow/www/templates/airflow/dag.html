@@ -50,10 +50,10 @@
 {% set dag_is_paused = dag.get_is_paused() %}
 {% set base_date_arg = request.args.get('base_date') %}
 {% set num_runs_arg = request.args.get('num_runs') %}
-{% if execution_date is defined %}
-  {% set execution_date_arg = execution_date %}
+{% if logical_date is defined %}
+  {% set execution_date_arg = logical_date %}
 {% else %}
-  {% set execution_date_arg = request.args.get('execution_date') %}
+  {% set execution_date_arg = request.args.get('logical_date') %}
 {% endif %}
 
 {% block head_meta %}

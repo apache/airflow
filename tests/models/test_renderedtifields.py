@@ -241,7 +241,7 @@ class TestRenderedTaskInstanceFields:
             rtif_list = []
             for num in range(rtif_num):
                 dr = dag_maker.create_dagrun(
-                    run_id=str(num), execution_date=dag.start_date + timedelta(days=num)
+                    run_id=str(num), logical_date=dag.start_date + timedelta(days=num)
                 )
                 ti = dr.task_instances[0]
                 ti.task = task
@@ -283,7 +283,7 @@ class TestRenderedTaskInstanceFields:
                 mapped = BashOperator.partial(task_id="mapped").expand(bash_command=["a", "b"])
             for num in range(num_runs):
                 dr = dag_maker.create_dagrun(
-                    run_id=f"run_{num}", execution_date=dag.start_date + timedelta(days=num)
+                    run_id=f"run_{num}", logical_date=dag.start_date + timedelta(days=num)
                 )
 
                 mapped.expand_mapped_task(dr.run_id, session=dag_maker.session)
