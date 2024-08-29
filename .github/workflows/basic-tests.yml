@@ -113,6 +113,7 @@ jobs:
         with:
           node-version: 21
           cache: 'pnpm'
+          cache-dependency-path: 'airflow/ui/pnpm-lock.yaml'
       - name: "Cache eslint"
         uses: actions/cache@v4
         with:
