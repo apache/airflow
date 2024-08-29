@@ -77,6 +77,7 @@ from airflow.auth.managers.utils.fab import get_method_from_fab_action_map
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, RemovedInAirflow3Warning
 from airflow.models import DagBag, DagModel
+from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 from airflow.providers.fab.auth_manager.models import (
     Action,
     Permission,
@@ -234,7 +235,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_READ, RESOURCE_ASSET),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
@@ -253,7 +254,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_ACCESS_MENU, RESOURCE_ASSET),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
@@ -273,7 +274,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_CREATE, RESOURCE_ASSET),
     ]
     # [END security_user_perms]
 
@@ -302,8 +303,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_XCOM),
-        (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DATASET),
-        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_DELETE, RESOURCE_ASSET),
+        (permissions.ACTION_CAN_CREATE, RESOURCE_ASSET),
     ]
     # [END security_op_perms]
 

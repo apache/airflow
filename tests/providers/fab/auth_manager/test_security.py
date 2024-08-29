@@ -455,11 +455,7 @@ def test_get_user_roles_for_anonymous_user(app, security_manager):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
-<<<<<<< HEAD
-        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DATASET),
-=======
         (permissions.ACTION_CAN_ACCESS_MENU, RESOURCE_ASSET),
->>>>>>> 64678bd67c (fixup security RESOURCE_ASSET compat)
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_SLA_MISS),

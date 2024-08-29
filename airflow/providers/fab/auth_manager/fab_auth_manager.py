@@ -48,6 +48,7 @@ from airflow.cli.cli_config import (
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.models import DagModel
+from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 from airflow.providers.fab.auth_manager.cli_commands.definition import (
     DB_COMMANDS,
     ROLES_COMMANDS,
@@ -66,7 +67,6 @@ from airflow.security.permissions import (
     RESOURCE_DAG_DEPENDENCIES,
     RESOURCE_DAG_RUN,
     RESOURCE_DAG_WARNING,
-    RESOURCE_DATASET,
     RESOURCE_DOCS,
     RESOURCE_IMPORT_ERROR,
     RESOURCE_JOB,
@@ -266,7 +266,7 @@ class FabAuthManager(BaseAuthManager):
     def is_authorized_dataset(
         self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
     ) -> bool:
-        return self._is_authorized(method=method, resource_type=RESOURCE_DATASET, user=user)
+        return self._is_authorized(method=method, resource_type=RESOURCE_ASSET, user=user)
 
     def is_authorized_pool(
         self, *, method: ResourceMethod, details: PoolDetails | None = None, user: BaseUser | None = None

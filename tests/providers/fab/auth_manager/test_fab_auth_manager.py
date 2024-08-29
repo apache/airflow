@@ -38,6 +38,7 @@ with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.models import User
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
+from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 from airflow.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_CREATE,
@@ -48,7 +49,6 @@ from airflow.security.permissions import (
     RESOURCE_CONNECTION,
     RESOURCE_DAG,
     RESOURCE_DAG_RUN,
-    RESOURCE_DATASET,
     RESOURCE_DOCS,
     RESOURCE_JOB,
     RESOURCE_PLUGIN,
@@ -66,7 +66,7 @@ if TYPE_CHECKING:
 IS_AUTHORIZED_METHODS_SIMPLE = {
     "is_authorized_configuration": RESOURCE_CONFIG,
     "is_authorized_connection": RESOURCE_CONNECTION,
-    "is_authorized_dataset": RESOURCE_DATASET,
+    "is_authorized_dataset": RESOURCE_ASSET,
     "is_authorized_variable": RESOURCE_VARIABLE,
 }
 
