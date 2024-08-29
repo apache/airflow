@@ -253,9 +253,15 @@ export type DAG = {
    *
    */
   readonly description?: string | null;
-  schedule_interval?: ScheduleInterval;
   /**
-   * Timetable/Schedule Interval description.
+   * Timetable summary.
+   *
+   * *New in version 3.0.0*
+   *
+   */
+  readonly timetable_summary?: string | null;
+  /**
+   * Timetable description.
    *
    * *New in version 2.3.0*
    *
@@ -993,7 +999,8 @@ export type XCom = XComCollectionItem & {
     | Array<unknown>
     | {
         [key: string]: unknown;
-      };
+      }
+    | null;
 };
 
 /**
@@ -1826,18 +1833,18 @@ export type ListTaskInstanceForm = {
    * The value can be repeated to retrieve multiple matching values (OR condition).
    */
   executor?: Array<string>;
+  /**
+   * The name of the field to order the results by. Prefix a field name
+   * with `-` to reverse the sort order. `order_by` defaults to
+   * `map_index` when unspecified.
+   * Supported field names: `state`, `duration`, `start_date`, `end_date`
+   * and `map_index`.
+   *
+   * *New in version 3.0.0*
+   *
+   */
+  order_by?: string;
 };
-
-/**
- * Schedule interval. Defines how often DAG runs, this object gets added to your latest task instance's
- * execution_date to figure out the next schedule.
- *
- */
-export type ScheduleInterval =
-  | TimeDelta
-  | RelativeDelta
-  | CronExpression
-  | null;
 
 /**
  * Time delta
@@ -2271,6 +2278,18 @@ export type ParameterFilterMapIndex = number;
  * Filter on try_number for task instance.
  */
 export type ParameterFilterTryNumber = number;
+
+/**
+ * The name of the field to order the results by. Prefix a field name
+ * with `-` to reverse the sort order. `order_by` defaults to
+ * `map_index` when unspecified.
+ * Supported field names: `state`, `duration`, `start_date`, `end_date`
+ * and `map_index`.
+ *
+ * *New in version 3.0.0*
+ *
+ */
+export type ParameterTaskInstanceOrderBy = string;
 
 /**
  * The name of the field to order the results by.
@@ -2801,6 +2820,17 @@ export type GetTaskInstancesData = {
    */
   offset?: number;
   /**
+   * The name of the field to order the results by. Prefix a field name
+   * with `-` to reverse the sort order. `order_by` defaults to
+   * `map_index` when unspecified.
+   * Supported field names: `state`, `duration`, `start_date`, `end_date`
+   * and `map_index`.
+   *
+   * *New in version 3.0.0*
+   *
+   */
+  orderBy?: string;
+  /**
    * The value can be repeated to retrieve multiple matching values (OR condition).
    */
   pool?: Array<string>;
@@ -2996,10 +3026,13 @@ export type GetMappedTaskInstancesData = {
    */
   offset?: number;
   /**
-   * The name of the field to order the results by.
-   * Prefix a field name with `-` to reverse the sort order.
+   * The name of the field to order the results by. Prefix a field name
+   * with `-` to reverse the sort order. `order_by` defaults to
+   * `map_index` when unspecified.
+   * Supported field names: `state`, `duration`, `start_date`, `end_date`
+   * and `map_index`.
    *
-   * *New in version 2.1.0*
+   * *New in version 3.0.0*
    *
    */
   orderBy?: string;

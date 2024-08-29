@@ -629,6 +629,7 @@ repos:
           ^docs/apache-airflow-providers-cncf-kubernetes/operators.rst$|
           ^docs/conf.py$|
           ^docs/exts/removemarktransform.py$|
+          ^newsfragments/41761.significant.rst$|
           ^scripts/ci/pre_commit/vendor_k8s_json_schema.py$|
           ^tests/|
           ^.pre-commit-config\.yaml$|
@@ -1137,7 +1138,7 @@ repos:
         language: node
         'types_or': [javascript, ts, tsx, yaml, css, json]
         files: ^airflow/www/static/(js|css)/|^airflow/api_connexion/openapi/v1\.yaml$
-        entry: ./scripts/ci/pre_commit/www_lint.py
+        entry: ./scripts/ci/pre_commit/lint_www.py
         additional_dependencies: ['yarn@1.22.21', "openapi-typescript@>=6.7.4"]
         pass_filenames: false
       - id: ts-compile-format-lint-ui

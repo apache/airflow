@@ -26,7 +26,7 @@ import { Wrapper } from "./utils/test";
 import { DAGCollection } from "openapi/requests/types.gen";
 import { QueryObserverSuccessResult } from "@tanstack/react-query";
 
-const mockListDags = {
+const mockListDags: DAGCollection = {
   dags: [
     {
       dag_display_name: "nested_groups",
@@ -52,12 +52,6 @@ const mockListDags = {
       next_dagrun_data_interval_start: "2024-08-22T00:00:00+00:00",
       owners: ["airflow"],
       pickle_id: null,
-      schedule_interval: {
-        __type: "TimeDelta",
-        days: 1,
-        microseconds: 0,
-        seconds: 0,
-      },
       scheduler_lock: null,
       tags: [],
       timetable_description: "",
@@ -86,10 +80,6 @@ const mockListDags = {
       next_dagrun_data_interval_start: "2024-08-22T00:00:00+00:00",
       owners: ["airflow"],
       pickle_id: null,
-      schedule_interval: {
-        __type: "CronExpression",
-        value: "0 0 * * *",
-      },
       scheduler_lock: null,
       tags: [
         {

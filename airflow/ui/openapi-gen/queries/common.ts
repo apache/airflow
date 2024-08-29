@@ -261,6 +261,7 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     executor,
     limit,
     offset,
+    orderBy,
     pool,
     queue,
     startDateGte,
@@ -280,6 +281,7 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     executor?: string[];
     limit?: number;
     offset?: number;
+    orderBy?: string;
     pool?: string[];
     queue?: string[];
     startDateGte?: string;
@@ -304,6 +306,7 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
       executor,
       limit,
       offset,
+      orderBy,
       pool,
       queue,
       startDateGte,

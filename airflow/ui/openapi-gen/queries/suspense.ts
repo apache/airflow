@@ -306,6 +306,7 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
     executor,
     limit,
     offset,
+    orderBy,
     pool,
     queue,
     startDateGte,
@@ -325,6 +326,7 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
     executor?: string[];
     limit?: number;
     offset?: number;
+    orderBy?: string;
     pool?: string[];
     queue?: string[];
     startDateGte?: string;
@@ -350,6 +352,7 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
         executor,
         limit,
         offset,
+        orderBy,
         pool,
         queue,
         startDateGte,
@@ -373,6 +376,7 @@ export const useTaskInstanceServiceGetTaskInstancesSuspense = <
         executor,
         limit,
         offset,
+        orderBy,
         pool,
         queue,
         startDateGte,

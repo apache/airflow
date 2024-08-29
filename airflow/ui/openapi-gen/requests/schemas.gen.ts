@@ -367,14 +367,20 @@ export const $DAG = {
       description: `User-provided DAG description, which can consist of several sentences or paragraphs that describe DAG contents.
 `,
     },
-    schedule_interval: {
-      $ref: "#/components/schemas/ScheduleInterval",
+    timetable_summary: {
+      type: "string",
+      readOnly: true,
+      nullable: true,
+      description: `Timetable summary.
+
+*New in version 3.0.0*
+`,
     },
     timetable_description: {
       type: "string",
       readOnly: true,
       nullable: true,
-      description: `Timetable/Schedule Interval description.
+      description: `Timetable description.
 
 *New in version 2.3.0*
 `,
@@ -1605,6 +1611,7 @@ export const $XCom = {
             },
             {
               type: "object",
+              nullable: true,
             },
           ],
           description: "The value(s),",
@@ -2930,28 +2937,17 @@ This can be combined with duration_gte parameter to receive only the selected ra
       description:
         "The value can be repeated to retrieve multiple matching values (OR condition).",
     },
-  },
-} as const;
+    order_by: {
+      type: "string",
+      description: `The name of the field to order the results by. Prefix a field name
+with \`-\` to reverse the sort order. \`order_by\` defaults to
+\`map_index\` when unspecified.
+Supported field names: \`state\`, \`duration\`, \`start_date\`, \`end_date\`
+and \`map_index\`.
 
-export const $ScheduleInterval = {
-  description: `Schedule interval. Defines how often DAG runs, this object gets added to your latest task instance's
-execution_date to figure out the next schedule.
+*New in version 3.0.0*
 `,
-  nullable: true,
-  readOnly: true,
-  anyOf: [
-    {
-      $ref: "#/components/schemas/TimeDelta",
     },
-    {
-      $ref: "#/components/schemas/RelativeDelta",
-    },
-    {
-      $ref: "#/components/schemas/CronExpression",
-    },
-  ],
-  discriminator: {
-    propertyName: "__type",
   },
 } as const;
 

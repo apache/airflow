@@ -237,6 +237,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
     executor,
     limit,
     offset,
+    orderBy,
     pool,
     queue,
     startDateGte,
@@ -256,6 +257,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
     executor?: string[];
     limit?: number;
     offset?: number;
+    orderBy?: string;
     pool?: string[];
     queue?: string[];
     startDateGte?: string;
@@ -278,6 +280,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
       executor,
       limit,
       offset,
+      orderBy,
       pool,
       queue,
       startDateGte,
@@ -299,6 +302,7 @@ export const prefetchUseTaskInstanceServiceGetTaskInstances = (
         executor,
         limit,
         offset,
+        orderBy,
         pool,
         queue,
         startDateGte,

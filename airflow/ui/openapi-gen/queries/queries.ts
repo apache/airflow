@@ -330,6 +330,7 @@ export const useTaskInstanceServiceGetTaskInstances = <
     executor,
     limit,
     offset,
+    orderBy,
     pool,
     queue,
     startDateGte,
@@ -349,6 +350,7 @@ export const useTaskInstanceServiceGetTaskInstances = <
     executor?: string[];
     limit?: number;
     offset?: number;
+    orderBy?: string;
     pool?: string[];
     queue?: string[];
     startDateGte?: string;
@@ -374,6 +376,7 @@ export const useTaskInstanceServiceGetTaskInstances = <
         executor,
         limit,
         offset,
+        orderBy,
         pool,
         queue,
         startDateGte,
@@ -397,6 +400,7 @@ export const useTaskInstanceServiceGetTaskInstances = <
         executor,
         limit,
         offset,
+        orderBy,
         pool,
         queue,
         startDateGte,

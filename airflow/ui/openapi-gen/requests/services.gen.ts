@@ -913,6 +913,14 @@ export class TaskInstanceService {
    * @param data.dagRunId The DAG run ID.
    * @param data.limit The numbers of items to return.
    * @param data.offset The number of items to skip before starting to collect the result set.
+   * @param data.orderBy The name of the field to order the results by. Prefix a field name
+   * with `-` to reverse the sort order. `order_by` defaults to
+   * `map_index` when unspecified.
+   * Supported field names: `state`, `duration`, `start_date`, `end_date`
+   * and `map_index`.
+   *
+   * *New in version 3.0.0*
+   *
    * @param data.executionDateGte Returns objects greater or equal to the specified date.
    *
    * This can be combined with execution_date_lte parameter to receive only the selected period.
@@ -977,6 +985,7 @@ export class TaskInstanceService {
       query: {
         limit: data.limit,
         offset: data.offset,
+        order_by: data.orderBy,
         execution_date_gte: data.executionDateGte,
         execution_date_lte: data.executionDateLte,
         start_date_gte: data.startDateGte,
@@ -1191,10 +1200,13 @@ export class TaskInstanceService {
    * @param data.pool The value can be repeated to retrieve multiple matching values (OR condition).
    * @param data.queue The value can be repeated to retrieve multiple matching values (OR condition).
    * @param data.executor The value can be repeated to retrieve multiple matching values (OR condition).
-   * @param data.orderBy The name of the field to order the results by.
-   * Prefix a field name with `-` to reverse the sort order.
+   * @param data.orderBy The name of the field to order the results by. Prefix a field name
+   * with `-` to reverse the sort order. `order_by` defaults to
+   * `map_index` when unspecified.
+   * Supported field names: `state`, `duration`, `start_date`, `end_date`
+   * and `map_index`.
    *
-   * *New in version 2.1.0*
+   * *New in version 3.0.0*
    *
    * @returns TaskInstanceCollection Success.
    * @throws ApiError
