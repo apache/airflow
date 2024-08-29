@@ -1286,9 +1286,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         non_dataset_dags = all_dags_needing_dag_runs.difference(dataset_triggered_dags)
         self._create_dag_runs(non_dataset_dags, session)
         if dataset_triggered_dags:
-            self._create_dag_runs_dataset_triggered(
-                dataset_triggered_dags, dataset_triggered_dag_info, session
-            )
+            self._create_dag_runs_asset_triggered(dataset_triggered_dags, dataset_triggered_dag_info, session)
 
         # commit the session - Release the write lock on DagModel table.
         guard.commit()
@@ -1367,13 +1365,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
         # memory for larger dags? or expunge_all()
 
-    def _create_dag_runs_dataset_triggered(
+    def _create_dag_runs_asset_triggered(
         self,
         dag_models: Collection[DagModel],
         dataset_triggered_dag_info: dict[str, tuple[datetime, datetime]],
         session: Session,
     ) -> None:
-        """For DAGs that are triggered by datasets, create dag runs."""
+        """For DAGs that are triggered by assets, create dag runs."""
         # Bulk Fetch DagRuns with dag_id and execution_date same
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
