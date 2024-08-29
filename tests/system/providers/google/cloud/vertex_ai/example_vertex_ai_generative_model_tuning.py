@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Example Airflow DAG for Google Vertex AI Supervised Fine Tuning Jobs.
+Example Airflow DAG for Google Vertex AI Generative Model Tuning Tasks.
 """
 
 from __future__ import annotations
@@ -26,12 +26,12 @@ import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.operators.vertex_ai.supervised_fine_tuning import (
+from airflow.providers.google.cloud.operators.vertex_ai.generative_model_tuning import (
     SupervisedFineTuningTrainOperator,
 )
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "vertex_ai_supervised_fine_tuning_dag"
+DAG_ID = "vertex_ai_generative_model_tuning_dag"
 REGION = "us-central1"
 SOURCE_MODEL = "gemini-1.0-pro-002"
 TRAIN_DATASET = "gs://cloud-samples-data/ai-platform/generative_ai/sft_train_data.jsonl"
@@ -39,11 +39,11 @@ TUNED_MODEL_DISPLAY_NAME = "my_tuned_gemini_model"
 
 with DAG(
     dag_id=DAG_ID,
-    description="Sample DAG with supervised fine tuning jobs.",
+    description="Sample DAG with generative model tuning tasks.",
     schedule="@once",
     start_date=datetime(2024, 1, 1),
     catchup=False,
-    tags=["example", "vertex_ai", "supervised_fine_tuning"],
+    tags=["example", "vertex_ai", "generative_model_tuning"],
 ) as dag:
     # [START how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
     sft_train_task = SupervisedFineTuningTrainOperator(

@@ -70,6 +70,9 @@ TEST_VISION_PROMPT = "In 10 words or less, describe this content."
 TEST_MEDIA_GCS_PATH = "gs://download.tensorflow.org/example_images/320px-Felis_catus-cat_on_snow.jpg"
 TEST_MIME_TYPE = "image/jpeg"
 
+SOURCE_MODEL = "gemini-1.0-pro-002"
+TRAIN_DATASET = "gs://cloud-samples-data/ai-platform/generative_ai/sft_train_data.jsonl"
+
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 GENERATIVE_MODEL_STRING = "airflow.providers.google.cloud.hooks.vertex_ai.generative_model.{}"
 
@@ -193,4 +196,24 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             tools=TEST_TOOLS,
             generation_config=TEST_GENERATION_CONFIG,
             safety_settings=TEST_SAFETY_SETTINGS,
+        )
+
+    @mock.patch("vertexai.preview.tuning.sft.train")
+    def test_supervised_fine_tuning_train(self, mock_sft_train) -> None:
+        self.hook.supervised_fine_tuning_train(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            source_model=SOURCE_MODEL,
+            train_dataset=TRAIN_DATASET,
+        )
+
+        # Assertions
+        mock_sft_train.assert_called_once_with(
+            source_model=SOURCE_MODEL,
+            train_dataset=TRAIN_DATASET,
+            validation_dataset=None,
+            epochs=None,
+            adapter_size=None,
+            learning_rate_multiplier=None,
+            tuned_model_display_name=None,
         )
