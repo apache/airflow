@@ -565,9 +565,9 @@ sensors:
 
 dataset-uris:
   - schemes: [s3]
-    handler: airflow.providers.amazon.aws.datasets.s3.sanitize_uri
-    to_openlineage_converter: airflow.providers.amazon.aws.datasets.s3.convert_asset_to_openlineage
-    factory: airflow.providers.amazon.aws.datasets.s3.create_dataset
+    handler: airflow.providers.amazon.aws.assets.s3.sanitize_uri
+    to_openlineage_converter: airflow.providers.amazon.aws.assets.s3.convert_asset_to_openlineage
+    factory: airflow.providers.amazon.aws.assets.s3.create_asset
 
 filesystems:
   - airflow.providers.amazon.aws.fs.s3

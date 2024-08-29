@@ -20,7 +20,7 @@ import urllib.parse
 
 import pytest
 
-from airflow.providers.amazon.aws.datasets.s3 import (
+from airflow.providers.amazon.aws.assets.s3 import (
     convert_asset_to_openlineage,
     create_asset,
     sanitize_uri,
