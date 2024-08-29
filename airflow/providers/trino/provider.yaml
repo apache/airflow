@@ -86,7 +86,7 @@ operators:
     python-modules:
       - airflow.providers.trino.operators.trino
 
-dataset-uris:
+asset-uris:
   - schemes: [trino]
     handler: airflow.providers.trino.datasets.trino.sanitize_uri
 
