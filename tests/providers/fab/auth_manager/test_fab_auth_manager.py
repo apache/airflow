@@ -66,7 +66,7 @@ if TYPE_CHECKING:
 IS_AUTHORIZED_METHODS_SIMPLE = {
     "is_authorized_configuration": RESOURCE_CONFIG,
     "is_authorized_connection": RESOURCE_CONNECTION,
-    "is_authorized_dataset": RESOURCE_ASSET,
+    "is_authorized_asset": RESOURCE_ASSET,
     "is_authorized_variable": RESOURCE_VARIABLE,
 }
 

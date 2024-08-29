@@ -263,7 +263,7 @@ class FabAuthManager(BaseAuthManager):
                 for resource_type in resource_types
             )
 
-    def is_authorized_dataset(
+    def is_authorized_asset(
         self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
     ) -> bool:
         return self._is_authorized(method=method, resource_type=RESOURCE_ASSET, user=user)
