@@ -53,7 +53,7 @@ If you want to check which executor is currently set, you can use the ``airflow 
 Executor Types
 --------------
 
-There are two types of executors - those that run tasks *locally* (inside the ``scheduler`` process), and those that run their tasks *distributed* (usually via a pool of *workers*). Airflow comes configured with the ``SequentialExecutor`` by default, which is a local executor, and the simplest option for execution. However, the ``SequentialExecutor`` is not suitable for production since it does not allow for parallel task running and due to that, some Airflow features (e.g. running sensors) will not work properly. You should instead use the ``LocalExecutor`` for small, single-machine production installations, or one of the distributed executors for a multi-machine/cloud installation.
+There are two types of executors - those that run tasks *locally* (inside the ``scheduler`` process), and those that run their tasks *remotely* (usually via a pool of *workers*). Airflow comes configured with the ``SequentialExecutor`` by default, which is a local executor, and the simplest option for execution. However, the ``SequentialExecutor`` is not suitable for production since it does not allow for parallel task running and due to that, some Airflow features (e.g. running sensors) will not work properly. You should instead use the ``LocalExecutor`` for small, single-machine production installations, or one of the remote executors for a multi-machine/cloud installation.
 
 
 .. _executor-types-comparison:
@@ -75,14 +75,14 @@ Airflow tasks are run locally within the scheduler process.
     local
     sequential
 
-Distributed Executors
-^^^^^^^^^^^^^^^^^^^^^
+Remote Executors
+^^^^^^^^^^^^^^^^
 
-Distributed executors can further be divided into two categories:
+Remote executors can further be divided into two categories:
 
 *Queued/Batch Executors*
 
-Airflow tasks are sent to a central queue where distributed workers pull tasks to execute. Often workers are persistent and run multiple tasks at once.
+Airflow tasks are sent to a central queue where remote workers pull tasks to execute. Often workers are persistent and run multiple tasks at once.
 
 **Pros**: More robust since you're decoupling workers from the scheduler process. Workers can be large hosts that can churn through many tasks (often in parallel) which is cost effective. Latency can be relatively low since workers can be provisioned to be running at all times to take tasks immediately from the queue.
 
@@ -92,7 +92,7 @@ Airflow tasks are sent to a central queue where distributed workers pull tasks t
 
 * :doc:`CeleryExecutor <apache-airflow-providers-celery:celery_executor>`
 * :doc:`BatchExecutor <apache-airflow-providers-amazon:executors/batch-executor>`
-* :doc:`RemoteExecutor <apache-airflow-providers-remote:remote_executor>` (Experimental Pre-Release)
+* :doc:`EdgeExecutor <apache-airflow-providers-edge:edge_executor>` (Experimental Pre-Release)
 
 
 *Containerized Executors*
@@ -110,7 +110,7 @@ Airflow tasks are executed ad hoc inside containers/pods. Each task is isolated 
 
 .. note::
 
-    New Airflow users may assume they need to run a separate executor process using one of the Local or Distributed Executors. This is not correct. The executor logic runs *inside* the scheduler process, and will run the tasks locally or distributed depending the executor selected.
+    New Airflow users may assume they need to run a separate executor process using one of the Local or Remote Executors. This is not correct. The executor logic runs *inside* the scheduler process, and will run the tasks locally or not depending the executor selected.
 
 Using Multiple Executors Concurrently
 -------------------------------------
@@ -276,7 +276,7 @@ The ``BaseExecutor`` class interface contains a set of attributes that Airflow c
 * ``supports_pickling``: Whether or not the executor supports reading pickled DAGs from the Database before execution (rather than reading the DAG definition from the file system).
 * ``supports_sentry``: Whether or not the executor supports `Sentry <https://sentry.io>`_.
 
-* ``is_local``: Whether or not the executor is distributed or local. See the `Executor Types`_ section above.
+* ``is_local``: Whether or not the executor is remote or local. See the `Executor Types`_ section above.
 * ``is_single_threaded``: Whether or not the executor is single threaded. This is particularly relevant to what database backends are supported. Single threaded executors can run with any backend, including SQLite.
 * ``is_production``: Whether or not the executor should be used for production purposes. A UI message is displayed to users when they are using a non-production ready executor.
 
