@@ -87,11 +87,11 @@ if [[ ${INTEGRATION_CELERY} == "true" && ${CELERY_FLOWER} == "true" ]]; then
     tmux split-window -h
     tmux send-keys 'airflow celery flower' C-m
 fi
-if [[ ${AIRFLOW__CORE__EXECUTOR,,} == "remoteexecutor" ]]; then
+if [[ ${AIRFLOW__CORE__EXECUTOR,,} == "edgeexecutor" ]]; then
     tmux select-pane -t 0
     tmux split-window -h
 
-    # Ensure we are not leaking any DB connection information to remote
+    # Ensure we are not leaking any DB connection information to Edge Worker process
     tmux send-keys 'unset AIRFLOW__DATABASE__SQL_ALCHEMY_CONN' C-m
     tmux send-keys 'unset AIRFLOW__CELERY__RESULT_BACKEND' C-m
     tmux send-keys 'unset POSTGRES_HOST_PORT' C-m
@@ -99,10 +99,10 @@ if [[ ${AIRFLOW__CORE__EXECUTOR,,} == "remoteexecutor" ]]; then
     tmux send-keys 'unset POSTGRES_VERSION' C-m
     tmux send-keys 'unset DATABASE_ISOLATION' C-m
 
-    # Ensure logs are smelling like remote and are not visible to other components
-    tmux send-keys 'export AIRFLOW__LOGGING__BASE_LOG_FOLDER=remote_logs' C-m
+    # Ensure logs are smelling like Remote and are not visible to other components
+    tmux send-keys 'export AIRFLOW__LOGGING__BASE_LOG_FOLDER=edge_logs' C-m
 
-    tmux send-keys 'airflow remote worker --remote-hostname breeze' C-m
+    tmux send-keys 'airflow edge worker --edge-hostname breeze' C-m
 fi
 if [[ ${STANDALONE_DAG_PROCESSOR} == "true" ]]; then
     tmux select-pane -t 3
