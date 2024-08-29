@@ -85,12 +85,12 @@ ALL_CI_SELECTIVE_TEST_TYPES = (
     "API Always BranchExternalPython BranchPythonVenv "
     "CLI Core ExternalPython Operators Other PlainAsserts "
     "Providers[-amazon,google] Providers[amazon] Providers[google] "
-    "PythonVenv Serialization WWW UI"
+    "PythonVenv Serialization WWW"
 )
 
 ALL_CI_SELECTIVE_TEST_TYPES_WITHOUT_PROVIDERS = (
     "API Always BranchExternalPython BranchPythonVenv CLI Core "
-    "ExternalPython Operators Other PlainAsserts PythonVenv Serialization WWW UI"
+    "ExternalPython Operators Other PlainAsserts PythonVenv Serialization WWW"
 )
 ALL_PROVIDERS_SELECTIVE_TEST_TYPES = "Providers[-amazon,google] Providers[amazon] Providers[google]"
 

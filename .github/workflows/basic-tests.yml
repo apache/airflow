@@ -116,8 +116,8 @@ jobs:
       - name: "Cache eslint"
         uses: actions/cache@v4
         with:
-          path: 'airflow/www/node_modules'
-          key: ${{ runner.os }}-www-node-modules-${{ hashFiles('airflow/ui/**/pnpm-lock.yaml') }}
+          path: 'airflow/ui/node_modules'
+          key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/pnpm-lock.yaml') }}
       - run: cd airflow/ui && pnpm install --frozen-lockfile
       - run: cd airflow/ui && pnpm test
         env:
