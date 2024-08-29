@@ -2336,11 +2336,11 @@ class TestTaskInstance:
         failed, a AssetDagRunQueue is not logged, and an AssetEvent is
         not generated
         """
-        from tests.dags import test_datasets
-        from tests.dags.test_datasets import dag_with_fail_task
+        from tests.dags import test_assets
+        from tests.dags.test_assets import dag_with_fail_task
 
         session = settings.Session()
-        dagbag = DagBag(dag_folder=test_datasets.__file__)
+        dagbag = DagBag(dag_folder=test_assets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
         dagbag.sync_to_db(session=session)
         run_id = str(uuid4())
@@ -2392,11 +2392,11 @@ class TestTaskInstance:
         is skipped, a AssetDagRunQueue is not logged, and an AssetEvent is
         not generated
         """
-        from tests.dags import test_datasets
-        from tests.dags.test_datasets import dag_with_skip_task
+        from tests.dags import test_assets
+        from tests.dags.test_assets import dag_with_skip_task
 
         session = settings.Session()
-        dagbag = DagBag(dag_folder=test_datasets.__file__)
+        dagbag = DagBag(dag_folder=test_assets.__file__)
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
         dagbag.sync_to_db(session=session)
         run_id = str(uuid4())
