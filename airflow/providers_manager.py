@@ -529,7 +529,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     def initialize_providers_asset_uri_resources(self):
         """Lazy initialization of provider asset URI handlers, factories, converters etc."""
         self.initialize_providers_list()
-        self._discover_dataset_uri_resources()
+        self._discover_asset_uri_resources()
 
     @provider_info_cache("hook_lineage_writers")
     @provider_info_cache("taskflow_decorators")
@@ -882,8 +882,8 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                     self._fs_set.add(fs_module_name)
         self._fs_set = set(sorted(self._fs_set))
 
-    def _discover_dataset_uri_resources(self) -> None:
-        """Discovers and registers dataset URI handlers, factories, and converters for all providers."""
+    def _discover_asset_uri_resources(self) -> None:
+        """Discovers and registers asset URI handlers, factories, and converters for all providers."""
         from airflow.assets import normalize_noop
 
         def _safe_register_resource(
