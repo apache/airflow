@@ -172,7 +172,7 @@ class TestKylinCubeOperator:
         ti.dag_run = DagRun(
             dag_id=self.dag.dag_id,
             run_id="kylin_test",
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             run_type=DagRunType.MANUAL,
         )
         session.add(ti)

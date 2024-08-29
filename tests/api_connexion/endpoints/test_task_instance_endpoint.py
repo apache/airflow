@@ -107,7 +107,7 @@ class TestTaskInstanceEndpoint:
             counter = min(len(task_instances), counter)
 
         run_id = "TEST_DAG_RUN_ID"
-        execution_date = self.ti_init.pop("execution_date", self.default_time)
+        logical_date = self.ti_init.pop("execution_date", self.default_time)
         dr = None
 
         tis = []
@@ -121,14 +121,14 @@ class TestTaskInstanceEndpoint:
 
             if "execution_date" in self.ti_init:
                 run_id = f"TEST_DAG_RUN_ID_{i}"
-                execution_date = self.ti_init.pop("execution_date")
+                logical_date = self.ti_init.pop("execution_date")
                 dr = None
 
             if not dr:
                 dr = DagRun(
                     run_id=run_id,
                     dag_id=dag_id,
-                    execution_date=execution_date,
+                    logical_date=logical_date,
                     run_type=DagRunType.MANUAL,
                     state=dag_run_state,
                 )

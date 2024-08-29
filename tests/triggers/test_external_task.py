@@ -234,7 +234,7 @@ class TestDagStateTrigger:
         dag_run = DagRun(
             dag_id=dag.dag_id,
             run_type="manual",
-            execution_date=timezone.datetime(2022, 1, 1),
+            logical_date=timezone.datetime(2022, 1, 1),
             run_id=self.RUN_ID,
         )
         session.add(dag_run)
@@ -243,7 +243,7 @@ class TestDagStateTrigger:
         trigger = DagStateTrigger(
             dag_id=dag.dag_id,
             states=self.STATES,
-            execution_dates=[timezone.datetime(2022, 1, 1)],
+            logical_dates=[timezone.datetime(2022, 1, 1)],
             poll_interval=0.2,
         )
 
@@ -267,7 +267,7 @@ class TestDagStateTrigger:
         trigger = DagStateTrigger(
             dag_id=self.DAG_ID,
             states=self.STATES,
-            execution_dates=[timezone.datetime(2022, 1, 1)],
+            logical_dates=[timezone.datetime(2022, 1, 1)],
             poll_interval=5,
         )
         classpath, kwargs = trigger.serialize()

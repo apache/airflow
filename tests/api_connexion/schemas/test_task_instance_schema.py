@@ -42,7 +42,7 @@ class TestTaskInstanceSchema:
         with dag_maker(dag_id="TEST_DAG_ID", session=session):
             self.task = EmptyOperator(task_id="TEST_TASK_ID", start_date=self.default_time)
 
-        self.dr = dag_maker.create_dagrun(execution_date=self.default_time)
+        self.dr = dag_maker.create_dagrun(logical_date=self.default_time)
         session.flush()
 
         self.default_ti_init = {

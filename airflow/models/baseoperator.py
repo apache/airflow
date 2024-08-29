@@ -1479,7 +1479,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     dag_id=self.dag_id,
                     run_id=DagRun.generate_run_id(DagRunType.MANUAL, info.logical_date),
                     run_type=DagRunType.MANUAL,
-                    execution_date=info.logical_date,
+                    logical_date=info.logical_date,
                     data_interval=info.data_interval,
                     triggered_by=DagRunTriggeredByType.TEST,
                 )

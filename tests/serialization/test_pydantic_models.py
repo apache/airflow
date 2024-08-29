@@ -238,17 +238,17 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
         with_dagrun_type=DagRunType.MANUAL,
         session=session,
     )
-    execution_date = timezone.utcnow()
+    logical_date = timezone.utcnow()
     TracebackSessionForTests.set_allow_db_access(session, True)
 
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dr = dag.create_dagrun(
         run_id="test2",
         run_type=DagRunType.DATASET_TRIGGERED,
-        execution_date=execution_date,
+        logical_date=logical_date,
         state=None,
         session=session,
-        data_interval=(execution_date, execution_date),
+        data_interval=(logical_date, logical_date),
         **triggered_by_kwargs,
     )
     asset1_event = AssetEvent(dataset_id=1)

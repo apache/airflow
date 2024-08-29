@@ -1360,7 +1360,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 try:
                     dag.create_dagrun(
                         run_type=DagRunType.SCHEDULED,
-                        execution_date=dag_model.next_dagrun,
+                        logical_date=dag_model.next_dagrun,
                         state=DagRunState.QUEUED,
                         data_interval=data_interval,
                         external_trigger=False,
@@ -1399,14 +1399,14 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
         # duplicate dag runs
-        exec_dates = {
+        logical_dates = {
             dag_id: timezone.coerce_datetime(last_time)
             for dag_id, (_, last_time) in dataset_triggered_dag_info.items()
         }
         existing_dagruns: set[tuple[str, timezone.DateTime]] = set(
             session.execute(
                 select(DagRun.dag_id, DagRun.execution_date).where(
-                    tuple_in_condition((DagRun.dag_id, DagRun.execution_date), exec_dates.items())
+                    tuple_in_condition((DagRun.dag_id, DagRun.execution_date), logical_dates.items())
                 )
             )
         )
@@ -1434,13 +1434,13 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             # we need to set dag.next_dagrun_info if the Dag Run already exists or if we
             # create a new one. This is so that in the next Scheduling loop we try to create new runs
             # instead of falling in a loop of Integrity Error.
-            exec_date = exec_dates[dag.dag_id]
-            if (dag.dag_id, exec_date) not in existing_dagruns:
+            logical_date = logical_dates[dag.dag_id]
+            if (dag.dag_id, logical_date) not in existing_dagruns:
                 previous_dag_run = session.scalar(
                     select(DagRun)
                     .where(
                         DagRun.dag_id == dag.dag_id,
-                        DagRun.execution_date < exec_date,
+                        DagRun.execution_date < logical_date,
                         DagRun.run_type == DagRunType.DATASET_TRIGGERED,
                     )
                     .order_by(DagRun.execution_date.desc())
@@ -1448,7 +1448,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 )
                 asset_event_filters = [
                     DagScheduleAssetReference.dag_id == dag.dag_id,
-                    AssetEvent.timestamp <= exec_date,
+                    AssetEvent.timestamp <= logical_date,
                 ]
                 if previous_dag_run:
                     asset_event_filters.append(AssetEvent.timestamp > previous_dag_run.execution_date)
@@ -1462,10 +1462,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     .where(*asset_event_filters)
                 ).all()
 
-                data_interval = dag.timetable.data_interval_for_events(exec_date, asset_events)
+                data_interval = dag.timetable.data_interval_for_events(logical_date, asset_events)
                 run_id = dag.timetable.generate_run_id(
                     run_type=DagRunType.DATASET_TRIGGERED,
-                    logical_date=exec_date,
+                    logical_date=logical_date,
                     data_interval=data_interval,
                     session=session,
                     events=asset_events,
@@ -1474,7 +1474,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 dag_run = dag.create_dagrun(
                     run_id=run_id,
                     run_type=DagRunType.DATASET_TRIGGERED,
-                    execution_date=exec_date,
+                    logical_date=logical_date,
                     data_interval=data_interval,
                     state=DagRunState.QUEUED,
                     external_trigger=False,

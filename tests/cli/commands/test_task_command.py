@@ -107,7 +107,7 @@ class TestCliTasks:
             state=State.NONE,
             run_id=cls.run_id,
             run_type=DagRunType.MANUAL,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=data_interval,
             **triggered_by_kwargs,
         )
@@ -137,7 +137,7 @@ class TestCliTasks:
 
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     @mock.patch("airflow.utils.timezone.utcnow")
-    def test_test_no_execution_date(self, mock_utcnow):
+    def test_test_no_logical_date(self, mock_utcnow):
         """Test the `airflow test` command"""
         now = pendulum.now("UTC")
         mock_utcnow.return_value = now
@@ -199,14 +199,14 @@ class TestCliTasks:
             dag = dagbag.get_dag("test_dags_folder")
             dagbag.sync_to_db(session=session)
 
-        execution_date = pendulum.now("UTC")
-        data_interval = dag.timetable.infer_manual_data_interval(run_after=execution_date)
+        logical_date = pendulum.now("UTC")
+        data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag.create_dagrun(
             state=State.NONE,
             run_id="abc123",
             run_type=DagRunType.MANUAL,
-            execution_date=execution_date,
+            logical_date=logical_date,
             data_interval=data_interval,
             session=session,
             **triggered_by_kwargs,
@@ -647,7 +647,7 @@ class TestCliTasks:
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.CLI} if AIRFLOW_V_3_0_PLUS else {}
         dagrun = dag2.create_dagrun(
             state=State.RUNNING,
-            execution_date=default_date2,
+            logical_date=default_date2,
             data_interval=data_interval,
             run_type=DagRunType.MANUAL,
             external_trigger=True,
@@ -715,20 +715,20 @@ class TestLogsfromTaskRunCommand:
         self.run_id = "test_run"
         self.dag_path = os.path.join(ROOT_FOLDER, "dags", "test_logging_in_dag.py")
         reset(self.dag_id)
-        self.execution_date = timezone.datetime(2017, 1, 1)
-        self.execution_date_str = self.execution_date.isoformat()
-        self.task_args = ["tasks", "run", self.dag_id, self.task_id, "--local", self.execution_date_str]
+        self.logical_date = timezone.datetime(2017, 1, 1)
+        self.logical_date_str = self.logical_date.isoformat()
+        self.task_args = ["tasks", "run", self.dag_id, self.task_id, "--local", self.logical_date_str]
         self.log_dir = conf.get_mandatory_value("logging", "base_log_folder")
         self.log_filename = f"dag_id={self.dag_id}/run_id={self.run_id}/task_id={self.task_id}/attempt=1.log"
         self.ti_log_file_path = os.path.join(self.log_dir, self.log_filename)
         self.parser = cli_parser.get_parser()
 
         dag = DagBag().get_dag(self.dag_id)
-        data_interval = dag.timetable.infer_manual_data_interval(run_after=self.execution_date)
+        data_interval = dag.timetable.infer_manual_data_interval(run_after=self.logical_date)
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         self.dr = dag.create_dagrun(
             run_id=self.run_id,
-            execution_date=self.execution_date,
+            logical_date=self.logical_date,
             data_interval=data_interval,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
@@ -1025,17 +1025,17 @@ def test_context_with_run():
     run_id = "test_run"
     dag_path = os.path.join(ROOT_FOLDER, "dags", "test_parsing_context.py")
     reset(dag_id)
-    execution_date = timezone.datetime(2017, 1, 1)
-    execution_date_str = execution_date.isoformat()
-    task_args = ["tasks", "run", dag_id, task_id, "--local", execution_date_str]
+    logical_date = timezone.datetime(2017, 1, 1)
+    logical_date_str = logical_date.isoformat()
+    task_args = ["tasks", "run", dag_id, task_id, "--local", logical_date_str]
     parser = cli_parser.get_parser()
 
     dag = DagBag().get_dag(dag_id)
-    data_interval = dag.timetable.infer_manual_data_interval(run_after=execution_date)
+    data_interval = dag.timetable.infer_manual_data_interval(run_after=logical_date)
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dag.create_dagrun(
         run_id=run_id,
-        execution_date=execution_date,
+        logical_date=logical_date,
         data_interval=data_interval,
         start_date=timezone.utcnow(),
         state=State.RUNNING,
