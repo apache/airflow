@@ -526,8 +526,8 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._discover_filesystems()
 
     @provider_info_cache("dataset_uris")
-    def initialize_providers_dataset_uri_resources(self):
-        """Lazy initialization of provider dataset URI handlers, factories, converters etc."""
+    def initialize_providers_asset_uri_resources(self):
+        """Lazy initialization of provider asset URI handlers, factories, converters etc."""
         self.initialize_providers_list()
         self._discover_dataset_uri_resources()
 
@@ -1326,19 +1326,19 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
 
     @property
     def asset_factories(self) -> dict[str, Callable[..., Asset]]:
-        self.initialize_providers_dataset_uri_resources()
+        self.initialize_providers_asset_uri_resources()
         return self._asset_factories
 
     @property
     def asset_uri_handlers(self) -> dict[str, Callable[[SplitResult], SplitResult]]:
-        self.initialize_providers_dataset_uri_resources()
+        self.initialize_providers_asset_uri_resources()
         return self._asset_uri_handlers
 
     @property
     def asset_to_openlineage_converters(
         self,
     ) -> dict[str, Callable]:
-        self.initialize_providers_dataset_uri_resources()
+        self.initialize_providers_asset_uri_resources()
         return self._asset_to_openlineage_converters
 
     @property
