@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-28T11:38:59.687920
+# This constraints file was automatically generated on 2024-08-29T05:08:29.082440
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -69,7 +69,7 @@ WTForms==3.1.2
 Werkzeug==2.2.3
 adal==1.2.7
 adlfs==2024.7.0
-aiobotocore==2.13.3
+aiobotocore==2.14.0
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.0
 aiohttp==3.10.5
@@ -236,12 +236,12 @@ billiard==4.2.0
 bitarray==2.9.2
 black==24.8.0
 blinker==1.8.2
-boto3==1.34.162
-botocore==1.34.162
+boto3==1.35.7
+botocore==1.35.7
 cachelib==0.9.0
 cachetools==5.5.0
 cassandra-driver==3.29.1
-cattrs==23.2.3
+cattrs==24.1.0
 celery==5.4.0
 certifi==2024.7.4
 cffi==1.17.0
@@ -316,7 +316,7 @@ gitdb==4.0.11
 google-ads==25.0.0
 google-analytics-admin==0.23.0
 google-api-core==2.19.2
-google-api-python-client==2.142.0
+google-api-python-client==2.143.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.34.0
@@ -374,7 +374,7 @@ grpcio-gcp==0.2.2
 grpcio-health-checking==1.62.3
 grpcio-status==1.62.3
 grpcio-tools==1.62.3
-grpcio==1.66.0
+grpcio==1.66.1
 gssapi==1.8.3
 gunicorn==23.0.0
 h11==0.14.0
@@ -417,7 +417,7 @@ jiter==0.5.0
 jmespath==0.10.0
 joserfc==1.0.0
 json-merge-patch==0.2
-jsondiff==2.2.0
+jsondiff==2.2.1
 jsonpatch==1.33
 jsonpath-ng==1.6.1
 jsonpickle==3.2.2
@@ -491,15 +491,15 @@ openlineage-python==1.20.6
 openlineage_sql==1.20.6
 openpyxl==3.1.5
 opensearch-py==2.7.1
-opentelemetry-api==1.26.0
-opentelemetry-exporter-otlp-proto-common==1.26.0
-opentelemetry-exporter-otlp-proto-grpc==1.26.0
-opentelemetry-exporter-otlp-proto-http==1.26.0
-opentelemetry-exporter-otlp==1.26.0
-opentelemetry-exporter-prometheus==0.47b0
-opentelemetry-proto==1.26.0
-opentelemetry-sdk==1.26.0
-opentelemetry-semantic-conventions==0.47b0
+opentelemetry-api==1.27.0
+opentelemetry-exporter-otlp-proto-common==1.27.0
+opentelemetry-exporter-otlp-proto-grpc==1.27.0
+opentelemetry-exporter-otlp-proto-http==1.27.0
+opentelemetry-exporter-otlp==1.27.0
+opentelemetry-exporter-prometheus==0.48b0
+opentelemetry-proto==1.27.0
+opentelemetry-sdk==1.27.0
+opentelemetry-semantic-conventions==0.48b0
 opsgenie-sdk==2.1.5
 oracledb==2.4.1
 ordered-set==4.1.0
