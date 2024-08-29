@@ -113,6 +113,6 @@ connection-types:
   - hook-class-name: airflow.providers.mysql.hooks.mysql.MySqlHook
     connection-type: mysql
 
-dataset-uris:
+asset-uris:
   - schemes: [mysql, mariadb]
     handler: airflow.providers.mysql.datasets.mysql.sanitize_uri
