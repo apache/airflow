@@ -20,6 +20,8 @@ from unittest import mock
 
 import pytest
 
+from airflow.utils import db
+
 opensearchpy = pytest.importorskip("opensearchpy")
 from opensearchpy import Urllib3HttpConnection
 
@@ -75,3 +77,17 @@ class TestOpenSearchHook:
             open_search_conn_class=Urllib3HttpConnection,
         )
         assert hook_Urllib3.connection_class == Urllib3HttpConnection
+
+
+@pytest.fixture(autouse=True)
+def setup_connection():
+    # We need to set up a Connection into the database for all tests.
+    db.merge_conn(
+        Connection(
+            conn_id="opensearch_default",
+            conn_type="opensearch",
+            host="myopensearch.com",
+            login="test_user",
+            password="test",
+        )
+    )
