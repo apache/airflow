@@ -691,7 +691,6 @@ operators:
       - airflow.providers.google.cloud.operators.vertex_ai.model_service
       - airflow.providers.google.cloud.operators.vertex_ai.pipeline_job
       - airflow.providers.google.cloud.operators.vertex_ai.generative_model
-      - airflow.providers.google.cloud.operators.vertex_ai.supervised_fine_tuning
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.operators.looker
@@ -952,7 +951,6 @@ hooks:
       - airflow.providers.google.cloud.hooks.vertex_ai.pipeline_job
       - airflow.providers.google.cloud.hooks.vertex_ai.generative_model
       - airflow.providers.google.cloud.hooks.vertex_ai.prediction_service
-      - airflow.providers.google.cloud.hooks.vertex_ai.supervised_fine_tuning
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.hooks.looker
