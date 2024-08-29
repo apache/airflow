@@ -34,7 +34,7 @@ Prerequisite Tasks
 Generic Parameters
 ------------------
 
-.. include:: ../../_partials/generic_parameters.rst
+.. include:: ../_partials/generic_parameters.rst
 
 Operators
 ---------
