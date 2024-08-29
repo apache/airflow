@@ -27,10 +27,10 @@ from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.abstractoperator import DEFAULT_QUEUE
 from airflow.models.taskinstance import TaskInstanceState
-from airflow.providers.remote.cli.remote_command import REMOTE_COMMANDS
-from airflow.providers.remote.models.remote_job import RemoteJobModel
-from airflow.providers.remote.models.remote_logs import RemoteLogsModel
-from airflow.providers.remote.models.remote_worker import RemoteWorkerModel
+from airflow.providers.edge.cli.edge_command import EDGE_COMMANDS
+from airflow.providers.edge.models.edge_job import EdgeJobModel
+from airflow.providers.edge.models.edge_logs import EdgeLogsModel
+from airflow.providers.edge.models.edge_worker import EdgeWorkerModel
 from airflow.utils.db import DBLocks, create_global_lock
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -46,8 +46,8 @@ if TYPE_CHECKING:
 PARALLELISM: int = conf.getint("core", "PARALLELISM")
 
 
-class RemoteExecutor(BaseExecutor):
-    """Implementation of the remote executor to distribute work to remote workers via HTTP."""
+class EdgeExecutor(BaseExecutor):
+    """Implementation of the EdgeExecutor to distribute work to Edge Workers via HTTP."""
 
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__(parallelism=parallelism)
@@ -55,12 +55,12 @@ class RemoteExecutor(BaseExecutor):
 
     @provide_session
     def start(self, session: Session = NEW_SESSION):
-        """If Remote Executor provider is loaded first time, ensure table exists."""
+        """If EdgeExecutor provider is loaded first time, ensure table exists."""
         with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
             engine = session.get_bind().engine
-            RemoteJobModel.metadata.create_all(engine)
-            RemoteLogsModel.metadata.create_all(engine)
-            RemoteWorkerModel.metadata.create_all(engine)
+            EdgeJobModel.metadata.create_all(engine)
+            EdgeLogsModel.metadata.create_all(engine)
+            EdgeWorkerModel.metadata.create_all(engine)
 
     @provide_session
     def execute_async(
@@ -74,7 +74,7 @@ class RemoteExecutor(BaseExecutor):
         """Execute asynchronously."""
         self.validate_airflow_tasks_run_command(command)
         session.add(
-            RemoteJobModel(
+            EdgeJobModel(
                 dag_id=key.dag_id,
                 task_id=key.task_id,
                 run_id=key.run_id,
@@ -89,7 +89,7 @@ class RemoteExecutor(BaseExecutor):
     @provide_session
     def sync(self, session: Session = NEW_SESSION) -> None:
         """Sync will get called periodically by the heartbeat method."""
-        jobs: list[RemoteJobModel] = session.query(RemoteJobModel).all()
+        jobs: list[EdgeJobModel] = session.query(EdgeJobModel).all()
         for job in jobs:
             if job.key in self.running:
                 if job.state == TaskInstanceState.RUNNING:
@@ -109,8 +109,8 @@ class RemoteExecutor(BaseExecutor):
                     self.fail(job.key)
                 else:
                     self.last_reported_state[job.key] = job.state
-            job_success_purge = conf.getint("remote", "job_success_purge")
-            job_fail_purge = conf.getint("remote", "job_fail_purge")
+            job_success_purge = conf.getint("edge", "job_success_purge")
+            job_fail_purge = conf.getint("edge", "job_fail_purge")
             if (
                 job.state == TaskInstanceState.SUCCESS
                 and job.last_update_t < (datetime.now() - timedelta(minutes=job_success_purge)).timestamp()
@@ -122,19 +122,19 @@ class RemoteExecutor(BaseExecutor):
                     del self.last_reported_state[job.key]
                 session.delete(job)
                 session.execute(
-                    delete(RemoteLogsModel).where(
-                        RemoteLogsModel.dag_id == job.dag_id,
-                        RemoteLogsModel.run_id == job.run_id,
-                        RemoteLogsModel.task_id == job.task_id,
-                        RemoteLogsModel.map_index == job.map_index,
-                        RemoteLogsModel.try_number == job.try_number,
+                    delete(EdgeLogsModel).where(
+                        EdgeLogsModel.dag_id == job.dag_id,
+                        EdgeLogsModel.run_id == job.run_id,
+                        EdgeLogsModel.task_id == job.task_id,
+                        EdgeLogsModel.map_index == job.map_index,
+                        EdgeLogsModel.try_number == job.try_number,
                     )
                 )
         session.commit()
 
     def end(self) -> None:
         """End the executor."""
-        self.log.info("Shutting down RemoteExecutor")
+        self.log.info("Shutting down EdgeExecutor")
 
     def terminate(self):
         """Terminate the executor is not doing anything."""
@@ -156,13 +156,13 @@ class RemoteExecutor(BaseExecutor):
     def get_cli_commands() -> list[GroupCommand]:
         return [
             GroupCommand(
-                name="remote",
-                help="Remote worker components",
+                name="edge",
+                help="Edge Worker components",
                 description=(
-                    "Start and manage remote worker. Works only when using RemoteExecutor. For more information, "
-                    "see https://airflow.apache.org/docs/apache-airflow-providers-remote/stable/remote_executor.html"
+                    "Start and manage Edge Worker. Works only when using EdgeExecutor. For more information, "
+                    "see https://airflow.apache.org/docs/apache-airflow-providers-edge/stable/edge_executor.html"
                 ),
-                subcommands=REMOTE_COMMANDS,
+                subcommands=EDGE_COMMANDS,
             ),
         ]
 
@@ -173,4 +173,4 @@ def _get_parser() -> argparse.ArgumentParser:
 
     :meta private:
     """
-    return RemoteExecutor._get_parser()
+    return EdgeExecutor._get_parser()
