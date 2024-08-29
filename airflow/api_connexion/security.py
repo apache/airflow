@@ -158,7 +158,7 @@ def requires_access_dag(
     return requires_access_decorator
 
 
-def requires_access_dataset(method: ResourceMethod) -> Callable[[T], T]:
+def requires_access_asset(method: ResourceMethod) -> Callable[[T], T]:
     def requires_access_decorator(func: T):
         @wraps(func)
         def decorated(*args, **kwargs):

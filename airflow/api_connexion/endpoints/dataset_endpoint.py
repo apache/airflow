@@ -60,7 +60,7 @@ if TYPE_CHECKING:
 RESOURCE_EVENT_PREFIX = "dataset"
 
 
-@security.requires_access_dataset("GET")
+@security.requires_access_asset("GET")
 @provide_session
 def get_dataset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get an asset ."""
@@ -77,7 +77,7 @@ def get_dataset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
     return asset_schema.dump(asset)
 
 
-@security.requires_access_dataset("GET")
+@security.requires_access_asset("GET")
 @format_parameters({"limit": check_limit})
 @provide_session
 def get_datasets(
@@ -112,7 +112,7 @@ def get_datasets(
     return asset_collection_schema.dump(AssetCollection(datasets=assets, total_entries=total_entries))
 
 
-@security.requires_access_dataset("GET")
+@security.requires_access_asset("GET")
 @provide_session
 @format_parameters({"limit": check_limit})
 def get_dataset_events(
@@ -180,7 +180,7 @@ def _generate_queued_event_where_clause(
     return where_clause
 
 
-@security.requires_access_dataset("GET")
+@security.requires_access_asset("GET")
 @security.requires_access_dag("GET")
 @provide_session
 def get_dag_dataset_queued_event(
@@ -202,7 +202,7 @@ def get_dag_dataset_queued_event(
     return queued_event_schema.dump(queued_event)
 
 
-@security.requires_access_dataset("DELETE")
+@security.requires_access_asset("DELETE")
 @security.requires_access_dag("GET")
 @provide_session
 @action_logging
@@ -221,7 +221,7 @@ def delete_dag_dataset_queued_event(
     )
 
 
-@security.requires_access_dataset("GET")
+@security.requires_access_asset("GET")
 @security.requires_access_dag("GET")
 @provide_session
 def get_dag_dataset_queued_events(
@@ -249,7 +249,7 @@ def get_dag_dataset_queued_events(
     )
 
 
-@security.requires_access_dataset("DELETE")
+@security.requires_access_asset("DELETE")
 @security.requires_access_dag("GET")
 @action_logging
 @provide_session
@@ -269,7 +269,7 @@ def delete_dag_dataset_queued_events(
     )
 
 
-@security.requires_access_dataset("GET")
+@security.requires_access_asset("GET")
 @provide_session
 def get_dataset_queued_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
@@ -300,7 +300,7 @@ def get_dataset_queued_events(
     )
 
 
-@security.requires_access_dataset("DELETE")
+@security.requires_access_asset("DELETE")
 @action_logging
 @provide_session
 def delete_dataset_queued_events(
@@ -322,7 +322,7 @@ def delete_dataset_queued_events(
     )
 
 
-@security.requires_access_dataset("POST")
+@security.requires_access_asset("POST")
 @provide_session
 @action_logging
 def create_dataset_event(session: Session = NEW_SESSION) -> APIResponse:

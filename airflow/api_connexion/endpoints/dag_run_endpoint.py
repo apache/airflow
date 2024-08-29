@@ -112,7 +112,7 @@ def get_dag_run(
 
 
 @security.requires_access_dag("GET", DagAccessEntity.RUN)
-@security.requires_access_dataset("GET")
+@security.requires_access_asset("GET")
 @provide_session
 def get_upstream_dataset_events(
     *, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION
