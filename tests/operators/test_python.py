@@ -63,7 +63,6 @@ from airflow.operators.python import (
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils import timezone
 from airflow.utils.context import AirflowContextDeprecationWarning, Context
-from airflow.utils.pydantic import is_pydantic_2_installed
 from airflow.utils.python_virtualenv import prepare_virtualenv
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
@@ -88,10 +87,7 @@ DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not insta
 CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
 CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
 
-HAS_PYDANTIC_2 = is_pydantic_2_installed()
-USE_AIRFLOW_CONTEXT_MARKER = pytest.mark.skipif(
-    not HAS_PYDANTIC_2 or not _ENABLE_AIP_44, reason="`pydantic<2` or AIP-44 is not enabled"
-)
+USE_AIRFLOW_CONTEXT_MARKER = pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is not enabled")
 
 
 class BasePythonTest:
@@ -1085,15 +1081,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
         assert ti.state == TaskInstanceState.SUCCESS
 
-    @pytest.mark.skipif(HAS_PYDANTIC_2, reason="`pydantic>=2` is installed")
-    def test_use_airflow_context_without_pydantic_v2_error(self):
-        def f():
-            from airflow.operators.python import get_current_context
-
-            get_current_context()
-            return []
-
-        error_msg = "`get_current_context()` needs to be used with Pydantic 2 and AIP-44 enabled."
+        error_msg = "`get_current_context()` needs to be used with AIP-44 enabled."
         with pytest.raises(AirflowException, match=re.escape(error_msg)):
             self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
 
@@ -1105,7 +1093,7 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             get_current_context()
             return []
 
-        error_msg = "`get_current_context()` needs to be used with Pydantic 2 and AIP-44 enabled."
+        error_msg = "`get_current_context()` needs to be used with AIP-44 enabled."
         with pytest.raises(AirflowException, match=re.escape(error_msg)):
             self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
 
