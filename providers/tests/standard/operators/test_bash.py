@@ -105,15 +105,15 @@ class TestBashOperator:
                 env=user_defined_env,
             )
 
-        execution_date = utc_now
+        logical_date = utc_now
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
-            execution_date=execution_date,
+            logical_date=logical_date,
             start_date=utc_now,
             state=State.RUNNING,
             external_trigger=False,
-            data_interval=(execution_date, execution_date),
+            data_interval=(logical_date, logical_date),
             **triggered_by_kwargs,
         )
 

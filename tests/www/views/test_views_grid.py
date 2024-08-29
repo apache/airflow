@@ -90,12 +90,12 @@ def dag_without_runs(dag_maker, session, app, monkeypatch):
 def dag_with_runs(dag_without_runs):
     date = dag_without_runs.dag.start_date
     run_1 = dag_without_runs.create_dagrun(
-        run_id="run_1", state=DagRunState.SUCCESS, run_type=DagRunType.SCHEDULED, execution_date=date
+        run_id="run_1", state=DagRunState.SUCCESS, run_type=DagRunType.SCHEDULED, logical_date=date
     )
     run_2 = dag_without_runs.create_dagrun(
         run_id="run_2",
         run_type=DagRunType.SCHEDULED,
-        execution_date=date + timedelta(days=1),
+        logical_date=date + timedelta(days=1),
     )
 
     return run_1, run_2

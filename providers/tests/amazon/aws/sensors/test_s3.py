@@ -115,9 +115,9 @@ class TestS3KeySensor:
 
         Variable.set("test_bucket_key", "s3://bucket/key", session=session)
 
-        execution_date = timezone.datetime(2020, 1, 1)
+        logical_date = timezone.datetime(2020, 1, 1)
 
-        dag = DAG("test_s3_key", schedule=None, start_date=execution_date)
+        dag = DAG("test_s3_key", schedule=None, start_date=logical_date)
         op = S3KeySensor(
             task_id="s3_key_sensor",
             bucket_key="{{ var.value.test_bucket_key }}",
@@ -126,7 +126,7 @@ class TestS3KeySensor:
         )
 
         dag_run = DagRun(
-            dag_id=dag.dag_id, execution_date=execution_date, run_id="test", run_type=DagRunType.MANUAL
+            dag_id=dag.dag_id, logical_date=logical_date, run_id="test", run_type=DagRunType.MANUAL
         )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run
@@ -146,9 +146,9 @@ class TestS3KeySensor:
 
         Variable.set("test_bucket_key", ["s3://bucket/file1", "s3://bucket/file2"], session=session)
 
-        execution_date = timezone.datetime(2020, 1, 1)
+        logical_date = timezone.datetime(2020, 1, 1)
 
-        dag = DAG("test_s3_key", schedule=None, start_date=execution_date, render_template_as_native_obj=True)
+        dag = DAG("test_s3_key", schedule=None, start_date=logical_date, render_template_as_native_obj=True)
         op = S3KeySensor(
             task_id="s3_key_sensor",
             bucket_key="{{ var.value.test_bucket_key }}",
@@ -157,7 +157,7 @@ class TestS3KeySensor:
         )
 
         dag_run = DagRun(
-            dag_id=dag.dag_id, execution_date=execution_date, run_id="test", run_type=DagRunType.MANUAL
+            dag_id=dag.dag_id, logical_date=logical_date, run_id="test", run_type=DagRunType.MANUAL
         )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run

@@ -82,7 +82,7 @@ class TestMongoToS3Operator:
     def test_render_template(self, session):
         dag_run = DagRun(
             dag_id=self.mock_operator.dag_id,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             run_id="test",
             run_type=DagRunType.MANUAL,
         )

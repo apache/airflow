@@ -83,7 +83,7 @@ class TestBranchDateTimeOperator:
         self.dr = dag_maker.create_dagrun(
             run_id="manual__",
             start_date=DEFAULT_DATE,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,
@@ -245,7 +245,7 @@ class TestBranchDateTimeOperator:
         self.dr = dag_maker.create_dagrun(
             run_id="manual_exec_date__",
             start_date=in_between_date,
-            execution_date=in_between_date,
+            logical_date=in_between_date,
             state=State.RUNNING,
             data_interval=(in_between_date, in_between_date),
             **triggered_by_kwargs,

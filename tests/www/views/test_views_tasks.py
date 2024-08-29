@@ -84,7 +84,7 @@ def _init_dagruns(app):
         app.dag_bag.get_dag("example_bash_operator").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             start_date=timezone.utcnow(),
             state=State.RUNNING,
@@ -93,7 +93,7 @@ def _init_dagruns(app):
         app.dag_bag.get_dag("example_python_operator").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             start_date=timezone.utcnow(),
             state=State.RUNNING,
@@ -109,7 +109,7 @@ def _init_dagruns(app):
         app.dag_bag.get_dag("example_xcom").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             start_date=timezone.utcnow(),
             state=State.RUNNING,
@@ -118,7 +118,7 @@ def _init_dagruns(app):
         app.dag_bag.get_dag("latest_only").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             start_date=timezone.utcnow(),
             state=State.RUNNING,
@@ -127,7 +127,7 @@ def _init_dagruns(app):
         app.dag_bag.get_dag("example_task_group").create_dagrun(
             run_id=DEFAULT_DAGRUN,
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             start_date=timezone.utcnow(),
             state=State.RUNNING,
@@ -399,7 +399,7 @@ def test_tree_trigger_origin_tree_view(app, admin_client):
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     app.dag_bag.get_dag("test_tree_view").create_dagrun(
         run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
+        logical_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
@@ -417,7 +417,7 @@ def test_graph_trigger_origin_grid_view(app, admin_client):
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     app.dag_bag.get_dag("test_tree_view").create_dagrun(
         run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
+        logical_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
@@ -435,7 +435,7 @@ def test_gantt_trigger_origin_grid_view(app, admin_client):
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     app.dag_bag.get_dag("test_tree_view").create_dagrun(
         run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
+        logical_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
@@ -886,7 +886,7 @@ def test_task_instance_clear_downstream(session, admin_client, dag_maker):
         run_id="run_1",
         state=DagRunState.SUCCESS,
         run_type=DagRunType.SCHEDULED,
-        execution_date=dag_maker.dag.start_date,
+        logical_date=dag_maker.dag.start_date,
         start_date=dag_maker.dag.start_date,
         session=session,
         **triggered_by_kwargs,
@@ -896,7 +896,7 @@ def test_task_instance_clear_downstream(session, admin_client, dag_maker):
         run_id="run_2",
         state=DagRunState.SUCCESS,
         run_type=DagRunType.SCHEDULED,
-        execution_date=dag_maker.dag.start_date.add(days=1),
+        logical_date=dag_maker.dag.start_date.add(days=1),
         start_date=dag_maker.dag.start_date.add(days=1),
         session=session,
         **triggered_by_kwargs,

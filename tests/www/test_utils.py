@@ -509,7 +509,7 @@ class TestWrappedMarkdown:
                         "data_interval_end": None,
                         "data_interval_start": None,
                         "end_date": None,
-                        "execution_date": None,
+                        "logical_date": None,
                         "external_trigger": None,
                         "last_scheduling_decision": None,
                         "note": None,
@@ -625,7 +625,7 @@ def test_dag_run_custom_sqla_interface_delete_no_collateral_damage(dag_maker, se
     for dag_id, date in itertools.product(dag_ids, dates):
         with dag_maker(dag_id=dag_id) as dag:
             dag.create_dagrun(
-                execution_date=date,
+                logical_date=date,
                 state="running",
                 run_type="scheduled",
                 data_interval=(date, date),

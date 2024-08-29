@@ -464,8 +464,8 @@ def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSI
         dag_id=args.dag_id,
         state=state,
         no_backfills=args.no_backfill,
-        execution_start_date=args.start_date,
-        execution_end_date=args.end_date,
+        logical_start_date=args.start_date,
+        logical_end_date=args.end_date,
         session=session,
     )
 
@@ -477,7 +477,7 @@ def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSI
             "dag_id": dr.dag_id,
             "run_id": dr.run_id,
             "state": dr.state,
-            "execution_date": dr.execution_date.isoformat(),
+            "logical_date": dr.logical_date.isoformat(),
             "start_date": dr.start_date.isoformat() if dr.start_date else "",
             "end_date": dr.end_date.isoformat() if dr.end_date else "",
         },

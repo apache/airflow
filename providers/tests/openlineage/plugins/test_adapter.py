@@ -557,7 +557,7 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
         dag_id=dag_id,
         run_id=run_id,
         start_date=event_time,
-        execution_date=event_time,
+        logical_date=event_time,
         data_interval=(event_time, event_time),
     )
     dag_run.dag = dag
@@ -684,7 +684,7 @@ def test_emit_dag_complete_event(
         dag_id=dag_id,
         run_id=run_id,
         start_date=event_time,
-        execution_date=event_time,
+        logical_date=event_time,
     )
     dag_run._state = DagRunState.SUCCESS
     dag_run.end_date = event_time
@@ -765,7 +765,7 @@ def test_emit_dag_failed_event(
         dag_id=dag_id,
         run_id=run_id,
         start_date=event_time,
-        execution_date=event_time,
+        logical_date=event_time,
     )
     dag_run._state = DagRunState.FAILED
     dag_run.end_date = event_time

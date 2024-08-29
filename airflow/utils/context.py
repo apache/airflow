@@ -320,14 +320,10 @@ class Context(MutableMapping[str, Any]):
     """
 
     _DEPRECATION_REPLACEMENTS: dict[str, list[str]] = {
-        "execution_date": ["data_interval_start", "logical_date"],
         "next_ds": ["{{ data_interval_end | ds }}"],
         "next_ds_nodash": ["{{ data_interval_end | ds_nodash }}"],
-        "next_execution_date": ["data_interval_end"],
         "prev_ds": [],
         "prev_ds_nodash": [],
-        "prev_execution_date": [],
-        "prev_execution_date_success": ["prev_data_interval_start_success"],
         "tomorrow_ds": [],
         "tomorrow_ds_nodash": [],
         "yesterday_ds": [],

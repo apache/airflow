@@ -100,7 +100,7 @@ class TestEmrAddStepsOperator:
     def test_render_template(self, session, clean_dags_and_dagruns):
         dag_run = DagRun(
             dag_id=self.operator.dag.dag_id,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             run_id="test",
             run_type=DagRunType.MANUAL,
         )
@@ -156,7 +156,10 @@ class TestEmrAddStepsOperator:
             do_xcom_push=False,
         )
         dag_run = DagRun(
-            dag_id=dag.dag_id, execution_date=timezone.utcnow(), run_id="test", run_type=DagRunType.MANUAL
+            dag_id=dag.dag_id,
+            logical_date=timezone.utcnow(),
+            run_id="test",
+            run_type=DagRunType.MANUAL,
         )
         ti = TaskInstance(task=test_task)
         ti.dag_run = dag_run

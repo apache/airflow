@@ -139,12 +139,12 @@ def test_create_dagrun_permission_denied(session, client_dr_without_dag_run_crea
 @pytest.fixture
 def running_dag_run(session):
     dag = DagBag().get_dag("example_bash_operator")
-    execution_date = timezone.datetime(2016, 1, 9)
+    logical_date = timezone.datetime(2016, 1, 9)
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dr = dag.create_dagrun(
         state="running",
-        execution_date=execution_date,
-        data_interval=(execution_date, execution_date),
+        logical_date=logical_date,
+        data_interval=(logical_date, logical_date),
         run_id="test_dag_runs_action",
         session=session,
         **triggered_by_kwargs,
@@ -162,12 +162,12 @@ def running_dag_run(session):
 @pytest.fixture
 def completed_dag_run_with_missing_task(session):
     dag = DagBag().get_dag("example_bash_operator")
-    execution_date = timezone.datetime(2016, 1, 9)
+    logical_date = timezone.datetime(2016, 1, 9)
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dr = dag.create_dagrun(
         state="success",
-        execution_date=execution_date,
-        data_interval=(execution_date, execution_date),
+        logical_date=logical_date,
+        data_interval=(logical_date, logical_date),
         run_id="test_dag_runs_action",
         session=session,
         **triggered_by_kwargs,

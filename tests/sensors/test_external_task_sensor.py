@@ -46,7 +46,7 @@ from airflow.sensors.external_task import (
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.triggers.external_task import WorkflowTrigger
 from airflow.utils.hashlib_wrapper import md5
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.timezone import datetime
@@ -457,7 +457,7 @@ class TestExternalTaskSensor:
         other_dag.create_dagrun(
             run_id="test",
             start_date=DEFAULT_DATE,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.SUCCESS,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,
@@ -477,7 +477,7 @@ class TestExternalTaskSensor:
         other_dag.create_dagrun(
             run_id="test",
             start_date=DEFAULT_DATE,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.SUCCESS,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,
@@ -497,7 +497,7 @@ class TestExternalTaskSensor:
         other_dag.create_dagrun(
             run_id="test",
             start_date=DEFAULT_DATE,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             state=State.SUCCESS,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             **triggered_by_kwargs,
@@ -1275,24 +1275,30 @@ def dag_bag_parent_child():
 
 
 @provide_session
-def run_tasks(dag_bag, execution_date=DEFAULT_DATE, session=None):
+def run_tasks(
+    dag_bag: DagBag,
+    logical_date=DEFAULT_DATE,
+    session=NEW_SESSION,
+) -> tuple[dict[str, DagRun], dict[str, TaskInstance]]:
     """
     Run all tasks in the DAGs in the given dag_bag. Return the TaskInstance objects as a dict
     keyed by task_id.
     """
-    tis = {}
+    runs: dict[str, DagRun] = {}
+    tis: dict[str, TaskInstance] = {}
     triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
 
     for dag in dag_bag.dags.values():
         dagrun = dag.create_dagrun(
             state=State.RUNNING,
-            execution_date=execution_date,
-            start_date=execution_date,
+            logical_date=logical_date,
+            start_date=logical_date,
             run_type=DagRunType.MANUAL,
             session=session,
-            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            data_interval=(logical_date, logical_date),
             **triggered_by_kwargs,
         )
+        runs[dag.dag_id] = dagrun
         # we use sorting by task_id here because for the test DAG structure of ours
         # this is equivalent to topological sort. It would not work in general case
         # but it works for our case because we specifically constructed test DAGS
@@ -1306,7 +1312,7 @@ def run_tasks(dag_bag, execution_date=DEFAULT_DATE, session=None):
             session.merge(ti)
             assert_ti_state_equal(ti, State.SUCCESS)
 
-    return tis
+    return runs, tis
 
 
 def assert_ti_state_equal(task_instance, state):
@@ -1345,7 +1351,7 @@ def test_external_task_marker_transitive(dag_bag_ext):
     """
     Test clearing tasks across DAGs.
     """
-    tis = run_tasks(dag_bag_ext)
+    _, tis = run_tasks(dag_bag_ext)
     dag_0 = dag_bag_ext.get_dag("dag_0")
     task_a_0 = dag_0.get_task("task_a_0")
     clear_tasks(dag_bag_ext, dag_0, task_a_0)
@@ -1365,13 +1371,12 @@ def test_external_task_marker_clear_activate(dag_bag_parent_child, session):
     day_1 = DEFAULT_DATE
     day_2 = DEFAULT_DATE + timedelta(days=1)
 
-    run_tasks(dag_bag, execution_date=day_1)
-    run_tasks(dag_bag, execution_date=day_2)
+    runs_d1, _ = run_tasks(dag_bag, execution_date=day_1)
+    runs_d2, _ = run_tasks(dag_bag, execution_date=day_2)
 
     # Assert that dagruns of all the affected dags are set to SUCCESS before tasks are cleared.
-    for dag, execution_date in itertools.product(dag_bag.dags.values(), [day_1, day_2]):
-        dagrun = dag.get_dagrun(execution_date=execution_date, session=session)
-        dagrun.set_state(State.SUCCESS)
+    for dag, runs in itertools.product(dag_bag.dags.values(), [runs_d1, runs_d2]):
+        runs[dag.dag_id].set_state(State.SUCCESS)
     session.flush()
 
     dag_0 = dag_bag.get_dag("parent_dag_0")
@@ -1380,15 +1385,10 @@ def test_external_task_marker_clear_activate(dag_bag_parent_child, session):
 
     # Assert that dagruns of all the affected dags are set to QUEUED after tasks are cleared.
     # Unaffected dagruns should be left as SUCCESS.
-    dagrun_0_1 = dag_bag.get_dag("parent_dag_0").get_dagrun(execution_date=day_1, session=session)
-    dagrun_0_2 = dag_bag.get_dag("parent_dag_0").get_dagrun(execution_date=day_2, session=session)
-    dagrun_1_1 = dag_bag.get_dag("child_dag_1").get_dagrun(execution_date=day_1, session=session)
-    dagrun_1_2 = dag_bag.get_dag("child_dag_1").get_dagrun(execution_date=day_2, session=session)
-
-    assert dagrun_0_1.state == State.QUEUED
-    assert dagrun_0_2.state == State.QUEUED
-    assert dagrun_1_1.state == State.QUEUED
-    assert dagrun_1_2.state == State.SUCCESS
+    assert runs_d1["parent_dag_0"].state == State.QUEUED
+    assert runs_d2["parent_dag_0"].state == State.QUEUED
+    assert runs_d1["child_dag_1"].state == State.QUEUED
+    assert runs_d2["child_dag_1"].state == State.SUCCESS
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
@@ -1400,8 +1400,8 @@ def test_external_task_marker_future(dag_bag_ext):
     date_0 = DEFAULT_DATE
     date_1 = DEFAULT_DATE + timedelta(days=1)
 
-    tis_date_0 = run_tasks(dag_bag_ext, execution_date=date_0)
-    tis_date_1 = run_tasks(dag_bag_ext, execution_date=date_1)
+    _, tis_date_0 = run_tasks(dag_bag_ext, execution_date=date_0)
+    _, tis_date_1 = run_tasks(dag_bag_ext, execution_date=date_1)
 
     dag_0 = dag_bag_ext.get_dag("dag_0")
     task_a_0 = dag_0.get_task("task_a_0")
@@ -1571,11 +1571,11 @@ def test_clear_multiple_external_task_marker(dag_bag_multiple):
     Test clearing a dag that has multiple ExternalTaskMarker.
     """
     agg_dag = dag_bag_multiple.get_dag("agg_dag")
-    tis = run_tasks(dag_bag_multiple, execution_date=DEFAULT_DATE)
+    _, tis = run_tasks(dag_bag_multiple, execution_date=DEFAULT_DATE)
     session = settings.Session()
     try:
         qry = session.query(TaskInstance).filter(
-            TaskInstance.state == State.NONE, TaskInstance.dag_id.in_(dag_bag_multiple.dag_ids)
+            TaskInstance.state.is_(None), TaskInstance.dag_id.in_(dag_bag_multiple.dag_ids)
         )
         assert agg_dag.clear(dag_bag=dag_bag_multiple) == len(tis) == qry.count() == 10
     finally:
@@ -1630,11 +1630,11 @@ def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
 
     # "Run" 10 times.
     for delta in range(10):
-        execution_date = DEFAULT_DATE + timedelta(days=delta)
+        logical_date = DEFAULT_DATE + timedelta(days=delta)
         dagrun = DagRun(
             dag_id=dag.dag_id,
             state=DagRunState.SUCCESS,
-            execution_date=execution_date,
+            logical_date=logical_date,
             run_type=DagRunType.MANUAL,
             run_id=f"test_{delta}",
         )
@@ -1652,7 +1652,7 @@ def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
     assert (
         dag.clear(
             start_date=DEFAULT_DATE,
-            end_date=execution_date,
+            end_date=logical_date,
             dag_bag=dag_bag_head_tail,
             session=session,
         )
@@ -1714,11 +1714,11 @@ def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_m
 
     # "Run" 10 times.
     for delta in range(10):
-        execution_date = DEFAULT_DATE + timedelta(days=delta)
+        logical_date = DEFAULT_DATE + timedelta(days=delta)
         dagrun = DagRun(
             dag_id=dag.dag_id,
             state=DagRunState.SUCCESS,
-            execution_date=execution_date,
+            logical_date=logical_date,
             run_type=DagRunType.MANUAL,
             run_id=f"test_{delta}",
         )
