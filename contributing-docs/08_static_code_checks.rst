@@ -345,7 +345,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | ts-compile-format-lint-ui                                 | TS types generation / ESLint / Prettier new UI files         |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| ts-compile-format-lint-www                                | TS types generation / ESLint / Prettier legacy UI files      |         |
+| ts-compile-format-lint-www                                | TS types generation / ESLint / Prettier against UI files     |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | update-black-version                                      | Update black versions everywhere (manual)                    |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+

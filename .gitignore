@@ -171,6 +171,7 @@ yarn-error.log*
 pnpm-debug.log*
 .vscode/*
 !.vscode/extensions.json
+/.vite/
 
 # Airflow log files when airflow is run locally
 airflow-*.err

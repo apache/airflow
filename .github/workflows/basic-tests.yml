@@ -107,6 +107,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 21
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4.0.0
       - name: "Cache eslint"
         uses: actions/cache@v4
         with:
