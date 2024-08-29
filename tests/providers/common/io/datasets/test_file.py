@@ -23,7 +23,7 @@ import pytest
 from airflow.providers.common.compat.assets import Asset
 from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 from airflow.providers.common.io.datasets.file import (
-    convert_dataset_to_openlineage,
+    convert_asset_to_openlineage,
     create_dataset,
     sanitize_uri,
 )
@@ -62,6 +62,6 @@ def test_file_dataset():
         ("file:///C://dir/file", OpenLineageDataset(namespace="file://", name="/C://dir/file")),
     ),
 )
-def test_convert_dataset_to_openlineage(uri, ol_dataset):
-    result = convert_dataset_to_openlineage(Asset(uri=uri), None)
+def test_convert_asset_to_openlineage(uri, ol_dataset):
+    result = convert_asset_to_openlineage(Asset(uri=uri), None)
     assert result == ol_dataset

@@ -38,7 +38,7 @@ def sanitize_uri(uri: SplitResult) -> SplitResult:
     return uri
 
 
-def convert_dataset_to_openlineage(dataset: Asset, lineage_context) -> OpenLineageDataset:
+def convert_asset_to_openlineage(asset: Asset, lineage_context) -> OpenLineageDataset:
     """
     Translate Asset with valid AIP-60 uri to OpenLineage with assistance from the context.
 
@@ -46,5 +46,5 @@ def convert_dataset_to_openlineage(dataset: Asset, lineage_context) -> OpenLinea
     """
     from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 
-    parsed = urllib.parse.urlsplit(dataset.uri)
+    parsed = urllib.parse.urlsplit(asset.uri)
     return OpenLineageDataset(namespace=f"file://{parsed.netloc}", name=parsed.path)
