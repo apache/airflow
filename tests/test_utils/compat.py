@@ -36,7 +36,7 @@ try:
     # all providers are updated to airflow 2.10+.
     from airflow.models.errors import ParseImportError
 except ImportError:
-    from airflow.models.errors import ImportError as ParseImportError  # type: ignore[no-redef]
+    from airflow.models.errors import ImportError as ParseImportError  # type: ignore[no-redef,attr-defined]
 
 
 from airflow import __version__ as airflow_version

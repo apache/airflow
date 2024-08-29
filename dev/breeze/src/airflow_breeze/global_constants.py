@@ -228,7 +228,6 @@ SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
 ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
 
 ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
-ALLOWED_PYDANTIC_VERSIONS = ["v2", "v1", "none"]
 
 ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
 
@@ -513,7 +512,13 @@ BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
     },
     {
         "python-version": "3.8",
-        "airflow-version": "2.9.1",
+        "airflow-version": "2.9.3",
+        "remove-providers": "",
+        "run-tests": "true",
+    },
+    {
+        "python-version": "3.8",
+        "airflow-version": "2.10.0",
         "remove-providers": "",
         "run-tests": "true",
     },

@@ -203,7 +203,7 @@ class BaseTaskEndEvent(TriggerEvent):
         """
         # Mark the task with terminal state and prevent it from resuming on worker
         task_instance.trigger_id = None
-        task_instance.state = self.task_instance_state
+        task_instance.set_state(self.task_instance_state, session=session)
         self._submit_callback_if_necessary(task_instance=task_instance, session=session)
         self._push_xcoms_if_necessary(task_instance=task_instance)
 

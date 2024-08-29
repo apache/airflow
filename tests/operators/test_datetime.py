@@ -253,19 +253,3 @@ class TestBranchDateTimeOperator:
                 "branch_2": State.SKIPPED,
             }
         )
-
-    def test_deprecation_warning(self):
-        warning_message = (
-            """Parameter ``use_task_execution_date`` is deprecated. Use ``use_task_logical_date``."""
-        )
-        with pytest.warns(DeprecationWarning) as warnings:
-            BranchDateTimeOperator(
-                task_id="warning",
-                follow_task_ids_if_true="branch_1",
-                follow_task_ids_if_false="branch_2",
-                target_upper=timezone.datetime(2020, 7, 7, 10, 30, 0),
-                target_lower=timezone.datetime(2020, 7, 7, 10, 30, 0),
-                use_task_execution_date=True,
-                dag=self.dag,
-            )
-        assert warning_message == str(warnings[0].message)

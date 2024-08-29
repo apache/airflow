@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc_metastore import DataprocMetastoreHook
 from airflow.providers.google.cloud.hooks.gcs import parse_json_from_gcs
 from airflow.sensors.base import BaseSensorOperator
@@ -99,20 +99,14 @@ class MetastoreHivePartitionSensor(BaseSensorOperator):
             impersonation_chain=self.impersonation_chain,
         )
         if not (manifest and isinstance(manifest, dict)):
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = (
                 f"Failed to extract result manifest. "
                 f"Expected not empty dict, but this was received: {manifest}"
             )
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
 
         if manifest.get("status", {}).get("code") != 0:
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Request failed: {manifest.get('message')}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
 
         # Extract actual query results

@@ -395,8 +395,10 @@ class TestCliTasks:
     @mock.patch("airflow.triggers.file.glob", return_value=["/tmp/test"])
     @mock.patch("airflow.triggers.file.os.path.isfile", return_value=True)
     @mock.patch("airflow.sensors.filesystem.FileSensor.poke", return_value=False)
-    def test_cli_test_with_deferrable_operator(self, mock_pock, mock_is_file, mock_glob, mock_getmtime):
-        with redirect_stdout(StringIO()) as stdout:
+    def test_cli_test_with_deferrable_operator(
+        self, mock_pock, mock_is_file, mock_glob, mock_getmtime, caplog
+    ):
+        with caplog.at_level(level=logging.INFO):
             task_command.task_test(
                 self.parser.parse_args(
                     [
@@ -408,7 +410,7 @@ class TestCliTasks:
                     ]
                 )
             )
-        output = stdout.getvalue()
+            output = caplog.text
         assert "wait_for_file_async completed successfully as /tmp/temporary_file_for_testing found" in output
 
     @pytest.mark.parametrize(

@@ -421,7 +421,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "tests/providers/http/file.py",
                 ),
                 {
-                    "affected-providers-list-as-string": "airbyte amazon apache.livy "
+                    "affected-providers-list-as-string": "amazon apache.livy "
                     "dbt.cloud dingding discord http",
                     "all-python-versions": "['3.8']",
                     "all-python-versions-list-as-string": "3.8",
@@ -437,9 +437,9 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "Always "
-                    "Providers[airbyte,apache.livy,dbt.cloud,dingding,discord,http] Providers[amazon]",
-                    "providers-test-types-list-as-string": "Providers[airbyte,apache.livy,dbt.cloud,dingding,discord,http] Providers[amazon]",
-                    "separate-test-types-list-as-string": "Always Providers[airbyte] Providers[amazon] "
+                    "Providers[amazon] Providers[apache.livy,dbt.cloud,dingding,discord,http]",
+                    "providers-test-types-list-as-string": "Providers[amazon] Providers[apache.livy,dbt.cloud,dingding,discord,http]",
+                    "separate-test-types-list-as-string": "Always Providers[amazon] "
                     "Providers[apache.livy] Providers[dbt.cloud] "
                     "Providers[dingding] Providers[discord] Providers[http]",
                     "needs-mypy": "true",
@@ -457,7 +457,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "tests/providers/airbyte/file.py",
                 ),
                 {
-                    "affected-providers-list-as-string": "airbyte http",
+                    "affected-providers-list-as-string": "airbyte",
                     "all-python-versions": "['3.8']",
                     "all-python-versions-list-as-string": "3.8",
                     "python-versions": "['3.8']",
@@ -471,12 +471,12 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,ts-compile-format-lint-www",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "Always Providers[airbyte,http]",
-                    "providers-test-types-list-as-string": "Providers[airbyte,http]",
+                    "parallel-test-types-list-as-string": "Always Providers[airbyte]",
+                    "providers-test-types-list-as-string": "Providers[airbyte]",
                     "needs-mypy": "true",
                     "mypy-folders": "['providers']",
                 },
-                id="Helm tests, airbyte/http providers, kubernetes tests and "
+                id="Helm tests, airbyte providers, kubernetes tests and "
                 "docs should run even if unimportant files were added",
             )
         ),
@@ -595,7 +595,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("tests/providers/airbyte/__init__.py",),
             {
-                "affected-providers-list-as-string": "airbyte http",
+                "affected-providers-list-as-string": "airbyte",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "python-versions": "['3.8']",
@@ -609,7 +609,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,ts-compile-format-lint-www",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types-list-as-string": "Always Providers[airbyte,http]",
+                "parallel-test-types-list-as-string": "Always Providers[airbyte]",
                 "needs-mypy": "true",
                 "mypy-folders": "['providers']",
             },
@@ -1532,9 +1532,9 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             "run-tests": "true",
             "docs-build": "true",
             "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers",
-            "upgrade-to-newer-dependencies": "true"
-            if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]
-            else "false",
+            "upgrade-to-newer-dependencies": (
+                "true" if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE] else "false"
+            ),
             "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
             "needs-mypy": "true",
             "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
@@ -1636,14 +1636,14 @@ def test_upgrade_to_newer_dependencies(
         pytest.param(
             ("docs/apache-airflow-providers-airbyte/docs.rst",),
             {
-                "docs-list-as-string": "airbyte http",
+                "docs-list-as-string": "airbyte",
             },
             id="Airbyte provider docs changed",
         ),
         pytest.param(
             ("docs/apache-airflow-providers-airbyte/docs.rst", "docs/apache-airflow/docs.rst"),
             {
-                "docs-list-as-string": "apache-airflow airbyte http",
+                "docs-list-as-string": "apache-airflow airbyte",
             },
             id="Airbyte provider and airflow core docs changed",
         ),
@@ -1654,7 +1654,7 @@ def test_upgrade_to_newer_dependencies(
                 "docs/apache-airflow-providers/docs.rst",
             ),
             {
-                "docs-list-as-string": "apache-airflow apache-airflow-providers airbyte http",
+                "docs-list-as-string": "apache-airflow apache-airflow-providers airbyte",
             },
             id="Airbyte provider and airflow core and common provider docs changed",
         ),

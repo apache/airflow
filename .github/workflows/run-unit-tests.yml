@@ -89,11 +89,6 @@ on:  # yamllint disable-line rule:truthy
         required: false
         default: "false"
         type: string
-      pydantic:
-        description: "The version of pydantic to use"
-        required: false
-        default: "v2"
-        type: string
       downgrade-pendulum:
         description: "Whether to downgrade pendulum or not (true/false)"
         required: false
@@ -148,7 +143,6 @@ jobs:
       JOB_ID: "${{ inputs.test-scope }}-${{ inputs.test-name }}-${{inputs.backend}}-${{ matrix.backend-version }}-${{ matrix.python-version }}"
       MOUNT_SOURCES: "skip"
       PARALLEL_TEST_TYPES: "${{ inputs.parallel-test-types-list-as-string }}"
-      PYDANTIC: "${{ inputs.pydantic }}"
       PYTHON_MAJOR_MINOR_VERSION: "${{ matrix.python-version }}"
       UPGRADE_BOTO: "${{ inputs.upgrade-boto }}"
       AIRFLOW_MONITOR_DELAY_TIME_IN_SECONDS: "${{inputs.monitor-delay-time-in-seconds}}"

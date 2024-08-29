@@ -1,22 +1,3 @@
-/*!
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
-
 /* eslint-disable */
 import type { CamelCasedPropertiesDeep } from "type-fest";
 /**
@@ -1088,9 +1069,14 @@ export interface components {
       owners?: string[];
       /** @description User-provided DAG description, which can consist of several sentences or paragraphs that describe DAG contents. */
       description?: string | null;
-      schedule_interval?: components["schemas"]["ScheduleInterval"];
       /**
-       * @description Timetable/Schedule Interval description.
+       * @description Timetable summary.
+       *
+       * *New in version 3.0.0*
+       */
+      timetable_summary?: string | null;
+      /**
+       * @description Timetable description.
        *
        * *New in version 2.3.0*
        */
@@ -2315,15 +2301,6 @@ export interface components {
        */
       order_by?: string;
     };
-    /**
-     * @description Schedule interval. Defines how often DAG runs, this object gets added to your latest task instance's
-     * execution_date to figure out the next schedule.
-     */
-    ScheduleInterval:
-      | (Partial<components["schemas"]["TimeDelta"]> &
-          Partial<components["schemas"]["RelativeDelta"]> &
-          Partial<components["schemas"]["CronExpression"]>)
-      | null;
     /** @description Time delta */
     TimeDelta: {
       __type: string;
@@ -5685,9 +5662,6 @@ export type ListDagRunsForm = CamelCasedPropertiesDeep<
 >;
 export type ListTaskInstanceForm = CamelCasedPropertiesDeep<
   components["schemas"]["ListTaskInstanceForm"]
->;
-export type ScheduleInterval = CamelCasedPropertiesDeep<
-  components["schemas"]["ScheduleInterval"]
 >;
 export type TimeDelta = CamelCasedPropertiesDeep<
   components["schemas"]["TimeDelta"]
