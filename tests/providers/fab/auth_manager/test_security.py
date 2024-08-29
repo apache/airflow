@@ -35,6 +35,7 @@ from airflow.configuration import initialize_config
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.models.dag import DAG
+from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 from tests.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
@@ -435,7 +436,7 @@ def test_get_user_roles_for_anonymous_user(app, security_manager):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_READ, RESOURCE_ASSET),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
@@ -454,7 +455,11 @@ def test_get_user_roles_for_anonymous_user(app, security_manager):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
+<<<<<<< HEAD
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DATASET),
+=======
+        (permissions.ACTION_CAN_ACCESS_MENU, RESOURCE_ASSET),
+>>>>>>> 64678bd67c (fixup security RESOURCE_ASSET compat)
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_SLA_MISS),

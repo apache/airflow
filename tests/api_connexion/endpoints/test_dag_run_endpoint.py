@@ -57,7 +57,7 @@ def configured_app(minimal_app_for_api):
         role_name="Test",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_ASSET),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
@@ -72,7 +72,7 @@ def configured_app(minimal_app_for_api):
         role_name="TestNoDagRunCreatePermission",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_ASSET),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),

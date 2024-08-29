@@ -14,3 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from airflow.security.permissions import RESOURCE_ASSET
+else:
+    try:
+        from airflow.security.permissions import RESOURCE_ASSET
+    except ImportError:
+        from airflow.security.permissions import RESOURCE_DATASET as RESOURCE_ASSET
+
+
+__all__ = ["RESOURCE_ASSET"]

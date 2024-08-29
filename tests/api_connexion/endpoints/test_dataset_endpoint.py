@@ -54,8 +54,8 @@ def configured_app(minimal_app_for_api):
         username="test",
         role_name="Test",
         permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
-            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_ASSET),
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_ASSET),
         ],
     )
     create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
@@ -65,8 +65,8 @@ def configured_app(minimal_app_for_api):
         role_name="TestQueuedEvent",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DATASET),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_ASSET),
+            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_ASSET),
         ],
     )
 
