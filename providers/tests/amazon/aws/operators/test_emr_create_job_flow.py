@@ -107,7 +107,7 @@ class TestEmrCreateJobFlowOperator:
         else:
             dag_run = DagRun(
                 dag_id=self.operator.dag_id,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 run_id="test",
                 run_type=DagRunType.MANUAL,
             )
@@ -153,7 +153,7 @@ class TestEmrCreateJobFlowOperator:
         else:
             dag_run = DagRun(
                 dag_id=self.operator.dag_id,
-                execution_date=DEFAULT_DATE,
+                logical_date=DEFAULT_DATE,
                 run_id="test",
                 run_type=DagRunType.MANUAL,
             )

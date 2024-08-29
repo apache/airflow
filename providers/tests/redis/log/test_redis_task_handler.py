@@ -44,7 +44,7 @@ class TestRedisTaskHandler:
         if AIRFLOW_V_3_0_PLUS:
             dag_run = DagRun(dag_id=dag.dag_id, logical_date=date, run_id="test", run_type="scheduled")
         else:
-            dag_run = DagRun(dag_id=dag.dag_id, execution_date=date, run_id="test", run_type="scheduled")
+            dag_run = DagRun(dag_id=dag.dag_id, logical_date=date, run_id="test", run_type="scheduled")
 
         with create_session() as session:
             session.add(dag_run)

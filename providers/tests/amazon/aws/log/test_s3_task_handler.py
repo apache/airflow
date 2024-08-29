@@ -63,7 +63,7 @@ class TestS3TaskHandler:
         if AIRFLOW_V_3_0_PLUS:
             dag_run = DagRun(dag_id=self.dag.dag_id, logical_date=date, run_id="test", run_type="manual")
         else:
-            dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test", run_type="manual")
+            dag_run = DagRun(dag_id=self.dag.dag_id, logical_date=date, run_id="test", run_type="manual")
         session.add(dag_run)
         session.commit()
         session.refresh(dag_run)

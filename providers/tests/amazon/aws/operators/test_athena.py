@@ -243,7 +243,7 @@ class TestAthenaOperator:
         else:
             dag_run = DagRun(
                 dag_id=self.dag.dag_id,
-                execution_date=timezone.utcnow(),
+                logical_date=timezone.utcnow(),
                 run_id="test",
                 run_type=DagRunType.MANUAL,
             )

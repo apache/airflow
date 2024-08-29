@@ -123,7 +123,7 @@ class TestAwsBaseSensor:
         if AIRFLOW_V_3_0_PLUS:
             dagrun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
         else:
-            dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+            dagrun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
         tis = {ti.task_id: ti for ti in dagrun.task_instances}
         tis["fake-task-id"].run()
 

@@ -43,7 +43,7 @@ from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 @providers_configuration_loaded
 def generate_pod_yaml(args):
     """Generate yaml files for each task in the DAG. Used for testing output of KubernetesExecutor."""
-    logical_date = args.execution_date
+    logical_date = args.logical_date
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     yaml_output_path = args.output_path
     if AIRFLOW_V_3_0_PLUS:
