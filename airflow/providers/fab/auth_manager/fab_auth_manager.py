@@ -135,7 +135,7 @@ class FabAuthManager(BaseAuthManager):
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
         """Vends CLI commands to be included in Airflow CLI."""
-        commands = [
+        commands: list[CLICommand] = [
             GroupCommand(
                 name="users",
                 help="Manage users",
