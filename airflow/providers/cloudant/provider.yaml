@@ -26,6 +26,7 @@ source-date-epoch: 1723969866
 # note that those versions are maintained by release manager - do not update them manually
 versions:
   - 4.0.0
+  - 3.6.0
   - 3.5.2
   - 3.5.1
   - 3.5.0
