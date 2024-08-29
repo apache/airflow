@@ -21,6 +21,8 @@ from typing import Any
 import pytest
 
 from airflow.hooks.base import BaseHook
+from airflow.models import Connection
+from airflow.utils import db
 
 try:
     from opensearchpy import OpenSearch
@@ -173,3 +175,17 @@ def mock_hook(monkeypatch):
     monkeypatch.setattr(OpenSearchHook, "search", MockSearch.search)
     monkeypatch.setattr(OpenSearchHook, "client", MockSearch.client)
     monkeypatch.setattr(OpenSearchHook, "index", MockSearch.index)
+
+
+@pytest.fixture(autouse=True)
+def setup_connection():
+    # We need to set up a Connection into the database for all tests.
+    db.merge_conn(
+        Connection(
+            conn_id="opensearch_default",
+            conn_type="opensearch",
+            host="myopensearch.com",
+            login="test_user",
+            password="test",
+        )
+    )
