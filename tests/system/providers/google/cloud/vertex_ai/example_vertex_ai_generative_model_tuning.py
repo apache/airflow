@@ -26,7 +26,7 @@ import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.operators.vertex_ai.generative_model_tuning import (
+from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
     SupervisedFineTuningTrainOperator,
 )
 
@@ -43,7 +43,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2024, 1, 1),
     catchup=False,
-    tags=["example", "vertex_ai", "generative_model_tuning"],
+    tags=["example", "vertex_ai", "generative_model"],
 ) as dag:
     # [START how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
     sft_train_task = SupervisedFineTuningTrainOperator(
