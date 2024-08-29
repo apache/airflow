@@ -23,8 +23,10 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence
 
 from google.cloud.container_v1.types import Operation
+from packaging.version import parse as parse_version
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow import ProvidersManager
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodManager
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
@@ -305,6 +307,16 @@ class GKEJobTrigger(BaseTrigger):
         if self.get_logs or self.do_xcom_push:
             pod = await self.hook.get_pod(name=self.pod_name, namespace=self.pod_namespace)
         if self.do_xcom_push:
+            kubernetes_provider = ProvidersManager().providers["apache-airflow-providers-cncf-kubernetes"]
+            kubernetes_provider_name = kubernetes_provider.data["package-name"]
+            kubernetes_provider_version = kubernetes_provider.version
+            min_version = "8.0.1"
+            if parse_version(kubernetes_provider_version) <= parse_version(min_version):
+                raise AirflowException(
+                    "You are trying to use `GKEStartJobOperator` in deferrable mode with the provider "
+                    f"package {kubernetes_provider_name}=={kubernetes_provider_version} which doesn't "
+                    f"support this feature. Please upgrade it to version higher than {min_version}."
+                )
             await self.hook.wait_until_container_complete(
                 name=self.pod_name,
                 namespace=self.pod_namespace,
