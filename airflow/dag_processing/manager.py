@@ -1197,7 +1197,7 @@ class DagFileProcessorManager(LoggingMixin):
                     span.add_event(
                         name="exception",
                         attributes={
-                            "file_path": import_error.file_path,
+                            "filename": import_error.filename,
                             "exception.type": "ParseImportError",
                             "exception.name": "Import error when processing DAG file",
                             "exception.stacktrace": import_error.stacktrace,
