@@ -5749,7 +5749,7 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        self.job_runner._orphan_unreferenced_datasets(session=session)
+        self.job_runner._orphan_unreferenced_assets(session=session)
         session.flush()
 
         # and find the orphans
@@ -5784,7 +5784,7 @@ class TestSchedulerJob:
         scheduler_job = Job()
         self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
 
-        self.job_runner._orphan_unreferenced_datasets(session=session)
+        self.job_runner._orphan_unreferenced_assets(session=session)
         session.flush()
 
         orphaned_assets_before_rerun = (
@@ -5797,7 +5797,7 @@ class TestSchedulerJob:
 
         # when rerunning we should ignore the already orphaned assets and thus the updated_at timestamp
         # should remain the same
-        self.job_runner._orphan_unreferenced_datasets(session=session)
+        self.job_runner._orphan_unreferenced_assets(session=session)
         session.flush()
 
         orphaned_assets_after_rerun = (

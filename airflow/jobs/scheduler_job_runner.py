@@ -1086,7 +1086,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         timers.call_regular_interval(
             conf.getfloat("scheduler", "parsing_cleanup_interval"),
-            self._orphan_unreferenced_datasets,
+            self._orphan_unreferenced_assets,
         )
 
         if self._standalone_dag_processor:
@@ -2018,7 +2018,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return 1
 
     @provide_session
-    def _orphan_unreferenced_datasets(self, session: Session = NEW_SESSION) -> None:
+    def _orphan_unreferenced_assets(self, session: Session = NEW_SESSION) -> None:
         """
         Detect orphaned assets and set is_orphaned flag to True.
 
