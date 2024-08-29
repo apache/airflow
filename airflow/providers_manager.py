@@ -428,7 +428,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._fs_set: set[str] = set()
         self._asset_uri_handlers: dict[str, Callable[[SplitResult], SplitResult]] = {}
         self._asset_factories: dict[str, Callable[..., Asset]] = {}
-        self._dataset_to_openlineage_converters: dict[str, Callable] = {}
+        self._asset_to_openlineage_converters: dict[str, Callable] = {}
         self._taskflow_decorators: dict[str, Callable] = LazyDictWithCache()  # type: ignore[assignment]
         # keeps mapping between connection_types and hook class, package they come from
         self._hook_provider_dict: dict[str, HookClassProvider] = {}
@@ -925,7 +925,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 )
                 _safe_register_resource(
                     resource_path=uri_info.get("to_openlineage_converter"),
-                    resource_registry=self._dataset_to_openlineage_converters,
+                    resource_registry=self._asset_to_openlineage_converters,
                     **common_args,
                 )
 
@@ -1335,11 +1335,11 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         return self._asset_uri_handlers
 
     @property
-    def dataset_to_openlineage_converters(
+    def asset_to_openlineage_converters(
         self,
     ) -> dict[str, Callable]:
         self.initialize_providers_dataset_uri_resources()
-        return self._dataset_to_openlineage_converters
+        return self._asset_to_openlineage_converters
 
     @property
     def provider_configs(self) -> list[tuple[str, dict[str, Any]]]:

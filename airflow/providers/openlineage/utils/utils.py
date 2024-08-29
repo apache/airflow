@@ -659,7 +659,10 @@ def translate_airflow_dataset(dataset: Asset, lineage_context) -> OpenLineageDat
     try:
         from airflow.providers_manager import ProvidersManager
 
-        ol_converters = ProvidersManager().dataset_to_openlineage_converters
+        ol_converters = getattr(ProvidersManager(), "asset_to_openlineage_converters", None)
+        if not ol_converters:
+            ol_converters = ProvidersManager().dataset_to_openlineage_converters  # type: ignore[attr-defined]
+
         normalized_uri = dataset.normalized_uri
     except (ImportError, AttributeError):
         return None
