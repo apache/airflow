@@ -1463,7 +1463,10 @@ class Airflow(AirflowBaseView):
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
         dag_run = dag.get_dagrun(
             run_id=session.scalar(
-                select(DagRun.run_id).where(DagRun.logical_date == dttm).order_by(DagRun.id.desc()).limit(1)
+                select(DagRun.run_id)
+                .where(DagRun.logical_date == dttm)
+                .order_by(DagRun.id.desc())
+                .limit(1)
             ),
             session=session,
         )
@@ -1601,7 +1604,10 @@ class Airflow(AirflowBaseView):
         task = dag.get_task(task_id)
         dag_run = dag.get_dagrun(
             run_id=session.scalar(
-                select(DagRun.run_id).where(DagRun.logical_date == dttm).order_by(DagRun.id.desc()).limit(1)
+                select(DagRun.run_id)
+                .where(DagRun.logical_date == dttm)
+                .order_by(DagRun.id.desc())
+                .limit(1)
             ),
             session=session,
         )
@@ -3193,7 +3199,10 @@ class Airflow(AirflowBaseView):
         dttm = dt_nr_dr_data["dttm"]
         dag_run = dag.get_dagrun(
             run_id=session.scalar(
-                select(DagRun.run_id).where(DagRun.logical_date == dttm).order_by(DagRun.id.desc()).limit(1)
+                select(DagRun.run_id)
+                .where(DagRun.logical_date == dttm)
+                .order_by(DagRun.id.desc())
+                .limit(1)
             ),
             session=session,
         )
