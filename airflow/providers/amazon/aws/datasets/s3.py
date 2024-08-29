@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 
 
-def create_dataset(*, bucket: str, key: str, extra=None) -> Asset:
+def create_asset(*, bucket: str, key: str, extra=None) -> Asset:
     return Asset(uri=f"s3://{bucket}/{key}", extra=extra)
 
 

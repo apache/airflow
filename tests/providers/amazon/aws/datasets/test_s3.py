@@ -22,7 +22,7 @@ import pytest
 
 from airflow.providers.amazon.aws.datasets.s3 import (
     convert_asset_to_openlineage,
-    create_dataset,
+    create_asset,
     sanitize_uri,
 )
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -50,9 +50,9 @@ def test_sanitize_uri_no_path():
     assert result.path == ""
 
 
-def test_create_dataset():
-    assert create_dataset(bucket="test-bucket", key="test-path") == Asset(uri="s3://test-bucket/test-path")
-    assert create_dataset(bucket="test-bucket", key="test-dir/test-path") == Asset(
+def test_create_asset():
+    assert create_asset(bucket="test-bucket", key="test-path") == Asset(uri="s3://test-bucket/test-path")
+    assert create_asset(bucket="test-bucket", key="test-dir/test-path") == Asset(
         uri="s3://test-bucket/test-dir/test-path"
     )
 
