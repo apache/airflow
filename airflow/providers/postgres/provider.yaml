@@ -96,6 +96,6 @@ connection-types:
   - hook-class-name: airflow.providers.postgres.hooks.postgres.PostgresHook
     connection-type: postgres
 
-dataset-uris:
+asset-uris:
   - schemes: [postgres, postgresql]
     handler: airflow.providers.postgres.datasets.postgres.sanitize_uri
