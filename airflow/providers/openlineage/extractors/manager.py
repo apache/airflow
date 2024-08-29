@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterator
 
+from airflow.providers.common.compat.openlineage.utils.utils import translate_airflow_asset
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import BaseExtractor, OperatorLineage
 from airflow.providers.openlineage.extractors.base import DefaultExtractor
@@ -25,7 +26,6 @@ from airflow.providers.openlineage.extractors.bash import BashExtractor
 from airflow.providers.openlineage.extractors.python import PythonExtractor
 from airflow.providers.openlineage.utils.utils import (
     get_unknown_source_attribute_run_facet,
-    translate_airflow_dataset,
     try_import_from_string,
 )
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -189,12 +189,12 @@ class ExtractorManager(LoggingMixin):
             [
                 asset
                 for asset_info in get_hook_lineage_collector().collected_assets.inputs
-                if (asset := translate_airflow_dataset(asset_info.asset, asset_info.context)) is not None
+                if (asset := translate_airflow_asset(asset_info.asset, asset_info.context)) is not None
             ],
             [
                 asset
                 for asset_info in get_hook_lineage_collector().collected_assets.outputs
-                if (asset := translate_airflow_dataset(asset_info.asset, asset_info.context)) is not None
+                if (asset := translate_airflow_asset(asset_info.asset, asset_info.context)) is not None
             ],
         )
 

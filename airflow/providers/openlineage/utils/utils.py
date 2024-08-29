@@ -283,7 +283,7 @@ class TaskInstanceInfo(InfoJsonEncodable):
     }
 
 
-class DatasetInfo(InfoJsonEncodable):
+class AssetInfo(InfoJsonEncodable):
     """Defines encoding Airflow Asset object to JSON."""
 
     includes = ["uri", "extra"]
@@ -335,8 +335,8 @@ class TaskInfo(InfoJsonEncodable):
             if hasattr(task, "task_group") and getattr(task.task_group, "_group_id", None)
             else None
         ),
-        "inlets": lambda task: [DatasetInfo(i) for i in task.inlets if isinstance(i, Asset)],
-        "outlets": lambda task: [DatasetInfo(o) for o in task.outlets if isinstance(o, Asset)],
+        "inlets": lambda task: [AssetInfo(i) for i in task.inlets if isinstance(i, Asset)],
+        "outlets": lambda task: [AssetInfo(o) for o in task.outlets if isinstance(o, Asset)],
     }
 
 
@@ -641,11 +641,11 @@ def should_use_external_connection(hook) -> bool:
     return True
 
 
-def translate_airflow_dataset(dataset: Asset, lineage_context) -> OpenLineageDataset | None:
+def translate_airflow_asset(asset: Asset, lineage_context) -> OpenLineageDataset | None:
     """
     Convert a Asset with an AIP-60 compliant URI to an OpenLineageDataset.
 
-    This function returns None if no URI normalizer is defined, no dataset converter is found or
+    This function returns None if no URI normalizer is defined, no asset converter is found or
     some core Airflow changes are missing and ImportError is raised.
     """
     try:
@@ -663,7 +663,7 @@ def translate_airflow_dataset(dataset: Asset, lineage_context) -> OpenLineageDat
         if not ol_converters:
             ol_converters = ProvidersManager().dataset_to_openlineage_converters  # type: ignore[attr-defined]
 
-        normalized_uri = dataset.normalized_uri
+        normalized_uri = asset.normalized_uri
     except (ImportError, AttributeError):
         return None
 
@@ -676,4 +676,4 @@ def translate_airflow_dataset(dataset: Asset, lineage_context) -> OpenLineageDat
     if (airflow_to_ol_converter := ol_converters.get(normalized_scheme)) is None:
         return None
 
-    return airflow_to_ol_converter(Asset(uri=normalized_uri, extra=dataset.extra), lineage_context)
+    return airflow_to_ol_converter(Asset(uri=normalized_uri, extra=asset.extra), lineage_context)
