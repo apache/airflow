@@ -24,7 +24,7 @@ from airflow.providers.common.compat.assets import Asset
 from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 from airflow.providers.common.io.datasets.file import (
     convert_asset_to_openlineage,
-    create_dataset,
+    create_asset,
     sanitize_uri,
 )
 
@@ -47,8 +47,8 @@ def test_sanitize_uri_invalid(uri):
         sanitize_uri(urlsplit(uri))
 
 
-def test_file_dataset():
-    assert create_dataset(path="/asdf/fdsa") == Asset(uri="file:///asdf/fdsa")
+def test_file_asset():
+    assert create_asset(path="/asdf/fdsa") == Asset(uri="file:///asdf/fdsa")
 
 
 @pytest.mark.parametrize(

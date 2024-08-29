@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 
 
-def create_dataset(*, path: str, extra=None) -> Asset:
+def create_asset(*, path: str, extra=None) -> Asset:
     # We assume that we get absolute path starting with /
     return Asset(uri=f"file://{path}", extra=extra)
 
