@@ -34,7 +34,7 @@ from airflow.operators.bash import BashOperator
 ds = Asset("s3://output/1.txt")
 
 with DAG(
-    dag_id="dataset_with_extra_by_yield",
+    dag_id="asset_with_extra_by_yield",
     catchup=False,
     start_date=datetime.datetime.min,
     schedule="@daily",
@@ -42,13 +42,13 @@ with DAG(
 ):
 
     @task(outlets=[ds])
-    def dataset_with_extra_by_yield():
+    def asset_with_extra_by_yield():
         yield Metadata(ds, {"hi": "bye"})
 
-    dataset_with_extra_by_yield()
+    asset_with_extra_by_yield()
 
 with DAG(
-    dag_id="dataset_with_extra_by_context",
+    dag_id="asset_with_extra_by_context",
     catchup=False,
     start_date=datetime.datetime.min,
     schedule="@daily",
@@ -56,25 +56,25 @@ with DAG(
 ):
 
     @task(outlets=[ds])
-    def dataset_with_extra_by_context(*, outlet_events=None):
+    def asset_with_extra_by_context(*, outlet_events=None):
         outlet_events[ds].extra = {"hi": "bye"}
 
-    dataset_with_extra_by_context()
+    asset_with_extra_by_context()
 
 with DAG(
-    dag_id="dataset_with_extra_from_classic_operator",
+    dag_id="asset_with_extra_from_classic_operator",
     catchup=False,
     start_date=datetime.datetime.min,
     schedule="@daily",
     tags=["produces"],
 ):
 
-    def _dataset_with_extra_from_classic_operator_post_execute(context, result):
+    def _asset_with_extra_from_classic_operator_post_execute(context, result):
         context["outlet_events"][ds].extra = {"hi": "bye"}
 
     BashOperator(
-        task_id="dataset_with_extra_from_classic_operator",
+        task_id="asset_with_extra_from_classic_operator",
         outlets=[ds],
         bash_command=":",
-        post_execute=_dataset_with_extra_from_classic_operator_post_execute,
+        post_execute=_asset_with_extra_from_classic_operator_post_execute,
     )
