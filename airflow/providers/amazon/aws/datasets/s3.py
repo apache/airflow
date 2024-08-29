@@ -37,9 +37,9 @@ def sanitize_uri(uri: SplitResult) -> SplitResult:
     return uri
 
 
-def convert_dataset_to_openlineage(dataset: Asset, lineage_context) -> OpenLineageDataset:
+def convert_asset_to_openlineage(asset: Asset, lineage_context) -> OpenLineageDataset:
     """Translate Asset with valid AIP-60 uri to OpenLineage with assistance from the hook."""
     from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 
-    bucket, key = S3Hook.parse_s3_url(dataset.uri)
+    bucket, key = S3Hook.parse_s3_url(asset.uri)
     return OpenLineageDataset(namespace=f"s3://{bucket}", name=key if key else "/")
