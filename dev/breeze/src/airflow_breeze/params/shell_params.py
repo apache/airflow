@@ -40,6 +40,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     DRILL_HOST_PORT,
+    EDGE_EXECUTOR,
     FASTAPI_API_HOST_PORT,
     FLOWER_HOST_PORT,
     MOUNT_ALL,
@@ -51,7 +52,6 @@ from airflow_breeze.global_constants import (
     MYSQL_HOST_PORT,
     POSTGRES_HOST_PORT,
     REDIS_HOST_PORT,
-    REMOTE_EXECUTOR,
     SSH_PORT,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
     TESTABLE_INTEGRATIONS,
@@ -494,9 +494,9 @@ class ShellParams:
         _set_var(_env, "AIRFLOW_VERSION", self.airflow_version)
         _set_var(_env, "AIRFLOW__CELERY__BROKER_URL", self.airflow_celery_broker_url)
         _set_var(_env, "AIRFLOW__CORE__EXECUTOR", self.executor)
-        if self.executor == REMOTE_EXECUTOR:
-            _set_var(_env, "AIRFLOW__REMOTE__API_ENABLED", "true")
-            _set_var(_env, "AIRFLOW__REMOTE__API_URL", "http://localhost:8080/remote_worker/v1/rpcapi")
+        if self.executor == EDGE_EXECUTOR:
+            _set_var(_env, "AIRFLOW__EDGE__API_ENABLED", "true")
+            _set_var(_env, "AIRFLOW__EDGE__API_URL", "http://localhost:8080/edge_worker/v1/rpcapi")
         _set_var(_env, "ANSWER", get_forced_answer() or "")
         _set_var(_env, "BACKEND", self.backend)
         _set_var(_env, "BASE_BRANCH", self.base_branch, "main")
