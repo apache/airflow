@@ -4340,10 +4340,7 @@ class TestSchedulerJob:
         # when Scheduler._do_scheduling is run in the Scheduler Loop
         self.job_runner._do_scheduling(session)
         dr1 = session.scalar(
-            select(DagRun)
-            .where(DagRun.dag_id == dag_model.dag_id)
-            .order_by(DagRun.id.asc())
-            .limit(1)
+            select(DagRun).where(DagRun.dag_id == dag_model.dag_id).order_by(DagRun.id.asc()).limit(1)
         )
         assert dr1 is not None
         assert dr1.state == DagRunState.RUNNING

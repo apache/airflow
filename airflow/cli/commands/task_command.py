@@ -494,7 +494,9 @@ def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
     else:
         _dag = dag
     task = _dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.map_index, logical_date_or_run_id=args.execution_date_or_run_id, pool=args.pool)
+    ti, _ = _get_ti(
+        task, args.map_index, logical_date_or_run_id=args.execution_date_or_run_id, pool=args.pool
+    )
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
@@ -750,7 +752,10 @@ def task_render(args, dag: DAG | None = None) -> None:
         dag = get_dag(args.subdir, args.dag_id)
     task = dag.get_task(task_id=args.task_id)
     ti, _ = _get_ti(
-        task, args.map_index, logical_date_or_run_id=args.execution_date_or_run_id, create_if_necessary="memory"
+        task,
+        args.map_index,
+        logical_date_or_run_id=args.execution_date_or_run_id,
+        create_if_necessary="memory",
     )
     # task_render is executed with access to the database.
     if isinstance(ti, TaskInstancePydantic):
