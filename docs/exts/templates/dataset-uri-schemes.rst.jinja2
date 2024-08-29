@@ -27,7 +27,7 @@ Core
 {{ provider['name'] }}
 {{ header_separator * (provider['name']|length) }}
 
-{% for uri_entry in provider['dataset-uris'] -%}
+{% for uri_entry in provider['asset-uris'] -%}
 - {% for scheme in uri_entry['schemes'] %}``{{ scheme }}``{% if not loop.last %}, {% endif %}{% endfor %}
 {% endfor %}
 

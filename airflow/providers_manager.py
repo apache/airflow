@@ -525,7 +525,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self.initialize_providers_list()
         self._discover_filesystems()
 
-    @provider_info_cache("dataset_uris")
+    @provider_info_cache("asset_uris")
     def initialize_providers_asset_uri_resources(self):
         """Lazy initialization of provider asset URI handlers, factories, converters etc."""
         self.initialize_providers_list()
@@ -908,7 +908,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 resource_registry.update((scheme, resource) for scheme in schemes_list)
 
         for provider_name, provider in self._provider_dict.items():
-            for uri_info in provider.data.get("dataset-uris", []):
+            for uri_info in provider.data.get("asset-uris", []):
                 if "schemes" not in uri_info or "handler" not in uri_info:
                     continue  # Both schemas and handler must be explicitly set, handler can be set to null
                 common_args = {"schemes_list": uri_info["schemes"], "provider_package_name": provider_name}

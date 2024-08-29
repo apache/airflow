@@ -196,9 +196,9 @@
                 "type": "string"
             }
         },
-        "dataset-uris": {
+        "asset-uris": {
             "type": "array",
-            "description": "Dataset URI formats",
+            "description": "Asset URI formats",
             "items": {
                 "type": "object",
                 "properties": {
