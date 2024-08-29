@@ -164,7 +164,7 @@ def requires_access_asset(method: ResourceMethod) -> Callable[[T], T]:
         def decorated(*args, **kwargs):
             uri: str | None = kwargs.get("uri")
             return _requires_access(
-                is_authorized_callback=lambda: get_auth_manager().is_authorized_dataset(
+                is_authorized_callback=lambda: get_auth_manager().is_authorized_asset(
                     method=method, details=AssetDetails(uri=uri)
                 ),
                 func=func,

@@ -253,7 +253,7 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 details=ConnectionDetails(conn_id=get_connection_id(resource_pk)),
                 user=user,
             ),
-            RESOURCE_ASSET: lambda action, resource_pk, user: auth_manager.is_authorized_dataset(
+            RESOURCE_ASSET: lambda action, resource_pk, user: auth_manager.is_authorized_asset(
                 method=methods[action],
                 user=user,
             ),

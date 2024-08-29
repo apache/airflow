@@ -34,7 +34,7 @@ pytestmark = pytest.mark.skip_if_database_isolation_mode
     "decorator_name, is_authorized_method_name",
     [
         ("has_access_configuration", "is_authorized_configuration"),
-        ("has_access_asset", "is_authorized_dataset"),
+        ("has_access_asset", "is_authorized_asset"),
         ("has_access_view", "is_authorized_view"),
     ],
 )

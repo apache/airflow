@@ -178,7 +178,7 @@ class BaseAuthManager(LoggingMixin):
         """
 
     @abstractmethod
-    def is_authorized_dataset(
+    def is_authorized_asset(
         self,
         *,
         method: ResourceMethod,
@@ -186,10 +186,10 @@ class BaseAuthManager(LoggingMixin):
         user: BaseUser | None = None,
     ) -> bool:
         """
-        Return whether the user is authorized to perform a given action on a dataset.
+        Return whether the user is authorized to perform a given action on an asset.
 
         :param method: the method to perform
-        :param details: optional details about the dataset
+        :param details: optional details about the asset
         :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
 
