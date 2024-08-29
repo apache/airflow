@@ -32,6 +32,9 @@ dependencies:
   - apache-airflow>=2.10.0
   - pydantic>=2.6.4
 
+executors:
+  - airflow.providers.edge.executors.EdgeExecutor
+
 plugins:
   - name: edge_executor
     plugin-class: airflow.providers.edge.plugins.edge_executor_plugin.EdgeExecutorPlugin
