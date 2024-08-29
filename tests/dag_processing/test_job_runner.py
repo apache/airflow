@@ -824,6 +824,7 @@ class TestDagProcessorJobRunner:
                     )
                     assert active_dag_count == 2
 
+
     @mock.patch(
         "airflow.dag_processing.processor.DagFileProcessorProcess.waitable_handle", new_callable=PropertyMock
     )

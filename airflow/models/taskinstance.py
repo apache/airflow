@@ -1048,9 +1048,13 @@ def _get_template_context(
         # for manually triggered tasks, i.e. triggered_date == execution_date.
         if dag_run.external_trigger:
             return logical_date
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
-            return dag.previous_schedule(logical_date)
+
+        # Workaround code copy until deprecated context fields are removed in Airflow 3
+        from airflow.timetables.interval import _DataIntervalTimetable
+
+        if not isinstance(dag.timetable, _DataIntervalTimetable):
+            return None
+        return dag.timetable._get_prev(timezone.coerce_datetime(logical_date))
 
     @cache
     def get_prev_ds() -> str | None:
