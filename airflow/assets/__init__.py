@@ -55,7 +55,7 @@ def _get_uri_normalizer(scheme: str) -> Callable[[SplitResult], SplitResult] | N
         return normalize_noop
     from airflow.providers_manager import ProvidersManager
 
-    return ProvidersManager().dataset_uri_handlers.get(scheme)
+    return ProvidersManager().asset_uri_handlers.get(scheme)
 
 
 def _get_normalized_scheme(uri: str) -> str:

@@ -426,7 +426,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         # Keeps dict of hooks keyed by connection type
         self._hooks_dict: dict[str, HookInfo] = {}
         self._fs_set: set[str] = set()
-        self._dataset_uri_handlers: dict[str, Callable[[SplitResult], SplitResult]] = {}
+        self._asset_uri_handlers: dict[str, Callable[[SplitResult], SplitResult]] = {}
         self._dataset_factories: dict[str, Callable[..., Asset]] = {}
         self._dataset_to_openlineage_converters: dict[str, Callable] = {}
         self._taskflow_decorators: dict[str, Callable] = LazyDictWithCache()  # type: ignore[assignment]
@@ -914,7 +914,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 common_args = {"schemes_list": uri_info["schemes"], "provider_package_name": provider_name}
                 _safe_register_resource(
                     resource_path=uri_info["handler"],
-                    resource_registry=self._dataset_uri_handlers,
+                    resource_registry=self._asset_uri_handlers,
                     default_resource=normalize_noop,
                     **common_args,
                 )
@@ -1330,9 +1330,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         return self._dataset_factories
 
     @property
-    def dataset_uri_handlers(self) -> dict[str, Callable[[SplitResult], SplitResult]]:
+    def asset_uri_handlers(self) -> dict[str, Callable[[SplitResult], SplitResult]]:
         self.initialize_providers_dataset_uri_resources()
-        return self._dataset_uri_handlers
+        return self._asset_uri_handlers
 
     @property
     def dataset_to_openlineage_converters(
