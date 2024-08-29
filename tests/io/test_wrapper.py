@@ -25,7 +25,7 @@ from airflow.io.path import ObjectStoragePath
 
 @patch("airflow.providers_manager.ProvidersManager")
 def test_wrapper_catches_reads_writes(providers_manager, hook_lineage_collector):
-    providers_manager.return_value._dataset_factories = lambda x: Asset(uri=x)
+    providers_manager.return_value._asset_factories = lambda x: Asset(uri=x)
     uri = f"file:///tmp/{str(uuid.uuid4())}"
     path = ObjectStoragePath(uri)
     file = path.open("w")
@@ -47,7 +47,7 @@ def test_wrapper_catches_reads_writes(providers_manager, hook_lineage_collector)
 
 @patch("airflow.providers_manager.ProvidersManager")
 def test_wrapper_works_with_contextmanager(providers_manager, hook_lineage_collector):
-    providers_manager.return_value._dataset_factories = lambda x: Asset(uri=x)
+    providers_manager.return_value._asset_factories = lambda x: Asset(uri=x)
     uri = f"file:///tmp/{str(uuid.uuid4())}"
     path = ObjectStoragePath(uri)
     with path.open("w") as file:

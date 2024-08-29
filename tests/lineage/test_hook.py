@@ -96,7 +96,7 @@ class TestHookLineageCollector:
         def create_asset(arg1, arg2="default", extra=None):
             return Asset(uri=f"myscheme://{arg1}/{arg2}", extra=extra or {})
 
-        mock_providers_manager.return_value.dataset_factories = {"myscheme": create_asset}
+        mock_providers_manager.return_value.asset_factories = {"myscheme": create_asset}
         assert self.collector.create_asset(
             scheme="myscheme", uri=None, asset_kwargs={"arg1": "value_1"}, asset_extra=None
         ) == Asset("myscheme://value_1/default")
@@ -110,7 +110,7 @@ class TestHookLineageCollector:
     @patch("airflow.lineage.hook.ProvidersManager")
     def test_create_asset_no_factory(self, mock_providers_manager):
         test_scheme = "myscheme"
-        mock_providers_manager.return_value.dataset_factories = {}
+        mock_providers_manager.return_value.asset_factories = {}
 
         test_kwargs = {"arg1": "value_1"}
 
@@ -127,7 +127,7 @@ class TestHookLineageCollector:
             raise RuntimeError("Factory error")
 
         test_scheme = "myscheme"
-        mock_providers_manager.return_value.dataset_factories = {test_scheme: create_asset}
+        mock_providers_manager.return_value.asset_factories = {test_scheme: create_asset}
 
         test_kwargs = {"arg1": "value_1"}
 

@@ -120,14 +120,14 @@ class HookLineageCollector(LoggingMixin):
             )
             return None
 
-        dataset_factory = ProvidersManager().dataset_factories.get(scheme)
-        if not dataset_factory:
+        asset_factory = ProvidersManager().asset_factories.get(scheme)
+        if not asset_factory:
             self.log.debug("Unsupported scheme: %s. Please provide a valid URI to create an asset.", scheme)
             return None
 
         asset_kwargs = asset_kwargs or {}
         try:
-            return dataset_factory(**asset_kwargs, extra=asset_extra)
+            return asset_factory(**asset_kwargs, extra=asset_extra)
         except Exception as e:
             self.log.debug("Failed to create asset. Skipping. Error: %s", e)
             return None

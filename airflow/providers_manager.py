@@ -427,7 +427,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         self._hooks_dict: dict[str, HookInfo] = {}
         self._fs_set: set[str] = set()
         self._asset_uri_handlers: dict[str, Callable[[SplitResult], SplitResult]] = {}
-        self._dataset_factories: dict[str, Callable[..., Asset]] = {}
+        self._asset_factories: dict[str, Callable[..., Asset]] = {}
         self._dataset_to_openlineage_converters: dict[str, Callable] = {}
         self._taskflow_decorators: dict[str, Callable] = LazyDictWithCache()  # type: ignore[assignment]
         # keeps mapping between connection_types and hook class, package they come from
@@ -920,7 +920,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
                 )
                 _safe_register_resource(
                     resource_path=uri_info.get("factory"),
-                    resource_registry=self._dataset_factories,
+                    resource_registry=self._asset_factories,
                     **common_args,
                 )
                 _safe_register_resource(
@@ -1325,9 +1325,9 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         return sorted(self._fs_set)
 
     @property
-    def dataset_factories(self) -> dict[str, Callable[..., Asset]]:
+    def asset_factories(self) -> dict[str, Callable[..., Asset]]:
         self.initialize_providers_dataset_uri_resources()
-        return self._dataset_factories
+        return self._asset_factories
 
     @property
     def asset_uri_handlers(self) -> dict[str, Callable[[SplitResult], SplitResult]]:
