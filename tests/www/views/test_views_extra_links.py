@@ -82,12 +82,12 @@ def dag():
 
 @pytest.fixture(scope="module")
 def create_dag_run(dag):
-    def _create_dag_run(*, execution_date, session):
+    def _create_dag_run(*, logical_date, session):
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         return dag.create_dagrun(
             state=DagRunState.RUNNING,
-            execution_date=execution_date,
-            data_interval=(execution_date, execution_date),
+            logical_date=logical_date,
+            data_interval=(logical_date, logical_date),
             run_type=DagRunType.MANUAL,
             session=session,
             **triggered_by_kwargs,
@@ -98,7 +98,7 @@ def create_dag_run(dag):
 
 @pytest.fixture
 def dag_run(create_dag_run, session):
-    return create_dag_run(execution_date=DEFAULT_DATE, session=session)
+    return create_dag_run(logical_date=DEFAULT_DATE, session=session)
 
 
 @pytest.fixture(scope="module", autouse=True)

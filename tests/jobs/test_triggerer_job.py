@@ -95,7 +95,7 @@ def create_trigger_in_db(session, trigger, operator=None):
     run = DagRun(
         dag_id=dag_model.dag_id,
         run_id="test_run",
-        execution_date=pendulum.datetime(2023, 1, 1),
+        logical_date=pendulum.datetime(2023, 1, 1),
         run_type=DagRunType.MANUAL,
     )
     trigger_orm = Trigger.from_object(trigger)

@@ -148,7 +148,7 @@ def create_dag_run(dag, task1, task2, task3, task4, task_secret):
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag_run = dag.create_dagrun(
             state=DagRunState.RUNNING,
-            execution_date=execution_date,
+            logical_date=execution_date,
             data_interval=(execution_date, execution_date),
             run_type=DagRunType.SCHEDULED,
             session=session,
@@ -185,7 +185,7 @@ def test_rendered_template_view(admin_client, create_dag_run, task1):
     assert task1.bash_command == "{{ task_instance_key_str }}"
 
     with create_session() as session:
-        dag_run = create_dag_run(execution_date=DEFAULT_DATE, session=session)
+        dag_run = create_dag_run(logical_date=DEFAULT_DATE, session=session)
         ti = dag_run.get_task_instance(task1.task_id, session=session)
         assert ti is not None, "task instance not found"
         ti.refresh_from_task(task1)

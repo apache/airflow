@@ -60,13 +60,13 @@ def reset_db():
 
 @pytest.fixture
 def task_instance_factory(request, session: Session):
-    def func(*, dag_id, task_id, execution_date):
-        run_id = DagRun.generate_run_id(DagRunType.SCHEDULED, execution_date)
+    def func(*, dag_id, task_id, logical_date):
+        run_id = DagRun.generate_run_id(DagRunType.SCHEDULED, logical_date)
         run = DagRun(
             dag_id=dag_id,
             run_type=DagRunType.SCHEDULED,
             run_id=run_id,
-            execution_date=execution_date,
+            logical_date=logical_date,
         )
         session.add(run)
         ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id)
@@ -90,7 +90,7 @@ def task_instance(task_instance_factory):
     return task_instance_factory(
         dag_id="dag",
         task_id="task_1",
-        execution_date=timezone.datetime(2021, 12, 3, 4, 56),
+        logical_date=timezone.datetime(2021, 12, 3, 4, 56),
     )
 
 
@@ -312,10 +312,10 @@ class TestXComGet:
     @pytest.fixture
     def tis_for_xcom_get_one_from_prior_date(self, task_instance_factory, push_simple_json_xcom):
         date1 = timezone.datetime(2021, 12, 3, 4, 56)
-        ti1 = task_instance_factory(dag_id="dag", execution_date=date1, task_id="task_1")
+        ti1 = task_instance_factory(dag_id="dag", logical_date=date1, task_id="task_1")
         ti2 = task_instance_factory(
             dag_id="dag",
-            execution_date=date1 + datetime.timedelta(days=1),
+            logical_date=date1 + datetime.timedelta(days=1),
             task_id="task_1",
         )
 

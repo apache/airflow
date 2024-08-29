@@ -170,8 +170,8 @@ class TestSageMakerExperimentOperator:
         conn_mock().create_experiment.return_value = {"ExperimentArn": "abcdef"}
 
         # putting a DAG around the operator so that jinja template gets rendered
-        execution_date = timezone.datetime(2020, 1, 1)
-        dag = DAG("test_experiment", schedule=None, start_date=execution_date)
+        logical_date = timezone.datetime(2020, 1, 1)
+        dag = DAG("test_experiment", schedule=None, start_date=logical_date)
         op = SageMakerCreateExperimentOperator(
             name="the name",
             description="the desc",
@@ -180,7 +180,10 @@ class TestSageMakerExperimentOperator:
             dag=dag,
         )
         dag_run = DagRun(
-            dag_id=dag.dag_id, execution_date=execution_date, run_id="test", run_type=DagRunType.MANUAL
+            dag_id=dag.dag_id,
+            logical_date=logical_date,
+            run_id="test",
+            run_type=DagRunType.MANUAL,
         )
         ti = TaskInstance(task=op)
         ti.dag_run = dag_run

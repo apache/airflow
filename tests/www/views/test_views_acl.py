@@ -152,7 +152,7 @@ def _init_dagruns(acl_app, _reset_dagruns):
     acl_app.dag_bag.get_dag("example_bash_operator").create_dagrun(
         run_id=DEFAULT_RUN_ID,
         run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
+        logical_date=DEFAULT_DATE,
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
@@ -160,7 +160,7 @@ def _init_dagruns(acl_app, _reset_dagruns):
     )
     acl_app.dag_bag.get_dag("example_python_operator").create_dagrun(
         run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
+        logical_date=DEFAULT_DATE,
         start_date=timezone.utcnow(),
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         state=State.RUNNING,

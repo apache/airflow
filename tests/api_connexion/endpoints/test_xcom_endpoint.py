@@ -239,7 +239,7 @@ class TestGetXComEntry(TestXComEndpoint):
             dagrun = DagRun(
                 dag_id=dag_id,
                 run_id=run_id,
-                execution_date=execution_date,
+                logical_date=execution_date,
                 start_date=execution_date,
                 run_type=DagRunType.MANUAL,
             )
@@ -526,7 +526,7 @@ class TestGetXComEntries(TestXComEndpoint):
             dagrun = DagRun(
                 dag_id=dag_id,
                 run_id=run_id,
-                execution_date=execution_date,
+                logical_date=execution_date,
                 start_date=execution_date,
                 run_type=DagRunType.MANUAL,
             )
@@ -563,7 +563,7 @@ class TestGetXComEntries(TestXComEndpoint):
             dagrun = DagRun(
                 dag_id="invalid_dag",
                 run_id="invalid_run_id",
-                execution_date=execution_date + timedelta(days=1),
+                logical_date=execution_date + timedelta(days=1),
                 start_date=execution_date,
                 run_type=DagRunType.MANUAL,
             )
@@ -571,7 +571,7 @@ class TestGetXComEntries(TestXComEndpoint):
             dagrun1 = DagRun(
                 dag_id="invalid_dag",
                 run_id="not_this_run_id",
-                execution_date=execution_date,
+                logical_date=execution_date,
                 start_date=execution_date,
                 run_type=DagRunType.MANUAL,
             )
@@ -656,7 +656,7 @@ class TestPaginationGetXComEntries(TestXComEndpoint):
             dagrun = DagRun(
                 dag_id=self.dag_id,
                 run_id=self.run_id,
-                execution_date=self.execution_date_parsed,
+                logical_date=self.execution_date_parsed,
                 start_date=self.execution_date_parsed,
                 run_type=DagRunType.MANUAL,
             )

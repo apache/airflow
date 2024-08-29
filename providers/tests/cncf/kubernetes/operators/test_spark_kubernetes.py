@@ -169,11 +169,11 @@ TEST_APPLICATION_DICT = {
 def create_context(task):
     dag = DAG(dag_id="dag", schedule=None)
     tzinfo = pendulum.timezone("Europe/Amsterdam")
-    execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
+    logical_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
     dag_run = DagRun(
         dag_id=dag.dag_id,
-        execution_date=execution_date,
-        run_id=DagRun.generate_run_id(DagRunType.MANUAL, execution_date),
+        logical_date=logical_date,
+        run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
     )
     task_instance = TaskInstance(task=task)
     task_instance.dag_run = dag_run
@@ -711,7 +711,7 @@ def test_template_body_templating(create_task_instance_of_operator, session):
 
 @pytest.mark.db_test
 def test_resolve_application_file_template_file(dag_maker, tmp_path, session):
-    execution_date = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
+    logical_date = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
     filename = "test-application-file.yml"
     (tmp_path / filename).write_text("foo: {{ ds }}\nbar: {{ dag_run.dag_id }}\nspam: egg")
 
@@ -726,7 +726,7 @@ def test_resolve_application_file_template_file(dag_maker, tmp_path, session):
             task_id="test_template_body_templating_task",
         )
 
-    ti = dag_maker.create_dagrun(execution_date=execution_date).task_instances[0]
+    ti = dag_maker.create_dagrun(logical_date=logical_date).task_instances[0]
     session.add(ti)
     session.commit()
     ti.render_templates()
@@ -751,7 +751,7 @@ def test_resolve_application_file_template_file(dag_maker, tmp_path, session):
     ],
 )
 def test_resolve_application_file_template_non_dictionary(dag_maker, tmp_path, body, session):
-    execution_date = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
+    logical_date = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
     filename = "test-application-file.yml"
     with open((tmp_path / filename), "w") as fp:
         yaml.safe_dump(body, fp)
@@ -767,7 +767,7 @@ def test_resolve_application_file_template_non_dictionary(dag_maker, tmp_path, b
             task_id="test_template_body_templating_task",
         )
 
-    ti = dag_maker.create_dagrun(execution_date=execution_date).task_instances[0]
+    ti = dag_maker.create_dagrun(logical_date=logical_date).task_instances[0]
     session.add(ti)
     session.commit()
     ti.render_templates()

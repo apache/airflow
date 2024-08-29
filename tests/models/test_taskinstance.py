@@ -362,7 +362,7 @@ class TestTaskInstance:
                 task_id="test_not_requeue_non_requeueable_task_instance_op",
                 pool="test_pool",
             )
-        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         ti.state = State.QUEUED
         with create_session() as session:
@@ -498,7 +498,7 @@ class TestTaskInstance:
                 python_callable=raise_skip_exception,
             )
 
-        dr = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        dr = dag_maker.create_dagrun(logical_date=timezone.utcnow())
         ti = dr.task_instances[0]
         ti.task = task
         ti.run()
@@ -642,7 +642,7 @@ class TestTaskInstance:
             with contextlib.suppress(AirflowException):
                 ti.run()
 
-        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
 
         with create_session() as session:
@@ -694,7 +694,7 @@ class TestTaskInstance:
             with contextlib.suppress(AirflowException):
                 ti.run()
 
-        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         assert ti.try_number == 0
 
@@ -823,7 +823,7 @@ class TestTaskInstance:
                 retry_delay=datetime.timedelta(seconds=0),
             )
 
-        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         assert ti.try_number == 0
 
@@ -931,7 +931,7 @@ class TestTaskInstance:
                 retry_delay=datetime.timedelta(seconds=0),
             ).expand(poke_interval=[0])
 
-        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
 
         ti.task = task
         assert ti.try_number == 0
@@ -1836,7 +1836,7 @@ class TestTaskInstance:
                 do_xcom_push=True,
                 multiple_outputs=True,
             )
-        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         with pytest.raises(AirflowException) as ctx:
             ti.run()
@@ -1863,7 +1863,7 @@ class TestTaskInstance:
                 task_id="test_operator",
                 python_callable=lambda: "error",
             )
-        ti = dag_maker.create_dagrun(execution_date=DEFAULT_DATE).task_instances[0]
+        ti = dag_maker.create_dagrun(logical_date=DEFAULT_DATE).task_instances[0]
         ti.task = task
         with pytest.raises(TestError):
             ti.run()
@@ -1994,14 +1994,14 @@ class TestTaskInstance:
             dag_id="test_get_num_running_task_instances", task_id="task1", session=session
         )
 
-        execution_date = DEFAULT_DATE + datetime.timedelta(days=1)
+        logical_date = DEFAULT_DATE + datetime.timedelta(days=1)
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = ti1.task.dag.create_dagrun(
-            execution_date=execution_date,
+            logical_date=logical_date,
             state=None,
             run_id="2",
             session=session,
-            data_interval=(execution_date, execution_date),
+            data_interval=(logical_date, logical_date),
             **triggered_by_kwargs,
         )
         assert ti1 in session
@@ -2034,13 +2034,13 @@ class TestTaskInstance:
             MockOperator.partial(task_id="task_3").expand_kwargs([{"a": 1, "b": 2}])
 
         dr1 = dag_maker.create_dagrun(
-            execution_date=timezone.utcnow(), state=DagRunState.RUNNING, run_id="run_id_1", session=session
+            logical_date=timezone.utcnow(), state=DagRunState.RUNNING, run_id="run_id_1", session=session
         )
         tis1 = {(ti.task_id, ti.map_index): ti for ti in dr1.task_instances}
         print(f"tis1: {tis1}")
 
         dr2 = dag_maker.create_dagrun(
-            execution_date=timezone.utcnow(), state=DagRunState.RUNNING, run_id="run_id_2", session=session
+            logical_date=timezone.utcnow(), state=DagRunState.RUNNING, run_id="run_id_2", session=session
         )
         tis2 = {(ti.task_id, ti.map_index): ti for ti in dr2.task_instances}
 
@@ -2128,7 +2128,7 @@ class TestTaskInstance:
     def test_email_alert(self, mock_send_email, dag_maker, use_native_obj):
         with dag_maker(dag_id="test_failure_email", render_template_as_native_obj=use_native_obj):
             task = BashOperator(task_id="test_email_alert", bash_command="exit 1", email="to")
-        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
 
         with contextlib.suppress(AirflowException):
@@ -2155,7 +2155,7 @@ class TestTaskInstance:
                 bash_command="exit 1",
                 email="to",
             )
-        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
 
         opener = mock_open(read_data="template: {{ti.task_id}}")
@@ -2177,7 +2177,7 @@ class TestTaskInstance:
                 bash_command="exit 1",
                 email="to",
             )
-        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
 
         # Run test when the template file is not found
@@ -2212,7 +2212,7 @@ class TestTaskInstance:
             test_email_alert.expand(x=["a", "b"])  # This is 'test_email_alert'.
             test_email_alert.expand(x=[1, 2, 3])  # This is 'test_email_alert__1'.
 
-        dr: DagRun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        dr: DagRun = dag_maker.create_dagrun(logical_date=timezone.utcnow())
 
         ti = dr.get_task_instance(task_id, map_index=0, session=session)
         assert ti is not None
@@ -2376,7 +2376,7 @@ class TestTaskInstance:
 
             _ = raise_an_exception.expand(placeholder=[0, 1])
 
-        tis = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances
+        tis = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances
         for task_instance in tis:
             if task_instance.map_index == 0:
                 with pytest.raises(AirflowFailException):
@@ -3045,12 +3045,12 @@ class TestTaskInstance:
         with dag_maker(dag_id=dag_id, schedule=schedule, catchup=catchup, serialized=True):
             task = EmptyOperator(task_id="task")
 
-        def get_test_ti(execution_date: pendulum.DateTime, state: str) -> TI:
+        def get_test_ti(logical_date: pendulum.DateTime, state: str) -> TI:
             dr = dag_maker.create_dagrun(
-                run_id=f"test__{execution_date.isoformat()}",
+                run_id=f"test__{logical_date.isoformat()}",
                 run_type=DagRunType.SCHEDULED,
                 state=state,
-                execution_date=execution_date,
+                logical_date=logical_date,
                 start_date=pendulum.now("UTC"),
             )
             ti = dr.task_instances[0]
@@ -3144,14 +3144,14 @@ class TestTaskInstance:
         # should return the start_date of ti_1 (which is None because ti_1 was not run).
         # It should not raise an error.
         dagrun_1 = dag_maker.create_dagrun(
-            execution_date=day_1,
+            logical_date=day_1,
             state=State.RUNNING,
             run_type=DagRunType.MANUAL,
             **triggered_by_kwargs,
         )
 
         dagrun_2 = dag_maker.create_dagrun(
-            execution_date=day_2,
+            logical_date=day_2,
             state=State.RUNNING,
             run_type=DagRunType.MANUAL,
             data_interval=(day_1, day_2),
@@ -3183,7 +3183,7 @@ class TestTaskInstance:
         session.add_all([ds1, ds2])
         session.commit()
 
-        execution_date = timezone.utcnow()
+        logical_date = timezone.utcnow()
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         # it's easier to fake a manual run here
         dag, task1 = create_dummy_dag(
@@ -3197,10 +3197,10 @@ class TestTaskInstance:
         dr = dag.create_dagrun(
             run_id="test2",
             run_type=DagRunType.DATASET_TRIGGERED,
-            execution_date=execution_date,
+            logical_date=logical_date,
             state=None,
             session=session,
-            data_interval=(execution_date, execution_date),
+            data_interval=(logical_date, logical_date),
             **triggered_by_kwargs,
         )
         ds1_event = AssetEvent(dataset_id=1)
@@ -3520,15 +3520,15 @@ class TestTaskInstance:
             on_retry_callback=mock_on_retry_1,
             session=session,
         )
-        execution_date = timezone.utcnow()
+        logical_date = timezone.utcnow()
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_id="test2",
             run_type=DagRunType.MANUAL,
-            execution_date=execution_date,
+            logical_date=logical_date,
             state=None,
             session=session,
-            data_interval=(execution_date, execution_date),
+            data_interval=(logical_date, logical_date),
             **triggered_by_kwargs,
         )
         ti1 = dr.get_task_instance(task1.task_id, session=session)
@@ -3671,15 +3671,15 @@ class TestTaskInstance:
             session=session,
             fail_stop=True,
         )
-        execution_date = timezone.utcnow()
+        logical_date = timezone.utcnow()
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_id="test_ff",
             run_type=DagRunType.MANUAL,
-            execution_date=execution_date,
+            logical_date=logical_date,
             state=None,
             session=session,
-            data_interval=(execution_date, execution_date),
+            data_interval=(logical_date, logical_date),
             **triggered_by_kwargs,
         )
 
@@ -3726,7 +3726,7 @@ class TestTaskInstance:
                 python_callable=fail,
                 retries=1,
             )
-        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         with contextlib.suppress(AirflowException):
             ti.run()
@@ -3743,7 +3743,7 @@ class TestTaskInstance:
                 python_callable=fail,
                 retries=1,
             )
-        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         with contextlib.suppress(AirflowException):
             ti.run()
@@ -3761,7 +3761,7 @@ class TestTaskInstance:
                 python_callable=fail,
                 retries=1,
             )
-        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         mock_log = mock.Mock()
         mock_get_log.return_value = mock_log
@@ -4114,7 +4114,7 @@ class TestTaskInstance:
                 on_skipped_callback=on_skipped_callback_function,
                 on_success_callback=on_success_callback_function,
             )
-        dr = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        dr = dag_maker.create_dagrun(logical_date=timezone.utcnow())
         ti = dr.task_instances[0]
         ti.task = task
         ti.run()
@@ -4231,7 +4231,7 @@ def test_sensor_timeout(mode, retries, dag_maker):
             retries=retries,
             mode=mode,
         )
-    ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+    ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
 
     with pytest.raises(AirflowSensorTimeout):
         ti.run()
@@ -4260,7 +4260,7 @@ def test_mapped_sensor_timeout(mode, retries, dag_maker):
             on_failure_callback=mock_on_failure,
             retries=retries,
         ).expand(mode=[mode])
-    ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+    ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
 
     with pytest.raises(AirflowSensorTimeout):
         ti.run()

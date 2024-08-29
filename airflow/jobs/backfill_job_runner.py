@@ -365,7 +365,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
 
         # check if we are scheduling on top of an already existing DAG run
         # we could find a "scheduled" run instead of a "backfill"
-        runs = DagRun.find(dag_id=dag.dag_id, execution_date=run_date, session=session)
+        runs = DagRun.find(dag_id=dag.dag_id, logical_date=run_date, session=session)
         run: DagRun | None
         if runs:
             run = runs[0]
@@ -384,7 +384,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
             return None
 
         run = run or dag.create_dagrun(
-            execution_date=run_date,
+            logical_date=run_date,
             data_interval=dagrun_info.data_interval,
             start_date=timezone.utcnow(),
             state=DagRunState.RUNNING,
@@ -946,8 +946,8 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
 
         running_dagruns = DagRun.find(
             dag_id=self.dag.dag_id,
-            execution_start_date=self.bf_start_date,
-            execution_end_date=self.bf_end_date,
+            logical_start_date=self.bf_start_date,
+            logical_end_date=self.bf_end_date,
             no_backfills=True,
             state=DagRunState.RUNNING,
         )

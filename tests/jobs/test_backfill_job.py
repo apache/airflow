@@ -428,7 +428,8 @@ class TestBackfillJob:
 
         # We ignore the first dag_run created by fixture
         dr = DagRun.find(
-            dag_id="test_backfill_conf", execution_start_date=DEFAULT_DATE + datetime.timedelta(days=1)
+            dag_id="test_backfill_conf",
+            logical_start_date=DEFAULT_DATE + datetime.timedelta(days=1),
         )
 
         assert conf_ == dr[0].conf
@@ -1265,7 +1266,7 @@ class TestBackfillJob:
                         state=State.RUNNING,
                         # Existing dagrun that is not within the backfill range
                         run_id=run_id,
-                        execution_date=DEFAULT_DATE + datetime.timedelta(hours=1),
+                        logical_date=DEFAULT_DATE + datetime.timedelta(hours=1),
                     )
                     thread_session.commit()
                     cond.notify()
@@ -1878,7 +1879,7 @@ class TestBackfillJob:
             )
             run_job(job=job, execute_callable=job_runner._execute)
 
-            dr = DagRun.find(dag_id=dag.dag_id, execution_date=when, session=session)[0]
+            dr = DagRun.find(dag_id=dag.dag_id, logical_date=when, session=session)[0]
             assert dr
             assert dr.state == DagRunState.SUCCESS
 
@@ -2000,7 +2001,7 @@ class TestBackfillJob:
         job = Job()
         job_runner = BackfillJobRunner(job=job, dag=dag, start_date=when, end_date=when, donot_pickle=True)
         run_job(job=job, execute_callable=job_runner._execute)
-        (dr,) = DagRun.find(dag_id=dag.dag_id, execution_date=when, session=session)
+        (dr,) = DagRun.find(dag_id=dag.dag_id, logical_date=when, session=session)
         assert dr.state == DagRunState.FAILED
 
         # Check that every task has a start and end date
@@ -2029,7 +2030,7 @@ class TestBackfillJob:
         )
         run_job(job=job, execute_callable=job_runner._execute)
 
-        (dr,) = DagRun.find(dag_id=dag.dag_id, execution_date=DEFAULT_DATE, session=session)
+        (dr,) = DagRun.find(dag_id=dag.dag_id, logical_date=DEFAULT_DATE, session=session)
         assert dr.start_date
         assert f"Failed to record duration of {dr}" not in caplog.text
 
@@ -2046,7 +2047,7 @@ class TestBackfillJob:
 
         for i in range(1, 4):
             dag_maker.create_dagrun(
-                run_id=f"test_dagrun_{i}", execution_date=DEFAULT_DATE + datetime.timedelta(days=i)
+                run_id=f"test_dagrun_{i}", logical_date=DEFAULT_DATE + datetime.timedelta(days=i)
             )
 
         dag.clear()

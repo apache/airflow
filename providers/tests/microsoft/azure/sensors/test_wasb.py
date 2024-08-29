@@ -80,7 +80,10 @@ class TestWasbBlobSensor:
 class TestWasbBlobAsyncSensor:
     def get_dag_run(self, dag_id: str = "test_dag_id", run_id: str = "test_dag_id") -> DagRun:
         dag_run = DagRun(
-            dag_id=dag_id, run_type="manual", execution_date=timezone.datetime(2022, 1, 1), run_id=run_id
+            dag_id=dag_id,
+            run_type="manual",
+            logical_date=timezone.datetime(2022, 1, 1),
+            run_id=run_id,
         )
         return dag_run
 
@@ -97,11 +100,11 @@ class TestWasbBlobAsyncSensor:
         if dag is None:
             dag = DAG(dag_id="dag", schedule=None)
         tzinfo = pendulum.timezone("UTC")
-        execution_date = timezone.datetime(2022, 1, 1, 1, 0, 0, tzinfo=tzinfo)
+        logical_date = timezone.datetime(2022, 1, 1, 1, 0, 0, tzinfo=tzinfo)
         dag_run = DagRun(
             dag_id=dag.dag_id,
-            execution_date=execution_date,
-            run_id=DagRun.generate_run_id(DagRunType.MANUAL, execution_date),
+            logical_date=logical_date,
+            run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
         )
 
         task_instance = TaskInstance(task=task)
@@ -109,15 +112,14 @@ class TestWasbBlobAsyncSensor:
         task_instance.xcom_push = mock.Mock()
         return {
             "dag": dag,
-            "ts": execution_date.isoformat(),
+            "ts": logical_date.isoformat(),
             "task": task,
             "ti": task_instance,
             "task_instance": task_instance,
             "run_id": dag_run.run_id,
             "dag_run": dag_run,
-            "execution_date": execution_date,
-            "data_interval_end": execution_date,
-            "logical_date": execution_date,
+            "data_interval_end": logical_date,
+            "logical_date": logical_date,
         }
 
     SENSOR = WasbBlobSensor(
@@ -205,7 +207,10 @@ class TestWasbPrefixSensor:
 class TestWasbPrefixAsyncSensor:
     def get_dag_run(self, dag_id: str = "test_dag_id", run_id: str = "test_dag_id") -> DagRun:
         dag_run = DagRun(
-            dag_id=dag_id, run_type="manual", execution_date=timezone.datetime(2022, 1, 1), run_id=run_id
+            dag_id=dag_id,
+            run_type="manual",
+            logical_date=timezone.datetime(2022, 1, 1),
+            run_id=run_id,
         )
         return dag_run
 
@@ -222,11 +227,11 @@ class TestWasbPrefixAsyncSensor:
         if dag is None:
             dag = DAG(dag_id="dag", schedule=None)
         tzinfo = pendulum.timezone("UTC")
-        execution_date = timezone.datetime(2022, 1, 1, 1, 0, 0, tzinfo=tzinfo)
+        logical_date = timezone.datetime(2022, 1, 1, 1, 0, 0, tzinfo=tzinfo)
         dag_run = DagRun(
             dag_id=dag.dag_id,
-            execution_date=execution_date,
-            run_id=DagRun.generate_run_id(DagRunType.MANUAL, execution_date),
+            logical_date=logical_date,
+            run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
         )
 
         task_instance = TaskInstance(task=task)
@@ -234,15 +239,14 @@ class TestWasbPrefixAsyncSensor:
         task_instance.xcom_push = mock.Mock()
         return {
             "dag": dag,
-            "ts": execution_date.isoformat(),
+            "ts": logical_date.isoformat(),
             "task": task,
             "ti": task_instance,
             "task_instance": task_instance,
             "run_id": dag_run.run_id,
             "dag_run": dag_run,
-            "execution_date": execution_date,
-            "data_interval_end": execution_date,
-            "logical_date": execution_date,
+            "data_interval_end": logical_date,
+            "logical_date": logical_date,
         }
 
     SENSOR = WasbPrefixSensor(

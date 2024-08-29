@@ -146,7 +146,7 @@ class BasePythonTest:
             state=DagRunState.RUNNING,
             start_date=self.dag_maker.start_date,
             session=self.dag_maker.session,
-            execution_date=self.default_date,
+            logical_date=self.default_date,
             run_type=DagRunType.MANUAL,
             data_interval=(self.default_date, self.default_date),
             **triggered_by_kwargs,  # type: ignore
@@ -160,7 +160,7 @@ class BasePythonTest:
             **self.default_kwargs(**kwargs),
             dag_id=self.dag_id,
             task_id=self.task_id,
-            execution_date=self.default_date,
+            logical_date=self.default_date,
         )
 
     def run_as_operator(self, fn, **kwargs):

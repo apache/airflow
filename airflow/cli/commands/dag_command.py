@@ -85,7 +85,7 @@ def _run_dag_backfill(dags: list[DAG], args) -> None:
             for dagrun_info in dagrun_infos:
                 dr = DagRun(
                     dag.dag_id,
-                    execution_date=dagrun_info.logical_date,
+                    logical_date=dagrun_info.logical_date,
                     data_interval=dagrun_info.data_interval,
                     triggered_by=DagRunTriggeredByType.CLI,
                 )
@@ -562,8 +562,8 @@ def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSI
         dag_id=args.dag_id,
         state=state,
         no_backfills=args.no_backfill,
-        execution_start_date=args.start_date,
-        execution_end_date=args.end_date,
+        logical_start_date=args.start_date,
+        logical_end_date=args.end_date,
         session=session,
     )
 
@@ -575,7 +575,7 @@ def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSI
             "dag_id": dr.dag_id,
             "run_id": dr.run_id,
             "state": dr.state,
-            "execution_date": dr.execution_date.isoformat(),
+            "logical_date": dr.logical_date.isoformat(),
             "start_date": dr.start_date.isoformat() if dr.start_date else "",
             "end_date": dr.end_date.isoformat() if dr.end_date else "",
         },

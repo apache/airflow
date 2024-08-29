@@ -311,7 +311,7 @@ def _create_orm_dagrun(
     run = DagRun(
         dag_id=dag_id,
         run_id=run_id,
-        execution_date=logical_date,
+        logical_date=logical_date,
         start_date=start_date,
         external_trigger=external_trigger,
         conf=conf,
@@ -1164,7 +1164,7 @@ class DAG(LoggingMixin):
 
     @property
     def allow_future_exec_dates(self) -> bool:
-        return settings.ALLOW_FUTURE_EXEC_DATES and not self.timetable.can_be_scheduled
+        return settings.ALLOW_TRIGGER_DAGRUN_IN_FUTURE and not self.timetable.can_be_scheduled
 
     @provide_session
     def get_concurrency_reached(self, session=NEW_SESSION) -> bool:
@@ -1193,7 +1193,7 @@ class DAG(LoggingMixin):
     @provide_session
     def fetch_callback(
         dag: DAG,
-        dag_run_id: str,
+        run_id: str,
         success: bool = True,
         reason: str | None = None,
         *,
@@ -1206,14 +1206,14 @@ class DAG(LoggingMixin):
         the list of callbacks.
 
         :param dag: DAG object
-        :param dag_run_id: The DAG run ID
+        :param run_id: The DAG run ID
         :param success: Flag to specify if failure or success callback should be called
         :param reason: Completion reason
         :param session: Database session
         """
         callbacks = dag.on_success_callback if success else dag.on_failure_callback
         if callbacks:
-            dagrun = DAG.fetch_dagrun(dag_id=dag.dag_id, run_id=dag_run_id, session=session)
+            dagrun = DAG.fetch_dagrun(dag_id=dag.dag_id, run_id=run_id, session=session)
             callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
             tis = dagrun.get_task_instances(session=session)
             # tis from a dagrun may not be a part of dag.partial_subset,
@@ -1311,40 +1311,20 @@ class DAG(LoggingMixin):
     @staticmethod
     @internal_api_call
     @provide_session
-    def fetch_dagrun(
-        dag_id: str,
-        execution_date: datetime | None = None,
-        run_id: str | None = None,
-        session: Session = NEW_SESSION,
-    ) -> DagRun | DagRunPydantic:
+    def fetch_dagrun(dag_id: str, run_id: str, session: Session = NEW_SESSION) -> DagRun | DagRunPydantic:
         """
         Return the dag run for a given execution date or run_id if it exists, otherwise none.
 
         :param dag_id: The dag_id of the DAG to find.
-        :param execution_date: The execution date of the DagRun to find.
         :param run_id: The run_id of the DagRun to find.
         :param session:
         :return: The DagRun if found, otherwise None.
         """
-        if not (execution_date or run_id):
-            raise TypeError("You must provide either the execution_date or the run_id")
-        query = select(DagRun)
-        if execution_date:
-            query = query.where(DagRun.dag_id == dag_id, DagRun.execution_date == execution_date)
-        if run_id:
-            query = query.where(DagRun.dag_id == dag_id, DagRun.run_id == run_id)
-        return session.scalar(query)
+        return session.scalar(select(DagRun).where(DagRun.dag_id == dag_id, DagRun.run_id == run_id))
 
     @provide_session
-    def get_dagrun(
-        self,
-        execution_date: datetime | None = None,
-        run_id: str | None = None,
-        session: Session = NEW_SESSION,
-    ) -> DagRun | DagRunPydantic:
-        return DAG.fetch_dagrun(
-            dag_id=self.dag_id, execution_date=execution_date, run_id=run_id, session=session
-        )
+    def get_dagrun(self, run_id: str, session: Session = NEW_SESSION) -> DagRun | DagRunPydantic:
+        return DAG.fetch_dagrun(dag_id=self.dag_id, run_id=run_id, session=session)
 
     @provide_session
     def get_dagruns_between(self, start_date, end_date, session=NEW_SESSION):
@@ -2539,7 +2519,7 @@ class DAG(LoggingMixin):
         state: DagRunState,
         *,
         triggered_by: DagRunTriggeredByType,
-        execution_date: datetime | None = None,
+        logical_date: datetime | None = None,
         run_id: str | None = None,
         start_date: datetime | None = None,
         external_trigger: bool | None = False,
@@ -2560,7 +2540,7 @@ class DAG(LoggingMixin):
         :param triggered_by: The entity which triggers the DagRun
         :param run_id: defines the run id for this dag run
         :param run_type: type of DagRun
-        :param execution_date: the execution date of this dag run
+        :param logical_date: the execution date of this dag run
         :param start_date: the date this dag run should be evaluated
         :param external_trigger: whether this dag run is externally triggered
         :param conf: Dict containing configuration/parameters to pass to the DAG
@@ -2570,7 +2550,7 @@ class DAG(LoggingMixin):
         :param data_interval: Data interval of the DagRun
         :param backfill_id: id of the backfill run if one exists
         """
-        logical_date = timezone.coerce_datetime(execution_date)
+        logical_date = timezone.coerce_datetime(logical_date)
 
         if data_interval and not isinstance(data_interval, DataInterval):
             data_interval = DataInterval(*map(timezone.coerce_datetime, data_interval))
@@ -3501,7 +3481,7 @@ def _get_or_create_dagrun(
     dag: DAG,
     conf: dict[Any, Any] | None,
     start_date: datetime,
-    execution_date: datetime,
+    logical_date: datetime,
     run_id: str,
     session: Session,
     triggered_by: DagRunTriggeredByType,
@@ -3515,7 +3495,7 @@ def _get_or_create_dagrun(
     :param dag: DAG to be used to find run.
     :param conf: Configuration to pass to newly created run.
     :param start_date: Start date of new run.
-    :param execution_date: Logical date for finding an existing run.
+    :param logical_date: Logical date for finding an existing run.
     :param run_id: Run ID for the new DAG run.
     :param triggered_by: the entity which triggers the dag_run
 
@@ -3523,16 +3503,16 @@ def _get_or_create_dagrun(
     """
     log.info("dagrun id: %s", dag.dag_id)
     dr: DagRun = session.scalar(
-        select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.execution_date == execution_date)
+        select(DagRun).where(DagRun.dag_id == dag.dag_id, DagRun.logical_date == logical_date)
     )
     if dr:
         session.delete(dr)
         session.commit()
     dr = dag.create_dagrun(
         state=DagRunState.RUNNING,
-        execution_date=execution_date,
+        logical_date=logical_date,
         run_id=run_id,
-        start_date=start_date or execution_date,
+        start_date=start_date or logical_date,
         session=session,
         conf=conf,
         data_interval=data_interval,
