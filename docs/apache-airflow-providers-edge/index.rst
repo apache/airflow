@@ -33,9 +33,18 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Executors
+
+    EdgeExecutor details <edge_executor>
+
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: References
 
     Configuration <configurations-ref>
+    CLI <cli-ref>
     Python API <_api/airflow/providers/edge/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-edge/>
     Installing from sources <installing-providers-from-sources>
