@@ -1172,7 +1172,7 @@ class Airflow(AirflowBaseView):
         )
 
     @expose("/datasets")
-    @auth.has_access_dataset("GET")
+    @auth.has_access_asset("GET")
     def datasets(self):
         """Assets view."""
         state_color_mapping = State.state_color.copy()
@@ -3405,7 +3405,7 @@ class Airflow(AirflowBaseView):
 
     @expose("/object/next_run_datasets/<string:dag_id>")
     @auth.has_access_dag("GET", DagAccessEntity.RUN)
-    @auth.has_access_dataset("GET")
+    @auth.has_access_asset("GET")
     @mark_fastapi_migration_done
     def next_run_datasets(self, dag_id):
         """Return datasets necessary, and their status, for the next dag run."""
@@ -3505,7 +3505,7 @@ class Airflow(AirflowBaseView):
         )
 
     @expose("/object/datasets_summary")
-    @auth.has_access_dataset("GET")
+    @auth.has_access_asset("GET")
     def datasets_summary(self):
         """
         Get a summary of datasets.

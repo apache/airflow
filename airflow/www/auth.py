@@ -262,8 +262,8 @@ def has_access_dag_entities(method: ResourceMethod, access_entity: DagAccessEnti
     return has_access_decorator
 
 
-def has_access_dataset(method: ResourceMethod) -> Callable[[T], T]:
-    """Check current user's permissions against required permissions for datasets."""
+def has_access_asset(method: ResourceMethod) -> Callable[[T], T]:
+    """Check current user's permissions against required permissions for assets."""
     return _has_access_no_details(lambda: get_auth_manager().is_authorized_dataset(method=method))
 
 
