@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence
 from google.cloud.container_v1.types import Operation
 from packaging.version import parse as parse_version
 
-from airflow import ProvidersManager
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
 from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodManager
@@ -35,6 +34,7 @@ from airflow.providers.google.cloud.hooks.kubernetes_engine import (
     GKEKubernetesAsyncHook,
     GKEKubernetesHook,
 )
+from airflow.providers_manager import ProvidersManager
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
