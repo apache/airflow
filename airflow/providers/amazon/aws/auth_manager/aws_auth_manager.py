@@ -159,7 +159,7 @@ class AwsAuthManager(BaseAuthManager):
             context=context,
         )
 
-    def is_authorized_dataset(
+    def is_authorized_asset(
         self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
     ) -> bool:
         asset_uri = details.uri if details else None

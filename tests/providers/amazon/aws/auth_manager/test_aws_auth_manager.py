@@ -329,7 +329,7 @@ class TestAwsAuthManager:
     )
     @patch.object(AwsAuthManager, "avp_facade")
     @patch.object(AwsAuthManager, "get_user")
-    def test_is_authorized_dataset(
+    def test_is_authorized_asset(
         self,
         mock_get_user,
         mock_avp_facade,
@@ -343,7 +343,7 @@ class TestAwsAuthManager:
         mock_avp_facade.is_authorized = is_authorized
 
         method: ResourceMethod = "GET"
-        result = auth_manager.is_authorized_dataset(method=method, details=details, user=user)
+        result = auth_manager.is_authorized_asset(method=method, details=details, user=user)
 
         if not user:
             mock_get_user.assert_called_once()
