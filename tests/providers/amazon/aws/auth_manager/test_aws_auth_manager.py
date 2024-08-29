@@ -51,11 +51,11 @@ from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
 from airflow.providers.amazon.aws.auth_manager.avp.facade import AwsAuthManagerAmazonVerifiedPermissionsFacade
 from airflow.providers.amazon.aws.auth_manager.aws_auth_manager import AwsAuthManager
 from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
+from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 from airflow.security.permissions import (
     RESOURCE_AUDIT_LOG,
     RESOURCE_CLUSTER_ACTIVITY,
     RESOURCE_CONNECTION,
-    RESOURCE_DATASET,
     RESOURCE_VARIABLE,
 )
 from airflow.www import app as application
@@ -649,7 +649,7 @@ class TestAwsAuthManager:
         result = auth_manager.filter_permitted_menu_items(
             [
                 MenuItem("Category1", childs=[MenuItem(RESOURCE_CONNECTION), MenuItem(RESOURCE_VARIABLE)]),
-                MenuItem("Category2", childs=[MenuItem(RESOURCE_DATASET)]),
+                MenuItem("Category2", childs=[MenuItem(RESOURCE_ASSET)]),
                 MenuItem(RESOURCE_CLUSTER_ACTIVITY),
                 MenuItem(RESOURCE_AUDIT_LOG),
                 MenuItem("CustomPage"),
