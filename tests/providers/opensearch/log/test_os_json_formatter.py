@@ -28,6 +28,8 @@ from airflow.providers.opensearch.log.os_task_handler import (
     OpensearchJSONFormatter,
 )
 
+pytestmark = pytest.mark.db_test
+
 
 class TestOpensearchJSONFormatter:
     JSON_FIELDS = ["asctime", "filename", "lineno", "levelname", "message", "exc_text"]

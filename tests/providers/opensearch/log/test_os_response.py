@@ -20,6 +20,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from airflow.providers.opensearch.log.os_response import (
     AttributeList,
     Hit,
@@ -27,6 +29,8 @@ from airflow.providers.opensearch.log.os_response import (
     OpensearchResponse,
 )
 from airflow.providers.opensearch.log.os_task_handler import OpensearchTaskHandler
+
+pytestmark = pytest.mark.db_test
 
 
 class TestHitAndHitMetaAndOpenSearchResponse:
