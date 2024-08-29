@@ -53,7 +53,7 @@ operators:
 xcom:
   - airflow.providers.common.io.xcom.backend
 
-dataset-uris:
+asset-uris:
   - schemes: [file]
     handler: airflow.providers.common.io.assets.file.sanitize_uri
     to_openlineage_converter: airflow.providers.common.io.assets.file.convert_asset_to_openlineage
