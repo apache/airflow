@@ -16,23 +16,27 @@
 # under the License.
 from __future__ import annotations
 
-import os
+from fastapi import FastAPI
 
-from airflow.models import DagBag
-from airflow.settings import DAGS_FOLDER
-
-
-def get_dag_bag() -> DagBag:
-    """Instantiate the appropriate DagBag based on the ``SKIP_DAGS_PARSING`` environment variable."""
-    if os.environ.get("SKIP_DAGS_PARSING") == "True":
-        return DagBag(os.devnull, include_examples=False)
-    return DagBag(DAGS_FOLDER, read_dags_from_db=True)
+from airflow.www.extensions.init_dagbag import get_dag_bag
 
 
-def init_dagbag(app):
+def init_dag_bag(app: FastAPI) -> None:
     """
-    Create global DagBag for webserver and API.
+    Create global DagBag for the FastAPI application.
 
-    To access it use ``flask.current_app.dag_bag``.
+    To access it use ``request.app.state.dag_bag``.
     """
-    app.dag_bag = get_dag_bag()
+    app.state.dag_bag = get_dag_bag()
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(
+        description="Internal Rest API for the UI frontend. It is subject to breaking change "
+        "depending on the need of the frontend. Users should not rely on this API but use the "
+        "public API instead."
+    )
+
+    init_dag_bag(app)
+
+    return app

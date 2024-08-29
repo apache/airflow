@@ -14,25 +14,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-import os
+from fastapi import APIRouter
 
-from airflow.models import DagBag
-from airflow.settings import DAGS_FOLDER
+from airflow.api_ui.app import create_app
+from airflow.api_ui.views.datasets import dataset_router
+
+app = create_app()
+
+root_router = APIRouter(prefix="/ui")
+
+root_router.include_router(dataset_router)
 
 
-def get_dag_bag() -> DagBag:
-    """Instantiate the appropriate DagBag based on the ``SKIP_DAGS_PARSING`` environment variable."""
-    if os.environ.get("SKIP_DAGS_PARSING") == "True":
-        return DagBag(os.devnull, include_examples=False)
-    return DagBag(DAGS_FOLDER, read_dags_from_db=True)
-
-
-def init_dagbag(app):
-    """
-    Create global DagBag for webserver and API.
-
-    To access it use ``flask.current_app.dag_bag``.
-    """
-    app.dag_bag = get_dag_bag()
+app.include_router(root_router)
