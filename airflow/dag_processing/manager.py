@@ -530,8 +530,8 @@ class DagFileProcessorManager(LoggingMixin):
 
         for dag in dags_parsed:
             # When the DAG processor runs as part of the scheduler, and the user changes the DAGs folder,
-            # DAGs from the previous DAGs folder will be marked as stale. Note that this change has no impact
-            # on standalone DAG processors.
+            # DAGs from the previous DAGs folder will be marked as stale. We also need to handle example dags
+            # differently. Note that this change has no impact on standalone DAG processors.
             dag_not_in_current_dag_folder = (
                 not os.path.commonpath([dag.fileloc, example_dag_folder]) == example_dag_folder
             ) and (os.path.commonpath([dag.fileloc, dag_directory]) != dag_directory)
@@ -545,12 +545,6 @@ class DagFileProcessorManager(LoggingMixin):
             )
 
             if dag_not_in_current_dag_folder or dag_removed_from_dag_folder_or_file:
-                cls.logger().info(
-                    "dag.fileloc : %s, dag_directory : %s, example_dag_folder : %s",
-                    dag.fileloc,
-                    dag_directory,
-                    example_dag_folder,
-                )
                 cls.logger().info("DAG %s is missing and will be deactivated.", dag.dag_id)
                 to_deactivate.add(dag.dag_id)
 
