@@ -380,7 +380,7 @@ class TestSchedulerJob:
 
         mock_stats_incr.reset_mock()
 
-        executor = MockExecutor(do_update=False)
+        executor = cutor(do_update=False)
         task_callback = mock.MagicMock()
         mock_task_callback.return_value = task_callback
         scheduler_job = Job(executor=executor)
@@ -4277,7 +4277,10 @@ class TestSchedulerJob:
         # when Scheduler._do_scheduling is run in the Scheduler Loop
         self.job_runner._do_scheduling(session)
         dr1 = session.scalar(
-            select(DagRun).where(DagRun.dag_id == dag_model.dag_id).order_by(DagRun.id.asc()).limit(1)
+            select(DagRun)
+            .where(DagRun.dag_id == dag_model.dag_id)
+            .order_by(DagRun.id.asc())
+            .limit(1)
         )
         assert dr1 is not None
         assert dr1.state == DagRunState.RUNNING

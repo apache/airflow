@@ -76,7 +76,7 @@ class TestCloudwatchTaskHandler:
         if AIRFLOW_V_3_0_PLUS:
             dag_run = DagRun(dag_id=self.dag.dag_id, logical_date=date, run_id="test", run_type="scheduled")
         else:
-            dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test", run_type="scheduled")
+            dag_run = DagRun(dag_id=self.dag.dag_id, logical_date=date, run_id="test", run_type="scheduled")
         session.add(dag_run)
         session.commit()
         session.refresh(dag_run)
