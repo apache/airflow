@@ -768,7 +768,7 @@ sensors:
 filesystems:
   - airflow.providers.google.cloud.fs.gcs
 
-dataset-uris:
+asset-uris:
   - schemes: [gcp]
     handler: null
   - schemes: [bigquery]
