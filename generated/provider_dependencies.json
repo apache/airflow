@@ -359,8 +359,7 @@
     "cross-providers-deps": [],
     "excluded-python-versions": [
       "3.8",
-      "3.9",
-      "3.12"
+      "3.9"
     ],
     "state": "ready"
   },
