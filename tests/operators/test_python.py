@@ -1081,10 +1081,6 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
         ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
         assert ti.state == TaskInstanceState.SUCCESS
 
-        error_msg = "`get_current_context()` needs to be used with AIP-44 enabled."
-        with pytest.raises(AirflowException, match=re.escape(error_msg)):
-            self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
-
     @pytest.mark.skipif(_ENABLE_AIP_44, reason="AIP-44 is enabled")
     def test_use_airflow_context_without_aip_44_error(self):
         def f():
