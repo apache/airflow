@@ -22,8 +22,8 @@ from typing import TYPE_CHECKING, Iterable, List, Optional
 from pydantic import BaseModel as BaseModelPydantic, ConfigDict
 
 from airflow.models.dagrun import DagRun
+from airflow.serialization.pydantic.asset import AssetEventPydantic
 from airflow.serialization.pydantic.dag import PydanticDag
-from airflow.serialization.pydantic.dataset import AssetEventPydantic
 from airflow.utils.types import DagRunTriggeredByType
 
 if TYPE_CHECKING:
