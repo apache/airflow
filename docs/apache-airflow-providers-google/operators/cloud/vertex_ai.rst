@@ -619,7 +619,7 @@ To run a supervised fine tuning job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`.
 The operator returns the tuned model's endpoint name in :ref:`XCom <concepts:xcom>` under ``tuned_model_endpoint_name`` key.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_supervised_fine_tuning.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model_tuning.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
