@@ -30,7 +30,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel, DagScheduleAssetReference
 from airflow.models.dag import DagModel
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
-from tests.listeners import dataset_listener
+from tests.listeners import asset_listener
 
 pytestmark = pytest.mark.db_test
 
@@ -147,8 +147,8 @@ class TestAssetManager:
     @pytest.mark.skip_if_database_isolation_mode
     def test_register_asset_change_notifies_asset_listener(self, session, mock_task_instance):
         dsem = AssetManager()
-        dataset_listener.clear()
-        get_listener_manager().add_listener(dataset_listener)
+        asset_listener.clear()
+        get_listener_manager().add_listener(asset_listener)
 
         ds = Asset(uri="test_asset_uri_2")
         dag1 = DagModel(dag_id="dag3")
@@ -163,20 +163,20 @@ class TestAssetManager:
         session.flush()
 
         # Ensure the listener was notified
-        assert len(dataset_listener.changed) == 1
-        assert dataset_listener.changed[0].uri == ds.uri
+        assert len(asset_listener.changed) == 1
+        assert asset_listener.changed[0].uri == ds.uri
 
     @pytest.mark.skip_if_database_isolation_mode
     def test_create_assets_notifies_asset_listener(self, session):
         asset_manager = AssetManager()
-        dataset_listener.clear()
-        get_listener_manager().add_listener(dataset_listener)
+        asset_listener.clear()
+        get_listener_manager().add_listener(asset_listener)
 
         asset = Asset(uri="test_asset_uri_3")
 
         asms = asset_manager.create_assets([asset], session=session)
 
         # Ensure the listener was notified
-        assert len(dataset_listener.created) == 1
+        assert len(asset_listener.created) == 1
         assert len(asms) == 1
-        assert dataset_listener.created[0].uri == asset.uri == asms[0].uri
+        assert asset_listener.created[0].uri == asset.uri == asms[0].uri

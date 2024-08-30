@@ -23,24 +23,24 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models.asset import AssetModel
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
-from tests.listeners import dataset_listener
+from tests.listeners import asset_listener
 
 
 @pytest.fixture(autouse=True)
 def clean_listener_manager():
     lm = get_listener_manager()
     lm.clear()
-    lm.add_listener(dataset_listener)
+    lm.add_listener(asset_listener)
     yield
     lm = get_listener_manager()
     lm.clear()
-    dataset_listener.clear()
+    asset_listener.clear()
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @pytest.mark.db_test
 @provide_session
-def test_dataset_listener_on_asset_changed_gets_calls(create_task_instance_of_operator, session):
+def test_asset_listener_on_asset_changed_gets_calls(create_task_instance_of_operator, session):
     asset_uri = "test_asset_uri"
     asset = Asset(uri=asset_uri)
     asset_model = AssetModel(uri=asset_uri)
@@ -57,5 +57,5 @@ def test_dataset_listener_on_asset_changed_gets_calls(create_task_instance_of_op
     )
     ti.run()
 
-    assert len(dataset_listener.changed) == 1
-    assert dataset_listener.changed[0].uri == asset_uri
+    assert len(asset_listener.changed) == 1
+    assert asset_listener.changed[0].uri == asset_uri
