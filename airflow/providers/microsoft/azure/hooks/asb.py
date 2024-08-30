@@ -18,7 +18,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable
 
-from azure.servicebus import ServiceBusClient, ServiceBusMessage, ServiceBusSender
+from azure.servicebus import (
+    ServiceBusClient,
+    ServiceBusMessage,
+    ServiceBusReceivedMessage,
+    ServiceBusReceiver,
+    ServiceBusSender,
+)
 from azure.servicebus.management import QueueProperties, ServiceBusAdministrationClient
 
 from airflow.hooks.base import BaseHook
@@ -274,7 +280,7 @@ class MessageHook(BaseAzureServiceBusHook):
 
     def receive_message(
         self,
-        queue_name,
+        queue_name: str,
         max_message_count: int | None = 1,
         max_wait_time: float | None = None,
         message_callback: MessageCallback | None = None,
@@ -338,7 +344,12 @@ class MessageHook(BaseAzureServiceBusHook):
             for msg in received_msgs:
                 self._process_message(msg, message_callback, subscription_receiver)
 
-    def _process_message(self, msg, message_callback, receiver):
+    def _process_message(
+        self,
+        msg: ServiceBusReceivedMessage,
+        message_callback: MessageCallback | None,
+        receiver: ServiceBusReceiver,
+    ):
         """
         Process the message by calling the message_callback or logging the message.
 

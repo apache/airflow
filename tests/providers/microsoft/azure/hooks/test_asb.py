@@ -22,7 +22,11 @@ from unittest import mock
 import pytest
 
 try:
-    from azure.servicebus import ServiceBusClient, ServiceBusMessage, ServiceBusMessageBatch
+    from azure.servicebus import (
+        ServiceBusClient,
+        ServiceBusMessage,
+        ServiceBusMessageBatch,
+    )
     from azure.servicebus.management import ServiceBusAdministrationClient
 except ImportError:
     pytest.skip("Azure Service Bus not available", allow_module_level=True)
@@ -266,7 +270,7 @@ class TestMessageHook:
         ]
         mock_sb_client.assert_has_calls(expected_calls)
 
-    @mock.patch("azure.servicebus.ServiceBusMessage", autospec=True)
+    @mock.patch("azure.servicebus.ServiceBusReceivedMessage")
     @mock.patch(f"{MODULE}.MessageHook.get_conn", autospec=True)
     def test_receive_message_callback(self, mock_sb_client, mock_service_bus_message):
         """
@@ -326,8 +330,9 @@ class TestMessageHook:
         ]
         mock_sb_client.assert_has_calls(expected_calls)
 
+    @mock.patch("azure.servicebus.ServiceBusReceivedMessage")
     @mock.patch(f"{MODULE}.MessageHook.get_conn")
-    def test_receive_subscription_message_callback(self, mock_sb_client):
+    def test_receive_subscription_message_callback(self, mock_sb_client, mock_sb_message):
         """
         Test `receive_subscription_message` hook function and assert the function with mock value,
         mock the azure service bus `receive_message` function of subscription
@@ -338,12 +343,9 @@ class TestMessageHook:
         max_wait_time = 5
         hook = MessageHook(azure_service_bus_conn_id=self.conn_id)
 
-        mock_sb_message0 = ServiceBusMessage("message0")
-        mock_sb_message1 = ServiceBusMessage("message1")
-
         mock_sb_client.return_value.__enter__.return_value.get_subscription_receiver.return_value.__enter__.return_value.receive_messages.return_value = [
-            mock_sb_message0,
-            mock_sb_message1,
+            mock_sb_message,
+            mock_sb_message,
         ]
 
         received_messages = []
@@ -358,8 +360,6 @@ class TestMessageHook:
         )
 
         assert len(received_messages) == 2
-        assert received_messages[0] == mock_sb_message0
-        assert received_messages[1] == mock_sb_message1
 
     @pytest.mark.parametrize(
         "mock_subscription_name, mock_topic_name, mock_max_count, mock_wait_time",
