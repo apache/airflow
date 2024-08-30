@@ -365,8 +365,9 @@ class MessageHook(BaseAzureServiceBusHook):
         else:
             try:
                 message_callback(msg)
-                receiver.complete_message(msg)
             except Exception as e:
                 self.log.error("Error processing message: %s", e)
                 receiver.abandon_message(msg)
                 raise e
+            else:
+                receiver.complete_message(msg)
