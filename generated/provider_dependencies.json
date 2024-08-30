@@ -1256,21 +1256,6 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
-  "tabular": {
-    "deps": [
-      "apache-airflow-providers-apache-iceberg",
-      "apache-airflow>=2.8.0"
-    ],
-    "devel-deps": [
-      "pyiceberg>=0.5.0"
-    ],
-    "plugins": [],
-    "cross-providers-deps": [
-      "apache.iceberg"
-    ],
-    "excluded-python-versions": [],
-    "state": "removed"
-  },
   "telegram": {
     "deps": [
       "apache-airflow>=2.8.0",

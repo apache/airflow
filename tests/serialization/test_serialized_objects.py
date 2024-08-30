@@ -29,6 +29,7 @@ import pytest
 from dateutil import relativedelta
 from kubernetes.client import models as k8s
 from pendulum.tz.timezone import Timezone
+from pydantic import BaseModel
 
 from airflow.datasets import Dataset, DatasetAlias, DatasetAliasEvent
 from airflow.exceptions import (
@@ -63,7 +64,6 @@ from airflow.utils import timezone
 from airflow.utils.context import OutletEventAccessor, OutletEventAccessors
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.operator_resources import Resources
-from airflow.utils.pydantic import BaseModel
 from airflow.utils.state import DagRunState, State
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
