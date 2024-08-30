@@ -322,7 +322,7 @@ class TestMLEngineStartBatchPredictionJobOperator:
                 data_format="data_format",
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -401,7 +401,7 @@ class TestMLEngineTrainingCancelJobOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -483,7 +483,7 @@ class TestMLEngineModelOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -528,7 +528,7 @@ class TestMLEngineCreateModelOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -574,7 +574,7 @@ class TestMLEngineGetModelOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -620,7 +620,7 @@ class TestMLEngineDeleteModelOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -671,7 +671,7 @@ class TestMLEngineVersionOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -744,7 +744,7 @@ class TestMLEngineCreateVersion:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -816,7 +816,7 @@ class TestMLEngineSetDefaultVersion:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -874,7 +874,7 @@ class TestMLEngineListVersions:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -945,7 +945,7 @@ class TestMLEngineDeleteVersion:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -1246,7 +1246,7 @@ class TestMLEngineStartTrainingJobOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()

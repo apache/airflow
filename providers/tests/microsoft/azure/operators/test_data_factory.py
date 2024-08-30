@@ -236,7 +236,7 @@ class TestAzureDataFactoryRunPipelineOperator:
         ti = create_task_instance_of_operator(
             AzureDataFactoryRunPipelineOperator,
             dag_id="test_adf_run_pipeline_op_link",
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             task_id=TASK_ID,
             azure_data_factory_conn_id=AZURE_DATA_FACTORY_CONN_ID,
             pipeline_name=PIPELINE_NAME,

@@ -80,6 +80,7 @@ from sqlalchemy.sql import Select, expression
 import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.compat.functools import cache
 from airflow.assets import Asset, AssetAlias, AssetAll, BaseAsset
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
 from airflow.exceptions import (
@@ -126,7 +127,7 @@ from airflow.timetables.trigger import CronTriggerTimetable
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.decorators import fixup_decorator_warning_stack
-from airflow.utils.helpers import exactly_one, validate_instance_args, validate_key
+from airflow.utils.helpers import validate_instance_args, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, lock_rows, tuple_in_condition, with_row_locks
@@ -1160,7 +1161,7 @@ class DAG(LoggingMixin):
         return ", ".join({t.owner for t in self.tasks})
 
     @property
-    def allow_future_exec_dates(self) -> bool:
+    def allow_trigger_dagrun_in_future(self) -> bool:
         return settings.ALLOW_TRIGGER_DAGRUN_IN_FUTURE and not self.timetable.can_be_scheduled
 
     @provide_session
@@ -1246,7 +1247,7 @@ class DAG(LoggingMixin):
         :param session: Database session
         """
         callbacks, context = DAG.fetch_callback(
-            dag=self, dag_run_id=dagrun.run_id, success=success, reason=reason, session=session
+            dag=self, run_id=dagrun.run_id, success=success, reason=reason, session=session
         ) or (None, None)
 
         DAG.execute_callback(callbacks, context, self.dag_id)
@@ -1504,7 +1505,7 @@ class DAG(LoggingMixin):
             tis = tis.where(TaskInstance.ti_selector_condition(task_ids))
 
         # This allows allow_trigger_in_future config to take affect, rather than mandating exec_date <= UTC
-        if end_date or not self.allow_future_exec_dates:
+        if end_date or not self.allow_trigger_dagrun_in_future:
             end_date = end_date or timezone.utcnow()
             tis = tis.where(DagRun.execution_date <= end_date)
 
@@ -1644,7 +1645,6 @@ class DAG(LoggingMixin):
         *,
         task_id: str,
         map_indexes: Collection[int] | None = None,
-        execution_date: datetime | None = None,
         run_id: str | None = None,
         state: TaskInstanceState,
         upstream: bool = False,
@@ -1660,7 +1660,6 @@ class DAG(LoggingMixin):
         :param task_id: Task ID of the TaskInstance
         :param map_indexes: Only set TaskInstance if its map_index matches.
             If None (default), all mapped TaskInstances of the task are set.
-        :param execution_date: Execution date of the TaskInstance
         :param run_id: The run_id of the TaskInstance
         :param state: State to set the TaskInstance to
         :param upstream: Include all upstream tasks of the given task_id
@@ -1670,9 +1669,6 @@ class DAG(LoggingMixin):
         :param past: Include all past TaskInstances of the given task_id
         """
         from airflow.api.common.mark_tasks import set_state
-
-        if not exactly_one(execution_date, run_id):
-            raise ValueError("Exactly one of execution_date or run_id must be provided")
 
         task = self.get_task(task_id)
         task.dag = self
@@ -1685,7 +1681,6 @@ class DAG(LoggingMixin):
 
         altered = set_state(
             tasks=tasks_to_set_state,
-            execution_date=execution_date,
             run_id=run_id,
             upstream=upstream,
             downstream=downstream,
@@ -1708,20 +1703,11 @@ class DAG(LoggingMixin):
             include_upstream=False,
         )
 
-        if execution_date is None:
-            dag_run = session.scalars(
-                select(DagRun).where(DagRun.run_id == run_id, DagRun.dag_id == self.dag_id)
-            ).one()  # Raises an error if not found
-            resolve_execution_date = dag_run.execution_date
-        else:
-            resolve_execution_date = execution_date
-
-        end_date = resolve_execution_date if not future else None
-        start_date = resolve_execution_date if not past else None
+        # Raises an error if not found
+        session.scalars(select(1).where(DagRun.run_id == run_id, DagRun.dag_id == self.dag_id)).one()
 
         subdag.clear(
-            start_date=start_date,
-            end_date=end_date,
+            run_id=run_id,
             only_failed=True,
             session=session,
             # Exclude the task itself from being cleared
@@ -1735,7 +1721,6 @@ class DAG(LoggingMixin):
         self,
         *,
         group_id: str,
-        execution_date: datetime | None = None,
         run_id: str | None = None,
         state: TaskInstanceState,
         upstream: bool = False,
@@ -1761,22 +1746,8 @@ class DAG(LoggingMixin):
         """
         from airflow.api.common.mark_tasks import set_state
 
-        if not exactly_one(execution_date, run_id):
-            raise ValueError("Exactly one of execution_date or run_id must be provided")
-
         tasks_to_set_state: list[BaseOperator | tuple[BaseOperator, int]] = []
         task_ids: list[str] = []
-
-        if execution_date is None:
-            dag_run = session.scalars(
-                select(DagRun).where(DagRun.run_id == run_id, DagRun.dag_id == self.dag_id)
-            ).one()  # Raises an error if not found
-            resolve_execution_date = dag_run.execution_date
-        else:
-            resolve_execution_date = execution_date
-
-        end_date = resolve_execution_date if not future else None
-        start_date = resolve_execution_date if not past else None
 
         task_group_dict = self.task_group.get_task_group_dict()
         task_group = task_group_dict.get(group_id)
@@ -1785,18 +1756,25 @@ class DAG(LoggingMixin):
         tasks_to_set_state = [task for task in task_group.iter_tasks() if isinstance(task, BaseOperator)]
         task_ids = [task.task_id for task in task_group.iter_tasks()]
         dag_runs_query = select(DagRun.id).where(DagRun.dag_id == self.dag_id)
-        if start_date is None and end_date is None:
-            dag_runs_query = dag_runs_query.where(DagRun.execution_date == start_date)
-        else:
-            if start_date is not None:
-                dag_runs_query = dag_runs_query.where(DagRun.execution_date >= start_date)
-            if end_date is not None:
-                dag_runs_query = dag_runs_query.where(DagRun.execution_date <= end_date)
+
+        @cache
+        def get_logical_date() -> datetime:
+            stmt = select(DagRun.logical_date).where(DagRun.run_id == run_id, DagRun.dag_id == self.dag_id)
+            return session.scalars(stmt).one()  # Raises an error if not found
+
+        end_date = get_logical_date() if not future else None
+        start_date = get_logical_date() if not past else None
+
+        if future:
+            dag_runs_query = dag_runs_query.where(DagRun.logical_date <= start_date)
+        if past:
+            dag_runs_query = dag_runs_query.where(DagRun.logical_date >= end_date)
+        if not future and not past:
+            dag_runs_query = dag_runs_query.where(DagRun.run_id == run_id)
 
         with lock_rows(dag_runs_query, session):
             altered = set_state(
                 tasks=tasks_to_set_state,
-                execution_date=execution_date,
                 run_id=run_id,
                 upstream=upstream,
                 downstream=downstream,
@@ -1856,10 +1834,11 @@ class DAG(LoggingMixin):
 
         return tuple(nested_topo(self.task_group))
 
-    @provide_session
+    @overload
     def clear(
         self,
         task_ids: Collection[str | tuple[str, int]] | None = None,
+        *,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
         only_failed: bool = False,
@@ -1888,6 +1867,56 @@ class DAG(LoggingMixin):
         :param exclude_task_ids: A set of ``task_id`` or (``task_id``, ``map_index``)
             tuples that should not be cleared
         """
+
+    @overload
+    def clear(
+        self,
+        task_ids: Collection[str | tuple[str, int]] | None = None,
+        *,
+        run_id: str,
+        only_failed: bool = False,
+        only_running: bool = False,
+        confirm_prompt: bool = False,
+        dag_run_state: DagRunState = DagRunState.QUEUED,
+        dry_run: bool = False,
+        session: Session = NEW_SESSION,
+        dag_bag: DagBag | None = None,
+        exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
+    ) -> int | Iterable[TaskInstance]:
+        """
+        Clear a set of task instances associated with the current dag for a specific run.
+
+        :param task_ids: List of task ids or (``task_id``, ``map_index``) tuples to clear
+        :param run_id: ID of the run to clear
+        :param only_failed: Only clear failed tasks
+        :param only_running: Only clear running tasks.
+        :param confirm_prompt: Ask for confirmation
+        :param dag_run_state: state to set DagRun to. If set to False, dagrun state will not
+            be changed.
+        :param dry_run: Find the tasks to clear but don't clear them.
+        :param session: The sqlalchemy session to use
+        :param dag_bag: The DagBag used to find the dags (Optional)
+        :param exclude_task_ids: A set of ``task_id`` or (``task_id``, ``map_index``)
+            tuples that should not be cleared
+        """
+
+    @provide_session
+    def clear(
+        self,
+        task_ids: Collection[str | tuple[str, int]] | None = None,
+        *,
+        run_id: str | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        only_failed: bool = False,
+        only_running: bool = False,
+        confirm_prompt: bool = False,
+        dag_run_state: DagRunState = DagRunState.QUEUED,
+        dry_run: bool = False,
+        session: Session = NEW_SESSION,
+        dag_bag: DagBag | None = None,
+        exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
+    ) -> int | Iterable[TaskInstance]:
         state: list[TaskInstanceState] = []
         if only_failed:
             state += [TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED]
@@ -1899,7 +1928,7 @@ class DAG(LoggingMixin):
             task_ids=task_ids,
             start_date=start_date,
             end_date=end_date,
-            run_id=None,
+            run_id=run_id,
             state=state,
             include_dependent_dags=True,
             session=session,
@@ -2264,7 +2293,7 @@ class DAG(LoggingMixin):
     @provide_session
     def test(
         self,
-        execution_date: datetime | None = None,
+        logical_date: datetime | None = None,
         run_conf: dict[str, Any] | None = None,
         conn_file_path: str | None = None,
         variable_file_path: str | None = None,
@@ -2275,7 +2304,7 @@ class DAG(LoggingMixin):
         """
         Execute one single DagRun for a given DAG and execution date.
 
-        :param execution_date: execution date for the DAG run
+        :param logical_date: execution date for the DAG run
         :param run_conf: configuration to pass to newly created dagrun
         :param conn_file_path: file path to a connection file in either yaml or json
         :param variable_file_path: file path to a variable file in either yaml or json
@@ -2313,23 +2342,23 @@ class DAG(LoggingMixin):
             exit_stack.callback(lambda: secrets_backend_list.pop(0))
 
         with exit_stack:
-            execution_date = execution_date or timezone.utcnow()
+            logical_date = logical_date or timezone.utcnow()
             self.validate()
-            self.log.debug("Clearing existing task instances for execution date %s", execution_date)
+            self.log.debug("Clearing existing task instances for execution date %s", logical_date)
             self.clear(
-                start_date=execution_date,
-                end_date=execution_date,
+                start_date=logical_date,
+                end_date=logical_date,
                 dag_run_state=False,  # type: ignore
                 session=session,
             )
             self.log.debug("Getting dagrun for dag %s", self.dag_id)
-            logical_date = timezone.coerce_datetime(execution_date)
+            logical_date = timezone.coerce_datetime(logical_date)
             data_interval = self.timetable.infer_manual_data_interval(run_after=logical_date)
             dr: DagRun = _get_or_create_dagrun(
                 dag=self,
-                start_date=execution_date,
-                execution_date=execution_date,
-                run_id=DagRun.generate_run_id(DagRunType.MANUAL, execution_date),
+                start_date=logical_date,
+                logical_date=logical_date,
+                run_id=DagRun.generate_run_id(DagRunType.MANUAL, logical_date),
                 session=session,
                 conf=run_conf,
                 triggered_by=DagRunTriggeredByType.TEST,

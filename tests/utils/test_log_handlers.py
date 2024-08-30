@@ -358,7 +358,7 @@ class TestFileTaskLogHandler:
             dag_id="dag_for_testing_local_log_read",
             task_id="task_for_testing_local_log_read",
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
         )
         fth = FileTaskHandler("")
         actual = fth._read(ti=local_log_file_read, try_number=1)
@@ -407,7 +407,7 @@ class TestFileTaskLogHandler:
             dag_id="dag_for_testing_celery_executor_log_read",
             task_id="task_for_testing_celery_executor_log_read",
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
         )
         ti.state = TaskInstanceState.SUCCESS  # we're testing scenario when task is done
         with conf_vars({("core", "executor"): executor_name}):
@@ -466,7 +466,7 @@ class TestFilenameRendering:
             dag_id="dag_for_testing_filename_rendering",
             task_id="task_for_testing_filename_rendering",
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
         )
 
         expected_filename = (
@@ -483,7 +483,7 @@ class TestFilenameRendering:
             dag_id="dag_for_testing_filename_rendering",
             task_id="task_for_testing_filename_rendering",
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
         )
 
         expected_filename = (
@@ -501,7 +501,7 @@ class TestLogUrl:
             dag_id="dag_for_testing_filename_rendering",
             task_id="task_for_testing_filename_rendering",
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
         )
         log_url_ti.hostname = "hostname"
         actual = FileTaskHandler("")._get_log_retrieval_url(log_url_ti, "DYNAMIC_PATH")
@@ -512,7 +512,7 @@ class TestLogUrl:
             dag_id="dag_for_testing_filename_rendering",
             task_id="task_for_testing_filename_rendering",
             run_type=DagRunType.SCHEDULED,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
         )
         ti.hostname = "hostname"
         trigger = Trigger("", {})

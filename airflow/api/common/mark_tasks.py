@@ -417,7 +417,6 @@ def __set_dag_run_state_to_running_or_queued(
 def set_dag_run_state_to_running(
     *,
     dag: DAG,
-    execution_date: datetime | None = None,
     run_id: str | None = None,
     commit: bool = False,
     session: SASession = NEW_SESSION,
@@ -430,7 +429,6 @@ def set_dag_run_state_to_running(
     return __set_dag_run_state_to_running_or_queued(
         new_state=DagRunState.RUNNING,
         dag=dag,
-        execution_date=execution_date,
         run_id=run_id,
         commit=commit,
         session=session,
@@ -441,7 +439,6 @@ def set_dag_run_state_to_running(
 def set_dag_run_state_to_queued(
     *,
     dag: DAG,
-    execution_date: datetime | None = None,
     run_id: str | None = None,
     commit: bool = False,
     session: SASession = NEW_SESSION,
@@ -454,7 +451,6 @@ def set_dag_run_state_to_queued(
     return __set_dag_run_state_to_running_or_queued(
         new_state=DagRunState.QUEUED,
         dag=dag,
-        execution_date=execution_date,
         run_id=run_id,
         commit=commit,
         session=session,

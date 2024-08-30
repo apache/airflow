@@ -1721,7 +1721,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                 return callback_to_execute
 
-            if dag_run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:
+            if dag_run.execution_date > timezone.utcnow() and not dag.allow_trigger_dagrun_in_future:
                 self.log.error("Execution date is in future: %s", dag_run.execution_date)
                 return callback
 

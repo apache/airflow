@@ -93,7 +93,7 @@ def test_azure_data_explorer_query_operator_xcom_push_and_pull(
     ti = create_task_instance_of_operator(
         AzureDataExplorerQueryOperator,
         dag_id="test_azure_data_explorer_query_operator_xcom_push_and_pull",
-        execution_date=timezone.utcnow(),
+        logical_date=timezone.utcnow(),
         **MOCK_DATA,
     )
     ti.run()
