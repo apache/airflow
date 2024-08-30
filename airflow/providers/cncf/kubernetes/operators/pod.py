@@ -761,18 +761,7 @@ class KubernetesPodOperator(BaseOperator):
             follow = self.logging_interval is None
             last_log_time = event.get("last_log_time")
 
-            if event["status"] in ("error", "failed", "timeout"):
-                # fetch some logs when pod is failed
-                if self.get_logs:
-                    self._write_logs(self.pod, follow=follow, since_time=last_log_time)
-
-                if self.do_xcom_push:
-                    _ = self.extract_xcom(pod=self.pod)
-
-                message = event.get("stack_trace", event["message"])
-                raise AirflowException(message)
-
-            elif event["status"] == "running":
+            if event["status"] == "running":
                 if self.get_logs:
                     self.log.info("Resuming logs read from time %r", last_log_time)
 
@@ -783,11 +772,30 @@ class KubernetesPodOperator(BaseOperator):
                         since_time=last_log_time,
                     )
 
-                    self.log.info("Container still running; deferring again.")
-                    self.invoke_defer_method(pod_log_status.last_log_time)
+                    if pod_log_status.running:
+                        self.log.info("Container still running; deferring again.")
+                        self.invoke_defer_method(pod_log_status.last_log_time)
+                    else:
+                        event = event.copy()
+                        if pod_log_status.failed:
+                            event["status"] = "failed"
+                            event["message"] = "pod failure"
+                        else:
+                            event["status"] = "success"
                 else:
                     self.invoke_defer_method()
 
+
+            if event["status"] in ("error", "failed", "timeout"):
+                # fetch some logs when pod is failed
+                if self.get_logs:
+                    self._write_logs(self.pod, follow=follow, since_time=last_log_time)
+
+                if self.do_xcom_push:
+                    _ = self.extract_xcom(pod=self.pod)
+
+                message = event.get("stack_trace", event["message"])
+                raise AirflowException(message)
             elif event["status"] == "success":
                 # fetch some logs when pod is executed successfully
                 if self.get_logs:
