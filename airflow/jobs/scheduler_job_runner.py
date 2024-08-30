@@ -2045,7 +2045,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         )
 
         updated_count = sum(self._set_orphaned(asset) for asset in orphaned_asset_query)
-        Stats.gauge("dataset.orphaned", updated_count)
+        Stats.gauge("asset.orphaned", updated_count)
 
     def _executor_to_tis(self, tis: list[TaskInstance]) -> dict[BaseExecutor, list[TaskInstance]]:
         """Organize TIs into lists per their respective executor."""
