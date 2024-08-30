@@ -120,7 +120,7 @@ class TestStackdriverLoggingHandlerTask:
         self.ti = create_task_instance(
             dag_id=self.DAG_ID,
             task_id=self.TASK_ID,
-            execution_date=timezone.datetime(2016, 1, 1),
+            logical_date=timezone.datetime(2016, 1, 1),
             state=TaskInstanceState.RUNNING,
         )
         self.ti.try_number = 1

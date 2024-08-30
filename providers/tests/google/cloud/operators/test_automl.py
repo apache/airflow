@@ -129,7 +129,7 @@ class TestAutoMLTrainModelOperator:
             # Other parameters
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         session.add(ti)
         session.commit()
@@ -224,7 +224,7 @@ class TestAutoMLBatchPredictOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
         session.add(ti)
         session.commit()
@@ -282,7 +282,7 @@ class TestAutoMLPredictOperator:
             # Other parameters
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             payload={},
         )
         session.add(ti)
@@ -391,7 +391,7 @@ class TestAutoMLCreateImportOperator:
             # Other parameters
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         session.add(ti)
         session.commit()
@@ -445,7 +445,7 @@ class TestAutoMLTablesListColumnsSpecsOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
 
 
@@ -486,7 +486,7 @@ class TestAutoMLTablesUpdateDatasetOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
 
 
@@ -551,7 +551,7 @@ class TestAutoMLGetModelOperator:
             # Other parameters
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         session.add(ti)
         session.commit()
@@ -622,7 +622,7 @@ class TestAutoMLDeleteModelOperator:
             # Other parameters
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         session.add(ti)
         session.commit()
@@ -671,7 +671,7 @@ class TestAutoMLDeployModelOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
 
 
@@ -738,7 +738,7 @@ class TestAutoMLDatasetImportOperator:
             # Other parameters
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         session.add(ti)
         session.commit()
@@ -788,7 +788,7 @@ class TestAutoMLTablesListTableSpecsOperator:
                 # Other parameters
                 dag_id="test_template_body_templating_dag",
                 task_id="test_template_body_templating_task",
-                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+                logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             )
 
 
@@ -837,7 +837,7 @@ class TestAutoMLDatasetListOperator:
             # Other parameters
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         session.add(ti)
         session.commit()
@@ -907,7 +907,7 @@ class TestAutoMLDatasetDeleteOperator:
             # Other parameters
             dag_id="test_template_body_templating_dag",
             task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         session.add(ti)
         session.commit()

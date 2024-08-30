@@ -244,7 +244,7 @@ def test_templating(create_task_instance_of_operator, session):
         file_format="JSON",
         dag_id="test_template_body_templating_dag",
         task_id="test_template_body_templating_task",
-        execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         session=session,
     )
     session.add(ti)

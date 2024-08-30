@@ -808,7 +808,7 @@ def _get_appbuilder_pk_string(model_view_cls, instance) -> str:
 def test_task_instance_delete(session, admin_client, create_task_instance):
     task_instance_to_delete = create_task_instance(
         task_id="test_task_instance_delete",
-        execution_date=timezone.utcnow(),
+        logical_date=timezone.utcnow(),
         state=State.DEFERRED,
     )
     composite_key = _get_appbuilder_pk_string(TaskInstanceModelView, task_instance_to_delete)
@@ -822,7 +822,7 @@ def test_task_instance_delete(session, admin_client, create_task_instance):
 def test_task_instance_delete_permission_denied(session, client_ti_without_dag_edit, create_task_instance):
     task_instance_to_delete = create_task_instance(
         task_id="test_task_instance_delete_permission_denied",
-        execution_date=timezone.utcnow(),
+        logical_date=timezone.utcnow(),
         state=State.DEFERRED,
         session=session,
     )

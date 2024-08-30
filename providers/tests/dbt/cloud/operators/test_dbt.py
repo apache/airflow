@@ -466,7 +466,7 @@ class TestDbtCloudRunJobOperator:
         ti = create_task_instance_of_operator(
             DbtCloudRunJobOperator,
             dag_id="test_dbt_cloud_run_job_op_link",
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             task_id="trigger_dbt_cloud_job",
             dbt_cloud_conn_id=conn_id,
             job_id=JOB_ID,

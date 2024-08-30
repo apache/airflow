@@ -35,7 +35,7 @@ class RunnableExecDateDep(BaseTIDep):
         # don't consider runs that are executed in the future unless
         # specified by config and schedule is None
         logical_date = ti.get_dagrun(session).execution_date
-        if logical_date > cur_date and not ti.task.dag.allow_future_exec_dates:
+        if logical_date > cur_date and not ti.task.dag.allow_trigger_dagrun_in_future:
             yield self._failing_status(
                 reason=(
                     f"Execution date {logical_date.isoformat()} is in the future "
