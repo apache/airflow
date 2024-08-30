@@ -11,7 +11,7 @@ from azure.core.credentials import AccessToken
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
-from airflow.providers.databricks.hooks.databricks_base import WORKLOAD_IDENTITY_SETTING_KEY
+from airflow.providers.databricks.hooks.databricks_base import DEFAULT_AZURE_CREDENTIAL_SETTING_KEY
 from airflow.utils.session import provide_session
 
 
@@ -45,21 +45,13 @@ class TestDatabricksHookAadTokenWorkloadIdentityAsync:
         conn.host = HOST
         conn.extra = json.dumps(
             {
-                WORKLOAD_IDENTITY_SETTING_KEY: True,
+                DEFAULT_AZURE_CREDENTIAL_SETTING_KEY: True,
             }
         )
         session.commit()
 
         # This will use the default connection id (databricks_default)
         self._hook = DatabricksHook(retry_args=DEFAULT_RETRY_ARGS)
-
-
-    @pytest.mark.asyncio
-    async def test_not_running_in_kubernetes(self):
-        with pytest.raises(AirflowException) as e:
-            await self._hook.a_get_run_output(0)
-
-        assert str(e.value) == "Workload identity authentication is only supporting when running in an Kubernetes cluster"
 
     @pytest.mark.asyncio
     @mock.patch.dict(
@@ -72,7 +64,7 @@ class TestDatabricksHookAadTokenWorkloadIdentityAsync:
         },
     )
     @mock.patch(
-        "azure.identity.aio.WorkloadIdentityCredential.get_token", return_value=create_aad_token_for_resource()
+        "azure.identity.aio.DefaultAzureCredential.get_token", return_value=create_aad_token_for_resource()
     )
     @mock.patch("airflow.providers.databricks.hooks.databricks_base.aiohttp.ClientSession.get")
     async def test_one(self, requests_mock, get_token_mock: mock.MagicMock):
