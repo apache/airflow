@@ -170,8 +170,8 @@ def _create_listener_and_task_instance() -> tuple[OpenLineageListener, TaskInsta
         # Now you can use listener and task_instance in your tests to simulate their interaction.
     """
 
-    def mock_dag_id(dag_id, execution_date):
-        return f"{execution_date}.{dag_id}"
+    def mock_dag_id(dag_id, logical_date):
+        return f"{logical_date}.{dag_id}"
 
     def mock_task_id(dag_id, task_id, try_number, execution_date):
         return f"{execution_date}.{dag_id}.{task_id}.{try_number}"
@@ -197,7 +197,7 @@ def _create_listener_and_task_instance() -> tuple[OpenLineageListener, TaskInsta
     task_instance.dag_run.run_id = "dag_run_run_id"
     task_instance.dag_run.data_interval_start = None
     task_instance.dag_run.data_interval_end = None
-    task_instance.dag_run.execution_date = "execution_date"
+    task_instance.dag_run.execution_date = "logical_date"
     task_instance.task = mock.Mock()
     task_instance.task.task_id = "task_id"
     task_instance.task.dag = mock.Mock()
@@ -210,7 +210,7 @@ def _create_listener_and_task_instance() -> tuple[OpenLineageListener, TaskInsta
     task_instance.state = State.RUNNING
     task_instance.start_date = dt.datetime(2023, 1, 1, 13, 1, 1)
     task_instance.end_date = dt.datetime(2023, 1, 3, 13, 1, 1)
-    task_instance.execution_date = "execution_date"
+    task_instance.execution_date = "2020-01-01T01:01:01"
     task_instance.next_method = None  # Ensure this is None to reach start_task
 
     return listener, task_instance
@@ -248,12 +248,12 @@ def test_adapter_start_task_is_called_with_proper_arguments(
 
     listener.on_task_instance_running(None, task_instance, None)
     listener.adapter.start_task.assert_called_once_with(
-        run_id="execution_date.dag_id.task_id.1",
+        run_id="2020-01-01T01:01:01.dag_id.task_id.1",
         job_name="job_name",
         job_description="Test DAG Description",
         event_time="2023-01-01T13:01:01",
         parent_job_name="dag_id",
-        parent_run_id="execution_date.dag_id",
+        parent_run_id="2020-01-01T01:01:01.dag_id",
         code_location=None,
         nominal_start_time=None,
         nominal_end_time=None,
@@ -291,8 +291,8 @@ def test_adapter_fail_task_is_called_with_proper_arguments(
     failure events, thus confirming that the adapter's failure handling is functioning as expected.
     """
 
-    def mock_dag_id(dag_id, execution_date):
-        return f"{execution_date}.{dag_id}"
+    def mock_dag_id(dag_id, logical_date):
+        return f"{logical_date}.{dag_id}"
 
     def mock_task_id(dag_id, task_id, try_number, execution_date):
         return f"{execution_date}.{dag_id}.{task_id}.{try_number}"
@@ -316,8 +316,8 @@ def test_adapter_fail_task_is_called_with_proper_arguments(
         end_time="2023-01-03T13:01:01",
         job_name="job_name",
         parent_job_name="dag_id",
-        parent_run_id="execution_date.dag_id",
-        run_id="execution_date.dag_id.task_id.1",
+        parent_run_id="2020-01-01T01:01:01.dag_id",
+        run_id="2020-01-01T01:01:01.dag_id.task_id.1",
         task=listener.extractor_manager.extract_metadata(),
         run_facets={
             "custom_user_facet": 2,
@@ -352,8 +352,8 @@ def test_adapter_complete_task_is_called_with_proper_arguments(
     during the task's lifecycle events.
     """
 
-    def mock_dag_id(dag_id, execution_date):
-        return f"{execution_date}.{dag_id}"
+    def mock_dag_id(dag_id, logical_date):
+        return f"{logical_date}.{dag_id}"
 
     def mock_task_id(dag_id, task_id, try_number, execution_date):
         return f"{execution_date}.{dag_id}.{task_id}.{try_number}"
@@ -375,8 +375,8 @@ def test_adapter_complete_task_is_called_with_proper_arguments(
         end_time="2023-01-03T13:01:01",
         job_name="job_name",
         parent_job_name="dag_id",
-        parent_run_id="execution_date.dag_id",
-        run_id=f"execution_date.dag_id.task_id.{EXPECTED_TRY_NUMBER_1}",
+        parent_run_id="2020-01-01T01:01:01.dag_id",
+        run_id=f"2020-01-01T01:01:01.dag_id.task_id.{EXPECTED_TRY_NUMBER_1}",
         task=listener.extractor_manager.extract_metadata(),
         run_facets={
             "custom_user_facet": 2,
@@ -399,7 +399,7 @@ def test_on_task_instance_running_correctly_calls_openlineage_adapter_run_id_met
     listener.adapter.build_task_instance_run_id.assert_called_once_with(
         dag_id="dag_id",
         task_id="task_id",
-        execution_date="execution_date",
+        execution_date="2020-01-01T01:01:01",
         try_number=1,
     )
 
@@ -422,7 +422,7 @@ def test_on_task_instance_failed_correctly_calls_openlineage_adapter_run_id_meth
     mock_adapter.build_task_instance_run_id.assert_called_once_with(
         dag_id="dag_id",
         task_id="task_id",
-        execution_date="execution_date",
+        execution_date="2020-01-01T01:01:01",
         try_number=1,
     )
 
@@ -441,7 +441,7 @@ def test_on_task_instance_success_correctly_calls_openlineage_adapter_run_id_met
     mock_adapter.build_task_instance_run_id.assert_called_once_with(
         dag_id="dag_id",
         task_id="task_id",
-        execution_date="execution_date",
+        execution_date="2020-01-01T01:01:01",
         try_number=EXPECTED_TRY_NUMBER_1,
     )
 
