@@ -81,6 +81,7 @@ from sqlalchemy.sql import Select, expression
 import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.compat.functools import cache
 from airflow.assets import Asset, AssetAlias, AssetAll, BaseAsset
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
 from airflow.exceptions import (
