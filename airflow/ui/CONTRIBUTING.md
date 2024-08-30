@@ -23,12 +23,17 @@
 
 1. Install `pnpm`. Check their [docs](https://pnpm.io/installation)
 
-2. Start the project. ("watch" mode rebuilds the UI after each change, this is temporary until we get hot reloading working with Flask.)
+2. Run `breeze start-airflow --dev-mode` will install and run the local dev server to allow for hot-reloading during development.
 
-```console
-pnpm install
-pnpm run build --watch
-```
+3. Click on the banner in the old UI to redirect you to the new ui or go to `localhost:28080/ui`
+
+## CLI Commands
+
+- `pnpm install`
+- `pnpm lint` lint check
+- `pnpm test` run ui tests
+- `pnpm build` build the project to appear in `ui/dist`, this is what the webserver will usually look for
+- `pnpm dev` run the vite dev server to enable hot reloading for local development. You also need the `dev_mode` environment variable enabled on the webserver.
 
 ## Learn
 
