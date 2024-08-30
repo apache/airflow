@@ -21,7 +21,7 @@ import urllib.parse
 
 import pytest
 
-from airflow.providers.trino.datasets.trino import sanitize_uri
+from airflow.providers.trino.assets.trino import sanitize_uri
 
 
 @pytest.mark.parametrize(

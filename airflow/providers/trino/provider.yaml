@@ -88,7 +88,7 @@ operators:
 
 asset-uris:
   - schemes: [trino]
-    handler: airflow.providers.trino.datasets.trino.sanitize_uri
+    handler: airflow.providers.trino.assets.trino.sanitize_uri
 
 hooks:
   - integration-name: Trino
