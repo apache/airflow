@@ -1189,8 +1189,8 @@ class DagFileProcessorManager(LoggingMixin):
             if count_import_errors > 0:
                 span.set_attribute("error", True)
                 import_errors = (
-                    session.query(ParseImportError)
-                    .filter(ParseImportError.filename == processor.file_path)
+                    session.scalars(select(ParseImportError)
+                    .where(ParseImportError.filename == processor.file_path))
                     .all()
                 )
                 for import_error in import_errors:
