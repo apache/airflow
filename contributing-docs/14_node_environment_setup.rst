@@ -173,7 +173,4 @@ that lives inside of the main app.
 
 ------
 
-
-
-
 If you happen to change architecture of Airflow, you can learn how we create our `Architecture diagrams <15_architecture_diagrams.rst>`__.
