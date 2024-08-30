@@ -65,12 +65,6 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
 )
 
 
-if os.environ.get("PYDANTIC", "v2") != "v2":
-    pytest.skip(
-        "The test is skipped because we are running in limited Pydantic environment", allow_module_level=True
-    )
-
-
 def match_optional_dependencies(distribution_name: str, specifier: str | None) -> tuple[bool, str]:
     try:
         package_version = Version(importlib_metadata.version(distribution_name))

@@ -16,7 +16,7 @@
 # under the License.
 from datetime import datetime
 
-from airflow.utils.pydantic import BaseModel as BaseModelPydantic, ConfigDict
+from pydantic import BaseModel as BaseModelPydantic, ConfigDict
 
 
 class LogTemplatePydantic(BaseModelPydantic):

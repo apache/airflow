@@ -165,8 +165,8 @@ Those extras are available as regular core airflow extras - they install optiona
   .. START CORE EXTRAS HERE
 
 aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, github-enterprise, google-
-auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, pydantic, rabbitmq, s3fs, saml,
-sentry, statsd, uv, virtualenv
+auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, saml, sentry,
+statsd, uv, virtualenv
 
   .. END CORE EXTRAS HERE
 
@@ -186,8 +186,8 @@ dingding, discord, docker, elasticsearch, exasol, fab, facebook, ftp, github, go
 hashicorp, http, imap, influxdb, jdbc, jenkins, microsoft.azure, microsoft.mssql, microsoft.psrp,
 microsoft.winrm, mongo, mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie,
 oracle, pagerduty, papermill, pgvector, pinecone, postgres, presto, qdrant, redis, salesforce,
-samba, segment, sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, tableau, tabular,
-telegram, teradata, trino, vertica, weaviate, yandex, ydb, zendesk
+samba, segment, sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, tableau, telegram,
+teradata, trino, vertica, weaviate, yandex, ydb, zendesk
 
   .. END PROVIDER EXTRAS HERE
 

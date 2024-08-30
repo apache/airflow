@@ -45,7 +45,12 @@ import airflow
 from airflow.datasets import Dataset
 from airflow.decorators import teardown
 from airflow.decorators.base import DecoratedOperator
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError
+from airflow.exceptions import (
+    AirflowException,
+    ParamValidationError,
+    RemovedInAirflow3Warning,
+    SerializationError,
+)
 from airflow.hooks.base import BaseHook
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
@@ -312,8 +317,8 @@ def make_user_defined_macro_filter_dag():
         (2) templates with function macros have been rendered before serialization.
     """
 
-    def compute_next_execution_date(dag, execution_date):
-        return dag.following_schedule(execution_date)
+    def compute_last_dagrun(dag: DAG):
+        return dag.get_last_dagrun(include_externally_triggered=True)
 
     default_args = {"start_date": datetime(2019, 7, 10)}
     dag = DAG(
@@ -321,14 +326,14 @@ def make_user_defined_macro_filter_dag():
         schedule=None,
         default_args=default_args,
         user_defined_macros={
-            "next_execution_date": compute_next_execution_date,
+            "last_dagrun": compute_last_dagrun,
         },
         user_defined_filters={"hello": lambda name: f"Hello {name}"},
         catchup=False,
     )
     BashOperator(
         task_id="echo",
-        bash_command='echo "{{ next_execution_date(dag, execution_date) }}"',
+        bash_command='echo "{{ last_dagrun(dag) }}"',
         dag=dag,
     )
     return {dag.dag_id: dag}
@@ -888,19 +893,18 @@ class TestStringifiedDAGs:
         [
             (None, {}),
             ({"param_1": "value_1"}, {"param_1": "value_1"}),
-            ({"param_1": {1, 2, 3}}, {"param_1": {1, 2, 3}}),
+            ({"param_1": {1, 2, 3}}, ParamValidationError),
         ],
     )
     def test_dag_params_roundtrip(self, val, expected_val):
         """
         Test that params work both on Serialized DAGs & Tasks
         """
-        if val and any([True for k, v in val.items() if isinstance(v, set)]):
-            with pytest.warns(
-                RemovedInAirflow3Warning,
-                match="The use of non-json-serializable params is deprecated and will be removed in a future release",
-            ):
+        if expected_val == ParamValidationError:
+            with pytest.raises(ParamValidationError):
                 dag = DAG(dag_id="simple_dag", schedule=None, params=val)
+            # further tests not relevant
+            return
         else:
             dag = DAG(dag_id="simple_dag", schedule=None, params=val)
         BaseOperator(task_id="simple_task", dag=dag, start_date=datetime(2019, 8, 1))
@@ -979,7 +983,7 @@ class TestStringifiedDAGs:
         [
             (None, {}),
             ({"param_1": "value_1"}, {"param_1": "value_1"}),
-            ({"param_1": {1, 2, 3}}, {"param_1": {1, 2, 3}}),
+            ({"param_1": {1, 2, 3}}, ParamValidationError),
         ],
     )
     def test_task_params_roundtrip(self, val, expected_val):
@@ -987,14 +991,11 @@ class TestStringifiedDAGs:
         Test that params work both on Serialized DAGs & Tasks
         """
         dag = DAG(dag_id="simple_dag", schedule=None)
-        if val and any([True for k, v in val.items() if isinstance(v, set)]):
-            with pytest.warns(
-                RemovedInAirflow3Warning,
-                match="The use of non-json-serializable params is deprecated and will be removed in a future release",
-            ):
+        if expected_val == ParamValidationError:
+            with pytest.raises(ParamValidationError):
                 BaseOperator(task_id="simple_task", dag=dag, params=val, start_date=datetime(2019, 8, 1))
-                serialized_dag = SerializedDAG.to_dict(dag)
-                deserialized_dag = SerializedDAG.from_dict(serialized_dag)
+            # further tests not relevant
+            return
         else:
             BaseOperator(task_id="simple_task", dag=dag, params=val, start_date=datetime(2019, 8, 1))
             serialized_dag = SerializedDAG.to_dict(dag)

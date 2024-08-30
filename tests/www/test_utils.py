@@ -358,38 +358,6 @@ class TestAttrRenderer:
         assert formatter(dagrun) == expected_markup
 
 
-@pytest.mark.filterwarnings("ignore::DeprecationWarning")
-def test_get_sensitive_variables_fields():
-    with pytest.warns(DeprecationWarning) as warning:
-        result = utils.get_sensitive_variables_fields()
-
-        # assert deprecation warning
-        assert len(warning) == 1
-        assert "This function is deprecated." in str(warning[-1].message)
-
-    from airflow.utils.log.secrets_masker import get_sensitive_variables_fields
-
-    expected_result = get_sensitive_variables_fields()
-    assert result == expected_result
-
-
-@pytest.mark.filterwarnings("ignore::DeprecationWarning")
-def test_should_hide_value_for_key():
-    key_name = "key"
-
-    with pytest.warns(DeprecationWarning) as warning:
-        result = utils.should_hide_value_for_key(key_name)
-
-        # assert deprecation warning
-        assert len(warning) == 1
-        assert "This function is deprecated." in str(warning[-1].message)
-
-    from airflow.utils.log.secrets_masker import should_hide_value_for_key
-
-    expected_result = should_hide_value_for_key(key_name)
-    assert result == expected_result
-
-
 class TestWrappedMarkdown:
     def test_wrapped_markdown_with_docstring_curly_braces(self):
         rendered = wrapped_markdown("{braces}", css_class="a_class")

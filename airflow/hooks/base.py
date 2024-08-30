@@ -20,10 +20,8 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from typing import TYPE_CHECKING, Any
 
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.typing_compat import Protocol
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -53,22 +51,6 @@ class BaseHook(LoggingMixin):
         super().__init__()
         self._log_config_logger_name = "airflow.task.hooks"
         self._logger_name = logger_name
-
-    @classmethod
-    def get_connections(cls, conn_id: str) -> list[Connection]:
-        """
-        Get all connections as an iterable, given the connection id.
-
-        :param conn_id: connection id
-        :return: array of connections
-        """
-        warnings.warn(
-            "`BaseHook.get_connections` method will be deprecated in the future."
-            "Please use `BaseHook.get_connection` instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        return [cls.get_connection(conn_id)]
 
     @classmethod
     def get_connection(cls, conn_id: str) -> Connection:

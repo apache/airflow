@@ -269,7 +269,7 @@ with DAG(
     # [END howto_operator_remove_directory]
 
     delete_dataset = BigQueryDeleteDatasetOperator(
-        task_id="delete_dataset",
+        task_id="delete-dataset",
         dataset_id=DATAFORM_SCHEMA_NAME,
         delete_contents=True,
         trigger_rule=TriggerRule.ALL_DONE,

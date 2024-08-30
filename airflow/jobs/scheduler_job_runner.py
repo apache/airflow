@@ -849,7 +849,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 span.set_attribute("queue", ti.queue)
                 span.set_attribute("priority_weight", ti.priority_weight)
                 span.set_attribute("queued_dttm", str(ti.queued_dttm))
-                span.set_attribute("ququed_by_job_id", ti.queued_by_job_id)
+                span.set_attribute("queued_by_job_id", ti.queued_by_job_id)
                 span.set_attribute("pid", ti.pid)
                 if span.is_recording():
                     span.add_event(name="queued", timestamp=datetime_to_nano(ti.queued_dttm))

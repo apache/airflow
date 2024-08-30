@@ -29,7 +29,7 @@ import jinja2
 import pytest
 
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException, FailStopDagInvalidTriggerRule, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException, FailStopDagInvalidTriggerRule
 from airflow.lineage.entities import File
 from airflow.models.baseoperator import (
     BASEOPERATOR_ARGS_EXPECTED_TYPES,
@@ -50,7 +50,6 @@ from airflow.utils.template import literal
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
-from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import DeprecatedOperator, MockOperator
 
 if TYPE_CHECKING:
@@ -157,18 +156,6 @@ class TestBaseOperator:
         error_msg = "`priority_weight` for task 'test_op' only accepts integers, received '<class 'str'>'."
         with pytest.raises(AirflowException, match=error_msg):
             BaseOperator(task_id="test_op", priority_weight="2")
-
-    def test_illegal_args(self):
-        """
-        Tests that Operators reject illegal arguments
-        """
-        msg = r"Invalid arguments were passed to BaseOperator \(task_id: test_illegal_args\)"
-        with conf_vars({("operators", "allow_illegal_arguments"): "True"}):
-            with pytest.warns(RemovedInAirflow3Warning, match=msg):
-                BaseOperator(
-                    task_id="test_illegal_args",
-                    illegal_argument_1234="hello?",
-                )
 
     def test_illegal_args_forbidden(self):
         """
@@ -802,15 +789,6 @@ class TestBaseOperator:
         ):
             BaseOperator(task_id="op1", trigger_rule="some_rule")
 
-    @pytest.mark.parametrize(("rule"), [("dummy"), (TriggerRule.DUMMY)])
-    def test_replace_dummy_trigger_rule(self, rule):
-        with pytest.warns(
-            DeprecationWarning, match="dummy Trigger Rule is deprecated. Please use `TriggerRule.ALWAYS`."
-        ):
-            op1 = BaseOperator(task_id="op1", trigger_rule=rule)
-
-            assert op1.trigger_rule == TriggerRule.ALWAYS
-
     def test_weight_rule_default(self):
         op = BaseOperator(task_id="test_task")
         assert _DownstreamPriorityWeightStrategy() == op.weight_rule
@@ -1116,11 +1094,11 @@ def test_get_task_instances(session):
         "run_type": DagRunType.MANUAL,
     }
     dr1 = DagRun(execution_date=first_execution_date, run_id="test_run_id_1", **common_dr_kwargs)
-    ti_1 = TaskInstance(run_id=dr1.run_id, task=task, execution_date=first_execution_date)
+    ti_1 = TaskInstance(run_id=dr1.run_id, task=task)
     dr2 = DagRun(execution_date=second_execution_date, run_id="test_run_id_2", **common_dr_kwargs)
-    ti_2 = TaskInstance(run_id=dr2.run_id, task=task, execution_date=second_execution_date)
+    ti_2 = TaskInstance(run_id=dr2.run_id, task=task)
     dr3 = DagRun(execution_date=third_execution_date, run_id="test_run_id_3", **common_dr_kwargs)
-    ti_3 = TaskInstance(run_id=dr3.run_id, task=task, execution_date=third_execution_date)
+    ti_3 = TaskInstance(run_id=dr3.run_id, task=task)
     session.add_all([dr1, dr2, dr3, ti_1, ti_2, ti_3])
     session.commit()
 

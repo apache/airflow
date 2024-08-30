@@ -32,7 +32,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
-    ALLOWED_PYDANTIC_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CELERY_BROKER_URLS_MAP,
@@ -183,7 +182,6 @@ class ShellParams:
     providers_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
     providers_constraints_reference: str = ""
     providers_skip_constraints: bool = False
-    pydantic: str = ALLOWED_PYDANTIC_VERSIONS[0]
     python: str = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
     quiet: bool = False
     regenerate_missing_docs: bool = False
@@ -566,7 +564,6 @@ class ShellParams:
         _set_var(_env, "SYSTEM_TESTS_ENV_ID", None, "")
         _set_var(_env, "TEST_TYPE", self.test_type, "")
         _set_var(_env, "UPGRADE_BOTO", self.upgrade_boto)
-        _set_var(_env, "PYDANTIC", self.pydantic)
         _set_var(_env, "USE_AIRFLOW_VERSION", self.use_airflow_version, "")
         _set_var(_env, "USE_PACKAGES_FROM_DIST", self.use_packages_from_dist)
         _set_var(_env, "USE_UV", self.use_uv)

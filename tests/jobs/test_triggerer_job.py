@@ -103,7 +103,7 @@ def create_trigger_in_db(session, trigger, operator=None):
         operator.dag = dag
     else:
         operator = BaseOperator(task_id="test_ti", dag=dag)
-    task_instance = TaskInstance(operator, execution_date=run.execution_date, run_id=run.run_id)
+    task_instance = TaskInstance(operator, run_id=run.run_id)
     task_instance.trigger_id = trigger_orm.id
     session.add(dag_model)
     session.add(run)

@@ -109,7 +109,7 @@ def test_get_provider_requirements():
 
 def test_get_removed_providers():
     # Modify it every time we schedule provider for removal or remove it
-    assert ["tabular"] == get_removed_provider_ids()
+    assert [] == get_removed_provider_ids()
 
 
 def test_get_suspended_provider_ids():

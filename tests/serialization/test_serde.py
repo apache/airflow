@@ -26,6 +26,7 @@ from typing import ClassVar
 
 import attr
 import pytest
+from pydantic import BaseModel
 
 from airflow.datasets import Dataset
 from airflow.serialization.serde import (
@@ -42,7 +43,6 @@ from airflow.serialization.serde import (
     serialize,
 )
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
-from airflow.utils.pydantic import BaseModel
 from tests.test_utils.config import conf_vars
 
 

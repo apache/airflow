@@ -448,7 +448,7 @@ class AwsBatchExecutor(BaseExecutor):
                         airflow_cmd=ti.command_as_list(),
                         queue=ti.queue,
                         exec_config=ti.executor_config,
-                        attempt_number=ti.prev_attempted_tries,
+                        attempt_number=ti.try_number,
                     )
                     adopted_tis.append(ti)
 

@@ -21,6 +21,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
+import pendulum
 import pytest
 
 from airflow.providers.common.compat.openlineage.facet import (
@@ -40,6 +41,7 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSSynchronizeBucketsOperator,
     GCSTimeSpanFileTransformOperator,
 )
+from airflow.timetables.base import DagRunInfo, DataInterval
 
 TASK_ID = "test-gcs-operator"
 TEST_BUCKET = "test-bucket"
@@ -395,7 +397,15 @@ class TestGCSTimeSpanFileTransformOperator:
         timespan_start = datetime(2015, 2, 1, 15, 16, 17, 345, tzinfo=timezone.utc)
         timespan_end = timespan_start + timedelta(hours=1)
         mock_dag = mock.Mock()
-        mock_dag.following_schedule = lambda x: x + timedelta(hours=1)
+        mock_dag.next_dagrun_info.side_effect = [
+            DagRunInfo(
+                run_after=pendulum.instance(timespan_start),
+                data_interval=DataInterval(
+                    start=pendulum.instance(timespan_start),
+                    end=pendulum.instance(timespan_end),
+                ),
+            ),
+        ]
         mock_ti = mock.Mock()
         context = dict(
             execution_date=timespan_start,
@@ -575,7 +585,15 @@ class TestGCSTimeSpanFileTransformOperator:
 
         timespan_start = datetime(2015, 2, 1, 15, 16, 17, 345, tzinfo=timezone.utc)
         mock_dag = mock.Mock()
-        mock_dag.following_schedule = lambda x: x + timedelta(hours=1)
+        mock_dag.next_dagrun_info.side_effect = [
+            DagRunInfo(
+                run_after=pendulum.instance(timespan_start),
+                data_interval=DataInterval(
+                    start=pendulum.instance(timespan_start),
+                    end=None,
+                ),
+            ),
+        ]
         context = dict(
             execution_date=timespan_start,
             dag=mock_dag,

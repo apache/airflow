@@ -35,7 +35,7 @@ from airflow.api_connexion.schemas.dag_schema import DAGSchema, dag_schema
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.decorators import task
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import _run_inline_trigger
@@ -247,24 +247,6 @@ class TestCliDags:
         assert f"Dry run of DAG example_branch_operator on {DEFAULT_DATE_REPR}\n" in output
         assert "Task run_this_first located in DAG example_branch_operator\n" in output
 
-    @mock.patch("airflow.cli.commands.dag_command._run_dag_backfill")
-    def test_backfill_treat_dag_as_regex_deprecation(self, _):
-        run_date = DEFAULT_DATE + timedelta(days=1)
-        cli_args = self.parser.parse_args(
-            [
-                "dags",
-                "backfill",
-                "example_bash_operator",
-                "--treat-dag-as-regex",
-                "--start-date",
-                run_date.isoformat(),
-            ]
-        )
-
-        with pytest.warns(DeprecationWarning, match="--treat-dag-as-regex is deprecated"):
-            dag_command.dag_backfill(cli_args)
-        assert cli_args.treat_dag_id_as_regex == cli_args.treat_dag_as_regex
-
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
     def test_backfill_fails_without_loading_dags(self, mock_get_dag):
         cli_args = self.parser.parse_args(["dags", "backfill", "example_bash_operator"])
@@ -331,15 +313,8 @@ class TestCliDags:
         assert "OUT" in out
         assert "ERR" in out
 
-    @pytest.mark.parametrize(
-        "cli_arg",
-        [
-            pytest.param("-I", id="short"),
-            pytest.param("--ignore-first-depends-on-past", id="full"),
-        ],
-    )
     @mock.patch("airflow.cli.commands.dag_command.DAG.run")
-    def test_cli_backfill_deprecated_ignore_first_depends_on_past(self, mock_run, cli_arg: str):
+    def test_cli_backfill_ignore_first_depends_on_past(self, mock_run):
         """
         Test that CLI respects -I argument
 
@@ -355,12 +330,10 @@ class TestCliDags:
             "--local",
             "--start-date",
             run_date.isoformat(),
-            cli_arg,
         ]
         dag = self.dagbag.get_dag(dag_id)
 
-        with pytest.warns(RemovedInAirflow3Warning, match="ignore-first-depends-on-past is deprecated"):
-            dag_command.dag_backfill(self.parser.parse_args(args), dag=dag)
+        dag_command.dag_backfill(self.parser.parse_args(args), dag=dag)
 
         mock_run.assert_called_once_with(
             start_date=run_date,

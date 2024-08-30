@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from datetime import timedelta
 from os.path import isabs
 
@@ -30,7 +29,7 @@ from sqlalchemy.engine.url import make_url
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.configuration import conf
-from airflow.exceptions import AirflowConfigException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowConfigException
 from airflow.logging_config import configure_logging
 from airflow.models import import_all_models
 from airflow.settings import _ENABLE_AIP_44
@@ -111,16 +110,8 @@ def create_app(config=None, testing=False):
     flask_app.config["SESSION_COOKIE_HTTPONLY"] = True
     flask_app.config["SESSION_COOKIE_SECURE"] = conf.getboolean("webserver", "COOKIE_SECURE")
 
-    cookie_samesite_config = conf.get("webserver", "COOKIE_SAMESITE")
-    if cookie_samesite_config == "":
-        warnings.warn(
-            "Old deprecated value found for `cookie_samesite` option in `[webserver]` section. "
-            "Using `Lax` instead. Change the value to `Lax` in airflow.cfg to remove this warning.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        cookie_samesite_config = "Lax"
-    flask_app.config["SESSION_COOKIE_SAMESITE"] = cookie_samesite_config
+    # Note: Ensure "Lax" is the default if config not specified
+    flask_app.config["SESSION_COOKIE_SAMESITE"] = conf.get("webserver", "COOKIE_SAMESITE") or "Lax"
 
     # Above Flask 2.0.x, default value of SEND_FILE_MAX_AGE_DEFAULT changed 12 hours to None.
     # for static file caching, it needs to set value explicitly.

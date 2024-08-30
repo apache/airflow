@@ -39,7 +39,6 @@ from pygments.formatters import HtmlFormatter
 from sqlalchemy import delete, func, select, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.errors import ParseImportError
@@ -215,34 +214,6 @@ def check_dag_warnings(dag_id, session):
     if dag_warnings:
         for dag_warning in dag_warnings:
             flash(dag_warning.message, "warning")
-
-
-def get_sensitive_variables_fields():
-    import warnings
-
-    from airflow.utils.log.secrets_masker import get_sensitive_variables_fields
-
-    warnings.warn(
-        "This function is deprecated. Please use "
-        "`airflow.utils.log.secrets_masker.get_sensitive_variables_fields`",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    return get_sensitive_variables_fields()
-
-
-def should_hide_value_for_key(key_name):
-    import warnings
-
-    from airflow.utils.log.secrets_masker import should_hide_value_for_key
-
-    warnings.warn(
-        "This function is deprecated. Please use "
-        "`airflow.utils.log.secrets_masker.should_hide_value_for_key`",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    return should_hide_value_for_key(key_name)
 
 
 def get_params(**kwargs):

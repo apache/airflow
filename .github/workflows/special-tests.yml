@@ -105,50 +105,6 @@ jobs:
       run-coverage: ${{ inputs.run-coverage }}
       debug-resources: ${{ inputs.debug-resources }}
 
-  tests-pydantic-v1:
-    name: "Pydantic v1 test"
-    uses: ./.github/workflows/run-unit-tests.yml
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
-      pydantic: "v1"
-      test-name: "Pydantic-V1-Postgres"
-      test-scope: "All"
-      backend: "postgres"
-      image-tag: ${{ inputs.image-tag }}
-      python-versions: "['${{ inputs.default-python-version }}']"
-      backend-versions: "['${{ inputs.default-postgres-version }}']"
-      excludes: "[]"
-      parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      run-coverage: ${{ inputs.run-coverage }}
-      debug-resources: ${{ inputs.debug-resources }}
-
-  tests-pydantic-none:
-    name: "Pydantic removed test"
-    uses: ./.github/workflows/run-unit-tests.yml
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
-      pydantic: "none"
-      test-name: "Pydantic-Removed-Postgres"
-      test-scope: "All"
-      backend: "postgres"
-      image-tag: ${{ inputs.image-tag }}
-      python-versions: "['${{ inputs.default-python-version }}']"
-      backend-versions: "['${{ inputs.default-postgres-version }}']"
-      excludes: "[]"
-      parallel-test-types-list-as-string: ${{ inputs.parallel-test-types-list-as-string }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      run-coverage: ${{ inputs.run-coverage }}
-      debug-resources: ${{ inputs.debug-resources }}
-
   tests-pendulum-2:
     name: "Pendulum2 test"
     uses: ./.github/workflows/run-unit-tests.yml

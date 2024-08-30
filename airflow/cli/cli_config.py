@@ -321,15 +321,6 @@ ARG_BF_IGNORE_DEPENDENCIES = Arg(
     ),
     action="store_true",
 )
-ARG_BF_IGNORE_FIRST_DEPENDS_ON_PAST = Arg(
-    ("-I", "--ignore-first-depends-on-past"),
-    help=(
-        "Ignores depends_on_past dependencies for the first "
-        "set of tasks only (subsequent executions in the backfill "
-        "DO respect depends_on_past)"
-    ),
-    action="store_true",
-)
 ARG_POOL = Arg(("--pool",), "Resource pool to use")
 ARG_DELAY_ON_LIMIT = Arg(
     ("--delay-on-limit",),
@@ -383,11 +374,6 @@ ARG_RUN_BACKWARDS = Arg(
     action="store_true",
 )
 
-ARG_TREAT_DAG_AS_REGEX = Arg(
-    ("--treat-dag-as-regex",),
-    help=("Deprecated -- use `--treat-dag-id-as-regex` instead"),
-    action="store_true",
-)
 
 ARG_TREAT_DAG_ID_AS_REGEX = Arg(
     ("--treat-dag-id-as-regex",),
@@ -1230,7 +1216,6 @@ DAGS_COMMANDS = (
             ARG_CONTINUE_ON_FAILURES,
             ARG_DISABLE_RETRY,
             ARG_BF_IGNORE_DEPENDENCIES,
-            ARG_BF_IGNORE_FIRST_DEPENDS_ON_PAST,
             ARG_SUBDIR,
             ARG_POOL,
             ARG_DELAY_ON_LIMIT,
@@ -1240,7 +1225,6 @@ DAGS_COMMANDS = (
             ARG_RESET_DAG_RUN,
             ARG_RERUN_FAILED_TASKS,
             ARG_RUN_BACKWARDS,
-            ARG_TREAT_DAG_AS_REGEX,
             ARG_TREAT_DAG_ID_AS_REGEX,
         ),
     ),

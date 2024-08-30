@@ -16,16 +16,27 @@
 # under the License.
 from __future__ import annotations
 
-# All the classes in this module should only be kept for backwards-compatibility reasons.
-# old cncf.kubernetes providers will use those in their frozen version for pre-7.4.0 release
-import warnings
+from fastapi import FastAPI
 
-warnings.warn(
-    "This module is deprecated. The `cncf.kubernetes` provider before version 7.4.0 uses this module - "
-    "you should migrate to a newer version of `cncf.kubernetes` to get rid of this warning. If you "
-    "import the module via `airflow.kubernetes` import, please use `cncf.kubernetes' "
-    "provider 7.4.0+ and switch all your imports to use `apache.airflow.providers.cncf.kubernetes` "
-    "to get rid of the warning.",
-    DeprecationWarning,
-    stacklevel=2,
-)
+from airflow.www.extensions.init_dagbag import get_dag_bag
+
+
+def init_dag_bag(app: FastAPI) -> None:
+    """
+    Create global DagBag for the FastAPI application.
+
+    To access it use ``request.app.state.dag_bag``.
+    """
+    app.state.dag_bag = get_dag_bag()
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(
+        description="Internal Rest API for the UI frontend. It is subject to breaking change "
+        "depending on the need of the frontend. Users should not rely on this API but use the "
+        "public API instead."
+    )
+
+    init_dag_bag(app)
+
+    return app

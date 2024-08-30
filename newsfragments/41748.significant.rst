@@ -1,0 +1,1 @@
+Deprecated module ``airflow.hooks.dbapi`` removed. Please use ``airflow.providers.common.sql.hooks.sql`` instead.

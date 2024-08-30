@@ -1422,7 +1422,7 @@ def test_mapped_literal_faulty_state_in_db(dag_maker, session):
     assert len(decision.schedulable_tis) == 2
 
     # We insert a faulty record
-    session.add(TaskInstance(dag.get_task("task_2"), dr.execution_date, dr.run_id))
+    session.add(TaskInstance(task=dag.get_task("task_2"), run_id=dr.run_id))
     session.flush()
 
     decision = dr.task_instance_scheduling_decisions()

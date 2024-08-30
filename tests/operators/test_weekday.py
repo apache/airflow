@@ -285,23 +285,3 @@ class TestBranchDayOfWeekOperator:
         for ti in tis:
             if ti.task_id == "make_choice":
                 assert ti.xcom_pull(task_ids="make_choice") == "branch_1"
-
-    def test_deprecation_warning(self, dag_maker):
-        warning_message = (
-            """Parameter ``use_task_execution_day`` is deprecated. Use ``use_task_logical_date``."""
-        )
-        with pytest.warns(DeprecationWarning) as warnings:
-            with dag_maker(
-                "branch_day_of_week_operator_test",
-                start_date=DEFAULT_DATE,
-                schedule=INTERVAL,
-                serialized=True,
-            ):
-                BranchDayOfWeekOperator(
-                    task_id="week_day_warn",
-                    follow_task_ids_if_true="branch_1",
-                    follow_task_ids_if_false="branch_2",
-                    week_day="Monday",
-                    use_task_execution_day=True,
-                )
-        assert warning_message == str(warnings[0].message)

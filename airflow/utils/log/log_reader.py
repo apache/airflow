@@ -74,7 +74,7 @@ class TaskLogReader:
         :param metadata: A dictionary containing information about how to read the task log
         """
         if try_number is None:
-            next_try = ti.next_try_number
+            next_try = ti.try_number + 1
             try_numbers = list(range(1, next_try))
         else:
             try_numbers = [try_number]
