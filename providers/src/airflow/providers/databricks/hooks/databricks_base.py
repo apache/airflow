@@ -74,7 +74,7 @@ AZURE_MANAGEMENT_ENDPOINT = "https://management.core.windows.net/"
 DEFAULT_DATABRICKS_SCOPE = "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
 OIDC_TOKEN_SERVICE_URL = "{}/oidc/v1/token"
 
-WORKLOAD_IDENTITY_SETTING_KEY = "use_azure_workload_identity"
+DEFAULT_AZURE_CREDENTIAL_SETTING_KEY = "use_default_azure_credential"
 
 
 class BaseDatabricksHook(BaseHook):
@@ -387,7 +387,7 @@ class BaseDatabricksHook(BaseHook):
 
         return jsn["access_token"]
 
-    def _get_aad_token_for_workload_identity(self, resource: str) -> str:
+    def _get_aad_token_for_default_az_credential(self, resource: str) -> str:
         """
         Get AAD token for given resource for workload identity.
 
@@ -429,7 +429,7 @@ class BaseDatabricksHook(BaseHook):
             raise AirflowException(msg)
 
         return token.token
-    async def _a_get_aad_token_for_workload_identity(self, resource: str) -> str:
+    async def _a_get_aad_token_for_default_az_credential(self, resource: str) -> str:
         """
         Get AAD token for given resource for workload identity.
 
@@ -580,14 +580,9 @@ class BaseDatabricksHook(BaseHook):
             self.log.debug("Using AAD Token for managed identity.")
             self._check_azure_metadata_service()
             return self._get_aad_token(DEFAULT_DATABRICKS_SCOPE)
-        elif self.databricks_conn.extra_dejson.get(WORKLOAD_IDENTITY_SETTING_KEY, False):
-            if not self._running_in_kubernetes():
-                raise AirflowException(
-                    "Workload identity authentication is only supporting when running in an Kubernetes cluster"
-                )
-            self.log.debug("Using Azure Workload Identity authentication.")
-
-            return self._get_aad_token_for_workload_identity(DEFAULT_DATABRICKS_SCOPE)
+        elif self.databricks_conn.extra_dejson.get(DEFAULT_AZURE_CREDENTIAL_SETTING_KEY, False):
+            self.log.debug("Using default Azure Credential authentication.")
+            return self._get_aad_token_for_default_az_credential(DEFAULT_DATABRICKS_SCOPE)
         elif self.databricks_conn.extra_dejson.get("service_principal_oauth", False):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
@@ -616,14 +611,14 @@ class BaseDatabricksHook(BaseHook):
             self.log.debug("Using AAD Token for managed identity.")
             await self._a_check_azure_metadata_service()
             return await self._a_get_aad_token(DEFAULT_DATABRICKS_SCOPE)
-        elif self.databricks_conn.extra_dejson.get(WORKLOAD_IDENTITY_SETTING_KEY, False):
+        elif self.databricks_conn.extra_dejson.get(DEFAULT_AZURE_CREDENTIAL_SETTING_KEY, False):
             if not self._running_in_kubernetes():
                 raise AirflowException(
                     "Workload identity authentication is only supporting when running in an Kubernetes cluster"
                 )
             self.log.debug("Using Azure Workload Identity authentication.")
 
-            return await self._a_get_aad_token_for_workload_identity(DEFAULT_DATABRICKS_SCOPE)
+            return await self._a_get_aad_token_for_default_az_credential(DEFAULT_DATABRICKS_SCOPE)
         elif self.databricks_conn.extra_dejson.get("service_principal_oauth", False):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
