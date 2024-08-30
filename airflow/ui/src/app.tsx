@@ -17,21 +17,38 @@
  * under the License.
  */
 
+import { useState } from "react";
 import { Box, Spinner } from "@chakra-ui/react";
 
 import { useDagServiceGetDags } from "openapi/queries";
-import { DagsList } from "src/dagsList";
+import { DagsList, IPagination } from "src/dagsList";
 import { Nav } from "src/nav";
 
 export const App = () => {
-  const { data, isLoading } = useDagServiceGetDags();
+  const pageSize = 10;
+  const [pagination, setPagination] = useState<IPagination>({
+    pageIndex: 0,
+    pageSize: pageSize,
+  });
+
+  const { data, isLoading } = useDagServiceGetDags({
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
+  });
 
   return (
     <Box maxWidth="100vw">
       <Nav />
       <Box p={3}>
         {isLoading && <Spinner />}
-        {!isLoading && !!data?.dags && <DagsList data={data.dags} />}
+        {!isLoading && !!data?.dags && (
+          <DagsList
+            data={data.dags}
+            total={data.total_entries}
+            pagination={pagination}
+            setPagination={setPagination}
+          />
+        )}
       </Box>
     </Box>
   );

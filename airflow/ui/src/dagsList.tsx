@@ -17,12 +17,13 @@
  * under the License.
  */
 
-import React, { Fragment } from "react";
+import React, { Fragment, Dispatch } from "react";
 
 import {
   useReactTable,
   getCoreRowModel,
   getExpandedRowModel,
+  getPaginationRowModel,
   ColumnDef,
   flexRender,
   Row,
@@ -33,6 +34,7 @@ import {
   Code,
   Table as ChakraTable,
   Thead,
+  Button,
   Td,
   Th,
   Tr,
@@ -41,6 +43,11 @@ import {
 } from "@chakra-ui/react";
 
 import { DAG } from "openapi/requests/types.gen";
+
+export interface IPagination {
+  pageIndex: number;
+  pageSize: number;
+}
 
 const columns: ColumnDef<DAG>[] = [
   {
@@ -84,16 +91,22 @@ const columns: ColumnDef<DAG>[] = [
 
 type TableProps<TData> = {
   data: TData[];
+  total: number | undefined;
   columns: ColumnDef<TData>[];
   renderSubComponent: (props: { row: Row<TData> }) => React.ReactElement;
   getRowCanExpand: (row: Row<TData>) => boolean;
+  pagination: IPagination;
+  setPagination: Dispatch<IPagination>;
 };
 
 const Table = ({
   data,
+  total,
   columns,
   renderSubComponent,
   getRowCanExpand,
+  pagination,
+  setPagination,
 }: TableProps<DAG>) => {
   const table = useReactTable<DAG>({
     data,
@@ -101,6 +114,15 @@ const Table = ({
     getRowCanExpand,
     getCoreRowModel: getCoreRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+
+    // @ts-expect-error : Update type and interface later
+    onPaginationChange: setPagination,
+    rowCount: total ?? 0,
+    manualPagination: true,
+    state: {
+      pagination,
+    },
   });
 
   return (
@@ -156,6 +178,37 @@ const Table = ({
           })}
         </Tbody>
       </ChakraTable>
+      <Box mt={2}>
+        <Button
+          borderRadius={0}
+          onClick={() => table.firstPage()}
+          isDisabled={!table.getCanPreviousPage()}
+        >
+          {"<<"}
+        </Button>
+
+        <Button
+          borderRadius={0}
+          onClick={() => table.previousPage()}
+          isDisabled={!table.getCanPreviousPage()}
+        >
+          {"<"}
+        </Button>
+        <Button
+          borderRadius={0}
+          onClick={() => table.nextPage()}
+          isDisabled={!table.getCanNextPage()}
+        >
+          {">"}
+        </Button>
+        <Button
+          borderRadius={0}
+          onClick={() => table.lastPage()}
+          isDisabled={!table.getCanNextPage()}
+        >
+          {">>"}
+        </Button>
+      </Box>
     </TableContainer>
   );
 };
@@ -168,13 +221,26 @@ const renderSubComponent = ({ row }: { row: Row<DAG> }) => {
   );
 };
 
-export const DagsList = ({ data }: { data: DAG[] }) => {
+export const DagsList = ({
+  data,
+  total,
+  pagination,
+  setPagination,
+}: {
+  data: DAG[];
+  total: number | undefined;
+  pagination: IPagination;
+  setPagination: Dispatch<IPagination>;
+}) => {
   return (
     <Table
       data={data}
+      total={total}
       columns={columns}
       getRowCanExpand={() => true}
       renderSubComponent={renderSubComponent}
+      pagination={pagination}
+      setPagination={setPagination}
     />
   );
 };
