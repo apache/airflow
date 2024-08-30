@@ -582,7 +582,7 @@ To get a pipeline job list you can use
     :start-after: [START how_to_cloud_vertex_ai_list_pipeline_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_list_pipeline_job_operator]
 
-Interacting with a Generative Model
+Interacting with Generative AI
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To generate a prediction via language model you can use
@@ -616,7 +616,7 @@ The operator returns the model's response in :ref:`XCom <concepts:xcom>` under `
     :end-before: [END how_to_cloud_vertex_ai_generative_model_generate_content_operator]
 
 To run a supervised fine tuning job you can use
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.supervised_fine_tuning.SupervisedFineTuningTrainOperator`.
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`.
 The operator returns the tuned model's endpoint name in :ref:`XCom <concepts:xcom>` under ``tuned_model_endpoint_name`` key.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_supervised_fine_tuning.py
