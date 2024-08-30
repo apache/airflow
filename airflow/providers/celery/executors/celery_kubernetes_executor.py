@@ -81,6 +81,16 @@ class CeleryKubernetesExecutor(BaseExecutor):
         self.kubernetes_executor.kubernetes_queue = self.kubernetes_queue
 
     @property
+    def _task_event_logs(self):
+        self.celery_executor._task_event_logs += self.kubernetes_executor._task_event_logs
+        self.kubernetes_executor._task_event_logs.clear()
+        return self.celery_executor._task_event_logs
+
+    @_task_event_logs.setter
+    def _task_event_logs(self, value):
+        raise NotImplementedError
+
+    @property
     def queued_tasks(self) -> dict[TaskInstanceKey, QueuedTaskInstanceType]:
         """Return queued tasks from celery and kubernetes executor."""
         queued_tasks = self.celery_executor.queued_tasks.copy()

@@ -67,6 +67,16 @@ class LocalKubernetesExecutor(BaseExecutor):
         self.kubernetes_executor.kubernetes_queue = self.KUBERNETES_QUEUE
 
     @property
+    def _task_event_logs(self):
+        self.local_executor._task_event_logs += self.kubernetes_executor._task_event_logs
+        self.kubernetes_executor._task_event_logs.clear()
+        return self.local_executor._task_event_logs
+
+    @_task_event_logs.setter
+    def _task_event_logs(self, value):
+        raise NotImplementedError
+
+    @property
     def queued_tasks(self) -> dict[TaskInstanceKey, QueuedTaskInstanceType]:
         """Return queued tasks from local and kubernetes executor."""
         queued_tasks = self.local_executor.queued_tasks.copy()
