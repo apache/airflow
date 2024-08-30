@@ -72,15 +72,17 @@ def upgradedb(args):
     migratedb(args)
 
 
-def get_version_revision(
-    version: str, recursion_limit=10, revision_heads_map=_REVISION_HEADS_MAP
+def _get_version_revision(
+    version: str, recursion_limit: int = 10, revision_heads_map: dict[str, str] | None = None
 ) -> str | None:
     """
-    Recursively search for the revision of the given version.
+    Recursively search for the revision of the given version in revision_heads_map.
 
-    This searches REVISION_HEADS_MAP for the revision of the given version, recursively
+    This searches given revision_heads_map for the revision of the given version, recursively
     searching for the previous version if the given version is not found.
     """
+    if revision_heads_map is None:
+        revision_heads_map = _REVISION_HEADS_MAP
     if version in revision_heads_map:
         return revision_heads_map[version]
     try:
@@ -92,13 +94,19 @@ def get_version_revision(
     if recursion_limit <= 0:
         # Prevent infinite recursion as I can't imagine 10 successive versions without migration
         return None
-    return get_version_revision(new_version, recursion_limit)
+    return _get_version_revision(new_version, recursion_limit)
 
 
-@cli_utils.action_cli(check_db=False)
-@providers_configuration_loaded
-def migratedb(args):
-    """Migrates the metadata database."""
+def run_db_migrate_command(args, command, revision_heads_map: dict[str, str], airflow_db: bool = True):
+    """
+    Run the db migrate command.
+
+    param args: The parsed arguments.
+    param command: The command to run.
+    param airflow_db: Whether the command is for the airflow database.
+
+    :meta private:
+    """
     print(f"DB: {settings.engine.url!r}")
     if args.to_revision and args.to_version:
         raise SystemExit("Cannot supply both `--to-revision` and `--to-version`.")
@@ -117,9 +125,10 @@ def migratedb(args):
             parsed_version = parse_version(args.from_version)
         except InvalidVersion:
             raise SystemExit(f"Invalid version {args.from_version!r} supplied as `--from-version`.")
-        if parsed_version < parse_version("2.0.0"):
-            raise SystemExit("--from-version must be greater or equal to than 2.0.0")
-        from_revision = get_version_revision(args.from_version)
+        if airflow_db:
+            if parsed_version < parse_version("2.0.0"):
+                raise SystemExit("--from-version must be greater or equal to than 2.0.0")
+        from_revision = _get_version_revision(args.from_version, revision_heads_map=revision_heads_map)
         if not from_revision:
             raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
 
@@ -128,7 +137,7 @@ def migratedb(args):
             parse_version(args.to_version)
         except InvalidVersion:
             raise SystemExit(f"Invalid version {args.to_version!r} supplied as `--to-version`.")
-        to_revision = get_version_revision(args.to_version)
+        to_revision = _get_version_revision(args.to_version, revision_heads_map=revision_heads_map)
         if not to_revision:
             raise SystemExit(f"Unknown version {args.to_version!r} supplied as `--to-version`.")
     elif args.to_revision:
@@ -138,21 +147,22 @@ def migratedb(args):
         print(f"Performing upgrade to the metadata database {settings.engine.url!r}")
     else:
         print("Generating sql for upgrade -- upgrade commands will *not* be submitted.")
-
-    db.upgradedb(
+    command(
         to_revision=to_revision,
         from_revision=from_revision,
         show_sql_only=args.show_sql_only,
-        reserialize_dags=args.reserialize_dags,
     )
     if not args.show_sql_only:
         print("Database migrating done!")
 
 
-@cli_utils.action_cli(check_db=False)
-@providers_configuration_loaded
-def downgrade(args):
-    """Downgrades the metadata database."""
+def run_db_downgrade_command(args, command, revision_heads_map: dict[str, str]):
+    """
+    Run the db downgrade command.
+
+    param args: The parsed arguments.
+    param command: The command to run.
+    """
     if args.to_revision and args.to_version:
         raise SystemExit("Cannot supply both `--to-revision` and `--to-version`.")
     if args.from_version and args.from_revision:
@@ -164,14 +174,15 @@ def downgrade(args):
     if not (args.to_version or args.to_revision):
         raise SystemExit("Must provide either --to-revision or --to-version.")
     from_revision = None
+    to_revision = None
     if args.from_revision:
         from_revision = args.from_revision
     elif args.from_version:
-        from_revision = get_version_revision(args.from_version)
+        from_revision = _get_version_revision(args.from_version, revision_heads_map=revision_heads_map)
         if not from_revision:
             raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
     if args.to_version:
-        to_revision = get_version_revision(args.to_version)
+        to_revision = _get_version_revision(args.to_version, revision_heads_map=revision_heads_map)
         if not to_revision:
             raise SystemExit(f"Downgrading to version {args.to_version} is not supported.")
     elif args.to_revision:
@@ -190,11 +201,25 @@ def downgrade(args):
         ).upper()
         == "Y"
     ):
-        db.downgrade(to_revision=to_revision, from_revision=from_revision, show_sql_only=args.show_sql_only)
+        command(to_revision=to_revision, from_revision=from_revision, show_sql_only=args.show_sql_only)
         if not args.show_sql_only:
             print("Downgrade complete")
     else:
         raise SystemExit("Cancelled")
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
+def migratedb(args):
+    """Migrates the metadata database."""
+    run_db_migrate_command(args, db.upgradedb, _REVISION_HEADS_MAP, airflow_db=True)
+
+
+@cli_utils.action_cli(check_db=False)
+@providers_configuration_loaded
+def downgrade(args):
+    """Downgrades the metadata database."""
+    run_db_downgrade_command(args, db.downgrade, _REVISION_HEADS_MAP)
 
 
 @providers_configuration_loaded
