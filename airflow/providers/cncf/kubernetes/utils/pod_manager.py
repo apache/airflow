@@ -294,7 +294,7 @@ class PodLoggingStatus:
 
     running: bool
     last_log_time: DateTime | None
-    failed: bool | None = None
+    success: bool | None = None
 
 
 class PodManager(LoggingMixin):
@@ -513,7 +513,7 @@ class PodManager(LoggingMixin):
             if not container_is_running(remote_pod, container_name=container_name):
                 return PodLoggingStatus(
                     running=False,
-                    failed=not container_is_succeeded(remote_pod, container_name=container_name),
+                    success=container_is_succeeded(remote_pod, container_name=container_name),
                     last_log_time=last_log_time
                 )
             if not follow:

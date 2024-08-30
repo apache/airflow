@@ -777,11 +777,11 @@ class KubernetesPodOperator(BaseOperator):
                         self.invoke_defer_method(pod_log_status.last_log_time)
                     else:
                         event = event.copy()
-                        if pod_log_status.failed:
+                        if pod_log_status.success:
+                            event["status"] = "success"
+                        else:
                             event["status"] = "failed"
                             event["message"] = "pod failure"
-                        else:
-                            event["status"] = "success"
                 else:
                     self.invoke_defer_method()
 
