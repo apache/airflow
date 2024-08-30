@@ -310,12 +310,12 @@ class GKEJobTrigger(BaseTrigger):
             kubernetes_provider = ProvidersManager().providers["apache-airflow-providers-cncf-kubernetes"]
             kubernetes_provider_name = kubernetes_provider.data["package-name"]
             kubernetes_provider_version = kubernetes_provider.version
-            min_version = "8.0.1"
-            if parse_version(kubernetes_provider_version) <= parse_version(min_version):
+            min_version = "8.4.1"
+            if parse_version(kubernetes_provider_version) < parse_version(min_version):
                 raise AirflowException(
-                    "You are trying to use `GKEStartJobOperator` in deferrable mode with the provider "
+                    "You are trying to use do_xcom_push in `GKEStartJobOperator` with the provider "
                     f"package {kubernetes_provider_name}=={kubernetes_provider_version} which doesn't "
-                    f"support this feature. Please upgrade it to version higher than {min_version}."
+                    f"support this feature. Please upgrade it to version higher than or equal to {min_version}."
                 )
             await self.hook.wait_until_container_complete(
                 name=self.pod_name,
