@@ -51,7 +51,7 @@ LISTENERS = [
 
 DAG_ID = "test_listener_dag"
 TASK_ID = "test_listener_task"
-EXECUTION_DATE = timezone.utcnow()
+LOGICAL_DATE = timezone.utcnow()
 
 TEST_DAG_FOLDER = os.environ["AIRFLOW__CORE__DAGS_FOLDER"]
 
@@ -138,7 +138,7 @@ def test_listener_captures_failed_taskinstances(create_task_instance_of_operator
     lm.add_listener(full_listener)
 
     ti = create_task_instance_of_operator(
-        BashOperator, dag_id=DAG_ID, execution_date=EXECUTION_DATE, task_id=TASK_ID, bash_command="exit 1"
+        BashOperator, dag_id=DAG_ID, logical_date=LOGICAL_DATE, task_id=TASK_ID, bash_command="exit 1"
     )
     with pytest.raises(AirflowException):
         ti._run_raw_task()
@@ -153,7 +153,7 @@ def test_listener_captures_longrunning_taskinstances(create_task_instance_of_ope
     lm.add_listener(full_listener)
 
     ti = create_task_instance_of_operator(
-        BashOperator, dag_id=DAG_ID, execution_date=EXECUTION_DATE, task_id=TASK_ID, bash_command="sleep 5"
+        BashOperator, dag_id=DAG_ID, logical_date=LOGICAL_DATE, task_id=TASK_ID, bash_command="sleep 5"
     )
     ti._run_raw_task()
 

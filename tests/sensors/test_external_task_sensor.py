@@ -1126,7 +1126,7 @@ def test_external_task_sensor_extra_link(
     ti = create_task_instance_of_operator(
         ExternalTaskSensor,
         dag_id="external_task_sensor_extra_links_dag",
-        execution_date=DEFAULT_DATE,
+        logical_date=DEFAULT_DATE,
         task_id="external_task_sensor_extra_links_task",
         external_dag_id=external_dag_id,
         external_task_id=external_task_id,
@@ -1290,7 +1290,7 @@ def run_tasks(
 
     for dag in dag_bag.dags.values():
         dagrun = dag.create_dagrun(
-            state=State.RUNNING,
+            state=DagRunState.RUNNING,
             logical_date=logical_date,
             start_date=logical_date,
             run_type=DagRunType.MANUAL,

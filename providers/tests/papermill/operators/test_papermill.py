@@ -200,7 +200,7 @@ class TestPapermillOperator:
             # TI Settings
             dag_id="test_render_template",
             task_id="render_dag_test",
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
         )
         task = ti.render_templates()
 

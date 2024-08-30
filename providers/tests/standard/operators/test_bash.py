@@ -277,7 +277,7 @@ class TestBashOperator:
             # Other parameters
             dag_id="test_templated_fields_dag",
             task_id="test_templated_fields_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
         ti.render_templates()
         task: BashOperator = ti.task

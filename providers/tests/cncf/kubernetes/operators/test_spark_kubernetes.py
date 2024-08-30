@@ -700,7 +700,7 @@ def test_template_body_templating(create_task_instance_of_operator, session):
         dag_id="test_template_body_templating_dag",
         task_id="test_template_body_templating_task",
         session=session,
-        execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
     )
     session.add(ti)
     session.commit()

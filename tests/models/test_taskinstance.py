@@ -2075,7 +2075,7 @@ class TestTaskInstance:
         assert 1 == tis2[("task_3", 0)].get_num_running_task_instances(session=session, same_dagrun=True)
 
     def test_log_url(self, create_task_instance):
-        ti = create_task_instance(dag_id="my_dag", task_id="op", execution_date=timezone.datetime(2018, 1, 1))
+        ti = create_task_instance(dag_id="my_dag", task_id="op", logical_date=timezone.datetime(2018, 1, 1))
 
         expected_url = (
             "http://localhost:8080"
@@ -2089,7 +2089,7 @@ class TestTaskInstance:
 
     def test_mark_success_url(self, create_task_instance):
         now = pendulum.now("Europe/Brussels")
-        ti = create_task_instance(dag_id="dag", task_id="op", execution_date=now)
+        ti = create_task_instance(dag_id="dag", task_id="op", logical_date=now)
         query = urllib.parse.parse_qs(
             urllib.parse.urlsplit(ti.mark_success_url).query, keep_blank_values=True, strict_parsing=True
         )
@@ -2254,7 +2254,7 @@ class TestTaskInstance:
         ti = create_task_instance(
             on_success_callback=callback_wrapper.success_handler,
             end_date=timezone.utcnow() + datetime.timedelta(days=10),
-            execution_date=timezone.utcnow(),
+            logical_date=timezone.utcnow(),
             state=State.RUNNING,
         )
 
@@ -3386,7 +3386,7 @@ class TestTaskInstance:
         ],
     )
     def test_deprecated_context(self, field, expected, create_task_instance):
-        ti = create_task_instance(execution_date=DEFAULT_DATE, serialized=True)
+        ti = create_task_instance(logical_date=DEFAULT_DATE, serialized=True)
         context = ti.get_template_context()
         with pytest.deprecated_call() as recorder:
             assert context[field] == expected
@@ -3404,7 +3404,7 @@ class TestTaskInstance:
             start_date=DEFAULT_DATE,
             schedule=AfterWorkdayTimetable(),
             run_type=DagRunType.SCHEDULED,
-            execution_date=timezone.datetime(2021, 9, 6),
+            logical_date=timezone.datetime(2021, 9, 6),
             data_interval=(timezone.datetime(2021, 9, 6), timezone.datetime(2021, 9, 7)),
         )
         session.add(ti)
@@ -5344,7 +5344,7 @@ def test_swallow_mini_scheduler_exceptions(_schedule_downstream_mock, create_tas
         dag_id="dag_for_testing_swallowing_exception",
         task_id="task_for_testing_swallowing_exception",
         run_type=DagRunType.SCHEDULED,
-        execution_date=DEFAULT_DATE,
+        logical_date=DEFAULT_DATE,
     )
     ti.schedule_downstream_tasks()
     assert "Error scheduling downstream tasks." in caplog.text

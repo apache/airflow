@@ -62,11 +62,11 @@ def _compare_xcom_collections(collection1: dict, collection_2: dict):
 
 @pytest.fixture
 def create_xcom(create_task_instance, session):
-    def maker(dag_id, task_id, execution_date, key, map_index=-1, value=None):
+    def maker(dag_id, task_id, logical_date, key, map_index=-1, value=None):
         ti = create_task_instance(
             dag_id=dag_id,
             task_id=task_id,
-            execution_date=execution_date,
+            logical_date=logical_date,
             map_index=map_index,
             session=session,
         )
@@ -77,7 +77,7 @@ def create_xcom(create_task_instance, session):
             map_index=map_index,
             key=key,
             value=value,
-            timestamp=run.execution_date,
+            timestamp=run.logical_date,
             dag_id=run.dag_id,
             run_id=run.run_id,
         )
@@ -96,7 +96,7 @@ class TestXComCollectionItemSchema:
         create_xcom(
             dag_id="test_dag",
             task_id="test_task_id",
-            execution_date=self.default_time_parsed,
+            logical_date=self.default_time_parsed,
             key="test_key",
         )
         xcom_model = session.query(XCom).first()
@@ -140,13 +140,13 @@ class TestXComCollectionSchema:
         create_xcom(
             dag_id="test_dag_1",
             task_id="test_task_id_1",
-            execution_date=self.time_1,
+            logical_date=self.time_1,
             key="test_key_1",
         )
         create_xcom(
             dag_id="test_dag_2",
             task_id="test_task_id_2",
-            execution_date=self.time_2,
+            logical_date=self.time_2,
             key="test_key_2",
         )
         xcom_models = session.scalars(
@@ -195,7 +195,7 @@ class TestXComSchema:
         create_xcom(
             dag_id="test_dag",
             task_id="test_task_id",
-            execution_date=self.default_time_parsed,
+            logical_date=self.default_time_parsed,
             key="test_key",
             value=pickle.dumps(b"test_binary"),
         )
