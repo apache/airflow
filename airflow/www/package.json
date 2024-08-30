@@ -99,6 +99,7 @@
     "webpack-manifest-plugin": "^4.0.0"
   },
   "dependencies": {
+    "@chakra-ui/anatomy": "^2.2.2",
     "@chakra-ui/react": "2.4.2",
     "@emotion/cache": "^11.9.3",
     "@emotion/react": "^11.9.3",
