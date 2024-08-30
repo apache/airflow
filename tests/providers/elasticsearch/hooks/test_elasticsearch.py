@@ -119,7 +119,9 @@ class TestElasticsearchSQLHook:
 
         self.cur.execute.assert_called_once_with(statement)
 
-    @mock.patch("airflow.providers.elasticsearch.hooks.elasticsearch.SqlClient.query")
+    @mock.patch(
+        "airflow.providers.elasticsearch.hooks.elasticsearch.elasticsearch._sync.client.sql.SqlClient.query"
+    )
     def test_execute_sql_query(self, mock_query):
         mock_query.return_value = {
             "columns": [{"name": "id"}, {"name": "first_name"}],
