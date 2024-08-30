@@ -98,4 +98,4 @@ connection-types:
 
 asset-uris:
   - schemes: [postgres, postgresql]
-    handler: airflow.providers.postgres.datasets.postgres.sanitize_uri
+    handler: airflow.providers.postgres.assets.postgres.sanitize_uri

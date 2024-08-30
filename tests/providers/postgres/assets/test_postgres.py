@@ -21,7 +21,7 @@ import urllib.parse
 
 import pytest
 
-from airflow.providers.postgres.datasets.postgres import sanitize_uri
+from airflow.providers.postgres.assets.postgres import sanitize_uri
 
 
 @pytest.mark.parametrize(
