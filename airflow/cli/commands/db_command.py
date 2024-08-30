@@ -147,11 +147,19 @@ def run_db_migrate_command(args, command, revision_heads_map: dict[str, str], ai
         print(f"Performing upgrade to the metadata database {settings.engine.url!r}")
     else:
         print("Generating sql for upgrade -- upgrade commands will *not* be submitted.")
-    command(
-        to_revision=to_revision,
-        from_revision=from_revision,
-        show_sql_only=args.show_sql_only,
-    )
+    if airflow_db:
+        command(
+            to_revision=to_revision,
+            from_revision=from_revision,
+            show_sql_only=args.show_sql_only,
+            reserialize_dags=True,
+        )
+    else:
+        command(
+            to_revision=to_revision,
+            from_revision=from_revision,
+            show_sql_only=args.show_sql_only,
+        )
     if not args.show_sql_only:
         print("Database migrating done!")
 
