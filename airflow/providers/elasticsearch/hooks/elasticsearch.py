@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import sys
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 from urllib import parse
@@ -33,9 +32,6 @@ if TYPE_CHECKING:
     from elastic_transport import ObjectApiResponse
 
     from airflow.models.connection import Connection as AirflowConnection
-
-if "pytest" in sys.modules:
-    import elasticsearch  # noqa: F401
 
 
 def connect(
