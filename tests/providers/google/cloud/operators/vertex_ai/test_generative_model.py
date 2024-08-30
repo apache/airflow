@@ -35,6 +35,7 @@ from airflow.providers.google.cloud.operators.vertex_ai.generative_model import 
     PromptLanguageModelOperator,
     PromptMultimodalModelOperator,
     PromptMultimodalModelWithMediaOperator,
+    SupervisedFineTuningTrainOperator,
     TextEmbeddingModelGetEmbeddingsOperator,
     TextGenerationModelPredictOperator,
 )
@@ -389,4 +390,42 @@ class TestVertexAIGenerativeModelGenerateContentOperator:
             generation_config=generation_config,
             safety_settings=safety_settings,
             pretrained_model=pretrained_model,
+        )
+
+
+class TestVertexAISupervisedFineTuningTrainOperator:
+    @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
+    @mock.patch("google.cloud.aiplatform_v1.types.TuningJob.to_dict")
+    def test_execute(
+        self,
+        to_dict_mock,
+        mock_hook,
+    ):
+        source_model = "gemini-1.0-pro-002"
+        train_dataset = "gs://cloud-samples-data/ai-platform/generative_ai/sft_train_data.jsonl"
+
+        op = SupervisedFineTuningTrainOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            source_model=source_model,
+            train_dataset=train_dataset,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.supervised_fine_tuning_train.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            source_model=source_model,
+            train_dataset=train_dataset,
+            adapter_size=None,
+            epochs=None,
+            learning_rate_multiplier=None,
+            tuned_model_display_name=None,
+            validation_dataset=None,
         )
