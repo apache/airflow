@@ -1148,6 +1148,7 @@ repos:
         files: ^airflow/ui/|^airflow/api_connexion/openapi/v1\.yaml$
         entry: ./scripts/ci/pre_commit/lint_ui.py
         additional_dependencies: ['pnpm@9.7.1']
+        pass_filenames: false
       - id: check-tests-unittest-testcase
         name: Check that unit tests do not inherit from unittest.TestCase
         entry: ./scripts/ci/pre_commit/unittest_testcase.py
