@@ -115,4 +115,4 @@ connection-types:
 
 asset-uris:
   - schemes: [mysql, mariadb]
-    handler: airflow.providers.mysql.datasets.mysql.sanitize_uri
+    handler: airflow.providers.mysql.assets.mysql.sanitize_uri

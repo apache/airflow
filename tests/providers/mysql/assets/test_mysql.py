@@ -21,7 +21,7 @@ import urllib.parse
 
 import pytest
 
-from airflow.providers.mysql.datasets.mysql import sanitize_uri
+from airflow.providers.mysql.assets.mysql import sanitize_uri
 
 
 @pytest.mark.parametrize(
