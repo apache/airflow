@@ -18,6 +18,64 @@
 Node.js Environment Setup
 =========================
 
+Contributing to the UI in Airflow
+-----------------------------------------
+
+In Airflow 3, we are moving the UI away from Flask App Builder views to a pure React powered frontend living at ``airflow/ui``.
+During 3.0 development, we will need to run both the new and legacy UIs at the same time until the new UI is feature-complete.
+But we want to limit modifications to the legacy ``airflow/www`` views, to mainly three rules:
+
+1. Bug fixes to cherry pick for 2.10.x and 2.11
+2. The minimum necessary to unblock other Airflow 3.0 feature work
+3. Fixes to react views which we haven't migrated over yet, but can still be ported over to the new UI
+
+Custom endpoints for the UI will also be moved away from ``airflow/www/views.py`` and to ``airflow/api_ui``.
+Contributions to the legacy views file will follow the same rules.
+Committers will exercise their judgement on what endpoints should exist in the public ``airflow/api_connexion`` versus the private ``airflow/api_ui``
+
+Airflow UI
+-----------------------------------------
+
+``airflow/ui`` is our React frontend powered by Vite with dependencies managed by pnpm.
+Make sure you are using recent versions of pnpm\>=9 and node/>=20. ``breeze start-airflow`` will build the UI automatically.
+Adding the ``--dev-mode`` flag will automatically run the vite dev server for hot reloading the UI during local development.
+
+pnpm commands
+-----------------------------------------
+
+Follow the `pnpm docs <https://pnpm.io/installation>`__ to install pnpm locally and `nvm <https://github.com/nvm-sh/nvm>`__ to manage your node version.
+
+.. code-block:: bash
+
+    # install dependencies
+    pnpm install
+
+    # Run vite dev server for local development
+    pnpm dev
+
+    # Generate production build files will be at airflow/ui/dist
+    pnpm build
+
+    # Format code in .ts, .tsx, .json, .css, .html files
+    pnpm format
+
+    # Check JS/TS code in .ts, .tsx, .html files and report any errors/warnings
+    pnpm lint
+
+    # Check JS/TS code in .ts, .tsx, .html files and report any errors/warnings and fix them if possible
+    pnpm lint:fix
+
+    # Run tests for all .test.ts, test.tsx files
+    pnpm test
+
+    # Generate queries and types from the REST API OpenAPI spec
+    pnpm codegen
+
+
+
+DEPRECATED Airflow WWW
+-----------------------------------------
+
 ``airflow/www/`` contains all yarn-managed, front-end assets. Flask-Appbuilder
 itself comes bundled with jQuery and bootstrap. While they may be phased out
 over time, these packages are currently not managed with yarn.
@@ -114,5 +172,8 @@ To make this work, all Chakra styling and css styling are completely separate. I
 that lives inside of the main app.
 
 ------
+
+
+
 
 If you happen to change architecture of Airflow, you can learn how we create our `Architecture diagrams <15_architecture_diagrams.rst>`__.
