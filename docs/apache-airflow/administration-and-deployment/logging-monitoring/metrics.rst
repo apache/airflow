@@ -201,10 +201,10 @@ Name                                                                   Descripti
                                                                        fully asynchronous)
 ``triggers.failed``                                                    Number of triggers that errored before they could fire an event
 ``triggers.succeeded``                                                 Number of triggers that have fired at least one event
-``asset.updates``                                                      Number of updated datasets
-``dataset.orphaned``                                                   Number of datasets marked as orphans because they are no longer referenced in DAG
+``asset.updates``                                                      Number of updated assets
+``asset.orphaned``                                                     Number of assets marked as orphans because they are no longer referenced in DAG
                                                                        schedule parameters or task outlets
-``dataset.triggered_dagruns``                                          Number of DAG runs triggered by a dataset update
+``asset.triggered_dagruns``                                            Number of DAG runs triggered by a asset update
 ====================================================================== ================================================================
 
 Gauges

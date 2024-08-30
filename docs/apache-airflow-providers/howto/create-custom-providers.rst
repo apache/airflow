@@ -98,7 +98,7 @@ Exposing customized functionality to the Airflow's core:
 
 * ``asset-uris`` - this field should contain the list of the URI schemes together with
   class names implementing normalization functions.
-  See :doc:`apache-airflow:authoring-and-scheduling/datasets` for description of the asset URIs.
+  See :doc:`apache-airflow:authoring-and-scheduling/assets` for description of the asset URIs.
 
 .. note:: Deprecated values
 
