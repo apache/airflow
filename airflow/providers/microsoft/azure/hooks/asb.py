@@ -348,7 +348,6 @@ class MessageHook(BaseAzureServiceBusHook):
             message will be abandoned for future redelivery.
         :param receiver: The receiver that received the message.
         """
-        print("message_callback:", message_callback)
         if message_callback is None:
             self.log.info(msg)
             receiver.complete_message(msg)
