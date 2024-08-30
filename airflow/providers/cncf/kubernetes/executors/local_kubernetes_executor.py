@@ -20,18 +20,22 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.configuration import conf
+from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor import KubernetesExecutor
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
-    from airflow.executors.base_executor import CommandType, EventBufferValueType, QueuedTaskInstanceType
+    from airflow.executors.base_executor import (
+        CommandType,
+        EventBufferValueType,
+        QueuedTaskInstanceType,
+    )
     from airflow.executors.local_executor import LocalExecutor
     from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskInstanceKey
 
 
-class LocalKubernetesExecutor(LoggingMixin):
+class LocalKubernetesExecutor(BaseExecutor):
     """
     Chooses between LocalExecutor and KubernetesExecutor based on the queue defined on the task.
 
@@ -57,7 +61,7 @@ class LocalKubernetesExecutor(LoggingMixin):
 
     def __init__(self, local_executor: LocalExecutor, kubernetes_executor: KubernetesExecutor):
         super().__init__()
-        self._job_id: str | None = None
+        self._job_id: int | str | None = None
         self.local_executor = local_executor
         self.kubernetes_executor = kubernetes_executor
         self.kubernetes_executor.kubernetes_queue = self.KUBERNETES_QUEUE
@@ -70,13 +74,21 @@ class LocalKubernetesExecutor(LoggingMixin):
 
         return queued_tasks
 
+    @queued_tasks.setter
+    def queued_tasks(self, value) -> None:
+        raise NotImplementedError
+
     @property
     def running(self) -> set[TaskInstanceKey]:
         """Return running tasks from local and kubernetes executor."""
         return self.local_executor.running.union(self.kubernetes_executor.running)
 
+    @running.setter
+    def running(self, value) -> None:
+        raise NotImplementedError
+
     @property
-    def job_id(self) -> str | None:
+    def job_id(self) -> int | str | None:
         """
         Inherited attribute from BaseExecutor.
 
@@ -86,7 +98,7 @@ class LocalKubernetesExecutor(LoggingMixin):
         return self._job_id
 
     @job_id.setter
-    def job_id(self, value: str | None) -> None:
+    def job_id(self, value: int | str | None) -> None:
         """Expose job ID for SchedulerJob."""
         self._job_id = value
         self.kubernetes_executor.job_id = value

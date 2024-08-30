@@ -122,7 +122,7 @@ class BaseExecutor(LoggingMixin):
     change_sensor_mode_to_reschedule: bool = False
     serve_logs: bool = False
 
-    job_id: None | int | str = None
+    job_id: int | str | None = None
     name: None | ExecutorName = None
     callback_sink: BaseCallbackSink | None = None
 

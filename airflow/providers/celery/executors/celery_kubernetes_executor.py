@@ -21,6 +21,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.configuration import conf
+from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 
 try:
@@ -30,18 +31,21 @@ except ImportError as e:
 
     raise AirflowOptionalProviderFeatureException(e)
 
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 
 if TYPE_CHECKING:
     from airflow.callbacks.base_callback_sink import BaseCallbackSink
     from airflow.callbacks.callback_requests import CallbackRequest
-    from airflow.executors.base_executor import CommandType, EventBufferValueType, QueuedTaskInstanceType
+    from airflow.executors.base_executor import (
+        CommandType,
+        EventBufferValueType,
+        QueuedTaskInstanceType,
+    )
     from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
     from airflow.models.taskinstancekey import TaskInstanceKey
 
 
-class CeleryKubernetesExecutor(LoggingMixin):
+class CeleryKubernetesExecutor(BaseExecutor):
     """
     CeleryKubernetesExecutor consists of CeleryExecutor and KubernetesExecutor.
 
@@ -71,7 +75,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
 
     def __init__(self, celery_executor: CeleryExecutor, kubernetes_executor: KubernetesExecutor):
         super().__init__()
-        self._job_id: int | None = None
+        self._job_id: int | str | None = None
         self.celery_executor = celery_executor
         self.kubernetes_executor = kubernetes_executor
         self.kubernetes_executor.kubernetes_queue = self.kubernetes_queue
@@ -84,13 +88,21 @@ class CeleryKubernetesExecutor(LoggingMixin):
 
         return queued_tasks
 
+    @queued_tasks.setter
+    def queued_tasks(self, value) -> None:
+        raise NotImplementedError
+
     @property
     def running(self) -> set[TaskInstanceKey]:
         """Return running tasks from celery and kubernetes executor."""
         return self.celery_executor.running.union(self.kubernetes_executor.running)
 
+    @running.setter
+    def running(self, value) -> None:
+        raise NotImplementedError
+
     @property
-    def job_id(self) -> int | None:
+    def job_id(self) -> int | str | None:
         """
         Inherited attribute from BaseExecutor.
 
@@ -100,7 +112,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         return self._job_id
 
     @job_id.setter
-    def job_id(self, value: int | None) -> None:
+    def job_id(self, value: int | str | None) -> None:
         """Expose job ID for SchedulerJob."""
         self._job_id = value
         self.kubernetes_executor.job_id = value
