@@ -19,7 +19,7 @@ Node.js Environment Setup
 =========================
 
 Contributing to the UI in Airflow
------------------------------------------
+---------------------------------
 
 In Airflow 3, we are moving the UI away from Flask App Builder views to a pure React powered frontend living at ``airflow/ui``.
 During 3.0 development, we will need to run both the new and legacy UIs at the same time until the new UI is feature-complete.
@@ -34,14 +34,14 @@ Contributions to the legacy views file will follow the same rules.
 Committers will exercise their judgement on what endpoints should exist in the public ``airflow/api_connexion`` versus the private ``airflow/api_ui``
 
 Airflow UI
------------------------------------------
+----------
 
-``airflow/ui`` is our React frontend powered by Vite with dependencies managed by pnpm.
-Make sure you are using recent versions of pnpm\>=9 and node/>=20. ``breeze start-airflow`` will build the UI automatically.
+``airflow/ui`` is our React frontend powered. Dependencies are managed by pnpm and dev/build processes by `Vite <https://vitejs.dev/guide/>`__
+Make sure you are using recent versions of ``pnpm\>=9`` and ``node/>=20``. ``breeze start-airflow`` will build the UI automatically.
 Adding the ``--dev-mode`` flag will automatically run the vite dev server for hot reloading the UI during local development.
 
 pnpm commands
------------------------------------------
+-------------
 
 Follow the `pnpm docs <https://pnpm.io/installation>`__ to install pnpm locally and `nvm <https://github.com/nvm-sh/nvm>`__ to manage your node version.
 
@@ -74,7 +74,7 @@ Follow the `pnpm docs <https://pnpm.io/installation>`__ to install pnpm locally 
 
 
 DEPRECATED Airflow WWW
------------------------------------------
+----------------------
 
 ``airflow/www/`` contains all yarn-managed, front-end assets. Flask-Appbuilder
 itself comes bundled with jQuery and bootstrap. While they may be phased out
@@ -161,7 +161,7 @@ Most IDE directly integrate with these tools, you can also manually run them wit
     yarn test
 
 React, JSX and Chakra
------------------------------
+---------------------
 
 In order to create a more modern UI, we have started to include `React <https://reactjs.org/>`__ in the ``airflow/www/`` project.
 If you are unfamiliar with React then it is recommended to check out their documentation to understand components and jsx syntax.
