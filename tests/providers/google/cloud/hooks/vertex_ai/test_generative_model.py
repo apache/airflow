@@ -217,3 +217,16 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             learning_rate_multiplier=None,
             tuned_model_display_name=None,
         )
+
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model"))
+    def test_count_tokens(self, mock_model) -> None:
+        self.hook.count_tokens(
+            project_id=GCP_PROJECT,
+            contents=TEST_CONTENTS,
+            location=GCP_LOCATION,
+            pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL,
+        )
+        mock_model.assert_called_once_with(TEST_MULTIMODAL_PRETRAINED_MODEL)
+        mock_model.return_value.count_tokens.assert_called_once_with(
+            contents=TEST_CONTENTS,
+        )
