@@ -222,6 +222,7 @@ celeryd
 celltags
 cfg
 cgi
+cgitb
 Cgroups
 cgroups
 cgroupspy
