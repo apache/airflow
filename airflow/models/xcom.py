@@ -257,7 +257,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         key: str | None = None,
         dag_id: str | None = None,
         task_id: str | None = None,
-        run_id: str | None = None,
+        run_id: str,
         map_index: int | None = None,
         session: Session = NEW_SESSION,
         include_prior_dates: bool = False,
@@ -290,9 +290,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
-        if not run_id:
-            raise ValueError("run_id must be passed")
-
         query = BaseXCom.get_many(
             run_id=run_id,
             key=key,
