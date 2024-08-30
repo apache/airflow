@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-29T05:01:03.273055
+# This constraints file was automatically generated on 2024-08-30T09:15:46.981297
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -53,7 +53,7 @@ bcrypt==4.2.0
 blinker==1.8.2
 botocore==1.35.7
 cachelib==0.9.0
-certifi==2024.7.4
+certifi==2024.8.30
 cffi==1.17.0
 cgroupspy==0.2.3
 charset-normalizer==3.3.2
