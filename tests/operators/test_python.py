@@ -1335,10 +1335,7 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
                 return
             raise RuntimeError
 
-        with pytest.warns(
-            RemovedInAirflow3Warning, match="Passing non-string types.*python_version is deprecated"
-        ):
-            self.run_as_task(f, python_version=3, serializer=serializer, requirements=extra_requirements)
+        self.run_as_task(f, python_version="3", serializer=serializer, requirements=extra_requirements)
 
     def test_with_default(self):
         def f(a):

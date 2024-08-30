@@ -693,11 +693,8 @@ class PythonVirtualenvOperator(_BasePythonVirtualenvOperator):
                 f"Sys version: {sys.version_info}. Virtual environment version: {python_version}"
             )
         if python_version is not None and not isinstance(python_version, str):
-            warnings.warn(
-                "Passing non-string types (e.g. int or float) as python_version "
-                "is deprecated. Please use string value instead.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
+            raise AirflowException(
+                "Passing non-string types (e.g. int or float) as python_version not supported"
             )
         if not is_venv_installed():
             raise AirflowException("PythonVirtualenvOperator requires virtualenv, please install it.")
