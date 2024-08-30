@@ -74,7 +74,7 @@ class LocalKubernetesExecutor(BaseExecutor):
 
     @_task_event_logs.setter
     def _task_event_logs(self, value):
-        raise NotImplementedError
+        """Not implemented for hybrid executors."""
 
     @property
     def queued_tasks(self) -> dict[TaskInstanceKey, QueuedTaskInstanceType]:
@@ -86,7 +86,7 @@ class LocalKubernetesExecutor(BaseExecutor):
 
     @queued_tasks.setter
     def queued_tasks(self, value) -> None:
-        raise NotImplementedError
+        """Not implemented for hybrid executors."""
 
     @property
     def running(self) -> set[TaskInstanceKey]:
@@ -95,7 +95,7 @@ class LocalKubernetesExecutor(BaseExecutor):
 
     @running.setter
     def running(self, value) -> None:
-        raise NotImplementedError
+        """Not implemented for hybrid executors."""
 
     @property
     def job_id(self) -> int | str | None:
