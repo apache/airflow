@@ -635,6 +635,17 @@ The operator returns the evaluation summary metrics in :ref:`XCom <concepts:xcom
     :start-after: [START how_to_cloud_vertex_ai_run_evaluation_operator]
     :end-before: [END how_to_cloud_vertex_ai_run_evaluation_operator]
 
+
+To evaluate a model you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.RunEvaluationOperator`.
+The operator returns the evaluation summary metrics in :ref:`XCom <concepts:xcom>` under ``summary_metrics`` key.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_run_evaluation_operator]
+    :end-before: [END how_to_cloud_vertex_ai_run_evaluation_operator]
+
 Reference
 ^^^^^^^^^
 

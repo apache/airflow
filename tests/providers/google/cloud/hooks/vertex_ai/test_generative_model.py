@@ -281,3 +281,35 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             prompt_template=TEST_PROMPT_TEMPLATE,
             experiment_run_name=TEST_EXPERIMENT_RUN_NAME,
         )
+
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_generative_model"))
+    @mock.patch(GENERATIVE_MODEL_STRING.format("GenerativeModelHook.get_eval_task"))
+    def test_run_evaluation(self, mock_eval_task, mock_model) -> None:
+        self.hook.run_evaluation(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL,
+            eval_dataset=TEST_EVAL_DATASET,
+            metrics=TEST_METRICS,
+            experiment_name=TEST_EXPERIMENT_NAME,
+            experiment_run_name=TEST_EXPERIMENT_RUN_NAME,
+            prompt_template=TEST_PROMPT_TEMPLATE,
+        )
+
+        mock_model.assert_called_once_with(
+            pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL,
+            system_instruction=None,
+            generation_config=None,
+            safety_settings=None,
+            tools=None,
+        )
+        mock_eval_task.assert_called_once_with(
+            dataset=TEST_EVAL_DATASET,
+            metrics=TEST_METRICS,
+            experiment=TEST_EXPERIMENT_NAME,
+        )
+        mock_eval_task.return_value.evaluate.assert_called_once_with(
+            model=mock_model.return_value,
+            prompt_template=TEST_PROMPT_TEMPLATE,
+            experiment_run_name=TEST_EXPERIMENT_RUN_NAME,
+        )

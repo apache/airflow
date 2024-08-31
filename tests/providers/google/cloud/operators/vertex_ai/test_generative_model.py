@@ -506,3 +506,90 @@ class TestVertexAIRunEvaluationOperator:
             safety_settings=safety_settings,
             tools=tools,
         )
+
+
+class TestVertexAIRunEvaluationOperator:
+    @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
+    def test_execute(
+        self,
+        mock_hook,
+    ):
+        tools = [Tool.from_google_search_retrieval(grounding.GoogleSearchRetrieval())]
+        pretrained_model = "gemini-pro"
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        }
+        generation_config = {"max_output_tokens": 256, "top_p": 0.8, "temperature": 0.0}
+
+        eval_dataset = {
+            "context": [
+                "To make a classic spaghetti carbonara, start by bringing a large pot of salted water to a boil. While the water is heating up, cook pancetta or guanciale in a skillet with olive oil over medium heat until it's crispy and golden brown. Once the pancetta is done, remove it from the skillet and set it aside. In the same skillet, whisk together eggs, grated Parmesan cheese, and black pepper to make the sauce. When the pasta is cooked al dente, drain it and immediately toss it in the skillet with the egg mixture, adding a splash of the pasta cooking water to create a creamy sauce.",
+                "Preparing a perfect risotto requires patience and attention to detail. Begin by heating butter in a large, heavy-bottomed pot over medium heat. Add finely chopped onions and minced garlic to the pot, and cook until they're soft and translucent, about 5 minutes. Next, add Arborio rice to the pot and cook, stirring constantly, until the grains are coated with the butter and begin to toast slightly. Pour in a splash of white wine and cook until it's absorbed. From there, gradually add hot chicken or vegetable broth to the rice, stirring frequently, until the risotto is creamy and the rice is tender with a slight bite.",
+                "For a flavorful grilled steak, start by choosing a well-marbled cut of beef like ribeye or New York strip. Season the steak generously with kosher salt and freshly ground black pepper on both sides, pressing the seasoning into the meat. Preheat a grill to high heat and brush the grates with oil to prevent sticking. Place the seasoned steak on the grill and cook for about 4-5 minutes on each side for medium-rare, or adjust the cooking time to your desired level of doneness. Let the steak rest for a few minutes before slicing against the grain and serving.",
+                "Creating a creamy homemade tomato soup is a comforting and simple process. Begin by heating olive oil in a large pot over medium heat. Add diced onions and minced garlic to the pot and cook until they're soft and fragrant. Next, add chopped fresh tomatoes, chicken or vegetable broth, and a sprig of fresh basil to the pot. Simmer the soup for about 20-30 minutes, or until the tomatoes are tender and falling apart. Remove the basil sprig and use an immersion blender to puree the soup until smooth. Season with salt and pepper to taste before serving.",
+                "To bake a decadent chocolate cake from scratch, start by preheating your oven to 350°F (175°C) and greasing and flouring two 9-inch round cake pans. In a large mixing bowl, cream together softened butter and granulated sugar until light and fluffy. Beat in eggs one at a time, making sure each egg is fully incorporated before adding the next. In a separate bowl, sift together all-purpose flour, cocoa powder, baking powder, baking soda, and salt. Divide the batter evenly between the prepared cake pans and bake for 25-30 minutes, or until a toothpick inserted into the center comes out clean.",
+            ],
+            "instruction": ["Summarize the following article"] * 5,
+            "reference": [
+                "The process of making spaghetti carbonara involves boiling pasta, crisping pancetta or guanciale, whisking together eggs and Parmesan cheese, and tossing everything together to create a creamy sauce.",
+                "Preparing risotto entails sautéing onions and garlic, toasting Arborio rice, adding wine and broth gradually, and stirring until creamy and tender.",
+                "Grilling a flavorful steak involves seasoning generously, preheating the grill, cooking to desired doneness, and letting it rest before slicing.",
+                "Creating homemade tomato soup includes sautéing onions and garlic, simmering with tomatoes and broth, pureeing until smooth, and seasoning to taste.",
+                "Baking a decadent chocolate cake requires creaming butter and sugar, beating in eggs and alternating dry ingredients with buttermilk before baking until done.",
+            ],
+        }
+        metrics = [
+            MetricPromptTemplateExamples.Pointwise.SUMMARIZATION_QUALITY,
+            MetricPromptTemplateExamples.Pointwise.GROUNDEDNESS,
+            MetricPromptTemplateExamples.Pointwise.VERBOSITY,
+            MetricPromptTemplateExamples.Pointwise.INSTRUCTION_FOLLOWING,
+            "exact_match",
+            "bleu",
+            "rouge_1",
+            "rouge_2",
+            "rouge_l_sum",
+        ]
+        experiment_name = "eval-experiment-airflow-operator"
+        experiment_run_name = "eval-experiment-airflow-operator-run"
+        prompt_template = "{instruction}. Article: {context}. Summary:"
+        system_instruction = "be concise."
+
+        op = RunEvaluationOperator(
+            task_id=TASK_ID,
+            pretrained_model=pretrained_model,
+            eval_dataset=eval_dataset,
+            metrics=metrics,
+            experiment_name=experiment_name,
+            experiment_run_name=experiment_run_name,
+            prompt_template=prompt_template,
+            system_instruction=system_instruction,
+            generation_config=generation_config,
+            safety_settings=safety_settings,
+            tools=tools,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.run_evaluation.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            pretrained_model=pretrained_model,
+            eval_dataset=eval_dataset,
+            metrics=metrics,
+            experiment_name=experiment_name,
+            experiment_run_name=experiment_run_name,
+            prompt_template=prompt_template,
+            system_instruction=system_instruction,
+            generation_config=generation_config,
+            safety_settings=safety_settings,
+            tools=tools,
+        )
