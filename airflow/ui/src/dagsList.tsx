@@ -17,7 +17,13 @@
  * under the License.
  */
 
-import React, { Fragment, Dispatch } from "react";
+import React, { Fragment } from "react";
+
+import {
+  OnChangeFn,
+  PaginationState,
+  Table as TanStackTable,
+} from "@tanstack/table-core";
 
 import {
   useReactTable,
@@ -43,11 +49,6 @@ import {
 } from "@chakra-ui/react";
 
 import { DAG } from "openapi/requests/types.gen";
-
-export interface IPagination {
-  pageIndex: number;
-  pageSize: number;
-}
 
 const columns: ColumnDef<DAG>[] = [
   {
@@ -95,9 +96,73 @@ type TableProps<TData> = {
   columns: ColumnDef<TData>[];
   renderSubComponent: (props: { row: Row<TData> }) => React.ReactElement;
   getRowCanExpand: (row: Row<TData>) => boolean;
-  pagination: IPagination;
-  setPagination: Dispatch<IPagination>;
+  pagination: PaginationState;
+  setPagination: OnChangeFn<PaginationState>;
 };
+
+type PaginatorProps<TData> = {
+  table: TanStackTable<TData>;
+};
+
+function TablePaginator({ table }: PaginatorProps<DAG>) {
+  const pageInterval = 3;
+  const currentPageNumber = table.getState().pagination.pageIndex + 1;
+  const startPageNumber = Math.max(1, currentPageNumber - pageInterval);
+  const endPageNumber = Math.min(
+    table.getPageCount(),
+    startPageNumber + pageInterval * 2
+  );
+  const pageNumbers = [];
+
+  for (let index = startPageNumber; index <= endPageNumber; index++) {
+    pageNumbers.push(
+      <Button
+        borderRadius={0}
+        key={index}
+        isDisabled={index === currentPageNumber}
+        onClick={() => table.setPageIndex(index - 1)}
+      >
+        {" "}
+        {index}{" "}
+      </Button>
+    );
+  }
+
+  return (
+    <Box mt={2} mb={2}>
+      <Button
+        borderRadius={0}
+        onClick={() => table.firstPage()}
+        isDisabled={!table.getCanPreviousPage()}
+      >
+        {"<<"}
+      </Button>
+
+      <Button
+        borderRadius={0}
+        onClick={() => table.previousPage()}
+        isDisabled={!table.getCanPreviousPage()}
+      >
+        {"<"}
+      </Button>
+      {pageNumbers}
+      <Button
+        borderRadius={0}
+        onClick={() => table.nextPage()}
+        isDisabled={!table.getCanNextPage()}
+      >
+        {">"}
+      </Button>
+      <Button
+        borderRadius={0}
+        onClick={() => table.lastPage()}
+        isDisabled={!table.getCanNextPage()}
+      >
+        {">>"}
+      </Button>
+    </Box>
+  );
+}
 
 const Table = ({
   data,
@@ -115,8 +180,6 @@ const Table = ({
     getCoreRowModel: getCoreRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-
-    // @ts-expect-error : Update type and interface later
     onPaginationChange: setPagination,
     rowCount: total ?? 0,
     manualPagination: true,
@@ -178,37 +241,7 @@ const Table = ({
           })}
         </Tbody>
       </ChakraTable>
-      <Box mt={2}>
-        <Button
-          borderRadius={0}
-          onClick={() => table.firstPage()}
-          isDisabled={!table.getCanPreviousPage()}
-        >
-          {"<<"}
-        </Button>
-
-        <Button
-          borderRadius={0}
-          onClick={() => table.previousPage()}
-          isDisabled={!table.getCanPreviousPage()}
-        >
-          {"<"}
-        </Button>
-        <Button
-          borderRadius={0}
-          onClick={() => table.nextPage()}
-          isDisabled={!table.getCanNextPage()}
-        >
-          {">"}
-        </Button>
-        <Button
-          borderRadius={0}
-          onClick={() => table.lastPage()}
-          isDisabled={!table.getCanNextPage()}
-        >
-          {">>"}
-        </Button>
-      </Box>
+      <TablePaginator table={table} />
     </TableContainer>
   );
 };
@@ -229,8 +262,8 @@ export const DagsList = ({
 }: {
   data: DAG[];
   total: number | undefined;
-  pagination: IPagination;
-  setPagination: Dispatch<IPagination>;
+  pagination: PaginationState;
+  setPagination: OnChangeFn<PaginationState>;
 }) => {
   return (
     <Table

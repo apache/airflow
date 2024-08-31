@@ -19,14 +19,16 @@
 
 import { useState } from "react";
 import { Box, Spinner } from "@chakra-ui/react";
+import { PaginationState } from "@tanstack/react-table";
 
 import { useDagServiceGetDags } from "openapi/queries";
-import { DagsList, IPagination } from "src/dagsList";
+import { DagsList } from "src/dagsList";
 import { Nav } from "src/nav";
 
 export const App = () => {
+  // TODO: Change this to be taken from airflow.cfg
   const pageSize = 10;
-  const [pagination, setPagination] = useState<IPagination>({
+  const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: pageSize,
   });
