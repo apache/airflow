@@ -79,7 +79,6 @@ from airflow.exceptions import (
     AirflowSkipException,
     AirflowTaskTerminated,
     AirflowTaskTimeout,
-    RemovedInAirflow3Warning,
     TaskDeferralError,
     TaskDeferred,
     UnmappableXComLengthPushed,
