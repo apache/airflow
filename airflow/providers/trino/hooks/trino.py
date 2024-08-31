@@ -86,6 +86,7 @@ class TrinoHook(DbApiHook):
     default_conn_name = "trino_default"
     conn_type = "trino"
     hook_name = "Trino"
+    strip_semicolon = True
     query_id = ""
     _test_connection_sql = "select 1"
 
