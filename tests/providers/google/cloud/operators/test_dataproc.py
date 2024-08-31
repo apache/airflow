@@ -1346,7 +1346,12 @@ class TestDataprocClusterDeleteOperator:
 class TestDataprocSubmitJobOperator(DataprocJobTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
-        xcom_push_call = call.ti.xcom_push(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
+        if AIRFLOW_V_3_0_PLUS:
+            xcom_push_call = call.ti.xcom_push(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
+        else:
+            xcom_push_call = call.ti.xcom_push(
+                key="dataproc_job", value=DATAPROC_JOB_EXPECTED, execution_date=None
+            )
         wait_for_job_call = call.hook().wait_for_job(
             job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT, timeout=None
         )
