@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-30T13:41:48.748627
+# This constraints file was automatically generated on 2024-08-31T13:40:28.671483
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -183,7 +183,7 @@ et-xmlfile==1.1.0
 eventlet==0.36.1
 execnet==2.1.1
 executing==2.0.1
-facebook_business==20.0.1
+facebook_business==20.0.2
 fastapi-cli==0.0.5
 fastapi==0.112.2
 fastavro==1.9.5
@@ -356,7 +356,7 @@ multi_key_dict==2.0.3
 multidict==6.0.5
 mypy-boto3-appflow==1.35.0
 mypy-boto3-rds==1.35.0
-mypy-boto3-redshift-data==1.35.0
+mypy-boto3-redshift-data==1.35.10
 mypy-boto3-s3==1.35.2
 mypy-extensions==1.0.0
 mypy==1.9.0
@@ -556,7 +556,7 @@ stack-data==0.6.3
 starkbank-ecdsa==2.2.0
 starlette==0.38.2
 statsd==4.0.1
-std-uritemplate==1.0.5
+std-uritemplate==1.0.6
 strictyaml==1.7.3
 sympy==1.13.2
 tableauserverclient==0.32
@@ -597,7 +597,7 @@ types-python-slugify==8.0.2.20240310
 types-pytz==2024.1.0.20240417
 types-redis==4.6.0.20240819
 types-requests==2.32.0.20240712
-types-setuptools==74.0.0.20240830
+types-setuptools==74.0.0.20240831
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
@@ -632,7 +632,7 @@ xmltodict==0.13.0
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.315.0
-yarl==1.9.4
+yarl==1.9.6
 ydb==3.16.0
 zeep==4.2.1
 zenpy==2.0.50
