@@ -84,6 +84,7 @@ class PrestoHook(DbApiHook):
     default_conn_name = "presto_default"
     conn_type = "presto"
     hook_name = "Presto"
+    strip_semicolon = True
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
