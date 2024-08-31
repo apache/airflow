@@ -21,7 +21,7 @@ import warnings
 from collections import namedtuple
 from contextlib import closing
 from copy import copy
-from datetime import timedelta
+from datetime import timedelta, datetime
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -37,12 +37,8 @@ from typing import (
 
 from databricks import sql  # type: ignore[attr-defined]
 
-from airflow.exceptions import (
-    AirflowException,
-    AirflowProviderDeprecationWarning,
-)
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.common.sql.hooks.sql import DbApiHook, return_single_query_results
-from airflow.providers.databricks.exceptions import DatabricksSqlExecutionError, DatabricksSqlExecutionTimeout
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 if TYPE_CHECKING:
@@ -196,11 +192,11 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         self,
         sql: str | Iterable[str],
         autocommit: bool = ...,
-        execution_timeout: timedelta | None = ...,
         parameters: Iterable | Mapping[str, Any] | None = ...,
         handler: None = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
+        execution_timeout: timedelta | None = ...,
     ) -> None: ...
 
     @overload
@@ -208,11 +204,11 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         self,
         sql: str | Iterable[str],
         autocommit: bool = ...,
-        execution_timeout: timedelta | None = ...,
         parameters: Iterable | Mapping[str, Any] | None = ...,
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
+        execution_timeout: timedelta | None = ...,
     ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None: ...
 
     def run(
@@ -241,8 +237,8 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         :param handler: The result handler which is called with the result of each statement.
         :param split_statements: Whether to split a single SQL string into statements and run separately
         :param return_last: Whether to return result for only last statement or for all after split
-        :param execution_timeout: max time allowed for the execution of this task instance, if it goes beyond
-            it will raise and fail.
+        :param execution_timeout: max time allowed for the execution of
+        this task instance, if it goes beyond it will raise and fail.
         :return: return only result of the LAST SQL expression if handler was provided unless return_last
             is set to False.
         """
@@ -263,25 +259,26 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         conn = None
         results = []
         for sql_statement in sql_list:
+
             # when using AAD tokens, it could expire if previous query run longer than token lifetime
             conn = self.get_conn()
             with closing(conn.cursor()) as cur:
                 self.set_autocommit(conn, autocommit)
 
                 with closing(conn.cursor()) as cur:
+
                     t = create_timeout_thread(cur, execution_timeout)
 
-                    # TODO: adjust this to make testing easier
+                    #todo; adjust this to make testing easier
                     try:
                         self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
                     except Exception as e:
-                        if t is None or t.is_alive():
-                            raise DatabricksSqlExecutionError(
-                                f"Error running SQL statement: {sql_statement}. {str(e)}"
+                        if t.is_alive():
+                            raise AirflowException(f"Error running statement: {sql_statement}. {str(e)}")
+                        else:
+                            raise AirflowException(
+                                f"Timeout threshold exceeded for query: {sql_statement} was cancelled."
                             )
-                        raise DatabricksSqlExecutionTimeout(
-                            f"Timeout threshold exceeded for SQL statement: {sql_statement} was cancelled."
-                        )
                     finally:
                         if t is not None:
                             t.cancel()
