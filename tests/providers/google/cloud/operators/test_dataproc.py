@@ -442,9 +442,9 @@ class DataprocJobTestBase(DataprocTestBase):
     def setup_class(cls):
         if AIRFLOW_V_3_0_PLUS:
             cls.extra_links_expected_calls = [
-            call.ti.xcom_push(key="conf", value=DATAPROC_JOB_CONF_EXPECTED),
-            call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
-        ]
+                call.ti.xcom_push(key="conf", value=DATAPROC_JOB_CONF_EXPECTED),
+                call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
+            ]
         else:
             cls.extra_links_expected_calls = [
                 call.ti.xcom_push(key="conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None),
@@ -462,8 +462,9 @@ class DataprocClusterTestBase(DataprocTestBase):
             ]
         else:
             cls.extra_links_expected_calls_base = [
-                call.ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED,
-                                  execution_date=None)
+                call.ti.xcom_push(
+                    key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED, execution_date=None
+                )
             ]
 
 
@@ -1121,8 +1122,8 @@ class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
         super().setup_class()
         if AIRFLOW_V_3_0_PLUS:
             cls.extra_links_expected_calls_base = [
-            call.ti.xcom_push(key="conf", value=DATAPROC_CLUSTER_CONF_EXPECTED)
-        ]
+                call.ti.xcom_push(key="conf", value=DATAPROC_CLUSTER_CONF_EXPECTED)
+            ]
         else:
             cls.extra_links_expected_calls_base = [
                 call.ti.xcom_push(key="conf", value=DATAPROC_CLUSTER_CONF_EXPECTED, execution_date=None)
@@ -2446,9 +2447,9 @@ class TestDataProcSparkOperator(DataprocJobTestBase):
     def setup_class(cls):
         if AIRFLOW_V_3_0_PLUS:
             cls.extra_links_expected_calls = [
-            call.ti.xcom_push(key="conf", value=DATAPROC_JOB_CONF_EXPECTED),
-            call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
-        ]
+                call.ti.xcom_push(key="conf", value=DATAPROC_JOB_CONF_EXPECTED),
+                call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
+            ]
         else:
             cls.extra_links_expected_calls = [
                 call.ti.xcom_push(key="conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None),
