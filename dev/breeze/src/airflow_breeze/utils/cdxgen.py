@@ -638,6 +638,8 @@ RELATIONSHIP_PROJECT = [
     "universal-pathlib",
 ]
 
+CONTACTED_PROJECTS: list[str] = []
+
 
 def get_github_stats(vcs: str, project_name: str, github_token: str | None) -> dict[str, Any]:
     import requests
@@ -725,12 +727,23 @@ def get_governance(vcs: str | None):
     return "Loose community/ Single Person"
 
 
+ACTIONS: dict[str, tuple[int, str]] = {
+    "Security-Policy": (9, "Add Security Policy to the repository"),
+    "Vulnerabilities": (10, "Follow up with vulnerabilities"),
+    "Packaging": (10, "Propose Trusted Publishing"),
+    "Dangerous-Workflow": (10, "Follow up with dangerous workflow"),
+    "Code-Review": (7, "Propose mandatory code review"),
+}
+
+
 def convert_sbom_entry_to_dict(
     dependency: dict[str, Any],
+    dependency_depth: dict[str, int],
     is_core: bool,
     is_devel: bool,
     include_open_psf_scorecard: bool,
     include_github_stats: bool,
+    include_actions: bool,
     github_token: str | None,
 ) -> dict[str, Any] | None:
     """
@@ -745,13 +758,15 @@ def convert_sbom_entry_to_dict(
     name = dependency.get("name", "")
     if name.startswith("apache-airflow"):
         return None
+    normalized_name = normalize_package_name(dependency.get("name", ""))
     row = {
-        "Name": normalize_package_name(dependency.get("name", "")),
+        "Name": normalized_name,
         "Author": dependency.get("author", ""),
         "Version": dependency.get("version", ""),
         "Description": dependency.get("description"),
         "Core": is_core,
         "Devel": is_devel,
+        "Depth": dependency_depth.get(normalized_name, "Extra"),
         "Licenses": convert_licenses(dependency.get("licenses", [])),
         "Purl": dependency.get("purl"),
         "Pypi": get_pypi_link(dependency),
@@ -766,11 +781,35 @@ def convert_sbom_entry_to_dict(
         row.update(github_stats)
     if name in RELATIONSHIP_PROJECT:
         row["Relationship"] = "Yes"
+    if include_actions:
+        if name in CONTACTED_PROJECTS:
+            row["Contacted"] = "Yes"
+        num_actions = 0
+        for action, (threshold, action_text) in ACTIONS.items():
+            opsf_action = "OPSF-" + action
+            if opsf_action in row and int(row[opsf_action]) < threshold:
+                row[action_text] = "Yes"
+                num_actions += 1
+        row["Num Actions"] = num_actions
     return row
 
 
-def get_field_names(include_open_psf_scorecard: bool, include_github_stats: bool) -> list[str]:
-    names = ["Name", "Author", "Version", "Description", "Core", "Devel", "Licenses", "Purl", "Pypi", "Vcs"]
+def get_field_names(
+    include_open_psf_scorecard: bool, include_github_stats: bool, include_actions: bool
+) -> list[str]:
+    names = [
+        "Name",
+        "Author",
+        "Version",
+        "Description",
+        "Core",
+        "Devel",
+        "Depth",
+        "Licenses",
+        "Purl",
+        "Pypi",
+        "Vcs",
+    ]
     if include_open_psf_scorecard:
         names.append("OPSF-Score")
         for check in OPEN_PSF_CHECKS:
@@ -781,7 +820,12 @@ def get_field_names(include_open_psf_scorecard: bool, include_github_stats: bool
         names.extend(["Lifecycle status", "Unpatched Vulns"])
     if include_github_stats:
         names.append("Industry importance")
-    names.append("Relationship")
+    if include_actions:
+        names.append("Relationship")
+        names.append("Contacted")
+        for action in ACTIONS.values():
+            names.append(action[1])
+        names.append("Num Actions")
     return names
 
 
