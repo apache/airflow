@@ -1063,6 +1063,13 @@ function check_run_tests() {
         return
     fi
 
+    if [[ " 3.8 3.9 3.12 " == *" ${PYTHON_MAJOR_MINOR_VERSION} "* && ${TEST_TYPE} == "Providers[cloudant]" ]]; then
+        echo
+        echo "${COLOR_YELLOW}Skipping Cloudant tests on Python 3.8, 3.9, 3.12 because cloudant is disabled there${COLOR_RESET}"
+        echo
+        exit 0
+    fi
+
     if [[ ${REMOVE_ARM_PACKAGES:="false"} == "true" ]]; then
         # Test what happens if we do not have ARM packages installed.
         # This is useful to see if pytest collection works without ARM packages which is important
