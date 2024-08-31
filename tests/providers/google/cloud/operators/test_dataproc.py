@@ -440,19 +440,31 @@ class DataprocTestBase:
 class DataprocJobTestBase(DataprocTestBase):
     @classmethod
     def setup_class(cls):
-        cls.extra_links_expected_calls = [
+        if AIRFLOW_V_3_0_PLUS:
+            cls.extra_links_expected_calls = [
             call.ti.xcom_push(key="conf", value=DATAPROC_JOB_CONF_EXPECTED),
             call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
         ]
+        else:
+            cls.extra_links_expected_calls = [
+                call.ti.xcom_push(key="conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None),
+                call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
+            ]
 
 
 class DataprocClusterTestBase(DataprocTestBase):
     @classmethod
     def setup_class(cls):
         super().setup_class()
-        cls.extra_links_expected_calls_base = [
-            call.ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
-        ]
+        if AIRFLOW_V_3_0_PLUS:
+            cls.extra_links_expected_calls_base = [
+                call.ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
+            ]
+        else:
+            cls.extra_links_expected_calls_base = [
+                call.ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED,
+                                  execution_date=None)
+            ]
 
 
 class TestsClusterGenerator:
@@ -1107,9 +1119,14 @@ class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
     @classmethod
     def setup_class(cls):
         super().setup_class()
-        cls.extra_links_expected_calls_base = [
+        if AIRFLOW_V_3_0_PLUS:
+            cls.extra_links_expected_calls_base = [
             call.ti.xcom_push(key="conf", value=DATAPROC_CLUSTER_CONF_EXPECTED)
         ]
+        else:
+            cls.extra_links_expected_calls_base = [
+                call.ti.xcom_push(key="conf", value=DATAPROC_CLUSTER_CONF_EXPECTED, execution_date=None)
+            ]
 
     def test_deprecation_warning(self):
         with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
@@ -2427,10 +2444,16 @@ class TestDataProcSparkSqlOperator:
 class TestDataProcSparkOperator(DataprocJobTestBase):
     @classmethod
     def setup_class(cls):
-        cls.extra_links_expected_calls = [
+        if AIRFLOW_V_3_0_PLUS:
+            cls.extra_links_expected_calls = [
             call.ti.xcom_push(key="conf", value=DATAPROC_JOB_CONF_EXPECTED),
             call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
         ]
+        else:
+            cls.extra_links_expected_calls = [
+                call.ti.xcom_push(key="conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None),
+                call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
+            ]
 
     main_class = "org.apache.spark.examples.SparkPi"
     jars = ["file:///usr/lib/spark/examples/jars/spark-examples.jar"]
