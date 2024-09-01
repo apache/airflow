@@ -295,7 +295,7 @@ class TestFileTaskLogHandler:
 
         # mock to generate 2000 lines of log, the total size is larger than max_bytes_size
         for i in range(1, 2000):
-            logger.info(f"this is a Test. {i}")
+            logger.info(f"this is a Test. %s", i)
 
         # this is the rotate log file
         log_rotate_1_name = log_filename + ".1"
