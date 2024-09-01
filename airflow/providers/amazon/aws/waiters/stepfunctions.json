@@ -13,7 +13,7 @@
                     "state": "success"
                 },
                 {
-                    "matcher": "error",
+                    "matcher": "path",
                     "argument": "status",
                     "expected": "RUNNING",
                     "state": "retry"
