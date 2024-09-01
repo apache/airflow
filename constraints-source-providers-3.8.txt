@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-08-31T13:40:25.082653
+# This constraints file was automatically generated on 2024-09-01T07:40:04.722209
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -570,7 +570,7 @@ sqlparse==0.5.1
 sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
-starlette==0.38.2
+starlette==0.38.3
 statsd==4.0.1
 std-uritemplate==1.0.6
 strictyaml==1.7.3
