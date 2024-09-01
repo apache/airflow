@@ -25,8 +25,7 @@ from airflow.decorators import task
 
 if TYPE_CHECKING:
     from airflow.decorators.base import Task
-
-DECORATORS = set(x for x in dir(task) if not x.startswith("_")) - {"skip_if", "run_if"}
+DECORATORS = tuple(set(x for x in dir(task) if not x.startswith("_")) - {"skip_if", "run_if"})
 
 
 class TestDecoratorSource:
