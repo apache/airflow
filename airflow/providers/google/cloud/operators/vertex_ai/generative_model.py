@@ -514,6 +514,11 @@ class GenerativeModelGenerateContentOperator(GoogleCloudBaseOperator):
         gives to the generative model, in order to elicit a specific response.
     :param location: Required. The ID of the Google Cloud location that the
         service belongs to (templated).
+    :param system_instruction: Optional. Instructions for the model to steer it toward better
+        performance.
+    :param tools: Optional. A piece of code that enables the system to interact with external
+        systems to perform an action, or set of actions, outside of knowledge and scope of
+        the model.
     :param generation_config: Optional. Generation configuration settings.
     :param safety_settings: Optional. Per request settings for blocking unsafe content.
     :param pretrained_model: By default uses the pre-trained model `gemini-pro`,
@@ -539,6 +544,7 @@ class GenerativeModelGenerateContentOperator(GoogleCloudBaseOperator):
         project_id: str,
         contents: list,
         location: str,
+        system_instruction: str | None = None,
         tools: list | None = None,
         generation_config: dict | None = None,
         safety_settings: dict | None = None,
@@ -551,6 +557,7 @@ class GenerativeModelGenerateContentOperator(GoogleCloudBaseOperator):
         self.project_id = project_id
         self.location = location
         self.contents = contents
+        self.system_instruction = system_instruction
         self.tools = tools
         self.generation_config = generation_config
         self.safety_settings = safety_settings
@@ -567,6 +574,7 @@ class GenerativeModelGenerateContentOperator(GoogleCloudBaseOperator):
             project_id=self.project_id,
             location=self.location,
             contents=self.contents,
+            system_instruction=self.system_instruction,
             tools=self.tools,
             generation_config=self.generation_config,
             safety_settings=self.safety_settings,

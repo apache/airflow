@@ -344,7 +344,8 @@ class TestVertexAITextEmbeddingModelGetEmbeddingsOperator:
 class TestVertexAIGenerativeModelGenerateContentOperator:
     @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
     def test_execute(self, mock_hook):
-        contents = ["In 10 words or less, what is Apache Airflow?"]
+        contents = ["What is Apache Airflow?"]
+        system_instruction = "Respond in 10 words or less."
         tools = [Tool.from_google_search_retrieval(grounding.GoogleSearchRetrieval())]
         pretrained_model = "gemini-pro"
         safety_settings = {
@@ -360,6 +361,7 @@ class TestVertexAIGenerativeModelGenerateContentOperator:
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
             contents=contents,
+            system_instruction=system_instruction,
             tools=tools,
             generation_config=generation_config,
             safety_settings=safety_settings,
@@ -376,6 +378,7 @@ class TestVertexAIGenerativeModelGenerateContentOperator:
             project_id=GCP_PROJECT,
             location=GCP_LOCATION,
             contents=contents,
+            system_instruction=system_instruction,
             tools=tools,
             generation_config=generation_config,
             safety_settings=safety_settings,
