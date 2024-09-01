@@ -35,7 +35,7 @@ CI = os.environ.get("CI")
 RUNNING_IN_CI = True if CI else False
 
 
-def merge_pr(version_branch):
+def merge_pr(version_branch, sync_branch):
     if confirm_action("Do you want to merge the Sync PR?"):
         run_command(
             [
@@ -52,7 +52,7 @@ def merge_pr(version_branch):
             check=True,
         )
         run_command(
-            ["git", "merge", "--ff-only", f"v{version_branch}-test"],
+            ["git", "merge", "--ff-only", f"{sync_branch}"],
             dry_run_override=RUNNING_IN_CI,
             check=True,
         )
@@ -365,8 +365,9 @@ def prepare_airflow_tarball(version: str):
 @click.option(
     "--github-token", help="GitHub token to use in generating issue for testing of release candidate"
 )
+@click.option("--sync-branch", required=True, help="The branch to sync to the stable branch")
 @option_answer
-def publish_release_candidate(version, previous_version, github_token):
+def publish_release_candidate(version, previous_version, github_token, sync_branch):
     check_python_version()
     from packaging.version import Version
 
@@ -395,6 +396,7 @@ def publish_release_candidate(version, previous_version, github_token):
     console_print(f"version_branch: {version_branch}")
     console_print(f"version_without_rc: {version_without_rc}")
     console_print(f"airflow_repo_root: {airflow_repo_root}")
+    console_print(f"sync_branch: {sync_branch}")
     console_print()
     console_print("Below are your git remotes. We will push to origin:")
     run_command(["git", "remote", "-v"], dry_run_override=RUNNING_IN_CI)
@@ -403,7 +405,7 @@ def publish_release_candidate(version, previous_version, github_token):
     # Final confirmation
     confirm_action("Pushes will be made to origin. Do you want to continue?", abort=True)
     # Merge the sync PR
-    merge_pr(version_branch)
+    merge_pr(version_branch, sync_branch)
     #
     # # Tag & clean the repo
     git_tag(version)

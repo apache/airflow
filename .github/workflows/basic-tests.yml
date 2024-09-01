@@ -372,7 +372,8 @@ jobs:
         run: breeze release-management create-minor-branch --version-branch 2-8 --answer yes
       - name: "Check Airflow RC process command"
         run: >
-          breeze release-management start-rc-process --version 2.8.3rc1 --previous-version 2.8.0 --answer yes
+          breeze release-management start-rc-process --version 2.8.3rc1 --previous-version 2.8.0
+          --sync-branch sync_v2_8_test --answer yes
       - name: "Check Airflow release process command"
         run: >
           breeze release-management start-release --release-candidate 2.8.3rc1 --previous-release 2.8.0
