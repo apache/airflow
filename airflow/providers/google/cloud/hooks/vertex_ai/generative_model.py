@@ -19,15 +19,20 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+import time
+from typing import TYPE_CHECKING, Sequence
 
 import vertexai
-from deprecated import deprecated
 from vertexai.generative_models import GenerativeModel, Part
 from vertexai.language_models import TextEmbeddingModel, TextGenerationModel
+from vertexai.preview.tuning import sft
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.cloud.aiplatform_v1 import types
 
 
 class GenerativeModelHook(GoogleBaseHook):
@@ -62,9 +67,10 @@ class GenerativeModelHook(GoogleBaseHook):
         return model
 
     @deprecated(
-        reason=(
-            "The `get_generative_model_part` method is deprecated and will be removed after 01.01.2025, please include `Part` objects in `contents` parameter of `airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.generative_model_generate_content`"
-        ),
+        planned_removal_date="January 01, 2025",
+        use_instead="Part objects included in contents parameter of "
+        "airflow.providers.google.cloud.hooks.generative_model."
+        "GenerativeModelHook.generative_model_generate_content",
         category=AirflowProviderDeprecationWarning,
     )
     def get_generative_model_part(self, content_gcs_path: str, content_mime_type: str | None = None) -> Part:
@@ -73,9 +79,9 @@ class GenerativeModelHook(GoogleBaseHook):
         return part
 
     @deprecated(
-        reason=(
-            "The `prompt_language_model` method is deprecated and will be removed after 01.01.2025, please use `airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.text_generation_model_predict` method."
-        ),
+        planned_removal_date="January 01, 2025",
+        use_instead="airflow.providers.google.cloud.hooks.generative_model."
+        "GenerativeModelHook.text_generation_model_predict",
         category=AirflowProviderDeprecationWarning,
     )
     @GoogleBaseHook.fallback_to_default_project_id
@@ -127,9 +133,9 @@ class GenerativeModelHook(GoogleBaseHook):
         return response.text
 
     @deprecated(
-        reason=(
-            "The `generate_text_embeddings` method is deprecated and will be removed after 01.01.2025, please use `airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.text_embedding_model_get_embeddings` method."
-        ),
+        planned_removal_date="January 01, 2025",
+        use_instead="airflow.providers.google.cloud.hooks.generative_model."
+        "GenerativeModelHook.text_embedding_model_get_embeddings",
         category=AirflowProviderDeprecationWarning,
     )
     @GoogleBaseHook.fallback_to_default_project_id
@@ -157,9 +163,9 @@ class GenerativeModelHook(GoogleBaseHook):
         return response.values
 
     @deprecated(
-        reason=(
-            "The `prompt_multimodal_model` method is deprecated and will be removed after 01.01.2025, please use `airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.generative_model_generate_content` method."
-        ),
+        planned_removal_date="January 01, 2025",
+        use_instead="airflow.providers.google.cloud.hooks.generative_model."
+        "GenerativeModelHook.generative_model_generate_content",
         category=AirflowProviderDeprecationWarning,
     )
     @GoogleBaseHook.fallback_to_default_project_id
@@ -196,9 +202,9 @@ class GenerativeModelHook(GoogleBaseHook):
         return response.text
 
     @deprecated(
-        reason=(
-            "The `prompt_multimodal_model_with_media` method is deprecated and will be removed after 01.01.2025, please use `airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.generative_model_generate_content` method."
-        ),
+        planned_removal_date="January 01, 2025",
+        use_instead="airflow.providers.google.cloud.hooks.generative_model."
+        "GenerativeModelHook.generative_model_generate_content",
         category=AirflowProviderDeprecationWarning,
     )
     @GoogleBaseHook.fallback_to_default_project_id
@@ -348,3 +354,55 @@ class GenerativeModelHook(GoogleBaseHook):
         )
 
         return response.text
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def supervised_fine_tuning_train(
+        self,
+        source_model: str,
+        train_dataset: str,
+        location: str,
+        tuned_model_display_name: str | None = None,
+        validation_dataset: str | None = None,
+        epochs: int | None = None,
+        adapter_size: int | None = None,
+        learning_rate_multiplier: float | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+    ) -> types.TuningJob:
+        """
+        Use the Supervised Fine Tuning API to create a tuning job.
+
+        :param source_model: Required. A pre-trained model optimized for performing natural
+            language tasks such as classification, summarization, extraction, content
+            creation, and ideation.
+        :param train_dataset: Required. Cloud Storage URI of your training dataset. The dataset
+            must be formatted as a JSONL file. For best results, provide at least 100 to 500 examples.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
+        :param tuned_model_display_name: Optional. Display name of the TunedModel. The name can be up
+            to 128 characters long and can consist of any UTF-8 characters.
+        :param validation_dataset: Optional. Cloud Storage URI of your training dataset. The dataset must be
+            formatted as a JSONL file. For best results, provide at least 100 to 500 examples.
+        :param epochs: Optional. To optimize performance on a specific dataset, try using a higher
+          epoch value. Increasing the number of epochs might improve results. However, be cautious
+          about over-fitting, especially when dealing with small datasets. If over-fitting occurs,
+          consider lowering the epoch number.
+        :param adapter_size: Optional. Adapter size for tuning.
+        :param learning_rate_multiplier: Optional. Multiplier for adjusting the default learning rate.
+        """
+        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+
+        sft_tuning_job = sft.train(
+            source_model=source_model,
+            train_dataset=train_dataset,
+            validation_dataset=validation_dataset,
+            epochs=epochs,
+            adapter_size=adapter_size,
+            learning_rate_multiplier=learning_rate_multiplier,
+            tuned_model_display_name=tuned_model_display_name,
+        )
+
+        # Polling for job completion
+        while not sft_tuning_job.has_ended:
+            time.sleep(60)
+            sft_tuning_job.refresh()
+
+        return sft_tuning_job

@@ -203,7 +203,6 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         self,
         key: str,
         value: Any,
-        execution_date: datetime | None = None,
         session: Session | None = None,
     ) -> None:
         """
@@ -211,13 +210,11 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         :param key: the key to identify the XCom value
         :param value: the value of the XCom
-        :param execution_date: the execution date to push the XCom for
         """
         return TaskInstance.xcom_push(
             self=self,  # type: ignore[arg-type]
             key=key,
             value=value,
-            execution_date=execution_date,
             session=session,
         )
 

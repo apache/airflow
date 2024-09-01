@@ -397,6 +397,17 @@ command takes care about it. This is needed when you want to run webserver insid
   :width: 100%
   :alt: Breeze compile-www-assets
 
+Compiling ui assets
+--------------------
+
+Airflow webserver needs to prepare www assets - compiled with node and yarn. The ``compile-ui-assets``
+command takes care about it. This is needed when you want to run webserver inside of the breeze.
+
+.. image:: ./images/output_compile-ui-assets.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_compile-ui-assets.svg
+  :width: 100%
+  :alt: Breeze compile-ui-assets
+
 Breeze cleanup
 --------------
 

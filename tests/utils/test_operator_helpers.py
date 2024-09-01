@@ -224,3 +224,15 @@ def test_make_kwargs_callable_conflict():
         kwargs_callable(*args, **kwargs)
 
     assert "ds_nodash" in str(exc_info)
+
+
+@pytest.mark.parametrize(
+    "func,args,kwargs,expected",
+    [
+        (callable10, (1, 2), {"ds_nodash": 1}, {"ds_nodash": 1}),
+        (callable11, (1, 2), {"ds_nodash": 1}, {"ds_nodash": 1}),
+    ],
+)
+def test_args_and_kwargs_conflicts(func, args, kwargs, expected):
+    kwargs_result = operator_helpers.determine_kwargs(func, args=args, kwargs=kwargs)
+    assert expected == kwargs_result
