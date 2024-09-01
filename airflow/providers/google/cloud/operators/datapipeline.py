@@ -19,20 +19,19 @@
 
 from __future__ import annotations
 
-from deprecated import deprecated
-
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.dataflow import DEFAULT_DATAFLOW_LOCATION
 from airflow.providers.google.cloud.operators.dataflow import (
     DataflowCreatePipelineOperator,
     DataflowRunPipelineOperator,
 )
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 
 @deprecated(
-    reason="This operator is deprecated and will be removed after 01.12.2024. "
-    "Please use `DataflowCreatePipelineOperator`.",
+    planned_removal_date="December 01, 2024",
+    use_instead="DataflowCreatePipelineOperator",
     category=AirflowProviderDeprecationWarning,
 )
 class CreateDataPipelineOperator(DataflowCreatePipelineOperator):
@@ -40,8 +39,8 @@ class CreateDataPipelineOperator(DataflowCreatePipelineOperator):
 
 
 @deprecated(
-    reason="This operator is deprecated and will be removed after 01.12.2024. "
-    "Please use `DataflowRunPipelineOperator`.",
+    planned_removal_date="December 01, 2024",
+    use_instead="DataflowRunPipelineOperator",
     category=AirflowProviderDeprecationWarning,
 )
 class RunDataPipelineOperator(DataflowRunPipelineOperator):

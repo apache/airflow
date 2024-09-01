@@ -80,10 +80,7 @@ class TestVertexAIPromptLanguageModelOperator:
 
     @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
     def test_execute(self, mock_hook):
-        with pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match=r"Call to deprecated class PromptLanguageModelOperator. \(This operator is deprecated and will be removed after 01.01.2025, please use `TextGenerationModelPredictOperator`.\)",
-        ):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             op = PromptLanguageModelOperator(
                 task_id=TASK_ID,
                 project_id=GCP_PROJECT,
@@ -133,10 +130,7 @@ class TestVertexAIGenerateTextEmbeddingsOperator:
 
     @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
     def test_execute(self, mock_hook):
-        with pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match=r"Call to deprecated class GenerateTextEmbeddingsOperator. \(This operator is deprecated and will be removed after 01.01.2025, please use `TextEmbeddingModelGetEmbeddingsOperator`.\)",
-        ):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             op = GenerateTextEmbeddingsOperator(
                 task_id=TASK_ID,
                 project_id=GCP_PROJECT,
@@ -187,10 +181,7 @@ class TestVertexAIPromptMultimodalModelOperator:
 
     @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
     def test_execute(self, mock_hook):
-        with pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match=r"Call to deprecated class PromptMultimodalModelOperator. \(This operator is deprecated and will be removed after 01.01.2025, please use `GenerativeModelGenerateContentOperator`.\)",
-        ):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             op = PromptMultimodalModelOperator(
                 task_id=TASK_ID,
                 project_id=GCP_PROJECT,
@@ -249,10 +240,7 @@ class TestVertexAIPromptMultimodalModelWithMediaOperator:
 
     @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
     def test_execute(self, mock_hook):
-        with pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match=r"Call to deprecated class PromptMultimodalModelWithMediaOperator. \(This operator is deprecated and will be removed after 01.01.2025, please use `GenerativeModelGenerateContentOperator`.\)",
-        ):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             op = PromptMultimodalModelWithMediaOperator(
                 task_id=TASK_ID,
                 project_id=GCP_PROJECT,

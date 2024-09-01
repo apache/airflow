@@ -27,7 +27,6 @@ from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from deprecated import deprecated
 from googleapiclient.errors import HttpError
 
 from airflow.configuration import conf
@@ -43,6 +42,7 @@ from airflow.providers.google.cloud.links.dataflow import DataflowJobLink, Dataf
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.dataflow import TemplateJobStartTrigger
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.version import version
 
@@ -174,7 +174,8 @@ class DataflowConfiguration:
 
 # TODO: Remove one day
 @deprecated(
-    reason="Please use `providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator` instead.",
+    planned_removal_date="November 01, 2024",
+    use_instead="providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator",
     category=AirflowProviderDeprecationWarning,
 )
 class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
@@ -1052,7 +1053,8 @@ class DataflowStartSqlJobOperator(GoogleCloudBaseOperator):
 
 # TODO: Remove one day
 @deprecated(
-    reason="Please use `providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator` instead.",
+    planned_removal_date="November 01, 2024",
+    use_instead="providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator",
     category=AirflowProviderDeprecationWarning,
 )
 class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):

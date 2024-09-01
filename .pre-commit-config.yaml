@@ -1055,6 +1055,7 @@ repos:
         pass_filenames: true
         files: ^airflow/.*\.py$
         exclude: ^.*/.*_vendor/
+        additional_dependencies: ["rich>=12.4.4", "python-dateutil"]
       - id: lint-chart-schema
         name: Lint chart/values.schema.json file
         entry: ./scripts/ci/pre_commit/chart_schema.py

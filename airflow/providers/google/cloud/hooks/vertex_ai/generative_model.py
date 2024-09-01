@@ -23,12 +23,12 @@ import time
 from typing import TYPE_CHECKING, Sequence
 
 import vertexai
-from deprecated import deprecated
 from vertexai.generative_models import GenerativeModel, Part
 from vertexai.language_models import TextEmbeddingModel, TextGenerationModel
 from vertexai.preview.tuning import sft
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
@@ -67,9 +67,10 @@ class GenerativeModelHook(GoogleBaseHook):
         return model
 
     @deprecated(
-        reason=(
-            "The `get_generative_model_part` method is deprecated and will be removed after 01.01.2025, please include `Part` objects in `contents` parameter of `airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.generative_model_generate_content`"
-        ),
+        planned_removal_date="January 01, 2025",
+        use_instead="Part objects included in contents parameter of "
+        "airflow.providers.google.cloud.hooks.generative_model."
+        "GenerativeModelHook.generative_model_generate_content",
         category=AirflowProviderDeprecationWarning,
     )
     def get_generative_model_part(self, content_gcs_path: str, content_mime_type: str | None = None) -> Part:
@@ -78,9 +79,9 @@ class GenerativeModelHook(GoogleBaseHook):
         return part
 
     @deprecated(
-        reason=(
-            "The `prompt_language_model` method is deprecated and will be removed after 01.01.2025, please use `airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.text_generation_model_predict` method."
-        ),
+        planned_removal_date="January 01, 2025",
+        use_instead="airflow.providers.google.cloud.hooks.generative_model."
+        "GenerativeModelHook.text_generation_model_predict",
         category=AirflowProviderDeprecationWarning,
     )
     @GoogleBaseHook.fallback_to_default_project_id
@@ -132,9 +133,9 @@ class GenerativeModelHook(GoogleBaseHook):
         return response.text
 
     @deprecated(
-        reason=(
-            "The `generate_text_embeddings` method is deprecated and will be removed after 01.01.2025, please use `airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.text_embedding_model_get_embeddings` method."
-        ),
+        planned_removal_date="January 01, 2025",
+        use_instead="airflow.providers.google.cloud.hooks.generative_model."
+        "GenerativeModelHook.text_embedding_model_get_embeddings",
         category=AirflowProviderDeprecationWarning,
     )
     @GoogleBaseHook.fallback_to_default_project_id
@@ -162,9 +163,9 @@ class GenerativeModelHook(GoogleBaseHook):
         return response.values
 
     @deprecated(
-        reason=(
-            "The `prompt_multimodal_model` method is deprecated and will be removed after 01.01.2025, please use `airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.generative_model_generate_content` method."
-        ),
+        planned_removal_date="January 01, 2025",
+        use_instead="airflow.providers.google.cloud.hooks.generative_model."
+        "GenerativeModelHook.generative_model_generate_content",
         category=AirflowProviderDeprecationWarning,
     )
     @GoogleBaseHook.fallback_to_default_project_id
@@ -201,9 +202,9 @@ class GenerativeModelHook(GoogleBaseHook):
         return response.text
 
     @deprecated(
-        reason=(
-            "The `prompt_multimodal_model_with_media` method is deprecated and will be removed after 01.01.2025, please use `airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.generative_model_generate_content` method."
-        ),
+        planned_removal_date="January 01, 2025",
+        use_instead="airflow.providers.google.cloud.hooks.generative_model."
+        "GenerativeModelHook.generative_model_generate_content",
         category=AirflowProviderDeprecationWarning,
     )
     @GoogleBaseHook.fallback_to_default_project_id
