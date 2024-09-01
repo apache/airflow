@@ -71,6 +71,7 @@ class SFTPToGCSOperator(BaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     :param sftp_prefetch: Whether to enable SFTP prefetch, the default is True.
+    :param fail_on_sftp_file_not_exist: Whether to fail the task if file do not exit in SFTP server, the default is True.
     """
 
     template_fields: Sequence[str] = (
@@ -93,6 +94,7 @@ class SFTPToGCSOperator(BaseOperator):
         move_object: bool = False,
         impersonation_chain: str | Sequence[str] | None = None,
         sftp_prefetch: bool = True,
+        fail_on_sftp_file_not_exist: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -107,6 +109,7 @@ class SFTPToGCSOperator(BaseOperator):
         self.move_object = move_object
         self.impersonation_chain = impersonation_chain
         self.sftp_prefetch = sftp_prefetch
+        self.fail_on_sftp_file_not_exist = fail_on_sftp_file_not_exist
 
     def execute(self, context: Context):
         self.destination_path = self._set_destination_path(self.destination_path)
@@ -156,18 +159,26 @@ class SFTPToGCSOperator(BaseOperator):
             destination_object,
         )
 
+        file_existence = True
         with NamedTemporaryFile("w") as tmp:
-            sftp_hook.retrieve_file(source_path, tmp.name, prefetch=self.sftp_prefetch)
+            try:
+                sftp_hook.retrieve_file(source_path, tmp.name, prefetch=self.sftp_prefetch)
+            except FileNotFoundError:
+                if not self.fail_on_sftp_file_not_exist:
+                    self.log.info("File %s does not exist in SFTP server", source_path)
+                    file_existence = False
+                else:
+                    raise FileNotFoundError
+            if file_existence:
+                gcs_hook.upload(
+                    bucket_name=self.destination_bucket,
+                    object_name=destination_object,
+                    filename=tmp.name,
+                    mime_type=self.mime_type,
+                    gzip=self.gzip,
+                )
 
-            gcs_hook.upload(
-                bucket_name=self.destination_bucket,
-                object_name=destination_object,
-                filename=tmp.name,
-                mime_type=self.mime_type,
-                gzip=self.gzip,
-            )
-
-        if self.move_object:
+        if self.move_object and file_existence:
             self.log.info("Executing delete of %s", source_path)
             sftp_hook.delete_file(source_path)
 
