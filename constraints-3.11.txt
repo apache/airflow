@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-01T07:47:32.516957
+# This constraints file was automatically generated on 2024-09-01T13:50:33.554704
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -297,7 +297,7 @@ eralchemy2==1.4.1
 et-xmlfile==1.1.0
 eventlet==0.36.1
 execnet==2.1.1
-executing==2.0.1
+executing==2.1.0
 facebook_business==20.0.2
 fastapi-cli==0.0.5
 fastapi==0.112.2
@@ -530,7 +530,7 @@ pinecone-plugin-inference==1.0.3
 pinecone-plugin-interface==0.0.7
 pinotdb==5.6.0
 pipdeptree==2.23.1
-pipx==1.6.0
+pipx==1.7.1
 pkginfo==1.10.0
 platformdirs==4.2.2
 pluggy==1.5.0
@@ -732,7 +732,7 @@ universal_pathlib==0.2.2
 uritemplate==4.1.1
 urllib3==2.2.2
 userpath==1.9.2
-uv==0.2.37
+uv==0.4.1
 uvicorn==0.30.6
 uvloop==0.20.0
 validators==0.33.0
