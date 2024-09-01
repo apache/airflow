@@ -178,6 +178,7 @@ Example of limiting the size of tasks:
               "handlers": {
                   "task": {
                       "max_bytes": 104857600,  # 100MB
+                      "backup_count": 1 # keep 1 history rotate log.
                   }
               }
           },
