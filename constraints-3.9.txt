@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-01T13:50:24.150688
+# This constraints file was automatically generated on 2024-09-01T19:45:27.281815
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -600,7 +600,7 @@ python-ldap==3.4.4
 python-multipart==0.0.9
 python-nvd3==0.16.0
 python-slugify==8.0.4
-python-telegram-bot==21.4
+python-telegram-bot==21.5
 python3-saml==1.16.0
 pytz==2024.1
 pywinrm==0.5.0
@@ -677,7 +677,7 @@ sqlparse==0.5.1
 sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
-starlette==0.38.3
+starlette==0.38.4
 statsd==4.0.1
 std-uritemplate==1.0.6
 strictyaml==1.7.3

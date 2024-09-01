@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-01T13:47:09.557907
+# This constraints file was automatically generated on 2024-09-01T19:42:16.573219
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -172,7 +172,7 @@ shellingham==1.5.4
 six==1.16.0
 sniffio==1.3.1
 sqlparse==0.5.1
-starlette==0.38.3
+starlette==0.38.4
 statsd==4.0.1
 tabulate==0.9.0
 tenacity==9.0.0
