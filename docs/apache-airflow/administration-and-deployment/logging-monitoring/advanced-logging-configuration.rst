@@ -176,10 +176,7 @@ Example of limiting the size of tasks:
           deepcopy(DEFAULT_LOGGING_CONFIG),
           {
               "handlers": {
-                  "task": {
-                      "max_bytes": 104857600,  # 100MB
-                      "backup_count": 1 # keep 1 history rotate log.
-                  }
+                  "task": {"max_bytes": 104857600, "backup_count": 1}  # 100MB and keep 1 history rotate log.
               }
           },
       )
