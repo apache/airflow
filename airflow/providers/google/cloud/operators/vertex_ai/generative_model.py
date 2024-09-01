@@ -21,7 +21,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from google.cloud.aiplatform_v1 import types
+from google.cloud.aiplatform_v1 import types as types_v1
+from google.cloud.aiplatform_v1beta1 import types as types_v1beta1
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import GenerativeModelHook
@@ -665,4 +666,73 @@ class SupervisedFineTuningTrainOperator(GoogleCloudBaseOperator):
         self.xcom_push(context, key="tuned_model_name", value=response.tuned_model_name)
         self.xcom_push(context, key="tuned_model_endpoint_name", value=response.tuned_model_endpoint_name)
 
-        return types.TuningJob.to_dict(response)
+        return types_v1.TuningJob.to_dict(response)
+
+
+class CountTokensOperator(GoogleCloudBaseOperator):
+    """
+    Use the Vertex AI Count Tokens API to calculate the number of input tokens before sending a request to the Gemini API.
+
+    :param project_id: Required. The ID of the Google Cloud project that the
+        service belongs to (templated).
+    :param contents: Required. The multi-part content of a message that a user or a program
+        gives to the generative model, in order to elicit a specific response.
+    :param location: Required. The ID of the Google Cloud location that the
+        service belongs to (templated).
+    :param system_instruction: Optional. Instructions for the model to steer it toward better
+        performance. For example, "Answer as concisely as possible"
+    :param pretrained_model: By default uses the pre-trained model `gemini-pro`,
+        supporting prompts with text-only input, including natural language
+        tasks, multi-turn text and code chat, and code generation. It can
+        output text and code.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    template_fields = ("location", "project_id", "impersonation_chain", "contents", "pretrained_model")
+
+    def __init__(
+        self,
+        *,
+        project_id: str,
+        contents: list,
+        location: str,
+        pretrained_model: str = "gemini-pro",
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.project_id = project_id
+        self.location = location
+        self.contents = contents
+        self.pretrained_model = pretrained_model
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+
+    def execute(self, context: Context):
+        self.hook = GenerativeModelHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        response = self.hook.count_tokens(
+            project_id=self.project_id,
+            location=self.location,
+            contents=self.contents,
+            pretrained_model=self.pretrained_model,
+        )
+
+        self.log.info("Total tokens: %s", response.total_tokens)
+        self.log.info("Total billable characters: %s", response.total_billable_characters)
+
+        self.xcom_push(context, key="total_tokens", value=response.total_tokens)
+        self.xcom_push(context, key="total_billable_characters", value=response.total_billable_characters)
+
+        return types_v1beta1.CountTokensResponse.to_dict(response)

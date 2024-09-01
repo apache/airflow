@@ -29,6 +29,7 @@ from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Tool, g
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
+    CountTokensOperator,
     GenerativeModelGenerateContentOperator,
     TextEmbeddingModelGetEmbeddingsOperator,
     TextGenerationModelPredictOperator,
@@ -83,6 +84,16 @@ with DAG(
         pretrained_model=TEXT_EMBEDDING_MODEL,
     )
     # [END how_to_cloud_vertex_ai_text_embedding_model_get_embeddings_operator]
+
+    # [START how_to_cloud_vertex_ai_count_tokens_operator]
+    count_tokens_task = CountTokensOperator(
+        task_id="count_tokens_task",
+        project_id=PROJECT_ID,
+        contents=CONTENTS,
+        location=REGION,
+        pretrained_model=MULTIMODAL_MODEL,
+    )
+    # [END how_to_cloud_vertex_ai_count_tokens_operator]
 
     # [START how_to_cloud_vertex_ai_generative_model_generate_content_operator]
     generate_content_task = GenerativeModelGenerateContentOperator(
