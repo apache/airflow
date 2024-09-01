@@ -48,8 +48,7 @@ class TestDecoratorSource:
     @classmethod
     def parse_python_source(cls, task: Task, custom_operator_name: str | None = None) -> str:
         operator = task().operator
-        public_methods = {x for x in dir(operator) if not x.startswith("_")}
-        if "get_python_source" not in public_methods:
+        if not hasattr(operator, "get_python_source"):
             pytest.skip(f"Operator {operator} does not have get_python_source method")
         if custom_operator_name:
             cls.update_custom_operator_name(operator, custom_operator_name)
