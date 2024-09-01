@@ -198,7 +198,7 @@ class ObjectStoragePath(CloudPath):
 
         Returns the new Path instance pointing to the target path.
         """
-        return self.rename(target, overwrite=True)
+        return self.rename(target)
 
     @classmethod
     def cwd(cls):
