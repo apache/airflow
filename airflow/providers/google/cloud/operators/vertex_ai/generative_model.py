@@ -21,12 +21,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-<<<<<<< HEAD
-from google.cloud.aiplatform_v1 import types
-=======
-from deprecated import deprecated
 from google.cloud.aiplatform_v1 import types as types_v1
->>>>>>> f28e5bc2df (Add RunEvaluationOperator for Google Vertex AI Rapid Evaluation API)
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.vertex_ai.generative_model import GenerativeModelHook
