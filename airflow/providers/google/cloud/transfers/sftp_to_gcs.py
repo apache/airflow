@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import os
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Sequence
+from typing import Sequence, TYPE_CHECKING
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -30,7 +30,6 @@ from airflow.providers.sftp.hooks.sftp import SFTPHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
 
 WILDCARD = "*"
 
@@ -133,6 +132,12 @@ class SFTPToGCSOperator(BaseOperator):
 
             for file in files:
                 destination_path = file.replace(base_path, self.destination_path, 1)
+                # See issue: https://github.com/apache/airflow/issues/41763
+                # If the destination path is not specified, it defaults to an empty string. As a result,
+                # replacing base_path with an empty string is ineffective, causing the destination to
+                # retain the "/" prefix, if it has.
+                if not self.destination_path:
+                    destination_path = destination_path.lstrip("/")
                 self._copy_single_object(gcs_hook, sftp_hook, file, destination_path)
 
         else:
