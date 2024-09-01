@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import ast
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -31,12 +31,11 @@ DECORATORS = set(x for x in dir(task) if not x.startswith("_")) - {"skip_if", "r
 
 class TestDecoratorSource:
     @staticmethod
-    def parse_python_source(task: Task) -> str:
-        operator = task().operator
-        public_methods = {x for x in dir(operator) if not x.startswith("_")}
-        if "get_python_source" not in public_methods:
-            pytest.skip(f"Operator {operator} does not have get_python_source method")
-        return operator.get_python_source()
+    def update_custom_operator_name(operator: Any, custom_operator_name: str):
+        custom_operator_name = (
+            custom_operator_name if custom_operator_name.startswith("@") else f"@{custom_operator_name}"
+        )
+        operator.__dict__["custom_operator_name"] = custom_operator_name
 
     @staticmethod
     def init_decorator(decorator_name: str):
@@ -46,6 +45,16 @@ class TestDecoratorSource:
         if "external" in decorator_name:
             kwargs["python"] = "python3"
         return decorator_factory(**kwargs)
+
+    @classmethod
+    def parse_python_source(cls, task: Task, custom_operator_name: str | None = None) -> str:
+        operator = task().operator
+        public_methods = {x for x in dir(operator) if not x.startswith("_")}
+        if "get_python_source" not in public_methods:
+            pytest.skip(f"Operator {operator} does not have get_python_source method")
+        if custom_operator_name:
+            cls.update_custom_operator_name(operator, custom_operator_name)
+        return operator.get_python_source()
 
     @classmethod
     def parse_decorator_names(cls, source: Task | str) -> list[str]:
@@ -89,14 +98,8 @@ class TestDecoratorSource:
         def f():
             return "hello world"
 
-        source = self.parse_python_source(f)
-        decorators = self.parse_decorator_names(source)
-
-        # In `airflow.utils.decorators.remove_task_decorator`, `@decorator` should be removed,
-        # but it does so using `custom_operator_name`, which is defined as a string,
-        # we have to check it ourselves during testing.
-        assert len(decorators) == 1
-        assert decorators[0] == "decorator"
+        source = self.parse_python_source(f, "decorator")
+        assert source == 'def f():\n    return "hello world"\n'
 
     @pytest.mark.parametrize("decorator_name", DECORATORS)
     def test_run_if(self, decorator_name):
@@ -107,14 +110,8 @@ class TestDecoratorSource:
         def f():
             return "hello world"
 
-        source = self.parse_python_source(f)
-
-        # In `airflow.utils.decorators.remove_task_decorator`, `@decorator` should be removed,
-        # but it does so using `custom_operator_name`, which is defined as a string,
-        # we have to check it ourselves during testing.
-        decorators = self.parse_decorator_names(source)
-        assert len(decorators) == 1
-        assert decorators[0] == "decorator"
+        source = self.parse_python_source(f, "decorator")
+        assert source == 'def f():\n    return "hello world"\n'
 
     def test_skip_if_and_run_if(self):
         @task.skip_if(lambda context: True)
@@ -145,6 +142,7 @@ class TestDecoratorSource:
             return "hello world"
 
         assert self.parse_decorator_names(f) == ["decorator"]
+        assert self.parse_python_source(f) == '@decorator\ndef f():\n    return "hello world"\n'
 
     def test_run_if_allow_decorator(self):
         def decorator(func):
@@ -157,3 +155,4 @@ class TestDecoratorSource:
             return "hello world"
 
         assert self.parse_decorator_names(f) == ["decorator"]
+        assert self.parse_python_source(f) == '@decorator\ndef f():\n    return "hello world"\n'
