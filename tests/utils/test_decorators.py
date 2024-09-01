@@ -16,26 +16,51 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from airflow.decorators import task
 
-
-def test_remove_skip_if_decorator():
-    @task.skip_if(lambda context: True)
-    @task.virtualenv()
-    def f(): ...
-
-    xcom_arg = f()
-    source = xcom_arg.operator.get_python_source()
-
-    assert "skip_if" not in source
+if TYPE_CHECKING:
+    from airflow.decorators.base import Task
 
 
-def test_remove_run_if_decorator():
-    @task.run_if(lambda context: True)
-    @task.virtualenv()
-    def f(): ...
+class TestDecoratorSource:
+    def parse_python_source(self, task: Task) -> str:
+        return task().operator.get_python_source()
 
-    xcom_arg = f()
-    source = xcom_arg.operator.get_python_source()
+    def test_branch_external_python(self):
+        @task.branch_virtualenv()
+        def f():
+            return ["some_task"]
 
-    assert "run_if" not in source
+        assert self.parse_python_source(f) == 'def f():\n    return ["some_task"]\n'
+
+    def test_branch_virtualenv(self):
+        @task.external_python(python="python3")
+        def f():
+            return "hello world"
+
+        assert self.parse_python_source(f) == 'def f():\n    return "hello world"\n'
+
+    def test_virtualenv(self):
+        @task.virtualenv()
+        def f():
+            return "hello world"
+
+        assert self.parse_python_source(f) == 'def f():\n    return "hello world"\n'
+
+    def test_skip_if(self):
+        @task.skip_if(lambda context: True)
+        @task.virtualenv()
+        def f():
+            return "hello world"
+
+        assert self.parse_python_source(f) == 'def f():\n    return "hello world"\n'
+
+    def test_run_if(self):
+        @task.run_if(lambda context: True)
+        @task.virtualenv()
+        def f():
+            return "hello world"
+
+        assert self.parse_python_source(f) == 'def f():\n    return "hello world"\n'
