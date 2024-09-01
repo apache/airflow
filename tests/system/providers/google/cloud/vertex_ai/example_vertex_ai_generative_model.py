@@ -90,10 +90,7 @@ with DAG(
         task_id="count_tokens_task",
         project_id=PROJECT_ID,
         contents=CONTENTS,
-        tools=TOOLS,
         location=REGION,
-        generation_config=GENERATION_CONFIG,
-        safety_settings=SAFETY_SETTINGS,
         pretrained_model=MULTIMODAL_MODEL,
     )
     # [END how_to_cloud_vertex_ai_count_tokens_operator]
