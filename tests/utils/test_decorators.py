@@ -52,8 +52,8 @@ class TestDecoratorSource:
         if not isinstance(source, str):
             source = cls.parse_python_source(source)
         node = ast.parse(source)
-        func: ast.FunctionDef = node.body[0]
-        decorators: list[ast.Name] = func.decorator_list
+        func: ast.FunctionDef = node.body[0]  # type: ignore[assignment]
+        decorators: list[ast.Name] = func.decorator_list  # type: ignore[assignment]
         return [decorator.id for decorator in decorators]
 
     def test_branch_external_python(self):
