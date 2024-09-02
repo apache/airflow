@@ -76,7 +76,7 @@ We think so. The release manager's role is nicely described in
 [Release manager chapter of release publishing ASF infra docs](https://infra.apache.org/release-publishing.html#releasemanager).
 There is far more complete description here that describes the whole process
 [Release management policy](https://www.apache.org/legal/release-policy.html#management) - also mentioning
-that it's the PMC's responsibility (and particularly PMC chair's) to adhere to the process.
+that it's the PMC member's responsibility (and particularly PMC chair's) to adhere to the process.
 
 # What's the role of individual maintainers?
 

@@ -71,7 +71,7 @@ from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
 from airflow.compat.functools import cache
 from airflow.configuration import conf
-from airflow.datasets import Dataset
+from airflow.datasets import Dataset, DatasetAlias
 from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowException,
@@ -91,6 +91,7 @@ from airflow.exceptions import (
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
+from airflow.models.dataset import DatasetModel
 from airflow.models.log import Log
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import process_params
@@ -2911,6 +2912,10 @@ class TaskInstance(Base, LoggingMixin):
         if TYPE_CHECKING:
             assert self.task
 
+        # One task only triggers one dataset event for each dataset with the same extra.
+        # This tuple[dataset uri, extra] to sets alias names mapping is used to find whether
+        # there're datasets with same uri but different extra that we need to emit more than one dataset events.
+        dataset_tuple_to_alias_names_mapping: dict[tuple[str, frozenset], set[str]] = defaultdict(set)
         for obj in self.task.outlets or []:
             self.log.debug("outlet obj %s", obj)
             # Lineage can have other types of objects besides datasets
@@ -2921,6 +2926,43 @@ class TaskInstance(Base, LoggingMixin):
                     extra=events[obj].extra,
                     session=session,
                 )
+            elif isinstance(obj, DatasetAlias):
+                if dataset_alias_event := events[obj].dataset_alias_event:
+                    dataset_uri = dataset_alias_event["dest_dataset_uri"]
+                    extra = events[obj].extra
+                    frozen_extra = frozenset(extra.items())
+                    dataset_alias_name = dataset_alias_event["source_alias_name"]
+
+                    dataset_tuple_to_alias_names_mapping[(dataset_uri, frozen_extra)].add(dataset_alias_name)
+
+        dataset_objs_cache: dict[str, DatasetModel] = {}
+        for (uri, extra_items), alias_names in dataset_tuple_to_alias_names_mapping.items():
+            if uri not in dataset_objs_cache:
+                dataset_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == uri).limit(1))
+                dataset_objs_cache[uri] = dataset_obj
+            else:
+                dataset_obj = dataset_objs_cache[uri]
+
+            if not dataset_obj:
+                dataset_obj = DatasetModel(uri=uri)
+                dataset_manager.create_datasets(dataset_models=[dataset_obj], session=session)
+                self.log.warning('Created a new Dataset(uri="%s") as it did not exists.', uri)
+                dataset_objs_cache[uri] = dataset_obj
+
+            extra = {k: v for k, v in extra_items}
+            self.log.info(
+                'Create dataset event Dataset(uri="%s", extra="%s") through dataset aliases "%s"',
+                uri,
+                extra,
+                ", ".join(alias_names),
+            )
+            dataset_manager.register_dataset_change(
+                task_instance=self,
+                dataset=dataset_obj,
+                extra=extra,
+                session=session,
+                source_alias_names=alias_names,
+            )
 
     def _execute_task_with_callbacks(self, context: Context, test_mode: bool = False, *, session: Session):
         """Prepare Task for Execution."""
