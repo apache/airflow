@@ -199,7 +199,7 @@ class InfoJsonEncodable(dict):
             return value.isoformat()
         if isinstance(value, datetime.timedelta):
             return f"{value.total_seconds()} seconds"
-        if isinstance(value, (set, tuple)):
+        if isinstance(value, (set, list, tuple)):
             return str(list(value))
         return value
 
