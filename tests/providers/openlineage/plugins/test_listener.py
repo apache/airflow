@@ -17,22 +17,27 @@
 from __future__ import annotations
 
 import datetime as dt
+import threading
 import uuid
 from contextlib import suppress
 from typing import Callable
 from unittest import mock
-from unittest.mock import ANY, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pandas as pd
 import pytest
+from openlineage.client import OpenLineageClient
+from openlineage.client.transport import ConsoleTransport
+from openlineage.client.transport.console import ConsoleConfig
 
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.python import PythonOperator
+from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
 from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State
 from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 from tests.test_utils.config import conf_vars
 
@@ -586,6 +591,28 @@ def test_listener_on_dag_run_state_changes_configure_process_pool_size(mock_exec
         listener.on_dag_run_running(mock.MagicMock(), None)
     mock_executor.assert_called_once_with(max_workers=expected, initializer=mock.ANY)
     mock_executor.return_value.submit.assert_called_once()
+
+
+def test_listener_logs_failed_serialization():
+    listener = OpenLineageListener()
+    listener.log = MagicMock()
+    listener.adapter = OpenLineageAdapter(
+        client=OpenLineageClient(transport=ConsoleTransport(config=ConsoleConfig()))
+    )
+    event_time = dt.datetime.now()
+
+    fut = listener.submit_callable(
+        listener.adapter.dag_failed,
+        dag_id="",
+        run_id="",
+        end_date=event_time,
+        execution_date=threading.Thread(),
+        dag_run_state=DagRunState.FAILED,
+        task_ids=["task_id"],
+        msg="",
+    )
+    assert fut.exception(10)
+    listener.log.warning.assert_called_once()
 
 
 class TestOpenLineageSelectiveEnable:
