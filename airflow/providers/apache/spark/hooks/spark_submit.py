@@ -327,7 +327,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             self.log.error("Failed to decode base64 keytab: %s", err)
             raise AirflowException("Failed to decode base64 keytab") from err
 
-        # validate exists keytab file
+        # If a keytab file with the same content exists, return its path for the --keytab argument.
         if keytab_path.exists():
             with open(keytab_path, "rb") as f:
                 existing_keytab = f.read()
@@ -335,7 +335,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 self.log.info("Keytab file already exists and is the same as the provided keytab")
                 return str(keytab_path)
 
-        # write new keytab file
+        # Generate a new keytab file from the base64 encoded keytab value to use as a --keytab argument.
         try:
             with open(staging_path, "wb") as f:
                 self.log.info("Saving keytab to %s", staging_path)
