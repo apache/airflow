@@ -94,6 +94,7 @@ def get_column_names(self, table: str) -> list[str] | None:
         "LoadDate",
     ]
 
+
 def get_primary_keys(self, table: str) -> list[str] | None:
     return [
         "GroupDisplayName",
