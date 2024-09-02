@@ -1034,6 +1034,7 @@ class DataprocHook(GoogleBaseHook):
         """
         client = self.get_batch_client(region)
         name = f"projects/{project_id}/locations/{region}/batches/{batch_id}"
+
         client.delete_batch(
             request={
                 "name": name,
