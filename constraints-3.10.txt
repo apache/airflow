@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-01T11:41:57.882079
+# This constraints file was automatically generated on 2024-09-02T09:27:13.068311
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -73,7 +73,7 @@ aiobotocore==2.14.0
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.0
 aiohttp==3.10.5
-aioitertools==0.11.0
+aioitertools==0.12.0
 aioresponses==0.7.6
 aiosignal==1.3.1
 alabaster==0.7.16
@@ -298,7 +298,7 @@ et-xmlfile==1.1.0
 eventlet==0.36.1
 exceptiongroup==1.2.2
 execnet==2.1.1
-executing==2.0.1
+executing==2.1.0
 facebook_business==20.0.2
 fastavro==1.9.5
 fasteners==0.19
@@ -422,7 +422,7 @@ json-merge-patch==0.2
 jsondiff==2.2.1
 jsonpatch==1.33
 jsonpath-ng==1.6.1
-jsonpickle==3.2.2
+jsonpickle==3.3.0
 jsonpointer==3.0.0
 jsonschema-path==0.3.3
 jsonschema-specifications==2023.12.1
@@ -593,7 +593,7 @@ python-jenkins==1.8.2
 python-ldap==3.4.4
 python-nvd3==0.16.0
 python-slugify==8.0.4
-python-telegram-bot==21.4
+python-telegram-bot==21.5
 python3-saml==1.16.0
 pytz==2024.1
 pywinrm==0.5.0
@@ -721,7 +721,7 @@ tzdata==2024.1
 tzlocal==5.2
 uc-micro-py==1.0.3
 unicodecsv==0.14.1
-universal_pathlib==0.2.2
+universal_pathlib==0.2.3
 uritemplate==4.1.1
 urllib3==2.2.2
 userpath==1.9.2
@@ -741,7 +741,7 @@ xmltodict==0.13.0
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.315.0
-yarl==1.9.6
+yarl==1.9.7
 ydb==3.16.0
 zeep==4.2.1
 zenpy==2.0.50
