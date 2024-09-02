@@ -169,6 +169,7 @@ dependencies:
   - sqlalchemy-bigquery>=1.2.1
   - sqlalchemy-spanner>=1.6.2
   - tenacity>=8.1.0
+  - immutabledict>=4.2.0
 
 additional-extras:
   - name: apache.beam
