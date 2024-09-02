@@ -39,7 +39,6 @@ from typing import (
     Callable,
     Collection,
     Container,
-    Generator,
     Iterable,
     Iterator,
     List,
@@ -2223,28 +2222,6 @@ class DAG(LoggingMixin):
             self.pickle_id = dp.id
 
         return dp
-
-    def tree_view(self) -> None:
-        """Print an ASCII tree representation of the DAG."""
-        for tmp in self._generate_tree_view():
-            print(tmp)
-
-    def _generate_tree_view(self) -> Generator[str, None, None]:
-        def get_downstream(task, level=0) -> Generator[str, None, None]:
-            yield (" " * level * 4) + str(task)
-            level += 1
-            for tmp_task in sorted(task.downstream_list, key=lambda x: x.task_id):
-                yield from get_downstream(tmp_task, level)
-
-        for t in sorted(self.roots, key=lambda x: x.task_id):
-            yield from get_downstream(t)
-
-    def get_tree_view(self) -> str:
-        """Return an ASCII tree representation of the DAG."""
-        rst = ""
-        for tmp in self._generate_tree_view():
-            rst += tmp + "\n"
-        return rst
 
     @property
     def task(self) -> TaskDecoratorCollection:
