@@ -497,7 +497,7 @@ DEPENDENCIES = [
     # See https://github.com/apache/airflow/pull/31693
     # We should also remove "3rd-party-licenses/LICENSE-unicodecsv.txt" file when we remove this dependency
     "unicodecsv>=0.14.1",
-    "universal-pathlib>=0.2.3",
+    "universal-pathlib>=0.2.2",
     # Werkzug 3 breaks Flask-Login 0.6.2, also connexion needs to be updated to >= 3.0
     # we should remove this limitation when FAB supports Flask 2.3 and we migrate connexion to 3+
     "werkzeug>=2.0,<3",
