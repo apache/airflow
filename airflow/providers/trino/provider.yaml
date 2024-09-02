@@ -90,6 +90,12 @@ asset-uris:
   - schemes: [trino]
     handler: airflow.providers.trino.assets.trino.sanitize_uri
 
+# dataset has been renamed to asset in Airflow 3.0
+# This is kept for backward compatibility.
+dataset-uris:
+  - schemes: [trino]
+    handler: airflow.providers.trino.assets.trino.sanitize_uri
+
 hooks:
   - integration-name: Trino
     python-modules:

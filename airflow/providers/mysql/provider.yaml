@@ -116,3 +116,9 @@ connection-types:
 asset-uris:
   - schemes: [mysql, mariadb]
     handler: airflow.providers.mysql.assets.mysql.sanitize_uri
+
+# dataset has been renamed to asset in Airflow 3.0
+# This is kept for backward compatibility.
+dataset-uris:
+  - schemes: [mysql, mariadb]
+    handler: airflow.providers.mysql.assets.mysql.sanitize_uri

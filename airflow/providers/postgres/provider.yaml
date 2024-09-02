@@ -99,3 +99,9 @@ connection-types:
 asset-uris:
   - schemes: [postgres, postgresql]
     handler: airflow.providers.postgres.assets.postgres.sanitize_uri
+
+# dataset has been renamed to asset in Airflow 3.0
+# This is kept for backward compatibility.
+dataset-uris:
+  - schemes: [postgres, postgresql]
+    handler: airflow.providers.postgres.assets.postgres.sanitize_uri
