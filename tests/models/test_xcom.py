@@ -217,33 +217,6 @@ class TestXCom:
     @pytest.mark.skip_if_database_isolation_mode
     @conf_vars({("core", "enable_xcom_pickling"): "False"})
     @mock.patch("airflow.models.xcom.conf.getimport")
-    def test_set_serialize_call_old_signature(self, get_import, task_instance):
-        """
-        When XCom.serialize_value takes only param ``value``, other kwargs should be ignored.
-        """
-        serialize_watcher = MagicMock()
-
-        class OldSignatureXCom(BaseXCom):
-            @staticmethod
-            def serialize_value(value, **kwargs):
-                serialize_watcher(value=value, **kwargs)
-                return json.dumps(value).encode("utf-8")
-
-        get_import.return_value = OldSignatureXCom
-
-        XCom = resolve_xcom_backend()
-        XCom.set(
-            key=XCOM_RETURN_KEY,
-            value={"my_xcom_key": "my_xcom_value"},
-            dag_id=task_instance.dag_id,
-            task_id=task_instance.task_id,
-            run_id=task_instance.run_id,
-        )
-        serialize_watcher.assert_called_once_with(value={"my_xcom_key": "my_xcom_value"})
-
-    @pytest.mark.skip_if_database_isolation_mode
-    @conf_vars({("core", "enable_xcom_pickling"): "False"})
-    @mock.patch("airflow.models.xcom.conf.getimport")
     def test_set_serialize_call_current_signature(self, get_import, task_instance):
         """
         When XCom.serialize_value includes params execution_date, key, dag_id, task_id and run_id,
@@ -335,19 +308,6 @@ class TestXComGet:
         )
         assert stored_value == {"key": "value"}
 
-    @pytest.mark.skip_if_database_isolation_mode
-    @pytest.mark.usefixtures("setup_for_xcom_get_one")
-    def test_xcom_get_one_with_execution_date(self, session, task_instance):
-        with pytest.deprecated_call():
-            stored_value = XCom.get_one(
-                key="xcom_1",
-                dag_id=task_instance.dag_id,
-                task_id=task_instance.task_id,
-                execution_date=task_instance.execution_date,
-                session=session,
-            )
-        assert stored_value == {"key": "value"}
-
     @pytest.fixture
     def tis_for_xcom_get_one_from_prior_date(self, task_instance_factory, push_simple_json_xcom):
         date1 = timezone.datetime(2021, 12, 3, 4, 56)
@@ -377,24 +337,6 @@ class TestXComGet:
         assert retrieved_value == {"key": "value"}
 
     @pytest.mark.skip_if_database_isolation_mode
-    def test_xcom_get_one_from_prior_with_execution_date(
-        self,
-        session,
-        tis_for_xcom_get_one_from_prior_date,
-    ):
-        _, ti2 = tis_for_xcom_get_one_from_prior_date
-        with pytest.deprecated_call():
-            retrieved_value = XCom.get_one(
-                execution_date=ti2.execution_date,
-                key="xcom_1",
-                task_id="task_1",
-                dag_id="dag",
-                include_prior_dates=True,
-                session=session,
-            )
-        assert retrieved_value == {"key": "value"}
-
-    @pytest.mark.skip_if_database_isolation_mode
     @pytest.fixture
     def setup_for_xcom_get_many_single_argument_value(self, task_instance, push_simple_json_xcom):
         push_simple_json_xcom(ti=task_instance, key="xcom_1", value={"key": "value"})
@@ -409,21 +351,6 @@ class TestXComGet:
             run_id=task_instance.run_id,
             session=session,
         ).all()
-        assert len(stored_xcoms) == 1
-        assert stored_xcoms[0].key == "xcom_1"
-        assert stored_xcoms[0].value == {"key": "value"}
-
-    @pytest.mark.skip_if_database_isolation_mode
-    @pytest.mark.usefixtures("setup_for_xcom_get_many_single_argument_value")
-    def test_xcom_get_many_single_argument_value_with_execution_date(self, session, task_instance):
-        with pytest.deprecated_call():
-            stored_xcoms = XCom.get_many(
-                execution_date=task_instance.execution_date,
-                key="xcom_1",
-                dag_ids=task_instance.dag_id,
-                task_ids=task_instance.task_id,
-                session=session,
-            ).all()
         assert len(stored_xcoms) == 1
         assert stored_xcoms[0].key == "xcom_1"
         assert stored_xcoms[0].value == {"key": "value"}
@@ -445,20 +372,6 @@ class TestXComGet:
             run_id=task_instance.run_id,
             session=session,
         )
-        sorted_values = [x.value for x in sorted(stored_xcoms, key=operator.attrgetter("task_id"))]
-        assert sorted_values == [{"key1": "value1"}, {"key2": "value2"}]
-
-    @pytest.mark.skip_if_database_isolation_mode
-    @pytest.mark.usefixtures("setup_for_xcom_get_many_multiple_tasks")
-    def test_xcom_get_many_multiple_tasks_with_execution_date(self, session, task_instance):
-        with pytest.deprecated_call():
-            stored_xcoms = XCom.get_many(
-                execution_date=task_instance.execution_date,
-                key="xcom_1",
-                dag_ids=task_instance.dag_id,
-                task_ids=["task_1", "task_2"],
-                session=session,
-            )
         sorted_values = [x.value for x in sorted(stored_xcoms, key=operator.attrgetter("task_id"))]
         assert sorted_values == [{"key1": "value1"}, {"key2": "value2"}]
 
@@ -488,27 +401,6 @@ class TestXComGet:
         assert [x.value for x in stored_xcoms] == [{"key2": "value2"}, {"key1": "value1"}]
         assert [x.execution_date for x in stored_xcoms] == [ti2.execution_date, ti1.execution_date]
 
-    @pytest.mark.skip_if_database_isolation_mode
-    def test_xcom_get_many_from_prior_dates_with_execution_date(
-        self,
-        session,
-        tis_for_xcom_get_many_from_prior_dates,
-    ):
-        ti1, ti2 = tis_for_xcom_get_many_from_prior_dates
-        with pytest.deprecated_call():
-            stored_xcoms = XCom.get_many(
-                execution_date=ti2.execution_date,
-                key="xcom_1",
-                dag_ids="dag",
-                task_ids="task_1",
-                include_prior_dates=True,
-                session=session,
-            )
-
-        # The retrieved XComs should be ordered by logical date, latest first.
-        assert [x.value for x in stored_xcoms] == [{"key2": "value2"}, {"key1": "value1"}]
-        assert [x.execution_date for x in stored_xcoms] == [ti2.execution_date, ti1.execution_date]
-
 
 @pytest.mark.usefixtures("setup_xcom_pickling")
 class TestXComSet:
@@ -521,24 +413,6 @@ class TestXComSet:
             run_id=task_instance.run_id,
             session=session,
         )
-        stored_xcoms = session.query(XCom).all()
-        assert stored_xcoms[0].key == "xcom_1"
-        assert stored_xcoms[0].value == {"key": "value"}
-        assert stored_xcoms[0].dag_id == "dag"
-        assert stored_xcoms[0].task_id == "task_1"
-        assert stored_xcoms[0].execution_date == task_instance.execution_date
-
-    @pytest.mark.skip_if_database_isolation_mode
-    def test_xcom_set_with_execution_date(self, session, task_instance):
-        with pytest.deprecated_call():
-            XCom.set(
-                key="xcom_1",
-                value={"key": "value"},
-                dag_id=task_instance.dag_id,
-                task_id=task_instance.task_id,
-                execution_date=task_instance.execution_date,
-                session=session,
-            )
         stored_xcoms = session.query(XCom).all()
         assert stored_xcoms[0].key == "xcom_1"
         assert stored_xcoms[0].value == {"key": "value"}
@@ -563,21 +437,6 @@ class TestXComSet:
         )
         assert session.query(XCom).one().value == {"key2": "value2"}
 
-    @pytest.mark.skip_if_database_isolation_mode
-    @pytest.mark.usefixtures("setup_for_xcom_set_again_replace")
-    def test_xcom_set_again_replace_with_execution_date(self, session, task_instance):
-        assert session.query(XCom).one().value == {"key1": "value1"}
-        with pytest.deprecated_call():
-            XCom.set(
-                key="xcom_1",
-                value={"key2": "value2"},
-                dag_id=task_instance.dag_id,
-                task_id="task_1",
-                execution_date=task_instance.execution_date,
-                session=session,
-            )
-        assert session.query(XCom).one().value == {"key2": "value2"}
-
 
 @pytest.mark.usefixtures("setup_xcom_pickling")
 class TestXComClear:
@@ -598,19 +457,6 @@ class TestXComClear:
         assert session.query(XCom).count() == 0
         assert mock_purge.call_count == 0 if is_db_isolation_mode() else 1
 
-    @pytest.mark.skip_if_database_isolation_mode
-    @pytest.mark.usefixtures("setup_for_xcom_clear")
-    def test_xcom_clear_with_execution_date(self, session, task_instance):
-        assert session.query(XCom).count() == 1
-        with pytest.deprecated_call():
-            XCom.clear(
-                dag_id=task_instance.dag_id,
-                task_id=task_instance.task_id,
-                execution_date=task_instance.execution_date,
-                session=session,
-            )
-        assert session.query(XCom).count() == 0
-
     @pytest.mark.usefixtures("setup_for_xcom_clear")
     def test_xcom_clear_different_run(self, session, task_instance):
         XCom.clear(
@@ -619,16 +465,4 @@ class TestXComClear:
             run_id="different_run",
             session=session,
         )
-        assert session.query(XCom).count() == 1
-
-    @pytest.mark.skip_if_database_isolation_mode
-    @pytest.mark.usefixtures("setup_for_xcom_clear")
-    def test_xcom_clear_different_execution_date(self, session, task_instance):
-        with pytest.deprecated_call():
-            XCom.clear(
-                dag_id=task_instance.dag_id,
-                task_id=task_instance.task_id,
-                execution_date=timezone.utcnow(),
-                session=session,
-            )
         assert session.query(XCom).count() == 1

@@ -212,9 +212,14 @@ def import_all_classes(
                 ...
             except Exception as e:
                 # skip the check as we are temporary vendoring in the google ads client with wrong package
-                if "No module named 'google.ads.googleads.v12'" not in str(e):
+                # skip alembic.context which is only available when alembic command is executed from a folder
+                # containing the alembic.ini file
+                if "No module named 'google.ads.googleads.v12'" not in str(
+                    e
+                ) and "module 'alembic.context' has no attribute 'config'" not in str(e):
                     exception_str = traceback.format_exc()
                     tracebacks.append((modinfo.name, exception_str))
+
     if tracebacks:
         if IS_AIRFLOW_VERSION_PROVIDED:
             console.print(

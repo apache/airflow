@@ -24,7 +24,7 @@ from unittest import mock
 import pendulum
 import pytest
 
-from airflow.exceptions import AirflowException, DagRunAlreadyExists, RemovedInAirflow3Warning, TaskDeferred
+from airflow.exceptions import AirflowException, DagRunAlreadyExists, TaskDeferred
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
 from airflow.models.dagrun import DagRun
@@ -383,7 +383,6 @@ class TestDagRunOperator:
                 task_id="test_task",
                 trigger_dag_id=TRIGGERED_DAG_ID,
                 trigger_run_id="dummy_run_id",
-                execution_date=None,
                 reset_dag_run=False,
                 skip_when_already_exists=True,
             )
@@ -642,32 +641,6 @@ class TestDagRunOperator:
 
         with pytest.raises(AirflowException, match="failed with failed state"):
             task.execute_complete(context={}, event=trigger.serialize())
-
-    def test_trigger_dagrun_with_execution_date(self, dag_maker):
-        """Test TriggerDagRunOperator with custom execution_date (deprecated parameter)"""
-        custom_execution_date = timezone.datetime(2021, 1, 2, 3, 4, 5)
-        with dag_maker(
-            TEST_DAG_ID, default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True
-        ) as dag:
-            with pytest.warns(
-                RemovedInAirflow3Warning,
-                match="Parameter 'execution_date' is deprecated. Use 'logical_date' instead.",
-            ):
-                task = TriggerDagRunOperator(
-                    task_id="test_trigger_dagrun_with_execution_date",
-                    trigger_dag_id=TRIGGERED_DAG_ID,
-                    execution_date=custom_execution_date,
-                )
-        self.re_sync_triggered_dag_to_db(dag, dag_maker)
-        dag_maker.create_dagrun()
-        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
-        with create_session() as session:
-            dagrun = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).one()
-            assert dagrun.external_trigger
-            assert dagrun.logical_date == custom_execution_date
-            assert dagrun.run_id == DagRun.generate_run_id(DagRunType.MANUAL, custom_execution_date)
-            self.assert_extra_link(dagrun, task, session)
 
     @pytest.mark.skip_if_database_isolation_mode  # Known to be broken in db isolation mode
     @pytest.mark.parametrize(

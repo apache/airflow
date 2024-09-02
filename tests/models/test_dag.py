@@ -23,7 +23,6 @@ import logging
 import os
 import pickle
 import re
-import sys
 import warnings
 import weakref
 from contextlib import redirect_stdout
@@ -39,8 +38,6 @@ import jinja2
 import pendulum
 import pytest
 import time_machine
-from dateutil.relativedelta import relativedelta
-from pendulum.tz.timezone import Timezone
 from sqlalchemy import inspect, select
 from sqlalchemy.exc import SAWarning
 
@@ -52,7 +49,6 @@ from airflow.exceptions import (
     AirflowException,
     DuplicateTaskIdFound,
     ParamValidationError,
-    RemovedInAirflow3Warning,
     UnknownExecutorException,
 )
 from airflow.executors import executor_loader
@@ -204,7 +200,7 @@ class TestDag:
 
     def test_not_none_schedule_with_non_default_params(self):
         """
-        Test if there is a DAG with not None schedule_interval and have some params that
+        Test if there is a DAG with not None schedule and have some params that
         don't have a default value raise a error while DAG parsing
         """
         params = {"param1": Param(type="string")}
@@ -736,208 +732,6 @@ class TestDag:
 
         assert task.test_field == ["{{ ds }}", "some_string"]
 
-    def test_following_previous_schedule(self):
-        """
-        Make sure DST transitions are properly observed
-        """
-        local_tz = Timezone("Europe/Zurich")
-        start = local_tz.convert(datetime.datetime(2018, 10, 28, 2, 55, fold=0))
-        assert start.isoformat() == "2018-10-28T02:55:00+02:00", "Pre-condition: start date is in DST"
-
-        utc = timezone.convert_to_utc(start)
-        assert utc.isoformat() == "2018-10-28T00:55:00+00:00", "Pre-condition: correct DST->UTC conversion"
-
-        dag = DAG("tz_dag", start_date=start, schedule="*/5 * * * *")
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match=r"`DAG.following_schedule\(\)` is deprecated. Use `DAG.next_dagrun_info\(restricted=False\)` instead.",
-        ):
-            _next = dag.following_schedule(utc)
-        next_local = local_tz.convert(_next)
-
-        assert _next.isoformat() == "2018-10-28T01:00:00+00:00"
-        assert next_local.isoformat() == "2018-10-28T02:00:00+01:00"
-
-        with pytest.warns(RemovedInAirflow3Warning, match=r"`DAG.previous_schedule\(\)` is deprecated."):
-            prev = dag.previous_schedule(utc)
-        prev_local = local_tz.convert(prev)
-
-        assert prev_local.isoformat() == "2018-10-28T02:50:00+02:00"
-
-        with pytest.warns(RemovedInAirflow3Warning, match=r"`DAG.previous_schedule\(\)` is deprecated."):
-            prev = dag.previous_schedule(_next)
-        prev_local = local_tz.convert(prev)
-
-        assert prev_local.isoformat() == "2018-10-28T02:55:00+02:00"
-        assert prev == utc
-
-    def test_following_previous_schedule_daily_dag_cest_to_cet(self):
-        """
-        Make sure DST transitions are properly observed
-        """
-        local_tz = pendulum.timezone("Europe/Zurich")
-        start = local_tz.convert(datetime.datetime(2018, 10, 27, 3, fold=0))
-
-        utc = timezone.convert_to_utc(start)
-
-        dag = DAG("tz_dag", start_date=start, schedule="0 3 * * *")
-
-        with pytest.warns(RemovedInAirflow3Warning, match=r"`DAG.previous_schedule\(\)` is deprecated."):
-            prev = dag.previous_schedule(utc)
-        prev_local = local_tz.convert(prev)
-
-        assert prev_local.isoformat() == "2018-10-26T03:00:00+02:00"
-        assert prev.isoformat() == "2018-10-26T01:00:00+00:00"
-
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match=r"`DAG.following_schedule\(\)` is deprecated. Use `DAG.next_dagrun_info\(restricted=False\)` instead.",
-        ):
-            _next = dag.following_schedule(utc)
-        next_local = local_tz.convert(_next)
-
-        assert next_local.isoformat() == "2018-10-28T03:00:00+01:00"
-        assert _next.isoformat() == "2018-10-28T02:00:00+00:00"
-
-        with pytest.warns(RemovedInAirflow3Warning, match=r"`DAG.previous_schedule\(\)` is deprecated."):
-            prev = dag.previous_schedule(_next)
-        prev_local = local_tz.convert(prev)
-
-        assert prev_local.isoformat() == "2018-10-27T03:00:00+02:00"
-        assert prev.isoformat() == "2018-10-27T01:00:00+00:00"
-
-    def test_following_previous_schedule_daily_dag_cet_to_cest(self):
-        """
-        Make sure DST transitions are properly observed
-        """
-        local_tz = pendulum.timezone("Europe/Zurich")
-        start = local_tz.convert(datetime.datetime(2018, 3, 25, 2, fold=0))
-
-        utc = timezone.convert_to_utc(start)
-
-        dag = DAG("tz_dag", start_date=start, schedule="0 3 * * *")
-
-        with pytest.warns(RemovedInAirflow3Warning, match=r"`DAG.previous_schedule\(\)` is deprecated."):
-            prev = dag.previous_schedule(utc)
-        prev_local = local_tz.convert(prev)
-
-        assert prev_local.isoformat() == "2018-03-24T03:00:00+01:00"
-        assert prev.isoformat() == "2018-03-24T02:00:00+00:00"
-
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match=r"`DAG.following_schedule\(\)` is deprecated. Use `DAG.next_dagrun_info\(restricted=False\)` instead.",
-        ):
-            _next = dag.following_schedule(utc)
-        next_local = local_tz.convert(_next)
-
-        assert next_local.isoformat() == "2018-03-25T03:00:00+02:00"
-        assert _next.isoformat() == "2018-03-25T01:00:00+00:00"
-
-        with pytest.warns(RemovedInAirflow3Warning, match=r"`DAG.previous_schedule\(\)` is deprecated."):
-            prev = dag.previous_schedule(_next)
-        prev_local = local_tz.convert(prev)
-
-        assert prev_local.isoformat() == "2018-03-24T03:00:00+01:00"
-        assert prev.isoformat() == "2018-03-24T02:00:00+00:00"
-
-    def test_following_schedule_relativedelta(self):
-        """
-        Tests following_schedule a dag with a relativedelta schedule
-        """
-        dag_id = "test_schedule_dag_relativedelta"
-        delta = relativedelta(hours=+1)
-        dag = DAG(dag_id=dag_id, schedule=delta, start_date=TEST_DATE)
-        dag.add_task(BaseOperator(task_id="faketastic", owner="Also fake", start_date=TEST_DATE))
-
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match=r"`DAG.following_schedule\(\)` is deprecated. Use `DAG.next_dagrun_info\(restricted=False\)` instead.",
-        ):
-            _next = dag.following_schedule(TEST_DATE)
-        assert _next.isoformat() == "2015-01-02T01:00:00+00:00"
-
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match=r"`DAG.following_schedule\(\)` is deprecated. Use `DAG.next_dagrun_info\(restricted=False\)` instead.",
-        ):
-            _next = dag.following_schedule(_next)
-        assert _next.isoformat() == "2015-01-02T02:00:00+00:00"
-
-    def test_following_schedule_relativedelta_with_deprecated_schedule_interval(self):
-        """
-        Tests following_schedule a dag with a relativedelta schedule_interval
-        """
-        dag_id = "test_schedule_dag_relativedelta"
-        delta = relativedelta(hours=+1)
-        dag = DAG(dag_id=dag_id, schedule=delta, start_date=TEST_DATE)
-        dag.add_task(BaseOperator(task_id="faketastic", owner="Also fake", start_date=TEST_DATE))
-
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match=r"`DAG.following_schedule\(\)` is deprecated. Use `DAG.next_dagrun_info\(restricted=False\)` instead.",
-        ):
-            _next = dag.following_schedule(TEST_DATE)
-        assert _next.isoformat() == "2015-01-02T01:00:00+00:00"
-
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match=r"`DAG.following_schedule\(\)` is deprecated. Use `DAG.next_dagrun_info\(restricted=False\)` instead.",
-        ):
-            _next = dag.following_schedule(_next)
-        assert _next.isoformat() == "2015-01-02T02:00:00+00:00"
-
-    def test_following_schedule_relativedelta_with_depr_schedule_interval_decorated_dag(self):
-        """
-        Tests following_schedule a dag with a relativedelta schedule_interval
-        using decorated dag
-        """
-        from airflow.decorators import dag
-
-        dag_id = "test_schedule_dag_relativedelta"
-        delta = relativedelta(hours=+1)
-
-        @dag(dag_id=dag_id, schedule=delta, start_date=TEST_DATE)
-        def mydag():
-            BaseOperator(task_id="faketastic", owner="Also fake", start_date=TEST_DATE)
-
-        _dag = mydag()
-
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match=r"`DAG.following_schedule\(\)` is deprecated. Use `DAG.next_dagrun_info\(restricted=False\)` instead.",
-        ):
-            _next = _dag.following_schedule(TEST_DATE)
-        assert _next.isoformat() == "2015-01-02T01:00:00+00:00"
-
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match=r"`DAG.following_schedule\(\)` is deprecated. Use `DAG.next_dagrun_info\(restricted=False\)` instead.",
-        ):
-            _next = _dag.following_schedule(_next)
-        assert _next.isoformat() == "2015-01-02T02:00:00+00:00"
-
-    def test_previous_schedule_datetime_timezone(self):
-        # Check that we don't get an AttributeError 'name' for self.timezone
-
-        start = datetime.datetime(2018, 3, 25, 2, tzinfo=datetime.timezone.utc)
-        dag = DAG("tz_dag", start_date=start, schedule="@hourly")
-        with pytest.warns(RemovedInAirflow3Warning, match=r"`DAG.previous_schedule\(\)` is deprecated."):
-            when = dag.previous_schedule(start)
-        assert when.isoformat() == "2018-03-25T01:00:00+00:00"
-
-    def test_following_schedule_datetime_timezone(self):
-        # Check that we don't get an AttributeError 'name' for self.timezone
-
-        start = datetime.datetime(2018, 3, 25, 2, tzinfo=datetime.timezone.utc)
-        dag = DAG("tz_dag", start_date=start, schedule="@hourly")
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match=r"`DAG.following_schedule\(\)` is deprecated. Use `DAG.next_dagrun_info\(restricted=False\)` instead.",
-        ):
-            when = dag.following_schedule(start)
-        assert when.isoformat() == "2018-03-25T03:00:00+00:00"
-
     def test_create_dagrun_when_schedule_is_none_and_empty_start_date(self):
         # Check that we don't get an AttributeError 'start_date' for self.start_date when schedule is none
         dag = DAG("dag_with_none_schedule_and_empty_start_date", schedule=None)
@@ -952,36 +746,8 @@ class TestDag:
 
     def test_fail_dag_when_schedule_is_non_none_and_empty_start_date(self):
         # Check that we get a ValueError 'start_date' for self.start_date when schedule is non-none
-        with pytest.raises(ValueError, match="DAG is missing the start_date parameter"):
-            DAG(dag_id="dag_with_non_none_schedule_and_empty_start_date", schedule="@hourly")
-
-    def test_following_schedule_datetime_timezone_utc0530(self):
-        # Check that we don't get an AttributeError 'name' for self.timezone
-        class UTC0530(datetime.tzinfo):
-            """tzinfo derived concrete class named "+0530" with offset of 19800"""
-
-            # can be configured here
-            _offset = datetime.timedelta(seconds=19800)
-            _dst = datetime.timedelta(0)
-            _name = "+0530"
-
-            def utcoffset(self, dt):
-                return self.__class__._offset
-
-            def dst(self, dt):
-                return self.__class__._dst
-
-            def tzname(self, dt):
-                return self.__class__._name
-
-        start = datetime.datetime(2018, 3, 25, 10, tzinfo=UTC0530())
-        dag = DAG("tz_dag", start_date=start, schedule="@hourly")
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match=r"`DAG.following_schedule\(\)` is deprecated. Use `DAG.next_dagrun_info\(restricted=False\)` instead.",
-        ):
-            when = dag.following_schedule(start)
-        assert when.isoformat() == "2018-03-25T05:30:00+00:00"
+        with pytest.raises(ValueError, match="start_date is required when catchup=True"):
+            DAG(dag_id="dag_with_non_none_schedule_and_empty_start_date", schedule="@hourly", catchup=True)
 
     def test_dagtag_repr(self):
         clear_db_dags()
@@ -1867,7 +1633,7 @@ class TestDag:
             session.query(DagModel).filter(DagModel.dag_id == dag_id).delete(synchronize_session=False)
 
     @pytest.mark.parametrize(
-        "schedule_interval_arg, expected_timetable, interval_description",
+        "schedule_arg, expected_timetable, interval_description",
         [
             (None, NullTimetable(), "Never, external triggers only"),
             ("@daily", cron_timetable("0 0 * * *"), "At 00:00"),
@@ -1881,41 +1647,17 @@ class TestDag:
             ("30 21 * * 5 1", cron_timetable("30 21 * * 5 1"), ""),
         ],
     )
-    def test_timetable_and_description_from_schedule_interval_arg(
-        self, schedule_interval_arg, expected_timetable, interval_description
+    def test_timetable_and_description_from_schedule_arg(
+        self, schedule_arg, expected_timetable, interval_description
     ):
-        dag = DAG("test_schedule_interval_arg", schedule=schedule_interval_arg, start_date=TEST_DATE)
+        dag = DAG("test_schedule_arg", schedule=schedule_arg, start_date=TEST_DATE)
         assert dag.timetable == expected_timetable
-        assert dag.schedule_interval == schedule_interval_arg
         assert dag.timetable.description == interval_description
 
     def test_timetable_and_description_from_dataset(self):
-        dag = DAG("test_schedule_interval_arg", schedule=[Dataset(uri="hello")], start_date=TEST_DATE)
+        dag = DAG("test_schedule_arg", schedule=[Dataset(uri="hello")], start_date=TEST_DATE)
         assert dag.timetable == DatasetTriggeredTimetable(Dataset(uri="hello"))
-        assert dag.schedule_interval == "Dataset"
         assert dag.timetable.description == "Triggered by datasets"
-
-    def test_schedule_interval_still_works(self):
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match="Param `schedule_interval` is deprecated and will be removed in a future release. Please use `schedule` instead.",
-        ):
-            dag = DAG("test_schedule_interval_arg", schedule_interval="*/5 * * * *", start_date=TEST_DATE)
-        assert dag.timetable == cron_timetable("*/5 * * * *")
-        assert dag.schedule_interval == "*/5 * * * *"
-        assert dag.timetable.description == "Every 5 minutes"
-
-    def test_timetable_still_works(self):
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match="Param `timetable` is deprecated and will be removed in a future release. Please use `schedule` instead.",
-        ):
-            dag = DAG(
-                "test_schedule_interval_arg", timetable=cron_timetable("*/6 * * * *"), start_date=TEST_DATE
-            )
-        assert dag.timetable == cron_timetable("*/6 * * * *")
-        assert dag.schedule_interval == "*/6 * * * *"
-        assert dag.timetable.description == "Every 6 minutes"
 
     @pytest.mark.parametrize(
         "timetable, expected_description",
@@ -1938,7 +1680,7 @@ class TestDag:
         ],
     )
     def test_description_from_timetable(self, timetable, expected_description):
-        dag = DAG("test_schedule_interval_description", schedule=timetable, start_date=TEST_DATE)
+        dag = DAG("test_schedule_description", schedule=timetable, start_date=TEST_DATE)
         assert dag.timetable == timetable
         assert dag.timetable.description == expected_description
 
@@ -2284,38 +2026,6 @@ my_postgres_conn:
         next_info = dag.next_dagrun_info(next_info.data_interval)
         assert next_info is None
 
-    def test_next_dagrun_info_start_end_dates(self):
-        """
-        Tests that an attempt to schedule a task after the Dag's end_date
-        does not succeed.
-        """
-        delta = datetime.timedelta(hours=1)
-        runs = 3
-        start_date = DEFAULT_DATE
-        end_date = start_date + (runs - 1) * delta
-        dag_id = "test_schedule_dag_start_end_dates"
-        dag = DAG(dag_id=dag_id, start_date=start_date, end_date=end_date, schedule=delta)
-        dag.add_task(BaseOperator(task_id="faketastic", owner="Also fake"))
-
-        # Create and schedule the dag runs
-        dates = []
-        interval = None
-        for _ in range(runs):
-            next_info = dag.next_dagrun_info(interval)
-            if next_info is None:
-                dates.append(None)
-            else:
-                interval = next_info.data_interval
-                dates.append(interval.start)
-
-        assert all(date is not None for date in dates)
-        assert dates[-1] == end_date
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match="Passing a datetime to DAG.next_dagrun_info is deprecated. Use a DataInterval instead.",
-        ):
-            assert dag.next_dagrun_info(interval.start) is None
-
     def test_next_dagrun_info_catchup(self):
         """
         Test to check that a DAG with catchup = False only schedules beginning now, not back to the start date
@@ -2472,7 +2182,7 @@ my_postgres_conn:
 
     def test_next_dagrun_after_auto_align(self):
         """
-        Test if the schedule_interval will be auto aligned with the start_date
+        Test if the schedule will be auto aligned with the start_date
         such that if the start_date coincides with the schedule the first
         execution_date will be start_date, otherwise it will be start_date +
         interval.
@@ -2512,32 +2222,6 @@ my_postgres_conn:
         assert next_info.logical_date == timezone.datetime(2028, 2, 29)
         assert next_info.data_interval.start == timezone.datetime(2028, 2, 29)
         assert next_info.data_interval.end == timezone.datetime(2032, 2, 29)
-
-    def test_replace_outdated_access_control_actions(self):
-        outdated_permissions = {
-            "role1": {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT},
-            "role2": {permissions.DEPRECATED_ACTION_CAN_DAG_READ, permissions.DEPRECATED_ACTION_CAN_DAG_EDIT},
-            "role3": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},
-        }
-        updated_permissions = {
-            "role1": {permissions.RESOURCE_DAG: {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}},
-            "role2": {permissions.RESOURCE_DAG: {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}},
-            "role3": {permissions.RESOURCE_DAG_RUN: {permissions.ACTION_CAN_CREATE}},
-        }
-
-        with pytest.warns(DeprecationWarning) as deprecation_warnings:
-            dag = DAG(dag_id="dag_with_outdated_perms", schedule=None, access_control=outdated_permissions)
-        assert dag.access_control == updated_permissions
-        assert len(deprecation_warnings) == 2
-        assert "permission is deprecated" in str(deprecation_warnings[0].message)
-        assert "permission is deprecated" in str(deprecation_warnings[1].message)
-
-        with pytest.warns(DeprecationWarning) as deprecation_warnings:
-            dag.access_control = outdated_permissions
-        assert dag.access_control == updated_permissions
-        assert len(deprecation_warnings) == 2
-        assert "permission is deprecated" in str(deprecation_warnings[0].message)
-        assert "permission is deprecated" in str(deprecation_warnings[1].message)
 
     @pytest.mark.parametrize(
         "fab_version, perms, expected_exception, expected_perms",
@@ -2669,25 +2353,7 @@ my_postgres_conn:
         with pytest.raises(AirflowException):
             DAG("dag", schedule=None, start_date=DEFAULT_DATE, owner_links={"owner1": "my-bad-link"})
 
-    @pytest.mark.parametrize(
-        "kwargs",
-        [
-            {"schedule_interval": "@daily", "schedule": "@weekly"},
-            {"timetable": NullTimetable(), "schedule": "@weekly"},
-            {"timetable": NullTimetable(), "schedule_interval": "@daily"},
-        ],
-        ids=[
-            "schedule_interval+schedule",
-            "timetable+schedule",
-            "timetable+schedule_interval",
-        ],
-    )
-    def test_schedule_dag_param(self, kwargs):
-        with pytest.raises(ValueError, match="At most one"):
-            with DAG(dag_id="hello", start_date=TEST_DATE, **kwargs):
-                pass
-
-    def test_continuous_schedule_interval_linmits_max_active_runs(self):
+    def test_continuous_schedule_linmits_max_active_runs(self):
         dag = DAG("continuous", start_date=DEFAULT_DATE, schedule="@continuous", max_active_runs=1)
         assert isinstance(dag.timetable, ContinuousTimetable)
         assert dag.max_active_runs == 1
@@ -3254,45 +2920,6 @@ class TestDagDecorator:
 
         dag = xcom_pass_to_op()
         assert dag.params["value"] == value
-
-    def test_warning_location(self):
-        # NOTE: This only works as long as there is some warning we can emit from `DAG()`
-        @dag_decorator(schedule_interval=None)
-        def mydag(): ...
-
-        with pytest.warns(RemovedInAirflow3Warning) as warnings:
-            line = sys._getframe().f_lineno + 1
-            mydag()
-
-        w = warnings.pop(RemovedInAirflow3Warning)
-        assert w.filename == __file__
-        assert w.lineno == line
-
-
-@pytest.mark.parametrize("timetable", [NullTimetable(), OnceTimetable()])
-def test_dag_timetable_match_schedule_interval(timetable):
-    dag = DAG("my-dag", schedule=timetable, start_date=DEFAULT_DATE)
-    assert dag._check_schedule_interval_matches_timetable()
-
-
-@pytest.mark.parametrize("schedule_interval", [None, "@once", "@daily", timedelta(days=1)])
-def test_dag_schedule_interval_match_timetable(schedule_interval):
-    dag = DAG("my-dag", schedule=schedule_interval, start_date=DEFAULT_DATE)
-    assert dag._check_schedule_interval_matches_timetable()
-
-
-@pytest.mark.parametrize("schedule_interval", [None, "@daily", timedelta(days=1)])
-def test_dag_schedule_interval_change_after_init(schedule_interval):
-    dag = DAG("my-dag", schedule=OnceTimetable(), start_date=DEFAULT_DATE)
-    dag.schedule_interval = schedule_interval
-    assert not dag._check_schedule_interval_matches_timetable()
-
-
-@pytest.mark.parametrize("timetable", [NullTimetable(), OnceTimetable()])
-def test_dag_timetable_change_after_init(timetable):
-    dag = DAG("my-dag", schedule=timedelta(days=1), start_date=DEFAULT_DATE)
-    dag.timetable = timetable
-    assert not dag._check_schedule_interval_matches_timetable()
 
 
 @pytest.mark.parametrize(

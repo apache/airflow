@@ -321,15 +321,6 @@ ARG_BF_IGNORE_DEPENDENCIES = Arg(
     ),
     action="store_true",
 )
-ARG_BF_IGNORE_FIRST_DEPENDS_ON_PAST = Arg(
-    ("-I", "--ignore-first-depends-on-past"),
-    help=(
-        "Ignores depends_on_past dependencies for the first "
-        "set of tasks only (subsequent executions in the backfill "
-        "DO respect depends_on_past)"
-    ),
-    action="store_true",
-)
 ARG_POOL = Arg(("--pool",), "Resource pool to use")
 ARG_DELAY_ON_LIMIT = Arg(
     ("--delay-on-limit",),
@@ -383,11 +374,6 @@ ARG_RUN_BACKWARDS = Arg(
     action="store_true",
 )
 
-ARG_TREAT_DAG_AS_REGEX = Arg(
-    ("--treat-dag-as-regex",),
-    help=("Deprecated -- use `--treat-dag-id-as-regex` instead"),
-    action="store_true",
-)
 
 ARG_TREAT_DAG_ID_AS_REGEX = Arg(
     ("--treat-dag-id-as-regex",),
@@ -795,6 +781,45 @@ ARG_INTERNAL_API_ACCESS_LOGFORMAT = Arg(
     ("-L", "--access-logformat"),
     help="The access log format for gunicorn logs",
 )
+
+
+# ui-api
+ARG_UI_API_PORT = Arg(
+    ("-p", "--port"),
+    default=9091,
+    type=int,
+    help="The port on which to run the server",
+)
+ARG_UI_API_WORKERS = Arg(
+    ("-w", "--workers"),
+    default=4,
+    type=int,
+    help="Number of workers to run the UI API-on",
+)
+ARG_UI_API_WORKER_TIMEOUT = Arg(
+    ("-t", "--worker-timeout"),
+    default=120,
+    type=int,
+    help="The timeout for waiting on UI API workers",
+)
+ARG_UI_API_HOSTNAME = Arg(
+    ("-H", "--hostname"),
+    default="0.0.0.0",  # nosec
+    help="Set the hostname on which to run the web server",
+)
+ARG_UI_API_ACCESS_LOGFILE = Arg(
+    ("-A", "--access-logfile"),
+    help="The logfile to store the access log. Use '-' to print to stdout",
+)
+ARG_UI_API_ERROR_LOGFILE = Arg(
+    ("-E", "--error-logfile"),
+    help="The logfile to store the error log. Use '-' to print to stderr",
+)
+ARG_UI_API_ACCESS_LOGFORMAT = Arg(
+    ("-L", "--access-logformat"),
+    help="The access log format for gunicorn logs",
+)
+
 
 # scheduler
 ARG_NUM_RUNS = Arg(
@@ -1230,7 +1255,6 @@ DAGS_COMMANDS = (
             ARG_CONTINUE_ON_FAILURES,
             ARG_DISABLE_RETRY,
             ARG_BF_IGNORE_DEPENDENCIES,
-            ARG_BF_IGNORE_FIRST_DEPENDS_ON_PAST,
             ARG_SUBDIR,
             ARG_POOL,
             ARG_DELAY_ON_LIMIT,
@@ -1240,7 +1264,6 @@ DAGS_COMMANDS = (
             ARG_RESET_DAG_RUN,
             ARG_RERUN_FAILED_TASKS,
             ARG_RUN_BACKWARDS,
-            ARG_TREAT_DAG_AS_REGEX,
             ARG_TREAT_DAG_ID_AS_REGEX,
         ),
     ),
@@ -1939,7 +1962,7 @@ core_commands: list[CLICommand] = [
     ),
     ActionCommand(
         name="webserver",
-        help="Start a Airflow webserver instance",
+        help="Start an Airflow webserver instance",
         func=lazy_load_command("airflow.cli.commands.webserver_command.webserver"),
         args=(
             ARG_PORT,
@@ -1954,6 +1977,28 @@ core_commands: list[CLICommand] = [
             ARG_ACCESS_LOGFILE,
             ARG_ERROR_LOGFILE,
             ARG_ACCESS_LOGFORMAT,
+            ARG_LOG_FILE,
+            ARG_SSL_CERT,
+            ARG_SSL_KEY,
+            ARG_DEBUG,
+        ),
+    ),
+    ActionCommand(
+        name="ui-api",
+        help="Start an Airflow UI API instance",
+        func=lazy_load_command("airflow.cli.commands.ui_api_command.ui_api"),
+        args=(
+            ARG_UI_API_PORT,
+            ARG_UI_API_WORKERS,
+            ARG_UI_API_WORKER_TIMEOUT,
+            ARG_UI_API_HOSTNAME,
+            ARG_PID,
+            ARG_DAEMON,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_UI_API_ACCESS_LOGFILE,
+            ARG_UI_API_ERROR_LOGFILE,
+            ARG_UI_API_ACCESS_LOGFORMAT,
             ARG_LOG_FILE,
             ARG_SSL_CERT,
             ARG_SSL_KEY,
@@ -2079,7 +2124,7 @@ if _ENABLE_AIP_44:
     core_commands.append(
         ActionCommand(
             name="internal-api",
-            help="Start a Airflow Internal API instance",
+            help="Start an Airflow Internal API instance",
             func=lazy_load_command("airflow.cli.commands.internal_api_command.internal_api"),
             args=(
                 ARG_INTERNAL_API_PORT,

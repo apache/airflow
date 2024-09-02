@@ -105,6 +105,7 @@ class FileGroupForCi(Enum):
     HELM_FILES = "helm_files"
     DEPENDENCY_FILES = "dependency_files"
     DOC_FILES = "doc_files"
+    UI_FILES = "ui_files"
     WWW_FILES = "www_files"
     SYSTEM_TEST_FILES = "system_tests"
     KUBERNETES_FILES = "kubernetes_files"
@@ -177,6 +178,12 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/RELEASE_NOTES\.txt",
             r"^chart/values\.schema\.json",
             r"^chart/values\.json",
+        ],
+        FileGroupForCi.UI_FILES: [
+            r"^airflow/ui/.*\.ts[x]?$",
+            r"^airflow/ui/.*\.js[x]?$",
+            r"^airflow/ui/[^/]+\.json$",
+            r"^airflow/ui/.*\.lock$",
         ],
         FileGroupForCi.WWW_FILES: [
             r"^airflow/www/.*\.ts[x]?$",
@@ -666,6 +673,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.API_CODEGEN_FILES)
 
     @cached_property
+    def run_ui_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.UI_FILES)
+
+    @cached_property
     def run_www_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.WWW_FILES)
 
@@ -1042,6 +1053,8 @@ class SelectiveChecks:
             return ",".join(sorted(pre_commits_to_skip))
         if not self._matching_files(FileGroupForCi.WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES):
             pre_commits_to_skip.add("ts-compile-format-lint-www")
+        if not self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES):
+            pre_commits_to_skip.add("ts-compile-format-lint-ui")
         if not self._matching_files(
             FileGroupForCi.ALL_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
         ):

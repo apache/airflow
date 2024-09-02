@@ -23,7 +23,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.sensors.databricks_partition import DatabricksPartitionSensor
@@ -102,62 +102,45 @@ class TestDatabricksPartitionSensor:
         patched_poke.return_value = True
         assert self.partition_sensor.poke({})
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @patch("airflow.providers.databricks.sensors.databricks_partition.DatabricksPartitionSensor._sql_sensor")
-    def test_fail__generate_partition_query(self, _sql_sensor, soft_fail, expected_exception):
-        self.partition_sensor.soft_fail = soft_fail
+    def test_fail__generate_partition_query(self, _sql_sensor):
         table_name = "test"
         _sql_sensor.return_value = [[[], [], [], [], [], [], [], []]]
-        with pytest.raises(expected_exception, match=f"Table {table_name} does not have partitions"):
+        with pytest.raises(AirflowException, match=f"Table {table_name} does not have partitions"):
             self.partition_sensor._generate_partition_query(
                 prefix="", suffix="", joiner_val="", table_name=table_name
             )
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @patch("airflow.providers.databricks.sensors.databricks_partition.DatabricksPartitionSensor._sql_sensor")
-    def test_fail__generate_partition_query_with_partition_col_mismatch(
-        self, _sql_sensor, soft_fail, expected_exception
-    ):
-        self.partition_sensor.soft_fail = soft_fail
+    def test_fail__generate_partition_query_with_partition_col_mismatch(self, _sql_sensor):
         partition_col = "non_existent_col"
         partition_columns = ["col1", "col2"]
         _sql_sensor.return_value = [[[], [], [], [], [], [], [], partition_columns]]
-        with pytest.raises(expected_exception, match=f"Column {partition_col} not part of table partitions"):
+        with pytest.raises(AirflowException, match=f"Column {partition_col} not part of table partitions"):
             self.partition_sensor._generate_partition_query(
                 prefix="", suffix="", joiner_val="", table_name="", opts={partition_col: "1"}
             )
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @patch("airflow.providers.databricks.sensors.databricks_partition.DatabricksPartitionSensor._sql_sensor")
     def test_fail__generate_partition_query_with_missing_opts(
-        self, _sql_sensor, soft_fail, expected_exception
+        self,
+        _sql_sensor,
     ):
-        self.partition_sensor.soft_fail = soft_fail
         _sql_sensor.return_value = [[[], [], [], [], [], [], [], ["col1", "col2"]]]
-        with pytest.raises(expected_exception, match="No partitions specified to check with the sensor."):
+        with pytest.raises(AirflowException, match="No partitions specified to check with the sensor."):
             self.partition_sensor._generate_partition_query(
                 prefix="", suffix="", joiner_val="", table_name=""
             )
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @patch(
         "airflow.providers.databricks.sensors.databricks_partition.DatabricksPartitionSensor"
         "._check_table_partitions"
     )
-    def test_fail_poke(self, _check_table_partitions, soft_fail, expected_exception):
-        self.partition_sensor.soft_fail = soft_fail
+    def test_fail_poke(self, _check_table_partitions):
         partitions = "test"
         self.partition_sensor.partitions = partitions
         _check_table_partitions.return_value = False
         with pytest.raises(
-            expected_exception, match=rf"Specified partition\(s\): {partitions} were not found."
+            AirflowException, match=rf"Specified partition\(s\): {partitions} were not found."
         ):
             self.partition_sensor.poke(context={})

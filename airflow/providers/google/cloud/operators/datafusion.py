@@ -21,7 +21,6 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any, Sequence
 
-from deprecated import deprecated
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
@@ -37,6 +36,7 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.cloud.triggers.datafusion import DataFusionStartPipelineTrigger
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 from airflow.providers.google.cloud.utils.helpers import resource_path_to_dict
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
@@ -53,7 +53,8 @@ class DataFusionPipelineLinkHelper:
 
     @staticmethod
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.utils.helpers.resource_path_to_dict` instead.",
+        planned_removal_date="March 01, 2025",
+        use_instead="airflow.providers.google.cloud.utils.helpers.resource_path_to_dict",
         category=AirflowProviderDeprecationWarning,
     )
     def get_project_id(instance):

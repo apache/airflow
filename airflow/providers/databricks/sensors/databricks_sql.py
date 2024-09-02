@@ -23,7 +23,7 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.sensors.base import BaseSensorOperator
@@ -117,13 +117,10 @@ class DatabricksSqlSensor(BaseSensorOperator):
     def _get_results(self) -> bool:
         """Use the Databricks SQL hook and run the specified SQL query."""
         if not (self._http_path or self._sql_warehouse_name):
-            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
             message = (
                 "Databricks SQL warehouse/cluster configuration missing. Please specify either"
                 " http_path or sql_warehouse_name."
             )
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
         hook = self.hook
         sql_result = hook.run(

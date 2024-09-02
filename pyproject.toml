@@ -79,8 +79,8 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 # START CORE EXTRAS HERE
 #
 # aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, github-enterprise, google-
-# auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, pydantic, rabbitmq, s3fs, saml,
-# sentry, statsd, uv, virtualenv
+# auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, saml, sentry,
+# statsd, uv, virtualenv
 #
 # END CORE EXTRAS HERE
 #
@@ -139,8 +139,8 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 # hashicorp, http, imap, influxdb, jdbc, jenkins, microsoft.azure, microsoft.mssql, microsoft.psrp,
 # microsoft.winrm, mongo, mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie,
 # oracle, pagerduty, papermill, pgvector, pinecone, postgres, presto, qdrant, redis, salesforce,
-# samba, segment, sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, tableau, tabular,
-# telegram, teradata, trino, vertica, weaviate, yandex, ydb, zendesk
+# samba, segment, sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, tableau, telegram,
+# teradata, trino, vertica, weaviate, yandex, ydb, zendesk
 #
 # END PROVIDER EXTRAS HERE
 
@@ -406,10 +406,11 @@ combine-as-imports = true
 "tests/providers/google/cloud/operators/vertex_ai/test_generative_model.py" = ["E402"]
 "tests/providers/google/cloud/triggers/test_vertex_ai.py" = ["E402"]
 "tests/providers/openai/hooks/test_openai.py" = ["E402"]
+"tests/providers/openai/operators/test_openai.py" = ["E402"]
+"tests/providers/openai/triggers/test_openai.py" = ["E402"]
 "tests/providers/opensearch/conftest.py" = ["E402"]
 "tests/providers/opensearch/hooks/test_opensearch.py" = ["E402"]
 "tests/providers/opensearch/operators/test_opensearch.py" = ["E402"]
-"tests/providers/openai/operators/test_openai.py" = ["E402"]
 "tests/providers/qdrant/hooks/test_qdrant.py" = ["E402"]
 "tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
 "tests/providers/snowflake/operators/test_snowflake_sql.py" = ["E402"]
