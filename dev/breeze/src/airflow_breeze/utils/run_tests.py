@@ -114,12 +114,9 @@ def get_suspended_provider_args() -> list[str]:
     for providers in suspended_folders:
         pytest_args.extend(
             [
-                "--ignore",
-                f"tests/providers/{providers}",
-                "--ignore",
-                f"tests/system/providers/{providers}",
-                "--ignore",
-                f"tests/integration/providers/{providers}",
+                f"--ignore=tests/providers/{providers}",
+                f"--ignore=tests/system/providers/{providers}",
+                f"--ignore=tests/integration/providers/{providers}",
             ]
         )
     return pytest_args
@@ -131,12 +128,9 @@ def get_excluded_provider_args(python_version: str) -> list[str]:
     for providers in excluded_folders:
         pytest_args.extend(
             [
-                "--ignore",
-                f"tests/providers/{providers}",
-                "--ignore",
-                f"tests/system/providers/{providers}",
-                "--ignore",
-                f"tests/integration/providers/{providers}",
+                f"--ignore=tests/providers/{providers}",
+                f"--ignore=tests/system/providers/{providers}",
+                f"--ignore=tests/integration/providers/{providers}",
             ]
         )
     return pytest_args
@@ -288,7 +282,7 @@ def convert_test_type_to_pytest_args(
         return find_all_other_tests()
     test_dirs = TEST_TYPE_MAP_TO_PYTEST_ARGS.get(test_type)
     if test_dirs:
-        return test_dirs
+        return test_dirs.copy()
     get_console().print(f"[error]Unknown test type: {test_type}[/]")
     sys.exit(1)
 
