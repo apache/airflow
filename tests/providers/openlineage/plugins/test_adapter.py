@@ -823,10 +823,10 @@ def test_openlineage_adapter_stats_emit_failed(
 
 def test_build_dag_run_id_is_valid_uuid():
     dag_id = "test_dag"
-    execution_date = datetime.datetime.now()
+    logical_date = datetime.datetime.now()
     result = OpenLineageAdapter.build_dag_run_id(
         dag_id=dag_id,
-        execution_date=execution_date,
+        logical_date=logical_date,
     )
     uuid_result = uuid.UUID(result)
     assert uuid_result
@@ -836,11 +836,11 @@ def test_build_dag_run_id_is_valid_uuid():
 def test_build_dag_run_id_same_input_give_same_result():
     result1 = OpenLineageAdapter.build_dag_run_id(
         dag_id="dag1",
-        execution_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+        logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
     )
     result2 = OpenLineageAdapter.build_dag_run_id(
         dag_id="dag1",
-        execution_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+        logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
     )
     assert result1 == result2
 
@@ -848,11 +848,11 @@ def test_build_dag_run_id_same_input_give_same_result():
 def test_build_dag_run_id_different_inputs_give_different_results():
     result1 = OpenLineageAdapter.build_dag_run_id(
         dag_id="dag1",
-        execution_date=datetime.datetime.now(),
+        logical_date=datetime.datetime.now(),
     )
     result2 = OpenLineageAdapter.build_dag_run_id(
         dag_id="dag2",
-        execution_date=datetime.datetime.now(),
+        logical_date=datetime.datetime.now(),
     )
     assert result1 != result2
 

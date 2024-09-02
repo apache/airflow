@@ -118,10 +118,10 @@ class OpenLineageAdapter(LoggingMixin):
             return yaml.safe_load(config_file)
 
     @staticmethod
-    def build_dag_run_id(dag_id: str, execution_date: datetime) -> str:
+    def build_dag_run_id(dag_id: str, logical_date: datetime) -> str:
         return str(
             generate_static_uuid(
-                instant=execution_date,
+                instant=logical_date,
                 data=f"{conf.namespace()}.{dag_id}".encode(),
             )
         )
@@ -357,7 +357,7 @@ class OpenLineageAdapter(LoggingMixin):
                 run=self._build_run(
                     run_id=self.build_dag_run_id(
                         dag_id=dag_run.dag_id,
-                        execution_date=dag_run.execution_date,
+                        logical_date=dag_run.logical_date,
                     ),
                     job_name=dag_run.dag_id,
                     nominal_start_time=nominal_start_time,
@@ -384,7 +384,7 @@ class OpenLineageAdapter(LoggingMixin):
                 run=Run(
                     runId=self.build_dag_run_id(
                         dag_id=dag_run.dag_id,
-                        execution_date=dag_run.execution_date,
+                        logical_date=dag_run.logical_date,
                     ),
                     facets={**get_airflow_state_run_facet(dag_run), **get_airflow_debug_facet()},
                 ),
@@ -408,7 +408,7 @@ class OpenLineageAdapter(LoggingMixin):
                 run=Run(
                     runId=self.build_dag_run_id(
                         dag_id=dag_run.dag_id,
-                        execution_date=dag_run.execution_date,
+                        logical_date=dag_run.logical_date,
                     ),
                     facets={
                         "errorMessage": error_message_run.ErrorMessageRunFacet(
