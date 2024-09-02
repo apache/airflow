@@ -395,6 +395,12 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360RunQueryOperator",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360DownloadReportV2Operator",
         "airflow.providers.google.marketing_platform.sensors.GoogleDisplayVideo360RunQuerySensor",
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsDataImportUploadOperator",
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsDeletePreviousDataUploadsOperator",
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsGetAdsLinkOperator",
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsListAccountsOperator",
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsModifyFileHeadersDataImportOperator",
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsRetrieveAdsLinksListOperator",
     }
 
     BASE_CLASSES = {

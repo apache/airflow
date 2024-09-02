@@ -1592,7 +1592,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         context: Any,
         key: str,
         value: Any,
-        execution_date: datetime | None = None,
     ) -> None:
         """
         Make an XCom available for tasks to pull.
@@ -1601,11 +1600,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         :param key: A key for the XCom
         :param value: A value for the XCom. The value is pickled and stored
             in the database.
-        :param execution_date: if provided, the XCom will not be visible until
-            this date. This can be used, for example, to send a message to a
-            task on a future date without it being immediately visible.
         """
-        context["ti"].xcom_push(key=key, value=value, execution_date=execution_date)
+        context["ti"].xcom_push(key=key, value=value)
 
     @staticmethod
     @provide_session

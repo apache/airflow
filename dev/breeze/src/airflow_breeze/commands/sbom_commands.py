@@ -72,7 +72,11 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import FILES_SBOM_DIR, PROVIDER_METADATA_JSON_FILE_PATH
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_SOURCES_ROOT,
+    FILES_SBOM_DIR,
+    PROVIDER_METADATA_JSON_FILE_PATH,
+)
 from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.shared_options import get_dry_run
 
@@ -662,7 +666,7 @@ def generate_providers_requirements(
 @option_github_token
 @click.option(
     "--json-credentials-file",
-    type=click.Path(file_okay=True, dir_okay=False, path_type=Path, writable=False),
+    type=click.Path(file_okay=True, dir_okay=False, path_type=Path, writable=False, exists=False),
     help="Gsheet JSON credentials file (defaults to ~/.config/gsheet/credentials.json",
     envvar="JSON_CREDENTIALS_FILE",
     default=Path.home() / ".config" / "gsheet" / "credentials.json"
@@ -681,6 +685,12 @@ def generate_providers_requirements(
     "-G",
     "--include-github-stats",
     help="Include statistics from GitHub",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "--include-actions",
+    help="Include Actions recommended for the project",
     is_flag=True,
     default=False,
 )
@@ -709,6 +719,7 @@ def export_dependency_information(
     json_credentials_file: Path,
     include_open_psf_scorecard: bool,
     include_github_stats: bool,
+    include_actions: bool,
     limit_output: int | None,
     project_name: str | None,
 ):
@@ -721,7 +732,14 @@ def export_dependency_information(
     if google_spreadsheet_id and not json_credentials_file.exists():
         get_console().print(
             f"[error]The JSON credentials file {json_credentials_file} does not exist. "
-            "Please specify a valid path to the JSON credentials file."
+            "Please specify a valid path to the JSON credentials file.[/]\n"
+            "You can download credentials file from your google developer console:"
+            "https://console.cloud.google.com/apis/credentials after creating a Desktop Client ID."
+        )
+        sys.exit(1)
+    if include_actions and not include_open_psf_scorecard:
+        get_console().print(
+            "[error]You cannot specify --include-actions without --include-open-psf-scorecard"
         )
         sys.exit(1)
     import requests
@@ -744,13 +762,18 @@ def export_dependency_information(
         full_sbom=full_sbom,
         include_open_psf_scorecard=include_open_psf_scorecard,
         include_github_stats=include_github_stats,
+        include_actions=include_actions,
         limit_output=limit_output,
         github_token=github_token,
         project_name=project_name,
     )
     all_dependency_value_dicts = sorted(all_dependency_value_dicts, key=sort_deps_key)
 
-    fieldnames = get_field_names(include_open_psf_scorecard, include_github_stats)
+    fieldnames = get_field_names(
+        include_open_psf_scorecard=include_open_psf_scorecard,
+        include_github_stats=include_github_stats,
+        include_actions=include_actions,
+    )
 
     if csv_file:
         write_to_csv_file(
@@ -762,6 +785,7 @@ def export_dependency_information(
             json_credentials_file=json_credentials_file,
             all_dependencies=all_dependency_value_dicts,
             fieldnames=fieldnames,
+            include_opsf_scorecard=include_open_psf_scorecard,
         )
 
 
@@ -801,6 +825,7 @@ def write_to_google_spreadsheet(
     json_credentials_file: Path,
     all_dependencies: list[dict[str, Any]],
     fieldnames: list[str],
+    include_opsf_scorecard: bool = False,
 ):
     token_path = Path.home() / ".config" / "gsheet" / "token.json"
 
@@ -814,7 +839,8 @@ def write_to_google_spreadsheet(
     ]
 
     num_rows = update_field_values(all_dependencies, cell_field_names, google_spreadsheet_id, sheet)
-    update_opsf_detailed_comments(all_dependencies, fieldnames, num_rows, google_spreadsheet_id, sheet)
+    if include_opsf_scorecard:
+        update_opsf_detailed_comments(all_dependencies, fieldnames, num_rows, google_spreadsheet_id, sheet)
 
 
 def update_opsf_detailed_comments(
@@ -935,6 +961,7 @@ def convert_all_sbom_to_value_dictionaries(
     full_sbom: dict[str, Any],
     include_open_psf_scorecard: bool,
     include_github_stats: bool,
+    include_actions: bool,
     limit_output: int | None,
     github_token: str | None = None,
     project_name: str | None = None,
@@ -943,6 +970,11 @@ def convert_all_sbom_to_value_dictionaries(
     dev_deps = set(normalize_package_name(name) for name in DEVEL_DEPS_PATH.read_text().splitlines())
     num_deps = 0
     all_dependency_value_dicts = []
+    dependency_depth: dict[str, int] = json.loads(
+        (AIRFLOW_SOURCES_ROOT / "generated" / "dependency_depth.json").read_text()
+    )
+    for key, value in dependency_depth.items():
+        dependency_depth[normalize_package_name(key)] = value
     for dependency in core_sbom["components"]:
         normalized_name = normalize_package_name(dependency["name"])
         if project_name and normalized_name != project_name:
@@ -951,10 +983,12 @@ def convert_all_sbom_to_value_dictionaries(
         is_devel = normalized_name in dev_deps
         value_dict = convert_sbom_entry_to_dict(
             dependency,
+            dependency_depth=dependency_depth,
             is_core=True,
             is_devel=is_devel,
             include_open_psf_scorecard=include_open_psf_scorecard,
             include_github_stats=include_github_stats,
+            include_actions=include_actions,
             github_token=github_token,
         )
         if value_dict:
@@ -970,10 +1004,12 @@ def convert_all_sbom_to_value_dictionaries(
             is_devel = normalized_name in dev_deps
             value_dict = convert_sbom_entry_to_dict(
                 dependency,
+                dependency_depth=dependency_depth,
                 is_core=False,
                 is_devel=is_devel,
                 include_open_psf_scorecard=include_open_psf_scorecard,
                 include_github_stats=include_github_stats,
+                include_actions=include_actions,
                 github_token=github_token,
             )
             if value_dict:

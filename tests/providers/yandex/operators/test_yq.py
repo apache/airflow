@@ -22,6 +22,8 @@ from unittest.mock import MagicMock, call, patch
 
 import pytest
 
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
 yandexcloud = pytest.importorskip("yandexcloud")
 
 import responses
@@ -89,15 +91,25 @@ class TestYQExecuteQueryOperator:
         results = operator.execute(context)
         assert results == {"rows": [[777]], "columns": [{"name": "column0", "type": "Int32"}]}
 
-        context["ti"].xcom_push.assert_has_calls(
-            [
-                call(
-                    key="web_link",
-                    value=f"https://yq.cloud.yandex.ru/folders/{FOLDER_ID}/ide/queries/query1",
-                    execution_date=None,
-                ),
-            ]
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            context["ti"].xcom_push.assert_has_calls(
+                [
+                    call(
+                        key="web_link",
+                        value=f"https://yq.cloud.yandex.ru/folders/{FOLDER_ID}/ide/queries/query1",
+                    ),
+                ]
+            )
+        else:
+            context["ti"].xcom_push.assert_has_calls(
+                [
+                    call(
+                        key="web_link",
+                        value=f"https://yq.cloud.yandex.ru/folders/{FOLDER_ID}/ide/queries/query1",
+                        execution_date=None,
+                    ),
+                ]
+            )
 
         responses.get(
             "https://api.yandex-query.cloud.yandex.net/api/fq/v1/queries/query1/status",

@@ -102,7 +102,7 @@ class TestCloudBuildHook:
 
         wait_time.return_value = 0
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="Call to deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             self.hook.create_build(build=BUILD, project_id=PROJECT_ID)
 
         get_conn.return_value.create_build.assert_called_once_with(
@@ -123,7 +123,7 @@ class TestCloudBuildHook:
         get_conn.return_value.run_build_trigger.return_value = mock.MagicMock()
         mock_get_id_from_operation.return_value = BUILD_ID
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="Call to deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             self.hook.create_build(build=BUILD, project_id=PROJECT_ID, wait=False)
 
         mock_operation = get_conn.return_value.create_build

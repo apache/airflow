@@ -189,7 +189,7 @@ If there are any other arguments - they are simply passed to the "airflow" comma
           scheduler      Start a scheduler instance
           sync-perm      Update permissions for existing roles and optionally DAGs
           version        Show the version
-          webserver      Start a Airflow webserver instance
+          webserver      Start an Airflow webserver instance
 
     optional arguments:
       -h, --help         show this help message and exit

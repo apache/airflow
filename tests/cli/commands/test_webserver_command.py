@@ -30,7 +30,7 @@ from airflow import settings
 from airflow.cli import cli_parser
 from airflow.cli.commands import webserver_command
 from airflow.cli.commands.webserver_command import GunicornMonitor
-from tests.cli.commands._common_cli_classes import _ComonCLIGunicornTestClass
+from tests.cli.commands._common_cli_classes import _CommonCLIGunicornTestClass
 from tests.test_utils.config import conf_vars
 
 console = Console(width=400, color_system="standard")
@@ -227,7 +227,7 @@ class TestCLIGetNumReadyWorkersRunning:
 
 
 @pytest.mark.db_test
-class TestCliWebServer(_ComonCLIGunicornTestClass):
+class TestCliWebServer(_CommonCLIGunicornTestClass):
     main_process_regexp = r"airflow webserver"
 
     @pytest.mark.execution_timeout(400)

@@ -845,6 +845,7 @@ class AsyncKubernetesHook(KubernetesHook):
         :param name: Name of Pod to fetch.
         :param namespace: Namespace of the Pod.
         :param container_name: name of the container within the pod to monitor
+        :param poll_interval: Interval in seconds between polling the container status
         """
         while True:
             pod = await self.get_pod(name=name, namespace=namespace)
@@ -862,6 +863,7 @@ class AsyncKubernetesHook(KubernetesHook):
         :param name: Name of Pod to fetch.
         :param namespace: Namespace of the Pod.
         :param container_name: name of the container within the pod to monitor
+        :param poll_interval: Interval in seconds between polling the container status
         """
         while True:
             pod = await self.get_pod(name=name, namespace=namespace)

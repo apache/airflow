@@ -79,7 +79,7 @@ from airflow.providers.google.cloud.triggers.dataproc import (
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils.timezone import datetime
-from tests.test_utils.compat import AIRFLOW_VERSION
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS, AIRFLOW_VERSION
 from tests.test_utils.db import clear_db_runs, clear_db_xcom
 
 AIRFLOW_VERSION_LABEL = "v" + str(AIRFLOW_VERSION).replace(".", "-").replace("+", "-")
@@ -440,19 +440,32 @@ class DataprocTestBase:
 class DataprocJobTestBase(DataprocTestBase):
     @classmethod
     def setup_class(cls):
-        cls.extra_links_expected_calls = [
-            call.ti.xcom_push(execution_date=None, key="conf", value=DATAPROC_JOB_CONF_EXPECTED),
-            call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
-        ]
+        if AIRFLOW_V_3_0_PLUS:
+            cls.extra_links_expected_calls = [
+                call.ti.xcom_push(key="conf", value=DATAPROC_JOB_CONF_EXPECTED),
+                call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
+            ]
+        else:
+            cls.extra_links_expected_calls = [
+                call.ti.xcom_push(key="conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None),
+                call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
+            ]
 
 
 class DataprocClusterTestBase(DataprocTestBase):
     @classmethod
     def setup_class(cls):
         super().setup_class()
-        cls.extra_links_expected_calls_base = [
-            call.ti.xcom_push(execution_date=None, key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
-        ]
+        if AIRFLOW_V_3_0_PLUS:
+            cls.extra_links_expected_calls_base = [
+                call.ti.xcom_push(key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED)
+            ]
+        else:
+            cls.extra_links_expected_calls_base = [
+                call.ti.xcom_push(
+                    key="dataproc_cluster", value=DATAPROC_CLUSTER_EXPECTED, execution_date=None
+                )
+            ]
 
 
 class TestsClusterGenerator:
@@ -758,11 +771,17 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
         self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
 
         to_dict_mock.assert_called_once_with(mock_hook().wait_for_operation())
-        self.mock_ti.xcom_push.assert_called_once_with(
-            key="dataproc_cluster",
-            value=DATAPROC_CLUSTER_EXPECTED,
-            execution_date=None,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            self.mock_ti.xcom_push.assert_called_once_with(
+                key="dataproc_cluster",
+                value=DATAPROC_CLUSTER_EXPECTED,
+            )
+        else:
+            self.mock_ti.xcom_push.assert_called_once_with(
+                key="dataproc_cluster",
+                value=DATAPROC_CLUSTER_EXPECTED,
+                execution_date=None,
+            )
 
     @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -808,11 +827,17 @@ class TestDataprocCreateClusterOperator(DataprocClusterTestBase):
         self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
 
         to_dict_mock.assert_called_once_with(mock_hook().wait_for_operation())
-        self.mock_ti.xcom_push.assert_called_once_with(
-            key="dataproc_cluster",
-            value=DATAPROC_CLUSTER_EXPECTED,
-            execution_date=None,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            self.mock_ti.xcom_push.assert_called_once_with(
+                key="dataproc_cluster",
+                value=DATAPROC_CLUSTER_EXPECTED,
+            )
+        else:
+            self.mock_ti.xcom_push.assert_called_once_with(
+                key="dataproc_cluster",
+                value=DATAPROC_CLUSTER_EXPECTED,
+                execution_date=None,
+            )
 
     @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
@@ -1095,9 +1120,14 @@ class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
     @classmethod
     def setup_class(cls):
         super().setup_class()
-        cls.extra_links_expected_calls_base = [
-            call.ti.xcom_push(execution_date=None, key="conf", value=DATAPROC_CLUSTER_CONF_EXPECTED)
-        ]
+        if AIRFLOW_V_3_0_PLUS:
+            cls.extra_links_expected_calls_base = [
+                call.ti.xcom_push(key="conf", value=DATAPROC_CLUSTER_CONF_EXPECTED)
+            ]
+        else:
+            cls.extra_links_expected_calls_base = [
+                call.ti.xcom_push(key="conf", value=DATAPROC_CLUSTER_CONF_EXPECTED, execution_date=None)
+            ]
 
     def test_deprecation_warning(self):
         with pytest.warns(AirflowProviderDeprecationWarning) as warnings:
@@ -1142,11 +1172,17 @@ class TestDataprocClusterScaleOperator(DataprocClusterTestBase):
         # Test whether xcom push occurs before cluster is updated
         self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
 
-        self.mock_ti.xcom_push.assert_called_once_with(
-            key="conf",
-            value=DATAPROC_CLUSTER_CONF_EXPECTED,
-            execution_date=None,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            self.mock_ti.xcom_push.assert_called_once_with(
+                key="conf",
+                value=DATAPROC_CLUSTER_CONF_EXPECTED,
+            )
+        else:
+            self.mock_ti.xcom_push.assert_called_once_with(
+                key="conf",
+                value=DATAPROC_CLUSTER_CONF_EXPECTED,
+                execution_date=None,
+            )
 
 
 @pytest.mark.db_test
@@ -1310,9 +1346,12 @@ class TestDataprocClusterDeleteOperator:
 class TestDataprocSubmitJobOperator(DataprocJobTestBase):
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook):
-        xcom_push_call = call.ti.xcom_push(
-            execution_date=None, key="dataproc_job", value=DATAPROC_JOB_EXPECTED
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            xcom_push_call = call.ti.xcom_push(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
+        else:
+            xcom_push_call = call.ti.xcom_push(
+                key="dataproc_job", value=DATAPROC_JOB_EXPECTED, execution_date=None
+            )
         wait_for_job_call = call.hook().wait_for_job(
             job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT, timeout=None
         )
@@ -1358,9 +1397,12 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
             job_id=TEST_JOB_ID, project_id=GCP_PROJECT, region=GCP_REGION, timeout=None
         )
 
-        self.mock_ti.xcom_push.assert_called_once_with(
-            key="dataproc_job", value=DATAPROC_JOB_EXPECTED, execution_date=None
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            self.mock_ti.xcom_push.assert_called_once_with(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
+        else:
+            self.mock_ti.xcom_push.assert_called_once_with(
+                key="dataproc_job", value=DATAPROC_JOB_EXPECTED, execution_date=None
+            )
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute_async(self, mock_hook):
@@ -1398,9 +1440,12 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         )
         mock_hook.return_value.wait_for_job.assert_not_called()
 
-        self.mock_ti.xcom_push.assert_called_once_with(
-            key="dataproc_job", value=DATAPROC_JOB_EXPECTED, execution_date=None
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            self.mock_ti.xcom_push.assert_called_once_with(key="dataproc_job", value=DATAPROC_JOB_EXPECTED)
+        else:
+            self.mock_ti.xcom_push.assert_called_once_with(
+                key="dataproc_job", value=DATAPROC_JOB_EXPECTED, execution_date=None
+            )
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     @mock.patch(DATAPROC_TRIGGERS_PATH.format("DataprocAsyncHook"))
@@ -1633,11 +1678,17 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
         # Test whether the xcom push happens before updating the cluster
         self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
 
-        self.mock_ti.xcom_push.assert_called_once_with(
-            key="dataproc_cluster",
-            value=DATAPROC_CLUSTER_EXPECTED,
-            execution_date=None,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            self.mock_ti.xcom_push.assert_called_once_with(
+                key="dataproc_cluster",
+                value=DATAPROC_CLUSTER_EXPECTED,
+            )
+        else:
+            self.mock_ti.xcom_push.assert_called_once_with(
+                key="dataproc_cluster",
+                value=DATAPROC_CLUSTER_EXPECTED,
+                execution_date=None,
+            )
 
     def test_missing_region_parameter(self):
         with pytest.raises(AirflowException):
@@ -2399,10 +2450,16 @@ class TestDataProcSparkSqlOperator:
 class TestDataProcSparkOperator(DataprocJobTestBase):
     @classmethod
     def setup_class(cls):
-        cls.extra_links_expected_calls = [
-            call.ti.xcom_push(execution_date=None, key="conf", value=DATAPROC_JOB_CONF_EXPECTED),
-            call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
-        ]
+        if AIRFLOW_V_3_0_PLUS:
+            cls.extra_links_expected_calls = [
+                call.ti.xcom_push(key="conf", value=DATAPROC_JOB_CONF_EXPECTED),
+                call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
+            ]
+        else:
+            cls.extra_links_expected_calls = [
+                call.ti.xcom_push(key="conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None),
+                call.hook().wait_for_job(job_id=TEST_JOB_ID, region=GCP_REGION, project_id=GCP_PROJECT),
+            ]
 
     main_class = "org.apache.spark.examples.SparkPi"
     jars = ["file:///usr/lib/spark/examples/jars/spark-examples.jar"]
@@ -2446,9 +2503,12 @@ class TestDataProcSparkOperator(DataprocJobTestBase):
         assert self.job == job
 
         op.execute(context=self.mock_context)
-        self.mock_ti.xcom_push.assert_called_once_with(
-            key="conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            self.mock_ti.xcom_push.assert_called_once_with(key="conf", value=DATAPROC_JOB_CONF_EXPECTED)
+        else:
+            self.mock_ti.xcom_push.assert_called_once_with(
+                key="conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None
+            )
 
         # Test whether xcom push occurs before polling for job
         self.extra_links_manager_mock.assert_has_calls(self.extra_links_expected_calls, any_order=False)

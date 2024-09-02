@@ -1,0 +1,11 @@
+{
+  "overrides": [
+    {
+      "files": "*.json",
+      "options": {
+        "tabWidth": 2
+      }
+    }
+  ],
+  "trailingComma": "es5"
+}

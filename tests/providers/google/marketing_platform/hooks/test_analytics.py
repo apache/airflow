@@ -34,11 +34,6 @@ API_VERSION = "v3"
 GCP_CONN_ID = "test_gcp_conn_id"
 DELEGATE_TO = "TEST_DELEGATE_TO"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
-DEPRECATION_MESSAGE = (
-    r"Call to deprecated class GoogleAnalyticsHook\."
-    r" \(The `GoogleAnalyticsHook` class is deprecated,"
-    r" please use `GoogleAnalyticsAdminHook` instead\.\)"
-)
 
 
 class TestGoogleAnalyticsHook:
@@ -52,7 +47,7 @@ class TestGoogleAnalyticsHook:
 
     @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__")
     def test_init(self, mock_base_init):
-        with pytest.warns(AirflowProviderDeprecationWarning, match=DEPRECATION_MESSAGE):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             hook = GoogleAnalyticsHook(
                 API_VERSION,
                 GCP_CONN_ID,

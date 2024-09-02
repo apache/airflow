@@ -27,7 +27,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Iterable, Sequence, SupportsAbs
 
 import attr
-from deprecated import deprecated
 from google.api_core.exceptions import Conflict
 from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob, Row
 from google.cloud.bigquery.table import RowIterator
@@ -57,6 +56,7 @@ from airflow.providers.google.cloud.triggers.bigquery import (
     BigQueryValueCheckTrigger,
 )
 from airflow.providers.google.cloud.utils.bigquery import convert_job_id
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils.helpers import exactly_one
 
@@ -1203,7 +1203,8 @@ class BigQueryGetDataOperator(GoogleCloudBaseOperator, _BigQueryOperatorsEncrypt
 
 
 @deprecated(
-    reason="This operator is deprecated. Please use `BigQueryInsertJobOperator`.",
+    planned_removal_date="November 01, 2024",
+    use_instead="BigQueryInsertJobOperator",
     category=AirflowProviderDeprecationWarning,
 )
 class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
@@ -1415,7 +1416,7 @@ class BigQueryExecuteQueryOperator(GoogleCloudBaseOperator):
             raise AirflowException(f"argument 'sql' of type {type(str)} is neither a string nor an iterable")
         project_id = self.hook.project_id
         if project_id:
-            job_id_path = convert_job_id(job_id=self.job_id, project_id=project_id, location=self.location)
+            job_id_path = convert_job_id(job_id=self.job_id, project_id=project_id, location=self.location)  # type: ignore[arg-type]
             context["task_instance"].xcom_push(key="job_id_path", value=job_id_path)
         return self.job_id
 
@@ -2298,7 +2299,8 @@ class BigQueryGetDatasetTablesOperator(GoogleCloudBaseOperator):
 
 
 @deprecated(
-    reason="This operator is deprecated. Please use BigQueryUpdateDatasetOperator.",
+    planned_removal_date="November 01, 2024",
+    use_instead="BigQueryUpdateDatasetOperator",
     category=AirflowProviderDeprecationWarning,
 )
 class BigQueryPatchDatasetOperator(GoogleCloudBaseOperator):

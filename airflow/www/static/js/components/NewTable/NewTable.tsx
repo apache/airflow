@@ -161,7 +161,7 @@ export const NewTable = <TData extends RowData>({
 
   return (
     <>
-      <ChakraTable>
+      <ChakraTable variant="striped">
         <Thead>
           {tableInstance.getHeaderGroups().map((headerGroup) => (
             <Tr key={headerGroup.id}>

@@ -100,6 +100,7 @@ SBOM_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--python",
                 "--include-open-psf-scorecard",
                 "--include-github-stats",
+                "--include-actions",
             ],
         },
         {

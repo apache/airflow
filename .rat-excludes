@@ -166,3 +166,4 @@ version.txt
 
 # Front end generated files
 api-generated.ts
+openapi-gen

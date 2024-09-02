@@ -142,7 +142,12 @@ class XComObjectStorageBackend(BaseXCom):
 
         base_path = _get_base_path()
         while True:  # Safeguard against collisions.
-            p = base_path.joinpath(dag_id, run_id, task_id, f"{uuid.uuid4()}{suffix}")
+            p = base_path.joinpath(
+                dag_id or "NO_DAG_ID",
+                run_id or "NO_RUN_ID",
+                task_id or "NO_TASK_ID",
+                f"{uuid.uuid4()}{suffix}",
+            )
             if not p.exists():
                 break
         p.parent.mkdir(parents=True, exist_ok=True)
