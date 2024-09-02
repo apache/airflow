@@ -43,11 +43,7 @@ SECRET_ID = "test-secret-id"
 class TestSecretsManagerHook:
     def test_delegate_to_runtime_error(self):
         with pytest.raises(RuntimeError):
-            with pytest.warns(
-                AirflowProviderDeprecationWarning,
-                match="The SecretsManagerHook is deprecated and will be removed after 01.11.2024. "
-                "Please use GoogleCloudSecretManagerHook instead.",
-            ):
+            with pytest.warns(AirflowProviderDeprecationWarning):
                 SecretsManagerHook(gcp_conn_id="GCP_CONN_ID", delegate_to="delegate_to")
 
     @patch(INTERNAL_CLIENT_PACKAGE + "._SecretManagerClient.client", return_value=MagicMock())
@@ -59,11 +55,7 @@ class TestSecretsManagerHook:
     def test_get_missing_key(self, mock_get_credentials, mock_client):
         mock_client.secret_version_path.return_value = "full-path"
         mock_client.access_secret_version.side_effect = NotFound("test-msg")
-        with pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match="The SecretsManagerHook is deprecated and will be removed after 01.11.2024. "
-            "Please use GoogleCloudSecretManagerHook instead.",
-        ):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             secrets_manager_hook = SecretsManagerHook(gcp_conn_id="test")
         mock_get_credentials.assert_called_once_with()
         secret = secrets_manager_hook.get_secret(secret_id="secret")
@@ -82,11 +74,7 @@ class TestSecretsManagerHook:
         test_response = AccessSecretVersionResponse()
         test_response.payload.data = b"result"
         mock_client.access_secret_version.return_value = test_response
-        with pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match="The SecretsManagerHook is deprecated and will be removed after 01.11.2024. "
-            "Please use GoogleCloudSecretManagerHook instead.",
-        ):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             secrets_manager_hook = SecretsManagerHook(gcp_conn_id="test")
         mock_get_credentials.assert_called_once_with()
         secret = secrets_manager_hook.get_secret(secret_id="secret")

@@ -199,7 +199,7 @@ class InfoJsonEncodable(dict):
             return value.isoformat()
         if isinstance(value, datetime.timedelta):
             return f"{value.total_seconds()} seconds"
-        if isinstance(value, (set, tuple)):
+        if isinstance(value, (set, list, tuple)):
             return str(list(value))
         return value
 
@@ -244,7 +244,16 @@ class InfoJsonEncodable(dict):
 class DagInfo(InfoJsonEncodable):
     """Defines encoding DAG object to JSON."""
 
-    includes = ["dag_id", "description", "fileloc", "owner", "schedule_interval", "start_date", "tags"]
+    includes = [
+        "dag_id",
+        "description",
+        "fileloc",
+        "owner",
+        "schedule_interval",  # For Airflow 2.
+        "timetable_summary",  # For Airflow 3.
+        "start_date",
+        "tags",
+    ]
     casts = {"timetable": lambda dag: dag.timetable.serialize() if getattr(dag, "timetable", None) else None}
     renames = {"_dag_id": "dag_id"}
 

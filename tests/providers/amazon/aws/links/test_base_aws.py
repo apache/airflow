@@ -25,6 +25,7 @@ import pytest
 from airflow.models.xcom import XCom
 from airflow.providers.amazon.aws.links.base_aws import BaseAwsLink
 from airflow.serialization.serialized_objects import SerializedDAG
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.mock_operators import MockOperator
 
 if TYPE_CHECKING:
@@ -75,11 +76,13 @@ class TestBaseAwsLink:
         )
 
         ti = mock_context["ti"]
-        ti.xcom_push.assert_called_once_with(
-            execution_date=None,
-            key=XCOM_KEY,
-            value=expected_value,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            ti.xcom_push.assert_called_once_with(
+                key=XCOM_KEY,
+                value=expected_value,
+            )
+        else:
+            ti.xcom_push.assert_called_once_with(key=XCOM_KEY, value=expected_value, execution_date=None)
 
     def test_disable_xcom_push(self):
         mock_context = mock.MagicMock()

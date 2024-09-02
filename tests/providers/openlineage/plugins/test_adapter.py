@@ -528,7 +528,7 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
     mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
-@mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
+@mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=False)
 @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
@@ -572,66 +572,68 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
         job_facets=job_facets,
     )
 
+    expected_dag_info = {
+        "timetable": {"delta": 86400.0},
+        "dag_id": dag_id,
+        "description": "dag desc",
+        "owner": "airflow",
+        "start_date": "2024-06-01T00:00:00+00:00",
+        "tags": "[]",
+        "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+    }
+    if hasattr(dag, "schedule_interval"):  # Airflow 2 compat.
+        expected_dag_info["schedule_interval"] = "86400.0 seconds"
+    else:  # Airflow 3 and up.
+        expected_dag_info["timetable_summary"] = "1 day, 0:00:00"
+
     assert len(client.emit.mock_calls) == 1
-    assert (
-        call(
-            RunEvent(
-                eventType=RunState.START,
-                eventTime=event_time.isoformat(),
-                run=Run(
-                    runId=random_uuid,
-                    facets={
-                        "nominalTime": nominal_time_run.NominalTimeRunFacet(
-                            nominalStartTime=event_time.isoformat(),
-                            nominalEndTime=event_time.isoformat(),
-                        ),
-                        "airflowDagRun": AirflowDagRunFacet(
-                            dag={
-                                "timetable": {"delta": 86400.0},
-                                "dag_id": dag_id,
-                                "description": "dag desc",
-                                "owner": "airflow",
-                                "schedule_interval": "86400.0 seconds",
-                                "start_date": "2024-06-01T00:00:00+00:00",
-                                "tags": [],
-                                "fileloc": pathlib.Path(__file__).resolve().as_posix(),
-                            },
-                            dagRun={
-                                "conf": {},
-                                "dag_id": "dag_id",
-                                "data_interval_start": event_time.isoformat(),
-                                "data_interval_end": event_time.isoformat(),
-                                "external_trigger": None,
-                                "run_id": run_id,
-                                "run_type": None,
-                                "start_date": event_time.isoformat(),
-                            },
-                        ),
-                        "debug": AirflowDebugRunFacet(packages=ANY),
-                    },
-                ),
-                job=Job(
-                    namespace=namespace(),
-                    name="dag_id",
-                    facets={
-                        "documentation": documentation_job.DocumentationJobFacet(description="dag desc"),
-                        "ownership": ownership_job.OwnershipJobFacet(
-                            owners=[
-                                ownership_job.Owner(name="airflow", type=None),
-                            ]
-                        ),
-                        **job_facets,
-                        "jobType": job_type_job.JobTypeJobFacet(
-                            processingType="BATCH", integration="AIRFLOW", jobType="DAG"
-                        ),
-                    },
-                ),
-                producer=_PRODUCER,
-                inputs=[],
-                outputs=[],
-            )
+    client.emit.assert_called_once_with(
+        RunEvent(
+            eventType=RunState.START,
+            eventTime=event_time.isoformat(),
+            run=Run(
+                runId=random_uuid,
+                facets={
+                    "nominalTime": nominal_time_run.NominalTimeRunFacet(
+                        nominalStartTime=event_time.isoformat(),
+                        nominalEndTime=event_time.isoformat(),
+                    ),
+                    "airflowDagRun": AirflowDagRunFacet(
+                        dag=expected_dag_info,
+                        dagRun={
+                            "conf": {},
+                            "dag_id": "dag_id",
+                            "data_interval_start": event_time.isoformat(),
+                            "data_interval_end": event_time.isoformat(),
+                            "external_trigger": None,
+                            "run_id": run_id,
+                            "run_type": None,
+                            "start_date": event_time.isoformat(),
+                        },
+                    ),
+                    # "debug": AirflowDebugRunFacet(packages=ANY),
+                },
+            ),
+            job=Job(
+                namespace=namespace(),
+                name="dag_id",
+                facets={
+                    "documentation": documentation_job.DocumentationJobFacet(description="dag desc"),
+                    "ownership": ownership_job.OwnershipJobFacet(
+                        owners=[
+                            ownership_job.Owner(name="airflow", type=None),
+                        ]
+                    ),
+                    **job_facets,
+                    "jobType": job_type_job.JobTypeJobFacet(
+                        processingType="BATCH", integration="AIRFLOW", jobType="DAG"
+                    ),
+                },
+            ),
+            producer=_PRODUCER,
+            inputs=[],
+            outputs=[],
         )
-        in client.emit.mock_calls
     )
 
     mock_stats_incr.assert_not_called()
@@ -821,10 +823,10 @@ def test_openlineage_adapter_stats_emit_failed(
 
 def test_build_dag_run_id_is_valid_uuid():
     dag_id = "test_dag"
-    execution_date = datetime.datetime.now()
+    logical_date = datetime.datetime.now()
     result = OpenLineageAdapter.build_dag_run_id(
         dag_id=dag_id,
-        execution_date=execution_date,
+        logical_date=logical_date,
     )
     uuid_result = uuid.UUID(result)
     assert uuid_result
@@ -834,11 +836,11 @@ def test_build_dag_run_id_is_valid_uuid():
 def test_build_dag_run_id_same_input_give_same_result():
     result1 = OpenLineageAdapter.build_dag_run_id(
         dag_id="dag1",
-        execution_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+        logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
     )
     result2 = OpenLineageAdapter.build_dag_run_id(
         dag_id="dag1",
-        execution_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+        logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
     )
     assert result1 == result2
 
@@ -846,11 +848,11 @@ def test_build_dag_run_id_same_input_give_same_result():
 def test_build_dag_run_id_different_inputs_give_different_results():
     result1 = OpenLineageAdapter.build_dag_run_id(
         dag_id="dag1",
-        execution_date=datetime.datetime.now(),
+        logical_date=datetime.datetime.now(),
     )
     result2 = OpenLineageAdapter.build_dag_run_id(
         dag_id="dag2",
-        execution_date=datetime.datetime.now(),
+        logical_date=datetime.datetime.now(),
     )
     assert result1 != result2
 

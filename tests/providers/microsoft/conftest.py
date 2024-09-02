@@ -111,8 +111,6 @@ def mock_response(status_code, content: Any = None, headers: dict | None = None)
 
 
 def mock_context(task) -> Context:
-    from datetime import datetime
-
     from airflow.models import TaskInstance
     from airflow.utils.session import NEW_SESSION
     from airflow.utils.state import TaskInstanceState
@@ -124,14 +122,11 @@ def mock_context(task) -> Context:
         def __init__(
             self,
             task,
-            execution_date: datetime | None = None,
             run_id: str | None = "run_id",
             state: str | None = TaskInstanceState.RUNNING,
             map_index: int = -1,
         ):
-            super().__init__(
-                task=task, execution_date=execution_date, run_id=run_id, state=state, map_index=map_index
-            )
+            super().__init__(task=task, run_id=run_id, state=state, map_index=map_index)
             self.values: dict[str, Any] = {}
 
         def xcom_pull(
@@ -149,13 +144,7 @@ def mock_context(task) -> Context:
                 return values.get(f"{task_ids or self.task_id}_{dag_id or self.dag_id}_{key}_{map_indexes}")
             return values.get(f"{task_ids or self.task_id}_{dag_id or self.dag_id}_{key}")
 
-        def xcom_push(
-            self,
-            key: str,
-            value: Any,
-            execution_date: datetime | None = None,
-            session: Session = NEW_SESSION,
-        ) -> None:
+        def xcom_push(self, key: str, value: Any, session: Session = NEW_SESSION, **kwargs) -> None:
             values[f"{self.task_id}_{self.dag_id}_{key}_{self.map_index}"] = value
 
     values["ti"] = MockedTaskInstance(task=task)

@@ -134,7 +134,7 @@ class OpenLineageListener:
                 return
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=dag.dag_id,
-                execution_date=dagrun.execution_date,
+                logical_date=dagrun.logical_date,
             )
 
             task_uuid = self.adapter.build_task_instance_run_id(
@@ -213,7 +213,7 @@ class OpenLineageListener:
         def on_success():
             parent_run_id = OpenLineageAdapter.build_dag_run_id(
                 dag_id=dag.dag_id,
-                execution_date=dagrun.execution_date,
+                logical_date=dagrun.logical_date,
             )
 
             task_uuid = OpenLineageAdapter.build_task_instance_run_id(
@@ -312,7 +312,7 @@ class OpenLineageListener:
         def on_failure():
             parent_run_id = OpenLineageAdapter.build_dag_run_id(
                 dag_id=dag.dag_id,
-                execution_date=dagrun.execution_date,
+                logical_date=dagrun.logical_date,
             )
 
             task_uuid = OpenLineageAdapter.build_task_instance_run_id(

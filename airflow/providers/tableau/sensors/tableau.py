@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowSkipException
 from airflow.providers.tableau.hooks.tableau import (
     TableauHook,
     TableauJobFailedException,
@@ -69,10 +68,7 @@ class TableauJobStatusSensor(BaseSensorOperator):
             self.log.info("Current finishCode is %s (%s)", finish_code.name, finish_code.value)
 
             if finish_code in (TableauJobFinishCode.ERROR, TableauJobFinishCode.CANCELED):
-                # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
                 message = "The Tableau Refresh Workbook Job failed!"
-                if self.soft_fail:
-                    raise AirflowSkipException(message)
                 raise TableauJobFailedException(message)
 
             return finish_code == TableauJobFinishCode.SUCCESS
