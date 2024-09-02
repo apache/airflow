@@ -22,9 +22,10 @@ description: |
   `Apache Pig <https://pig.apache.org/>`__
 
 state: ready
-source-date-epoch: 1716286733
+source-date-epoch: 1723969310
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.5.0
   - 4.4.1
   - 4.4.0
   - 4.3.0
@@ -43,7 +44,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.7.0
+  - apache-airflow>=2.8.0
 
 integrations:
   - integration-name: Apache Pig

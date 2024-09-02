@@ -30,10 +30,14 @@ from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.cli.cli_config import DefaultHelpParser, GroupCommand
 from airflow.cli.cli_parser import AirflowHelpFormatter
 from airflow.executors.base_executor import BaseExecutor, RunningRetryAttemptType
+from airflow.executors.local_executor import LocalExecutor
+from airflow.executors.sequential_executor import SequentialExecutor
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
+
+pytestmark = pytest.mark.skip_if_database_isolation_mode
 
 
 def test_supports_sentry():
@@ -120,7 +124,7 @@ def test_fail_and_success():
 @mock.patch("airflow.executors.base_executor.BaseExecutor.sync")
 @mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
 @mock.patch("airflow.executors.base_executor.Stats.gauge")
-def test_gauge_executor_metrics(mock_stats_gauge, mock_trigger_tasks, mock_sync):
+def test_gauge_executor_metrics_single_executor(mock_stats_gauge, mock_trigger_tasks, mock_sync):
     executor = BaseExecutor()
     executor.heartbeat()
     calls = [
@@ -128,6 +132,50 @@ def test_gauge_executor_metrics(mock_stats_gauge, mock_trigger_tasks, mock_sync)
         mock.call("executor.queued_tasks", value=mock.ANY, tags={"status": "queued", "name": "BaseExecutor"}),
         mock.call(
             "executor.running_tasks", value=mock.ANY, tags={"status": "running", "name": "BaseExecutor"}
+        ),
+    ]
+    mock_stats_gauge.assert_has_calls(calls)
+
+
+@pytest.mark.parametrize(
+    "executor_class, executor_name",
+    [(LocalExecutor, "LocalExecutor"), (SequentialExecutor, "SequentialExecutor")],
+)
+@mock.patch("airflow.executors.local_executor.LocalExecutor.sync")
+@mock.patch("airflow.executors.sequential_executor.SequentialExecutor.sync")
+@mock.patch("airflow.executors.base_executor.BaseExecutor.trigger_tasks")
+@mock.patch("airflow.executors.base_executor.Stats.gauge")
+@mock.patch("airflow.executors.executor_loader.ExecutorLoader.get_executor_names")
+def test_gauge_executor_metrics_with_multiple_executors(
+    mock_get_executor_names,
+    mock_stats_gauge,
+    mock_trigger_tasks,
+    mock_sequential_sync,
+    mock_local_sync,
+    executor_class,
+    executor_name,
+):
+    # The names of the executors aren't relevant for this test, so long as a list of length > 1
+    # is returned. This forces the executor to use the multiple executors gauge logic.
+    mock_get_executor_names.return_value = ["Exec1", "Exec2"]
+    executor = executor_class()
+    executor.heartbeat()
+
+    calls = [
+        mock.call(
+            f"executor.open_slots.{executor_name}",
+            value=mock.ANY,
+            tags={"status": "open", "name": executor_name},
+        ),
+        mock.call(
+            f"executor.queued_tasks.{executor_name}",
+            value=mock.ANY,
+            tags={"status": "queued", "name": executor_name},
+        ),
+        mock.call(
+            f"executor.running_tasks.{executor_name}",
+            value=mock.ANY,
+            tags={"status": "running", "name": executor_name},
         ),
     ]
     mock_stats_gauge.assert_has_calls(calls)
@@ -312,14 +360,6 @@ def test_empty_airflow_tasks_run_command(generate_command_mock, dag_maker):
     tis = dagrun.task_instances
     dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(tis[0].command_as_list())
     assert dag_id is None, task_id is None
-
-
-@pytest.mark.db_test
-def test_deprecate_validate_api(dag_maker):
-    dagrun = setup_dagrun(dag_maker)
-    tis = dagrun.task_instances
-    with pytest.warns(DeprecationWarning):
-        BaseExecutor.validate_command(tis[0].command_as_list())
 
 
 def test_debug_dump(caplog):

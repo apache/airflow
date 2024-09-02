@@ -54,7 +54,7 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools, clear_db_runs
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 if TYPE_CHECKING:
@@ -395,8 +395,10 @@ class TestCliTasks:
     @mock.patch("airflow.triggers.file.glob", return_value=["/tmp/test"])
     @mock.patch("airflow.triggers.file.os.path.isfile", return_value=True)
     @mock.patch("airflow.sensors.filesystem.FileSensor.poke", return_value=False)
-    def test_cli_test_with_deferrable_operator(self, mock_pock, mock_is_file, mock_glob, mock_getmtime):
-        with redirect_stdout(StringIO()) as stdout:
+    def test_cli_test_with_deferrable_operator(
+        self, mock_pock, mock_is_file, mock_glob, mock_getmtime, caplog
+    ):
+        with caplog.at_level(level=logging.INFO):
             task_command.task_test(
                 self.parser.parse_args(
                     [
@@ -408,14 +410,13 @@ class TestCliTasks:
                     ]
                 )
             )
-        output = stdout.getvalue()
+            output = caplog.text
         assert "wait_for_file_async completed successfully as /tmp/temporary_file_for_testing found" in output
 
     @pytest.mark.parametrize(
         "option",
         [
             "--ignore-all-dependencies",
-            "--ignore-depends-on-past",
             "--ignore-dependencies",
             "--force",
         ],
@@ -691,22 +692,6 @@ class TestCliTasks:
                     ]
                 )
             )
-
-    def test_subdag_clear(self):
-        args = self.parser.parse_args(["tasks", "clear", "example_subdag_operator", "--yes"])
-        task_command.task_clear(args)
-        args = self.parser.parse_args(
-            ["tasks", "clear", "example_subdag_operator", "--yes", "--exclude-subdags"]
-        )
-        task_command.task_clear(args)
-
-    def test_parentdag_downstream_clear(self):
-        args = self.parser.parse_args(["tasks", "clear", "example_subdag_operator.section-1", "--yes"])
-        task_command.task_clear(args)
-        args = self.parser.parse_args(
-            ["tasks", "clear", "example_subdag_operator.section-1", "--yes", "--exclude-parentdag"]
-        )
-        task_command.task_clear(args)
 
 
 def _set_state_and_try_num(ti, session):

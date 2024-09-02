@@ -17,20 +17,25 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 import click
 
 from airflow_breeze.commands.common_options import (
+    option_airflow_version,
     option_answer,
     option_debug_resources,
     option_dry_run,
+    option_github_token,
     option_historical_python_version,
     option_include_success_outputs,
     option_parallelism,
+    option_python,
     option_run_in_parallel,
     option_skip_cleanup,
     option_verbose,
@@ -38,17 +43,22 @@ from airflow_breeze.commands.common_options import (
 from airflow_breeze.global_constants import (
     AIRFLOW_PYTHON_COMPATIBILITY_MATRIX,
     ALL_HISTORICAL_PYTHON_VERSIONS,
+    DEVEL_DEPS_PATH,
     PROVIDER_DEPENDENCIES,
 )
 from airflow_breeze.utils.cdxgen import (
+    CHECK_DOCS,
     PROVIDER_REQUIREMENTS_DIR_PATH,
     SbomApplicationJob,
     SbomCoreJob,
     SbomProviderJob,
     build_all_airflow_versions_base_image,
+    convert_sbom_entry_to_dict,
     get_cdxgen_port_mapping,
+    get_field_names,
     get_requirements_for_provider,
     list_providers_from_providers_requirements,
+    normalize_package_name,
 )
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
@@ -62,7 +72,12 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import FILES_SBOM_DIR, PROVIDER_METADATA_JSON_FILE_PATH
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_SOURCES_ROOT,
+    FILES_SBOM_DIR,
+    PROVIDER_METADATA_JSON_FILE_PATH,
+)
+from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.shared_options import get_dry_run
 
 
@@ -112,6 +127,18 @@ SBOM_INDEX_TEMPLATE = """
     is_flag=True,
     help="Whether to include provider dependencies in SBOM generation.",
 )
+@click.option(
+    "--include-python/--no-include-python",
+    is_flag=True,
+    default=True,
+    help="Whether to include python dependencies.",
+)
+@click.option(
+    "--include-npm/--no-include-npm",
+    is_flag=True,
+    default=True,
+    help="Whether to include npm dependencies.",
+)
 @option_run_in_parallel
 @option_parallelism
 @option_debug_resources
@@ -121,6 +148,11 @@ SBOM_INDEX_TEMPLATE = """
     "--force",
     is_flag=True,
     help="Force update of sbom even if it already exists.",
+)
+@click.option(
+    "--all-combinations",
+    is_flag=True,
+    help="Produces all combinations of airflow sbom npm/python(airflow/full). Ignores --include flags",
 )
 @option_verbose
 @option_dry_run
@@ -139,12 +171,15 @@ def update_sbom_information(
     airflow_version: str | None,
     python: str | None,
     include_provider_dependencies: bool,
+    include_python: bool,
+    include_npm: bool,
     run_in_parallel: bool,
     parallelism: int,
     debug_resources: bool,
     include_success_outputs: bool,
     skip_cleanup: bool,
     force: bool,
+    all_combinations: bool,
     package_filter: tuple[str, ...],
 ):
     import jinja2
@@ -181,39 +216,47 @@ def update_sbom_information(
                 return False
         return False
 
+    apache_airflow_documentation_directory = airflow_site_archive_directory / "apache-airflow"
     if package_filter == "apache-airflow":
-        # Create core jobs
-        apache_airflow_documentation_directory = airflow_site_archive_directory / "apache-airflow"
-
-        for airflow_v in airflow_versions:
-            airflow_version_dir = apache_airflow_documentation_directory / airflow_v
-            if not airflow_version_dir.exists():
-                get_console().print(f"[warning]The {airflow_version_dir} does not exist. Skipping")
-                continue
-            destination_dir = airflow_version_dir / "sbom"
-
-            if _dir_exists_warn_and_should_skip(destination_dir, force):
-                continue
-
-            destination_dir.mkdir(parents=True, exist_ok=True)
-
-            get_console().print(f"[info]Attempting to update sbom for {airflow_v}.")
-            for python_version in python_versions:
-                target_sbom_file_name = f"apache-airflow-sbom-{airflow_v}-python{python_version}.json"
-                target_sbom_path = destination_dir / target_sbom_file_name
-
-                if _dir_exists_warn_and_should_skip(target_sbom_path, force):
-                    continue
-
-                jobs_to_run.append(
-                    SbomCoreJob(
-                        airflow_version=airflow_v,
-                        python_version=python_version,
-                        application_root_path=application_root_path,
-                        include_provider_dependencies=include_provider_dependencies,
-                        target_path=target_sbom_path,
-                    )
+        if all_combinations:
+            for include_npm, include_python, include_provider_dependencies in [
+                (True, False, False),
+                (True, True, False),
+                (True, True, True),
+                (False, True, False),
+                (False, True, True),
+            ]:
+                use_python_versions: list[str | None] = python_versions
+                if not include_python:
+                    use_python_versions = [None]
+                core_jobs(
+                    _dir_exists_warn_and_should_skip,
+                    apache_airflow_documentation_directory,
+                    airflow_versions,
+                    application_root_path,
+                    force,
+                    include_npm,
+                    include_provider_dependencies,
+                    include_python,
+                    jobs_to_run,
+                    python_versions=use_python_versions,
                 )
+        else:
+            use_python_versions = python_versions
+            if not include_python:
+                use_python_versions = [None]
+            core_jobs(
+                _dir_exists_warn_and_should_skip,
+                apache_airflow_documentation_directory,
+                airflow_versions,
+                application_root_path,
+                force,
+                include_npm,
+                include_provider_dependencies,
+                include_python,
+                jobs_to_run,
+                python_versions=use_python_versions,
+            )
     elif package_filter == "apache-airflow-providers":
         # Create providers jobs
         user_confirm(
@@ -268,7 +311,7 @@ def update_sbom_information(
         parallelism = min(parallelism, len(jobs_to_run))
         get_console().print(f"[info]Running {len(jobs_to_run)} jobs in parallel")
         with ci_group(f"Generating SBOMs for {jobs_to_run}"):
-            all_params = [f"Generate SBOMs for {job.get_job_name()}" for job in jobs_to_run]
+            all_params = [f"Generate SBOMs for {job.get_job_name()} " for job in jobs_to_run]
             with run_with_pool(
                 parallelism=parallelism,
                 all_params=all_params,
@@ -327,6 +370,63 @@ def update_sbom_information(
         ) in list_providers_from_providers_requirements(airflow_site_archive_directory):
             destination_dir = provider_version_documentation_directory / "sbom"
             _generate_index(destination_dir, provider_id, provider_version)
+
+
+def core_jobs(
+    _dir_exists_warn_and_should_skip,
+    apache_airflow_documentation_directory: Path,
+    airflow_versions: list[str],
+    application_root_path: Path,
+    force: bool,
+    include_npm: bool,
+    include_provider_dependencies: bool,
+    include_python: bool,
+    jobs_to_run: list[SbomApplicationJob],
+    python_versions: list[str | None],
+):
+    # Create core jobs
+    for airflow_v in airflow_versions:
+        airflow_version_dir = apache_airflow_documentation_directory / airflow_v
+        if not airflow_version_dir.exists():
+            get_console().print(f"[warning]The {airflow_version_dir} does not exist. Skipping")
+            continue
+        destination_dir = airflow_version_dir / "sbom"
+
+        if _dir_exists_warn_and_should_skip(destination_dir, force):
+            continue
+
+        destination_dir.mkdir(parents=True, exist_ok=True)
+        get_console().print(f"[info]Attempting to update sbom for {airflow_v}.")
+        for python_version in python_versions:
+            if include_python and include_npm:
+                suffix = f"-python{python_version}"
+            elif include_python:
+                suffix = f"-python{python_version}-python-only"
+            elif include_npm:
+                suffix = "-npm-only"
+            else:
+                get_console().print("[warning]Neither python nor npm provided. Skipping")
+                continue
+            if include_provider_dependencies:
+                suffix += "-full"
+
+            target_sbom_file_name = f"apache-airflow-sbom-{airflow_v}{suffix}.json"
+            target_sbom_path = destination_dir / target_sbom_file_name
+
+            if _dir_exists_warn_and_should_skip(target_sbom_path, force):
+                continue
+
+            jobs_to_run.append(
+                SbomCoreJob(
+                    airflow_version=airflow_v,
+                    python_version=python_version,
+                    application_root_path=application_root_path,
+                    include_provider_dependencies=include_provider_dependencies,
+                    target_path=target_sbom_path,
+                    include_python=include_python,
+                    include_npm=include_npm,
+                )
+            )
 
 
 @sbom.command(name="build-all-airflow-images", help="Generate images with airflow versions pre-installed")
@@ -542,3 +642,380 @@ def generate_providers_requirements(
                 force=force,
                 output=None,
             )
+
+
+@sbom.command(name="export-dependency-information", help="Export dependency information from SBOM.")
+@option_airflow_version
+@option_python
+@click.option(
+    "-f",
+    "--csv-file",
+    type=click.Path(file_okay=True, dir_okay=False, path_type=Path, writable=True),
+    help="CSV file to produce. Mutually exclusive with Google Spreadsheet Id.",
+    envvar="CSV_FILE",
+    required=False,
+)
+@click.option(
+    "-g",
+    "--google-spreadsheet-id",
+    type=str,
+    help="Google Spreadsheet Id to produce. Mutually exclusive with CSV file.",
+    envvar="GOOGLE_SPREADSHEET_ID",
+    required=False,
+)
+@option_github_token
+@click.option(
+    "--json-credentials-file",
+    type=click.Path(file_okay=True, dir_okay=False, path_type=Path, writable=False, exists=False),
+    help="Gsheet JSON credentials file (defaults to ~/.config/gsheet/credentials.json",
+    envvar="JSON_CREDENTIALS_FILE",
+    default=Path.home() / ".config" / "gsheet" / "credentials.json"
+    if not generating_command_images()
+    else "credentials.json",
+    required=False,
+)
+@click.option(
+    "-s",
+    "--include-open-psf-scorecard",
+    help="Include statistics from the Open PSF Scorecard",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "-G",
+    "--include-github-stats",
+    help="Include statistics from GitHub",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "--include-actions",
+    help="Include Actions recommended for the project",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "-l",
+    "--limit-output",
+    help="Limit the output to the first N dependencies. Default is to output all dependencies. "
+    "If you want to output all dependencies, do not specify this option.",
+    type=int,
+    required=False,
+)
+@click.option(
+    "--project-name",
+    help="Only used for debugging purposes. The name of the project to generate the sbom for.",
+    type=str,
+    required=False,
+)
+@option_dry_run
+@option_answer
+def export_dependency_information(
+    python: str,
+    airflow_version: str,
+    csv_file: Path | None,
+    google_spreadsheet_id: str | None,
+    github_token: str | None,
+    json_credentials_file: Path,
+    include_open_psf_scorecard: bool,
+    include_github_stats: bool,
+    include_actions: bool,
+    limit_output: int | None,
+    project_name: str | None,
+):
+    if not google_spreadsheet_id and not csv_file:
+        get_console().print("[error]You need to specify either --csv-file or --google-spreadsheet-id")
+        sys.exit(1)
+    if google_spreadsheet_id and csv_file:
+        get_console().print("[error]You cannot specify both --csv-file and --google-spreadsheet-id")
+        sys.exit(1)
+    if google_spreadsheet_id and not json_credentials_file.exists():
+        get_console().print(
+            f"[error]The JSON credentials file {json_credentials_file} does not exist. "
+            "Please specify a valid path to the JSON credentials file.[/]\n"
+            "You can download credentials file from your google developer console:"
+            "https://console.cloud.google.com/apis/credentials after creating a Desktop Client ID."
+        )
+        sys.exit(1)
+    if include_actions and not include_open_psf_scorecard:
+        get_console().print(
+            "[error]You cannot specify --include-actions without --include-open-psf-scorecard"
+        )
+        sys.exit(1)
+    import requests
+
+    base_url = f"https://airflow.apache.org/docs/apache-airflow/{airflow_version}/sbom"
+    sbom_file_base = f"apache-airflow-sbom-{airflow_version}-python{python}-python-only"
+
+    sbom_core_url = f"{base_url}/{sbom_file_base}.json"
+    sbom_full_url = f"{base_url}/{sbom_file_base}-full.json"
+    core_sbom_r = requests.get(sbom_core_url)
+    core_sbom_r.raise_for_status()
+    full_sbom_r = requests.get(sbom_full_url)
+    full_sbom_r.raise_for_status()
+
+    core_sbom = core_sbom_r.json()
+    full_sbom = full_sbom_r.json()
+
+    all_dependency_value_dicts = convert_all_sbom_to_value_dictionaries(
+        core_sbom=core_sbom,
+        full_sbom=full_sbom,
+        include_open_psf_scorecard=include_open_psf_scorecard,
+        include_github_stats=include_github_stats,
+        include_actions=include_actions,
+        limit_output=limit_output,
+        github_token=github_token,
+        project_name=project_name,
+    )
+    all_dependency_value_dicts = sorted(all_dependency_value_dicts, key=sort_deps_key)
+
+    fieldnames = get_field_names(
+        include_open_psf_scorecard=include_open_psf_scorecard,
+        include_github_stats=include_github_stats,
+        include_actions=include_actions,
+    )
+
+    if csv_file:
+        write_to_csv_file(
+            csv_file=csv_file, all_dependencies=all_dependency_value_dicts, fieldnames=fieldnames
+        )
+    elif google_spreadsheet_id:
+        write_to_google_spreadsheet(
+            google_spreadsheet_id=google_spreadsheet_id,
+            json_credentials_file=json_credentials_file,
+            all_dependencies=all_dependency_value_dicts,
+            fieldnames=fieldnames,
+            include_opsf_scorecard=include_open_psf_scorecard,
+        )
+
+
+def calculate_range(num_columns: int, row: int) -> str:
+    import string
+
+    # Generate column letters
+    columns = list(string.ascii_uppercase)
+    if num_columns > 26:
+        columns += [f"{a}{b}" for a in string.ascii_uppercase for b in string.ascii_uppercase]
+
+    # Calculate the range
+    end_column = columns[num_columns - 1]
+    return f"A{row}:{end_column}{row}"
+
+
+def convert_sbom_dict_to_spreadsheet_data(headers: list[str], value_dict: dict[str, Any]):
+    return [value_dict.get(header, "") for header in headers]
+
+
+INTERESTING_OPSF_FIELDS = [
+    "Score",
+    "Code-Review",
+    "Maintained",
+    "Dangerous-Workflow",
+    "Security-Policy",
+    "Packaging",
+    "Vulnerabilities",
+]
+
+INTERESTING_OPSF_SCORES = ["OPSF-" + field for field in INTERESTING_OPSF_FIELDS]
+INTERESTING_OPSF_DETAILS = ["OPSF-Details-" + field for field in INTERESTING_OPSF_FIELDS]
+
+
+def write_to_google_spreadsheet(
+    google_spreadsheet_id: str,
+    json_credentials_file: Path,
+    all_dependencies: list[dict[str, Any]],
+    fieldnames: list[str],
+    include_opsf_scorecard: bool = False,
+):
+    token_path = Path.home() / ".config" / "gsheet" / "token.json"
+
+    sheet = authorize_gsheet(json_credentials_file, token_path)
+
+    # Use only interesting values from the scorecard
+    cell_field_names = [
+        fieldname
+        for fieldname in fieldnames
+        if fieldname in INTERESTING_OPSF_SCORES or not fieldname.startswith("OPSF-")
+    ]
+
+    num_rows = update_field_values(all_dependencies, cell_field_names, google_spreadsheet_id, sheet)
+    if include_opsf_scorecard:
+        update_opsf_detailed_comments(all_dependencies, fieldnames, num_rows, google_spreadsheet_id, sheet)
+
+
+def update_opsf_detailed_comments(
+    all_dependencies: list[dict[str, Any]],
+    fieldnames: list[str],
+    num_rows: int,
+    google_spreadsheet_id: str,
+    sheet,
+):
+    opsf_details_field_names = [
+        fieldname for fieldname in fieldnames if fieldname in INTERESTING_OPSF_DETAILS
+    ]
+    start_opsf_column = fieldnames.index(opsf_details_field_names[0]) - 1
+    opsf_details = []
+    opsf_details.append(
+        {
+            "values": [
+                {"note": CHECK_DOCS[check]}
+                for check in INTERESTING_OPSF_FIELDS
+                if check != INTERESTING_OPSF_FIELDS[0]
+            ]
+        }
+    )
+    for dependency in all_dependencies:
+        note_row = convert_sbom_dict_to_spreadsheet_data(opsf_details_field_names, dependency)
+        opsf_details.append({"values": [{"note": note} for note in note_row]})
+    notes = {
+        "updateCells": {
+            "range": {
+                "startRowIndex": 1,
+                "endRowIndex": num_rows + 1,
+                "startColumnIndex": start_opsf_column,
+                "endColumnIndex": start_opsf_column + len(opsf_details_field_names) + 1,
+            },
+            "rows": opsf_details,
+            "fields": "note",
+        },
+    }
+    update_note_body = {"requests": [notes]}
+    sheet.batchUpdate(spreadsheetId=google_spreadsheet_id, body=update_note_body).execute()
+
+
+def simplify_field_names(fieldname: str):
+    if fieldname.startswith("OPSF-"):
+        return fieldname[5:]
+    return fieldname
+
+
+def update_field_values(
+    all_dependencies: list[dict[str, Any]], cell_field_names: list[str], google_spreadsheet_id, sheet
+) -> int:
+    num_fields = len(cell_field_names)
+    data = []
+    top_header = []
+    for field in cell_field_names:
+        if field.startswith("OPSF-"):
+            top_header.append("Relevant OPSF Scores and details")
+            break
+        else:
+            top_header.append("")
+
+    simplified_cell_field_names = [simplify_field_names(field) for field in cell_field_names]
+
+    data.append({"range": calculate_range(num_fields, 1), "values": [top_header]})
+    data.append({"range": calculate_range(num_fields, 2), "values": [simplified_cell_field_names]})
+    row = 3
+    for dependency in all_dependencies:
+        spreadsheet_row = convert_sbom_dict_to_spreadsheet_data(cell_field_names, dependency)
+        data.append({"range": calculate_range(num_fields, row), "values": [spreadsheet_row]})
+        row += 1
+    body = {"valueInputOption": "RAW", "data": data}
+    result = sheet.values().batchUpdate(spreadsheetId=google_spreadsheet_id, body=body).execute()
+    get_console().print(f"{result.get('totalUpdatedCells')} cells values set in the Google spreadsheet.")
+    return row
+
+
+def authorize_gsheet(json_credentials_file: Path, token_path: Path):
+    from google.auth.transport.requests import Request
+    from google.oauth2.credentials import Credentials
+    from google_auth_oauthlib.flow import InstalledAppFlow
+    from googleapiclient.discovery import build
+
+    SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
+    creds = None
+    if token_path.exists():
+        creds = Credentials.from_authorized_user_file(token_path.as_posix(), SCOPES)
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(json_credentials_file.as_posix(), SCOPES)
+            creds = flow.run_local_server(port=0)
+            # Save the credentials for the next run
+        token_path.write_text(creds.to_json())
+    service = build("sheets", "v4", credentials=creds)
+    sheet = service.spreadsheets()
+    return sheet
+
+
+def write_to_csv_file(csv_file: Path, all_dependencies: list[dict[str, Any]], fieldnames: list[str]):
+    with csv_file.open("w") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+        for dependency_value_dict in all_dependencies:
+            writer.writerow(dependency_value_dict)
+    get_console().print(f"[info]Exported {len(all_dependencies)} dependencies to {csv_file}")
+
+
+def sort_deps_key(dependency: dict[str, Any]) -> str:
+    if dependency.get("Vcs"):
+        return "0:" + dependency["Name"]
+    else:
+        return "1:" + dependency["Name"]
+
+
+def convert_all_sbom_to_value_dictionaries(
+    core_sbom: dict[str, Any],
+    full_sbom: dict[str, Any],
+    include_open_psf_scorecard: bool,
+    include_github_stats: bool,
+    include_actions: bool,
+    limit_output: int | None,
+    github_token: str | None = None,
+    project_name: str | None = None,
+) -> list[dict[str, Any]]:
+    core_dependencies = set()
+    dev_deps = set(normalize_package_name(name) for name in DEVEL_DEPS_PATH.read_text().splitlines())
+    num_deps = 0
+    all_dependency_value_dicts = []
+    dependency_depth: dict[str, int] = json.loads(
+        (AIRFLOW_SOURCES_ROOT / "generated" / "dependency_depth.json").read_text()
+    )
+    for key, value in dependency_depth.items():
+        dependency_depth[normalize_package_name(key)] = value
+    for dependency in core_sbom["components"]:
+        normalized_name = normalize_package_name(dependency["name"])
+        if project_name and normalized_name != project_name:
+            continue
+        core_dependencies.add(normalized_name)
+        is_devel = normalized_name in dev_deps
+        value_dict = convert_sbom_entry_to_dict(
+            dependency,
+            dependency_depth=dependency_depth,
+            is_core=True,
+            is_devel=is_devel,
+            include_open_psf_scorecard=include_open_psf_scorecard,
+            include_github_stats=include_github_stats,
+            include_actions=include_actions,
+            github_token=github_token,
+        )
+        if value_dict:
+            all_dependency_value_dicts.append(value_dict)
+        num_deps += 1
+        if limit_output and num_deps >= limit_output:
+            return all_dependency_value_dicts
+    for dependency in full_sbom["components"]:
+        normalized_name = normalize_package_name(dependency["name"])
+        if project_name and normalized_name != project_name:
+            continue
+        if normalized_name not in core_dependencies:
+            is_devel = normalized_name in dev_deps
+            value_dict = convert_sbom_entry_to_dict(
+                dependency,
+                dependency_depth=dependency_depth,
+                is_core=False,
+                is_devel=is_devel,
+                include_open_psf_scorecard=include_open_psf_scorecard,
+                include_github_stats=include_github_stats,
+                include_actions=include_actions,
+                github_token=github_token,
+            )
+            if value_dict:
+                all_dependency_value_dicts.append(value_dict)
+            num_deps += 1
+        if limit_output and num_deps >= limit_output:
+            return all_dependency_value_dicts
+    get_console().print(f"[info]Processed {num_deps} dependencies")
+    return all_dependency_value_dicts

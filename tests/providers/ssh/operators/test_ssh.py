@@ -18,12 +18,14 @@
 from __future__ import annotations
 
 import random
+import time
+from datetime import timedelta
 from unittest import mock
 
 import pytest
 from paramiko.client import SSHClient
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
 from airflow.models import TaskInstance
 from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
@@ -192,13 +194,14 @@ class TestSSHOperator:
         assert task.get_pty == get_pty_out
 
     def test_ssh_client_managed_correctly(self):
-        # Ensure connection gets closed once (via context_manager)
+        # Ensure connection gets closed once (via context_manager) using on_kill
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
             command="ls",
         )
         task.execute()
+
         self.hook.get_conn.assert_called_once()
         self.hook.get_conn.return_value.__exit__.assert_called_once()
 
@@ -266,3 +269,28 @@ class TestSSHOperator:
         with pytest.raises(AirflowException, match=f"SSH operator error: exit status = {ssh_exit_code}"):
             ti.run()
         assert ti.xcom_pull(task_ids=task.task_id, key="ssh_exit") == ssh_exit_code
+
+    def test_timeout_triggers_on_kill(self, request, dag_maker):
+        def command_sleep_forever(*args, **kwargs):
+            time.sleep(100)  # This will be interrupted by the timeout
+
+        self.exec_ssh_client_command.side_effect = command_sleep_forever
+
+        with dag_maker(dag_id=f"dag_{request.node.name}"):
+            task = SSHOperator(
+                task_id="test_timeout",
+                ssh_hook=self.hook,
+                command="sleep 100",
+                execution_timeout=timedelta(seconds=1),
+            )
+        dr = dag_maker.create_dagrun(run_id="test_timeout")
+        ti = TaskInstance(task=task, run_id=dr.run_id)
+
+        with mock.patch.object(SSHOperator, "on_kill") as mock_on_kill:
+            with pytest.raises(AirflowTaskTimeout):
+                ti.run()
+
+            # Wait a bit to ensure on_kill has time to be called
+            time.sleep(1)
+
+            mock_on_kill.assert_called_once()

@@ -18,7 +18,7 @@
 
 
 Project
-=======
+========
 
 History
 -------
@@ -85,9 +85,11 @@ Committers
 - Ping Zhang (@pingzh)
 - Qian Yu (@yuqian90)
 - Qingping Hou (@houqp)
+- Rom Sharon (@romsharon98)
 - Ry Walker (@ryw)
 - Ryan Hamilton (@ryanahamilton)
 - Ryan Hatter (@RNHTTR)
+- Shahar Epstein (@shahar1)
 - Siddharth "Sid" Anand (@r39132)
 - Sumit Maheshwari (@msumit)
 - Tao Feng (@feng-tao)

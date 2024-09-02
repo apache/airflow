@@ -24,9 +24,7 @@ from urllib.parse import unquote
 
 from flask import current_app, flash, redirect, request, url_for
 from flask_appbuilder.api import expose
-from packaging.version import Version
 
-from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskInstanceNotFound
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.dag import DAG, clear_task_instances
@@ -35,13 +33,11 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.models.xcom import XCom
 from airflow.plugins_manager import AirflowPlugin
 from airflow.providers.databricks.hooks.databricks import DatabricksHook
-from airflow.security import permissions
 from airflow.utils.airflow_flask_app import AirflowApp
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import TaskGroup
-from airflow.version import version
 from airflow.www import auth
 from airflow.www.views import AirflowBaseView
 
@@ -56,15 +52,6 @@ airflow_app = cast(AirflowApp, current_app)
 
 
 def get_auth_decorator():
-    # TODO: remove this if block when min_airflow_version is set to higher than 2.8.0
-    if Version(version) < Version("2.8"):
-        return auth.has_access(
-            [
-                (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-                (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
-            ]
-        )
-
     from airflow.auth.managers.models.resource_details import DagAccessEntity
 
     return auth.has_access_dag("POST", DagAccessEntity.RUN)
@@ -413,8 +400,7 @@ class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
     @expose("/repair_databricks_job/<string:dag_id>/<string:run_id>", methods=("GET",))
     @get_auth_decorator()
     def repair(self, dag_id: str, run_id: str):
-        view = conf.get("webserver", "dag_default_view")
-        return_url = self._get_return_url(dag_id, view)
+        return_url = self._get_return_url(dag_id, run_id)
 
         tasks_to_repair = request.values.get("tasks_to_repair")
         self.log.info("Tasks to repair: %s", tasks_to_repair)
@@ -450,8 +436,8 @@ class RepairDatabricksTasks(AirflowBaseView, LoggingMixin):
         return redirect(return_url)
 
     @staticmethod
-    def _get_return_url(dag_id: str, view) -> str:
-        return f"/dags/{dag_id}/{view}"
+    def _get_return_url(dag_id: str, run_id: str) -> str:
+        return url_for("Airflow.grid", dag_id=dag_id, dag_run_id=run_id)
 
 
 repair_databricks_view = RepairDatabricksTasks()

@@ -135,12 +135,12 @@ class XComArg(ResolveMixin, DependencyMixin):
 
     @property
     def roots(self) -> list[DAGNode]:
-        """Required by TaskMixin."""
+        """Required by DependencyMixin."""
         return [op for op, _ in self.iter_references()]
 
     @property
     def leaves(self) -> list[DAGNode]:
-        """Required by TaskMixin."""
+        """Required by DependencyMixin."""
         return [op for op, _ in self.iter_references()]
 
     def set_upstream(
@@ -148,7 +148,7 @@ class XComArg(ResolveMixin, DependencyMixin):
         task_or_task_list: DependencyMixin | Sequence[DependencyMixin],
         edge_modifier: EdgeModifier | None = None,
     ):
-        """Proxy to underlying operator set_upstream method. Required by TaskMixin."""
+        """Proxy to underlying operator set_upstream method. Required by DependencyMixin."""
         for operator, _ in self.iter_references():
             operator.set_upstream(task_or_task_list, edge_modifier)
 
@@ -157,7 +157,7 @@ class XComArg(ResolveMixin, DependencyMixin):
         task_or_task_list: DependencyMixin | Sequence[DependencyMixin],
         edge_modifier: EdgeModifier | None = None,
     ):
-        """Proxy to underlying operator set_downstream method. Required by TaskMixin."""
+        """Proxy to underlying operator set_downstream method. Required by DependencyMixin."""
         for operator, _ in self.iter_references():
             operator.set_downstream(task_or_task_list, edge_modifier)
 
@@ -208,7 +208,7 @@ class XComArg(ResolveMixin, DependencyMixin):
         raise NotImplementedError()
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:
+    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
         """
         Pull XCom value.
 
@@ -437,7 +437,7 @@ class PlainXComArg(XComArg):
         )
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:
+    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
         ti = context["ti"]
         if TYPE_CHECKING:
             assert isinstance(ti, TaskInstance)
@@ -551,8 +551,8 @@ class MapXComArg(XComArg):
         return self.arg.get_task_map_length(run_id, session=session)
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:
-        value = self.arg.resolve(context, session=session)
+    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
+        value = self.arg.resolve(context, session=session, include_xcom=include_xcom)
         if not isinstance(value, (Sequence, dict)):
             raise ValueError(f"XCom map expects sequence or dict, not {type(value).__name__}")
         return _MapResult(value, self.callables)
@@ -632,8 +632,8 @@ class ZipXComArg(XComArg):
         return max(ready_lengths)
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:
-        values = [arg.resolve(context, session=session) for arg in self.args]
+    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
+        values = [arg.resolve(context, session=session, include_xcom=include_xcom) for arg in self.args]
         for value in values:
             if not isinstance(value, (Sequence, dict)):
                 raise ValueError(f"XCom zip expects sequence or dict, not {type(value).__name__}")
@@ -707,8 +707,8 @@ class ConcatXComArg(XComArg):
         return sum(ready_lengths)
 
     @provide_session
-    def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:
-        values = [arg.resolve(context, session=session) for arg in self.args]
+    def resolve(self, context: Context, session: Session = NEW_SESSION, *, include_xcom: bool = True) -> Any:
+        values = [arg.resolve(context, session=session, include_xcom=include_xcom) for arg in self.args]
         for value in values:
             if not isinstance(value, (Sequence, dict)):
                 raise ValueError(f"XCom concat expects sequence or dict, not {type(value).__name__}")
@@ -725,7 +725,7 @@ _XCOM_ARG_TYPES: Mapping[str, type[XComArg]] = {
 
 def serialize_xcom_arg(value: XComArg) -> dict[str, Any]:
     """DAG serialization interface."""
-    key = next(k for k, v in _XCOM_ARG_TYPES.items() if v == type(value))
+    key = next(k for k, v in _XCOM_ARG_TYPES.items() if isinstance(value, v))
     if key:
         return {"type": key, **value._serialize()}
     return value._serialize()

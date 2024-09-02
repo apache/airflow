@@ -19,10 +19,9 @@
 
 from __future__ import annotations
 
-import contextlib
-import logging
 import time
 from collections import deque
+from contextlib import suppress
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Dict, List, Sequence
 
@@ -292,12 +291,19 @@ class AwsBatchExecutor(BaseExecutor):
 
             if failure_reason:
                 if attempt_number >= int(self.__class__.MAX_SUBMIT_JOB_ATTEMPTS):
-                    self.send_message_to_task_logs(
-                        logging.ERROR,
-                        "This job has been unsuccessfully attempted too many times (%s). Dropping the task. Reason: %s",
+                    self.log.error(
+                        (
+                            "This job has been unsuccessfully attempted too many times (%s). "
+                            "Dropping the task. Reason: %s"
+                        ),
                         attempt_number,
                         failure_reason,
-                        ti=key,
+                    )
+                    self.log_task_event(
+                        event="batch job submit failure",
+                        extra=f"This job has been unsuccessfully attempted too many times ({attempt_number}). "
+                        f"Dropping the task. Reason: {failure_reason}",
+                        ti_key=key,
                     )
                     self.fail(key=key)
                 else:
@@ -317,7 +323,7 @@ class AwsBatchExecutor(BaseExecutor):
                     exec_config=exec_config,
                     attempt_number=attempt_number,
                 )
-                with contextlib.suppress(AttributeError):
+                with suppress(AttributeError):
                     # TODO: Remove this when min_airflow_version is 2.10.0 or higher in Amazon provider.
                     # running_state is added in Airflow 2.10 and only needed to support task adoption
                     # (an optional executor feature).
@@ -442,7 +448,7 @@ class AwsBatchExecutor(BaseExecutor):
                         airflow_cmd=ti.command_as_list(),
                         queue=ti.queue,
                         exec_config=ti.executor_config,
-                        attempt_number=ti.prev_attempted_tries,
+                        attempt_number=ti.try_number,
                     )
                     adopted_tis.append(ti)
 
@@ -458,10 +464,11 @@ class AwsBatchExecutor(BaseExecutor):
             not_adopted_tis = [ti for ti in tis if ti not in adopted_tis]
             return not_adopted_tis
 
-    def send_message_to_task_logs(self, level: int, msg: str, *args, ti: TaskInstance | TaskInstanceKey):
+    def log_task_event(self, *, event: str, extra: str, ti_key: TaskInstanceKey):
         # TODO: remove this method when min_airflow_version is set to higher than 2.10.0
-        try:
-            super().send_message_to_task_logs(level, msg, *args, ti=ti)
-        except AttributeError:
-            # ``send_message_to_task_logs`` is added in 2.10.0
-            self.log.error(msg, *args)
+        with suppress(AttributeError):
+            super().log_task_event(
+                event=event,
+                extra=extra,
+                ti_key=ti_key,
+            )

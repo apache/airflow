@@ -16,7 +16,7 @@
     under the License.
 
 
-Installation of Airflow™
+Installation of Airflow®
 ------------------------
 
 .. contents:: :local:
@@ -34,7 +34,7 @@ Installation of Airflow™
     Setting up the database <setting-up-the-database>
     Upgrading <upgrading>
 
-This page describes installations options that you might use when considering how to install Airflow™.
+This page describes installations options that you might use when considering how to install Airflow®.
 Airflow consists of many components, often distributed among many physical or virtual machines, therefore
 installation of Airflow might be quite complex, depending on the options you choose.
 

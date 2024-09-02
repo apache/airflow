@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import datetime
 import os
-from pathlib import Path
 
 from google.protobuf.field_mask_pb2 import FieldMask
 
@@ -37,26 +36,29 @@ from airflow.providers.google.cloud.operators.dataproc_metastore import (
     DataprocMetastoreGetServiceOperator,
     DataprocMetastoreUpdateServiceOperator,
 )
-from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.operators.gcs import (
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
+    GCSSynchronizeBucketsOperator,
+)
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "dataproc_metastore"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "")
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 
 SERVICE_ID = f"{DAG_ID}-service-{ENV_ID}".replace("_", "-")
 METADATA_IMPORT_ID = f"{DAG_ID}-metadata-{ENV_ID}".replace("_", "-")
 
 REGION = "europe-west1"
+RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 TIMEOUT = 2400
 DB_TYPE = "MYSQL"
 DESTINATION_GCS_FOLDER = f"gs://{BUCKET_NAME}/>"
-
-HIVE_FILE_SRC = str(Path(__file__).parent.parent / "dataproc" / "resources" / "hive.sql")
-HIVE_FILE = "data/hive.sql"
-GCS_URI = f"gs://{BUCKET_NAME}/data/hive.sql"
+HIVE_FILE = "hive.sql"
+GCS_URI = f"gs://{BUCKET_NAME}/dataproc/{HIVE_FILE}"
 
 # Service definition
 # Docs: https://cloud.google.com/dataproc-metastore/docs/reference/rest/v1/projects.locations.services#Service
@@ -98,11 +100,13 @@ with DAG(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
     )
 
-    upload_file = LocalFilesystemToGCSOperator(
-        task_id="upload_file",
-        src=HIVE_FILE_SRC,
-        dst=HIVE_FILE,
-        bucket=BUCKET_NAME,
+    move_file = GCSSynchronizeBucketsOperator(
+        task_id="move_file",
+        source_bucket=RESOURCE_DATA_BUCKET,
+        source_object="dataproc/hive",
+        destination_bucket=BUCKET_NAME,
+        destination_object="dataproc",
+        recursive=True,
     )
 
     # [START how_to_cloud_dataproc_metastore_create_service_operator]
@@ -177,7 +181,7 @@ with DAG(
 
     (
         create_bucket
-        >> upload_file
+        >> move_file
         >> create_service
         >> get_service
         >> update_service

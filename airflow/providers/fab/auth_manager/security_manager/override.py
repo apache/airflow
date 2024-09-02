@@ -23,8 +23,7 @@ import logging
 import os
 import random
 import uuid
-import warnings
-from typing import TYPE_CHECKING, Any, Callable, Collection, Container, Iterable, Sequence
+from typing import Any, Callable, Collection, Iterable, Sequence
 
 import jwt
 import packaging.version
@@ -69,13 +68,12 @@ from itsdangerous import want_bytes
 from markupsafe import Markup
 from sqlalchemy import and_, func, inspect, literal, or_, select
 from sqlalchemy.exc import MultipleResultsFound
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from airflow import __version__ as airflow_version
-from airflow.auth.managers.utils.fab import get_method_from_fab_action_map
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import DagBag, DagModel
 from airflow.providers.fab.auth_manager.models import (
     Action,
@@ -108,13 +106,9 @@ from airflow.providers.fab.auth_manager.views.user_edit import (
 )
 from airflow.providers.fab.auth_manager.views.user_stats import CustomUserStatsChartView
 from airflow.security import permissions
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.security_manager import AirflowSecurityManagerV2
 from airflow.www.session import AirflowDatabaseSessionInterface
-
-if TYPE_CHECKING:
-    from airflow.auth.managers.base_auth_manager import ResourceMethod
 
 log = logging.getLogger(__name__)
 
@@ -132,8 +126,8 @@ MAX_NUM_DATABASE_USER_SESSIONS = 50000
 # allows utilizing the GET method for them.
 # You could remove the patch and configure it when it is supported
 # natively by Flask-AppBuilder (https://github.com/dpgaspar/Flask-AppBuilder/issues/2248)
-if packaging.version.parse(packaging.version.parse(airflow_version).base_version) <= packaging.version.parse(
-    "2.9.2"
+if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
+    "2.10.0"
 ):
     _methods = ["GET", "POST"]
 else:
@@ -344,7 +338,16 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     ]
 
     # global resource for dag-level access
-    DAG_ACTIONS = permissions.DAG_ACTIONS
+    RESOURCE_DETAILS_MAP = getattr(
+        permissions,
+        "RESOURCE_DETAILS_MAP",
+        {
+            permissions.RESOURCE_DAG: {
+                "actions": permissions.DAG_ACTIONS,
+            }
+        },
+    )
+    DAG_ACTIONS = RESOURCE_DETAILS_MAP[permissions.RESOURCE_DAG]["actions"]
 
     def __init__(self, appbuilder):
         # done in super, but we need it before we can call super.
@@ -949,73 +952,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             self.add_role(self.auth_role_public)
             if self.count_users() == 0 and self.auth_role_public != self.auth_role_admin:
                 log.warning(const.LOGMSG_WAR_SEC_NO_USER)
-        except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_CREATE_DB, e)
+        except Exception:
+            log.exception(const.LOGMSG_ERR_SEC_CREATE_DB)
             exit(1)
-
-    def get_readable_dags(self, user) -> Iterable[DagModel]:
-        """Get the DAGs readable by authenticated user."""
-        warnings.warn(
-            "`get_readable_dags` has been deprecated. Please use `get_auth_manager().get_permitted_dag_ids` "
-            "instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
-            return self.get_accessible_dags([permissions.ACTION_CAN_READ], user)
-
-    def get_editable_dags(self, user) -> Iterable[DagModel]:
-        """Get the DAGs editable by authenticated user."""
-        warnings.warn(
-            "`get_editable_dags` has been deprecated. Please use `get_auth_manager().get_permitted_dag_ids` "
-            "instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
-            return self.get_accessible_dags([permissions.ACTION_CAN_EDIT], user)
-
-    @provide_session
-    def get_accessible_dags(
-        self,
-        user_actions: Container[str] | None,
-        user,
-        session: Session = NEW_SESSION,
-    ) -> Iterable[DagModel]:
-        warnings.warn(
-            "`get_accessible_dags` has been deprecated. Please use "
-            "`get_auth_manager().get_permitted_dag_ids` instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=3,
-        )
-
-        dag_ids = self.get_accessible_dag_ids(user, user_actions, session)
-        return session.scalars(select(DagModel).where(DagModel.dag_id.in_(dag_ids)))
-
-    @provide_session
-    def get_accessible_dag_ids(
-        self,
-        user,
-        user_actions: Container[str] | None = None,
-        session: Session = NEW_SESSION,
-    ) -> set[str]:
-        warnings.warn(
-            "`get_accessible_dag_ids` has been deprecated. Please use "
-            "`get_auth_manager().get_permitted_dag_ids` instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=3,
-        )
-        if not user_actions:
-            user_actions = [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
-        method_from_fab_action_map = get_method_from_fab_action_map()
-        user_methods: Container[ResourceMethod] = [
-            method_from_fab_action_map[action]
-            for action in method_from_fab_action_map
-            if action in user_actions
-        ]
-        return get_auth_manager().get_permitted_dag_ids(user=user, methods=user_methods, session=session)
 
     @staticmethod
     def get_readable_dag_ids(user=None) -> set[str]:
@@ -1031,7 +970,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """Check if user has read or write access to some dags."""
         if dag_id and dag_id != "~":
             root_dag_id = self._get_root_dag_id(dag_id)
-            return self.has_access(action, permissions.resource_name_for_dag(root_dag_id))
+            return self.has_access(action, self._resource_name(root_dag_id, permissions.RESOURCE_DAG))
 
         user = g.user
         if action == permissions.ACTION_CAN_READ:
@@ -1064,25 +1003,15 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         dags = dagbag.dags.values()
 
         for dag in dags:
-            root_dag_id = dag.parent_dag.dag_id if dag.parent_dag else dag.dag_id
-            dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
-            for action_name in self.DAG_ACTIONS:
-                if (action_name, dag_resource_name) not in perms:
-                    self._merge_perm(action_name, dag_resource_name)
+            root_dag_id = (getattr(dag, "parent_dag", None) or dag).dag_id
+            for resource_name, resource_values in self.RESOURCE_DETAILS_MAP.items():
+                dag_resource_name = self._resource_name(root_dag_id, resource_name)
+                for action_name in resource_values["actions"]:
+                    if (action_name, dag_resource_name) not in perms:
+                        self._merge_perm(action_name, dag_resource_name)
 
             if dag.access_control is not None:
-                self.sync_perm_for_dag(dag_resource_name, dag.access_control)
-
-    def prefixed_dag_id(self, dag_id: str) -> str:
-        """Return the permission name for a DAG id."""
-        warnings.warn(
-            "`prefixed_dag_id` has been deprecated. "
-            "Please use `airflow.security.permissions.resource_name_for_dag` instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        root_dag_id = self._get_root_dag_id(dag_id)
-        return permissions.resource_name_for_dag(root_dag_id)
+                self.sync_perm_for_dag(root_dag_id, dag.access_control)
 
     def is_dag_resource(self, resource_name: str) -> bool:
         """Determine if a resource belongs to a DAG or all DAGs."""
@@ -1093,7 +1022,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def sync_perm_for_dag(
         self,
         dag_id: str,
-        access_control: dict[str, Collection[str]] | None = None,
+        access_control: dict[str, dict[str, Collection[str]]] | None = None,
     ) -> None:
         """
         Sync permissions for given dag id.
@@ -1101,62 +1030,78 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         The dag id surely exists in our dag bag as only / refresh button or DagBag will call this function.
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :param access_control: a dict where each key is a role name and
-            each value is a set() of action names (e.g.,
-            {'can_read'}
+        :param access_control: a dict where each key is a role name and each value can be:
+             - a set() of DAGs resource action names (e.g. `{'can_read'}`)
+             - or a dict where each key is a resource name ('DAGs' or 'DAG Runs') and each value
+             is a set() of action names (e.g., `{'DAG Runs': {'can_create'}, 'DAGs': {'can_read'}}`)
         :return:
         """
-        dag_resource_name = permissions.resource_name_for_dag(dag_id)
-        for dag_action_name in self.DAG_ACTIONS:
-            self.create_permission(dag_action_name, dag_resource_name)
+        for resource_name, resource_values in self.RESOURCE_DETAILS_MAP.items():
+            dag_resource_name = self._resource_name(dag_id, resource_name)
+            for dag_action_name in resource_values["actions"]:
+                self.create_permission(dag_action_name, dag_resource_name)
 
         if access_control is not None:
-            self.log.debug("Syncing DAG-level permissions for DAG '%s'", dag_resource_name)
-            self._sync_dag_view_permissions(dag_resource_name, access_control)
+            self.log.debug("Syncing DAG-level permissions for DAG '%s'", dag_id)
+            self._sync_dag_view_permissions(dag_id, access_control.copy())
         else:
             self.log.debug(
                 "Not syncing DAG-level permissions for DAG '%s' as access control is unset.",
-                dag_resource_name,
+                dag_id,
             )
 
-    def _sync_dag_view_permissions(self, dag_id: str, access_control: dict[str, Collection[str]]) -> None:
+    def _resource_name(self, dag_id: str, resource_name: str) -> str:
+        """
+        Get the resource name from permissions.
+
+        This method is to keep compatibility with new FAB versions
+        running with old airflow versions.
+        """
+        if hasattr(permissions, "resource_name"):
+            return getattr(permissions, "resource_name")(dag_id, resource_name)
+        return getattr(permissions, "resource_name_for_dag")(dag_id)
+
+    def _sync_dag_view_permissions(
+        self,
+        dag_id: str,
+        access_control: dict[str, dict[str, Collection[str]]],
+    ) -> None:
         """
         Set the access policy on the given DAG's ViewModel.
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :param access_control: a dict where each key is a role name and
-            each value is a set() of action names (e.g. {'can_read'})
+        :param access_control: a dict where each key is a role name and each value is:
+            - a dict where each key is a resource name ('DAGs' or 'DAG Runs') and each value
+            is a set() of action names (e.g., `{'DAG Runs': {'can_create'}, 'DAGs': {'can_read'}}`)
         """
-        dag_resource_name = permissions.resource_name_for_dag(dag_id)
 
-        def _get_or_create_dag_permission(action_name: str) -> Permission | None:
+        def _get_or_create_dag_permission(action_name: str, dag_resource_name: str) -> Permission | None:
             perm = self.get_permission(action_name, dag_resource_name)
             if not perm:
                 self.log.info("Creating new action '%s' on resource '%s'", action_name, dag_resource_name)
                 perm = self.create_permission(action_name, dag_resource_name)
-
             return perm
 
-        def _revoke_stale_permissions(resource: Resource):
-            existing_dag_perms = self.get_resource_permissions(resource)
-            for perm in existing_dag_perms:
-                non_admin_roles = [role for role in perm.role if role.name != "Admin"]
-                for role in non_admin_roles:
-                    target_perms_for_role = access_control.get(role.name, ())
-                    if perm.action.name not in target_perms_for_role:
-                        self.log.info(
-                            "Revoking '%s' on DAG '%s' for role '%s'",
-                            perm.action,
-                            dag_resource_name,
-                            role.name,
-                        )
-                        self.remove_permission_from_role(role, perm)
+        # Revoking stale permissions for all possible DAG level resources
+        for resource_name in self.RESOURCE_DETAILS_MAP.keys():
+            dag_resource_name = self._resource_name(dag_id, resource_name)
+            if resource := self.get_resource(dag_resource_name):
+                existing_dag_perms = self.get_resource_permissions(resource)
+                for perm in existing_dag_perms:
+                    non_admin_roles = [role for role in perm.role if role.name != "Admin"]
+                    for role in non_admin_roles:
+                        target_perms_for_role = access_control.get(role.name, {}).get(resource_name, set())
+                        if perm.action.name not in target_perms_for_role:
+                            self.log.info(
+                                "Revoking '%s' on DAG '%s' for role '%s'",
+                                perm.action,
+                                dag_resource_name,
+                                role.name,
+                            )
+                            self.remove_permission_from_role(role, perm)
 
-        resource = self.get_resource(dag_resource_name)
-        if resource:
-            _revoke_stale_permissions(resource)
-
-        for rolename, action_names in access_control.items():
+        # Adding the access control permissions
+        for rolename, resource_actions in access_control.items():
             role = self.find_role(rolename)
             if not role:
                 raise AirflowException(
@@ -1164,19 +1109,34 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     f"'{rolename}', but that role does not exist"
                 )
 
-            action_names = set(action_names)
-            invalid_action_names = action_names - self.DAG_ACTIONS
-            if invalid_action_names:
-                raise AirflowException(
-                    f"The access_control map for DAG '{dag_resource_name}' includes "
-                    f"the following invalid permissions: {invalid_action_names}; "
-                    f"The set of valid permissions is: {self.DAG_ACTIONS}"
-                )
+            if isinstance(resource_actions, (set, list)):
+                # Support for old-style access_control where only the actions are specified
+                resource_actions = {permissions.RESOURCE_DAG: set(resource_actions)}
 
-            for action_name in action_names:
-                dag_perm = _get_or_create_dag_permission(action_name)
-                if dag_perm:
-                    self.add_permission_to_role(role, dag_perm)
+            for resource_name, actions in resource_actions.items():
+                if resource_name not in self.RESOURCE_DETAILS_MAP:
+                    raise AirflowException(
+                        f"The access_control map for DAG '{dag_id}' includes the following invalid "
+                        f"resource name: '{resource_name}'; "
+                        f"The set of valid resource names is: {self.RESOURCE_DETAILS_MAP.keys()}"
+                    )
+
+                dag_resource_name = self._resource_name(dag_id, resource_name)
+                self.log.debug("Syncing DAG-level permissions for DAG '%s'", dag_resource_name)
+
+                invalid_actions = set(actions) - self.RESOURCE_DETAILS_MAP[resource_name]["actions"]
+
+                if invalid_actions:
+                    raise AirflowException(
+                        f"The access_control map for DAG '{dag_resource_name}' includes "
+                        f"the following invalid permissions: {invalid_actions}; "
+                        f"The set of valid permissions is: {self.RESOURCE_DETAILS_MAP[resource_name]['actions']}"
+                    )
+
+                for action_name in actions:
+                    dag_perm = _get_or_create_dag_permission(action_name, dag_resource_name)
+                    if dag_perm:
+                        self.add_permission_to_role(role, dag_perm)
 
     def add_permissions_view(self, base_action_names, resource_name):  # Keep name for compatibility with FAB.
         """
@@ -1307,8 +1267,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         Add the missing ones to the table for admin.
         """
         session = self.appbuilder.get_session
+        prefixes = getattr(permissions, "PREFIX_LIST", [permissions.RESOURCE_DAG_PREFIX])
         dag_resources = session.scalars(
-            select(Resource).where(Resource.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
+            select(Resource).where(or_(*[Resource.name.like(f"{prefix}%") for prefix in prefixes]))
         )
         resource_ids = [resource.id for resource in dag_resources]
 
@@ -1378,20 +1339,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
     def perms_include_action(self, perms, action_name):
         return any(perm.action and perm.action.name == action_name for perm in perms)
-
-    def init_role(self, role_name, perms) -> None:
-        """
-        Initialize the role with actions and related resources.
-
-        :param role_name:
-        :param perms:
-        """
-        warnings.warn(
-            "`init_role` has been deprecated. Please use `bulk_sync_roles` instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        self.bulk_sync_roles([{"role": role_name, "perms": perms}])
 
     def bulk_sync_roles(self, roles: Iterable[dict[str, Any]]) -> None:
         """Sync the provided roles and permissions."""
@@ -2786,7 +2733,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         ).all()
 
     def _get_root_dag_id(self, dag_id: str) -> str:
-        if "." in dag_id:
+        if "." in dag_id and hasattr(DagModel, "root_dag_id"):
             dm = self.appbuilder.get_session.execute(
                 select(DagModel.dag_id, DagModel.root_dag_id).where(DagModel.dag_id == dag_id)
             ).one()

@@ -23,7 +23,9 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
 import jaydebeapi
+from sqlalchemy.engine import URL
 
+from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
@@ -60,7 +62,12 @@ class JdbcHook(DbApiHook):
            "providers.jdbc" section of the Airflow configuration. If you're enabling these options in Airflow
            configuration, you should make sure that you trust the users who can edit connections in the UI
            to not use it maliciously.
-        4. Patch the ``JdbcHook.default_driver_path`` and/or ``JdbcHook.default_driver_class`` values in the
+        4. Define the "sqlalchemy_scheme" property in the extra of the connection if you want to use the
+           SQLAlchemy engine from the JdbcHook.  When using the JdbcHook, the "sqlalchemy_scheme" will by
+           default have the "jdbc" value, which is a protocol, not a database scheme or dialect.  So in order
+           to be able to use SQLAlchemy with the JdbcHook, you need to define the "sqlalchemy_scheme"
+           property in the extra of the connection.
+        5. Patch the ``JdbcHook.default_driver_path`` and/or ``JdbcHook.default_driver_class`` values in the
            ``local_settings.py`` file.
 
     See :doc:`/connections/jdbc` for full documentation.
@@ -106,7 +113,7 @@ class JdbcHook(DbApiHook):
 
         This is used internally for case-insensitive access of jdbc params.
         """
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        conn = self.get_connection(self.get_conn_id())
         return {k.lower(): v for k, v in conn.extra_dejson.items()}
 
     @property
@@ -149,8 +156,25 @@ class JdbcHook(DbApiHook):
             self._driver_class = self.default_driver_class
         return self._driver_class
 
+    @property
+    def sqlalchemy_url(self) -> URL:
+        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        sqlalchemy_scheme = conn.extra_dejson.get("sqlalchemy_scheme")
+        if sqlalchemy_scheme is None:
+            raise AirflowException(
+                "The parameter 'sqlalchemy_scheme' must be defined in extra for JDBC connections!"
+            )
+        return URL.create(
+            drivername=sqlalchemy_scheme,
+            username=conn.login,
+            password=conn.password,
+            host=conn.host,
+            port=conn.port,
+            database=conn.schema,
+        )
+
     def get_conn(self) -> jaydebeapi.Connection:
-        conn: Connection = self.get_connection(getattr(self, self.conn_name_attr))
+        conn: Connection = self.get_connection(self.get_conn_id())
         host: str = conn.host
         login: str = conn.login
         psw: str = conn.password

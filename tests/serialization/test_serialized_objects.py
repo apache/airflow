@@ -22,15 +22,23 @@ import json
 import warnings
 from datetime import datetime, timedelta
 from importlib import import_module
+from typing import Iterator
 
 import pendulum
 import pytest
 from dateutil import relativedelta
 from kubernetes.client import models as k8s
 from pendulum.tz.timezone import Timezone
+from pydantic import BaseModel
 
 from airflow.datasets import Dataset, DatasetAlias, DatasetAliasEvent
-from airflow.exceptions import AirflowRescheduleException, SerializationError, TaskDeferred
+from airflow.exceptions import (
+    AirflowException,
+    AirflowFailException,
+    AirflowRescheduleException,
+    SerializationError,
+    TaskDeferred,
+)
 from airflow.jobs.job import Job
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, DagModel, DagTag
@@ -54,8 +62,8 @@ from airflow.settings import _ENABLE_AIP_44
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.context import OutletEventAccessor, OutletEventAccessors
+from airflow.utils.db import LazySelectSequence
 from airflow.utils.operator_resources import Resources
-from airflow.utils.pydantic import BaseModel
 from airflow.utils.state import DagRunState, State
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
@@ -150,8 +158,25 @@ def equal_time(a: datetime, b: datetime) -> bool:
     return a.strftime("%s") == b.strftime("%s")
 
 
+def equal_exception(a: AirflowException, b: AirflowException) -> bool:
+    return a.__class__ == b.__class__ and str(a) == str(b)
+
+
 def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) -> bool:
     return a.raw_key == b.raw_key and a.extra == b.extra and a.dataset_alias_event == b.dataset_alias_event
+
+
+class MockLazySelectSequence(LazySelectSequence):
+    _data = ["a", "b", "c"]
+
+    def __init__(self):
+        super().__init__(None, None, session="MockSession")
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._data)
+
+    def __len__(self) -> int:
+        return len(self._data)
 
 
 @pytest.mark.parametrize(
@@ -206,6 +231,7 @@ def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) 
             DAT.XCOM_REF,
             None,
         ),
+        (MockLazySelectSequence(), None, lambda a, b: len(a) == len(b) and isinstance(b, list)),
         (Dataset(uri="test"), DAT.DATASET, equals),
         (SimpleTaskInstance.from_ti(ti=TI), DAT.SIMPLE_TASK_INSTANCE, equals),
         (
@@ -235,6 +261,16 @@ def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) 
             OutletEventAccessor(raw_key="test", extra={"key": "value"}),
             DAT.DATASET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
+        ),
+        (
+            AirflowException("test123 wohoo!"),
+            DAT.AIRFLOW_EXC_SER,
+            equal_exception,
+        ),
+        (
+            AirflowFailException("uuups, failed :-("),
+            DAT.AIRFLOW_EXC_SER,
+            equal_exception,
         ),
     ],
 )
@@ -285,7 +321,7 @@ sample_objects = {
     DagModelPydantic: DagModel(
         dag_id="TEST_DAG_1",
         fileloc="/tmp/dag_1.py",
-        schedule_interval="2 2 * * *",
+        timetable_summary="2 2 * * *",
         is_paused=True,
     ),
     LogTemplatePydantic: LogTemplate(
@@ -334,7 +370,7 @@ sample_objects = {
             sample_objects.get(DagModelPydantic),
             DagModelPydantic,
             DAT.DAG_MODEL,
-            lambda a, b: a.fileloc == b.fileloc and a.schedule_interval == b.schedule_interval,
+            lambda a, b: a.fileloc == b.fileloc and a.timetable_summary == b.timetable_summary,
         ),
         (
             sample_objects.get(LogTemplatePydantic),
@@ -401,6 +437,7 @@ def test_all_pydantic_models_round_trip():
         "TaskOutletDatasetReferencePydantic",
         "DagOwnerAttributesPydantic",
         "DatasetEventPydantic",
+        "TriggerPydantic",
     }
     for c in sorted(classes, key=str):
         if c.__name__ in exclusion_list:

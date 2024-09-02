@@ -151,12 +151,11 @@ class TestProjectStructure:
             "tests/providers/microsoft/azure/operators/test_adls.py",
             "tests/providers/microsoft/azure/transfers/test_azure_blob_to_gcs.py",
             "tests/providers/mongo/sensors/test_mongo.py",
-            "tests/providers/redis/operators/test_redis_publish.py",
-            "tests/providers/redis/sensors/test_redis_key.py",
             "tests/providers/slack/notifications/test_slack_notifier.py",
             "tests/providers/snowflake/triggers/test_snowflake_trigger.py",
             "tests/providers/yandex/hooks/test_yandexcloud_dataproc.py",
             "tests/providers/yandex/operators/test_yandexcloud_dataproc.py",
+            "tests/providers/fab/migrations/test_env.py",
         ]
 
         # TODO: Should we extend this test to cover other directories?
@@ -533,6 +532,7 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         "airflow.providers.amazon.aws.transfers.base.AwsToAwsBaseOperator",
         "airflow.providers.amazon.aws.operators.comprehend.ComprehendBaseOperator",
         "airflow.providers.amazon.aws.sensors.comprehend.ComprehendBaseSensor",
+        "airflow.providers.amazon.aws.sensors.kinesis_analytics.KinesisAnalyticsV2BaseSensor",
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {

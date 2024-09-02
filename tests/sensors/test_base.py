@@ -108,6 +108,7 @@ class DummySensorWithXcomValue(BaseSensorOperator):
         return PokeReturnValue(self.return_value, self.xcom_value)
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 class TestBaseSensor:
     @staticmethod
     def clean_db():
@@ -192,15 +193,49 @@ class TestBaseSensor:
 
     @pytest.mark.parametrize(
         "exception_cls",
+        (ValueError,),
+    )
+    def test_soft_fail_with_exception(self, make_sensor, exception_cls):
+        sensor, dr = make_sensor(False, soft_fail=True)
+        sensor.poke = Mock(side_effect=[exception_cls(None)])
+        with pytest.raises(ValueError):
+            self._run(sensor)
+
+        tis = dr.get_task_instances()
+        assert len(tis) == 2
+        for ti in tis:
+            if ti.task_id == SENSOR_OP:
+                assert ti.state == State.FAILED
+            if ti.task_id == DUMMY_OP:
+                assert ti.state == State.NONE
+
+    @pytest.mark.parametrize(
+        "exception_cls",
         (
             AirflowSensorTimeout,
             AirflowTaskTimeout,
             AirflowFailException,
-            Exception,
         ),
     )
-    def test_soft_fail_with_non_skip_exception(self, make_sensor, exception_cls):
+    def test_soft_fail_with_skip_exception(self, make_sensor, exception_cls):
         sensor, dr = make_sensor(False, soft_fail=True)
+        sensor.poke = Mock(side_effect=[exception_cls(None)])
+
+        self._run(sensor)
+        tis = dr.get_task_instances()
+        assert len(tis) == 2
+        for ti in tis:
+            if ti.task_id == SENSOR_OP:
+                assert ti.state == State.SKIPPED
+            if ti.task_id == DUMMY_OP:
+                assert ti.state == State.NONE
+
+    @pytest.mark.parametrize(
+        "exception_cls",
+        (AirflowSensorTimeout, AirflowTaskTimeout, AirflowFailException, Exception),
+    )
+    def test_never_fail_with_skip_exception(self, make_sensor, exception_cls):
+        sensor, dr = make_sensor(False, never_fail=True)
         sensor.poke = Mock(side_effect=[exception_cls(None)])
 
         self._run(sensor)

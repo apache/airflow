@@ -37,7 +37,7 @@ from tests.test_utils.db import clear_db_runs, clear_db_xcom
 from tests.test_utils.mock_operators import CustomOperator
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.fixture(scope="module")
@@ -95,7 +95,7 @@ class TestGetExtraLinks:
         clear_db_xcom()
 
     def _create_dag(self):
-        with DAG(dag_id="TEST_DAG_ID", default_args={"start_date": self.default_time}) as dag:
+        with DAG(dag_id="TEST_DAG_ID", schedule=None, default_args={"start_date": self.default_time}) as dag:
             CustomOperator(task_id="TEST_SINGLE_LINK", bash_command="TEST_LINK_VALUE")
             CustomOperator(
                 task_id="TEST_MULTIPLE_LINK", bash_command=["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"]

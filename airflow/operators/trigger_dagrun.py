@@ -20,20 +20,19 @@ from __future__ import annotations
 import datetime
 import json
 import time
-import warnings
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.api.common.trigger_dag import trigger_dag
+from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.configuration import conf
 from airflow.exceptions import (
     AirflowException,
     AirflowSkipException,
     DagNotFound,
     DagRunAlreadyExists,
-    RemovedInAirflow3Warning,
 )
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.baseoperatorlink import BaseOperatorLink
@@ -83,6 +82,8 @@ class TriggerDagRunOperator(BaseOperator):
     """
     Triggers a DAG run for a specified DAG ID.
 
+    Note that if database isolation mode is enabled, not all features are supported.
+
     :param trigger_dag_id: The ``dag_id`` of the DAG to trigger (templated).
     :param trigger_run_id: The run ID to use for the triggered DAG run (templated).
         If not provided, a run ID will be automatically generated.
@@ -107,7 +108,6 @@ class TriggerDagRunOperator(BaseOperator):
         DAG for the same logical date already exists.
     :param deferrable: If waiting for completion, whether or not to defer the task until done,
         default is ``False``.
-    :param execution_date: Deprecated parameter; same as ``logical_date``.
     """
 
     template_fields: Sequence[str] = (
@@ -136,7 +136,6 @@ class TriggerDagRunOperator(BaseOperator):
         failed_states: list[str | DagRunState] | None = None,
         skip_when_already_exists: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        execution_date: str | datetime.datetime | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -150,20 +149,12 @@ class TriggerDagRunOperator(BaseOperator):
             self.allowed_states = [DagRunState(s) for s in allowed_states]
         else:
             self.allowed_states = [DagRunState.SUCCESS]
-        if failed_states:
+        if failed_states or failed_states == []:
             self.failed_states = [DagRunState(s) for s in failed_states]
         else:
             self.failed_states = [DagRunState.FAILED]
         self.skip_when_already_exists = skip_when_already_exists
         self._defer = deferrable
-
-        if execution_date is not None:
-            warnings.warn(
-                "Parameter 'execution_date' is deprecated. Use 'logical_date' instead.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            logical_date = execution_date
 
         if logical_date is not None and not isinstance(logical_date, (str, datetime.datetime)):
             type_name = type(logical_date).__name__
@@ -174,6 +165,14 @@ class TriggerDagRunOperator(BaseOperator):
         self.logical_date = logical_date
 
     def execute(self, context: Context):
+        if InternalApiConfig.get_use_internal_api():
+            if self.reset_dag_run:
+                raise AirflowException("Parameter reset_dag_run=True is broken with Database Isolation Mode.")
+            if self.wait_for_completion:
+                raise AirflowException(
+                    "Parameter wait_for_completion=True is broken with Database Isolation Mode."
+                )
+
         if isinstance(self.logical_date, datetime.datetime):
             parsed_logical_date = self.logical_date
         elif isinstance(self.logical_date, str):
@@ -210,6 +209,7 @@ class TriggerDagRunOperator(BaseOperator):
                 if dag_model is None:
                     raise DagNotFound(f"Dag id {self.trigger_dag_id} not found in DagModel")
 
+                # Note: here execution fails on database isolation mode. Needs structural changes for AIP-72
                 dag_bag = DagBag(dag_folder=dag_model.fileloc, read_dags_from_db=True)
                 dag = dag_bag.get_dag(self.trigger_dag_id)
                 dag.clear(start_date=dag_run.logical_date, end_date=dag_run.logical_date)
@@ -250,6 +250,7 @@ class TriggerDagRunOperator(BaseOperator):
                 )
                 time.sleep(self.poke_interval)
 
+                # Note: here execution fails on database isolation mode. Needs structural changes for AIP-72
                 dag_run.refresh_from_db()
                 state = dag_run.state
                 if state in self.failed_states:
@@ -263,6 +264,7 @@ class TriggerDagRunOperator(BaseOperator):
         # This logical_date is parsed from the return trigger event
         provided_logical_date = event[1]["execution_dates"][0]
         try:
+            # Note: here execution fails on database isolation mode. Needs structural changes for AIP-72
             dag_run = session.execute(
                 select(DagRun).where(
                     DagRun.dag_id == self.trigger_dag_id, DagRun.execution_date == provided_logical_date

@@ -26,15 +26,18 @@ from airflow.exceptions import (
 
 # For no Pydantic environment, we need to skip the tests
 pytest.importorskip("google.cloud.aiplatform_v1")
+pytest.importorskip("google.cloud.aiplatform_v1beta1")
 vertexai = pytest.importorskip("vertexai.generative_models")
 from vertexai.generative_models import HarmBlockThreshold, HarmCategory, Tool, grounding
 
 from airflow.providers.google.cloud.operators.vertex_ai.generative_model import (
+    CountTokensOperator,
     GenerateTextEmbeddingsOperator,
     GenerativeModelGenerateContentOperator,
     PromptLanguageModelOperator,
     PromptMultimodalModelOperator,
     PromptMultimodalModelWithMediaOperator,
+    SupervisedFineTuningTrainOperator,
     TextEmbeddingModelGetEmbeddingsOperator,
     TextGenerationModelPredictOperator,
 )
@@ -79,10 +82,7 @@ class TestVertexAIPromptLanguageModelOperator:
 
     @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
     def test_execute(self, mock_hook):
-        with pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match=r"Call to deprecated class PromptLanguageModelOperator. \(This operator is deprecated and will be removed after 01.01.2025, please use `TextGenerationModelPredictOperator`.\)",
-        ):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             op = PromptLanguageModelOperator(
                 task_id=TASK_ID,
                 project_id=GCP_PROJECT,
@@ -132,10 +132,7 @@ class TestVertexAIGenerateTextEmbeddingsOperator:
 
     @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
     def test_execute(self, mock_hook):
-        with pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match=r"Call to deprecated class GenerateTextEmbeddingsOperator. \(This operator is deprecated and will be removed after 01.01.2025, please use `TextEmbeddingModelGetEmbeddingsOperator`.\)",
-        ):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             op = GenerateTextEmbeddingsOperator(
                 task_id=TASK_ID,
                 project_id=GCP_PROJECT,
@@ -186,10 +183,7 @@ class TestVertexAIPromptMultimodalModelOperator:
 
     @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
     def test_execute(self, mock_hook):
-        with pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match=r"Call to deprecated class PromptMultimodalModelOperator. \(This operator is deprecated and will be removed after 01.01.2025, please use `GenerativeModelGenerateContentOperator`.\)",
-        ):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             op = PromptMultimodalModelOperator(
                 task_id=TASK_ID,
                 project_id=GCP_PROJECT,
@@ -248,10 +242,7 @@ class TestVertexAIPromptMultimodalModelWithMediaOperator:
 
     @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
     def test_execute(self, mock_hook):
-        with pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match=r"Call to deprecated class PromptMultimodalModelWithMediaOperator. \(This operator is deprecated and will be removed after 01.01.2025, please use `GenerativeModelGenerateContentOperator`.\)",
-        ):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             op = PromptMultimodalModelWithMediaOperator(
                 task_id=TASK_ID,
                 project_id=GCP_PROJECT,
@@ -388,5 +379,72 @@ class TestVertexAIGenerativeModelGenerateContentOperator:
             tools=tools,
             generation_config=generation_config,
             safety_settings=safety_settings,
+            pretrained_model=pretrained_model,
+        )
+
+
+class TestVertexAISupervisedFineTuningTrainOperator:
+    @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
+    @mock.patch("google.cloud.aiplatform_v1.types.TuningJob.to_dict")
+    def test_execute(
+        self,
+        to_dict_mock,
+        mock_hook,
+    ):
+        source_model = "gemini-1.0-pro-002"
+        train_dataset = "gs://cloud-samples-data/ai-platform/generative_ai/sft_train_data.jsonl"
+
+        op = SupervisedFineTuningTrainOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            source_model=source_model,
+            train_dataset=train_dataset,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.supervised_fine_tuning_train.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            source_model=source_model,
+            train_dataset=train_dataset,
+            adapter_size=None,
+            epochs=None,
+            learning_rate_multiplier=None,
+            tuned_model_display_name=None,
+            validation_dataset=None,
+        )
+
+
+class TestVertexAICountTokensOperator:
+    @mock.patch(VERTEX_AI_PATH.format("generative_model.GenerativeModelHook"))
+    @mock.patch("google.cloud.aiplatform_v1beta1.types.CountTokensResponse.to_dict")
+    def test_execute(self, to_dict_mock, mock_hook):
+        contents = ["In 10 words or less, what is Apache Airflow?"]
+        pretrained_model = "gemini-pro"
+
+        op = CountTokensOperator(
+            task_id=TASK_ID,
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            contents=contents,
+            pretrained_model=pretrained_model,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        mock_hook.return_value.count_tokens.assert_called_once_with(
+            project_id=GCP_PROJECT,
+            location=GCP_LOCATION,
+            contents=contents,
             pretrained_model=pretrained_model,
         )

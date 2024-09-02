@@ -17,8 +17,13 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import datetime
+from unittest import mock
+
+import pytest
 from moto import mock_aws
 
+from airflow.exceptions import AirflowFailException
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 
 
@@ -41,6 +46,31 @@ class TestStepFunctionHook:
         )
 
         assert execution_arn is not None
+
+    @mock.patch.object(StepFunctionHook, "conn")
+    def test_redrive_execution(self, mock_conn):
+        mock_conn.redrive_execution.return_value = {"redriveDate": datetime(2024, 1, 1)}
+        StepFunctionHook().start_execution(
+            state_machine_arn="arn:aws:states:us-east-1:123456789012:stateMachine:test-state-machine",
+            name="random-123",
+            is_redrive_execution=True,
+        )
+
+        mock_conn.redrive_execution.assert_called_once_with(
+            executionArn="arn:aws:states:us-east-1:123456789012:execution:test-state-machine:random-123"
+        )
+
+    @mock.patch.object(StepFunctionHook, "conn")
+    def test_redrive_execution_without_name_should_fail(self, mock_conn):
+        mock_conn.redrive_execution.return_value = {"redriveDate": datetime(2024, 1, 1)}
+
+        with pytest.raises(
+            AirflowFailException, match="Execution name is required to start RedriveExecution"
+        ):
+            StepFunctionHook().start_execution(
+                state_machine_arn="arn:aws:states:us-east-1:123456789012:stateMachine:test-state-machine",
+                is_redrive_execution=True,
+            )
 
     def test_describe_execution(self):
         hook = StepFunctionHook(aws_conn_id="aws_default", region_name="us-east-1")

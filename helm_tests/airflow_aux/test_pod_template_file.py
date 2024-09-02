@@ -85,6 +85,7 @@ class TestPodTemplateFile:
                         "sshKeySecret": None,
                         "credentialsSecret": None,
                         "knownHosts": None,
+                        "envFrom": "- secretRef:\n    name: 'proxy-config'\n",
                     }
                 },
             },
@@ -98,6 +99,7 @@ class TestPodTemplateFile:
             "securityContext": {"runAsUser": 65533},
             "image": "test-registry/test-repo:test-tag",
             "imagePullPolicy": "Always",
+            "envFrom": [{"secretRef": {"name": "proxy-config"}}],
             "env": [
                 {"name": "GIT_SYNC_REV", "value": "HEAD"},
                 {"name": "GITSYNC_REF", "value": "test-branch"},
@@ -1024,3 +1026,42 @@ class TestPodTemplateFile:
         )
 
         assert None is jmespath.search("spec.containers[0].command", docs[0])
+
+    @pytest.mark.parametrize(
+        "workers_values, kerberos_init_container",
+        [
+            ({"kerberosSidecar": {"enabled": True}}, False),
+            ({"kerberosInitContainer": {"enabled": True}}, True),
+        ],
+    )
+    def test_webserver_config_for_kerberos(self, workers_values, kerberos_init_container):
+        docs = render_chart(
+            values={"workers": workers_values, "webserver": {"webserverConfigConfigMapName": "config"}},
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        kerberos_container = "spec.containers[1].volumeMounts[*].name"
+        if kerberos_init_container:
+            kerberos_container = "spec.initContainers[0].volumeMounts[*].name"
+
+        volume_mounts_names = jmespath.search(kerberos_container, docs[0])
+        print(volume_mounts_names)
+        assert "webserver-config" in volume_mounts_names
+        assert "webserver-config" in jmespath.search("spec.volumes[*].name", docs[0])
+
+    @pytest.mark.parametrize(
+        "workers_values",
+        [{"kerberosSidecar": {"enabled": True}}, {"kerberosInitContainer": {"enabled": True}}],
+    )
+    def test_base_contains_kerberos_env(self, workers_values):
+        docs = render_chart(
+            values={
+                "workers": workers_values,
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        scheduler_env = jmespath.search("spec.containers[0].env[*].name", docs[0])
+        assert set(["KRB5_CONFIG", "KRB5CCNAME"]).issubset(scheduler_env)

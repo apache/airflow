@@ -44,6 +44,7 @@ from airflow_breeze.global_constants import (
     HELM_VERSION,
     KIND_VERSION,
     RUNS_ON_PUBLIC_RUNNER,
+    RUNS_ON_SELF_HOSTED_ASF_RUNNER,
     RUNS_ON_SELF_HOSTED_RUNNER,
     TESTABLE_INTEGRATIONS,
     GithubEvents,
@@ -67,6 +68,7 @@ from airflow_breeze.utils.provider_dependencies import DEPENDENCIES, get_related
 from airflow_breeze.utils.run_utils import run_command
 
 ALL_VERSIONS_LABEL = "all versions"
+CANARY_LABEL = "canary"
 DEBUG_CI_RESOURCES_LABEL = "debug ci resources"
 DEFAULT_VERSIONS_ONLY_LABEL = "default versions only"
 DISABLE_IMAGE_CACHE_LABEL = "disable image cache"
@@ -103,6 +105,7 @@ class FileGroupForCi(Enum):
     HELM_FILES = "helm_files"
     DEPENDENCY_FILES = "dependency_files"
     DOC_FILES = "doc_files"
+    UI_FILES = "ui_files"
     WWW_FILES = "www_files"
     SYSTEM_TEST_FILES = "system_tests"
     KUBERNETES_FILES = "kubernetes_files"
@@ -113,6 +116,7 @@ class FileGroupForCi(Enum):
     ALL_DEV_PYTHON_FILES = "all_dev_python_files"
     ALL_PROVIDER_YAML_FILES = "all_provider_yaml_files"
     ALL_DOCS_PYTHON_FILES = "all_docs_python_files"
+    TESTS_UTILS_FILES = "test_utils_files"
 
 
 T = TypeVar("T", FileGroupForCi, SelectiveUnitTestTypes)
@@ -175,6 +179,12 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^chart/values\.schema\.json",
             r"^chart/values\.json",
         ],
+        FileGroupForCi.UI_FILES: [
+            r"^airflow/ui/.*\.ts[x]?$",
+            r"^airflow/ui/.*\.js[x]?$",
+            r"^airflow/ui/[^/]+\.json$",
+            r"^airflow/ui/.*\.lock$",
+        ],
         FileGroupForCi.WWW_FILES: [
             r"^airflow/www/.*\.ts[x]?$",
             r"^airflow/www/.*\.js[x]?$",
@@ -220,6 +230,9 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.ALL_PROVIDER_YAML_FILES: [
             r".*/provider\.yaml$",
+        ],
+        FileGroupForCi.TESTS_UTILS_FILES: [
+            r"^tests/utils/",
         ],
     }
 )
@@ -460,9 +473,18 @@ class SelectiveChecks:
         if self._should_run_all_tests_and_versions():
             return True
         if self._matching_files(
-            FileGroupForCi.ENVIRONMENT_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
+            FileGroupForCi.ENVIRONMENT_FILES,
+            CI_FILE_GROUP_MATCHES,
+            CI_FILE_GROUP_EXCLUDES,
         ):
             get_console().print("[warning]Running full set of tests because env files changed[/]")
+            return True
+        if self._matching_files(
+            FileGroupForCi.TESTS_UTILS_FILES,
+            CI_FILE_GROUP_MATCHES,
+            CI_FILE_GROUP_EXCLUDES,
+        ):
+            get_console().print("[warning]Running full set of tests because tests/utils changed[/]")
             return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
             get_console().print(
@@ -651,6 +673,10 @@ class SelectiveChecks:
         return self._should_be_run(FileGroupForCi.API_CODEGEN_FILES)
 
     @cached_property
+    def run_ui_tests(self) -> bool:
+        return self._should_be_run(FileGroupForCi.UI_FILES)
+
+    @cached_property
     def run_www_tests(self) -> bool:
         return self._should_be_run(FileGroupForCi.WWW_FILES)
 
@@ -761,19 +787,14 @@ class SelectiveChecks:
                     include_docs=False,
                 )
                 if affected_providers != "ALL_PROVIDERS" and affected_providers is not None:
-                    try:
-                        candidate_test_types.remove("Providers")
-                    except KeyError:
-                        # In case of API tests Providers could not be in the list originally so we can ignore
-                        # Providers missing in the list.
-                        pass
+                    candidate_test_types.discard("Providers")
                     if split_to_individual_providers:
                         for provider in affected_providers:
                             candidate_test_types.add(f"Providers[{provider}]")
                     else:
                         candidate_test_types.add(f"Providers[{','.join(sorted(affected_providers))}]")
-                elif split_to_individual_providers:
-                    candidate_test_types.remove("Providers")
+                elif split_to_individual_providers and "Providers" in candidate_test_types:
+                    candidate_test_types.discard("Providers")
                     for provider in get_available_packages():
                         candidate_test_types.add(f"Providers[{provider}]")
             get_console().print(
@@ -851,6 +872,10 @@ class SelectiveChecks:
         if "Providers" in current_test_types:
             current_test_types.remove("Providers")
             current_test_types.update({f"Providers[{provider}]" for provider in get_available_packages()})
+        if self.skip_provider_tests:
+            current_test_types = {
+                test_type for test_type in current_test_types if not test_type.startswith("Providers")
+            }
         return " ".join(sorted(current_test_types))
 
     @cached_property
@@ -1028,6 +1053,8 @@ class SelectiveChecks:
             return ",".join(sorted(pre_commits_to_skip))
         if not self._matching_files(FileGroupForCi.WWW_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES):
             pre_commits_to_skip.add("ts-compile-format-lint-www")
+        if not self._matching_files(FileGroupForCi.UI_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES):
+            pre_commits_to_skip.add("ts-compile-format-lint-ui")
         if not self._matching_files(
             FileGroupForCi.ALL_PYTHON_FILES, CI_FILE_GROUP_MATCHES, CI_FILE_GROUP_EXCLUDES
         ):
@@ -1094,8 +1121,7 @@ class SelectiveChecks:
     @cached_property
     def runs_on_as_json_default(self) -> str:
         if self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY:
-            if self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]:
-                # Canary and Scheduled runs
+            if self._is_canary_run():
                 return RUNS_ON_SELF_HOSTED_RUNNER
             if self._pr_labels and USE_PUBLIC_RUNNERS_LABEL in self._pr_labels:
                 # Forced public runners
@@ -1133,6 +1159,17 @@ class SelectiveChecks:
     @cached_property
     def runs_on_as_json_self_hosted(self) -> str:
         return RUNS_ON_SELF_HOSTED_RUNNER
+
+    @cached_property
+    def runs_on_as_json_self_hosted_asf(self) -> str:
+        return RUNS_ON_SELF_HOSTED_ASF_RUNNER
+
+    @cached_property
+    def runs_on_as_json_docs_build(self) -> str:
+        if self._is_canary_run():
+            return RUNS_ON_SELF_HOSTED_ASF_RUNNER
+        else:
+            return RUNS_ON_PUBLIC_RUNNER
 
     @cached_property
     def runs_on_as_json_public(self) -> str:
@@ -1295,3 +1332,9 @@ class SelectiveChecks:
                 get_related_providers(provider, upstream_dependencies=True, downstream_dependencies=True)
             )
         return sorted(all_providers)
+
+    def _is_canary_run(self):
+        return (
+            self._github_event in [GithubEvents.SCHEDULE, GithubEvents.PUSH]
+            and self._github_repository == APACHE_AIRFLOW_GITHUB_REPOSITORY
+        ) or CANARY_LABEL in self._pr_labels

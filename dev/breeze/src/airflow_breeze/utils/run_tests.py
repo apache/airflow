@@ -144,7 +144,7 @@ def get_excluded_provider_args(python_version: str) -> list[str]:
 
 TEST_TYPE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "Always": ["tests/always"],
-    "API": ["tests/api", "tests/api_experimental", "tests/api_connexion", "tests/api_internal"],
+    "API": ["tests/api", "tests/api_connexion", "tests/api_internal"],
     "BranchPythonVenv": [
         "tests/operators/test_python.py::TestBranchPythonVirtualenvOperator",
     ],
@@ -252,7 +252,6 @@ def convert_test_type_to_pytest_args(
     if test_type == "Integration":
         if skip_provider_tests:
             return [
-                "tests/integration/api_experimental",
                 "tests/integration/cli",
                 "tests/integration/executors",
                 "tests/integration/security",
@@ -310,6 +309,7 @@ def generate_args_for_pytest(
     python_version: str,
     helm_test_package: str | None,
     keep_env_variables: bool,
+    no_db_cleanup: bool,
 ):
     result_log_file, warnings_file, coverage_file = test_paths(test_type, backend, helm_test_package)
     if skip_db_tests:
@@ -373,7 +373,7 @@ def generate_args_for_pytest(
     args.extend(get_excluded_provider_args(python_version))
     if use_xdist:
         args.extend(["-n", str(parallelism) if parallelism else "auto"])
-    # We have to disabke coverage for Python 3.12 because of the issue with coverage that takes too long, despite
+    # We have to disable coverage for Python 3.12 because of the issue with coverage that takes too long, despite
     # Using experimental support for Python 3.12 PEP 669. The coverage.py is not yet fully compatible with the
     # full scope of PEP-669. That will be fully done when https://github.com/nedbat/coveragepy/issues/1746 is
     # resolve for now we are disabling coverage for Python 3.12, and it causes slower execution and occasional
@@ -398,6 +398,8 @@ def generate_args_for_pytest(
         )
     if keep_env_variables:
         args.append("--keep-env-variables")
+    if no_db_cleanup:
+        args.append("--no-db-cleanup")
     return args
 
 
@@ -414,5 +416,13 @@ def convert_parallel_types_to_folders(
                 python_version=python_version,
             )
         )
-    # leave only folders, strip --pytest-args
-    return [arg for arg in args if arg.startswith("test")]
+    # leave only folders, strip --pytest-args that exclude some folders with `-' prefix
+    folders = [arg for arg in args if arg.startswith("test")]
+    # remove specific provider sub-folders if "tests/providers" is already in the list
+    # This workarounds pytest issues where it will only run tests from specific subfolders
+    # if both parent and child folders are in the list
+    # The issue in Pytest (changed behaviour in Pytest 8.2 is tracked here
+    # https://github.com/pytest-dev/pytest/issues/12605
+    if "tests/providers" in folders:
+        folders = [folder for folder in folders if not folder.startswith("tests/providers/")]
+    return folders

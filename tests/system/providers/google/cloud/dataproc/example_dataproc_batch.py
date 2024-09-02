@@ -23,7 +23,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from google.api_core.retry_async import AsyncRetry
+from google.api_core.retry import Retry
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
@@ -37,10 +37,10 @@ from airflow.providers.google.cloud.sensors.dataproc import DataprocBatchSensor
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "dataproc_batch"
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-REGION = "europe-west1"
+DAG_ID = "dataproc_batch"
+REGION = "europe-west3"
 
 BATCH_ID = f"batch-{ENV_ID}-{DAG_ID}".replace("_", "-")
 BATCH_ID_2 = f"batch-{ENV_ID}-{DAG_ID}-2".replace("_", "-")
@@ -69,6 +69,7 @@ with DAG(
         region=REGION,
         batch=BATCH_CONFIG,
         batch_id=BATCH_ID,
+        result_retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
     )
 
     create_batch_2 = DataprocCreateBatchOperator(
@@ -77,7 +78,7 @@ with DAG(
         region=REGION,
         batch=BATCH_CONFIG,
         batch_id=BATCH_ID_2,
-        result_retry=AsyncRetry(maximum=10.0, initial=10.0, multiplier=1.0),
+        result_retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
     )
 
     create_batch_3 = DataprocCreateBatchOperator(
@@ -87,6 +88,7 @@ with DAG(
         batch=BATCH_CONFIG,
         batch_id=BATCH_ID_3,
         asynchronous=True,
+        result_retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
     )
     # [END how_to_cloud_dataproc_create_batch_operator]
 
@@ -103,10 +105,6 @@ with DAG(
     # [START how_to_cloud_dataproc_get_batch_operator]
     get_batch = DataprocGetBatchOperator(
         task_id="get_batch", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID
-    )
-
-    get_batch_2 = DataprocGetBatchOperator(
-        task_id="get_batch_2", project_id=PROJECT_ID, region=REGION, batch_id=BATCH_ID_2
     )
     # [END how_to_cloud_dataproc_get_batch_operator]
 
@@ -132,7 +130,7 @@ with DAG(
         task_id="cancel_operation",
         project_id=PROJECT_ID,
         region=REGION,
-        operation_name="{{ task_instance.xcom_pull('create_batch_4') }}",
+        operation_name="{{ task_instance.xcom_pull('create_batch_4')['operation'] }}",
     )
     # [END how_to_cloud_dataproc_cancel_operation_operator]
 
@@ -153,18 +151,24 @@ with DAG(
     delete_batch.trigger_rule = TriggerRule.ALL_DONE
     delete_batch_2.trigger_rule = TriggerRule.ALL_DONE
     delete_batch_3.trigger_rule = TriggerRule.ALL_DONE
-    delete_batch_4.trigger_rule = TriggerRule.ALL_DONE
+    delete_batch_4.trigger_rule = TriggerRule.ALL_FAILED
 
     (
         # TEST SETUP
-        [create_batch, create_batch_2, create_batch_3]
+        create_batch
+        >> create_batch_2
+        >> create_batch_3
         # TEST BODY
         >> batch_async_sensor
-        >> [get_batch, get_batch_2, list_batches]
+        >> get_batch
+        >> list_batches
         >> create_batch_4
         >> cancel_operation
         # TEST TEARDOWN
-        >> [delete_batch, delete_batch_2, delete_batch_3, delete_batch_4]
+        >> delete_batch
+        >> delete_batch_2
+        >> delete_batch_3
+        >> delete_batch_4
     )
 
     from tests.system.utils.watcher import watcher
@@ -172,7 +176,6 @@ with DAG(
     # This test needs watcher in order to properly mark success/failure
     # when "teardown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
-
 
 from tests.system.utils import get_test_run  # noqa: E402
 

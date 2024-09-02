@@ -17,27 +17,35 @@
 
 from __future__ import annotations
 
+import warnings
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import Generic, TypeVar, Union
 
 from attrs import Factory, define
+from openlineage.client.event_v2 import Dataset as OLDataset
 
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore", DeprecationWarning)
+    from openlineage.client.facet import BaseFacet as BaseFacet_V1
+from openlineage.client.facet_v2 import JobFacet, RunFacet
+
+from airflow.providers.openlineage.utils.utils import IS_AIRFLOW_2_10_OR_HIGHER
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
-if TYPE_CHECKING:
-    from openlineage.client.facet import BaseFacet
-    from openlineage.client.run import Dataset
+# this is not to break static checks compatibility with v1 OpenLineage facet classes
+DatasetSubclass = TypeVar("DatasetSubclass", bound=OLDataset)
+BaseFacetSubclass = TypeVar("BaseFacetSubclass", bound=Union[BaseFacet_V1, RunFacet, JobFacet])
 
 
 @define
-class OperatorLineage:
+class OperatorLineage(Generic[DatasetSubclass, BaseFacetSubclass]):
     """Structure returned from lineage extraction."""
 
-    inputs: list[Dataset] = Factory(list)
-    outputs: list[Dataset] = Factory(list)
-    run_facets: dict[str, BaseFacet] = Factory(dict)
-    job_facets: dict[str, BaseFacet] = Factory(dict)
+    inputs: list[DatasetSubclass] = Factory(list)
+    outputs: list[DatasetSubclass] = Factory(list)
+    run_facets: dict[str, BaseFacetSubclass] = Factory(dict)
+    job_facets: dict[str, BaseFacetSubclass] = Factory(dict)
 
 
 class BaseExtractor(ABC, LoggingMixin):
@@ -105,10 +113,17 @@ class DefaultExtractor(BaseExtractor):
                 "Operator %s does not have the get_openlineage_facets_on_start method.",
                 self.operator.task_type,
             )
-            return None
+            return OperatorLineage()
 
     def extract_on_complete(self, task_instance) -> OperatorLineage | None:
-        if task_instance.state == TaskInstanceState.FAILED:
+        failed_states = [TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY]
+        if not IS_AIRFLOW_2_10_OR_HIGHER:  # todo: remove when min airflow version >= 2.10.0
+            # Before fix (#41053) implemented in Airflow 2.10 TaskInstance's state was still RUNNING when
+            # being passed to listener's on_failure method. Since `extract_on_complete()` is only called
+            # after task completion, RUNNING state means that we are dealing with FAILED task in < 2.10
+            failed_states = [TaskInstanceState.RUNNING]
+
+        if task_instance.state in failed_states:
             on_failed = getattr(self.operator, "get_openlineage_facets_on_failure", None)
             if on_failed and callable(on_failed):
                 self.log.debug(

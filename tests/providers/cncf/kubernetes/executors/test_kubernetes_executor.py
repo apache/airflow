@@ -57,6 +57,8 @@ from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.skip_if_database_isolation_mode
+
 
 class TestAirflowKubernetesScheduler:
     @staticmethod
@@ -1127,6 +1129,41 @@ class TestKubernetesExecutor:
         )
         assert executor.running == expected_running_ti_keys
 
+    @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
+    @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
+    def test_adopt_completed_pods_api_exception(self, mock_kube_client, mock_kube_dynamic_client):
+        """We should gracefully handle exceptions when adopting completed pods from other schedulers"""
+        executor = self.kubernetes_executor
+        executor.scheduler_job_id = "modified"
+        executor.kube_client = mock_kube_client
+        executor.kube_config.kube_namespace = "somens"
+        pod_names = ["one", "two"]
+
+        def get_annotations(pod_name):
+            return {
+                "dag_id": "dag",
+                "run_id": "run_id",
+                "task_id": pod_name,
+                "try_number": "1",
+            }
+
+        mock_kube_dynamic_client.return_value.get.return_value.items = [
+            k8s.V1Pod(
+                metadata=k8s.V1ObjectMeta(
+                    name=pod_name,
+                    labels={"airflow-worker": pod_name},
+                    annotations=get_annotations(pod_name),
+                    namespace="somens",
+                )
+            )
+            for pod_name in pod_names
+        ]
+
+        mock_kube_client.patch_namespaced_pod.side_effect = ApiException(status=400)
+        executor._adopt_completed_pods(mock_kube_client)
+        assert len(pod_names) == mock_kube_client.patch_namespaced_pod.call_count
+        assert executor.running == set()
+
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_not_adopt_unassigned_task(self, mock_kube_client):
         """
@@ -1762,6 +1799,13 @@ class TestKubernetesJobWatcher:
 
     def test_process_status_failed(self):
         self.pod.status.phase = "Failed"
+        self.events.append({"type": "MODIFIED", "object": self.pod})
+
+        self._run()
+        self.assert_watcher_queue_called_once_with_state(State.FAILED)
+
+    def test_process_status_provider_failed(self):
+        self.pod.status.reason = "ProviderFailed"
         self.events.append({"type": "MODIFIED", "object": self.pod})
 
         self._run()

@@ -74,21 +74,6 @@ class ExecutorLoader:
     }
 
     @classmethod
-    def block_use_of_hybrid_exec(cls, executor_config: list):
-        """
-        Raise an exception if the user tries to use multiple executors before the feature is complete.
-
-        This check is built into a method so that it can be easily mocked in unit tests.
-
-        :param executor_config: core.executor configuration value.
-        """
-        if len(executor_config) > 1 or ":" in "".join(executor_config):
-            raise AirflowConfigException(
-                "Configuring multiple executors and executor aliases are not yet supported!: "
-                f"{executor_config}"
-            )
-
-    @classmethod
     def _get_executor_names(cls) -> list[ExecutorName]:
         """
         Return the executor names from Airflow configuration.
@@ -101,9 +86,6 @@ class ExecutorLoader:
             return _executor_names
 
         executor_names_raw = conf.get_mandatory_list_value("core", "EXECUTOR")
-
-        # AIP-61 is WIP. Unblock configuring multiple executors when the feature is ready to launch
-        cls.block_use_of_hybrid_exec(executor_names_raw)
 
         executor_names = []
         for name in executor_names_raw:
@@ -373,11 +355,3 @@ class ExecutorLoader:
 
         local_kubernetes_executor_cls = import_string(cls.executors[LOCAL_KUBERNETES_EXECUTOR])
         return local_kubernetes_executor_cls(local_executor, kubernetes_executor)
-
-
-# This tuple is deprecated due to AIP-51 and is no longer used in core Airflow.
-# TODO: Remove in Airflow 3.0
-UNPICKLEABLE_EXECUTORS = (
-    LOCAL_EXECUTOR,
-    SEQUENTIAL_EXECUTOR,
-)

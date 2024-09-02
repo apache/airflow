@@ -425,8 +425,6 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
             start_date=start_date,
             end_date=end_date,
             task_ids=None,
-            include_subdags=True,
-            include_parentdag=True,
             only_failed=False,
             dry_run=True,
         )
@@ -438,8 +436,6 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
             start_date=start_date,
             end_date=end_date,
             task_ids=None,
-            include_subdags=True,
-            include_parentdag=True,
             only_failed=False,
         )
         dag_run = session.execute(select(DagRun).where(DagRun.id == dag_run.id)).scalar_one()

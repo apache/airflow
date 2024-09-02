@@ -336,13 +336,12 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
             hook.delete(bucket_name=self.bucket_name, object_name=object_name)
 
     def get_openlineage_facets_on_start(self):
-        from openlineage.client.facet import (
+        from airflow.providers.common.compat.openlineage.facet import (
+            Dataset,
             LifecycleStateChange,
             LifecycleStateChangeDatasetFacet,
-            LifecycleStateChangeDatasetFacetPreviousIdentifier,
+            PreviousIdentifier,
         )
-        from openlineage.client.run import Dataset
-
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         objects = []
@@ -365,7 +364,7 @@ class GCSDeleteObjectsOperator(GoogleCloudBaseOperator):
                 facets={
                     "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
                         lifecycleStateChange=LifecycleStateChange.DROP.value,
-                        previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
+                        previousIdentifier=PreviousIdentifier(
                             namespace=bucket_url,
                             name=object_name,
                         ),
@@ -645,8 +644,7 @@ class GCSFileTransformOperator(GoogleCloudBaseOperator):
             )
 
     def get_openlineage_facets_on_start(self):
-        from openlineage.client.run import Dataset
-
+        from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         input_dataset = Dataset(
@@ -797,11 +795,11 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
             orig_end = context["data_interval_end"]
         except KeyError:
             orig_start = pendulum.instance(context["execution_date"])
-            following_execution_date = context["dag"].following_schedule(context["execution_date"])
-            if following_execution_date is None:
-                orig_end = None
+            next_dagrun = context["dag"].next_dagrun_info(last_automated_dagrun=None, restricted=False)
+            if next_dagrun and next_dagrun.data_interval and next_dagrun.data_interval.end:
+                orig_end = next_dagrun.data_interval.end
             else:
-                orig_end = pendulum.instance(following_execution_date)
+                orig_end = None
 
         timespan_start = orig_start
         if orig_end is None:  # Only possible in Airflow before 2.2.
@@ -921,8 +919,7 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
 
     def get_openlineage_facets_on_complete(self, task_instance):
         """Implement on_complete as execute() resolves object prefixes."""
-        from openlineage.client.run import Dataset
-
+        from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         def _parse_prefix(pref):

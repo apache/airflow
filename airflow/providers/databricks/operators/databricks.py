@@ -40,7 +40,7 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
     WorkflowJobRunLink,
 )
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
-from airflow.providers.databricks.utils.databricks import _normalise_json_content, validate_trigger_event
+from airflow.providers.databricks.utils.databricks import normalise_json_content, validate_trigger_event
 
 if TYPE_CHECKING:
     from airflow.models.taskinstancekey import TaskInstanceKey
@@ -100,13 +100,23 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                         f"and with the error {run_state.state_message}"
                     )
 
-                if isinstance(operator, DatabricksRunNowOperator) and operator.repair_run:
+                should_repair = (
+                    isinstance(operator, DatabricksRunNowOperator)
+                    and operator.repair_run
+                    and (
+                        not operator.databricks_repair_reason_new_settings
+                        or is_repair_reason_match_exist(operator, run_state)
+                    )
+                )
+
+                if should_repair:
                     operator.repair_run = False
                     log.warning(
                         "%s but since repair run is set, repairing the run with all failed tasks",
                         error_message,
                     )
-
+                    job_id = operator.json["job_id"]
+                    update_job_for_repair(operator, hook, job_id, run_state)
                     latest_repair_id = hook.get_latest_repair_id(operator.run_id)
                     repair_json = {"run_id": operator.run_id, "rerun_all_failed_tasks": True}
                     if latest_repair_id is not None:
@@ -121,6 +131,41 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
             time.sleep(operator.polling_period_seconds)
 
     log.info("View run status, Spark UI, and logs at %s", run_page_url)
+
+
+def is_repair_reason_match_exist(operator: Any, run_state: RunState) -> bool:
+    """
+    Check if the repair reason matches the run state message.
+
+    :param operator: Databricks operator being handled
+    :param run_state: Run state of the Databricks job
+    :return: True if repair reason matches the run state message, False otherwise
+    """
+    return any(reason in run_state.state_message for reason in operator.databricks_repair_reason_new_settings)
+
+
+def update_job_for_repair(operator: Any, hook: Any, job_id: int, run_state: RunState) -> None:
+    """
+    Update job settings(partial) to repair the run with all failed tasks.
+
+    :param operator: Databricks operator being handled
+    :param hook: Databricks hook
+    :param job_id: Job ID of Databricks
+    :param run_state: Run state of the Databricks job
+    """
+    repair_reason = next(
+        (
+            reason
+            for reason in operator.databricks_repair_reason_new_settings
+            if reason in run_state.state_message
+        ),
+        None,
+    )
+    if repair_reason is not None:
+        new_settings_json = normalise_json_content(
+            operator.databricks_repair_reason_new_settings[repair_reason]
+        )
+        hook.update_job(job_id=job_id, json=new_settings_json)
 
 
 def _handle_deferrable_databricks_operator_execution(operator, hook, log, context) -> None:
@@ -184,17 +229,6 @@ def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) 
         )
         return
     raise AirflowException(error_message)
-
-
-def _handle_overridden_json_params(operator):
-    for key, value in operator.overridden_json_params.items():
-        if value is not None:
-            operator.json[key] = value
-
-
-def normalise_json_content(operator):
-    if operator.json:
-        operator.json = _normalise_json_content(operator.json)
 
 
 class DatabricksJobRunLink(BaseOperatorLink):
@@ -300,21 +334,34 @@ class DatabricksCreateJobsOperator(BaseOperator):
         self.databricks_retry_limit = databricks_retry_limit
         self.databricks_retry_delay = databricks_retry_delay
         self.databricks_retry_args = databricks_retry_args
-        self.overridden_json_params = {
-            "name": name,
-            "description": description,
-            "tags": tags,
-            "tasks": tasks,
-            "job_clusters": job_clusters,
-            "email_notifications": email_notifications,
-            "webhook_notifications": webhook_notifications,
-            "notification_settings": notification_settings,
-            "timeout_seconds": timeout_seconds,
-            "schedule": schedule,
-            "max_concurrent_runs": max_concurrent_runs,
-            "git_source": git_source,
-            "access_control_list": access_control_list,
-        }
+        if name is not None:
+            self.json["name"] = name
+        if description is not None:
+            self.json["description"] = description
+        if tags is not None:
+            self.json["tags"] = tags
+        if tasks is not None:
+            self.json["tasks"] = tasks
+        if job_clusters is not None:
+            self.json["job_clusters"] = job_clusters
+        if email_notifications is not None:
+            self.json["email_notifications"] = email_notifications
+        if webhook_notifications is not None:
+            self.json["webhook_notifications"] = webhook_notifications
+        if notification_settings is not None:
+            self.json["notification_settings"] = notification_settings
+        if timeout_seconds is not None:
+            self.json["timeout_seconds"] = timeout_seconds
+        if schedule is not None:
+            self.json["schedule"] = schedule
+        if max_concurrent_runs is not None:
+            self.json["max_concurrent_runs"] = max_concurrent_runs
+        if git_source is not None:
+            self.json["git_source"] = git_source
+        if access_control_list is not None:
+            self.json["access_control_list"] = access_control_list
+        if self.json:
+            self.json = normalise_json_content(self.json)
 
     @cached_property
     def _hook(self):
@@ -326,24 +373,16 @@ class DatabricksCreateJobsOperator(BaseOperator):
             caller="DatabricksCreateJobsOperator",
         )
 
-    def _setup_and_validate_json(self):
-        _handle_overridden_json_params(self)
-
+    def execute(self, context: Context) -> int:
         if "name" not in self.json:
             raise AirflowException("Missing required parameter: name")
-
-        normalise_json_content(self)
-
-    def execute(self, context: Context) -> int:
-        self._setup_and_validate_json()
-
         job_id = self._hook.find_job_id_by_name(self.json["name"])
         if job_id is None:
             return self._hook.create_job(self.json)
         self._hook.reset_job(str(job_id), self.json)
         if (access_control_list := self.json.get("access_control_list")) is not None:
             acl_json = {"access_control_list": access_control_list}
-            self._hook.update_job_permission(job_id, _normalise_json_content(acl_json))
+            self._hook.update_job_permission(job_id, normalise_json_content(acl_json))
 
         return job_id
 
@@ -516,23 +555,43 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.databricks_retry_args = databricks_retry_args
         self.wait_for_termination = wait_for_termination
         self.deferrable = deferrable
-        self.overridden_json_params = {
-            "tasks": tasks,
-            "spark_jar_task": spark_jar_task,
-            "notebook_task": notebook_task,
-            "spark_python_task": spark_python_task,
-            "spark_submit_task": spark_submit_task,
-            "pipeline_task": pipeline_task,
-            "dbt_task": dbt_task,
-            "new_cluster": new_cluster,
-            "existing_cluster_id": existing_cluster_id,
-            "libraries": libraries,
-            "run_name": run_name,
-            "timeout_seconds": timeout_seconds,
-            "idempotency_token": idempotency_token,
-            "access_control_list": access_control_list,
-            "git_source": git_source,
-        }
+        if tasks is not None:
+            self.json["tasks"] = tasks
+        if spark_jar_task is not None:
+            self.json["spark_jar_task"] = spark_jar_task
+        if notebook_task is not None:
+            self.json["notebook_task"] = notebook_task
+        if spark_python_task is not None:
+            self.json["spark_python_task"] = spark_python_task
+        if spark_submit_task is not None:
+            self.json["spark_submit_task"] = spark_submit_task
+        if pipeline_task is not None:
+            self.json["pipeline_task"] = pipeline_task
+        if dbt_task is not None:
+            self.json["dbt_task"] = dbt_task
+        if new_cluster is not None:
+            self.json["new_cluster"] = new_cluster
+        if existing_cluster_id is not None:
+            self.json["existing_cluster_id"] = existing_cluster_id
+        if libraries is not None:
+            self.json["libraries"] = libraries
+        if run_name is not None:
+            self.json["run_name"] = run_name
+        if timeout_seconds is not None:
+            self.json["timeout_seconds"] = timeout_seconds
+        if "run_name" not in self.json:
+            self.json["run_name"] = run_name or kwargs["task_id"]
+        if idempotency_token is not None:
+            self.json["idempotency_token"] = idempotency_token
+        if access_control_list is not None:
+            self.json["access_control_list"] = access_control_list
+        if git_source is not None:
+            self.json["git_source"] = git_source
+
+        if "dbt_task" in self.json and "git_source" not in self.json:
+            raise AirflowException("git_source is required for dbt_task")
+        if pipeline_task is not None and "pipeline_id" in pipeline_task and "pipeline_name" in pipeline_task:
+            raise AirflowException("'pipeline_name' is not allowed in conjunction with 'pipeline_id'")
 
         # This variable will be used in case our task gets killed.
         self.run_id: int | None = None
@@ -551,25 +610,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             caller=caller,
         )
 
-    def _setup_and_validate_json(self):
-        _handle_overridden_json_params(self)
-
-        if "run_name" not in self.json or self.json["run_name"] is None:
-            self.json["run_name"] = self.task_id
-
-        if "dbt_task" in self.json and "git_source" not in self.json:
-            raise AirflowException("git_source is required for dbt_task")
-        if (
-            "pipeline_task" in self.json
-            and "pipeline_id" in self.json["pipeline_task"]
-            and "pipeline_name" in self.json["pipeline_task"]
-        ):
-            raise AirflowException("'pipeline_name' is not allowed in conjunction with 'pipeline_id'")
-
-        normalise_json_content(self)
-
     def execute(self, context: Context):
-        self._setup_and_validate_json()
         if (
             "pipeline_task" in self.json
             and self.json["pipeline_task"].get("pipeline_id") is None
@@ -579,7 +620,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             pipeline_name = self.json["pipeline_task"]["pipeline_name"]
             self.json["pipeline_task"]["pipeline_id"] = self._hook.find_pipeline_id_by_name(pipeline_name)
             del self.json["pipeline_task"]["pipeline_name"]
-        json_normalised = _normalise_json_content(self.json)
+        json_normalised = normalise_json_content(self.json)
         self.run_id = self._hook.submit_run(json_normalised)
         if self.deferrable:
             _handle_deferrable_databricks_operator_execution(self, self._hook, self.log, context)
@@ -615,7 +656,7 @@ class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
 
     def execute(self, context):
         hook = self._get_hook(caller="DatabricksSubmitRunDeferrableOperator")
-        json_normalised = _normalise_json_content(self.json)
+        json_normalised = normalise_json_content(self.json)
         self.run_id = hook.submit_run(json_normalised)
         _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
 
@@ -678,6 +719,7 @@ class DatabricksRunNowOperator(BaseOperator):
         - ``spark_submit_params``
         - ``idempotency_token``
         - ``repair_run``
+        - ``databricks_repair_reason_new_settings``
         - ``cancel_previous_runs``
 
     :param job_id: the job_id of the existing Databricks job.
@@ -768,6 +810,12 @@ class DatabricksRunNowOperator(BaseOperator):
     :param wait_for_termination: if we should wait for termination of the job run. ``True`` by default.
     :param deferrable: Run operator in the deferrable mode.
     :param repair_run: Repair the databricks run in case of failure.
+    :param databricks_repair_reason_new_settings: A dict of reason and new_settings JSON object for which
+            to repair the run. `None` by default. `None` means to repair at all cases with existing job
+            settings otherwise check whether `RunState` state_message contains reason and
+            update job settings as per new_settings using databricks partial job update endpoint
+            (https://docs.databricks.com/api/workspace/jobs/update). If nothing is matched, then repair
+            will not get triggered.
     :param cancel_previous_runs: Cancel all existing running jobs before submitting new one.
     """
 
@@ -800,6 +848,7 @@ class DatabricksRunNowOperator(BaseOperator):
         wait_for_termination: bool = True,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         repair_run: bool = False,
+        databricks_repair_reason_new_settings: dict[str, Any] | None = None,
         cancel_previous_runs: bool = False,
         **kwargs,
     ) -> None:
@@ -814,17 +863,29 @@ class DatabricksRunNowOperator(BaseOperator):
         self.wait_for_termination = wait_for_termination
         self.deferrable = deferrable
         self.repair_run = repair_run
+        self.databricks_repair_reason_new_settings = databricks_repair_reason_new_settings or {}
         self.cancel_previous_runs = cancel_previous_runs
-        self.overridden_json_params = {
-            "job_id": job_id,
-            "job_name": job_name,
-            "notebook_params": notebook_params,
-            "python_params": python_params,
-            "python_named_params": python_named_params,
-            "jar_params": jar_params,
-            "spark_submit_params": spark_submit_params,
-            "idempotency_token": idempotency_token,
-        }
+
+        if job_id is not None:
+            self.json["job_id"] = job_id
+        if job_name is not None:
+            self.json["job_name"] = job_name
+        if "job_id" in self.json and "job_name" in self.json:
+            raise AirflowException("Argument 'job_name' is not allowed with argument 'job_id'")
+        if notebook_params is not None:
+            self.json["notebook_params"] = notebook_params
+        if python_params is not None:
+            self.json["python_params"] = python_params
+        if python_named_params is not None:
+            self.json["python_named_params"] = python_named_params
+        if jar_params is not None:
+            self.json["jar_params"] = jar_params
+        if spark_submit_params is not None:
+            self.json["spark_submit_params"] = spark_submit_params
+        if idempotency_token is not None:
+            self.json["idempotency_token"] = idempotency_token
+        if self.json:
+            self.json = normalise_json_content(self.json)
         # This variable will be used in case our task gets killed.
         self.run_id: int | None = None
         self.do_xcom_push = do_xcom_push
@@ -842,16 +903,7 @@ class DatabricksRunNowOperator(BaseOperator):
             caller=caller,
         )
 
-    def _setup_and_validate_json(self):
-        _handle_overridden_json_params(self)
-
-        if "job_id" in self.json and "job_name" in self.json:
-            raise AirflowException("Argument 'job_name' is not allowed with argument 'job_id'")
-
-        normalise_json_content(self)
-
     def execute(self, context: Context):
-        self._setup_and_validate_json()
         hook = self._hook
         if "job_name" in self.json:
             job_id = hook.find_job_id_by_name(self.json["job_name"])
@@ -872,9 +924,16 @@ class DatabricksRunNowOperator(BaseOperator):
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         if event:
             _handle_deferrable_databricks_operator_completion(event, self.log)
-            if event["repair_run"]:
+            run_state = RunState.from_json(event["run_state"])
+            should_repair = event["repair_run"] and (
+                not self.databricks_repair_reason_new_settings
+                or is_repair_reason_match_exist(self, run_state)
+            )
+            if should_repair:
                 self.repair_run = False
                 self.run_id = event["run_id"]
+                job_id = self._hook.get_job_id(self.run_id)
+                update_job_for_repair(self, self._hook, job_id, run_state)
                 latest_repair_id = self._hook.get_latest_repair_id(self.run_id)
                 repair_json = {"run_id": self.run_id, "rerun_all_failed_tasks": True}
                 if latest_repair_id is not None:

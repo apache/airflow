@@ -66,7 +66,10 @@ from tests.test_utils.www import check_content_in_response
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
 
-pytestmark = pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Test requires Airflow 2.9+")
+pytestmark = [
+    pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Test requires Airflow 2.9+"),
+    pytest.mark.skip_if_database_isolation_mode,
+]
 
 mock = Mock()
 
@@ -782,6 +785,7 @@ class TestAwsAuthManager:
     def test_get_cli_commands_return_cli_commands(self, auth_manager):
         assert len(auth_manager.get_cli_commands()) > 0
 
+    @pytest.importorskip("python3-saml")
     @pytest.mark.db_test
     @patch.object(AwsAuthManagerAmazonVerifiedPermissionsFacade, "get_batch_is_authorized_single_result")
     @patch.object(AwsAuthManagerAmazonVerifiedPermissionsFacade, "get_batch_is_authorized_results")

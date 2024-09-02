@@ -20,17 +20,24 @@
 import React, { useMemo, useState } from "react";
 import { snakeCase } from "lodash";
 import type { SortingRule } from "react-table";
+import { Box, Flex, Heading, Select } from "@chakra-ui/react";
 
 import { useDatasetEvents } from "src/api";
-import {
-  Table,
-  TimeCell,
-  TaskInstanceLink,
-  TriggeredRuns,
-  CodeCell,
-} from "src/components/Table";
 
-const Events = ({ datasetId }: { datasetId: number }) => {
+import { CardList, type CardDef } from "src/components/Table";
+import type { DatasetEvent } from "src/types/api-generated";
+import DatasetEventCard from "src/components/DatasetEventCard";
+
+type Props = {
+  datasetId?: number;
+  showLabel?: boolean;
+};
+
+const cardDef: CardDef<DatasetEvent> = {
+  card: ({ row }) => <DatasetEventCard datasetEvent={row} />,
+};
+
+const Events = ({ datasetId, showLabel }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
   const [sortBy, setSortBy] = useState<SortingRule<object>[]>([
@@ -53,25 +60,24 @@ const Events = ({ datasetId }: { datasetId: number }) => {
   const columns = useMemo(
     () => [
       {
-        Header: "Source Task Instance",
-        accessor: "sourceTaskId",
-        Cell: TaskInstanceLink,
-      },
-      {
         Header: "When",
         accessor: "timestamp",
-        Cell: TimeCell,
+      },
+      {
+        Header: "Dataset",
+        accessor: "datasetUri",
+      },
+      {
+        Header: "Source Task Instance",
+        accessor: "sourceTaskId",
       },
       {
         Header: "Triggered Runs",
         accessor: "createdDagruns",
-        Cell: TriggeredRuns,
       },
       {
         Header: "Extra",
         accessor: "extra",
-        Cell: CodeCell,
-        disableSortBy: true,
       },
     ],
     []
@@ -79,25 +85,44 @@ const Events = ({ datasetId }: { datasetId: number }) => {
 
   const data = useMemo(() => datasetEvents, [datasetEvents]);
 
-  const memoSort = useMemo(() => sortBy, [sortBy]);
-
   return (
-    <Table
-      data={data}
-      columns={columns}
-      manualPagination={{
-        offset,
-        setOffset,
-        totalEntries,
-      }}
-      manualSort={{
-        setSortBy,
-        sortBy,
-        initialSortBy: memoSort,
-      }}
-      pageSize={limit}
-      isLoading={isEventsLoading}
-    />
+    <Box>
+      <Flex justifyContent="space-between" alignItems="center">
+        <Heading size="sm">{showLabel && "Events"}</Heading>
+        <Flex alignItems="center" alignSelf="flex-end">
+          Sort:
+          <Select
+            ml={2}
+            value={orderBy}
+            onChange={({ target: { value } }) => {
+              const isDesc = value.startsWith("-");
+              setSortBy([
+                {
+                  id: isDesc ? value.slice(0, value.length) : value,
+                  desc: isDesc,
+                },
+              ]);
+            }}
+            width="200px"
+          >
+            <option value="-timestamp">Timestamp - Desc</option>
+            <option value="timestamp">Timestamp - Asc</option>
+          </Select>
+        </Flex>
+      </Flex>
+      <CardList
+        data={data}
+        columns={columns}
+        manualPagination={{
+          offset,
+          setOffset,
+          totalEntries,
+        }}
+        pageSize={limit}
+        isLoading={isEventsLoading}
+        cardDef={cardDef}
+      />
+    </Box>
   );
 };
 

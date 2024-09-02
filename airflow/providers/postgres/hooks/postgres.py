@@ -117,7 +117,7 @@ class PostgresHook(DbApiHook):
 
     @property
     def sqlalchemy_url(self) -> URL:
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        conn = self.get_connection(self.get_conn_id())
         return URL.create(
             drivername="postgresql",
             username=conn.login,
@@ -142,7 +142,7 @@ class PostgresHook(DbApiHook):
 
     def get_conn(self) -> connection:
         """Establish a connection to a postgres database."""
-        conn_id = getattr(self, self.conn_name_attr)
+        conn_id = self.get_conn_id()
         conn = deepcopy(self.connection or self.get_connection(conn_id))
 
         # check for authentication via AWS IAM

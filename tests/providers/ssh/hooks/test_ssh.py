@@ -1068,6 +1068,10 @@ class TestSSHHook:
 
         ssh_mock.reset_mock()
         with mock.patch("os.path.isfile", return_value=False):
+            # Reset ssh hook to initial state
+            hook = SSHHook(
+                ssh_conn_id=self.CONN_SSH_WITH_NO_HOST_KEY_CHECK_TRUE_AND_ALLOW_HOST_KEY_CHANGES_FALSE
+            )
             with hook.get_conn():
                 assert ssh_mock.return_value.set_missing_host_key_policy.called is True
                 assert isinstance(
@@ -1088,3 +1092,26 @@ class TestSSHHook:
         status, msg = hook.test_connection()
         assert status is False
         assert msg == "Test failure case"
+
+    def test_ssh_connection_client_is_reused_if_open(self):
+        hook = SSHHook(ssh_conn_id="ssh_default")
+        client1 = hook.get_conn()
+        client2 = hook.get_conn()
+        assert client1 is client2
+        assert client2.get_transport().is_active()
+
+    def test_ssh_connection_client_is_recreated_if_closed(self):
+        hook = SSHHook(ssh_conn_id="ssh_default")
+        client1 = hook.get_conn()
+        client1.close()
+        client2 = hook.get_conn()
+        assert client1 is not client2
+        assert client2.get_transport().is_active()
+
+    def test_ssh_connection_client_is_recreated_if_transport_closed(self):
+        hook = SSHHook(ssh_conn_id="ssh_default")
+        client1 = hook.get_conn()
+        client1.get_transport().close()
+        client2 = hook.get_conn()
+        assert client1 is not client2
+        assert client2.get_transport().is_active()

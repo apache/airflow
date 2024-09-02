@@ -59,14 +59,14 @@ from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 # [END howto_operator_vision_reference_image_import_2]
 
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-DAG_ID = "example_gcp_vision_explicit_id"
+DAG_ID = "gcp_vision_explicit_id"
 
 LOCATION = "europe-west1"
 
-BUCKET_NAME = f"bucket-{DAG_ID}-{ENV_ID}"
+BUCKET_NAME = f"bucket-{DAG_ID}-{ENV_ID}".replace("_", "-")
 FILE_NAME = "image1.jpg"
 
 GCP_VISION_PRODUCT_SET_ID = f"product_set_explicit_id_{ENV_ID}"
@@ -98,7 +98,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "vision"],
+    tags=["example", "vision", "explicit"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", project_id=PROJECT_ID, bucket_name=BUCKET_NAME
@@ -107,7 +107,7 @@ with DAG(
     copy_single_file = GCSToGCSOperator(
         task_id="copy_single_gcs_file",
         source_bucket=BUCKET_NAME_SRC,
-        source_object=[PATH_SRC],
+        source_object=PATH_SRC,
         destination_bucket=BUCKET_NAME,
         destination_object=FILE_NAME,
     )
@@ -257,8 +257,10 @@ with DAG(
     )
 
     chain(
+        # TEST SETUP
         create_bucket,
         copy_single_file,
+        # TEST BODY
         product_set_create_2,
         product_set_get_2,
         product_set_update_2,
@@ -271,6 +273,7 @@ with DAG(
         add_product_to_product_set_2,
         remove_product_from_product_set_2,
         reference_image_delete_2,
+        # TEST TEARDOWN
         product_delete_2,
         product_set_delete_2,
         delete_bucket,
