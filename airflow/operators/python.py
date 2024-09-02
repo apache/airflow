@@ -424,7 +424,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "dag_run",
         "task",
         "params",
-        "triggering_dataset_events",
+        "triggering_asset_events",
     }
 
     def __init__(

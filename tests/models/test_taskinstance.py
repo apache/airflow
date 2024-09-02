@@ -3173,7 +3173,7 @@ class TestTaskInstance:
         assert ti in session
         session.expunge_all()
 
-        assert template_context["triggering_dataset_events"] == {}
+        assert template_context["triggering_asset_events"] == {}
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_context_triggering_asset_events(self, create_dummy_dag, session):
@@ -3220,7 +3220,7 @@ class TestTaskInstance:
 
         template_context = ti.get_template_context()
 
-        assert template_context["triggering_dataset_events"] == {
+        assert template_context["triggering_asset_events"] == {
             "one": [ds1_event],
             "two": [ds2_event_1, ds2_event_2],
         }

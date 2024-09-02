@@ -132,7 +132,7 @@ class Context(TypedDict, total=False):
     ti: TaskInstance | TaskInstancePydantic
     tomorrow_ds: str
     tomorrow_ds_nodash: str
-    triggering_dataset_events: Mapping[str, Collection[AssetEvent | AssetEventPydantic]]
+    triggering_asset_events: Mapping[str, Collection[AssetEvent | AssetEventPydantic]]
     ts: str
     ts_nodash: str
     ts_nodash_with_tz: str

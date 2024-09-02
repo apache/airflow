@@ -102,7 +102,7 @@ KNOWN_CONTEXT_KEYS: set[str] = {
     "ti",
     "tomorrow_ds",
     "tomorrow_ds_nodash",
-    "triggering_dataset_events",
+    "triggering_asset_events",
     "ts",
     "ts_nodash",
     "ts_nodash_with_tz",

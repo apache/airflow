@@ -230,7 +230,7 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
 
     # it's easier to fake a manual run here
     dag, task1 = create_dummy_dag(
-        dag_id="test_triggering_dataset_events",
+        dag_id="test_triggering_asset_events",
         schedule=None,
         start_date=DEFAULT_DATE,
         task_id="test_context",

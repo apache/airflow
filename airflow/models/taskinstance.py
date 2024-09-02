@@ -1145,7 +1145,7 @@ def _get_template_context(
         "ti": task_instance,
         "tomorrow_ds": get_tomorrow_ds(),
         "tomorrow_ds_nodash": get_tomorrow_ds_nodash(),
-        "triggering_dataset_events": lazy_object_proxy.Proxy(get_triggering_events),
+        "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
         "ts": ts,
         "ts_nodash": ts_nodash,
         "ts_nodash_with_tz": ts_nodash_with_tz,
