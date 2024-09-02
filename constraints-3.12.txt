@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-01T19:45:37.209558
+# This constraints file was automatically generated on 2024-09-02T07:46:41.066554
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -72,7 +72,7 @@ aiobotocore==2.14.0
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.0
 aiohttp==3.10.5
-aioitertools==0.11.0
+aioitertools==0.12.0
 aioresponses==0.7.6
 aiosignal==1.3.1
 airbyte-api==0.51.0
@@ -718,7 +718,7 @@ tzdata==2024.1
 tzlocal==5.2
 uc-micro-py==1.0.3
 unicodecsv==0.14.1
-universal_pathlib==0.2.2
+universal_pathlib==0.2.3
 uritemplate==4.1.1
 urllib3==2.2.2
 userpath==1.9.2
@@ -743,7 +743,7 @@ xmltodict==0.13.0
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.315.0
-yarl==1.9.6
+yarl==1.9.7
 ydb==3.16.0
 zeep==4.2.1
 zenpy==2.0.50
