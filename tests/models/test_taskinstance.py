@@ -1544,7 +1544,6 @@ class TestTaskInstance:
         ti = dr.get_task_instance("do_something_else", session=session)
         ti.map_index = 0
         base_task = ti.task
-
         for map_index in range(1, 5):
             ti = TaskInstance(base_task, run_id=dr.run_id, map_index=map_index)
             session.add(ti)
