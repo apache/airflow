@@ -24,13 +24,13 @@ from typing_extensions import Annotated
 
 from airflow.api_fastapi.db import get_session
 from airflow.models import DagModel
-from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel, DagScheduleAssetReference
 
-datasets_router = APIRouter(tags=["Dataset"])
+assets_router = APIRouter(tags=["Asset"])
 
 
-@datasets_router.get("/next_run_datasets/{dag_id}", include_in_schema=False)
-async def next_run_datasets(
+@assets_router.get("/next_run_datasets/{dag_id}", include_in_schema=False)
+async def next_run_assets(
     dag_id: str,
     request: Request,
     session: Annotated[Session, Depends(get_session)],
@@ -51,34 +51,34 @@ async def next_run_datasets(
         dict(info._mapping)
         for info in session.execute(
             select(
-                DatasetModel.id,
-                DatasetModel.uri,
-                func.max(DatasetEvent.timestamp).label("lastUpdate"),
+                AssetModel.id,
+                AssetModel.uri,
+                func.max(AssetEvent.timestamp).label("lastUpdate"),
             )
-            .join(DagScheduleDatasetReference, DagScheduleDatasetReference.dataset_id == DatasetModel.id)
+            .join(DagScheduleAssetReference, DagScheduleAssetReference.dataset_id == AssetModel.id)
             .join(
-                DatasetDagRunQueue,
+                AssetDagRunQueue,
                 and_(
-                    DatasetDagRunQueue.dataset_id == DatasetModel.id,
-                    DatasetDagRunQueue.target_dag_id == DagScheduleDatasetReference.dag_id,
+                    AssetDagRunQueue.dataset_id == AssetModel.id,
+                    AssetDagRunQueue.target_dag_id == DagScheduleAssetReference.dag_id,
                 ),
                 isouter=True,
             )
             .join(
-                DatasetEvent,
+                AssetEvent,
                 and_(
-                    DatasetEvent.dataset_id == DatasetModel.id,
+                    AssetEvent.dataset_id == AssetModel.id,
                     (
-                        DatasetEvent.timestamp >= latest_run.execution_date
+                        AssetEvent.timestamp >= latest_run.execution_date
                         if latest_run and latest_run.execution_date
                         else True
                     ),
                 ),
                 isouter=True,
             )
-            .where(DagScheduleDatasetReference.dag_id == dag_id, ~DatasetModel.is_orphaned)
-            .group_by(DatasetModel.id, DatasetModel.uri)
-            .order_by(DatasetModel.uri)
+            .where(DagScheduleAssetReference.dag_id == dag_id, ~AssetModel.is_orphaned)
+            .group_by(AssetModel.id, AssetModel.uri)
+            .order_by(AssetModel.uri)
         )
     ]
     data = {"dataset_expression": dag_model.dataset_expression, "events": events}

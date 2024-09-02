@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.datasets import Dataset
+from airflow.assets import Asset
 from airflow.operators.empty import EmptyOperator
 from tests.conftest import initial_db_init
 
@@ -35,7 +35,7 @@ def cleanup():
 
 
 def test_next_run_datasets(test_client, dag_maker):
-    with dag_maker(dag_id="upstream", schedule=[Dataset(uri="s3://bucket/key/1")], serialized=True):
+    with dag_maker(dag_id="upstream", schedule=[Asset(uri="s3://bucket/key/1")], serialized=True):
         EmptyOperator(task_id="task1")
 
     dag_maker.create_dagrun()
