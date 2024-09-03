@@ -1040,6 +1040,55 @@ class TestSparkSubmitHook:
         with pytest.raises(AirflowException, match="Failed to decode base64 keytab"):
             hook._create_keytab_path_from_base64_keytab(invalid_base64, None)
 
+    @patch("pathlib.Path.exists")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_create_keytab_path_from_base64_keytab_with_write_exception(
+        self,
+        mock_open,
+        mock_exists,
+    ):
+        # Given
+        hook = SparkSubmitHook()
+
+        keytab_value = b"abcd"
+        base64_keytab = base64.b64encode(keytab_value).decode("UTF-8")
+        _mock_open = mock_open()
+        _mock_open.write.side_effect = Exception("Write failed")
+        mock_exists.return_value = False
+
+        # When
+        with pytest.raises(AirflowException, match="Failed to save keytab"):
+            hook._create_keytab_path_from_base64_keytab(base64_keytab, None)
+
+        # Then
+        assert mock_exists.call_count == 2  # called twice (before write, after write)
+
+    @patch("airflow.providers.apache.spark.hooks.spark_submit.shutil.move")
+    @patch("pathlib.Path.exists")
+    @patch("builtins.open", new_callable=mock_open)
+    def test_create_keytab_path_from_base64_keytab_with_move_exception(
+        self,
+        mock_open,
+        mock_exists,
+        mock_move,
+    ):
+        # Given
+        hook = SparkSubmitHook()
+
+        keytab_value = b"abcd"
+        base64_keytab = base64.b64encode(keytab_value).decode("UTF-8")
+        mock_exists.return_value = False
+        mock_move.side_effect = Exception("Move failed")
+
+        # When
+        with pytest.raises(AirflowException, match="Failed to save keytab"):
+            hook._create_keytab_path_from_base64_keytab(base64_keytab, None)
+
+        # Then
+        mock_open().write.assert_called_once_with(keytab_value)
+        mock_move.assert_called_once()
+        assert mock_exists.call_count == 2  # called twice (before write, after write)
+
     @patch("airflow.providers.apache.spark.hooks.spark_submit.uuid.uuid4")
     @patch("pathlib.Path.resolve")
     @patch("airflow.providers.apache.spark.hooks.spark_submit.shutil.move")
