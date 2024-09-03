@@ -2247,17 +2247,25 @@ class TestKubernetesPodOperatorAsync:
     @patch(f"{HOOK_CLASS}.get_pod")
     @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_succeeded")
     @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
+    @patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.cleanup")
     def test_completion_during_log_collection(
         self,
-        # await_pod_completion,
+        cleanup,
         container_running,
         container_succeeded,
         get_pod,
     ):
-        """When logs fetch exits with status running, raise task deferred"""
+        """When the container exits during a log collection, handle the completion depening on the exit status, do not defer"""
         pod = MagicMock()
         get_pod.return_value = pod
         op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
+
+        container_running.return_value = True
+        with pytest.raises(TaskDeferred):
+            op.trigger_reentry(
+                create_context(op),
+                event={"name": TEST_NAME, "namespace": TEST_NAMESPACE, "status": "running"},
+            )
 
         container_running.return_value = False
         container_succeeded.return_value = False
@@ -2267,6 +2275,13 @@ class TestKubernetesPodOperatorAsync:
                 event={"name": TEST_NAME, "namespace": TEST_NAMESPACE, "status": "running"},
             )
 
+        container_succeeded.return_value = True
+        op.trigger_reentry(
+            create_context(op),
+            event={"name": TEST_NAME, "namespace": TEST_NAMESPACE, "status": "running"},
+        )
+
+        assert cleanup.call_count == 2
 
 
 
