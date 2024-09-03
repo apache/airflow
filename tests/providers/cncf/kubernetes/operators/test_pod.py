@@ -2244,6 +2244,32 @@ class TestKubernetesPodOperatorAsync:
         mocked_trigger_reentry.assert_called_once_with(context=fake_context, event=fake_event)
 
 
+    @patch(f"{HOOK_CLASS}.get_pod")
+    @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_succeeded")
+    @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
+    def test_completion_during_log_collection(
+        self,
+        # await_pod_completion,
+        container_running,
+        container_succeeded,
+        get_pod,
+    ):
+        """When logs fetch exits with status running, raise task deferred"""
+        pod = MagicMock()
+        get_pod.return_value = pod
+        op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
+
+        container_running.return_value = False
+        container_succeeded.return_value = False
+        with pytest.raises(AirflowException):
+            op.trigger_reentry(
+                create_context(op),
+                event={"name": TEST_NAME, "namespace": TEST_NAMESPACE, "status": "running"},
+            )
+
+
+
+
 @pytest.mark.parametrize("do_xcom_push", [True, False])
 @patch(KUB_OP_PATH.format("extract_xcom"))
 @patch(KUB_OP_PATH.format("post_complete_action"))
