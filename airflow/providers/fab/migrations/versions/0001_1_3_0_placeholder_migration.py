@@ -35,10 +35,7 @@ depends_on = None
 fab_version = "1.3.0"
 
 
-def upgrade() -> None:
-    ...
-
-    # ### end Alembic commands ###
+def upgrade() -> None: ...
 
 
 def downgrade() -> None: ...
