@@ -41,6 +41,7 @@ from airflow.providers.google.cloud.operators.dataflow import (
     DataflowRunPipelineOperator,
     DataflowStartFlexTemplateOperator,
     DataflowStartSqlJobOperator,
+    DataflowStartYamlJobOperator,
     DataflowStopJobOperator,
     DataflowTemplatedJobStartOperator,
 )
@@ -711,16 +712,17 @@ class TestDataflowStartFlexTemplateOperator:
 class TestDataflowStartSqlJobOperator:
     @mock.patch("airflow.providers.google.cloud.operators.dataflow.DataflowHook")
     def test_execute(self, mock_hook):
-        start_sql = DataflowStartSqlJobOperator(
-            task_id="start_sql_query",
-            job_name=TEST_SQL_JOB_NAME,
-            query=TEST_SQL_QUERY,
-            options=deepcopy(TEST_SQL_OPTIONS),
-            location=TEST_LOCATION,
-            do_xcom_push=True,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            start_sql = DataflowStartSqlJobOperator(
+                task_id="start_sql_query",
+                job_name=TEST_SQL_JOB_NAME,
+                query=TEST_SQL_QUERY,
+                options=deepcopy(TEST_SQL_OPTIONS),
+                location=TEST_LOCATION,
+                do_xcom_push=True,
+            )
+            start_sql.execute(mock.MagicMock())
 
-        start_sql.execute(mock.MagicMock())
         mock_hook.assert_called_once_with(
             gcp_conn_id="google_cloud_default",
             drain_pipeline=False,
@@ -739,6 +741,95 @@ class TestDataflowStartSqlJobOperator:
         mock_hook.return_value.cancel_job.assert_called_once_with(
             job_id="test-job-id", project_id=None, location=None
         )
+
+
+class TestDataflowStartYamlJobOperator:
+    @pytest.fixture
+    def sync_operator(self):
+        return DataflowStartYamlJobOperator(
+            task_id="start_dataflow_yaml_job_sync",
+            job_name="dataflow_yaml_job",
+            yaml_pipeline_file="test_file_path",
+            append_job_name=False,
+            project_id=TEST_PROJECT,
+            region=TEST_LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            expected_terminal_state=DataflowJobStatus.JOB_STATE_DONE,
+        )
+
+    @pytest.fixture
+    def deferrable_operator(self):
+        return DataflowStartYamlJobOperator(
+            task_id="start_dataflow_yaml_job_def",
+            job_name="dataflow_yaml_job",
+            yaml_pipeline_file="test_file_path",
+            append_job_name=False,
+            project_id=TEST_PROJECT,
+            region=TEST_LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            deferrable=True,
+            expected_terminal_state=DataflowJobStatus.JOB_STATE_RUNNING,
+        )
+
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowHook")
+    def test_execute(self, mock_hook, sync_operator):
+        sync_operator.execute(mock.MagicMock())
+        mock_hook.assert_called_once_with(
+            poll_sleep=sync_operator.poll_sleep,
+            drain_pipeline=False,
+            impersonation_chain=None,
+            cancel_timeout=sync_operator.cancel_timeout,
+            expected_terminal_state=DataflowJobStatus.JOB_STATE_DONE,
+            gcp_conn_id=GCP_CONN_ID,
+        )
+        mock_hook.return_value.launch_beam_yaml_job.assert_called_once_with(
+            job_name=sync_operator.job_name,
+            yaml_pipeline_file=sync_operator.yaml_pipeline_file,
+            append_job_name=False,
+            options=None,
+            jinja_variables=None,
+            project_id=TEST_PROJECT,
+            location=TEST_LOCATION,
+        )
+
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowStartYamlJobOperator.defer")
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowHook")
+    def test_execute_with_deferrable_mode(self, mock_hook, mock_defer_method, deferrable_operator):
+        deferrable_operator.execute(mock.MagicMock())
+        mock_hook.assert_called_once_with(
+            poll_sleep=deferrable_operator.poll_sleep,
+            drain_pipeline=False,
+            impersonation_chain=None,
+            cancel_timeout=deferrable_operator.cancel_timeout,
+            expected_terminal_state=DataflowJobStatus.JOB_STATE_RUNNING,
+            gcp_conn_id=GCP_CONN_ID,
+        )
+        mock_defer_method.assert_called_once()
+
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowStartYamlJobOperator.xcom_push")
+    @mock.patch(f"{DATAFLOW_PATH}.DataflowHook")
+    def test_execute_complete_success(self, mock_hook, mock_xcom_push, deferrable_operator):
+        expected_result = {"id": JOB_ID}
+        actual_result = deferrable_operator.execute_complete(
+            context=None,
+            event={
+                "status": "success",
+                "message": "Batch job completed.",
+                "job": expected_result,
+            },
+        )
+        mock_xcom_push.assert_called_with(None, key="job_id", value=JOB_ID)
+        assert actual_result == expected_result
+
+    def test_execute_complete_error_status_raises_exception(self, deferrable_operator):
+        with pytest.raises(AirflowException, match="Job failed."):
+            deferrable_operator.execute_complete(
+                context=None, event={"status": "error", "message": "Job failed."}
+            )
+        with pytest.raises(AirflowException, match="Job was stopped."):
+            deferrable_operator.execute_complete(
+                context=None, event={"status": "stopped", "message": "Job was stopped."}
+            )
 
 
 class TestDataflowStopJobOperator:

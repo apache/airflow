@@ -44,6 +44,7 @@ TERMINATE_CLUSTER_ENDPOINT = ("POST", "api/2.0/clusters/delete")
 
 CREATE_ENDPOINT = ("POST", "api/2.1/jobs/create")
 RESET_ENDPOINT = ("POST", "api/2.1/jobs/reset")
+UPDATE_ENDPOINT = ("POST", "api/2.1/jobs/update")
 RUN_NOW_ENDPOINT = ("POST", "api/2.1/jobs/run-now")
 SUBMIT_RUN_ENDPOINT = ("POST", "api/2.1/jobs/runs/submit")
 GET_RUN_ENDPOINT = ("GET", "api/2.1/jobs/runs/get")
@@ -232,6 +233,15 @@ class DatabricksHook(BaseDatabricksHook):
         :param json: The data used in the new_settings of the request to the ``reset`` endpoint.
         """
         self._do_api_call(RESET_ENDPOINT, {"job_id": job_id, "new_settings": json})
+
+    def update_job(self, job_id: str, json: dict) -> None:
+        """
+        Call the ``api/2.1/jobs/update`` endpoint.
+
+        :param job_id: The id of the job to update.
+        :param json: The data used in the new_settings of the request to the ``update`` endpoint.
+        """
+        self._do_api_call(UPDATE_ENDPOINT, {"job_id": job_id, "new_settings": json})
 
     def run_now(self, json: dict) -> int:
         """
