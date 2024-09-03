@@ -27,14 +27,16 @@ from airflow.utils.db_manager import BaseDBManager
 
 PACKAGE_DIR = os.path.dirname(airflow.__file__)
 
-_REVISION_HEADS_MAP: dict[str, str] = {}
+_REVISION_HEADS_MAP: dict[str, str] = {
+    "1.3.0": "6709f7a774b9",
+}
 
 
 class FABDBManager(BaseDBManager):
     """Manages FAB database."""
 
     metadata = metadata
-    version_table_name = "fab_alembic_version"
+    version_table_name = "alembic_version_fab"
     migration_dir = os.path.join(PACKAGE_DIR, "providers/fab/migrations")
     alembic_file = os.path.join(PACKAGE_DIR, "providers/fab/alembic.ini")
     supports_table_dropping = True
@@ -71,6 +73,7 @@ class FABDBManager(BaseDBManager):
             # New DB; initialize and exit
             self.initdb()
             return
+
         command.upgrade(config, revision=to_revision or "heads")
 
     def downgrade(self, to_revision, from_revision=None, show_sql_only=False):

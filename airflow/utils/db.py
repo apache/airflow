@@ -1169,10 +1169,10 @@ def upgradedb(
             current_revision = _get_current_revision(session=session)
             with _configured_alembic_environment() as env:
                 source_heads = env.script.get_heads()
-                if set(current_revision) == set(source_heads):
-                    # Only run external DB upgrade migration if user upgraded to heads
-                    external_db_manager = RunDBManager()
-                    external_db_manager.upgradedb(session)
+            if current_revision == source_heads[0]:
+                # Only run external DB upgrade migration if user upgraded to heads
+                external_db_manager = RunDBManager()
+                external_db_manager.upgradedb(session)
 
         finally:
             if val is None:
