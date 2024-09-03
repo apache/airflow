@@ -99,7 +99,7 @@ def test_irregular_provider_with_extra_ignore_should_be_valid_cmd(mock_run_comma
     assert match_pattern.search(arg_str)
 
 
-def test_primary_test_arg_is_excluded_by_extra_pytest_arg(mock_run_command):
+def test_skip_when_primary_test_arg_is_excluded_by_extra_pytest_arg(mock_run_command):
     """This code scenario currently has a bug - if a test type resolves to a single test directory,
      but the same directory is also set to be ignored (either by extra_pytest_args or because a provider is
      suspended or excluded), the _run_test function removes the test directory from the argument list,
@@ -109,7 +109,7 @@ def test_primary_test_arg_is_excluded_by_extra_pytest_arg(mock_run_command):
 
     TODO: fix this bug that runs unintended tests; probably the correct behavior is to skip the run."""
     test_provider = "http"  # "Providers[<id>]" scans the source tree so we need to use a real provider id
-    _run_test(
+    result = _run_test(
         shell_params=ShellParams(test_type=f"Providers[{test_provider}]"),
         extra_pytest_args=(f"--ignore=tests/providers/{test_provider}",),
         python_version="3.8",
@@ -118,15 +118,32 @@ def test_primary_test_arg_is_excluded_by_extra_pytest_arg(mock_run_command):
         skip_docker_compose_down=True,
     )
 
-    run_cmd_call = mock_run_command.call_args_list[1]
-    arg_str = " ".join(run_cmd_call.args[0])
+    mock_run_command.assert_not_called()
+    assert result == (0, f"Test skipped: Providers[{test_provider}]")
 
-    # The command pattern we look for is "<container id> --verbosity=0 \
-    # <*other args we don't care about*> --ignore=tests/providers/<provider name>"
-    # The tests/providers/http argument has been eliminated by the code that preps the args; this is a bug,
-    # bc without a directory or module arg, pytest tests everything (which we don't want!)
-    # We check "--verbosity=0" to ensure nothing is between the airflow container id and the verbosity arg,
-    # IOW that the primary test arg is removed
-    match_pattern = re.compile(f"airflow --verbosity=0 .+ --ignore=tests/providers/{test_provider}")
 
-    assert match_pattern.search(arg_str)
+def test_skip_when_primary_test_arg_is_excluded_by_excluded_provider(
+    mock_run_command, mock_get_excluded_provider_folders
+):
+    """This code scenario currently has a bug - if a test type resolves to a single test directory,
+     but the same directory is also set to be ignored (either by extra_pytest_args or because a provider is
+     suspended or excluded), the _run_test function removes the test directory from the argument list,
+     which has the effect of running all of the tests pytest can find. Not good!
+
+     NB: this test accurately describes the buggy behavior; IOW when fixing the bug the test must be changed.
+
+    TODO: fix this bug that runs unintended tests; probably the correct behavior is to skip the run."""
+    test_provider = "http"  # "Providers[<id>]" scans the source tree so we need to use a real provider id
+    mock_get_excluded_provider_folders.return_value = [test_provider]
+
+    result = _run_test(
+        shell_params=ShellParams(test_type=f"Providers[{test_provider}]"),
+        extra_pytest_args=(),
+        python_version="3.8",
+        output=None,
+        test_timeout=60,
+        skip_docker_compose_down=True,
+    )
+
+    mock_run_command.assert_not_called()
+    assert result == (0, f"Test skipped: Providers[{test_provider}]")
