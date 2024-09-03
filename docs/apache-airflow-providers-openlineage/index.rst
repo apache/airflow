@@ -37,7 +37,7 @@
     Intro <guides/structure>
     User <guides/user>
     Developer <guides/developer>
-    Supported operators <supported_classes>
+    Supported classes <supported_classes>
     Macros <macros>
 
 .. toctree::
