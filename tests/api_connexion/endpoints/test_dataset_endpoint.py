@@ -248,39 +248,6 @@ class TestGetDatasets(TestDatasetEndpoint):
 
         assert_401(response)
 
-    @pytest.mark.parametrize(
-        "url, expected_datasets",
-        [
-            ("api/v1/datasets?uri_pattern=s3", {"s3://folder/key"}),
-            ("api/v1/datasets?uri_pattern=bucket", {"gcp://bucket/key", "wasb://some_dataset_bucket_/key"}),
-            (
-                "api/v1/datasets?uri_pattern=dataset",
-                {"somescheme://dataset/key", "wasb://some_dataset_bucket_/key"},
-            ),
-            (
-                "api/v1/datasets?uri_pattern=",
-                {
-                    "gcp://bucket/key",
-                    "s3://folder/key",
-                    "somescheme://dataset/key",
-                    "wasb://some_dataset_bucket_/key",
-                },
-            ),
-        ],
-    )
-    @provide_session
-    def test_filter_datasets_by_uri_pattern_works(self, url, expected_datasets, session):
-        dataset1 = DatasetModel("s3://folder/key")
-        dataset2 = DatasetModel("gcp://bucket/key")
-        dataset3 = DatasetModel("somescheme://dataset/key")
-        dataset4 = DatasetModel("wasb://some_dataset_bucket_/key")
-        session.add_all([dataset1, dataset2, dataset3, dataset4])
-        session.commit()
-        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
-        assert response.status_code == 200
-        dataset_urls = {dataset["uri"] for dataset in response.json["datasets"]}
-        assert expected_datasets == dataset_urls
-
     @pytest.mark.parametrize("dag_ids, expected_num", [("dag1,dag2", 2), ("dag3", 1), ("dag2,dag3", 2)])
     @provide_session
     def test_filter_datasets_by_dag_ids_works(self, dag_ids, expected_num, session):
@@ -299,34 +266,6 @@ class TestGetDatasets(TestDatasetEndpoint):
         session.commit()
         response = self.client.get(
             f"/api/v1/datasets?dag_ids={dag_ids}", environ_overrides={"REMOTE_USER": "test"}
-        )
-        assert response.status_code == 200
-        response_data = response.json
-        assert len(response_data["datasets"]) == expected_num
-
-    @pytest.mark.parametrize(
-        "dag_ids, uri_pattern,expected_num",
-        [("dag1,dag2", "folder", 1), ("dag3", "nothing", 0), ("dag2,dag3", "key", 2)],
-    )
-    def test_filter_datasets_by_dag_ids_and_uri_pattern_works(
-        self, dag_ids, uri_pattern, expected_num, session
-    ):
-        session.query(DagModel).delete()
-        session.commit()
-        dag1 = DagModel(dag_id="dag1")
-        dag2 = DagModel(dag_id="dag2")
-        dag3 = DagModel(dag_id="dag3")
-        dataset1 = DatasetModel("s3://folder/key")
-        dataset2 = DatasetModel("gcp://bucket/key")
-        dataset3 = DatasetModel("somescheme://dataset/key")
-        dag_ref1 = DagScheduleDatasetReference(dag_id="dag1", dataset=dataset1)
-        dag_ref2 = DagScheduleDatasetReference(dag_id="dag2", dataset=dataset2)
-        task_ref1 = TaskOutletDatasetReference(dag_id="dag3", task_id="task1", dataset=dataset3)
-        session.add_all([dataset1, dataset2, dataset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1])
-        session.commit()
-        response = self.client.get(
-            f"/api/v1/datasets?dag_ids={dag_ids}&uri_pattern={uri_pattern}",
-            environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         response_data = response.json

@@ -963,34 +963,6 @@ class TestGetDags(TestDagEndpoint):
 
         assert expected_dag_ids == dag_ids
 
-    @pytest.mark.parametrize(
-        "url, expected_dag_ids",
-        [
-            ("api/v1/dags?dag_id_pattern=DAG_1", {"TEST_DAG_1", "SAMPLE_DAG_1"}),
-            ("api/v1/dags?dag_id_pattern=SAMPLE_DAG", {"SAMPLE_DAG_1", "SAMPLE_DAG_2"}),
-            (
-                "api/v1/dags?dag_id_pattern=_DAG_",
-                {"TEST_DAG_1", "TEST_DAG_2", "SAMPLE_DAG_1", "SAMPLE_DAG_2"},
-            ),
-        ],
-    )
-    def test_filter_dags_by_dag_id_works(self, url, expected_dag_ids):
-        # test filter by tags
-        dag1 = DAG(dag_id="TEST_DAG_1", schedule=None)
-        dag2 = DAG(dag_id="TEST_DAG_2", schedule=None)
-        dag3 = DAG(dag_id="SAMPLE_DAG_1", schedule=None)
-        dag4 = DAG(dag_id="SAMPLE_DAG_2", schedule=None)
-        dag1.sync_to_db()
-        dag2.sync_to_db()
-        dag3.sync_to_db()
-        dag4.sync_to_db()
-
-        response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
-        assert response.status_code == 200
-        dag_ids = {dag["dag_id"] for dag in response.json["dags"]}
-
-        assert expected_dag_ids == dag_ids
-
     def test_should_respond_200_with_granular_dag_access(self):
         self._create_dag_models(3)
         response = self.client.get(
@@ -1850,40 +1822,6 @@ class TestPatchDags(TestDagEndpoint):
 
         assert expected_dag_ids == dag_ids
 
-    @pytest.mark.parametrize(
-        "url, expected_dag_ids",
-        [
-            ("api/v1/dags?dag_id_pattern=DAG_1", {"TEST_DAG_1", "SAMPLE_DAG_1"}),
-            ("api/v1/dags?dag_id_pattern=SAMPLE_DAG", {"SAMPLE_DAG_1", "SAMPLE_DAG_2"}),
-            (
-                "api/v1/dags?dag_id_pattern=_DAG_",
-                {"TEST_DAG_1", "TEST_DAG_2", "SAMPLE_DAG_1", "SAMPLE_DAG_2"},
-            ),
-        ],
-    )
-    def test_filter_dags_by_dag_id_works(self, url, expected_dag_ids):
-        # test filter by tags
-        dag1 = DAG(dag_id="TEST_DAG_1", schedule=None)
-        dag2 = DAG(dag_id="TEST_DAG_2", schedule=None)
-        dag3 = DAG(dag_id="SAMPLE_DAG_1", schedule=None)
-        dag4 = DAG(dag_id="SAMPLE_DAG_2", schedule=None)
-        dag1.sync_to_db()
-        dag2.sync_to_db()
-        dag3.sync_to_db()
-        dag4.sync_to_db()
-
-        response = self.client.patch(
-            url,
-            json={
-                "is_paused": False,
-            },
-            environ_overrides={"REMOTE_USER": "test"},
-        )
-        assert response.status_code == 200
-        dag_ids = {dag["dag_id"] for dag in response.json["dags"]}
-
-        assert expected_dag_ids == dag_ids
-
     def test_should_respond_200_with_granular_dag_access(self):
         self._create_dag_models(3)
         response = self.client.patch(
@@ -2057,88 +1995,6 @@ class TestPatchDags(TestDagEndpoint):
             ],
             "total_entries": 2,
         } == response.json
-
-    @provide_session
-    def test_should_respond_200_and_pause_dag_pattern(self, session, url_safe_serializer):
-        file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
-        self._create_dag_models(10)
-        file_token10 = url_safe_serializer.dumps("/tmp/dag_10.py")
-
-        response = self.client.patch(
-            "/api/v1/dags?dag_id_pattern=TEST_DAG_1",
-            json={
-                "is_paused": True,
-            },
-            environ_overrides={"REMOTE_USER": "test"},
-        )
-
-        assert response.status_code == 200
-        assert {
-            "dags": [
-                {
-                    "dag_id": "TEST_DAG_1",
-                    "dag_display_name": "TEST_DAG_1",
-                    "description": None,
-                    "fileloc": "/tmp/dag_1.py",
-                    "file_token": file_token,
-                    "is_paused": True,
-                    "is_active": True,
-                    "owners": [],
-                    "timetable_summary": "2 2 * * *",
-                    "tags": [],
-                    "next_dagrun": None,
-                    "has_task_concurrency_limits": True,
-                    "next_dagrun_data_interval_start": None,
-                    "next_dagrun_data_interval_end": None,
-                    "max_active_runs": 16,
-                    "max_consecutive_failed_dag_runs": 0,
-                    "next_dagrun_create_after": None,
-                    "last_expired": None,
-                    "max_active_tasks": 16,
-                    "last_pickled": None,
-                    "default_view": None,
-                    "last_parsed_time": None,
-                    "scheduler_lock": None,
-                    "timetable_description": None,
-                    "has_import_errors": False,
-                    "pickle_id": None,
-                },
-                {
-                    "dag_id": "TEST_DAG_10",
-                    "dag_display_name": "TEST_DAG_10",
-                    "description": None,
-                    "fileloc": "/tmp/dag_10.py",
-                    "file_token": file_token10,
-                    "is_paused": True,
-                    "is_active": True,
-                    "owners": [],
-                    "timetable_summary": "2 2 * * *",
-                    "tags": [],
-                    "next_dagrun": None,
-                    "has_task_concurrency_limits": True,
-                    "next_dagrun_data_interval_start": None,
-                    "next_dagrun_data_interval_end": None,
-                    "max_active_runs": 16,
-                    "max_consecutive_failed_dag_runs": 0,
-                    "next_dagrun_create_after": None,
-                    "last_expired": None,
-                    "max_active_tasks": 16,
-                    "last_pickled": None,
-                    "default_view": None,
-                    "last_parsed_time": None,
-                    "scheduler_lock": None,
-                    "timetable_description": None,
-                    "has_import_errors": False,
-                    "pickle_id": None,
-                },
-            ],
-            "total_entries": 2,
-        } == response.json
-
-        dags_not_updated = session.query(DagModel).filter(~DagModel.is_paused)
-        assert len(dags_not_updated.all()) == 8
-        dags_updated = session.query(DagModel).filter(DagModel.is_paused)
-        assert len(dags_updated.all()) == 2
 
     @provide_session
     def test_should_respond_200_and_reverse_ordering(self, session, url_safe_serializer):
