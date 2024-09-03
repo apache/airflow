@@ -57,7 +57,6 @@ from airflow_breeze.commands.common_options import (
     option_no_db_cleanup,
     option_postgres_version,
     option_project_name,
-    option_pydantic,
     option_python,
     option_run_db_tests_only,
     option_skip_db_tests,
@@ -123,6 +122,7 @@ from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.run_utils import (
     assert_pre_commit_installed,
     run_command,
+    run_compile_ui_assets,
     run_compile_www_assets,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
@@ -288,7 +288,6 @@ option_install_airflow_with_constraints_default_true = click.option(
 @option_mount_sources
 @option_mysql_version
 @option_no_db_cleanup
-@option_pydantic
 @option_platform_single
 @option_postgres_version
 @option_project_name
@@ -351,7 +350,6 @@ def shell(
     providers_constraints_mode: str,
     providers_constraints_reference: str,
     providers_skip_constraints: bool,
-    pydantic: str,
     python: str,
     quiet: bool,
     restart: bool,
@@ -419,7 +417,6 @@ def shell(
         providers_constraints_mode=providers_constraints_mode,
         providers_constraints_reference=providers_constraints_reference,
         providers_skip_constraints=providers_skip_constraints,
-        pydantic=pydantic,
         python=python,
         quiet=quiet,
         restart=restart,
@@ -578,7 +575,9 @@ def start_airflow(
         )
         skip_assets_compilation = True
     if use_airflow_version is None and not skip_assets_compilation:
-        run_compile_www_assets(dev=dev_mode, run_in_background=True, force_clean=False)
+        # Now with the /ui project, lets only do a static build of /www and focus on the /ui
+        run_compile_www_assets(dev=False, run_in_background=False, force_clean=False)
+        run_compile_ui_assets(dev=dev_mode, run_in_background=True, force_clean=False)
     airflow_constraints_reference = _determine_constraint_branch_used(
         airflow_constraints_reference, use_airflow_version
     )
@@ -972,6 +971,34 @@ def compile_www_assets(dev: bool, force_clean: bool):
         dev=dev, run_in_background=False, force_clean=force_clean
     )
     if compile_www_assets_result.returncode != 0:
+        get_console().print("[warn]New assets were generated[/]")
+    sys.exit(0)
+
+
+@main.command(
+    name="compile-ui-assets",
+    help="Compiles ui assets.",
+)
+@click.option(
+    "--dev",
+    help="Run development version of assets compilation - it will not quit and automatically "
+    "recompile assets on-the-fly when they are changed.",
+    is_flag=True,
+)
+@click.option(
+    "--force-clean",
+    help="Force cleanup of compile assets before building them.",
+    is_flag=True,
+)
+@option_verbose
+@option_dry_run
+def compile_ui_assets(dev: bool, force_clean: bool):
+    perform_environment_checks()
+    assert_pre_commit_installed()
+    compile_ui_assets_result = run_compile_ui_assets(
+        dev=dev, run_in_background=False, force_clean=force_clean
+    )
+    if compile_ui_assets_result.returncode != 0:
         get_console().print("[warn]New assets were generated[/]")
     sys.exit(0)
 

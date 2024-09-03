@@ -24,7 +24,7 @@ import pytest
 from kubernetes.client.rest import ApiException
 
 from airflow import DAG
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.sensors.spark_kubernetes import SparkKubernetesSensor
 from airflow.utils import db, timezone
@@ -597,9 +597,6 @@ class TestSparkKubernetesSensor:
             version="v1beta2",
         )
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_FAILED_APPLICATION,
@@ -608,13 +605,9 @@ class TestSparkKubernetesSensor:
         self,
         mock_get_namespaced_crd,
         mock_kubernetes_hook,
-        soft_fail: bool,
-        expected_exception: type[AirflowException],
     ):
-        sensor = SparkKubernetesSensor(
-            application_name="spark_pi", dag=self.dag, task_id="test_task_id", soft_fail=soft_fail
-        )
-        with pytest.raises(expected_exception):
+        sensor = SparkKubernetesSensor(application_name="spark_pi", dag=self.dag, task_id="test_task_id")
+        with pytest.raises(AirflowException):
             sensor.poke({})
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(
@@ -705,9 +698,6 @@ class TestSparkKubernetesSensor:
             version="v1beta2",
         )
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_UNKNOWN_APPLICATION,
@@ -716,13 +706,9 @@ class TestSparkKubernetesSensor:
         self,
         mock_get_namespaced_crd,
         mock_kubernetes_hook,
-        soft_fail: bool,
-        expected_exception: AirflowException,
     ):
-        sensor = SparkKubernetesSensor(
-            application_name="spark_pi", dag=self.dag, task_id="test_task_id", soft_fail=soft_fail
-        )
-        with pytest.raises(expected_exception):
+        sensor = SparkKubernetesSensor(application_name="spark_pi", dag=self.dag, task_id="test_task_id")
+        with pytest.raises(AirflowException):
             sensor.poke({})
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(
@@ -801,9 +787,6 @@ class TestSparkKubernetesSensor:
             version="v1beta2",
         )
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_FAILED_APPLICATION,
@@ -819,17 +802,14 @@ class TestSparkKubernetesSensor:
         error_log_call,
         mock_get_namespaced_crd,
         mock_kube_conn,
-        soft_fail: bool,
-        expected_exception: AirflowException,
     ):
         sensor = SparkKubernetesSensor(
             application_name="spark_pi",
             attach_log=True,
             dag=self.dag,
             task_id="test_task_id",
-            soft_fail=soft_fail,
         )
-        with pytest.raises(expected_exception):
+        with pytest.raises(AirflowException):
             sensor.poke({})
         mock_log_call.assert_called_once_with(
             "spark-pi-driver", namespace="default", container="spark-kubernetes-driver"

@@ -106,7 +106,6 @@ body:
         - sqlite
         - ssh
         - tableau
-        - tabular
         - telegram
         - teradata
         - trino

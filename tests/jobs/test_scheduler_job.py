@@ -2788,10 +2788,10 @@ class TestSchedulerJob:
         assert dag_listener.success[0].state == DagRunState.SUCCESS
 
     def test_do_not_schedule_removed_task(self, dag_maker):
-        schedule_interval = datetime.timedelta(days=1)
+        interval = datetime.timedelta(days=1)
         with dag_maker(
             dag_id="test_scheduler_do_not_schedule_removed_task",
-            schedule=schedule_interval,
+            schedule=interval,
         ):
             EmptyOperator(task_id="dummy")
 
@@ -2805,8 +2805,8 @@ class TestSchedulerJob:
         session.query(DagModel).delete()
         with dag_maker(
             dag_id="test_scheduler_do_not_schedule_removed_task",
-            schedule=schedule_interval,
-            start_date=DEFAULT_DATE + schedule_interval,
+            schedule=interval,
+            start_date=DEFAULT_DATE + interval,
         ):
             pass
 
@@ -3568,6 +3568,7 @@ class TestSchedulerJob:
                 dag_id="test_retry_still_in_executor",
                 schedule="@once",
                 session=session,
+                fileloc=os.devnull + "/test_retry_still_in_executor.py",
             ):
                 dag_task1 = BashOperator(
                     task_id="test_retry_handling_op",
@@ -5998,7 +5999,7 @@ class TestSchedulerJobQueriesCount:
                     self.job_runner._run_scheduler_loop()
 
     @pytest.mark.parametrize(
-        "expected_query_counts, dag_count, task_count, start_ago, schedule_interval, shape",
+        "expected_query_counts, dag_count, task_count, start_ago, schedule, shape",
         [
             # One DAG with one task per DAG file.
             ([10, 10, 10, 10], 1, 1, "1d", "None", "no_structure"),
@@ -6033,7 +6034,7 @@ class TestSchedulerJobQueriesCount:
         ],
     )
     def test_process_dags_queries_count(
-        self, expected_query_counts, dag_count, task_count, start_ago, schedule_interval, shape
+        self, expected_query_counts, dag_count, task_count, start_ago, schedule, shape
     ):
         with mock.patch.dict(
             "os.environ",
@@ -6041,7 +6042,7 @@ class TestSchedulerJobQueriesCount:
                 "PERF_DAGS_COUNT": str(dag_count),
                 "PERF_TASKS_COUNT": str(task_count),
                 "PERF_START_AGO": start_ago,
-                "PERF_SCHEDULE_INTERVAL": schedule_interval,
+                "PERF_SCHEDULE_INTERVAL": schedule,
                 "PERF_SHAPE": shape,
             },
         ), conf_vars(
