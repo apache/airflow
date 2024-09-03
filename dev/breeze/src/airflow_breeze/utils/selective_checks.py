@@ -264,9 +264,11 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^airflow/api/",
             r"^airflow/api_connexion/",
             r"^airflow/api_internal/",
+            r"^airflow/api_ui/",
             r"^tests/api/",
             r"^tests/api_connexion/",
             r"^tests/api_internal/",
+            r"^tests/api_ui/",
         ],
         SelectiveUnitTestTypes.CLI: [
             r"^airflow/cli/",
