@@ -21,7 +21,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
@@ -111,14 +111,10 @@ class TestAzureDataFactoryPipelineRunStatusSensor:
             self.defered_sensor.execute_complete(context={}, event={"status": "success", "message": msg})
         mock_log_info.assert_called_with(msg)
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
-    def test_adf_pipeline_status_sensor_execute_complete_failure(self, soft_fail, expected_exception):
+    def test_adf_pipeline_status_sensor_execute_complete_failure(self):
         """Assert execute_complete method fail"""
 
-        self.defered_sensor.soft_fail = soft_fail
-        with pytest.raises(expected_exception):
+        with pytest.raises(AirflowException):
             self.defered_sensor.execute_complete(context={}, event={"status": "error", "message": ""})
 
 
@@ -150,12 +146,10 @@ class TestAzureDataFactoryPipelineRunStatusSensorWithAsync:
             self.SENSOR.execute_complete(context={}, event={"status": "success", "message": msg})
         mock_log_info.assert_called_with(msg)
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
-    def test_adf_pipeline_status_sensor_execute_complete_failure(self, soft_fail, expected_exception):
+    def test_adf_pipeline_status_sensor_execute_complete_failure(
+        self,
+    ):
         """Assert execute_complete method fail"""
 
-        self.SENSOR.soft_fail = soft_fail
-        with pytest.raises(expected_exception):
+        with pytest.raises(AirflowException):
             self.SENSOR.execute_complete(context={}, event={"status": "error", "message": ""})

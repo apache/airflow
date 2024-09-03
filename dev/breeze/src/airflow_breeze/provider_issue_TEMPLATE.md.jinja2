@@ -13,6 +13,12 @@ Those are providers that require testing as there were some substantial changes 
 ## Provider [{{ provider_id }}: {{ provider_info.version }}{{ provider_info.suffix }}](https://pypi.org/project/{{ provider_info.pypi_package_name }}/{{ provider_info.version }}{{ provider_info.suffix }})
 {%- for pr in provider_info.pr_list %}
    - [ ] [{{ pr.title }} (#{{ pr.number }})]({{ pr.html_url }}): @{{ pr.user.login }}
+   {%- if pr.number in linked_issues %}
+     Linked issues:
+     {%- for linked_issue in linked_issues[pr.number] %}
+       - [ ] [Linked Issue #{{ linked_issue.number }}]({{ linked_issue.html_url }}): @{{ linked_issue.user.login }}
+     {%- endfor %}
+   {%- endif %}
 {%- endfor %}
 {%- endfor %}
 

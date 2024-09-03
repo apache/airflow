@@ -34,53 +34,76 @@ the Airflow team.
        any Airflow version from the ``Airflow 2`` line. There is no guarantee that it will work, but if it does,
        then you can use latest features from that image to build images for previous Airflow versions.
 
-Airflow 2.9
-~~~~~~~~~~~
-
-   * The "latest" image (i.e. default Airflow image when ``apache/airflow`` is used or
-     ``apache/airflow:slim-latest``) uses now the newest supported Python version. Previously it was using
-     the "default" Python version which was Python 3.8 as of Airflow 2.8. With Airflow reference images
-     released for Airflow 2.9.0, the images are going to use Python 3.12 as this is the latest supported
-     version for Airflow 2.9 line. Users can use Python 3.8 by using ``apache/airflow:2.9.0-python3.8`` and
-     ``apache/airflow:slim-2.9.0-python-3.8`` images respectively so while the change is potentially
-     breaking, it is very easy to switch to the previous behaviour.
+Airflow 2.10
+~~~~~~~~~~~~
+  * The image does not support Debian-Bullseye(11) anymore. The image is based on Debian-Bookworm (12).
 
 Airflow 2.9
 ~~~~~~~~~~~
 
-The ``gosu`` binary was removed from the image. This is a potentially breaking change for users who relied on
-``gosu`` to change the user in the container. The ``gosu`` binary was removed because it was a source of
-security vulnerabilities as it was linked against older go standard libraries.
+  * The "latest" image (i.e. default Airflow image when ``apache/airflow`` is used or
+    ``apache/airflow:slim-latest``) uses now the newest supported Python version. Previously it was using
+    the "default" Python version which was Python 3.8 as of Airflow 2.8. With Airflow reference images
+    released for Airflow 2.9.0, the images are going to use Python 3.12 as this is the latest supported
+    version for Airflow 2.9 line. Users can use Python 3.8 by using ``apache/airflow:2.9.0-python3.8`` and
+    ``apache/airflow:slim-2.9.0-python-3.8`` images respectively so while the change is potentially
+    breaking, it is very easy to switch to the previous behaviour.
 
+  * The ``PIP_USER`` flag is removed and replaced by ``VIRTUAL_ENV`` pointing to ``~/.local`` where Airflow
+    is installed. This has the effect that the Airflow installation is treated as a regular virtual environment,
+    but unlike a regular virtualenv, the ``~/.local`` directory is seen as ``system level`` and when the
+    worker creates dynamically the virtualenv with ``--system-site-packages`` flag, the Airflow installation and all
+    packages there are also present in the new virtualenv. When you do not use the flag, they are not
+    copied there which is a backwards-compatible behaviour with having ``PIP_USER`` set.
+
+  * The image contains latest ``uv`` binary (latest at the moment of release) - which is a new faster
+    replacement for ``pip``. While the image is still using ``pip`` by default, you can use ``uv``
+    to install packages and - experimentally - you can also build custom images with
+    ``--arg AIRFLOW_USE_UV=true`` which will us ``uv`` to perform the installation. This is an experimental
+    support, as ``uv`` is very fast but also a very new feature in the Python ecosystem.
+
+  * Constraints used to install the image are available in "${HOME}/constraints.txt" now - you can use them
+    to install additional packages in the image without having to find out which constraints you should use.
+
+  * The image adds ``libev`` library to the image as it is required by cassandra driver for Python 3.12, also
+    ``libev`` will be used in other Python versions as a more robust and faster way for cassandra driver
+    to handle events.
 
 Airflow 2.8
 ~~~~~~~~~~~
+* 2.8.3
+
+  * The ``gosu`` binary was removed from the image. This is a potentially breaking change for users who relied on
+    ``gosu`` to change the user in the container. The ``gosu`` binary was removed because it was a source of
+    security vulnerabilities as it was linked against older Go standard libraries.
+
+  * The ``smtp`` provider is now included in the list of providers installed by default in the image.
 
 * 2.8.1
 
-   * Fixed a discrepancy in MySQL client libraries. In 2.8.0 if not specify ``INSTALL_MYSQL_CLIENT_TYPE`` build arg
-     during build custom X86 image by default packages would be compiled by using **MariaDB** libraries,
-     however **MySQL** libraries were installed in the final image.
+  * Fixed a discrepancy in MySQL client libraries. In 2.8.0 if not specify ``INSTALL_MYSQL_CLIENT_TYPE`` build arg
+    during build custom X86 image by default packages would be compiled by using **MariaDB** libraries,
+    however **MySQL** libraries were installed in the final image.
 
 * 2.8.0
 
-   * Add ``libxmlsec1`` and ``libxmlsec1-dev`` libraries to dev PROD image and ``libxmlsec1`` library to runtime PROD
-     image as it is required by ``python3-saml`` library.
+  * Add ``libxmlsec1`` and ``libxmlsec1-dev`` libraries to dev PROD image and ``libxmlsec1`` library to runtime PROD
+    image as it is required by ``python3-saml`` library.
 
-   * The image is based on ``Debian Bookworm`` in 2.8.0 rather than ``Debian Bullseye``. This might cause some
-     problems when building custom images. You are advised to make sure your system level dependencies are
-     working with ``Debian Bookworm``. While all reference images of Airflow 2.8.0 are built on ``Debian Bookworm``,
-     it is still possible to build deprecated custom ``Debian Bullseye`` based image in 2.8.0 following the
+  * The image is based on ``Debian Bookworm`` in 2.8.0 rather than ``Debian Bullseye``. This might cause some
+    problems when building custom images. You are advised to make sure your system level dependencies are
+    working with ``Debian Bookworm``. While all reference images of Airflow 2.8.0 are built on ``Debian Bookworm``,
+    it is still possible to build deprecated custom ``Debian Bullseye`` based image in 2.8.0 following the
 
-   * By default the images now have "MariaDB" client installed. Previous images had "MySQL" client installed.
-     The MariaDB client is a drop-in replacement for "MySQL" one and is compatible with MySQL. This might
-     be a breaking change for users who used MySQL client in their images, however those should be very
-     specific cases and vast majority of users should not see any difference. Users can still use
-     MySQL client by setting ``INSTALL_MYSQL_CLIENT_TYPE=mysql`` build arg and build the custom X86 image.
-     The ARM image always uses MariaDB client, this argument is ignored. The "mysql" apt repository is
-     removed from the /etc/apt/sources.list.d/ and if you want to install anything from this repository when
-     extending the images, you need to manually add the right key and repository in your Dockerfile,
-     following the instructions in `A Quick Guide to Using the MySQL APT repository <https://dev.mysql.com/doc/mysql-apt-repo-quick-guide/en/>`_.
+  * By default the images now have "MariaDB" client installed. Previous images had "MySQL" client installed.
+    The MariaDB client is a drop-in replacement for "MySQL" one and is compatible with MySQL. This might
+    be a breaking change for users who used MySQL client in their images, however those should be very
+    specific cases and vast majority of users should not see any difference. Users can still use
+    MySQL client by setting ``INSTALL_MYSQL_CLIENT_TYPE=mysql`` build arg and build the custom X86 image.
+    The ARM image always uses MariaDB client, this argument is ignored. The "mysql" apt repository is
+    removed from the /etc/apt/sources.list.d/ and if you want to install anything from this repository when
+    extending the images, you need to manually add the right key and repository in your Dockerfile,
+    following the instructions in `A Quick Guide to Using the MySQL APT repository <https://dev.mysql.com/doc/mysql-apt-repo-quick-guide/en/>`_.
 
 Airflow 2.7
 ~~~~~~~~~~~
@@ -114,22 +137,18 @@ Airflow 2.6
 
   * Snowflake provider installed by default
 
+  * The ARM experimental image adds support for MySQL via MariaDB client libraries.
 
-Airflow 2.5.1
-~~~~~~~~~~~~~
+Airflow 2.5
+~~~~~~~~~~~
 
 * 2.5.1
 
   * The ARM experimental image adds support for MSSQL
 
-
-Airflow 2.5
-~~~~~~~~~~~
-
 * 2.5.0
 
   * The docker CLI binary is now added to the images by default (available on PATH). Version 20.10.9 is used.
-
 
 Airflow 2.4
 ~~~~~~~~~~~
@@ -140,7 +159,6 @@ Airflow 2.4
     build arg.
   * Support for ``Debian Buster`` was dropped, including the possibility of building customized images as
     ``Debian Buster`` reached end of life.
-
 
 Airflow 2.3
 ~~~~~~~~~~~
@@ -238,7 +256,6 @@ Original image Changelog (before the refresh on 18 Feb 2022):
 * 2.1.0
    * Unset default ``PIP_USER`` variable - which caused PythonVirtualEnv to fail
 
-
 Airflow 2.0
 ~~~~~~~~~~~
 
@@ -289,6 +306,17 @@ here so that users affected can find the reason for the changes.
 +--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
 | Date         | Affected images     | Potentially breaking change             | Reason                 | Link to Pull Request / Issue                   |
 +==============+=====================+=========================================+========================+================================================+
+| 02 Aug 2024  | 2.9.3               | * The ``apache-airflow-providers-fab``  | FAB provider logout    | https://github.com/apache/airflow/issues/40922 |
+|              |                     |   upgraded from 1.2.1 to 1.2.2          | did not work for 2.9.3 |                                                |
++--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
+| 12 Mar 2024  | 2.8.3               | * The image was refreshed with new      | Both dependencies      | https://github.com/apache/airflow/pull/37748   |
+|              |                     |   dependencies (pandas < 2.2 and        | caused breaking        | https://github.com/apache/airflow/pull/37701   |
+|              |                     |   SMTP provider 1.6.1                   | changes                |                                                |
++--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
+| 16 Dec 2023  | All 2..\*           | * The AIRFLOW_GID 500 was removed       | MySQL repository is    | https://github.com/apache/airflow/issues/36231 |
+|              |                     | * MySQL ``apt`` repository key changed. | removed after the      |                                                |
+|              |                     |                                         | key expiry fiasco      |                                                |
++--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
 | 17 June 2022 | 2.2.5               | * The ``Authlib`` library downgraded    | Flask App Builder      | https://github.com/apache/airflow/pull/24516   |
 |              |                     |   from 1.0.1 to 0.15.5 version          | not compatible with    |                                                |
 |              | 2.3.0-2.3.2         |                                         | Authlib >= 1.0.0       |                                                |
@@ -296,8 +324,4 @@ here so that users affected can find the reason for the changes.
 | 18 Jan 2022  | All 2.2.\*, 2.1.\*  | * The AIRFLOW_GID 500 was removed       | MySQL changed keys     | https://github.com/apache/airflow/pull/20912   |
 |              |                     | * MySQL ``apt`` repository key changed. | to sign their packages |                                                |
 |              |                     |                                         | on 17 Jan 2022         |                                                |
-+--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+
-| 16 Dec 2023  | All 2..\*           | * The AIRFLOW_GID 500 was removed       | MySQL repository is    | https://github.com/apache/airflow/issues/36231 |
-|              |                     | * MySQL ``apt`` repository key changed. | removed after the      |                                                |
-|              |                     |                                         | key expiry fiasco      |                                                |
 +--------------+---------------------+-----------------------------------------+------------------------+------------------------------------------------+

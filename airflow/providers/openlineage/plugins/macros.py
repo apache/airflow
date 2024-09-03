@@ -16,51 +16,72 @@
 # under the License.
 from __future__ import annotations
 
-import os
-import typing
+from typing import TYPE_CHECKING
 
-from airflow.configuration import conf
+from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
+from airflow.providers.openlineage.utils.utils import get_job_name
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from airflow.models import TaskInstance
 
-_JOB_NAMESPACE = conf.get("openlineage", "namespace", fallback=os.getenv("OPENLINEAGE_NAMESPACE", "default"))
+
+def lineage_job_namespace():
+    """
+    Macro function which returns Airflow OpenLineage namespace.
+
+    .. seealso::
+        For more information take a look at the guide:
+        :ref:`howto/macros:openlineage`
+    """
+    return conf.namespace()
+
+
+def lineage_job_name(task_instance: TaskInstance):
+    """
+    Macro function which returns Airflow task name in OpenLineage format (`<dag_id>.<task_id>`).
+
+    .. seealso::
+        For more information take a look at the guide:
+        :ref:`howto/macros:openlineage`
+    """
+    return get_job_name(task_instance)
 
 
 def lineage_run_id(task_instance: TaskInstance):
     """
-    Macro function which returns the generated run id for a given task.
+    Macro function which returns the generated run id (UUID) for a given task.
 
     This can be used to forward the run id from a task to a child run so the job hierarchy is preserved.
 
     .. seealso::
-        For more information on how to use this operator, take a look at the guide:
+        For more information take a look at the guide:
         :ref:`howto/macros:openlineage`
     """
     return OpenLineageAdapter.build_task_instance_run_id(
         dag_id=task_instance.dag_id,
-        task_id=task_instance.task.task_id,
-        execution_date=task_instance.execution_date,
+        task_id=task_instance.task_id,
         try_number=task_instance.try_number,
+        execution_date=task_instance.execution_date,
     )
 
 
-def lineage_parent_id(run_id: str, task_instance: TaskInstance):
+def lineage_parent_id(task_instance: TaskInstance):
     """
-    Macro function which returns the generated job and run id for a given task.
+    Macro function which returns a unique identifier of given task that can be used to create ParentRunFacet.
 
-    This can be used to forward the ids from a task to a child run so the job
-    hierarchy is preserved. Child run can create ParentRunFacet from those ids.
+    This identifier is composed of the namespace, job name, and generated run id for given task, structured
+    as '{namespace}/{job_name}/{run_id}'. This can be used to forward task information from a task to a child
+    run so the job hierarchy is preserved. Child run can easily create ParentRunFacet from these information.
 
     .. seealso::
-        For more information on how to use this macro, take a look at the guide:
+        For more information take a look at the guide:
         :ref:`howto/macros:openlineage`
     """
-    job_name = OpenLineageAdapter.build_task_instance_run_id(
-        dag_id=task_instance.dag_id,
-        task_id=task_instance.task.task_id,
-        execution_date=task_instance.execution_date,
-        try_number=task_instance.try_number,
+    return "/".join(
+        (
+            lineage_job_namespace(),
+            lineage_job_name(task_instance),
+            lineage_run_id(task_instance),
+        )
     )
-    return f"{_JOB_NAMESPACE}/{job_name}/{run_id}"

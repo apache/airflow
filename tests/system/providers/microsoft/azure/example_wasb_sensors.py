@@ -24,6 +24,7 @@ This DAG relies on the following OS environment variables
 * BLOB_NAME - The name of the blob to match.
 * PREFIX - The blob with the specified prefix to match.
 """
+
 from __future__ import annotations
 
 import os
@@ -40,6 +41,7 @@ PREFIX = os.environ.get("PREFIX", "example-prefix")
 with DAG(
     "example_wasb_sensors",
     start_date=datetime(2022, 8, 8),
+    schedule=None,
     catchup=False,
     tags=["example"],
 ) as dag:

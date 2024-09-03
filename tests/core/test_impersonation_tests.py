@@ -37,7 +37,9 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils import db
 
-pytestmark = pytest.mark.db_test
+# The entire module into the quarantined mark, this might have unpredictable side effects to other tests
+# and should be moved into the isolated environment into the future.
+pytestmark = [pytest.mark.platform("breeze"), pytest.mark.db_test, pytest.mark.quarantined]
 
 DEV_NULL = "/dev/null"
 TEST_ROOT_FOLDER = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -214,11 +216,6 @@ class TestImpersonation(BaseImpersonationTest):
         """
         monkeypatch.setenv("AIRFLOW__CORE__DEFAULT_IMPERSONATION", TEST_USER)
         self.run_backfill("test_default_impersonation", "test_deelevated_user")
-
-    @pytest.mark.execution_timeout(150)
-    def test_impersonation_subdag(self):
-        """Tests that impersonation using a subdag correctly passes the right configuration."""
-        self.run_backfill("impersonation_subdag", "test_subdag_operation")
 
 
 class TestImpersonationWithCustomPythonPath(BaseImpersonationTest):

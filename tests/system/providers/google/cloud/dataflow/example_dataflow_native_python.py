@@ -16,34 +16,30 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Example Airflow DAG for testing Google Dataflow Beam Pipeline Operator with Python.
-"""
+"""Example Airflow DAG for testing Google Dataflow Beam Pipeline Operator with Python."""
+
 from __future__ import annotations
 
 import os
 from datetime import datetime
-from pathlib import Path
 
 from airflow.models.dag import DAG
 from airflow.providers.apache.beam.hooks.beam import BeamRunnerType
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
 from airflow.providers.google.cloud.operators.dataflow import DataflowStopJobOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataflow_native_python"
 
+RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
-PYTHON_FILE_NAME = "wordcount_debugging.py"
 GCS_TMP = f"gs://{BUCKET_NAME}/temp/"
 GCS_STAGING = f"gs://{BUCKET_NAME}/staging/"
 GCS_OUTPUT = f"gs://{BUCKET_NAME}/output"
-GCS_PYTHON_SCRIPT = f"gs://{BUCKET_NAME}/{PYTHON_FILE_NAME}"
-PYTHON_FILE_LOCAL_PATH = str(Path(__file__).parent / "resources" / PYTHON_FILE_NAME)
+GCS_PYTHON_SCRIPT = f"gs://{RESOURCE_DATA_BUCKET}/dataflow/python/wordcount_debugging.py"
 LOCATION = "europe-west3"
 
 default_args = {
@@ -59,16 +55,9 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example", "dataflow"],
+    tags=["example", "dataflow", "python"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
-
-    upload_file = LocalFilesystemToGCSOperator(
-        task_id="upload_file_to_bucket",
-        src=PYTHON_FILE_LOCAL_PATH,
-        dst=PYTHON_FILE_NAME,
-        bucket=BUCKET_NAME,
-    )
 
     # [START howto_operator_start_python_job]
     start_python_job = BeamRunPythonPipelineOperator(
@@ -79,10 +68,10 @@ with DAG(
         pipeline_options={
             "output": GCS_OUTPUT,
         },
-        py_requirements=["apache-beam[gcp]==2.46.0"],
+        py_requirements=["apache-beam[gcp]==2.47.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
-        dataflow_config={"location": LOCATION},
+        dataflow_config={"location": LOCATION, "job_name": "start_python_job"},
     )
     # [END howto_operator_start_python_job]
 
@@ -93,7 +82,7 @@ with DAG(
         pipeline_options={
             "output": GCS_OUTPUT,
         },
-        py_requirements=["apache-beam[gcp]==2.46.0"],
+        py_requirements=["apache-beam[gcp]==2.47.0"],
         py_interpreter="python3",
         py_system_site_packages=False,
     )
@@ -113,7 +102,6 @@ with DAG(
     (
         # TEST SETUP
         create_bucket
-        >> upload_file
         # TEST BODY
         >> start_python_job
         >> start_python_job_local

@@ -15,12 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing connections from Google Cloud Secrets Manager."""
+
 from __future__ import annotations
 
 import logging
 from typing import Sequence
 
-from deprecated import deprecated
 from google.auth.exceptions import DefaultCredentialsError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -29,6 +29,8 @@ from airflow.providers.google.cloud.utils.credentials_provider import (
     _get_target_principal_and_delegates,
     get_credentials_and_project_id,
 )
+from airflow.providers.google.common.deprecated import deprecated
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -93,7 +95,7 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         gcp_key_path: str | None = None,
         gcp_credential_config_file: dict[str, str] | str | None = None,
         gcp_scopes: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         sep: str = "-",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -160,10 +162,8 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         return self._get_secret(self.connections_prefix, conn_id)
 
     @deprecated(
-        reason=(
-            "Method `CloudSecretManagerBackend.get_conn_uri` is deprecated and will be removed "
-            "in a future release.  Please use method `get_conn_value` instead."
-        ),
+        planned_removal_date="November 01, 2024",
+        use_instead="get_conn_value",
         category=AirflowProviderDeprecationWarning,
     )
     def get_conn_uri(self, conn_id: str) -> str | None:

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains SFTP hook."""
+
 from __future__ import annotations
 
 import datetime
@@ -39,7 +40,8 @@ if TYPE_CHECKING:
 
 
 class SFTPHook(SSHHook):
-    """Interact with SFTP.
+    """
+    Interact with SFTP.
 
     This hook inherits the SSH hook. Please refer to SSH hook for the input
     arguments.
@@ -133,7 +135,8 @@ class SFTPHook(SSHHook):
             self.conn = None
 
     def describe_directory(self, path: str) -> dict[str, dict[str, str | int | None]]:
-        """Get file information in a directory on the remote system.
+        """
+        Get file information in a directory on the remote system.
 
         The return format is ``{filename: {attributes}}``. The remote system
         support the MLSD command.
@@ -153,7 +156,8 @@ class SFTPHook(SSHHook):
         return files
 
     def list_directory(self, path: str) -> list[str]:
-        """List files in a directory on the remote system.
+        """
+        List files in a directory on the remote system.
 
         :param path: full path to the remote directory to list
         """
@@ -162,7 +166,8 @@ class SFTPHook(SSHHook):
         return files
 
     def mkdir(self, path: str, mode: int = 0o777) -> None:
-        """Create a directory on the remote system.
+        """
+        Create a directory on the remote system.
 
         The default mode is ``0o777``, but on some systems, the current umask
         value may be first masked out.
@@ -174,7 +179,8 @@ class SFTPHook(SSHHook):
         conn.mkdir(path, mode=mode)
 
     def isdir(self, path: str) -> bool:
-        """Check if the path provided is a directory.
+        """
+        Check if the path provided is a directory.
 
         :param path: full path to the remote directory to check
         """
@@ -186,7 +192,8 @@ class SFTPHook(SSHHook):
         return result
 
     def isfile(self, path: str) -> bool:
-        """Check if the path provided is a file.
+        """
+        Check if the path provided is a file.
 
         :param path: full path to the remote file to check
         """
@@ -198,7 +205,8 @@ class SFTPHook(SSHHook):
         return result
 
     def create_directory(self, path: str, mode: int = 0o777) -> None:
-        """Create a directory on the remote system.
+        """
+        Create a directory on the remote system.
 
         The default mode is ``0o777``, but on some systems, the current umask
         value may be first masked out. Different from :func:`.mkdir`, this
@@ -223,7 +231,8 @@ class SFTPHook(SSHHook):
                 conn.mkdir(path, mode=mode)
 
     def delete_directory(self, path: str) -> None:
-        """Delete a directory on the remote system.
+        """
+        Delete a directory on the remote system.
 
         :param path: full path to the remote directory to delete
         """
@@ -231,7 +240,8 @@ class SFTPHook(SSHHook):
         conn.rmdir(path)
 
     def retrieve_file(self, remote_full_path: str, local_full_path: str, prefetch: bool = True) -> None:
-        """Transfer the remote file to a local location.
+        """
+        Transfer the remote file to a local location.
 
         If local_full_path is a string path, the file will be put
         at that location.
@@ -244,7 +254,8 @@ class SFTPHook(SSHHook):
         conn.get(remote_full_path, local_full_path, prefetch=prefetch)
 
     def store_file(self, remote_full_path: str, local_full_path: str, confirm: bool = True) -> None:
-        """Transfer a local file to the remote location.
+        """
+        Transfer a local file to the remote location.
 
         If local_full_path_or_buffer is a string path, the file will be read
         from that location.
@@ -256,7 +267,8 @@ class SFTPHook(SSHHook):
         conn.put(local_full_path, remote_full_path, confirm=confirm)
 
     def delete_file(self, path: str) -> None:
-        """Remove a file on the server.
+        """
+        Remove a file on the server.
 
         :param path: full path to the remote file
         """
@@ -264,7 +276,8 @@ class SFTPHook(SSHHook):
         conn.remove(path)
 
     def get_mod_time(self, path: str) -> str:
-        """Get an entry's modification time.
+        """
+        Get an entry's modification time.
 
         :param path: full path to the remote file
         """
@@ -273,7 +286,8 @@ class SFTPHook(SSHHook):
         return datetime.datetime.fromtimestamp(ftp_mdtm).strftime("%Y%m%d%H%M%S")  # type: ignore
 
     def path_exists(self, path: str) -> bool:
-        """Whether a remote entity exists.
+        """
+        Whether a remote entity exists.
 
         :param path: full path to the remote file or directory
         """
@@ -286,7 +300,8 @@ class SFTPHook(SSHHook):
 
     @staticmethod
     def _is_path_match(path: str, prefix: str | None = None, delimiter: str | None = None) -> bool:
-        """Whether given path starts with ``prefix`` (if set) and ends with ``delimiter`` (if set).
+        """
+        Whether given path starts with ``prefix`` (if set) and ends with ``delimiter`` (if set).
 
         :param path: path to be checked
         :param prefix: if set path will be checked is starting with prefix
@@ -307,7 +322,8 @@ class SFTPHook(SSHHook):
         ucallback: Callable[[str], Any | None],
         recurse: bool = True,
     ) -> None:
-        """Recursively descend, depth first, the directory tree at ``path``.
+        """
+        Recursively descend, depth first, the directory tree at ``path``.
 
         This calls discrete callback functions for each regular file, directory,
         and unknown file type.
@@ -345,7 +361,8 @@ class SFTPHook(SSHHook):
     def get_tree_map(
         self, path: str, prefix: str | None = None, delimiter: str | None = None
     ) -> tuple[list[str], list[str], list[str]]:
-        """Get tuple with recursive lists of files, directories and unknown paths.
+        """
+        Get tuple with recursive lists of files, directories and unknown paths.
 
         It is possible to filter results by giving prefix and/or delimiter parameters.
 
@@ -381,7 +398,8 @@ class SFTPHook(SSHHook):
             return False, str(e)
 
     def get_file_by_pattern(self, path, fnmatch_pattern) -> str:
-        """Get the first matching file based on the given fnmatch type pattern.
+        """
+        Get the first matching file based on the given fnmatch type pattern.
 
         :param path: path to be checked
         :param fnmatch_pattern: The pattern that will be matched with `fnmatch`
@@ -394,7 +412,8 @@ class SFTPHook(SSHHook):
         return ""
 
     def get_files_by_pattern(self, path, fnmatch_pattern) -> list[str]:
-        """Get all matching files based on the given fnmatch type pattern.
+        """
+        Get all matching files based on the given fnmatch type pattern.
 
         :param path: path to be checked
         :param fnmatch_pattern: The pattern that will be matched with `fnmatch`
@@ -515,25 +534,24 @@ class SFTPHookAsync(BaseHook):
         ssh_client_conn = await asyncssh.connect(**conn_config)
         return ssh_client_conn
 
-    async def list_directory(self, path: str = "") -> list[str] | None:
+    async def list_directory(self, path: str = "") -> list[str] | None:  # type: ignore[return]
         """Return a list of files on the SFTP server at the provided path."""
-        ssh_conn = await self._get_conn()
-        sftp_client = await ssh_conn.start_sftp_client()
-        try:
-            files = await sftp_client.listdir(path)
-            return sorted(files)
-        except asyncssh.SFTPNoSuchFile:
-            return None
+        async with await self._get_conn() as ssh_conn:
+            sftp_client = await ssh_conn.start_sftp_client()
+            try:
+                files = await sftp_client.listdir(path)
+                return sorted(files)
+            except asyncssh.SFTPNoSuchFile:
+                return None
 
-    async def read_directory(self, path: str = "") -> Sequence[asyncssh.sftp.SFTPName] | None:
+    async def read_directory(self, path: str = "") -> Sequence[asyncssh.sftp.SFTPName] | None:  # type: ignore[return]
         """Return a list of files along with their attributes on the SFTP server at the provided path."""
-        ssh_conn = await self._get_conn()
-        sftp_client = await ssh_conn.start_sftp_client()
-        try:
-            files = await sftp_client.readdir(path)
-            return files
-        except asyncssh.SFTPNoSuchFile:
-            return None
+        async with await self._get_conn() as ssh_conn:
+            sftp_client = await ssh_conn.start_sftp_client()
+            try:
+                return await sftp_client.readdir(path)
+            except asyncssh.SFTPNoSuchFile:
+                return None
 
     async def get_files_and_attrs_by_pattern(
         self, path: str = "", fnmatch_pattern: str = ""
@@ -549,7 +567,7 @@ class SFTPHookAsync(BaseHook):
         matched_files = [file for file in files_list if fnmatch(str(file.filename), fnmatch_pattern)]
         return matched_files
 
-    async def get_mod_time(self, path: str) -> str:
+    async def get_mod_time(self, path: str) -> str:  # type: ignore[return]
         """
         Make SFTP async connection.
 
@@ -558,9 +576,10 @@ class SFTPHookAsync(BaseHook):
 
         :param path: full path to the remote file
         """
-        ssh_conn = await self._get_conn()
-        sftp_client = await ssh_conn.start_sftp_client()
+        ssh_conn = None
         try:
+            ssh_conn = await self._get_conn()
+            sftp_client = await ssh_conn.start_sftp_client()
             ftp_mdtm = await sftp_client.stat(path)
             modified_time = ftp_mdtm.mtime
             mod_time = datetime.datetime.fromtimestamp(modified_time).strftime("%Y%m%d%H%M%S")  # type: ignore[arg-type]
@@ -568,3 +587,6 @@ class SFTPHookAsync(BaseHook):
             return mod_time
         except asyncssh.SFTPNoSuchFile:
             raise AirflowException("No files matching")
+        finally:
+            if ssh_conn:
+                ssh_conn.close()

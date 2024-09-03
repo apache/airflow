@@ -17,98 +17,81 @@
 # under the License.
 from __future__ import annotations
 
-from configparser import DuplicateSectionError
-from typing import TYPE_CHECKING
-
 import pytest
 
+from tests.test_utils.compat import AIRFLOW_V_2_9_PLUS, ignore_provider_compatibility_error
+from tests.www.test_utils import is_db_isolation_mode
+
+pytestmark = [
+    pytest.mark.db_test,
+    pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Tests for Airflow 2.9.0+ only"),
+]
+
+
 import airflow.models.xcom
-from airflow import settings
-from airflow.configuration import conf
-from airflow.io.path import ObjectStoragePath
-from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import BaseXCom, resolve_xcom_backend
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.common.io.xcom.backend import XComObjectStoreBackend
-from airflow.utils import timezone
-from airflow.utils.session import create_session
-from airflow.utils.types import DagRunType
-from airflow.utils.xcom import XCOM_RETURN_KEY
-from tests.test_utils.config import conf_vars
 
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
+with ignore_provider_compatibility_error("2.8.0", __file__):
+    from airflow.providers.common.io.xcom.backend import XComObjectStorageBackend
+
+from airflow.utils import timezone
+from airflow.utils.xcom import XCOM_RETURN_KEY
+from tests.test_utils import db
+from tests.test_utils.config import conf_vars
 
 
 @pytest.fixture(autouse=True)
 def reset_db():
     """Reset XCom entries."""
-    with create_session() as session:
-        session.query(DagRun).delete()
-        session.query(airflow.models.xcom.XCom).delete()
+    db.clear_db_runs()
+    db.clear_db_xcom()
+    yield
+    db.clear_db_runs()
+    db.clear_db_xcom()
+
+
+@pytest.fixture(autouse=True)
+def reset_cache():
+    from airflow.providers.common.io.xcom import backend
+
+    backend._get_base_path.cache_clear()
+    backend._get_compression.cache_clear()
+    backend._get_threshold.cache_clear()
+    yield
+    backend._get_base_path.cache_clear()
+    backend._get_compression.cache_clear()
+    backend._get_threshold.cache_clear()
 
 
 @pytest.fixture
-def task_instance_factory(request, session: Session):
-    def func(*, dag_id, task_id, execution_date):
-        run_id = DagRun.generate_run_id(DagRunType.SCHEDULED, execution_date)
-        run = DagRun(
-            dag_id=dag_id,
-            run_type=DagRunType.SCHEDULED,
-            run_id=run_id,
-            execution_date=execution_date,
-        )
-        session.add(run)
-        ti = TaskInstance(EmptyOperator(task_id=task_id), run_id=run_id)
-        ti.dag_id = dag_id
-        session.add(ti)
-        session.commit()
-
-        def cleanup_database():
-            # This should also clear task instances by cascading.
-            session.query(DagRun).filter_by(id=run.id).delete()
-            session.commit()
-
-        request.addfinalizer(cleanup_database)
-        return ti
-
-    return func
-
-
-@pytest.fixture
-def task_instance(task_instance_factory):
-    return task_instance_factory(
-        dag_id="dag",
-        task_id="task_1",
+def task_instance(create_task_instance_of_operator, session):
+    return create_task_instance_of_operator(
+        EmptyOperator,
+        dag_id="test-dag-id",
+        task_id="test-task-id",
         execution_date=timezone.datetime(2021, 12, 3, 4, 56),
+        session=session,
     )
 
 
-class TestXcomObjectStoreBackend:
-    path = "file:/tmp/xcom"
+class TestXComObjectStorageBackend:
+    @pytest.fixture(autouse=True)
+    def setup_test_cases(self, tmp_path):
+        xcom_path = tmp_path / "xcom"
+        xcom_path.mkdir()
+        self.path = f"file://{xcom_path.as_posix()}"
+        configuration = {
+            ("core", "xcom_backend"): "airflow.providers.common.io.xcom.backend.XComObjectStorageBackend",
+            ("common.io", "xcom_objectstorage_path"): self.path,
+            ("common.io", "xcom_objectstorage_threshold"): "50",
+        }
+        with conf_vars(configuration):
+            yield
 
-    def setup_method(self):
-        try:
-            conf.add_section("common.io")
-        except DuplicateSectionError:
-            pass
-        conf.set("core", "xcom_backend", "airflow.providers.common.io.xcom.backend.XComObjectStoreBackend")
-        conf.set("common.io", "xcom_objectstore_path", self.path)
-        conf.set("common.io", "xcom_objectstore_threshold", "50")
-        settings.configure_vars()
-
-    def teardown_method(self):
-        conf.remove_option("core", "xcom_backend")
-        conf.remove_option("common.io", "xcom_objectstore_path")
-        conf.remove_option("common.io", "xcom_objectstore_threshold")
-        settings.configure_vars()
-        p = ObjectStoragePath(self.path)
-        if p.exists():
-            p.rmdir(recursive=True)
-
-    @pytest.mark.db_test
     def test_value_db(self, task_instance, session):
+        session.add(task_instance)
+        session.commit()
         XCom = resolve_xcom_backend()
         airflow.models.xcom.XCom = XCom
 
@@ -128,17 +111,19 @@ class TestXcomObjectStoreBackend:
         )
         assert value == {"key": "value"}
 
-        qry = XCom.get_many(
-            key=XCOM_RETURN_KEY,
-            dag_ids=task_instance.dag_id,
-            task_ids=task_instance.task_id,
-            run_id=task_instance.run_id,
-            session=session,
-        )
-        assert qry.first().value == {"key": "value"}
+        if not is_db_isolation_mode():
+            qry = XCom.get_many(
+                key=XCOM_RETURN_KEY,
+                dag_ids=task_instance.dag_id,
+                task_ids=task_instance.task_id,
+                run_id=task_instance.run_id,
+                session=session,
+            )
+            assert qry.first().value == {"key": "value"}
 
-    @pytest.mark.db_test
     def test_value_storage(self, task_instance, session):
+        session.add(task_instance)
+        session.commit()
         XCom = resolve_xcom_backend()
         airflow.models.xcom.XCom = XCom
 
@@ -151,21 +136,22 @@ class TestXcomObjectStoreBackend:
             session=session,
         )
 
-        res = (
-            XCom.get_many(
-                key=XCOM_RETURN_KEY,
-                dag_ids=task_instance.dag_id,
-                task_ids=task_instance.task_id,
-                run_id=task_instance.run_id,
-                session=session,
+        if not is_db_isolation_mode():
+            res = (
+                XCom.get_many(
+                    key=XCOM_RETURN_KEY,
+                    dag_ids=task_instance.dag_id,
+                    task_ids=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                    session=session,
+                )
+                .with_entities(BaseXCom.value)
+                .first()
             )
-            .with_entities(BaseXCom.value)
-            .first()
-        )
 
-        data = BaseXCom.deserialize_value(res)
-        p = ObjectStoragePath(self.path) / XComObjectStoreBackend._get_key(data)
-        assert p.exists() is True
+            data = BaseXCom.deserialize_value(res)
+            p = XComObjectStorageBackend._get_full_path(data)
+            assert p.exists() is True
 
         value = XCom.get_value(
             key=XCOM_RETURN_KEY,
@@ -174,17 +160,19 @@ class TestXcomObjectStoreBackend:
         )
         assert value == {"key": "bigvaluebigvaluebigvalue" * 100}
 
-        qry = XCom.get_many(
-            key=XCOM_RETURN_KEY,
-            dag_ids=task_instance.dag_id,
-            task_ids=task_instance.task_id,
-            run_id=task_instance.run_id,
-            session=session,
-        )
-        assert self.path in qry.first().value
+        if not is_db_isolation_mode():
+            qry = XCom.get_many(
+                key=XCOM_RETURN_KEY,
+                dag_ids=task_instance.dag_id,
+                task_ids=task_instance.task_id,
+                run_id=task_instance.run_id,
+                session=session,
+            )
+            assert str(p) == qry.first().value
 
-    @pytest.mark.db_test
     def test_clear(self, task_instance, session):
+        session.add(task_instance)
+        session.commit()
         XCom = resolve_xcom_backend()
         airflow.models.xcom.XCom = XCom
 
@@ -197,21 +185,29 @@ class TestXcomObjectStoreBackend:
             session=session,
         )
 
-        res = (
-            XCom.get_many(
-                key=XCOM_RETURN_KEY,
-                dag_ids=task_instance.dag_id,
-                task_ids=task_instance.task_id,
-                run_id=task_instance.run_id,
-                session=session,
+        if not is_db_isolation_mode():
+            res = (
+                XCom.get_many(
+                    key=XCOM_RETURN_KEY,
+                    dag_ids=task_instance.dag_id,
+                    task_ids=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                    session=session,
+                )
+                .with_entities(BaseXCom.value)
+                .first()
             )
-            .with_entities(BaseXCom.value)
-            .first()
-        )
 
-        data = BaseXCom.deserialize_value(res)
-        p = ObjectStoragePath(self.path) / XComObjectStoreBackend._get_key(data)
-        assert p.exists() is True
+            data = BaseXCom.deserialize_value(res)
+            p = XComObjectStorageBackend._get_full_path(data)
+            assert p.exists() is True
+
+        value = XCom.get_value(
+            key=XCOM_RETURN_KEY,
+            ti_key=task_instance.key,
+            session=session,
+        )
+        assert value
 
         XCom.clear(
             dag_id=task_instance.dag_id,
@@ -220,11 +216,20 @@ class TestXcomObjectStoreBackend:
             session=session,
         )
 
-        assert p.exists() is False
+        if not is_db_isolation_mode():
+            assert p.exists() is False
 
-    @pytest.mark.db_test
-    @conf_vars({("common.io", "xcom_objectstore_compression"): "gzip"})
+        value = XCom.get_value(
+            key=XCOM_RETURN_KEY,
+            ti_key=task_instance.key,
+            session=session,
+        )
+        assert not value
+
+    @conf_vars({("common.io", "xcom_objectstorage_compression"): "gzip"})
     def test_compression(self, task_instance, session):
+        session.add(task_instance)
+        session.commit()
         XCom = resolve_xcom_backend()
         airflow.models.xcom.XCom = XCom
 
@@ -237,22 +242,23 @@ class TestXcomObjectStoreBackend:
             session=session,
         )
 
-        res = (
-            XCom.get_many(
-                key=XCOM_RETURN_KEY,
-                dag_ids=task_instance.dag_id,
-                task_ids=task_instance.task_id,
-                run_id=task_instance.run_id,
-                session=session,
+        if not is_db_isolation_mode():
+            res = (
+                XCom.get_many(
+                    key=XCOM_RETURN_KEY,
+                    dag_ids=task_instance.dag_id,
+                    task_ids=task_instance.task_id,
+                    run_id=task_instance.run_id,
+                    session=session,
+                )
+                .with_entities(BaseXCom.value)
+                .first()
             )
-            .with_entities(BaseXCom.value)
-            .first()
-        )
 
-        data = BaseXCom.deserialize_value(res)
-        p = ObjectStoragePath(self.path) / XComObjectStoreBackend._get_key(data)
-        assert p.exists() is True
-        assert p.suffix == ".gz"
+            data = BaseXCom.deserialize_value(res)
+            p = XComObjectStorageBackend._get_full_path(data)
+            assert p.exists() is True
+            assert p.suffix == ".gz"
 
         value = XCom.get_value(
             key=XCOM_RETURN_KEY,

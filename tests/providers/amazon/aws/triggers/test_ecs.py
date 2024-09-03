@@ -51,11 +51,9 @@ class TestTaskDoneTrigger:
         a_mock.get_waiter().wait = wait_mock
 
         trigger = TaskDoneTrigger("cluster", "task_arn", 0, 10, None, None)
-
+        generator = trigger.run()
         with pytest.raises(WaiterError):
-            generator = trigger.run()
             await generator.asend(None)
-
         assert wait_mock.call_count == 3
 
     @pytest.mark.asyncio
@@ -70,9 +68,8 @@ class TestTaskDoneTrigger:
         a_mock.get_waiter().wait = wait_mock
 
         trigger = TaskDoneTrigger("cluster", "task_arn", 0, 10, None, None)
-
+        generator = trigger.run()
         with pytest.raises(AirflowException) as err:
-            generator = trigger.run()
             await generator.asend(None)
 
         assert wait_mock.call_count == 10
@@ -95,3 +92,4 @@ class TestTaskDoneTrigger:
 
         assert response.payload["status"] == "success"
         assert response.payload["task_arn"] == "my_task_arn"
+        assert response.payload["cluster"] == "cluster"

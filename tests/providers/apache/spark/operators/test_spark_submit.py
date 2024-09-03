@@ -25,6 +25,7 @@ from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.utils import timezone
+from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
@@ -67,13 +68,14 @@ class TestSparkSubmitOperator:
             "args should keep embedded spaces",
         ],
         "use_krb5ccache": True,
-        "queue": "yarn_dev_queue2",
+        "yarn_queue": "yarn_dev_queue2",
         "deploy_mode": "client2",
+        "queue": "airflow_custom_queue",
     }
 
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     def test_execute(self):
         # Given / When
@@ -122,41 +124,43 @@ class TestSparkSubmitOperator:
                 "args should keep embedded spaces",
             ],
             "spark_binary": "sparky",
-            "queue": "yarn_dev_queue2",
+            "yarn_queue": "yarn_dev_queue2",
             "deploy_mode": "client2",
             "use_krb5ccache": True,
             "properties_file": "conf/spark-custom.conf",
+            "queue": "airflow_custom_queue",
         }
 
         assert conn_id == operator._conn_id
-        assert expected_dict["application"] == operator._application
-        assert expected_dict["conf"] == operator._conf
-        assert expected_dict["files"] == operator._files
-        assert expected_dict["py_files"] == operator._py_files
+        assert expected_dict["application"] == operator.application
+        assert expected_dict["conf"] == operator.conf
+        assert expected_dict["files"] == operator.files
+        assert expected_dict["py_files"] == operator.py_files
         assert expected_dict["archives"] == operator._archives
-        assert expected_dict["driver_class_path"] == operator._driver_class_path
-        assert expected_dict["jars"] == operator._jars
-        assert expected_dict["packages"] == operator._packages
-        assert expected_dict["exclude_packages"] == operator._exclude_packages
+        assert expected_dict["driver_class_path"] == operator.driver_class_path
+        assert expected_dict["jars"] == operator.jars
+        assert expected_dict["packages"] == operator.packages
+        assert expected_dict["exclude_packages"] == operator.exclude_packages
         assert expected_dict["repositories"] == operator._repositories
         assert expected_dict["total_executor_cores"] == operator._total_executor_cores
         assert expected_dict["executor_cores"] == operator._executor_cores
         assert expected_dict["executor_memory"] == operator._executor_memory
-        assert expected_dict["keytab"] == operator._keytab
-        assert expected_dict["principal"] == operator._principal
-        assert expected_dict["proxy_user"] == operator._proxy_user
-        assert expected_dict["name"] == operator._name
+        assert expected_dict["keytab"] == operator.keytab
+        assert expected_dict["principal"] == operator.principal
+        assert expected_dict["proxy_user"] == operator.proxy_user
+        assert expected_dict["name"] == operator.name
         assert expected_dict["num_executors"] == operator._num_executors
         assert expected_dict["status_poll_interval"] == operator._status_poll_interval
         assert expected_dict["verbose"] == operator._verbose
         assert expected_dict["java_class"] == operator._java_class
         assert expected_dict["driver_memory"] == operator._driver_memory
-        assert expected_dict["application_args"] == operator._application_args
+        assert expected_dict["application_args"] == operator.application_args
         assert expected_dict["spark_binary"] == operator._spark_binary
-        assert expected_dict["queue"] == operator._queue
         assert expected_dict["deploy_mode"] == operator._deploy_mode
-        assert expected_dict["properties_file"] == operator._properties_file
+        assert expected_dict["properties_file"] == operator.properties_file
         assert expected_dict["use_krb5ccache"] == operator._use_krb5ccache
+        assert expected_dict["queue"] == operator.queue
+        assert expected_dict["yarn_queue"] == operator._yarn_queue
 
     @pytest.mark.db_test
     def test_spark_submit_cmd_connection_overrides(self):
@@ -168,26 +172,35 @@ class TestSparkSubmitOperator:
             task_id="spark_submit_job", spark_binary="sparky", dag=self.dag, **config
         )
         cmd = " ".join(operator._get_hook()._build_spark_submit_command("test"))
-        assert "--queue yarn_dev_queue2" in cmd
+        assert "--queue yarn_dev_queue2" in cmd  # yarn queue
         assert "--deploy-mode client2" in cmd
         assert "sparky" in cmd
+        assert operator.queue == "airflow_custom_queue"  # airflow queue
 
-        # if we don't pass any overrides in arguments
-        config["queue"] = None
+        # if we don't pass any overrides in arguments, default values
+        config["yarn_queue"] = None
         config["deploy_mode"] = None
+        config.pop("queue", None)  # using default airflow queue
         operator2 = SparkSubmitOperator(task_id="spark_submit_job2", dag=self.dag, **config)
         cmd2 = " ".join(operator2._get_hook()._build_spark_submit_command("test"))
-        assert "--queue root.default" in cmd2
+        assert "--queue root.default" in cmd2  # yarn queue
         assert "--deploy-mode client2" not in cmd2
         assert "spark-submit" in cmd2
+        assert operator2.queue == "default"  # airflow queue
 
     @pytest.mark.db_test
-    def test_render_template(self):
+    def test_render_template(self, session):
         # Given
         operator = SparkSubmitOperator(task_id="spark_submit_job", dag=self.dag, **self._config)
         ti = TaskInstance(operator, run_id="spark_test")
-        ti.dag_run = DagRun(dag_id=self.dag.dag_id, run_id="spark_test", execution_date=DEFAULT_DATE)
-
+        ti.dag_run = DagRun(
+            dag_id=self.dag.dag_id,
+            run_id="spark_test",
+            execution_date=DEFAULT_DATE,
+            run_type=DagRunType.MANUAL,
+        )
+        session.add(ti)
+        session.commit()
         # When
         ti.render_templates()
 
@@ -205,5 +218,52 @@ class TestSparkSubmitOperator:
             "args should keep embedded spaces",
         ]
         expected_name = "spark_submit_job"
-        assert expected_application_args == getattr(operator, "_application_args")
-        assert expected_name == getattr(operator, "_name")
+        assert expected_application_args == getattr(operator, "application_args")
+        assert expected_name == getattr(operator, "name")
+
+    @pytest.mark.db_test
+    def test_templating_with_create_task_instance_of_operator(
+        self, create_task_instance_of_operator, session
+    ):
+        ti = create_task_instance_of_operator(
+            SparkSubmitOperator,
+            # Templated fields
+            application="{{ 'application' }}",
+            conf="{{ 'conf' }}",
+            files="{{ 'files' }}",
+            py_files="{{ 'py-files' }}",
+            jars="{{ 'jars' }}",
+            driver_class_path="{{ 'driver_class_path' }}",
+            packages="{{ 'packages' }}",
+            exclude_packages="{{ 'exclude_packages' }}",
+            keytab="{{ 'keytab' }}",
+            principal="{{ 'principal' }}",
+            proxy_user="{{ 'proxy_user' }}",
+            name="{{ 'name' }}",
+            application_args="{{ 'application_args' }}",
+            env_vars="{{ 'env_vars' }}",
+            properties_file="{{ 'properties_file' }}",
+            # Other parameters
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        session.add(ti)
+        session.commit()
+        ti.render_templates()
+        task: SparkSubmitOperator = ti.task
+        assert task.application == "application"
+        assert task.conf == "conf"
+        assert task.files == "files"
+        assert task.py_files == "py-files"
+        assert task.jars == "jars"
+        assert task.driver_class_path == "driver_class_path"
+        assert task.packages == "packages"
+        assert task.exclude_packages == "exclude_packages"
+        assert task.keytab == "keytab"
+        assert task.principal == "principal"
+        assert task.proxy_user == "proxy_user"
+        assert task.name == "name"
+        assert task.application_args == "application_args"
+        assert task.env_vars == "env_vars"
+        assert task.properties_file == "properties_file"

@@ -16,13 +16,20 @@
 # specific language governing permissions and limitations
 # under the License.
 """Microsoft SQLServer hook module."""
+
 from __future__ import annotations
 
-from typing import Any
+from functools import cached_property
+from typing import TYPE_CHECKING, Any
 
 import pymssql
+from methodtools import lru_cache
+from pymssql import Connection as PymssqlConnection
 
-from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 
 class MsSqlHook(DbApiHook):
@@ -52,6 +59,15 @@ class MsSqlHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self._sqlalchemy_scheme = sqlalchemy_scheme
 
+    @cached_property
+    def connection(self) -> Connection:
+        """
+        Get the airflow connection object.
+
+        :return: The connection object.
+        """
+        return self.get_connection(self.get_conn_id())
+
     @property
     def connection_extra_lower(self) -> dict:
         """
@@ -59,8 +75,7 @@ class MsSqlHook(DbApiHook):
 
         This is used internally for case-insensitive access of mssql params.
         """
-        conn = self.get_connection(self.mssql_conn_id)  # type: ignore[attr-defined]
-        return {k.lower(): v for k, v in conn.extra_dejson.items()}
+        return {k.lower(): v for k, v in self.connection.extra_dejson.items()}
 
     @property
     def sqlalchemy_scheme(self) -> str:
@@ -91,25 +106,73 @@ class MsSqlHook(DbApiHook):
         engine = self.get_sqlalchemy_engine(engine_kwargs=engine_kwargs)
         return engine.connect(**(connect_kwargs or {}))
 
-    def get_conn(self) -> pymssql.connect:
-        """Return ``pymssql`` connection object."""
-        conn = self.get_connection(self.mssql_conn_id)  # type: ignore[attr-defined]
+    @lru_cache(maxsize=None)
+    def get_primary_keys(self, table: str) -> list[str]:
+        primary_keys = self.run(
+            f"""
+            SELECT c.name
+            FROM sys.columns c
+            WHERE c.object_id =  OBJECT_ID('{table}')
+                AND EXISTS (SELECT 1 FROM sys.index_columns ic
+                    INNER JOIN sys.indexes i ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+                    WHERE i.is_primary_key = 1
+                    AND ic.object_id = c.object_id
+                    AND ic.column_id = c.column_id);
+            """,
+            handler=fetch_all_handler,
+        )
+        return [pk[0] for pk in primary_keys]  # type: ignore
 
-        conn = pymssql.connect(
+    def _generate_insert_sql(self, table, values, target_fields, replace, **kwargs) -> str:
+        """
+        Generate the INSERT SQL statement.
+
+        The MERGE INTO variant is specific to MSSQL syntax
+
+        :param table: Name of the target table
+        :param values: The row to insert into the table
+        :param target_fields: The names of the columns to fill in the table
+        :param replace: Whether to replace/merge into instead of insert
+        :return: The generated INSERT or MERGE INTO SQL statement
+        """
+        if not replace:
+            return super()._generate_insert_sql(table, values, target_fields, replace, **kwargs)  # type: ignore
+
+        primary_keys = self.get_primary_keys(table)
+        columns = [
+            target_field
+            for target_field in target_fields
+            if target_field in set(target_fields).difference(set(primary_keys))
+        ]
+
+        self.log.debug("primary_keys: %s", primary_keys)
+        self.log.info("columns: %s", columns)
+
+        return f"""MERGE INTO {table} AS target
+        USING (SELECT {', '.join(map(lambda column: f'{self.placeholder} AS {column}', target_fields))}) AS source
+        ON {' AND '.join(map(lambda column: f'target.{column} = source.{column}', primary_keys))}
+        WHEN MATCHED THEN
+            UPDATE SET {', '.join(map(lambda column: f'target.{column} = source.{column}', columns))}
+        WHEN NOT MATCHED THEN
+            INSERT ({', '.join(target_fields)}) VALUES ({', '.join(map(lambda column: f'source.{column}', target_fields))});"""
+
+    def get_conn(self) -> PymssqlConnection:
+        """Return ``pymssql`` connection object."""
+        conn = self.connection
+        return pymssql.connect(
             server=conn.host,
             user=conn.login,
             password=conn.password,
             database=self.schema or conn.schema,
-            port=conn.port,
+            port=str(conn.port),
         )
-        return conn
 
     def set_autocommit(
         self,
-        conn: pymssql.connect,
+        conn: PymssqlConnection,
         autocommit: bool,
     ) -> None:
         conn.autocommit(autocommit)
 
-    def get_autocommit(self, conn: pymssql.connect):
+    def get_autocommit(self, conn: PymssqlConnection):
         return conn.autocommit_state

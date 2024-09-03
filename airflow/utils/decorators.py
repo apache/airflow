@@ -18,42 +18,10 @@
 from __future__ import annotations
 
 import sys
-import warnings
 from collections import deque
-from functools import wraps
-from typing import Callable, TypeVar, cast
-
-from airflow.exceptions import RemovedInAirflow3Warning
+from typing import Callable, TypeVar
 
 T = TypeVar("T", bound=Callable)
-
-
-def apply_defaults(func: T) -> T:
-    """
-    Use apply_default decorator for the `default_args` feature to work properly; deprecated.
-
-    In previous versions, all subclasses of BaseOperator must use apply_default decorator for the"
-    `default_args` feature to work properly.
-
-    In current version, it is optional. The decorator is applied automatically using the metaclass.
-    """
-    warnings.warn(
-        "This decorator is deprecated. \n"
-        "\n"
-        "In previous versions, all subclasses of BaseOperator must use apply_default decorator for the "
-        "`default_args` feature to work properly.\n"
-        "\n"
-        "In current version, it is optional. The decorator is applied automatically using the metaclass.\n",
-        RemovedInAirflow3Warning,
-        stacklevel=3,
-    )
-
-    # Make it still be a wrapper to keep the previous behaviour of an extra stack frame
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        return func(*args, **kwargs)
-
-    return cast(T, wrapper)
 
 
 def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
@@ -62,12 +30,18 @@ def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
 
     :param python_source: The python source code
     :param task_decorator_name: the decorator name
+
+    TODO: Python 3.9+: Rewrite this to use ast.parse and ast.unparse
     """
 
     def _remove_task_decorator(py_source, decorator_name):
-        if decorator_name not in py_source:
+        # if no line starts with @decorator_name, we can early exit
+        for line in py_source.split("\n"):
+            if line.startswith(decorator_name):
+                break
+        else:
             return python_source
-        split = python_source.split(decorator_name)
+        split = python_source.split(decorator_name, 1)
         before_decorator, after_decorator = split[0], split[1]
         if after_decorator[0] == "(":
             after_decorator = _balance_parens(after_decorator)

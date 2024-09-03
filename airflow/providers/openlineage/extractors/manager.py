@@ -16,33 +16,25 @@
 # under the License.
 from __future__ import annotations
 
-import os
-from contextlib import suppress
 from typing import TYPE_CHECKING, Iterator
 
-from airflow.configuration import conf
+from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import BaseExtractor, OperatorLineage
 from airflow.providers.openlineage.extractors.base import DefaultExtractor
 from airflow.providers.openlineage.extractors.bash import BashExtractor
 from airflow.providers.openlineage.extractors.python import PythonExtractor
-from airflow.providers.openlineage.plugins.facets import (
-    UnknownOperatorAttributeRunFacet,
-    UnknownOperatorInstance,
+from airflow.providers.openlineage.utils.utils import (
+    get_unknown_source_attribute_run_facet,
+    translate_airflow_dataset,
+    try_import_from_string,
 )
-from airflow.providers.openlineage.utils.utils import get_filtered_unknown_operator_keys
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
-    from openlineage.client.run import Dataset
+    from openlineage.client.event_v2 import Dataset
 
     from airflow.lineage.entities import Table
     from airflow.models import Operator
-
-
-def try_import_from_string(string):
-    with suppress(ImportError):
-        return import_string(string)
 
 
 def _iter_extractor_types() -> Iterator[type[BaseExtractor]]:
@@ -65,22 +57,28 @@ class ExtractorManager(LoggingMixin):
             for operator_class in extractor.get_operator_classnames():
                 self.extractors[operator_class] = extractor
 
-        # Semicolon-separated extractors in Airflow configuration or OPENLINEAGE_EXTRACTORS variable.
-        # Extractors should implement BaseExtractor
-        env_extractors = conf.get("openlineage", "extractors", fallback=os.getenv("OPENLINEAGE_EXTRACTORS"))
-        # skip either when it's empty string or None
-        if env_extractors:
-            for extractor in env_extractors.split(";"):
-                extractor: type[BaseExtractor] = try_import_from_string(extractor.strip())
-                for operator_class in extractor.get_operator_classnames():
-                    if operator_class in self.extractors:
-                        self.log.debug(
-                            "Duplicate extractor found for `%s`. `%s` will be used instead of `%s`",
-                            operator_class,
-                            extractor,
-                            self.extractors[operator_class],
-                        )
-                    self.extractors[operator_class] = extractor
+        for extractor_path in conf.custom_extractors():
+            extractor: type[BaseExtractor] | None = try_import_from_string(extractor_path)
+            if not extractor:
+                self.log.warning(
+                    "OpenLineage is unable to import custom extractor `%s`; will ignore it.", extractor_path
+                )
+                continue
+            for operator_class in extractor.get_operator_classnames():
+                if operator_class in self.extractors:
+                    self.log.warning(
+                        "Duplicate OpenLineage custom extractor found for `%s`. "
+                        "`%s` will be used instead of `%s`",
+                        operator_class,
+                        extractor_path,
+                        self.extractors[operator_class],
+                    )
+                self.extractors[operator_class] = extractor
+                self.log.debug(
+                    "Registered custom OpenLineage extractor `%s` for class `%s`",
+                    extractor_path,
+                    operator_class,
+                )
 
     def add_extractor(self, operator_class: str, extractor: type[BaseExtractor]):
         self.extractors[operator_class] = extractor
@@ -93,7 +91,6 @@ class ExtractorManager(LoggingMixin):
             f"task_id={task.task_id} "
             f"airflow_run_id={dagrun.run_id} "
         )
-
         if extractor:
             # Extracting advanced metadata is only possible when extractor for particular operator
             # is defined. Without it, we can't extract any input or output data.
@@ -108,29 +105,28 @@ class ExtractorManager(LoggingMixin):
                 task_metadata = self.validate_task_metadata(task_metadata)
                 if task_metadata:
                     if (not task_metadata.inputs) and (not task_metadata.outputs):
-                        self.extract_inlets_and_outlets(task_metadata, task.inlets, task.outlets)
-
+                        if (hook_lineage := self.get_hook_lineage()) is not None:
+                            inputs, outputs = hook_lineage
+                            task_metadata.inputs = inputs
+                            task_metadata.outputs = outputs
+                        else:
+                            self.extract_inlets_and_outlets(task_metadata, task.inlets, task.outlets)
                     return task_metadata
 
             except Exception as e:
                 self.log.warning(
                     "Failed to extract metadata using found extractor %s - %s %s", extractor, e, task_info
                 )
+        elif (hook_lineage := self.get_hook_lineage()) is not None:
+            inputs, outputs = hook_lineage
+            task_metadata = OperatorLineage(inputs=inputs, outputs=outputs)
+            return task_metadata
         else:
             self.log.debug("Unable to find an extractor %s", task_info)
 
             # Only include the unkonwnSourceAttribute facet if there is no extractor
             task_metadata = OperatorLineage(
-                run_facets={
-                    "unknownSourceAttribute": UnknownOperatorAttributeRunFacet(
-                        unknownItems=[
-                            UnknownOperatorInstance(
-                                name=task.task_type,
-                                properties=get_filtered_unknown_operator_keys(task),
-                            )
-                        ]
-                    )
-                },
+                run_facets=get_unknown_source_attribute_run_facet(task=task),
             )
             inlets = task.get_inlet_defs()
             outlets = task.get_outlet_defs()
@@ -180,11 +176,35 @@ class ExtractorManager(LoggingMixin):
             if d:
                 task_metadata.outputs.append(d)
 
+    def get_hook_lineage(self) -> tuple[list[Dataset], list[Dataset]] | None:
+        try:
+            from airflow.lineage.hook import get_hook_lineage_collector
+        except ImportError:
+            return None
+
+        if not get_hook_lineage_collector().has_collected:
+            return None
+
+        return (
+            [
+                dataset
+                for dataset_info in get_hook_lineage_collector().collected_datasets.inputs
+                if (dataset := translate_airflow_dataset(dataset_info.dataset, dataset_info.context))
+                is not None
+            ],
+            [
+                dataset
+                for dataset_info in get_hook_lineage_collector().collected_datasets.outputs
+                if (dataset := translate_airflow_dataset(dataset_info.dataset, dataset_info.context))
+                is not None
+            ],
+        )
+
     @staticmethod
     def convert_to_ol_dataset_from_object_storage_uri(uri: str) -> Dataset | None:
         from urllib.parse import urlparse
 
-        from openlineage.client.run import Dataset
+        from openlineage.client.event_v2 import Dataset
 
         if "/" not in uri:
             return None
@@ -208,20 +228,19 @@ class ExtractorManager(LoggingMixin):
 
     @staticmethod
     def convert_to_ol_dataset_from_table(table: Table) -> Dataset:
-        from openlineage.client.facet import (
-            BaseFacet,
-            OwnershipDatasetFacet,
-            OwnershipDatasetFacetOwners,
-            SchemaDatasetFacet,
-            SchemaField,
+        from openlineage.client.event_v2 import Dataset
+        from openlineage.client.facet_v2 import (
+            DatasetFacet,
+            documentation_dataset,
+            ownership_dataset,
+            schema_dataset,
         )
-        from openlineage.client.run import Dataset
 
-        facets: dict[str, BaseFacet] = {}
+        facets: dict[str, DatasetFacet] = {}
         if table.columns:
-            facets["schema"] = SchemaDatasetFacet(
+            facets["schema"] = schema_dataset.SchemaDatasetFacet(
                 fields=[
-                    SchemaField(
+                    schema_dataset.SchemaDatasetFacetFields(
                         name=column.name,
                         type=column.data_type,
                         description=column.description,
@@ -230,9 +249,9 @@ class ExtractorManager(LoggingMixin):
                 ]
             )
         if table.owners:
-            facets["ownership"] = OwnershipDatasetFacet(
+            facets["ownership"] = ownership_dataset.OwnershipDatasetFacet(
                 owners=[
-                    OwnershipDatasetFacetOwners(
+                    ownership_dataset.Owner(
                         # f.e. "user:John Doe <jdoe@company.com>" or just "user:<jdoe@company.com>"
                         name=f"user:"
                         f"{user.first_name + ' ' if user.first_name else ''}"
@@ -243,6 +262,10 @@ class ExtractorManager(LoggingMixin):
                     for user in table.owners
                 ]
             )
+        if table.description:
+            facets["documentation"] = documentation_dataset.DocumentationDatasetFacet(
+                description=table.description
+            )
         return Dataset(
             namespace=f"{table.cluster}",
             name=f"{table.database}.{table.name}",
@@ -251,7 +274,7 @@ class ExtractorManager(LoggingMixin):
 
     @staticmethod
     def convert_to_ol_dataset(obj) -> Dataset | None:
-        from openlineage.client.run import Dataset
+        from openlineage.client.event_v2 import Dataset
 
         from airflow.lineage.entities import File, Table
 

@@ -26,6 +26,67 @@
 Changelog
 ---------
 
+2.9.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.8.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix oss key prefix bug in oss_task_handler (#39627)``
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
+2.8.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+
+2.7.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Avoid use of 'assert' outside of the tests (#37718)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``fix: try002 for provider alibaba (#38787)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Add comment about versions updated by release manager (#37488)``
+
 2.7.2
 .....
 

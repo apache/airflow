@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import logging
 import ssl
-import sys
 import warnings
+from importlib.metadata import version
 from unittest import mock
 
 import pytest
@@ -30,12 +30,6 @@ from packaging.version import Version
 
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.docker.hooks.docker import DockerHook
-
-if sys.version_info >= (3, 9):
-    from importlib.metadata import version
-else:
-    from importlib_metadata import version
-
 
 DOCKER_PY_7_PLUS = Version(Version(version("docker")).base_version) >= Version("7")
 
@@ -48,6 +42,7 @@ TEST_CONN = {"host": "some.docker.registry.com", "login": "some_user", "password
 MOCK_CONNECTION_NOT_EXIST_MSG = "Testing connection not exists"
 MOCK_CONNECTION_NOT_EXISTS_EX = AirflowNotFoundException(MOCK_CONNECTION_NOT_EXIST_MSG)
 HOOK_LOGGER_NAME = "airflow.task.hooks.airflow.providers.docker.hooks.docker.DockerHook"
+AIRFLOW_V_2_7_HOOK_LOGGER_NAME = "airflow.providers.docker.hooks.docker"
 
 
 @pytest.fixture
@@ -113,6 +108,7 @@ def test_create_api_client(conn_id, hook_conn, docker_api_client_patcher, caplog
         - If `docker_conn_id` not provided that hook doesn't try access to Airflow Connections.
     """
     caplog.set_level(logging.DEBUG, logger=HOOK_LOGGER_NAME)
+    caplog.set_level(logging.DEBUG, logger=AIRFLOW_V_2_7_HOOK_LOGGER_NAME)
     hook = DockerHook(
         docker_conn_id=conn_id, base_url=TEST_TLS_BASE_URL, version=TEST_VERSION, tls=True, timeout=42
     )
@@ -277,7 +273,7 @@ def test_construct_tls_config(assert_hostname, ssl_version):
         tls_params["ssl_version"] = ssl_version
 
     if DOCKER_PY_7_PLUS and (assert_hostname is not None or ssl_version is not None):
-        ctx = pytest.warns(UserWarning, match="removed in `docker\.TLSConfig` constructor arguments")
+        ctx = pytest.warns(UserWarning, match=r"removed in `docker\.TLSConfig` constructor arguments")
         no_warns = False
     else:
         ctx = warnings.catch_warnings()
@@ -296,3 +292,12 @@ def test_construct_tls_config(assert_hostname, ssl_version):
             mock_tls_config.assert_called_once_with(
                 **expected_call_args, assert_hostname=assert_hostname, ssl_version=ssl_version
             )
+
+
+@pytest.mark.parametrize(
+    "base_url", [["tcp://foo.bar.spam.egg", "unix:///foo/bar/spam.egg", "unix:///var/run/docker.sock"]]
+)
+def test_connect_to_valid_host(base_url):
+    """Test connect to valid host from a given list of hosts."""
+    hook = DockerHook(base_url=base_url, docker_conn_id=None)
+    assert hook.api_client.base_url == "http+docker://localhost"

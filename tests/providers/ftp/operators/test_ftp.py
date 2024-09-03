@@ -21,9 +21,9 @@ import socket
 from unittest import mock
 
 import pytest
-from openlineage.client.run import Dataset
 
 from airflow.models import DAG, Connection
+from airflow.providers.common.compat.openlineage.facet import Dataset
 from airflow.providers.ftp.operators.ftp import (
     FTPFileTransmitOperator,
     FTPOperation,
@@ -139,7 +139,11 @@ class TestFTPFileTransmitOperator:
 
     @mock.patch("airflow.providers.ftp.operators.ftp.FTPHook.store_file")
     def test_arg_checking(self, mock_put):
-        dag = DAG(dag_id="unit_tests_ftp_op_arg_checking", default_args={"start_date": DEFAULT_DATE})
+        dag = DAG(
+            dag_id="unit_tests_ftp_op_arg_checking",
+            schedule=None,
+            default_args={"start_date": DEFAULT_DATE},
+        )
         # If ftp_conn_id is not passed in, it should be assigned the default connection id
         task_0 = FTPFileTransmitOperator(
             task_id="test_ftp_args_0",
@@ -152,15 +156,15 @@ class TestFTPFileTransmitOperator:
         assert task_0.ftp_conn_id == DEFAULT_CONN_ID
 
         # Exception should be raised if operation is invalid
+        task_1 = FTPFileTransmitOperator(
+            task_id="test_ftp_args_1",
+            ftp_conn_id=DEFAULT_CONN_ID,
+            local_filepath=self.test_local_filepath,
+            remote_filepath=self.test_remote_filepath,
+            operation="invalid_operation",
+            dag=dag,
+        )
         with pytest.raises(TypeError, match="Unsupported operation value invalid_operation, "):
-            task_1 = FTPFileTransmitOperator(
-                task_id="test_ftp_args_1",
-                ftp_conn_id=DEFAULT_CONN_ID,
-                local_filepath=self.test_local_filepath,
-                remote_filepath=self.test_remote_filepath,
-                operation="invalid_operation",
-                dag=dag,
-            )
             task_1.execute(None)
 
     def test_unequal_local_remote_file_paths(self):
@@ -297,7 +301,7 @@ class TestFTPSFileTransmitOperator:
         task = FTPFileTransmitOperator(
             task_id=task_id,
             ftp_conn_id="ftp_conn_id",
-            dag=DAG(dag_id),
+            dag=DAG(dag_id, schedule=None),
             start_date=timezone.utcnow(),
             local_filepath="/path/to/local",
             remote_filepath="/path/to/remote",
@@ -327,7 +331,7 @@ class TestFTPSFileTransmitOperator:
         task = FTPFileTransmitOperator(
             task_id=task_id,
             ftp_conn_id="ftp_conn_id",
-            dag=DAG(dag_id),
+            dag=DAG(dag_id, schedule=None),
             start_date=timezone.utcnow(),
             local_filepath="/path/to/local",
             remote_filepath="/path/to/remote",

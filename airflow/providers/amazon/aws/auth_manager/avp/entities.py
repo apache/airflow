@@ -29,14 +29,16 @@ class AvpEntities(Enum):
     """Enum of Amazon Verified Permissions entities."""
 
     ACTION = "Action"
-    ROLE = "Role"
+    GROUP = "Group"
     USER = "User"
 
     # Resource types
     CONFIGURATION = "Configuration"
     CONNECTION = "Connection"
+    CUSTOM = "Custom"
     DAG = "Dag"
     DATASET = "Dataset"
+    MENU = "Menu"
     POOL = "Pool"
     VARIABLE = "Variable"
     VIEW = "View"
@@ -48,12 +50,12 @@ def get_entity_type(resource_type: AvpEntities) -> str:
 
     :param resource_type: Resource type.
 
-    Example: Airflow::Action, Airflow::Role, Airflow::Variable, Airflow::User.
+    Example: Airflow::Action, Airflow::Group, Airflow::Variable, Airflow::User.
     """
     return AVP_PREFIX_ENTITIES + resource_type.value
 
 
-def get_action_id(resource_type: AvpEntities, method: ResourceMethod):
+def get_action_id(resource_type: AvpEntities, method: ResourceMethod | str):
     """
     Return action id.
 

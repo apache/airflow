@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Databricks operators."""
+
 from __future__ import annotations
 
 import csv
@@ -207,9 +208,9 @@ class DatabricksCopyIntoOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = (
-        "_file_location",
-        "_files",
-        "_table_name",
+        "file_location",
+        "files",
+        "table_name",
         "databricks_conn_id",
     )
 
@@ -249,17 +250,17 @@ class DatabricksCopyIntoOperator(BaseOperator):
             raise AirflowException("file_location shouldn't be empty")
         if file_format not in COPY_INTO_APPROVED_FORMATS:
             raise AirflowException(f"file_format '{file_format}' isn't supported")
-        self._files = files
+        self.files = files
         self._pattern = pattern
         self._file_format = file_format
         self.databricks_conn_id = databricks_conn_id
         self._http_path = http_path
         self._sql_endpoint_name = sql_endpoint_name
         self.session_config = session_configuration
-        self._table_name = table_name
+        self.table_name = table_name
         self._catalog = catalog
         self._schema = schema
-        self._file_location = file_location
+        self.file_location = file_location
         self._expression_list = expression_list
         self._credential = credential
         self._storage_credential = storage_credential
@@ -313,14 +314,14 @@ class DatabricksCopyIntoOperator(BaseOperator):
             if self._credential is not None:
                 maybe_credential = self._generate_options("CREDENTIAL", escaper, self._credential, False)
             maybe_with = f" WITH ({maybe_credential} {maybe_encryption})"
-        location = escaper.escape_item(self._file_location) + maybe_with
+        location = escaper.escape_item(self.file_location) + maybe_with
         if self._expression_list is not None:
             location = f"(SELECT {self._expression_list} FROM {location})"
         files_or_pattern = ""
         if self._pattern is not None:
             files_or_pattern = f"PATTERN = {escaper.escape_item(self._pattern)}\n"
-        elif self._files is not None:
-            files_or_pattern = f"FILES = {escaper.escape_item(self._files)}\n"
+        elif self.files is not None:
+            files_or_pattern = f"FILES = {escaper.escape_item(self.files)}\n"
         format_options = self._generate_options("FORMAT_OPTIONS", escaper, self._format_options) + "\n"
         copy_options = self._generate_options("COPY_OPTIONS", escaper, self._copy_options) + "\n"
         storage_cred = ""
@@ -340,7 +341,7 @@ class DatabricksCopyIntoOperator(BaseOperator):
             else:
                 raise AirflowException(f"Incorrect data type for validate parameter: {type(self._validate)}")
         # TODO: think on how to make sure that table_name and expression_list aren't used for SQL injection
-        sql = f"""COPY INTO {self._table_name}{storage_cred}
+        sql = f"""COPY INTO {self.table_name}{storage_cred}
 FROM {location}
 FILEFORMAT = {self._file_format}
 {validation}{files_or_pattern}{format_options}{copy_options}

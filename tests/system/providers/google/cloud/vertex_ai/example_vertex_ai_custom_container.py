@@ -17,9 +17,8 @@
 # under the License.
 
 
-"""
-Example Airflow DAG for Google Vertex AI service testing Custom Jobs operations.
-"""
+"""Example Airflow DAG for Google Vertex AI service testing Custom Jobs operations."""
+
 from __future__ import annotations
 
 import os
@@ -47,7 +46,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "example_vertex_ai_custom_job_operations"
+DAG_ID = "vertex_ai_custom_job_operations"
 REGION = "us-central1"
 CONTAINER_DISPLAY_NAME = f"train-housing-container-{ENV_ID}"
 MODEL_DISPLAY_NAME = f"container-housing-model-{ENV_ID}"
@@ -135,11 +134,46 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_create_custom_container_training_job_operator]
 
+    # [START how_to_cloud_vertex_ai_create_custom_container_training_job_operator_deferrable]
+    create_custom_container_training_job_deferrable = CreateCustomContainerTrainingJobOperator(
+        task_id="custom_container_task_deferrable",
+        staging_bucket=f"gs://{CUSTOM_CONTAINER_GCS_BUCKET_NAME}",
+        display_name=f"{CONTAINER_DISPLAY_NAME}-def",
+        container_uri=CUSTOM_CONTAINER_URI,
+        model_serving_container_image_uri=MODEL_SERVING_CONTAINER_URI,
+        # run params
+        dataset_id=tabular_dataset_id,
+        command=["python3", "task.py"],
+        model_display_name=f"{MODEL_DISPLAY_NAME}-def",
+        replica_count=REPLICA_COUNT,
+        machine_type=MACHINE_TYPE,
+        accelerator_type=ACCELERATOR_TYPE,
+        accelerator_count=ACCELERATOR_COUNT,
+        training_fraction_split=TRAINING_FRACTION_SPLIT,
+        validation_fraction_split=VALIDATION_FRACTION_SPLIT,
+        test_fraction_split=TEST_FRACTION_SPLIT,
+        region=REGION,
+        project_id=PROJECT_ID,
+        deferrable=True,
+    )
+    # [END how_to_cloud_vertex_ai_create_custom_container_training_job_operator_deferrable]
+
     delete_custom_training_job = DeleteCustomTrainingJobOperator(
         task_id="delete_custom_training_job",
         training_pipeline_id="{{ task_instance.xcom_pull(task_ids='custom_container_task', "
         "key='training_id') }}",
         custom_job_id="{{ task_instance.xcom_pull(task_ids='custom_container_task', "
+        "key='custom_job_id') }}",
+        region=REGION,
+        project_id=PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
+
+    delete_custom_training_job_deferrable = DeleteCustomTrainingJobOperator(
+        task_id="delete_custom_training_job_deferrable",
+        training_pipeline_id="{{ task_instance.xcom_pull(task_ids='custom_container_task_deferrable', "
+        "key='training_id') }}",
+        custom_job_id="{{ task_instance.xcom_pull(task_ids='custom_container_task_deferrable', "
         "key='custom_job_id') }}",
         region=REGION,
         project_id=PROJECT_ID,
@@ -165,13 +199,21 @@ with DAG(
         >> move_data_files
         >> create_tabular_dataset
         # TEST BODY
-        >> create_custom_container_training_job
+        >> [create_custom_container_training_job, create_custom_container_training_job_deferrable]
         # TEST TEARDOWN
         >> delete_custom_training_job
+        >> delete_custom_training_job_deferrable
         >> delete_tabular_dataset
         >> delete_bucket
     )
 
+    # ### Everything below this line is not part of example ###
+    # ### Just for system tests purpose ###
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
 
 from tests.system.utils import get_test_run  # noqa: E402
 

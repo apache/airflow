@@ -42,7 +42,8 @@ class TestQdrant:
 
     def test_connection(self):
         response, message = self.hook.verify_connection()
-        assert response and message == "Connection established!", "Successfully connected to Qdrant."
+        assert response
+        assert message == "Connection established!", "Successfully connected to Qdrant."
 
     def test_upsert_points(self):
         vectors = np.random.rand(100, self.test_collection_dimension)

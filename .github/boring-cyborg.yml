@@ -76,6 +76,12 @@ labelPRBasedOnFilePath:
     - tests/providers/apache/hive/**/*
     - tests/system/providers/apache/hive/**/*
 
+  provider:apache-iceberg:
+    - airflow/providers/apache/iceberg/**/*
+    - docs/apache-airflow-providers-apache-iceberg/**/*
+    - tests/providers/apache/iceberg/**/*
+    - tests/system/providers/apache/iceberg/**/*
+
   provider:apache-impala:
     - airflow/providers/apache/impala/**/*
     - docs/apache-airflow-providers-apache-impala/**/*
@@ -163,6 +169,11 @@ labelPRBasedOnFilePath:
     - docs/apache-airflow-providers-cohere/**/*
     - tests/providers/cohere/**/*
     - tests/system/providers/cohere/**/*
+
+  provider:common-compat:
+    - airflow/providers/common/compat/**/*
+    - docs/apache-airflow-providers-common-compat/**/*
+    - tests/providers/common/compat/**/*
 
   provider:common-io:
     - airflow/providers/common/io/**/*
@@ -477,12 +488,6 @@ labelPRBasedOnFilePath:
     - tests/providers/tableau/**/*
     - tests/system/providers/tableau/**/*
 
-  provider:tabular:
-    - airflow/providers/tabular/**/*
-    - docs/apache-airflow-providers-tabular/**/*
-    - tests/providers/tabular/**/*
-    - tests/system/providers/tabular/**/*
-
   provider:telegram:
     - airflow/providers/telegram/**/*
     - docs/apache-airflow-providers-telegram/**/*
@@ -518,6 +523,12 @@ labelPRBasedOnFilePath:
     - tests/providers/yandex/**/*
     - tests/system/providers/yandex/**/*
 
+  provider:ydb:
+    - airflow/providers/ydb/**/*
+    - docs/apache-airflow-providers-ydb/**/*
+    - tests/providers/ydb/**/*
+    - tests/system/providers/ydb/**/*
+
   provider:zendesk:
     - airflow/providers/zendesk/**/*
     - docs/apache-airflow-providers-zendesk/**/*
@@ -533,12 +544,9 @@ labelPRBasedOnFilePath:
   area:API:
     - airflow/api/**/*
     - airflow/api_connexion/**/*
-    - airflow/www/api/**/*
     - clients/**/*
-    - docs/apache-airflow/deprecated-rest-api-ref.rst
     - docs/apache-airflow/stable-rest-api-ref.rst
     - tests/api_connexion/**/*
-    - tests/www/api/**/*
 
   area:dev-tools:
     - scripts/**/*
@@ -584,6 +592,7 @@ labelPRBasedOnFilePath:
     - airflow/www/webpack.config.js
     - airflow/www/yarn.lock
     - docs/apache-airflow/ui.rst
+    - airflow/ui/**/*
 
   area:CLI:
     - airflow/cli/**/*.py
@@ -664,6 +673,9 @@ labelPRBasedOnFilePath:
 
   area:system-tests:
     - tests/system/**/*
+
+  area:db-migrations:
+    - airflow/migrations/versions/*
 
 # Various Flags to control behaviour of the "Labeler"
 labelerFlags:

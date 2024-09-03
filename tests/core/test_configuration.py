@@ -449,6 +449,42 @@ key2 = 1.23
         assert isinstance(test_conf.getfloat("valid", "key2"), float)
         assert 1.23 == test_conf.getfloat("valid", "key2")
 
+    def test_getlist(self):
+        """Test AirflowConfigParser.getlist"""
+        test_config = """
+[empty]
+key0 = willbereplacedbymock
+
+[single]
+key1 = str
+
+[many]
+key2 = one,two,three
+
+[diffdelimiter]
+key3 = one;two;three
+"""
+        test_conf = AirflowConfigParser(default_config=test_config)
+        single = test_conf.getlist("single", "key1")
+        assert isinstance(single, list)
+        assert len(single) == 1
+        many = test_conf.getlist("many", "key2")
+        assert isinstance(many, list)
+        assert len(many) == 3
+        semicolon = test_conf.getlist("diffdelimiter", "key3", delimiter=";")
+        assert isinstance(semicolon, list)
+        assert len(semicolon) == 3
+        with patch.object(test_conf, "get", return_value=None):
+            with pytest.raises(
+                AirflowConfigException, match=re.escape("Failed to convert value None to list.")
+            ):
+                test_conf.getlist("empty", "key0")
+        with patch.object(test_conf, "get", return_value=None):
+            with pytest.raises(
+                AirflowConfigException, match=re.escape("Failed to convert value None to list.")
+            ):
+                test_conf.getlist("empty", "key0")
+
     @pytest.mark.parametrize(
         ("config_str", "expected"),
         [
@@ -610,13 +646,15 @@ AIRFLOW_HOME = /root/airflow
                     ),
                 },
             }
-            test_conf.read_dict({"api": {"auth_backends": "airflow.api.auth.backend.basic_auth"}})
+            test_conf.read_dict(
+                {"api": {"auth_backends": "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"}}
+            )
 
             with pytest.warns(FutureWarning):
                 test_conf.validate()
                 assert (
                     test_conf.get("api", "auth_backends")
-                    == "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+                    == "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
                 )
 
     def test_command_from_env(self):
@@ -992,11 +1030,11 @@ sql_alchemy_conn=sqlite://test
         "old, new",
         [
             (
-                ("api", "auth_backend", "airflow.api.auth.backend.basic_auth"),
+                ("api", "auth_backend", "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"),
                 (
                     "api",
                     "auth_backends",
-                    "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session",
+                    "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth,airflow.api.auth.backend.session",
                 ),
             ),
             (
@@ -1448,7 +1486,7 @@ sql_alchemy_conn=sqlite://test
             test_conf.items("scheduler")
         assert len(captured) == 1
         c = captured[0]
-        assert c.category == FutureWarning
+        assert c.category is FutureWarning
         assert (
             "you should use[scheduler/parsing_cleanup_interval] "
             "instead. Please update your `conf.get*`" in str(c.message)
@@ -1458,7 +1496,7 @@ sql_alchemy_conn=sqlite://test
                 test_conf.items("scheduler")
         assert len(captured) == 1
         c = captured[0]
-        assert c.category == DeprecationWarning
+        assert c.category is DeprecationWarning
         assert (
             "deactivate_stale_dags_interval option in [scheduler] "
             "has been renamed to parsing_cleanup_interval" in str(c.message)
@@ -1482,12 +1520,12 @@ sql_alchemy_conn=sqlite://test
 
         w = captured.pop()
         assert "the old setting has been used, but please update" in str(w.message)
-        assert w.category == DeprecationWarning
+        assert w.category is DeprecationWarning
         # only if we use old value, do we also get a warning about code update
         if key == old_val:
             w = captured.pop()
             assert "your `conf.get*` call to use the new name" in str(w.message)
-            assert w.category == FutureWarning
+            assert w.category is FutureWarning
 
     def test_as_dict_raw(self):
         test_conf = AirflowConfigParser()
@@ -1587,7 +1625,7 @@ def test_sensitive_values():
     sensitive_values = {
         ("database", "sql_alchemy_conn"),
         ("core", "fernet_key"),
-        ("smtp", "smtp_password"),
+        ("core", "internal_api_secret_key"),
         ("webserver", "secret_key"),
         ("secrets", "backend_kwargs"),
         ("sentry", "sentry_dsn"),
@@ -1601,6 +1639,7 @@ def test_sensitive_values():
     all_keys = {(s, k) for s, v in conf.configuration_description.items() for k in v.get("options")}
     suspected_sensitive = {(s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))}
     exclude_list = {
+        ("aws_batch_executor", "submit_job_kwargs"),
         ("kubernetes_executor", "delete_option_kwargs"),
         ("aws_ecs_executor", "run_task_kwargs"),  # Only a constrained set of values, none are sensitive
     }

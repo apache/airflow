@@ -29,6 +29,92 @@
 Changelog
 ---------
 
+4.10.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+* ``Resolve 'AirflowProviderDeprecationWarning' in 'SparkSqlOperator' (#41358)``
+
+4.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'kubernetes_application_id' to 'SparkSubmitHook' (#40753)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``(fix): spark submit pod name with driver as part of its name(#40732)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave July 2024 (#40644)``
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+4.8.2
+.....
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+
+4.8.1
+.....
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
+4.8.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Rename SparkSubmitOperator argument queue as yarn_queue (#38852)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+
+4.7.2
+.....
+
+Misc
+~~~~
+
+* ``Rename 'SparkSubmitOperator' fields names to comply with templated fields validation (#38051)``
+* ``Rename 'SparkSqlOperator' fields name to comply with templated fields validation (#38045)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``D401 Support in Providers (simple) (#37258)``
+
 4.7.1
 .....
 

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Example DAG demonstrating the usage of the ShortCircuitOperator."""
+
 from __future__ import annotations
 
 import pendulum
@@ -28,6 +29,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 with DAG(
     dag_id="example_short_circuit_operator",
+    schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],

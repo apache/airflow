@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 import telegram
+import tenacity
 
 import airflow
 from airflow.models import Connection
@@ -82,33 +83,31 @@ class TestTelegramHook:
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
     def test_should_raise_exception_if_chat_id_is_not_provided_anywhere(self, mock_get_conn):
-        with pytest.raises(airflow.exceptions.AirflowException) as ctx:
-            hook = TelegramHook(telegram_conn_id="telegram_default")
+        hook = TelegramHook(telegram_conn_id="telegram_default")
+        error_message = "'chat_id' must be provided for telegram message"
+        with pytest.raises(airflow.exceptions.AirflowException, match=error_message):
             hook.send_message({"text": "test telegram message"})
-
-        assert "'chat_id' must be provided for telegram message" == str(ctx.value)
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
     def test_should_raise_exception_if_message_text_is_not_provided(self, mock_get_conn):
-        with pytest.raises(airflow.exceptions.AirflowException) as ctx:
-            hook = TelegramHook(telegram_conn_id="telegram_default")
-            hook.send_message({"chat_id": -420913222})
-
-        assert "'text' must be provided for telegram message" == str(ctx.value)
+        hook = TelegramHook(telegram_conn_id="telegram_default")
+        error_message = "'text' must be provided for telegram message"
+        with pytest.raises(airflow.exceptions.AirflowException, match=error_message):
+            hook.send_message({"chat_id": "-420913222"})
 
     @mock.patch("airflow.providers.telegram.hooks.telegram.TelegramHook.get_conn")
     def test_should_send_message_if_all_parameters_are_correctly_provided(self, mock_get_conn):
         mock_get_conn.return_value = AsyncMock(password="some_token")
 
         hook = TelegramHook(telegram_conn_id="telegram_default")
-        hook.send_message({"chat_id": -420913222, "text": "test telegram message"})
+        hook.send_message({"chat_id": "-420913222", "text": "test telegram message"})
 
         mock_get_conn.return_value.send_message.return_value = "OK."
 
         mock_get_conn.assert_called_once()
         mock_get_conn.return_value.send_message.assert_called_once_with(
             **{
-                "chat_id": -420913222,
+                "chat_id": "-420913222",
                 "parse_mode": "HTML",
                 "disable_web_page_preview": True,
                 "text": "test telegram message",
@@ -119,7 +118,7 @@ class TestTelegramHook:
     def test_should_send_message_if_chat_id_is_provided_through_constructor(self, mock_get_conn):
         mock_get_conn.return_value = AsyncMock(password="some_token")
 
-        hook = TelegramHook(telegram_conn_id="telegram_default", chat_id=-420913222)
+        hook = TelegramHook(telegram_conn_id="telegram_default", chat_id="-420913222")
         hook.send_message({"text": "test telegram message"})
 
         mock_get_conn.return_value.send_message.return_value = "OK."
@@ -127,7 +126,7 @@ class TestTelegramHook:
         mock_get_conn.assert_called_once()
         mock_get_conn.return_value.send_message.assert_called_once_with(
             **{
-                "chat_id": -420913222,
+                "chat_id": "-420913222",
                 "parse_mode": "HTML",
                 "disable_web_page_preview": True,
                 "text": "test telegram message",
@@ -163,11 +162,9 @@ class TestTelegramHook:
 
         mock_get_conn.return_value.send_message.side_effect = side_effect
 
-        with pytest.raises(Exception) as ctx:
-            hook = TelegramHook(telegram_conn_id="telegram-webhook-with-chat_id")
+        hook = TelegramHook(telegram_conn_id="telegram-webhook-with-chat_id")
+        with pytest.raises(tenacity.RetryError) as ctx:
             hook.send_message({"text": "test telegram message"})
-
-        assert "RetryError" in str(ctx.value)
         assert "state=finished raised TelegramError" in str(ctx.value)
 
         mock_get_conn.assert_called_once()
@@ -185,7 +182,7 @@ class TestTelegramHook:
     def test_should_send_message_if_token_is_provided(self, mock_get_conn):
         mock_get_conn.return_value = AsyncMock(password="some_token")
 
-        hook = TelegramHook(token=TELEGRAM_TOKEN, chat_id=-420913222)
+        hook = TelegramHook(token=TELEGRAM_TOKEN, chat_id="-420913222")
         hook.send_message({"text": "test telegram message"})
 
         mock_get_conn.return_value.send_message.return_value = "OK."
@@ -193,7 +190,7 @@ class TestTelegramHook:
         mock_get_conn.assert_called_once()
         mock_get_conn.return_value.send_message.assert_called_once_with(
             **{
-                "chat_id": -420913222,
+                "chat_id": "-420913222",
                 "parse_mode": "HTML",
                 "disable_web_page_preview": True,
                 "text": "test telegram message",

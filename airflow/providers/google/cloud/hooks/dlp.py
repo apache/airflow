@@ -23,6 +23,7 @@ This module contains a CloudDLPHook which allows you to connect to Google Cloud 
     ImageRedactionConfig
     RedactImageRequest
 """
+
 from __future__ import annotations
 
 import re
@@ -161,7 +162,7 @@ class CloudDLPHook(GoogleBaseHook):
     def create_deidentify_template(
         self,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         deidentify_template: dict | DeidentifyTemplate | None = None,
         template_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -286,7 +287,7 @@ class CloudDLPHook(GoogleBaseHook):
     def create_inspect_template(
         self,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         inspect_template: InspectTemplate | None = None,
         template_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -375,7 +376,7 @@ class CloudDLPHook(GoogleBaseHook):
     def create_stored_info_type(
         self,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         config: dict | StoredInfoTypeConfig | None = None,
         stored_info_type_id: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -564,7 +565,7 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         template_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -651,7 +652,7 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         stored_info_type_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -700,7 +701,7 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         template_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -787,7 +788,7 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         template_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -874,7 +875,7 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         stored_info_type_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -966,7 +967,7 @@ class CloudDLPHook(GoogleBaseHook):
     def list_deidentify_templates(
         self,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         page_size: int | None = None,
         order_by: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -1102,7 +1103,7 @@ class CloudDLPHook(GoogleBaseHook):
     def list_inspect_templates(
         self,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         page_size: int | None = None,
         order_by: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -1200,7 +1201,7 @@ class CloudDLPHook(GoogleBaseHook):
     def list_stored_info_types(
         self,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         page_size: int | None = None,
         order_by: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -1355,7 +1356,7 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         template_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         deidentify_template: dict | DeidentifyTemplate | None = None,
         update_mask: dict | FieldMask | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -1410,7 +1411,7 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         template_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         inspect_template: dict | InspectTemplate | None = None,
         update_mask: dict | FieldMask | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -1512,7 +1513,7 @@ class CloudDLPHook(GoogleBaseHook):
         self,
         stored_info_type_id: str,
         organization_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         config: dict | StoredInfoTypeConfig | None = None,
         update_mask: dict | FieldMask | None = None,
         retry: Retry | _MethodDefault = DEFAULT,

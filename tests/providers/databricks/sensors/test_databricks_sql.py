@@ -23,7 +23,7 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.providers.databricks.sensors.databricks_sql import DatabricksSqlSensor
 from airflow.utils import timezone
@@ -49,7 +49,7 @@ TIMESTAMP_TEST = datetime.now() - timedelta(days=30)
 class TestDatabricksSqlSensor:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
         self.sensor = DatabricksSqlSensor(
             task_id=TASK_ID,
@@ -61,6 +61,7 @@ class TestDatabricksSqlSensor:
             catalog=DEFAULT_CATALOG,
             timeout=30,
             poke_interval=15,
+            hook_params={"return_tuple": True},
         )
 
     def test_init(self):
@@ -97,15 +98,11 @@ class TestDatabricksSqlSensor:
         with pytest.raises(AirflowException):
             _sensor_without_sql_warehouse_http._get_results()
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
-    def test_fail__get_results(self, soft_fail, expected_exception):
+    def test_fail__get_results(self):
         self.sensor._http_path = None
         self.sensor._sql_warehouse_name = None
-        self.sensor.soft_fail = soft_fail
         with pytest.raises(
-            expected_exception,
+            AirflowException,
             match="Databricks SQL warehouse/cluster configuration missing."
             " Please specify either http_path or sql_warehouse_name.",
         ):

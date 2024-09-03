@@ -25,7 +25,7 @@ import pytest
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.exceptions import NotFound
-from google.cloud.pubsub_v1.types import ReceivedMessage
+from google.cloud.pubsub_v1.types import PublisherOptions, ReceivedMessage
 from googleapiclient.errors import HttpError
 
 from airflow.providers.google.cloud.hooks.pubsub import PubSubAsyncHook, PubSubException, PubSubHook
@@ -86,7 +86,12 @@ class TestPubSubHook:
     def test_publisher_client_creation(self, mock_client, mock_get_creds):
         assert self.pubsub_hook._client is None
         result = self.pubsub_hook.get_conn()
-        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
+
+        mock_client.assert_called_once_with(
+            credentials=mock_get_creds.return_value,
+            client_info=CLIENT_INFO,
+            publisher_options=PublisherOptions(enable_message_ordering=False),
+        )
         assert mock_client.return_value == result
         assert self.pubsub_hook._client == result
 
@@ -453,16 +458,16 @@ class TestPubSubHook:
 
         with pytest.raises(PubSubException):
             self.pubsub_hook.pull(project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, max_messages=10)
-            pull_method.assert_called_once_with(
-                request=dict(
-                    subscription=EXPANDED_SUBSCRIPTION,
-                    max_messages=10,
-                    return_immediately=False,
-                ),
-                retry=DEFAULT,
-                timeout=None,
-                metadata=(),
-            )
+        pull_method.assert_called_once_with(
+            request=dict(
+                subscription=EXPANDED_SUBSCRIPTION,
+                max_messages=10,
+                return_immediately=False,
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
 
     @mock.patch(PUBSUB_STRING.format("PubSubHook.subscriber_client"))
     def test_acknowledge_by_ack_ids(self, mock_service):
@@ -539,15 +544,15 @@ class TestPubSubHook:
             self.pubsub_hook.acknowledge(
                 project_id=TEST_PROJECT, subscription=TEST_SUBSCRIPTION, ack_ids=["1", "2", "3"]
             )
-            ack_method.assert_called_once_with(
-                request=dict(
-                    subscription=EXPANDED_SUBSCRIPTION,
-                    ack_ids=["1", "2", "3"],
-                ),
-                retry=DEFAULT,
-                timeout=None,
-                metadata=(),
-            )
+        ack_method.assert_called_once_with(
+            request=dict(
+                subscription=EXPANDED_SUBSCRIPTION,
+                ack_ids=["1", "2", "3"],
+            ),
+            retry=DEFAULT,
+            timeout=None,
+            metadata=(),
+        )
 
     @pytest.mark.parametrize(
         "messages",

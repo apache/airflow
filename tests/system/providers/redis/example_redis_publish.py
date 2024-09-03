@@ -24,6 +24,7 @@ using the RedisPubSubSensor, and the third task is to wait for a particular key 
 redis using the RedisKeySensor.
 
 """
+
 from __future__ import annotations
 
 import os
@@ -45,6 +46,7 @@ default_args = {
 
 with DAG(
     dag_id="redis_example",
+    schedule=None,
     default_args=default_args,
 ) as dag:
     # [START RedisPublishOperator_DAG]

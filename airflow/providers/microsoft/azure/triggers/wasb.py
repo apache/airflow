@@ -78,6 +78,7 @@ class WasbBlobSensorTrigger(BaseTrigger):
                     if blob_exists:
                         message = f"Blob {self.blob_name} found in container {self.container_name}."
                         yield TriggerEvent({"status": "success", "message": message})
+                        return
                     else:
                         message = (
                             f"Blob {self.blob_name} not available yet in container {self.container_name}."
@@ -154,6 +155,7 @@ class WasbPrefixSensorTrigger(BaseTrigger):
                     if prefix_exists:
                         message = f"Prefix {self.prefix} found in container {self.container_name}."
                         yield TriggerEvent({"status": "success", "message": message})
+                        return
                     else:
                         message = (
                             f"Prefix {self.prefix} not available yet in container {self.container_name}."

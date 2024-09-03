@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import warnings
 from dataclasses import fields
 from unittest import mock
 
@@ -237,7 +238,8 @@ class TestAwsConnectionWrapper:
             expected["profile_name"] = profile_name
         if region_name:
             expected["region_name"] = region_name
-        with pytest.warns(None):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")  # Not expected any warnings here
             wrap_conn = AwsConnectionWrapper(conn=mock_conn)
         session_kwargs = wrap_conn.session_kwargs
         assert session_kwargs == expected
@@ -350,16 +352,15 @@ class TestAwsConnectionWrapper:
     def test_get_endpoint_url_from_extra(self, extra, expected):
         mock_conn = mock_connection_factory(extra=extra)
         expected_deprecation_message = (
-            "extra['host'] is deprecated and will be removed in a future release."
-            " Please set extra['endpoint_url'] instead"
+            r"extra\['host'\] is deprecated and will be removed in a future release."
+            r" Please set extra\['endpoint_url'\] instead"
         )
 
-        with pytest.warns(None) as records:
-            wrap_conn = AwsConnectionWrapper(conn=mock_conn)
-
         if extra.get("host"):
-            assert len(records) == 1
-            assert str(records[0].message) == expected_deprecation_message
+            with pytest.warns(AirflowProviderDeprecationWarning, match=expected_deprecation_message):
+                wrap_conn = AwsConnectionWrapper(conn=mock_conn)
+        else:
+            wrap_conn = AwsConnectionWrapper(conn=mock_conn)
 
         assert wrap_conn.endpoint_url == expected
 

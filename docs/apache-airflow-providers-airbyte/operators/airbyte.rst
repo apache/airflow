@@ -38,6 +38,9 @@ create in Airbyte between a source and destination synchronization job.
 Use the ``airbyte_conn_id`` parameter to specify the Airbyte connection to use to
 connect to your account.
 
+Airbyte offers a single method to authenticate for Cloud and OSS users.
+You need to provide the ``client_id`` and ``client_secret`` to authenticate with the Airbyte server.
+
 You can trigger a synchronization job in Airflow in two ways with the Operator. The first one is a synchronous process.
 This Operator will initiate the Airbyte job, and the Operator manages the job status. Another way is to use the flag
 ``async = True`` so the Operator only triggers the job and returns the ``job_id``, passed to the AirbyteSensor.

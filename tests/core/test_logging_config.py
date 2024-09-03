@@ -262,9 +262,12 @@ class TestLoggingSettings:
 
     def test_loading_remote_logging_with_wasb_handler(self):
         """Test if logging can be configured successfully for Azure Blob Storage"""
+        pytest.importorskip(
+            "airflow.providers.microsoft.azure", reason="'microsoft.azure' provider not installed"
+        )
         from airflow.config_templates import airflow_local_settings
         from airflow.logging_config import configure_logging
-        from airflow.utils.log.wasb_task_handler import WasbTaskHandler
+        from airflow.providers.microsoft.azure.log.wasb_task_handler import WasbTaskHandler
 
         with conf_vars(
             {
@@ -319,9 +322,10 @@ class TestLoggingSettings:
 
     def test_loading_remote_logging_with_kwargs(self):
         """Test if logging can be configured successfully with kwargs"""
+        pytest.importorskip("airflow.providers.amazon", reason="'amazon' provider not installed")
         from airflow.config_templates import airflow_local_settings
         from airflow.logging_config import configure_logging
-        from airflow.utils.log.s3_task_handler import S3TaskHandler
+        from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
 
         with conf_vars(
             {

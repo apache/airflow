@@ -27,7 +27,7 @@ from airflow.providers.yandex.utils.credentials import (
 
 
 def test_get_credentials_oauth_token():
-    oauth_token = "y3_Vdheub7w9bIut67GHeL345gfb5GAnd3dZnf08FRbvjeUFvetYiohGvc"
+    oauth_token = "y3_Vd3eub7w9bIut67GHeL345gfb5GAnd3dZnf08FR1vjeUFve7Yi8hGvc"
     service_account_key = {
         "id": "...",
         "service_account_id": "...",

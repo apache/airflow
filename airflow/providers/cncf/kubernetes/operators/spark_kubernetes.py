@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import re
 from functools import cached_property
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
@@ -26,6 +27,7 @@ from kubernetes.client import CoreV1Api, CustomObjectsApi, models as k8s
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes import pod_generator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook, _load_body_to_dict
+from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import add_unique_suffix
 from airflow.providers.cncf.kubernetes.operators.custom_object_launcher import CustomObjectLauncher
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
@@ -46,30 +48,34 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         For more detail about Spark Application Object have a look at the reference:
         https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/v1beta2-1.3.3-3.1.1/docs/api-docs.md#sparkapplication
 
-    :param application_file: filepath to kubernetes custom_resource_definition of sparkApplication
-    :param kubernetes_conn_id: the connection to Kubernetes cluster
     :param image: Docker image you wish to launch. Defaults to hub.docker.com,
     :param code_path: path to the spark code in image,
     :param namespace: kubernetes namespace to put sparkApplication
-    :param cluster_context: context of the cluster
-    :param application_file: yaml file if passed
+    :param name: name of the pod in which the task will run, will be used (plus a random
+        suffix if random_name_suffix is True) to generate a pod id (DNS-1123 subdomain,
+        containing only [a-z0-9.-]).
+    :param application_file: filepath to kubernetes custom_resource_definition of sparkApplication
+    :param template_spec: kubernetes sparkApplication specification
     :param get_logs: get the stdout of the container as logs of the tasks.
     :param do_xcom_push: If True, the content of the file
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
     :param success_run_history_limit: Number of past successful runs of the application to keep.
-    :param delete_on_termination: What to do when the pod reaches its final
-        state, or the execution is interrupted. If True (default), delete the
-        pod; if False, leave the pod.
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
     :param log_events_on_failure: Log the pod's events if a failure occurs
     :param reattach_on_restart: if the scheduler dies while the pod is running, reattach and monitor
+    :param delete_on_termination: What to do when the pod reaches its final
+        state, or the execution is interrupted. If True (default), delete the
+        pod; if False, leave the pod.
+    :param kubernetes_conn_id: the connection to Kubernetes cluster
     """
 
     template_fields = ["application_file", "namespace", "template_spec"]
     template_fields_renderers = {"template_spec": "py"}
     template_ext = ("yaml", "yml", "json")
     ui_color = "#f4a460"
+
+    BASE_CONTAINER_NAME = "spark-kubernetes-driver"
 
     def __init__(
         self,
@@ -108,6 +114,18 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         self.log_events_on_failure = log_events_on_failure
         self.success_run_history_limit = success_run_history_limit
 
+        if self.base_container_name != self.BASE_CONTAINER_NAME:
+            self.log.warning(
+                "base_container_name is not supported and will be overridden to %s", self.BASE_CONTAINER_NAME
+            )
+            self.base_container_name = self.BASE_CONTAINER_NAME
+
+        if self.get_logs and self.container_logs != self.BASE_CONTAINER_NAME:
+            self.log.warning(
+                "container_logs is not supported and will be overridden to %s", self.BASE_CONTAINER_NAME
+            )
+            self.container_logs = [self.BASE_CONTAINER_NAME]
+
     def _render_nested_template_fields(
         self,
         content: Any,
@@ -124,7 +142,16 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
     def manage_template_specs(self):
         if self.application_file:
-            template_body = _load_body_to_dict(open(self.application_file))
+            try:
+                filepath = Path(self.application_file.rstrip()).resolve(strict=True)
+            except (FileNotFoundError, OSError, RuntimeError, ValueError):
+                application_file_body = self.application_file
+            else:
+                application_file_body = filepath.read_text()
+            template_body = _load_body_to_dict(application_file_body)
+            if not isinstance(template_body, dict):
+                msg = f"application_file body can't transformed into the dictionary:\n{application_file_body}"
+                raise TypeError(msg)
         elif self.template_spec:
             template_body = self.template_spec
         else:
@@ -134,7 +161,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return template_body
 
     def create_job_name(self):
-        initial_name = PodGenerator.make_unique_pod_id(self.task_id)[:MAX_LABEL_LEN]
+        initial_name = add_unique_suffix(name=self.task_id, max_len=MAX_LABEL_LEN)
         return re.sub(r"[^a-z0-9-]+", "-", initial_name.lower())
 
     @staticmethod
@@ -175,7 +202,8 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             labels.update(try_number=ti.try_number)
 
         # In the case of sub dags this is just useful
-        if context["dag"].is_subdag:
+        # TODO: Remove this when the minimum version of Airflow is bumped to 3.0
+        if getattr(context["dag"], "is_subdag", False):
             labels["parent_dag_id"] = context["dag"].parent_dag.dag_id
         # Ensure that label is valid for Kube,
         # and if not truncate/remove invalid chars and replace with short hash.
@@ -263,7 +291,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             template_body=self.template_body,
         )
         self.pod = self.get_or_create_spark_crd(self.launcher, context)
-        self.BASE_CONTAINER_NAME = "spark-kubernetes-driver"
         self.pod_request_obj = self.launcher.pod_spec
 
         return super().execute(context=context)

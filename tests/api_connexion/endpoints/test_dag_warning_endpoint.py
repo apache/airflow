@@ -27,7 +27,7 @@ from airflow.utils.session import create_session
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.db import clear_db_dag_warnings, clear_db_dags
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.fixture(scope="module")
@@ -170,3 +170,15 @@ class TestGetDagWarningEndpoint(TestBaseDagWarning):
             query_string={"dag_id": "dag1"},
         )
         assert response.status_code == 403
+
+    @pytest.mark.parametrize(
+        "set_auto_role_public, expected_status_code",
+        (("Public", 403), ("Admin", 200)),
+        indirect=["set_auto_role_public"],
+    )
+    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
+        response = self.client.get(
+            "/api/v1/dagWarnings",
+            query_string={"dag_id": "dag1", "warning_type": "non-existent pool"},
+        )
+        assert response.status_code == expected_status_code

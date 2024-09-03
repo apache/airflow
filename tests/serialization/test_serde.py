@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import datetime
 import enum
+import warnings
 from collections import namedtuple
 from dataclasses import dataclass
 from importlib import import_module
@@ -25,6 +26,7 @@ from typing import ClassVar
 
 import attr
 import pytest
+from pydantic import BaseModel
 
 from airflow.datasets import Dataset
 from airflow.serialization.serde import (
@@ -41,7 +43,6 @@ from airflow.serialization.serde import (
     serialize,
 )
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
-from airflow.utils.pydantic import BaseModel
 from tests.test_utils.config import conf_vars
 
 
@@ -114,6 +115,16 @@ class U(BaseModel):
     u: tuple
 
 
+@attr.define
+class T:
+    x: int
+    y: Y
+    u: tuple
+    w: W
+
+    __version__: ClassVar[int] = 1
+
+
 class C:
     def __call__(self):
         return None
@@ -178,12 +189,12 @@ class TestSerDe:
         e = serialize(i)
         assert i == e
 
+        i = {CLASSNAME: "cannot"}
         with pytest.raises(AttributeError, match="^reserved"):
-            i = {CLASSNAME: "cannot"}
             serialize(i)
 
+        i = {SCHEMA_ID: "cannot"}
         with pytest.raises(AttributeError, match="^reserved"):
-            i = {SCHEMA_ID: "cannot"}
             serialize(i)
 
     def test_ser_namedtuple(self):
@@ -195,8 +206,8 @@ class TestSerDe:
         assert i == e
 
     def test_no_serializer(self):
+        i = Exception
         with pytest.raises(TypeError, match="^cannot serialize"):
-            i = Exception
             serialize(i)
 
     def test_ser_registered(self):
@@ -274,7 +285,7 @@ class TestSerDe:
     @conf_vars(
         {
             ("core", "allowed_deserialization_classes"): "",
-            ("core", "allowed_deserialization_classes_regexp"): "tests\.airflow\..",
+            ("core", "allowed_deserialization_classes_regexp"): r"tests\.airflow\..",
         }
     )
     @pytest.mark.usefixtures("recalculate_patterns")
@@ -288,7 +299,7 @@ class TestSerDe:
     @conf_vars(
         {
             ("core", "allowed_deserialization_classes"): "",
-            ("core", "allowed_deserialization_classes_regexp"): "tests\.airflow\.deep",
+            ("core", "allowed_deserialization_classes_regexp"): r"tests\.airflow\.deep",
         }
     )
     @pytest.mark.usefixtures("recalculate_patterns")
@@ -367,6 +378,11 @@ class TestSerDe:
                     import pyiceberg  # noqa: F401
                 except ImportError:
                     continue
+            if name == "airflow.serialization.serializers.deltalake":
+                try:
+                    import deltalake  # noqa: F401
+                except ImportError:
+                    continue
             mod = import_module(name)
             for s in getattr(mod, "serializers", list()):
                 if not isinstance(s, str):
@@ -416,11 +432,19 @@ class TestSerDe:
         e = deserialize(i)
         assert i == e
 
-    def test_pydantic(self):
-        pytest.importorskip("pydantic", minversion="2.0.0")
-        i = U(x=10, v=V(W(10), ["l1", "l2"], (1, 2), 10), u=(1, 2))
+    def test_attr(self):
+        i = T(y=Y(10), u=(1, 2), x=10, w=W(11))
         e = serialize(i)
         s = deserialize(e)
+        assert i == s
+
+    def test_pydantic(self):
+        pydantic = pytest.importorskip("pydantic", minversion="2.0.0")
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", category=pydantic.warnings.PydanticDeprecationWarning)
+            i = U(x=10, v=V(W(10), ["l1", "l2"], (1, 2), 10), u=(1, 2))
+            e = serialize(i)
+            s = deserialize(e)
         assert i == s
 
     def test_error_when_serializing_callable_without_name(self):

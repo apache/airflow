@@ -37,6 +37,7 @@ ExternalTaskSensor times out. In this case, ExternalTaskSensor will raise Airflo
 or AirflowSensorTimeout exception
 
 """
+
 from __future__ import annotations
 
 import pendulum

@@ -26,6 +26,167 @@
 Changelog
 ---------
 
+6.9.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+6.8.0
+.....
+
+.. note::
+  This release reverts some of the functionality added in 6.7.0
+  around json parameter compatible with XComs, Jinja expression values
+
+Features
+~~~~~~~~
+
+* ``Add DatabricksWorkflowPlugin (#40724)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``DatabricksPlugin - Fix dag view redirect URL by using url_for redirect (#41040)``
+* ``Fix named parameters templating in Databricks operators (#40864)``
+
+Misc
+~~~~
+
+* ``[Databricks Provider] Revert PRs #40864 and #40471 (#41050)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Revert "Add DatabricksWorkflowPlugin (#40153)" (#40714)``
+   * ``Add DatabricksWorkflowPlugin (#40153)``
+
+6.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Make Databricks operators' json parameter compatible with XComs, Jinja expression values (#40471)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bug/fix support azure managed identities in Databricks operator (#40332)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+6.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add DatabricksTaskOperator (#40013)``
+* ``Add DatabricksWorkflowTaskGroup (#39771)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Databricks: optional include of user names in 'list_jobs' (#40178)``
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``Lower log levels from INFO to DEBUG to reduce log verbosity - Databricks provider auth (#39941)``
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+
+6.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add deferrable support to 'DatabricksNotebookOperator' (#39295)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``get all failed tasks errors in when exception raised in DatabricksCreateJobsOperator (#39354)``
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Better typing for BaseOperator 'defer' (#39742)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
+6.4.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add DatabricksNotebookOperator (#39178)``
+* ``Add notification settings parameters (#39175)``
+* ``[FEAT] raise exception with main notebook error in DatabricksRunNowDeferrableOperator (#39110)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+
+6.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add cancel_previous_run to DatabricksRunNowOperator (#38702)``
+* ``add repair_run support to DatabricksRunNowOperator in deferrable mode (#38619)``
+* ``Adds job_id as path param in update permission (#38962)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix remaining D401 checks (#37434)``
+* ``Update ACL during job reset (#38741)``
+* ``Remove extra slash from update permission endpoint (#38918)``
+* ``DatabricksRunNowOperator: fix typo in latest_repair_id (#39050)``
+
+Misc
+~~~~
+
+* ``refactor(databricks): remove redundant else block (#38397)``
+* ``Rename 'DatabricksSqlOperator''s fields' names to comply with templated fields validation (#38052)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update yanked versions in providers changelogs (#38262)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Restore Python 3.12 support for Databricks (#38207)``
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Exclude Python 3.12 for Databricks provider (#38070)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``update pre-commit (#37665)``
+   * ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+   * ``Prepare docs 1st wave (RC2) April 2024 (#38995)``
+
 6.2.0
 .....
 
@@ -98,8 +259,10 @@ Misc
    * ``Re-apply updated version numbers to 2nd wave of providers in December (#36380)``
    * ``Prepare 2nd wave of providers in December (#36373)``
 
-5.0.1
-.....
+5.0.1 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``The provider DBApiHook output returned broken output.``
 
 Misc
 ~~~~
@@ -376,8 +539,10 @@ Bug Fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare for follow-up release for November providers (#27774)``
 
-3.4.0
-.....
+3.4.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``There is a bug in DatabricsksSQLOperator``
 
 .. note::
   This release of provider is only available for Airflow 2.3+ as explained in the

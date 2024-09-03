@@ -28,25 +28,20 @@ permissions:
   packages: read
 env:
   ANSWER: "yes"
-  DB_RESET: "true"
-  VERBOSE: "true"
-  GITHUB_REPOSITORY: ${{ github.repository }}
-  GITHUB_USERNAME: ${{ github.actor }}
   # You can override CONSTRAINTS_GITHUB_REPOSITORY by setting secret in your repo but by default the
   # Airflow one is going to be used
   CONSTRAINTS_GITHUB_REPOSITORY: >-
     ${{ secrets.CONSTRAINTS_GITHUB_REPOSITORY != '' &&
         secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
   # This token is WRITE one - pull_request_target type of events always have the WRITE token
+  DB_RESET: "true"
+  GITHUB_REPOSITORY: ${{ github.repository }}
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GITHUB_USERNAME: ${{ github.actor }}
   IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
-  USE_SUDO: "true"
   INCLUDE_SUCCESS_OUTPUTS: "true"
-  # Version of Python used for reproducibility of the packages built
-  # Python 3.8 tarfile produces different tarballs than Python 3.9+ tarfile that's why we are forcing
-  # Python 3.9 for all release preparation commands to make sure that the tarballs are reproducible
-  # TODO: remove me when we switch to Python 3.9 as minimal version
-  REPRODUCIBLE_PYTHON_VERSION: "3.9"
+  USE_SUDO: "true"
+  VERBOSE: "true"
 
 concurrency:
   group: build-${{ github.event.pull_request.number || github.ref }}
@@ -56,23 +51,26 @@ jobs:
   build-info:
     timeout-minutes: 10
     name: "Build Info"
-    runs-on: 'ubuntu-22.04'
+    # At build-info stage we do not yet have outputs so we need to hard-code the runs-on to public runners
+    runs-on: ["ubuntu-22.04"]
     env:
       TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
     outputs:
+      image-tag: ${{ github.event.pull_request.head.sha || github.sha }}
       python-versions: ${{ steps.selective-checks.outputs.python-versions }}
-      upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
-      all-python-versions-list-as-string: >-
-        ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
+      python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
       default-python-version: ${{ steps.selective-checks.outputs.default-python-version }}
+      upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
       ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
       prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
-      cache-directive: ${{ steps.selective-checks.outputs.cache-directive }}
+      docker-cache: ${{ steps.selective-checks.outputs.docker-cache }}
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
-      default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
-      runs-on: ${{steps.selective-checks.outputs.runs-on}}
+      constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
+      runs-on-as-json-default: ${{ steps.selective-checks.outputs.runs-on-as-json-default }}
+      runs-on-as-json-public: ${{ steps.selective-checks.outputs.runs-on-as-json-public }}
+      runs-on-as-json-self-hosted: ${{ steps.selective-checks.outputs.runs-on-as-json-self-hosted }}
       is-self-hosted-runner: ${{ steps.selective-checks.outputs.is-self-hosted-runner }}
       is-committer-build: ${{ steps.selective-checks.outputs.is-committer-build }}
       is-airflow-runner: ${{ steps.selective-checks.outputs.is-airflow-runner }}
@@ -87,11 +85,31 @@ jobs:
         }}"
     if: github.repository == 'apache/airflow'
     steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: Discover PR merge commit
         id: discover-pr-merge-commit
         run: |
+          # Sometimes target-commit-sha cannot be
           TARGET_COMMIT_SHA="$(gh api '${{ github.event.pull_request.url }}' --jq .merge_commit_sha)"
-          echo "TARGET_COMMIT_SHA=$TARGET_COMMIT_SHA" >> ${GITHUB_ENV}
+          if [[ ${TARGET_COMMIT_SHA} == "" ]]; then
+            # Sometimes retrieving the merge commit SHA from PR fails. We retry it once. Otherwise we
+            # fall-back to github.event.pull_request.head.sha
+            echo
+            echo "Could not retrieve merge commit SHA from PR, waiting for 3 seconds and retrying."
+            echo
+            sleep 3
+            TARGET_COMMIT_SHA="$(gh api '${{ github.event.pull_request.url }}' --jq .merge_commit_sha)"
+            if [[ ${TARGET_COMMIT_SHA} == "" ]]; then
+              echo
+              echo "Could not retrieve merge commit SHA from PR, falling back to PR head SHA."
+              echo
+              TARGET_COMMIT_SHA="${{ github.event.pull_request.head.sha }}"
+            fi
+          fi
+          echo "TARGET_COMMIT_SHA=${TARGET_COMMIT_SHA}"
+          echo "TARGET_COMMIT_SHA=${TARGET_COMMIT_SHA}" >> ${GITHUB_ENV}
           echo "target-commit-sha=${TARGET_COMMIT_SHA}" >> ${GITHUB_OUTPUT}
         if: github.event_name == 'pull_request_target'
       # The labels in the event aren't updated when re-triggering the job, So lets hit the API to get
@@ -112,8 +130,6 @@ jobs:
               }
             }' --jq '.data.node.labels.nodes[]' | jq --slurp -c '[.[].name]' >> ${GITHUB_OUTPUT}
         if: github.event_name == 'pull_request_target'
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - uses: actions/checkout@v4
         with:
           ref: ${{ env.TARGET_COMMIT_SHA }}
@@ -134,6 +150,8 @@ jobs:
       #  COMPOSITE ACTIONS. WE CAN RUN ANYTHING THAT IS IN THE TARGET BRANCH AND THERE IS NO RISK THAT
       #  CODE WILL BE RUN FROM THE PR.
       ####################################################################################################
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
       - name: "Setup python"
         uses: actions/setup-python@v5
         with:
@@ -159,243 +177,78 @@ jobs:
           PR_LABELS: ${{ steps.get-latest-pr-labels.outputs.pull-request-labels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
 
+
   build-ci-images:
-    strategy:
-      fail-fast: true
-      matrix:
-        python-version: ${{fromJson(needs.build-info.outputs.python-versions)}}
+    name: Build CI images
     permissions:
       contents: read
       packages: write
-    timeout-minutes: 80
-    name: Build CI image ${{ matrix.python-version }}
-    runs-on: ["ubuntu-22.04"]
+    secrets: inherit
     needs: [build-info]
+    uses: ./.github/workflows/ci-image-build.yml
+    # Only run this it if the PR comes from fork, otherwise build will be done "in-PR-workflow"
     if: |
       needs.build-info.outputs.ci-image-build == 'true' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow'
-    env:
-      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
-      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
-      RUNS_ON: "${{ needs.build-info.outputs.runs-on }}"
-      BACKEND: sqlite
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
-    steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.build-info.outputs.target-commit-sha }}
-          persist-credentials: false
-      ####################################################################################################
-      #  BE VERY CAREFUL HERE! THIS LINE AND THE END OF THE WARNING. HERE WE CHECK OUT THE TARGET
-      #  COMMIT AND ITS PARENT TO BE ABLE TO COMPARE THEM BUT ALSO TO BE ABLE TO BUILD THE IMAGE FROM
-      #  THE INCOMING PR, RATHER THAN FROM TARGET BRANCH. THIS IS A SECURITY RISK, BECAUSE THE PR
-      #  CAN CONTAIN ANY CODE AND WE EXECUTE IT HERE. THEREFORE, WE NEED TO BE VERY CAREFUL WHAT WE
-      #  DO HERE. WE SHOULD NOT EXECUTE ANY CODE THAT COMES FROM THE PR. WE SHOULD NOT RUN ANY BREEZE
-      #  COMMAND NOR SCRIPTS NOR COMPOSITE ACTIONS. WE SHOULD ONLY RUN CODE THAT IS EMBEDDED DIRECTLY IN
-      #  THIS WORKFLOW - BECAUSE THIS IS THE ONLY CODE THAT WE CAN TRUST.
-      ####################################################################################################
-      - name: Checkout target branch to 'target-airflow' folder to use ci/scripts and breeze from there.
-        uses: actions/checkout@v4
-        with:
-          path: "target-airflow"
-          ref: ${{ github.base_ref }}
-          persist-credentials: false
-        if: needs.build-info.outputs.is-committer-build != 'true'
-      - name: >
-          Replace "scripts/ci", "dev" and ".github/actions" with the target branch
-          so that the those directories are not coming from the PR
-        shell: bash
-        run: |
-          echo
-          echo -e "\033[33m Replace scripts, dev, actions with target branch for non-committer builds!\033[0m"
-          echo
-          rm -rfv "scripts/ci"
-          mv -v "target-airflow/scripts/ci" "scripts"
-          rm -rfv "dev"
-          mv -v "target-airflow/dev" "."
-          rm -rfv ".github/actions"
-          mv -v "target-airflow/.github/actions" ".github"
-        if: needs.build-info.outputs.is-committer-build != 'true'
-      ####################################################################################################
-      #  HERE IT'S A BIT SAFER. THE `dev`, `scripts/ci` AND `.github/actions` ARE NOW COMING FROM THE
-      #  BASE_REF - WHICH IS THE TARGET BRANCH OF THE PR. WE CAN TRUST THAT THOSE SCRIPTS ARE SAVE TO RUN.
-      #  ALL THE REST OF THE CODE COMES FROM THE PR, AND FOR EXAMPLE THE CODE IN THE `Dockerfile.ci` CAN
-      #  BE RUN SAFELY AS PART OF DOCKER BUILD. BECAUSE IT RUNS INSIDE THE DOCKER CONTAINER AND IT IS
-      #  ISOLATED FROM THE RUNNER.
-      ####################################################################################################
-      - name: Build CI Image ${{ matrix.python-version }}:${{env.IMAGE_TAG}}
-        uses: ./.github/actions/build-ci-images
-        with:
-          python-version: ${{ matrix.python-version }}
-        env:
-          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-          DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
-          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
-          BUILD_TIMEOUT_MINUTES: 70
+    with:
+      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
+      do-build: ${{ needs.build-info.outputs.ci-image-build }}
+      target-commit-sha: ${{ needs.build-info.outputs.target-commit-sha }}
+      pull-request-target: "true"
+      is-committer-build: ${{ needs.build-info.outputs.is-committer-build }}
+      push-image: "true"
+      use-uv: "true"
+      image-tag: ${{ needs.build-info.outputs.image-tag }}
+      platform: "linux/amd64"
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      branch: ${{ needs.build-info.outputs.default-branch }}
+      constraints-branch: ${{ needs.build-info.outputs.constraints-branch }}
+      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+      docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+
+  generate-constraints:
+    name: "Generate constraints"
+    needs: [build-info, build-ci-images]
+    uses: ./.github/workflows/generate-constraints.yml
+    with:
+      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+      # For regular PRs we do not need "no providers" constraints - they are only needed in canary builds
+      generate-no-providers-constraints: "false"
+      image-tag: ${{ needs.build-info.outputs.image-tag }}
+      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
+      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
 
   build-prod-images:
-    strategy:
-      fail-fast: true
-      matrix:
-        python-version: ${{fromJson(needs.build-info.outputs.python-versions)}}
+    name: Build PROD images
     permissions:
       contents: read
       packages: write
-    timeout-minutes: 80
-    name: Build PROD image ${{ matrix.python-version }}
-    runs-on: ["ubuntu-22.04"]
-    needs: [build-info, build-ci-images]
+    secrets: inherit
+    needs: [build-info, generate-constraints]
+    uses: ./.github/workflows/prod-image-build.yml
+    # Only run this it if the PR comes from fork, otherwise build will be done "in-PR-workflow"
     if: |
       needs.build-info.outputs.prod-image-build == 'true' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow'
-    env:
-      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
-      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
-      RUNS_ON: "${{ needs.build-info.outputs.runs-on }}"
-      BACKEND: sqlite
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
-      INCLUDE_NOT_READY_PROVIDERS: "true"
-    steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.build-info.outputs.target-commit-sha }}
-          persist-credentials: false
-      ####################################################################################################
-      #  BE VERY CAREFUL HERE! THIS LINE AND THE END OF THE WARNING. HERE WE CHECK OUT THE TARGET
-      #  COMMIT AND ITS PARENT TO BE ABLE TO COMPARE THEM BUT ALSO TO BE ABLE TO BUILD THE IMAGE FROM
-      #  THE INCOMING PR, RATHER THAN FROM TARGET BRANCH. THIS IS A SECURITY RISK, BECAUSE THE PR
-      #  CAN CONTAIN ANY CODE AND WE EXECUTE IT HERE. THEREFORE, WE NEED TO BE VERY CAREFUL WHAT WE
-      #  DO HERE. WE SHOULD NOT EXECUTE ANY CODE THAT COMES FROM THE PR. WE SHOULD NOT RUN ANY BREEZE
-      #  COMMAND NOR SCRIPTS NOR COMPOSITE ACTIONS. WE SHOULD ONLY RUN CODE THAT IS EMBEDDED DIRECTLY IN
-      #  THIS WORKFLOW - BECAUSE THIS IS THE ONLY CODE THAT WE CAN TRUST.
-      ####################################################################################################
-      - name: Checkout target branch to 'target-airflow' folder to use ci/scripts and breeze from there.
-        uses: actions/checkout@v4
-        with:
-          path: "target-airflow"
-          ref: ${{ github.base_ref }}
-          persist-credentials: false
-        if: needs.build-info.outputs.is-committer-build != 'true'
-      - name: >
-          Replace "scripts/ci", "dev" and ".github/actions" with the target branch
-          so that the those directories are not coming from the PR
-        shell: bash
-        run: |
-          echo
-          echo -e "\033[33m Replace scripts, dev, actions with target branch for non-committer builds!\033[0m"
-          echo
-          rm -rfv "scripts/ci"
-          mv -v "target-airflow/scripts/ci" "scripts"
-          rm -rfv "dev"
-          mv -v "target-airflow/dev" "."
-          rm -rfv ".github/actions"
-          mv -v "target-airflow/.github/actions" ".github"
-        if: needs.build-info.outputs.is-committer-build != 'true'
-      ####################################################################################################
-      #  HERE IT'S A BIT SAFER. THE `dev`, `scripts/ci` AND `.github/actions` ARE NOW COMING FROM THE
-      #  BASE_REF - WHICH IS THE TARGET BRANCH OF THE PR. WE CAN TRUST THAT THOSE SCRIPTS ARE SAVE TO RUN.
-      #  ALL THE REST OF THE CODE COMES FROM THE PR, AND FOR EXAMPLE THE CODE IN THE `Dockerfile.ci` CAN
-      #  BE RUN SAFELY AS PART OF DOCKER BUILD. BECAUSE IT RUNS INSIDE THE DOCKER CONTAINER AND IT IS
-      #  ISOLATED FROM THE RUNNER.
-      ####################################################################################################
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-        with:
-          python-version: ${{ env.REPRODUCIBLE_PYTHON_VERSION }}
-      - name: Build PROD Image ${{ matrix.python-version }}:${{env.IMAGE_TAG}}
-        uses: ./.github/actions/build-prod-images
-        with:
-          build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
-          chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
-          python-version: ${{ matrix.python-version }}
-        env:
-          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-          DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
-          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
-
-  build-ci-images-arm:
-    timeout-minutes: 50
-    name: "Build ARM CI images ${{needs.build-info.outputs.all-python-versions-list-as-string}}"
-    runs-on: ${{fromJSON(needs.build-info.outputs.runs-on)}}
-    needs: [build-info, build-prod-images]
-    # We can change the job to run on ASF ARM runners and do not start our instance once we enable ASF runners
-    if: |
-      needs.build-info.outputs.ci-image-build == 'true' &&
-      needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' &&
-      github.event.pull_request.head.repo.full_name != 'apache/airflow' &&
-      needs.build-info.outputs.is-self-hosted-runner == 'true' &&
-      needs.build-info.outputs.is-airflow-runner == 'true'
-    env:
-      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
-      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
-      RUNS_ON: "${{ needs.build-info.outputs.runs-on }}"
-      BACKEND: sqlite
-      outputs: ${{toJSON(needs.build-info.outputs) }}
-      VERSION_SUFFIX_FOR_PYPI: "dev0"
-    steps:
-      - name: Cleanup repo
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.build-info.outputs.target-commit-sha }}
-          persist-credentials: false
-      ####################################################################################################
-      #  BE VERY CAREFUL HERE! THIS LINE AND THE END OF THE WARNING. HERE WE CHECK OUT THE TARGET
-      #  COMMIT AND ITS PARENT TO BE ABLE TO COMPARE THEM BUT ALSO TO BE ABLE TO BUILD THE IMAGE FROM
-      #  THE INCOMING PR, RATHER THAN FROM TARGET BRANCH. THIS IS A SECURITY RISK, BECAUSE THE PR
-      #  CAN CONTAIN ANY CODE AND WE EXECUTE IT HERE. THEREFORE, WE NEED TO BE VERY CAREFUL WHAT WE
-      #  DO HERE. WE SHOULD NOT EXECUTE ANY CODE THAT COMES FROM THE PR. WE SHOULD NOT RUN ANY BREEZE
-      #  COMMAND NOR SCRIPTS NOR COMPOSITE ACTIONS. WE SHOULD ONLY RUN CODE THAT IS EMBEDDED DIRECTLY IN
-      #  THIS WORKFLOW - BECAUSE THIS IS THE ONLY CODE THAT WE CAN TRUST.
-      ####################################################################################################
-      - name: Checkout target branch to 'target-airflow' folder to use ci/scripts and breeze from there.
-        uses: actions/checkout@v4
-        with:
-          path: "target-airflow"
-          ref: ${{ github.base_ref }}
-          persist-credentials: false
-        if: needs.build-info.outputs.is-committer-build != 'true'
-      - name: >
-          Replace "scripts/ci", "dev" and ".github/actions" with the target branch
-          so that the those directories are not coming from the PR
-        shell: bash
-        run: |
-          echo
-          echo -e "\033[33m Replace scripts, dev, actions with target branch for non-committer builds!\033[0m"
-          echo
-          rm -rfv "scripts/ci"
-          mv -v "target-airflow/scripts/ci" "scripts"
-          rm -rfv "dev"
-          mv -v "target-airflow/dev" "."
-          rm -rfv ".github/actions"
-          mv -v "target-airflow/.github/actions" ".github"
-        if: needs.build-info.outputs.is-committer-build != 'true'
-      ####################################################################################################
-      #  HERE IT'S A BIT SAFER. THE `dev`, `scripts/ci` AND `.github/actions` ARE NOW COMING FROM THE
-      #  BASE_REF - WHICH IS THE TARGET BRANCH OF THE PR. WE CAN TRUST THAT THOSE SCRIPTS ARE SAVE TO RUN.
-      #  ALL THE REST OF THE CODE COMES FROM THE PR, AND FOR EXAMPLE THE CODE IN THE `Dockerfile.ci` CAN
-      #  BE RUN SAFELY AS PART OF DOCKER BUILD. BECAUSE IT RUNS INSIDE THE DOCKER CONTAINER AND IT IS
-      #  ISOLATED FROM THE RUNNER.
-      ####################################################################################################
-      - name: "Start ARM instance"
-        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-      - name: >
-          Build ARM CI images ${{ env.IMAGE_TAG }}
-          ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-        run: >
-          breeze ci-image build --run-in-parallel --builder airflow_cache --platform "linux/arm64"
-        env:
-          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-          DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
-          PYTHON_VERSIONS: ${{needs.build-info.outputs.all-python-versions-list-as-string}}
-      - name: "Stop ARM instance"
-        run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always()
+    with:
+      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+      build-type: "Regular"
+      do-build: ${{ needs.build-info.outputs.ci-image-build }}
+      upload-package-artifact: "true"
+      target-commit-sha: ${{ needs.build-info.outputs.target-commit-sha }}
+      pull-request-target: "true"
+      is-committer-build: ${{ needs.build-info.outputs.is-committer-build }}
+      push-image: "true"
+      use-uv: "true"
+      image-tag: ${{ needs.build-info.outputs.image-tag }}
+      platform: "linux/amd64"
+      python-versions: ${{ needs.build-info.outputs.python-versions }}
+      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+      branch: ${{ needs.build-info.outputs.default-branch }}
+      constraints-branch: ${{ needs.build-info.outputs.constraints-branch }}
+      build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
+      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
+      docker-cache: ${{ needs.build-info.outputs.docker-cache }}

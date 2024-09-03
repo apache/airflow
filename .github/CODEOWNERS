@@ -11,16 +11,16 @@
 
 # Kubernetes
 /airflow/kubernetes/ @dstandish @jedcunningham
-airflow/providers/cncf/kubernetes/executors/ @dstandish @jedcunningham
+/airflow/providers/cncf/kubernetes/executors/ @dstandish @jedcunningham
 
 # Helm Chart
 /chart/ @dstandish @jedcunningham @hussein-awala
 
 # Docs (without Providers)
+/docs/*.py @kaxil @potiuk
 /docs/apache-airflow @potiuk
 /docs/docker-stack @potiuk
 /docs/helm-chart @dstandish @jedcunningham
-/docs/*.py @kaxil @potiuk
 
 # API
 /airflow/api/ @ephraimbuddy @pierrejeambrun
@@ -30,9 +30,9 @@ airflow/providers/cncf/kubernetes/executors/ @dstandish @jedcunningham
 /airflow/www/ @ryanahamilton @ashb @bbovenzi @pierrejeambrun
 
 # Security/Permissions
+/airflow/api_connexion/security.py @jhtimmins
 /airflow/security/permissions.py @jhtimmins
 /airflow/www/security.py @jhtimmins
-/airflow/api_connexion/security.py @jhtimmins
 
 # Calendar/Timetables
 /airflow/timetables/ @uranusjr
@@ -48,8 +48,8 @@ airflow/providers/cncf/kubernetes/executors/ @dstandish @jedcunningham
 /docs/apache-airflow/concepts/dynamic-task-mapping.rst @uranusjr
 
 # Async Operators & Triggerer
-/airflow/jobs/triggerer_job.py @dstandish @hussein-awala
 /airflow/cli/commands/triggerer_command.py @dstandish @hussein-awala
+/airflow/jobs/triggerer_job.py @dstandish @hussein-awala
 /airflow/models/trigger.py @dstandish @hussein-awala
 /docs/apache-airflow/concepts/deferring.rst @dstandish @hussein-awala
 
@@ -57,49 +57,52 @@ airflow/providers/cncf/kubernetes/executors/ @dstandish @jedcunningham
 /airflow/secrets  @dstandish @kaxil @potiuk @ashb
 
 # Providers
-/airflow/providers/snowflake/ @potiuk @mik-laj
-/airflow/providers/cncf/kubernetes @jedcunningham @hussein-awala
-/airflow/providers/dbt/cloud/ @josh-fell
-/airflow/providers/tabular/ @Fokko
 /airflow/providers/amazon/ @eladkal @o-nikolas
-/airflow/providers/common/sql/ @eladkal
-/airflow/providers/slack/ @eladkal
 /airflow/providers/celery/ @hussein-awala
+/airflow/providers/cncf/kubernetes @jedcunningham @hussein-awala
+/airflow/providers/common/sql/ @eladkal
+/airflow/providers/dbt/cloud/ @josh-fell
 /airflow/providers/hashicorp/ @hussein-awala
+/airflow/providers/openlineage/ @mobuchowski
+/airflow/providers/slack/ @eladkal
 /airflow/providers/smtp/ @hussein-awala
+/airflow/providers/snowflake/ @potiuk @mik-laj
+/airflow/providers/tabular/ @Fokko
 /docs/apache-airflow-providers-amazon/ @eladkal @o-nikolas
-/docs/apache-airflow-providers-common-sql/ @eladkal
-/docs/apache-airflow-providers-slack/ @eladkal
 /docs/apache-airflow-providers-cncf-kubernetes @jedcunningham
+/docs/apache-airflow-providers-common-sql/ @eladkal
+/docs/apache-airflow-providers-openlineage/ @mobuchowski
+/docs/apache-airflow-providers-slack/ @eladkal
 /tests/providers/amazon/ @eladkal @o-nikolas
-/tests/system/providers/amazon/ @eladkal @o-nikolas
 /tests/providers/common/sql/ @eladkal
+/tests/providers/openlineage/ @mobuchowski
 /tests/providers/slack/ @eladkal
+/tests/system/providers/amazon/ @eladkal @o-nikolas
 
 # Dev tools
 /.github/workflows/ @potiuk @ashb @kaxil
-Dockerfile @potiuk @ashb
-Dockerfile.ci @potiuk @ashb
 /dev/ @potiuk @ashb @jedcunningham
+/docker_tests/ @potiuk @ashb
 /provider_packages/ @potiuk @ashb
 /scripts/ @potiuk @ashb
-/docker_tests/ @potiuk @ashb
+Dockerfile @potiuk @ashb
+Dockerfile.ci @potiuk @ashb
 
 # Releasing Guides & Project Guidelines
-/dev/README_RELEASE_PROVIDER_PACKAGES.md  @eladkal
-/dev/README_RELEASE_*.md  @kaxil @pierrejeambrun
-/dev/README.md  @kaxil
 /dev/PROJECT_GUIDELINES.md  @kaxil
 /dev/PROVIDER_PACKAGE_DETAILS.md  @kaxil
+/dev/README.md  @kaxil
+/dev/README_RELEASE_*.md  @kaxil @pierrejeambrun
+/dev/README_RELEASE_PROVIDER_PACKAGES.md  @eladkal
 ISSUE_TRIAGE_PROCESS.rst @eladkal
 
 # AIP-52 - Setup and Teardown
 /airflow/decorators/setup_teardown.py @jedcunningham @ephraimbuddy @dstandish
-/airflow/utils/setup_teardown.py @jedcunningham @ephraimbuddy @dstandish
 /airflow/example_dags/example_setup_teardown*.py @jedcunningham @ephraimbuddy @dstandish
+/airflow/utils/setup_teardown.py @jedcunningham @ephraimbuddy @dstandish
 
 # AIP-58 - Object Storage
 /airflow/io/ @bolkedebruin
-/airflow/providers/common/io/ @bolkedebruin
 /airflow/providers/**/fs/ @bolkedebruin
+/airflow/providers/common/io/ @bolkedebruin
 /docs/apache-airflow/core-concepts/objectstorage.rst @bolkedebruin

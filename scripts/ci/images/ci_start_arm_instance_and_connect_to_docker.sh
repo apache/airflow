@@ -20,7 +20,7 @@ SCRIPTS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
 WORKING_DIR="/tmp/armdocker"
 INSTANCE_INFO="${WORKING_DIR}/instance_info.json"
 ARM_AMI="ami-0e43196369d299715"  # AMI ID of latest arm-docker-ami-v*
-INSTANCE_TYPE="m7g.2xlarge"  # m7g.2xlarge -> 8 vCPUS 32 GB RAM
+INSTANCE_TYPE="m7g.medium"  # m7g.medium -> 1 vCPUS 4 GB RAM
 MARKET_OPTIONS="MarketType=spot,SpotOptions={MaxPrice=0.25,SpotInstanceType=one-time}"
 REGION="us-east-2"
 EC2_USER="ec2-user"
@@ -28,6 +28,8 @@ USER_DATA_FILE="${SCRIPTS_DIR}/initialize.sh"
 METADATA_ADDRESS="http://169.254.169.254/latest/meta-data"
 MAC_ADDRESS=$(curl -s "${METADATA_ADDRESS}/network/interfaces/macs/" | head -n1 | tr -d '/')
 CIDR=$(curl -s "${METADATA_ADDRESS}/network/interfaces/macs/${MAC_ADDRESS}/vpc-ipv4-cidr-block/")
+
+: "${GITHUB_TOKEN:?Should be set}"
 
 function start_arm_instance() {
     set -x
@@ -37,8 +39,8 @@ function start_arm_instance() {
         --region "${REGION}" \
         --image-id "${ARM_AMI}" \
         --count 1 \
+        --block-device-mappings "[{\"DeviceName\":\"/dev/xvda\",\"Ebs\":{\"VolumeSize\":16}}]" \
         --instance-type "${INSTANCE_TYPE}" \
-        --block-device-mappings 'DeviceName=/dev/xvda,Ebs={VolumeSize=16}' \
         --user-data "file://${USER_DATA_FILE}" \
         --instance-market-options "${MARKET_OPTIONS}" \
         --instance-initiated-shutdown-behavior terminate \
@@ -70,11 +72,20 @@ function start_arm_instance() {
         -i "${WORKING_DIR}/my_key" "${EC2_USER}@${INSTANCE_PRIVATE_DNS_NAME}"
 
     bash -c 'echo -n "Waiting port 12357 .."; for _ in `seq 1 40`; do echo -n .; sleep 0.25; nc -z localhost 12357 && echo " Open." && exit ; done; echo " Timeout!" >&2; exit 1'
+}
 
+function create_context() {
+    echo
+    echo "Creating buildx context: airflow_cache"
+    echo
     docker buildx rm --force airflow_cache || true
     docker buildx create --name airflow_cache
     docker buildx create --name airflow_cache --append localhost:12357
     docker buildx ls
+    echo
+    echo "Context created"
+    echo
 }
 
 start_arm_instance
+create_context

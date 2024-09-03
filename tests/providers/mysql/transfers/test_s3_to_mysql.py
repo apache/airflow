@@ -85,9 +85,9 @@ class TestS3ToMySqlTransfer:
     @patch("airflow.providers.mysql.transfers.s3_to_mysql.MySqlHook.bulk_load_custom")
     @patch("airflow.providers.mysql.transfers.s3_to_mysql.os.remove")
     def test_execute_exception(self, mock_remove, mock_bulk_load_custom, mock_download_file):
-        mock_bulk_load_custom.side_effect = Exception
+        mock_bulk_load_custom.side_effect = RuntimeError("Some exception occurred")
 
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Some exception occurred"):
             S3ToMySqlOperator(**self.s3_to_mysql_transfer_kwargs).execute({})
 
         mock_download_file.assert_called_once_with(key=self.s3_to_mysql_transfer_kwargs["s3_source_key"])

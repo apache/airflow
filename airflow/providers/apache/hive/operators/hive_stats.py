@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 import json
-import warnings
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from airflow.exceptions import AirflowException
@@ -32,7 +31,8 @@ if TYPE_CHECKING:
 
 
 class HiveStatsCollectionOperator(BaseOperator):
-    """Gather partition statistics and insert them into MySQL.
+    """
+    Gather partition statistics and insert them into MySQL.
 
     Statistics are gathered with a dynamically generated Presto query and
     inserted with this format. Stats overwrite themselves if you rerun the
@@ -80,15 +80,6 @@ class HiveStatsCollectionOperator(BaseOperator):
         dttm: str = "{{ logical_date.isoformat() }}",
         **kwargs: Any,
     ) -> None:
-        if "col_blacklist" in kwargs:
-            warnings.warn(
-                f"col_blacklist kwarg passed to {self.__class__.__name__} "
-                f"(task_id: {kwargs.get('task_id')}) is deprecated, "
-                f"please rename it to excluded_columns instead",
-                category=FutureWarning,
-                stacklevel=2,
-            )
-            excluded_columns = kwargs.pop("col_blacklist")
         super().__init__(**kwargs)
         self.table = table
         self.partition = partition

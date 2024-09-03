@@ -25,7 +25,7 @@ from airflow.cli.commands import kerberos_command
 from airflow.security.kerberos import KerberosMode
 from tests.test_utils.config import conf_vars
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestKerberosCommand:
@@ -93,6 +93,7 @@ class TestKerberosCommand:
 
         assert mock_setup_locations.mock_calls[0] == mock.call(
             process="kerberos",
+            pid="/tmp/kerberos.pid",
             stdout="/tmp/kerberos-stdout.log",
             stderr="/tmp/kerberos-stderr.log",
             log="/tmp/kerberos.log",

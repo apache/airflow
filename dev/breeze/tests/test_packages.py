@@ -29,6 +29,7 @@ from airflow_breeze.utils.packages import (
     find_matching_long_package_names,
     get_available_packages,
     get_cross_provider_dependent_packages,
+    get_dist_package_name_prefix,
     get_documentation_package_path,
     get_install_requirements,
     get_long_package_name,
@@ -44,7 +45,6 @@ from airflow_breeze.utils.packages import (
     get_source_package_path,
     get_suspended_provider_folders,
     get_suspended_provider_ids,
-    get_wheel_package_name,
     validate_provider_info_with_runtime_schema,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_PROVIDERS_ROOT, AIRFLOW_SOURCES_ROOT, DOCS_ROOT
@@ -104,7 +104,7 @@ def test_get_long_package_name():
 
 def test_get_provider_requirements():
     # update me when asana dependencies change
-    assert get_provider_requirements("asana") == ["apache-airflow>=2.6.0", "asana>=0.10,<4.0.0"]
+    assert get_provider_requirements("asana") == ["apache-airflow>=2.8.0", "asana>=0.10,<4.0.0"]
 
 
 def test_get_removed_providers():
@@ -158,37 +158,156 @@ def test_get_documentation_package_path():
     assert get_documentation_package_path("apache.hdfs") == DOCS_ROOT / "apache-airflow-providers-apache-hdfs"
 
 
-def test_get_install_requirements():
-    assert (
-        get_install_requirements("asana", "").strip()
-        == """
-    "apache-airflow>=2.6.0",
-    "asana>=0.10,<4.0.0",
-""".strip()
-    )
+@pytest.mark.parametrize(
+    "provider, version_suffix, expected",
+    [
+        pytest.param(
+            "fab",
+            "",
+            """
+    "apache-airflow>=2.9.0",
+    "flask-appbuilder==4.5.0",
+    "flask-login>=0.6.2",
+    "flask>=2.2,<2.3",
+    "google-re2>=1.0",
+    "jmespath>=0.7.0",
+    """,
+            id="No suffix fab",
+        ),
+        pytest.param(
+            "fab",
+            "dev0",
+            """
+    "apache-airflow>=2.9.0.dev0",
+    "flask-appbuilder==4.5.0",
+    "flask-login>=0.6.2",
+    "flask>=2.2,<2.3",
+    "google-re2>=1.0",
+    "jmespath>=0.7.0",
+    """,
+            id="dev0 suffix fab",
+        ),
+        pytest.param(
+            "fab",
+            "beta0",
+            """
+    "apache-airflow>=2.9.0b0",
+    "flask-appbuilder==4.5.0",
+    "flask-login>=0.6.2",
+    "flask>=2.2,<2.3",
+    "google-re2>=1.0",
+    "jmespath>=0.7.0",
+    """,
+            id="beta0 suffix fab",
+        ),
+        pytest.param(
+            "postgres",
+            "beta0",
+            """
+    "apache-airflow-providers-common-sql>=1.14.1b0",
+    "apache-airflow>=2.8.0b0",
+    "psycopg2-binary>=2.9.4",
+    """,
+            id="beta0 suffix postgres",
+        ),
+        pytest.param(
+            "postgres",
+            "",
+            """
+    "apache-airflow-providers-common-sql>=1.14.1",
+    "apache-airflow>=2.8.0",
+    "psycopg2-binary>=2.9.4",
+    """,
+            id="No suffix postgres",
+        ),
+    ],
+)
+def test_get_install_requirements(provider: str, version_suffix: str, expected: str):
+    assert get_install_requirements(provider, version_suffix).strip() == expected.strip()
 
 
-def test_get_package_extras():
-    assert get_package_extras("google") == {
-        "amazon": ["apache-airflow-providers-amazon>=2.6.0"],
-        "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
-        "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
-        "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0"],
-        "common.sql": ["apache-airflow-providers-common-sql"],
-        "facebook": ["apache-airflow-providers-facebook>=2.2.0"],
-        "leveldb": ["plyvel"],
-        "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
-        "microsoft.mssql": ["apache-airflow-providers-microsoft-mssql"],
-        "mysql": ["apache-airflow-providers-mysql"],
-        "openlineage": ["apache-airflow-providers-openlineage"],
-        "oracle": ["apache-airflow-providers-oracle>=3.1.0"],
-        "postgres": ["apache-airflow-providers-postgres"],
-        "presto": ["apache-airflow-providers-presto"],
-        "salesforce": ["apache-airflow-providers-salesforce"],
-        "sftp": ["apache-airflow-providers-sftp"],
-        "ssh": ["apache-airflow-providers-ssh"],
-        "trino": ["apache-airflow-providers-trino"],
-    }
+@pytest.mark.parametrize(
+    "version_suffix, expected",
+    [
+        pytest.param(
+            "",
+            {
+                "amazon": ["apache-airflow-providers-amazon>=2.6.0"],
+                "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
+                "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
+                "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0"],
+                "common.compat": ["apache-airflow-providers-common-compat"],
+                "common.sql": ["apache-airflow-providers-common-sql"],
+                "facebook": ["apache-airflow-providers-facebook>=2.2.0"],
+                "leveldb": ["plyvel"],
+                "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
+                "microsoft.mssql": ["apache-airflow-providers-microsoft-mssql"],
+                "mysql": ["apache-airflow-providers-mysql"],
+                "openlineage": ["apache-airflow-providers-openlineage"],
+                "oracle": ["apache-airflow-providers-oracle>=3.1.0"],
+                "postgres": ["apache-airflow-providers-postgres"],
+                "presto": ["apache-airflow-providers-presto"],
+                "salesforce": ["apache-airflow-providers-salesforce"],
+                "sftp": ["apache-airflow-providers-sftp"],
+                "ssh": ["apache-airflow-providers-ssh"],
+                "trino": ["apache-airflow-providers-trino"],
+            },
+            id="No suffix",
+        ),
+        pytest.param(
+            "dev0",
+            {
+                "amazon": ["apache-airflow-providers-amazon>=2.6.0.dev0"],
+                "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
+                "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
+                "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0.dev0"],
+                "common.compat": ["apache-airflow-providers-common-compat"],
+                "common.sql": ["apache-airflow-providers-common-sql"],
+                "facebook": ["apache-airflow-providers-facebook>=2.2.0.dev0"],
+                "leveldb": ["plyvel"],
+                "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
+                "microsoft.mssql": ["apache-airflow-providers-microsoft-mssql"],
+                "mysql": ["apache-airflow-providers-mysql"],
+                "openlineage": ["apache-airflow-providers-openlineage"],
+                "oracle": ["apache-airflow-providers-oracle>=3.1.0.dev0"],
+                "postgres": ["apache-airflow-providers-postgres"],
+                "presto": ["apache-airflow-providers-presto"],
+                "salesforce": ["apache-airflow-providers-salesforce"],
+                "sftp": ["apache-airflow-providers-sftp"],
+                "ssh": ["apache-airflow-providers-ssh"],
+                "trino": ["apache-airflow-providers-trino"],
+            },
+            id="With dev0 suffix",
+        ),
+        pytest.param(
+            "beta0",
+            {
+                "amazon": ["apache-airflow-providers-amazon>=2.6.0b0"],
+                "apache.beam": ["apache-airflow-providers-apache-beam", "apache-beam[gcp]"],
+                "apache.cassandra": ["apache-airflow-providers-apache-cassandra"],
+                "cncf.kubernetes": ["apache-airflow-providers-cncf-kubernetes>=7.2.0b0"],
+                "common.compat": ["apache-airflow-providers-common-compat"],
+                "common.sql": ["apache-airflow-providers-common-sql"],
+                "facebook": ["apache-airflow-providers-facebook>=2.2.0b0"],
+                "leveldb": ["plyvel"],
+                "microsoft.azure": ["apache-airflow-providers-microsoft-azure"],
+                "microsoft.mssql": ["apache-airflow-providers-microsoft-mssql"],
+                "mysql": ["apache-airflow-providers-mysql"],
+                "openlineage": ["apache-airflow-providers-openlineage"],
+                "oracle": ["apache-airflow-providers-oracle>=3.1.0b0"],
+                "postgres": ["apache-airflow-providers-postgres"],
+                "presto": ["apache-airflow-providers-presto"],
+                "salesforce": ["apache-airflow-providers-salesforce"],
+                "sftp": ["apache-airflow-providers-sftp"],
+                "ssh": ["apache-airflow-providers-ssh"],
+                "trino": ["apache-airflow-providers-trino"],
+            },
+            id="With beta0 suffix normalized automatically to b0 (PEP 440)",
+        ),
+    ],
+)
+def test_get_package_extras(version_suffix: str, expected: dict[str, list[str]]):
+    assert get_package_extras("google", version_suffix=version_suffix) == expected
 
 
 def test_get_provider_details():
@@ -223,14 +342,14 @@ def test_get_pip_package_name(provider_id: str, pip_package_name: str):
 
 
 @pytest.mark.parametrize(
-    "provider_id, wheel_package_name",
+    "provider_id, expected_package_name",
     [
         ("asana", "apache_airflow_providers_asana"),
         ("apache.hdfs", "apache_airflow_providers_apache_hdfs"),
     ],
 )
-def test_get_wheel_package_name(provider_id: str, wheel_package_name: str):
-    assert get_wheel_package_name(provider_id) == wheel_package_name
+def test_get_dist_package_name_prefix(provider_id: str, expected_package_name: str):
+    assert get_dist_package_name_prefix(provider_id) == expected_package_name
 
 
 @pytest.mark.parametrize(
@@ -312,8 +431,8 @@ def test_validate_provider_info_with_schema():
 @pytest.mark.parametrize(
     "provider_id, min_version",
     [
-        ("amazon", "2.6.0"),
-        ("common.io", "2.8.0"),
+        ("amazon", "2.8.0"),
+        ("fab", "2.9.0"),
     ],
 )
 def test_get_min_airflow_version(provider_id: str, min_version: str):
@@ -368,16 +487,16 @@ def test_provider_jinja_context():
     expected = {
         "PROVIDER_ID": "amazon",
         "PACKAGE_PIP_NAME": "apache-airflow-providers-amazon",
-        "PACKAGE_WHEEL_NAME": "apache_airflow_providers_amazon",
+        "PACKAGE_DIST_PREFIX": "apache_airflow_providers_amazon",
         "FULL_PACKAGE_NAME": "airflow.providers.amazon",
         "RELEASE": version,
         "RELEASE_NO_LEADING_ZEROS": version,
         "VERSION_SUFFIX": ".rc1",
         "PROVIDER_DESCRIPTION": "Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).\n",
         "CHANGELOG_RELATIVE_PATH": "../../airflow/providers/amazon",
-        "SUPPORTED_PYTHON_VERSIONS": ["3.8", "3.9", "3.10", "3.11"],
+        "SUPPORTED_PYTHON_VERSIONS": ["3.8", "3.9", "3.10", "3.11", "3.12"],
         "PLUGINS": [],
-        "MIN_AIRFLOW_VERSION": "2.6.0",
+        "MIN_AIRFLOW_VERSION": "2.8.0",
         "PROVIDER_REMOVED": False,
         "PROVIDER_INFO": provider_info,
     }

@@ -46,6 +46,7 @@ interface Props {
   taskId?: string;
   mapIndex?: number;
   initialValue?: string | null;
+  isAbandonedTask?: boolean;
 }
 
 const NotesAccordion = ({
@@ -54,8 +55,9 @@ const NotesAccordion = ({
   taskId,
   mapIndex,
   initialValue,
+  isAbandonedTask,
 }: Props) => {
-  const canEdit = getMetaValue("can_edit") === "True";
+  const canEdit = getMetaValue("can_edit") === "True" && !isAbandonedTask;
   const [note, setNote] = useState(initialValue ?? "");
   const [editMode, setEditMode] = useState(false);
   const [accordionIndexes, setAccordionIndexes] = useState<Array<number>>(
@@ -118,7 +120,7 @@ const NotesAccordion = ({
           <AccordionButton p={0} pb={2} fontSize="inherit">
             <Box flex="1" textAlign="left" onClick={toggleNotesPanel}>
               <Text as="strong" size="lg">
-                {objectIdentifier} Notes:
+                {objectIdentifier} Notes
               </Text>
             </Box>
             <AccordionIcon />

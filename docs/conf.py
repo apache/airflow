@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Configuration of Airflow Docs"""
+
 from __future__ import annotations
 
 # Airflow documentation build configuration file, created by
@@ -56,10 +57,11 @@ ROOT_DIR = CONF_DIR.parent
 # By default (e.g. on RTD), build docs for `airflow` package
 PACKAGE_NAME = os.environ.get("AIRFLOW_PACKAGE_NAME", "apache-airflow")
 PACKAGE_DIR: pathlib.Path
+SYSTEM_TESTS_DIR: pathlib.Path | None
 if PACKAGE_NAME == "apache-airflow":
     PACKAGE_DIR = ROOT_DIR / "airflow"
     PACKAGE_VERSION = airflow.__version__
-    SYSTEM_TESTS_DIR = None
+    SYSTEM_TESTS_DIR = (ROOT_DIR / "tests" / "system" / "core").resolve(strict=True)
 elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
     from provider_yaml_utils import load_package_data
 
@@ -71,7 +73,7 @@ elif PACKAGE_NAME.startswith("apache-airflow-providers-"):
             if provider_yaml["package-name"] == PACKAGE_NAME
         )
     except StopIteration:
-        raise Exception(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
+        raise RuntimeError(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
     PACKAGE_DIR = pathlib.Path(CURRENT_PROVIDER["package-dir"])
     PACKAGE_VERSION = CURRENT_PROVIDER["versions"][0]
     SYSTEM_TESTS_DIR = CURRENT_PROVIDER["system-tests-dir"]
@@ -197,8 +199,6 @@ if PACKAGE_NAME == "apache-airflow":
     exclude_patterns = [
         # We only link to selected subpackages.
         "_api/airflow/index.rst",
-        # "_api/airflow/operators/index.rst",
-        # "_api/airflow/sensors/index.rst",
         # Included in the cluster-policies doc
         "_api/airflow/policies/index.rst",
         "README.rst",
@@ -381,7 +381,7 @@ html_theme_options["navbar_links"] = [
     {"href": "/community/", "text": "Community"},
     {"href": "/meetups/", "text": "Meetups"},
     {"href": "/docs/", "text": "Documentation"},
-    {"href": "/use-cases/", "text": "Use-cases"},
+    {"href": "/use-cases/", "text": "Use Cases"},
     {"href": "/announcements/", "text": "Announcements"},
     {"href": "/blog/", "text": "Blog"},
     {"href": "/ecosystem/", "text": "Ecosystem"},
@@ -453,7 +453,7 @@ def get_configs_and_deprecations(
     # the config has been templated, not before
     # e.g. {{dag_id}} in default_config.cfg -> {dag_id} in airflow.cfg, and what we want in docs
     keys_to_format = ["default", "example"]
-    for conf_name, conf_section in configs.items():
+    for conf_section in configs.values():
         for option_name, option in list(conf_section["options"].items()):
             for key in keys_to_format:
                 if option[key] and "{{" in option[key]:
@@ -463,7 +463,7 @@ def get_configs_and_deprecations(
                 del conf_section["options"][option_name]
 
     # Sort options, config and deprecated options for JINJA variables to display
-    for section_name, config in configs.items():
+    for config in configs.values():
         config["options"] = {k: v for k, v in sorted(config["options"].items())}
     configs = {k: v for k, v in sorted(configs.items())}
     for section in deprecated_options:

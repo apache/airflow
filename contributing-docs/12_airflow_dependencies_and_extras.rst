@@ -33,7 +33,7 @@ you are developing your own operators and DAGs.
 
 This - seemingly unsolvable - puzzle is solved by having pinned constraints files.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Pinned constraint files
 -----------------------
@@ -156,22 +156,67 @@ the documentation.
 
 This is the full list of these extras:
 
+
+Core extras
+...........
+
+Those extras are available as regular core airflow extras - they install optional features of Airflow.
+
+  .. START CORE EXTRAS HERE
+
+aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, github-enterprise, google-
+auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, saml, sentry,
+statsd, uv, virtualenv
+
+  .. END CORE EXTRAS HERE
+
+Provider extras
+...............
+
+Those extras are available as regular Airflow extras, they install provider packages in standard builds
+or dependencies that are necessary to enable the feature in editable build.
+
+  .. START PROVIDER EXTRAS HERE
+
+airbyte, alibaba, amazon, apache.beam, apache.cassandra, apache.drill, apache.druid, apache.flink,
+apache.hdfs, apache.hive, apache.iceberg, apache.impala, apache.kafka, apache.kylin, apache.livy,
+apache.pig, apache.pinot, apache.spark, apprise, arangodb, asana, atlassian.jira, celery, cloudant,
+cncf.kubernetes, cohere, common.compat, common.io, common.sql, databricks, datadog, dbt.cloud,
+dingding, discord, docker, elasticsearch, exasol, fab, facebook, ftp, github, google, grpc,
+hashicorp, http, imap, influxdb, jdbc, jenkins, microsoft.azure, microsoft.mssql, microsoft.psrp,
+microsoft.winrm, mongo, mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie,
+oracle, pagerduty, papermill, pgvector, pinecone, postgres, presto, qdrant, redis, salesforce,
+samba, segment, sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, tableau, telegram,
+teradata, trino, vertica, weaviate, yandex, ydb, zendesk
+
+  .. END PROVIDER EXTRAS HERE
+
+
 Devel extras
 .............
 
 The ``devel`` extras are not available in the released packages. They are only available when you install
 Airflow from sources in ``editable`` installation - i.e. one that you are usually using to contribute to
-Airflow. They provide tools such as ``pytest`` and ``mypy`` for general purpose development and testing, also
-some providers have their own development-related extras tbat allow to install tools necessary to run tests,
-where the tools are specific for the provider.
-
+Airflow. They provide tools such as ``pytest`` and ``mypy`` for general purpose development and testing.
 
   .. START DEVEL EXTRAS HERE
 
-devel, devel-all, devel-all-dbs, devel-ci, devel-debuggers, devel-devscripts, devel-duckdb, devel-
-hadoop, devel-mypy, devel-sentry, devel-static-checks, devel-tests
+devel, devel-all-dbs, devel-ci, devel-debuggers, devel-devscripts, devel-duckdb, devel-hadoop,
+devel-mypy, devel-sentry, devel-static-checks, devel-tests
 
   .. END DEVEL EXTRAS HERE
+
+Bundle extras
+.............
+
+Those extras are bundles dynamically generated from other extras.
+
+  .. START BUNDLE EXTRAS HERE
+
+all, all-core, all-dbs, devel-all, devel-ci
+
+  .. END BUNDLE EXTRAS HERE
+
 
 Doc extras
 ...........
@@ -189,33 +234,17 @@ doc, doc-gen
 
   .. END DOC EXTRAS HERE
 
+Deprecated extras
+.................
 
-Regular extras
-..............
+The ``deprecated`` extras are deprecated extras from Airflow 1 that will be removed in future versions.
 
-Those extras are available as regular Airflow extras and are targeted to be used by Airflow users and
-contributors to select features of Airflow they want to use They might install additional providers or
-just install dependencies that are necessary to enable the feature.
+  .. START DEPRECATED EXTRAS HERE
 
-  .. START REGULAR EXTRAS HERE
+atlas, aws, azure, cassandra, crypto, druid, gcp, gcp-api, hdfs, hive, kubernetes, mssql, pinot, s3,
+spark, webhdfs, winrm
 
-aiobotocore, airbyte, alibaba, all, all-core, all-dbs, amazon, apache-atlas, apache-beam, apache-
-cassandra, apache-drill, apache-druid, apache-flink, apache-hdfs, apache-hive, apache-impala,
-apache-kafka, apache-kylin, apache-livy, apache-pig, apache-pinot, apache-spark, apache-webhdfs,
-apprise, arangodb, asana, async, atlas, atlassian-jira, aws, azure, cassandra, celery, cgroups,
-cloudant, cncf-kubernetes, cohere, common-io, common-sql, crypto, databricks, datadog, dbt-cloud,
-deprecated-api, dingding, discord, docker, druid, elasticsearch, exasol, fab, facebook, ftp, gcp,
-gcp_api, github, github-enterprise, google, google-auth, graphviz, grpc, hashicorp, hdfs, hive,
-http, imap, influxdb, jdbc, jenkins, kerberos, kubernetes, ldap, leveldb, microsoft-azure,
-microsoft-mssql, microsoft-psrp, microsoft-winrm, mongo, mssql, mysql, neo4j, odbc, openai,
-openfaas, openlineage, opensearch, opsgenie, oracle, otel, pagerduty, pandas, papermill, password,
-pgvector, pinecone, pinot, postgres, presto, pydantic, qdrant, rabbitmq, redis, s3, s3fs,
-salesforce, samba, saml, segment, sendgrid, sentry, sftp, singularity, slack, smtp, snowflake,
-spark, sqlite, ssh, statsd, tableau, tabular, telegram, teradata, trino, vertica, virtualenv,
-weaviate, webhdfs, winrm, yandex, zendesk
-
-  .. END REGULAR EXTRAS HERE
-
+  .. END DEPRECATED EXTRAS HERE
 
 -----
 

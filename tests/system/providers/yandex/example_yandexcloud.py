@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from datetime import datetime
 
 import yandex.cloud.dataproc.v1.cluster_pb2 as cluster_pb
@@ -28,12 +27,14 @@ import yandex.cloud.dataproc.v1.job_service_pb2 as job_service_pb
 import yandex.cloud.dataproc.v1.job_service_pb2_grpc as job_service_grpc_pb
 import yandex.cloud.dataproc.v1.subcluster_pb2 as subcluster_pb
 from google.protobuf.json_format import MessageToDict
+from yandexcloud.operations import OperationError
 
 from airflow import DAG
 from airflow.decorators import task
 from airflow.providers.yandex.hooks.yandex import YandexCloudBaseHook
+from tests.system.utils import get_test_env_id
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = get_test_env_id()
 DAG_ID = "example_yandexcloud_hook"
 
 # Fill it with your identifiers
@@ -61,7 +62,7 @@ def create_cluster_request(
         bucket=YC_S3_BUCKET_NAME,
         config_spec=cluster_service_pb.CreateClusterConfigSpec(
             hadoop=cluster_pb.HadoopConfig(
-                services=("SPARK", "YARN"),
+                services=(cluster_pb.HadoopConfig.Service.SPARK, cluster_pb.HadoopConfig.Service.YARN),
                 ssh_public_keys=[ssh_public_key],
             ),
             subclusters_spec=[
@@ -98,13 +99,13 @@ def create_cluster(
     *,
     dag: DAG | None = None,
     ts_nodash: str | None = None,
-) -> str:
+) -> str | None:
     hook = YandexCloudBaseHook(yandex_conn_id=yandex_conn_id)
     folder_id = folder_id or hook.default_folder_id
     if subnet_id is None:
         network_id = network_id or hook.sdk.helpers.find_network_id(folder_id)
         subnet_id = hook.sdk.helpers.find_subnet_id(folder_id=folder_id, zone_id=zone, network_id=network_id)
-    service_account_id = service_account_id or hook.sdk.helpers.find_service_account_id()
+    service_account_id = service_account_id or hook.sdk.helpers.find_service_account_id(folder_id=folder_id)
     ssh_public_key = ssh_public_key or hook.default_public_ssh_key
 
     dag_id = dag and dag.dag_id or "dag"
@@ -126,6 +127,12 @@ def create_cluster(
     operation_result = hook.sdk.wait_operation_and_get_result(
         operation, response_type=cluster_pb.Cluster, meta_type=cluster_service_pb.CreateClusterMetadata
     )
+    if isinstance(operation_result, OperationError):
+        raise ValueError("Cluster creation error")
+
+    if operation_result.response is None:
+        return None
+
     return operation_result.response.id
 
 
@@ -149,7 +156,11 @@ def run_spark_job(
     operation_result = hook.sdk.wait_operation_and_get_result(
         operation, response_type=job_pb.Job, meta_type=job_service_pb.CreateJobMetadata
     )
-    return MessageToDict(operation_result.response)
+
+    if isinstance(operation_result, OperationError):
+        raise ValueError("Run spark task error")
+
+    return MessageToDict(operation_result.response) if operation_result.response is not None else None
 
 
 @task(trigger_rule="all_done")

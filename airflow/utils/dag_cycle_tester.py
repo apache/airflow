@@ -15,12 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """DAG Cycle tester."""
+
 from __future__ import annotations
 
 from collections import defaultdict, deque
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowDagCycleException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowDagCycleException
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG
@@ -30,25 +31,9 @@ CYCLE_IN_PROGRESS = 1
 CYCLE_DONE = 2
 
 
-def test_cycle(dag: DAG) -> None:
-    """
-    A wrapper function of `check_cycle` for backward compatibility purpose.
-
-    New code should use `check_cycle` instead since this function name `test_cycle` starts
-    with 'test_' and will be considered as a unit test by pytest, resulting in failure.
-    """
-    from warnings import warn
-
-    warn(
-        "Deprecated, please use `check_cycle` at the same module instead.",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    return check_cycle(dag)
-
-
 def check_cycle(dag: DAG) -> None:
-    """Check to see if there are any cycles in the DAG.
+    """
+    Check to see if there are any cycles in the DAG.
 
     :raises AirflowDagCycleException: If cycle is found in the DAG.
     """

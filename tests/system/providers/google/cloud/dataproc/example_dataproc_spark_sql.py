@@ -18,10 +18,13 @@
 """
 Example Airflow DAG for DataprocSubmitJobOperator with spark sql job.
 """
+
 from __future__ import annotations
 
 import os
 from datetime import datetime
+
+from google.api_core.retry import Retry
 
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
@@ -30,12 +33,16 @@ from airflow.providers.google.cloud.operators.dataproc import (
     DataprocSubmitJobOperator,
 )
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "dataproc_spark_sql"
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-CLUSTER_NAME = f"dataproc-spark-sql-{ENV_ID}"
+CLUSTER_NAME_BASE = f"cluster-{DAG_ID}".replace("_", "-")
+CLUSTER_NAME_FULL = CLUSTER_NAME_BASE + f"-{ENV_ID}".replace("_", "-")
+CLUSTER_NAME = CLUSTER_NAME_BASE if len(CLUSTER_NAME_FULL) >= 33 else CLUSTER_NAME_FULL
+
 REGION = "europe-west1"
 
 # Cluster definition
@@ -75,6 +82,7 @@ with DAG(
         cluster_config=CLUSTER_CONFIG,
         region=REGION,
         cluster_name=CLUSTER_NAME,
+        retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
     )
 
     spark_sql_task = DataprocSubmitJobOperator(

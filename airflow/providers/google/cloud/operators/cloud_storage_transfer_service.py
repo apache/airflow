@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Transfer operators."""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -27,6 +28,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.google.cloud.hooks.cloud_storage_transfer_service import (
     ACCESS_KEY_ID,
     AWS_ACCESS_KEY,
+    AWS_ROLE_ARN,
     AWS_S3_DATA_SOURCE,
     BUCKET_NAME,
     DAY,
@@ -61,6 +63,7 @@ from airflow.providers.google.cloud.links.cloud_storage_transfer import (
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -77,15 +80,23 @@ class TransferJobPreprocessor:
         self.default_schedule = default_schedule
 
     def _inject_aws_credentials(self) -> None:
-        if TRANSFER_SPEC in self.body and AWS_S3_DATA_SOURCE in self.body[TRANSFER_SPEC]:
-            aws_hook = AwsBaseHook(self.aws_conn_id, resource_type="s3")
-            aws_credentials = aws_hook.get_credentials()
-            aws_access_key_id = aws_credentials.access_key  # type: ignore[attr-defined]
-            aws_secret_access_key = aws_credentials.secret_key  # type: ignore[attr-defined]
-            self.body[TRANSFER_SPEC][AWS_S3_DATA_SOURCE][AWS_ACCESS_KEY] = {
-                ACCESS_KEY_ID: aws_access_key_id,
-                SECRET_ACCESS_KEY: aws_secret_access_key,
-            }
+        if TRANSFER_SPEC not in self.body:
+            return
+
+        if AWS_S3_DATA_SOURCE not in self.body[TRANSFER_SPEC]:
+            return
+
+        if AWS_ROLE_ARN in self.body[TRANSFER_SPEC][AWS_S3_DATA_SOURCE]:
+            return
+
+        aws_hook = AwsBaseHook(self.aws_conn_id, resource_type="s3")
+        aws_credentials = aws_hook.get_credentials()
+        aws_access_key_id = aws_credentials.access_key  # type: ignore[attr-defined]
+        aws_secret_access_key = aws_credentials.secret_key  # type: ignore[attr-defined]
+        self.body[TRANSFER_SPEC][AWS_S3_DATA_SOURCE][AWS_ACCESS_KEY] = {
+            ACCESS_KEY_ID: aws_access_key_id,
+            SECRET_ACCESS_KEY: aws_secret_access_key,
+        }
 
     def _reformat_date(self, field_key: str) -> None:
         schedule = self.body[SCHEDULE]
@@ -233,7 +244,7 @@ class CloudDataTransferServiceCreateJobOperator(GoogleCloudBaseOperator):
         aws_conn_id: str | None = "aws_default",
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -323,7 +334,7 @@ class CloudDataTransferServiceUpdateJobOperator(GoogleCloudBaseOperator):
         aws_conn_id: str | None = "aws_default",
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -406,7 +417,7 @@ class CloudDataTransferServiceDeleteJobOperator(GoogleCloudBaseOperator):
         job_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -430,6 +441,82 @@ class CloudDataTransferServiceDeleteJobOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.google_impersonation_chain,
         )
         hook.delete_transfer_job(job_name=self.job_name, project_id=self.project_id)
+
+
+class CloudDataTransferServiceRunJobOperator(GoogleCloudBaseOperator):
+    """
+    Runs a transfer job.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:CloudDataTransferServiceRunJobOperator`
+
+    :param job_name: (Required) Name of the job to be run
+    :param project_id: (Optional) the ID of the project that owns the Transfer
+        Job. If set to None or missing, the default project_id from the Google Cloud
+        connection is used.
+    :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :param api_version: API version used (e.g. v1).
+    :param google_impersonation_chain: Optional Google service account to impersonate using
+        short-term credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    # [START gcp_transfer_job_run_template_fields]
+    template_fields: Sequence[str] = (
+        "job_name",
+        "project_id",
+        "gcp_conn_id",
+        "api_version",
+        "google_impersonation_chain",
+    )
+    # [END gcp_transfer_job_run_template_fields]
+    operator_extra_links = (CloudStorageTransferJobLink(),)
+
+    def __init__(
+        self,
+        *,
+        job_name: str,
+        gcp_conn_id: str = "google_cloud_default",
+        api_version: str = "v1",
+        project_id: str = PROVIDE_PROJECT_ID,
+        google_impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.job_name = job_name
+        self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
+        self.api_version = api_version
+        self.google_impersonation_chain = google_impersonation_chain
+
+    def _validate_inputs(self) -> None:
+        if not self.job_name:
+            raise AirflowException("The required parameter 'job_name' is empty or None")
+
+    def execute(self, context: Context) -> dict:
+        self._validate_inputs()
+        hook = CloudDataTransferServiceHook(
+            api_version=self.api_version,
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.google_impersonation_chain,
+        )
+
+        project_id = self.project_id or hook.project_id
+        if project_id:
+            CloudStorageTransferJobLink.persist(
+                context=context,
+                task_instance=self,
+                project_id=project_id,
+                job_name=self.job_name,
+            )
+
+        return hook.run_transfer_job(job_name=self.job_name, project_id=project_id)
 
 
 class CloudDataTransferServiceGetOperationOperator(GoogleCloudBaseOperator):
@@ -466,7 +553,7 @@ class CloudDataTransferServiceGetOperationOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         *,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         operation_name: str,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
@@ -530,7 +617,7 @@ class CloudDataTransferServiceListOperationsOperator(GoogleCloudBaseOperator):
 
     # [START gcp_transfer_operations_list_template_fields]
     template_fields: Sequence[str] = (
-        "filter",
+        "request_filter",
         "gcp_conn_id",
         "google_impersonation_chain",
     )
@@ -540,29 +627,34 @@ class CloudDataTransferServiceListOperationsOperator(GoogleCloudBaseOperator):
     def __init__(
         self,
         request_filter: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.filter = request_filter
+        self.request_filter = request_filter
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.api_version = api_version
         self.google_impersonation_chain = google_impersonation_chain
 
+    @property
+    def filter(self) -> dict | None:
+        """Alias for ``request_filter``, used for compatibility."""
+        return self.request_filter
+
     def execute(self, context: Context) -> list[dict]:
-        if not self.filter:
-            raise AirflowException("The required parameter 'filter' is empty or None")
+        if not self.request_filter:
+            raise AirflowException("The required parameter 'request_filter' is empty or None")
 
         hook = CloudDataTransferServiceHook(
             api_version=self.api_version,
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.google_impersonation_chain,
         )
-        operations_list = hook.list_transfer_operations(request_filter=self.filter)
+        operations_list = hook.list_transfer_operations(request_filter=self.request_filter)
         self.log.info(operations_list)
 
         project_id = self.project_id or hook.project_id
@@ -812,6 +904,9 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     :param delete_job_after_completion: If True, delete the job after complete.
         If set to True, 'wait' must be set to True.
+    :param aws_role_arn: Optional AWS role ARN for workload identity federation. This will
+        override the `aws_conn_id` for authentication between GCP and AWS; see
+        https://cloud.google.com/storage-transfer/docs/reference/rest/v1/TransferSpec#AwsS3Data
     """
 
     template_fields: Sequence[str] = (
@@ -823,6 +918,7 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         "description",
         "object_conditions",
         "google_impersonation_chain",
+        "aws_role_arn",
     )
     ui_color = "#e09411"
 
@@ -833,7 +929,7 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         gcs_bucket: str,
         s3_path: str | None = None,
         gcs_path: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         aws_conn_id: str | None = "aws_default",
         gcp_conn_id: str = "google_cloud_default",
         description: str | None = None,
@@ -844,6 +940,7 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         timeout: float | None = None,
         google_impersonation_chain: str | Sequence[str] | None = None,
         delete_job_after_completion: bool = False,
+        aws_role_arn: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -862,6 +959,7 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
         self.timeout = timeout
         self.google_impersonation_chain = google_impersonation_chain
         self.delete_job_after_completion = delete_job_after_completion
+        self.aws_role_arn = aws_role_arn
         self._validate_inputs()
 
     def _validate_inputs(self) -> None:
@@ -911,6 +1009,9 @@ class CloudDataTransferServiceS3ToGCSOperator(GoogleCloudBaseOperator):
 
         if self.transfer_options is not None:
             body[TRANSFER_SPEC][TRANSFER_OPTIONS] = self.transfer_options  # type: ignore[index]
+
+        if self.aws_role_arn is not None:
+            body[TRANSFER_SPEC][AWS_S3_DATA_SOURCE][AWS_ROLE_ARN] = self.aws_role_arn  # type: ignore[index]
 
         return body
 
@@ -1001,7 +1102,7 @@ class CloudDataTransferServiceGCSToGCSOperator(GoogleCloudBaseOperator):
         destination_bucket: str,
         source_path: str | None = None,
         destination_path: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         description: str | None = None,
         schedule: dict | None = None,

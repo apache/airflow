@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Data Fusion links."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, ClassVar
@@ -35,7 +36,8 @@ DATAFUSION_PIPELINE_LINK = "{uri}/pipelines/ns/{namespace}/view/{pipeline_name}"
 
 
 class BaseGoogleLink(BaseOperatorLink):
-    """Link for Google operators.
+    """
+    Link for Google operators.
 
     Prevent adding ``https://console.cloud.google.com`` in front of every link
     where URI is used.

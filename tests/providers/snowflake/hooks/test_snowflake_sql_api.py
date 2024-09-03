@@ -20,7 +20,7 @@ import unittest
 import uuid
 from typing import TYPE_CHECKING, Any
 from unittest import mock
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, PropertyMock
 
 import pytest
 import requests
@@ -58,6 +58,7 @@ BASE_CONNECTION_KWARGS: dict = {
         "role": "af_role",
     },
 }
+
 CONN_PARAMS = {
     "account": "airflow",
     "application": "AIRFLOW",
@@ -71,6 +72,22 @@ CONN_PARAMS = {
     "user": "user",
     "warehouse": "af_wh",
 }
+
+CONN_PARAMS_OAUTH = {
+    "account": "airflow",
+    "application": "AIRFLOW",
+    "authenticator": "oauth",
+    "database": "db",
+    "client_id": "test_client_id",
+    "client_secret": "test_client_pw",
+    "refresh_token": "secrettoken",
+    "region": "af_region",
+    "role": "af_role",
+    "schema": "public",
+    "session_parameters": None,
+    "warehouse": "af_wh",
+}
+
 HEADERS = {
     "Content-Type": "application/json",
     "Authorization": "Bearer newT0k3n",
@@ -78,6 +95,15 @@ HEADERS = {
     "User-Agent": "snowflakeSQLAPI/1.0",
     "X-Snowflake-Authorization-Token-Type": "KEYPAIR_JWT",
 }
+
+HEADERS_OAUTH = {
+    "Content-Type": "application/json",
+    "Authorization": "Bearer newT0k3n",
+    "Accept": "application/json",
+    "User-Agent": "snowflakeSQLAPI/1.0",
+    "X-Snowflake-Authorization-Token-Type": "OAUTH",
+}
+
 
 GET_RESPONSE = {
     "resultSetMetaData": {
@@ -115,6 +141,13 @@ GET_RESPONSE = {
     "createdOn": 1620151693299,
 }
 
+HOOK_PARAMS: dict = {
+    "database": "airflow_db",
+    "schema": "airflow_schema",
+    "warehouse": "airflow_warehouse",
+    "role": "airflow_role",
+}
+
 
 def create_successful_response_mock(content):
     """Create mock response for success state"""
@@ -142,7 +175,10 @@ class TestSnowflakeSqlApiHook:
         ],
     )
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.requests")
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
+        new_callable=PropertyMock,
+    )
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers")
     def test_execute_query(
         self,
@@ -171,9 +207,12 @@ class TestSnowflakeSqlApiHook:
         [(SINGLE_STMT, 1, {"statementHandle": "uuid"}, ["uuid"])],
     )
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.requests")
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
+        new_callable=PropertyMock,
+    )
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers")
-    def test_execute_query_exception_without_statement_handel(
+    def test_execute_query_exception_without_statement_handle(
         self,
         mock_get_header,
         mock_conn_param,
@@ -236,7 +275,10 @@ class TestSnowflakeSqlApiHook:
             with pytest.raises(AirflowException, match='Response: {"foo": "bar"}, Status Code: 500'):
                 hook.check_query_output(query_ids)
 
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
+        new_callable=PropertyMock,
+    )
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers")
     def test_get_request_url_header_params(self, mock_get_header, mock_conn_param):
         """Test get_request_url_header_params by mocking _get_conn_params and get_headers"""
@@ -248,15 +290,56 @@ class TestSnowflakeSqlApiHook:
         assert url == "https://airflow.af_region.snowflakecomputing.com/api/v2/statements/uuid"
 
     @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_private_key")
-    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
+        new_callable=PropertyMock,
+    )
     @mock.patch("airflow.providers.snowflake.utils.sql_api_generate_jwt.JWTGenerator.get_token")
-    def test_get_headers(self, mock_get_token, mock_conn_param, mock_private_key):
+    def test_get_headers_should_support_private_key(self, mock_get_token, mock_conn_param, mock_private_key):
         """Test get_headers method by mocking get_private_key and _get_conn_params method"""
         mock_get_token.return_value = "newT0k3n"
         mock_conn_param.return_value = CONN_PARAMS
         hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
         result = hook.get_headers()
         assert result == HEADERS
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_oauth_token")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
+        new_callable=PropertyMock,
+    )
+    def test_get_headers_should_support_oauth(self, mock_conn_param, mock_oauth_token):
+        """Test get_headers method by mocking get_oauth_token and _get_conn_params method"""
+        mock_conn_param.return_value = CONN_PARAMS_OAUTH
+        mock_oauth_token.return_value = "newT0k3n"
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
+        result = hook.get_headers()
+        assert result == HEADERS_OAUTH
+
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.HTTPBasicAuth")
+    @mock.patch("requests.post")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
+        new_callable=PropertyMock,
+    )
+    def test_get_oauth_token(self, mock_conn_param, requests_post, mock_auth):
+        """Test get_oauth_token method makes the right http request"""
+        BASIC_AUTH = {"Authorization": "Basic usernamepassword"}
+        mock_conn_param.return_value = CONN_PARAMS_OAUTH
+        requests_post.return_value.status_code = 200
+        mock_auth.return_value = BASIC_AUTH
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="mock_conn_id")
+        hook.get_oauth_token()
+        requests_post.assert_called_once_with(
+            f"https://{CONN_PARAMS_OAUTH['account']}.{CONN_PARAMS_OAUTH['region']}.snowflakecomputing.com/oauth/token-request",
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": CONN_PARAMS_OAUTH["refresh_token"],
+                "redirect_uri": "https://localhost.com",
+            },
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            auth=BASIC_AUTH,
+        )
 
     @pytest.fixture
     def non_encrypted_temporary_private_key(self, tmp_path: Path) -> Path:
@@ -504,3 +587,136 @@ class TestSnowflakeSqlApiHook:
         hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn")
         response = await hook.get_sql_api_query_status_async("uuid")
         assert response == expected_response
+
+    @pytest.mark.parametrize("hook_params", [(HOOK_PARAMS), ({})])
+    def test_hook_parameter_propagation(self, hook_params):
+        """
+        This tests the proper propagation of unpacked hook params into the SnowflakeSqlApiHook object.
+        """
+        hook = SnowflakeSqlApiHook(snowflake_conn_id="test_conn", **hook_params)
+        assert hook.database == hook_params.get("database", None)
+        assert hook.schema == hook_params.get("schema", None)
+        assert hook.warehouse == hook_params.get("warehouse", None)
+        assert hook.role == hook_params.get("role", None)
+
+    @pytest.mark.parametrize(
+        "test_hook_params, sql, statement_count, expected_payload, expected_response",
+        [
+            (
+                {},
+                SINGLE_STMT,
+                1,
+                {
+                    "statement": SINGLE_STMT,
+                    "resultSetMetaData": {"format": "json"},
+                    "database": CONN_PARAMS["database"],
+                    "schema": CONN_PARAMS["schema"],
+                    "warehouse": CONN_PARAMS["warehouse"],
+                    "role": CONN_PARAMS["role"],
+                    "bindings": {},
+                    "parameters": {
+                        "MULTI_STATEMENT_COUNT": 1,
+                        "query_tag": "",
+                    },
+                },
+                {"statementHandle": "uuid"},
+            ),
+            (
+                {},
+                SQL_MULTIPLE_STMTS,
+                4,
+                {
+                    "statement": SQL_MULTIPLE_STMTS,
+                    "resultSetMetaData": {"format": "json"},
+                    "database": CONN_PARAMS["database"],
+                    "schema": CONN_PARAMS["schema"],
+                    "warehouse": CONN_PARAMS["warehouse"],
+                    "role": CONN_PARAMS["role"],
+                    "bindings": {},
+                    "parameters": {
+                        "MULTI_STATEMENT_COUNT": 4,
+                        "query_tag": "",
+                    },
+                },
+                {"statementHandles": ["uuid", "uuid1"]},
+            ),
+            (
+                HOOK_PARAMS,
+                SINGLE_STMT,
+                1,
+                {
+                    "statement": SINGLE_STMT,
+                    "resultSetMetaData": {"format": "json"},
+                    "database": HOOK_PARAMS["database"],
+                    "schema": HOOK_PARAMS["schema"],
+                    "warehouse": HOOK_PARAMS["warehouse"],
+                    "role": HOOK_PARAMS["role"],
+                    "bindings": {},
+                    "parameters": {
+                        "MULTI_STATEMENT_COUNT": 1,
+                        "query_tag": "",
+                    },
+                },
+                {"statementHandle": "uuid"},
+            ),
+            (
+                HOOK_PARAMS,
+                SQL_MULTIPLE_STMTS,
+                4,
+                {
+                    "statement": SQL_MULTIPLE_STMTS,
+                    "resultSetMetaData": {"format": "json"},
+                    "database": HOOK_PARAMS["database"],
+                    "schema": HOOK_PARAMS["schema"],
+                    "warehouse": HOOK_PARAMS["warehouse"],
+                    "role": HOOK_PARAMS["role"],
+                    "bindings": {},
+                    "parameters": {
+                        "MULTI_STATEMENT_COUNT": 4,
+                        "query_tag": "",
+                    },
+                },
+                {"statementHandles": ["uuid", "uuid1"]},
+            ),
+        ],
+    )
+    @mock.patch("uuid.uuid4")
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.requests")
+    @mock.patch(
+        "airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook._get_conn_params",
+        new_callable=PropertyMock,
+    )
+    @mock.patch("airflow.providers.snowflake.hooks.snowflake_sql_api.SnowflakeSqlApiHook.get_headers")
+    def test_proper_parametrization_of_execute_query_api_request(
+        self,
+        mock_get_headers,
+        mock_conn_param,
+        mock_requests,
+        mock_uuid,
+        test_hook_params,
+        sql,
+        statement_count,
+        expected_payload,
+        expected_response,
+    ):
+        """
+        This tests if the query execution ordered by POST request to Snowflake API
+        is sent with proper context parameters (database, schema, warehouse, role)
+        """
+        mock_uuid.return_value = "uuid"
+        params = {"requestId": "uuid", "async": True, "pageSize": 10}
+        mock_conn_param.return_value = CONN_PARAMS
+        mock_get_headers.return_value = HEADERS
+        mock_requests.codes.ok = 200
+        mock_requests.post.side_effect = [
+            create_successful_response_mock(expected_response),
+        ]
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+
+        hook = SnowflakeSqlApiHook("mock_conn_id", **test_hook_params)
+        url = f"{hook.account_identifier}.snowflakecomputing.com/api/v2/statements"
+
+        hook.execute_query(sql, statement_count)
+
+        mock_requests.post.assert_called_once_with(url, headers=HEADERS, json=expected_payload, params=params)

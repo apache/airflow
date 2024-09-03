@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Example DAG demonstrating the usage of the BashOperator."""
+
 from __future__ import annotations
 
 import datetime
@@ -42,7 +43,7 @@ with DAG(
     # [START howto_operator_bash]
     run_this = BashOperator(
         task_id="run_after_loop",
-        bash_command="echo 1",
+        bash_command="echo https://airflow.apache.org/",
     )
     # [END howto_operator_bash]
 

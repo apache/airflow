@@ -69,10 +69,10 @@ def _render_template(template_name, **kwargs):
 
 def _docs_path(filepath: str):
     if not filepath.startswith("/docs/"):
-        raise Exception(f"The path must starts with '/docs/'. Current value: {filepath}")
+        raise RuntimeError(f"The path must starts with '/docs/'. Current value: {filepath}")
 
     if not filepath.endswith(".rst"):
-        raise Exception(f"The path must ends with '.rst'. Current value: {filepath}")
+        raise RuntimeError(f"The path must ends with '.rst'. Current value: {filepath}")
 
     if filepath.startswith("/docs/apache-airflow-providers-"):
         _, _, provider, rest = filepath.split("/", maxsplit=3)

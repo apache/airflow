@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
@@ -37,6 +39,10 @@ class FakeS3Hook(AwsBaseHook):
 
 class FakeS3Operator(AwsBaseOperator):
     aws_hook_class = FakeS3Hook
+
+    def __init__(self, *, value: Any = None, **kwargs):
+        super().__init__(**kwargs)
+        self.value = value
 
     def execute(self, context):
         """For test purpose"""
@@ -108,7 +114,7 @@ class TestAwsBaseOperator:
         ],
     )
     def test_execute(self, op_kwargs, dag_maker):
-        with dag_maker("test_aws_base_operator"):
+        with dag_maker("test_aws_base_operator", serialized=True):
             FakeS3Operator(task_id="fake-task-id", **op_kwargs)
 
         dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
@@ -138,7 +144,10 @@ class TestAwsBaseOperator:
 
     def test_conflicting_region_name(self):
         error_match = r"Conflicting `region_name` provided, region_name='us-west-1', region='eu-west-1'"
-        with pytest.raises(ValueError, match=error_match):
+        with pytest.raises(ValueError, match=error_match), pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="`region` is deprecated and will be removed in the future. Please use `region_name` instead.",
+        ):
             FakeS3Operator(
                 task_id="fake-task-id",
                 aws_conn_id=TEST_CONN,
@@ -147,8 +156,7 @@ class TestAwsBaseOperator:
             )
 
     def test_no_aws_hook_class_attr(self):
-        class NoAwsHookClassOperator(AwsBaseOperator):
-            ...
+        class NoAwsHookClassOperator(AwsBaseOperator): ...
 
         error_match = r"Class attribute 'NoAwsHookClassOperator\.aws_hook_class' should be set"
         with pytest.raises(AttributeError, match=error_match):
@@ -171,3 +179,45 @@ class TestAwsBaseOperator:
         error_match = r"Class attribute 'SoWrongOperator.aws_hook_class' is not a subclass of AwsGenericHook"
         with pytest.raises(AttributeError, match=error_match):
             SoWrongOperator(task_id="fake-task-id")
+
+    @pytest.mark.skip_if_database_isolation_mode
+    @pytest.mark.parametrize(
+        "region, region_name, expected_region_name",
+        [
+            pytest.param("ca-west-1", None, "ca-west-1", id="region-only"),
+            pytest.param("us-west-1", "us-west-1", "us-west-1", id="non-ambiguous-params"),
+        ],
+    )
+    @pytest.mark.db_test
+    def test_region_in_partial_operator(self, region, region_name, expected_region_name, dag_maker):
+        with dag_maker("test_region_in_partial_operator", serialized=True):
+            FakeS3Operator.partial(
+                task_id="fake-task-id",
+                region=region,
+                region_name=region_name,
+            ).expand(value=[1, 2, 3])
+
+        dr = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        warning_match = r"`region` is deprecated and will be removed"
+        for ti in dr.task_instances:
+            with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
+                ti.run()
+            assert ti.task.region_name == expected_region_name
+
+    @pytest.mark.skip_if_database_isolation_mode
+    @pytest.mark.db_test
+    def test_ambiguous_region_in_partial_operator(self, dag_maker):
+        with dag_maker("test_ambiguous_region_in_partial_operator", serialized=True):
+            FakeS3Operator.partial(
+                task_id="fake-task-id",
+                region="eu-west-1",
+                region_name="us-east-1",
+            ).expand(value=[1, 2, 3])
+
+        dr = dag_maker.create_dagrun(execution_date=timezone.utcnow())
+        warning_match = r"`region` is deprecated and will be removed"
+        for ti in dr.task_instances:
+            with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match), pytest.raises(
+                ValueError, match="Conflicting `region_name` provided"
+            ):
+                ti.run()

@@ -32,7 +32,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.test_utils import db
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
@@ -86,7 +86,8 @@ class TestNotInReschedulePeriodDep:
             dt = ti.execution_date + timedelta(minutes=minutes_timedelta)
             trs.append(
                 TaskReschedule(
-                    task=ti.task,
+                    task_id=ti.task_id,
+                    dag_id=ti.dag_id,
                     run_id=ti.run_id,
                     try_number=ti.try_number,
                     map_index=ti.map_index,

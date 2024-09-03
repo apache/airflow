@@ -17,8 +17,12 @@
 # under the License.
 from __future__ import annotations
 
+import warnings
 from unittest import mock
 
+import pytest
+
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.marketing_platform.hooks.analytics import GoogleAnalyticsHook
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
@@ -37,17 +41,19 @@ class TestGoogleAnalyticsHook:
         with mock.patch(
             "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__",
             new=mock_base_gcp_hook_default_project_id,
-        ):
+        ), warnings.catch_warnings():
+            warnings.simplefilter("ignore", AirflowProviderDeprecationWarning)
             self.hook = GoogleAnalyticsHook(API_VERSION, GCP_CONN_ID)
 
     @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__")
     def test_init(self, mock_base_init):
-        hook = GoogleAnalyticsHook(
-            API_VERSION,
-            GCP_CONN_ID,
-            delegate_to=DELEGATE_TO,
-            impersonation_chain=IMPERSONATION_CHAIN,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            hook = GoogleAnalyticsHook(
+                API_VERSION,
+                GCP_CONN_ID,
+                delegate_to=DELEGATE_TO,
+                impersonation_chain=IMPERSONATION_CHAIN,
+            )
         mock_base_init.assert_called_once_with(
             GCP_CONN_ID,
             delegate_to=DELEGATE_TO,

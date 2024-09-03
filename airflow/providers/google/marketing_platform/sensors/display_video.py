@@ -15,11 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Sensor for detecting the completion of DV360 reports."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -87,10 +88,7 @@ class GoogleDisplayVideo360GetSDFDownloadOperationSensor(BaseSensorOperator):
         )
         operation = hook.get_sdf_download_operation(operation_name=self.operation_name)
         if "error" in operation:
-            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
             message = f'The operation finished in error with {operation["error"]}'
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
         if operation and operation.get("done"):
             return True
@@ -157,7 +155,7 @@ class GoogleDisplayVideo360RunQuerySensor(BaseSensorOperator):
 
         response = hook.get_report(query_id=self.query_id, report_id=self.report_id)
         status = response.get("metadata", {}).get("status", {}).get("state")
-        self.log.info(f"STATUS OF THE REPORT {self.report_id} FOR QUERY {self.query_id}: {status}")
+        self.log.info("STATUS OF THE REPORT %s FOR QUERY %s: %s", self.report_id, self.query_id, status)
         if response and status in ["DONE", "FAILED"]:
             return True
         return False

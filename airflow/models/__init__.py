@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow models."""
+
 from __future__ import annotations
 
 # Do not add new models to this -- this is for compat only
@@ -33,7 +34,6 @@ __all__ = [
     "DagRun",
     "DagTag",
     "DbCallbackRequest",
-    "ImportError",
     "Log",
     "MappedOperator",
     "Operator",
@@ -61,8 +61,11 @@ def import_all_models():
 
     import airflow.models.dagwarning
     import airflow.models.dataset
+    import airflow.models.errors
     import airflow.models.serialized_dag
+    import airflow.models.taskinstancehistory
     import airflow.models.tasklog
+    import airflow.providers.fab.auth_manager.models
 
 
 def __getattr__(name):
@@ -74,6 +77,7 @@ def __getattr__(name):
     from airflow.utils.module_loading import import_string
 
     val = import_string(f"{path}.{name}")
+
     # Store for next time
     globals()[name] = val
     return val
@@ -93,7 +97,6 @@ __lazy_imports = {
     "DagTag": "airflow.models.dag",
     "DagWarning": "airflow.models.dagwarning",
     "DbCallbackRequest": "airflow.models.db_callback_request",
-    "ImportError": "airflow.models.errors",
     "Log": "airflow.models.log",
     "MappedOperator": "airflow.models.mappedoperator",
     "Operator": "airflow.models.operator",
@@ -124,7 +127,6 @@ if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
     from airflow.models.dagwarning import DagWarning
     from airflow.models.db_callback_request import DbCallbackRequest
-    from airflow.models.errors import ImportError
     from airflow.models.log import Log
     from airflow.models.mappedoperator import MappedOperator
     from airflow.models.operator import Operator
@@ -135,6 +137,7 @@ if TYPE_CHECKING:
     from airflow.models.slamiss import SlaMiss
     from airflow.models.taskfail import TaskFail
     from airflow.models.taskinstance import TaskInstance, clear_task_instances
+    from airflow.models.taskinstancehistory import TaskInstanceHistory
     from airflow.models.taskreschedule import TaskReschedule
     from airflow.models.trigger import Trigger
     from airflow.models.variable import Variable

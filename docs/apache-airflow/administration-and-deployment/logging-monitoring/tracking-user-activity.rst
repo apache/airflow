@@ -20,16 +20,17 @@ Tracking User Activity
 
 You can configure Airflow to route anonymous data to
 `Google Analytics <https://analytics.google.com/>`_,
-`Segment <https://segment.com/>`_, or `Metarouter <https://www.metarouter.io/>`_.
+`Segment <https://segment.com/>`_, `Metarouter <https://www.metarouter.io/>`_, or `Matomo <https://matomo.org/>`_.
 
-Edit ``airflow.cfg`` and set the ``webserver`` block to have an ``analytics_tool`` and ``analytics_id``:
+Edit ``airflow.cfg`` and set the ``webserver`` block to have an ``analytics_tool`` and ``analytics_id`` (and ``analytics_url`` if you're using ``matomo``):
 
 .. code-block:: ini
 
   [webserver]
   # Send anonymous user activity to Google Analytics, Segment, or Metarouter
-  analytics_tool = google_analytics # valid options: google_analytics, segment, metarouter
+  analytics_tool = google_analytics # valid options: google_analytics, segment, metarouter, matomo
   analytics_id = XXXXXXXXXXX
+  analytics_url = https://your-matomo-instance.example.com # only required for Matomo
 
 .. note:: You can see view injected tracker html within Airflow's source code at
   ``airflow/www/templates/airflow/main.html``. The related global

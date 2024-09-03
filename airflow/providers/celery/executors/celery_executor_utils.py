@@ -40,6 +40,7 @@ from setproctitle import setproctitle
 from sqlalchemy import select
 
 import airflow.settings as settings
+from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowTaskTimeout
 from airflow.executors.base_executor import BaseExecutor
@@ -111,8 +112,7 @@ def on_celery_import_modules(*args, **kwargs):
     import airflow.jobs.local_task_job_runner
     import airflow.macros
     import airflow.operators.bash
-    import airflow.operators.python
-    import airflow.operators.subdag  # noqa: F401
+    import airflow.operators.python  # noqa: F401
 
     with contextlib.suppress(ImportError):
         import numpy  # noqa: F401
@@ -146,7 +146,7 @@ def _execute_in_fork(command_to_exec: CommandType, celery_task_id: str | None = 
         if ret == 0:
             return
 
-        msg = f"Celery command failed on host: {get_hostname()} with celery_task_id {celery_task_id}"
+        msg = f"Celery command failed on host: {get_hostname()} with celery_task_id {celery_task_id} (PID: {pid}, Return Code: {ret})"
         raise AirflowException(msg)
 
     from airflow.sentry import Sentry
@@ -155,8 +155,9 @@ def _execute_in_fork(command_to_exec: CommandType, celery_task_id: str | None = 
     try:
         from airflow.cli.cli_parser import get_parser
 
-        settings.engine.pool.dispose()
-        settings.engine.dispose()
+        if not InternalApiConfig.get_use_internal_api():
+            settings.engine.pool.dispose()
+            settings.engine.dispose()
 
         parser = get_parser()
         # [1:] - remove "airflow" from the start of the command
@@ -166,14 +167,19 @@ def _execute_in_fork(command_to_exec: CommandType, celery_task_id: str | None = 
             args.external_executor_id = celery_task_id
 
         setproctitle(f"airflow task supervisor: {command_to_exec}")
+        log.debug("calling func '%s' with args %s", args.func.__name__, args)
         args.func(args)
         ret = 0
     except Exception:
         log.exception("[%s] Failed to execute task.", celery_task_id)
         ret = 1
     finally:
-        Sentry.flush()
-        logging.shutdown()
+        try:
+            Sentry.flush()
+            logging.shutdown()
+        except Exception:
+            log.exception("[%s] Failed to clean up.", celery_task_id)
+            ret = 1
         os._exit(ret)
 
 

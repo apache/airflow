@@ -25,7 +25,7 @@ from pypsrp.host import PSHost
 from pypsrp.messages import MessageType
 from pypsrp.powershell import PSInvocationState
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.microsoft.psrp.hooks.psrp import PsrpHook
 
@@ -146,7 +146,8 @@ class TestPsrpHook:
             on_output_callback=on_output_callback,
             **options,
         ) as hook, patch.object(type(hook), "log") as logger:
-            with pytest.raises(AirflowException, match="Process had one or more errors"):
+            error_match = "Process had one or more errors"
+            with pytest.raises(AirflowException, match=error_match):  # noqa: PT012 error happen on context exit
                 with hook.invoke() as ps:
                     assert ps.state == PSInvocationState.NOT_STARTED
 
@@ -193,7 +194,11 @@ class TestPsrpHook:
 
     def test_invoke_cmdlet_deprecated_kwargs(self, *mocks):
         with PsrpHook(CONNECTION_ID) as hook:
-            ps = hook.invoke_cmdlet("foo", bar="1", baz="2")
+            with pytest.warns(
+                AirflowProviderDeprecationWarning,
+                match=r"Passing \*\*kwargs to 'invoke_cmdlet' is deprecated and will be removed in a future release. Please use 'parameters' instead.",
+            ):
+                ps = hook.invoke_cmdlet("foo", bar="1", baz="2")
             assert [call("foo", use_local_scope=None)] == ps.add_cmdlet.mock_calls
             assert [call({"bar": "1", "baz": "2"})] == ps.add_parameters.mock_calls
 

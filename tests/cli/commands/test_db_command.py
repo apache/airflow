@@ -28,7 +28,7 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import db_command
 from airflow.exceptions import AirflowException
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestCliDb:
@@ -62,69 +62,131 @@ class TestCliDb:
     @pytest.mark.parametrize(
         "args, called_with",
         [
-            ([], dict(to_revision=None, from_revision=None, show_sql_only=False)),
-            (["--show-sql-only"], dict(to_revision=None, from_revision=None, show_sql_only=True)),
-            (["--to-revision", "abc"], dict(to_revision="abc", from_revision=None, show_sql_only=False)),
+            (
+                [],
+                dict(
+                    to_revision=None,
+                    from_revision=None,
+                    show_sql_only=False,
+                ),
+            ),
+            (
+                ["--show-sql-only"],
+                dict(
+                    to_revision=None,
+                    from_revision=None,
+                    show_sql_only=True,
+                ),
+            ),
+            (
+                ["--to-revision", "abc"],
+                dict(
+                    to_revision="abc",
+                    from_revision=None,
+                    show_sql_only=False,
+                ),
+            ),
             (
                 ["--to-revision", "abc", "--show-sql-only"],
                 dict(to_revision="abc", from_revision=None, show_sql_only=True),
             ),
             (
-                ["--to-version", "2.2.2"],
-                dict(to_revision="7b2661a43ba3", from_revision=None, show_sql_only=False),
+                ["--to-version", "2.10.0"],
+                dict(
+                    to_revision="22ed7efa9da2",
+                    from_revision=None,
+                    show_sql_only=False,
+                ),
             ),
             (
-                ["--to-version", "2.2.2", "--show-sql-only"],
-                dict(to_revision="7b2661a43ba3", from_revision=None, show_sql_only=True),
+                ["--to-version", "2.10.0", "--show-sql-only"],
+                dict(
+                    to_revision="22ed7efa9da2",
+                    from_revision=None,
+                    show_sql_only=True,
+                ),
             ),
             (
                 ["--to-revision", "abc", "--from-revision", "abc123", "--show-sql-only"],
-                dict(to_revision="abc", from_revision="abc123", show_sql_only=True),
+                dict(
+                    to_revision="abc",
+                    from_revision="abc123",
+                    show_sql_only=True,
+                ),
             ),
             (
-                ["--to-revision", "abc", "--from-version", "2.2.2", "--show-sql-only"],
-                dict(to_revision="abc", from_revision="7b2661a43ba3", show_sql_only=True),
+                ["--to-revision", "abc", "--from-version", "2.10.0", "--show-sql-only"],
+                dict(
+                    to_revision="abc",
+                    from_revision="22ed7efa9da2",
+                    show_sql_only=True,
+                ),
             ),
             (
-                ["--to-version", "2.2.4", "--from-revision", "abc123", "--show-sql-only"],
-                dict(to_revision="587bdf053233", from_revision="abc123", show_sql_only=True),
+                ["--to-version", "2.10.0", "--from-revision", "abc123", "--show-sql-only"],
+                dict(
+                    to_revision="22ed7efa9da2",
+                    from_revision="abc123",
+                    show_sql_only=True,
+                ),
             ),
             (
-                ["--to-version", "2.2.4", "--from-version", "2.2.2", "--show-sql-only"],
-                dict(to_revision="587bdf053233", from_revision="7b2661a43ba3", show_sql_only=True),
+                ["--to-version", "2.10.0", "--from-version", "2.10.0", "--show-sql-only"],
+                dict(
+                    to_revision="22ed7efa9da2",
+                    from_revision="22ed7efa9da2",
+                    show_sql_only=True,
+                ),
             ),
         ],
     )
     @mock.patch("airflow.cli.commands.db_command.db.upgradedb")
     def test_cli_upgrade_success(self, mock_upgradedb, args, called_with):
-        db_command.upgradedb(self.parser.parse_args(["db", "upgrade", *args]))
+        # TODO(ephraimbuddy): Revisit this when we add more migration files and use other versions/revisions other than 2.10.0/22ed7efa9da2
+        db_command.migratedb(self.parser.parse_args(["db", "migrate", *args]))
         mock_upgradedb.assert_called_once_with(**called_with, reserialize_dags=True)
 
     @pytest.mark.parametrize(
         "args, pattern",
         [
-            pytest.param(["--to-version", "2.1.25"], "not supported", id="bad version"),
+            pytest.param(
+                ["--to-revision", "abc", "--to-version", "2.10.0"],
+                "Cannot supply both",
+                id="to both version and revision",
+            ),
+            pytest.param(
+                ["--from-revision", "abc", "--from-version", "2.10.0"],
+                "Cannot supply both",
+                id="from both version and revision",
+            ),
+            pytest.param(["--to-version", "2.1.25"], "Unknown version '2.1.25'", id="unknown to version"),
+            pytest.param(["--to-version", "abc"], "Invalid version 'abc'", id="invalid to version"),
             pytest.param(
                 ["--to-revision", "abc", "--from-revision", "abc123"],
                 "used with `--show-sql-only`",
                 id="requires offline",
             ),
             pytest.param(
-                ["--to-revision", "abc", "--from-version", "2.0.2"],
+                ["--to-revision", "abc", "--from-version", "2.10.0"],
                 "used with `--show-sql-only`",
                 id="requires offline",
             ),
             pytest.param(
-                ["--to-revision", "abc", "--from-version", "2.1.25", "--show-sql-only"],
-                "Unknown version",
-                id="bad version",
+                ["--to-revision", "2.10.0", "--from-version", "2.1.25", "--show-sql-only"],
+                "Unknown version '2.1.25'",
+                id="unknown from version",
+            ),
+            pytest.param(
+                ["--to-revision", "2.10.0", "--from-version", "abc", "--show-sql-only"],
+                "Invalid version 'abc'",
+                id="invalid from version",
             ),
         ],
     )
     @mock.patch("airflow.cli.commands.db_command.db.upgradedb")
     def test_cli_sync_failure(self, mock_upgradedb, args, pattern):
         with pytest.raises(SystemExit, match=pattern):
-            db_command.migratedb(self.parser.parse_args(["db", "upgrade", *args]))
+            db_command.migratedb(self.parser.parse_args(["db", "migrate", *args]))
 
     @mock.patch("airflow.cli.commands.db_command.migratedb")
     def test_cli_upgrade(self, mock_migratedb):
@@ -243,14 +305,14 @@ class TestCliDb:
                 dict(to_revision="abc1", from_revision="abc2", show_sql_only=True),
             ),
             (
-                ["-y", "--to-revision", "abc1", "--from-version", "2.2.2", "-s"],
-                dict(to_revision="abc1", from_revision="7b2661a43ba3", show_sql_only=True),
+                ["-y", "--to-revision", "abc1", "--from-version", "2.10.0", "-s"],
+                dict(to_revision="abc1", from_revision="22ed7efa9da2", show_sql_only=True),
             ),
             (
-                ["-y", "--to-version", "2.2.2", "--from-version", "2.2.2", "-s"],
-                dict(to_revision="7b2661a43ba3", from_revision="7b2661a43ba3", show_sql_only=True),
+                ["-y", "--to-version", "2.10.0", "--from-version", "2.10.0", "-s"],
+                dict(to_revision="22ed7efa9da2", from_revision="22ed7efa9da2", show_sql_only=True),
             ),
-            (["-y", "--to-version", "2.2.2"], dict(to_revision="7b2661a43ba3")),
+            (["-y", "--to-version", "2.10.0"], dict(to_revision="22ed7efa9da2")),
         ],
     )
     @mock.patch("airflow.utils.db.downgrade")

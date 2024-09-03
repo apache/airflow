@@ -28,6 +28,7 @@ To obtain info about this token, run the following commands:
 
     RefreshError
 """
+
 from __future__ import annotations
 
 import json
@@ -189,9 +190,10 @@ def _get_gce_credentials(
 
 
 def get_default_id_token_credentials(
-    target_audience: str | None, request: google.auth.transport.Request = None
+    target_audience: str | None, request: google.auth.transport.Request | None = None
 ) -> google_auth_credentials.Credentials:
-    """Get the default ID Token credentials for the current environment.
+    """
+    Get the default ID Token credentials for the current environment.
 
     `Application Default Credentials`_ provides an easy way to obtain credentials to call Google APIs for
     server-to-server or local applications.

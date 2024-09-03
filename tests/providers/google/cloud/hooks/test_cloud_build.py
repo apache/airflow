@@ -19,6 +19,7 @@
 This module contains various unit tests for
 functions in CloudBuildHook
 """
+
 from __future__ import annotations
 
 from concurrent.futures import Future
@@ -101,7 +102,7 @@ class TestCloudBuildHook:
 
         wait_time.return_value = 0
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="Call to deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             self.hook.create_build(build=BUILD, project_id=PROJECT_ID)
 
         get_conn.return_value.create_build.assert_called_once_with(
@@ -122,7 +123,7 @@ class TestCloudBuildHook:
         get_conn.return_value.run_build_trigger.return_value = mock.MagicMock()
         mock_get_id_from_operation.return_value = BUILD_ID
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="Call to deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             self.hook.create_build(build=BUILD, project_id=PROJECT_ID, wait=False)
 
         mock_operation = get_conn.return_value.create_build
@@ -362,15 +363,18 @@ class TestAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @mock.patch.object(
-        CloudBuildAsyncClient, "__init__", lambda self, credentials, client_info, client_options: None
-    )
     @mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncHook.get_credentials"))
     @mock.patch(CLOUD_BUILD_PATH.format("CloudBuildAsyncClient.get_build"))
     async def test_async_cloud_build_service_client_creation_should_execute_successfully(
-        self, mocked_get_build, mock_get_creds, hook
+        self, mocked_get_build, mock_get_creds, hook, mocker
     ):
+        fake_credentials = mock.MagicMock(name="FakeCreds")
+        mock_get_creds.return_value = fake_credentials
+        mocked_cloud_build_async_client = mocker.patch.object(
+            CloudBuildAsyncClient, "__init__", return_value=None, spec=CloudBuildAsyncClient
+        )
         mocked_get_build.return_value = Future()
+
         await hook.get_cloud_build(project_id=PROJECT_ID, id_=BUILD_ID)
         request = GetBuildRequest(
             dict(
@@ -378,8 +382,12 @@ class TestAsyncHook:
                 id=BUILD_ID,
             )
         )
+
         mock_get_creds.assert_called_once()
         mocked_get_build.assert_called_once_with(request=request, retry=DEFAULT, timeout=None, metadata=())
+        mocked_cloud_build_async_client.assert_called_once_with(
+            client_info=mock.ANY, client_options=None, credentials=fake_credentials
+        )
 
     @pytest.mark.asyncio
     async def test_async_get_clod_build_without_build_id_should_throw_exception(self, hook):

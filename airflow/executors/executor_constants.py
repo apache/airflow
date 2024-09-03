@@ -16,6 +16,18 @@
 # under the License.
 from __future__ import annotations
 
+from enum import Enum, unique
+
+
+@unique
+class ConnectorSource(Enum):
+    """Enum of supported executor import sources."""
+
+    CORE = "core"
+    PLUGIN = "plugin"
+    CUSTOM_PATH = "custom path"
+
+
 LOCAL_EXECUTOR = "LocalExecutor"
 LOCAL_KUBERNETES_EXECUTOR = "LocalKubernetesExecutor"
 SEQUENTIAL_EXECUTOR = "SequentialExecutor"
@@ -24,3 +36,13 @@ CELERY_KUBERNETES_EXECUTOR = "CeleryKubernetesExecutor"
 KUBERNETES_EXECUTOR = "KubernetesExecutor"
 DEBUG_EXECUTOR = "DebugExecutor"
 MOCK_EXECUTOR = "MockExecutor"
+CORE_EXECUTOR_NAMES = {
+    LOCAL_EXECUTOR,
+    LOCAL_KUBERNETES_EXECUTOR,
+    SEQUENTIAL_EXECUTOR,
+    CELERY_EXECUTOR,
+    CELERY_KUBERNETES_EXECUTOR,
+    KUBERNETES_EXECUTOR,
+    DEBUG_EXECUTOR,
+    MOCK_EXECUTOR,
+}

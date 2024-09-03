@@ -23,7 +23,7 @@ Running Airflow in Docker
 This quick-start guide will allow you to quickly get Airflow up and running with the :doc:`CeleryExecutor <apache-airflow-providers-celery:celery_executor>` in Docker.
 
 .. caution::
-    This procedure can be useful for learning and exploration. However, adapting it for use in real-world situations can be complicated. Making changes to this procedure will require specialized expertise in Docker & Docker Compose, and the Airflow community may not be able to help you.
+    This procedure can be useful for learning and exploration. However, adapting it for use in real-world situations can be complicated and the docker compose file does not provide any security guarantees required for production system. Making changes to this procedure will require specialized expertise in Docker & Docker Compose, and the Airflow community may not be able to help you.
 
     For that reason, we recommend using Kubernetes with the :doc:`Official Airflow Community Helm Chart<helm-chart:index>` when you are ready to run Airflow in production.
 
@@ -48,7 +48,7 @@ Older versions of ``docker-compose`` do not support all the features required by
 
     .. code-block:: bash
 
-        docker run --rm "debian:bullseye-slim" bash -c 'numfmt --to iec $(echo $(($(getconf _PHYS_PAGES) * $(getconf PAGE_SIZE))))'
+        docker run --rm "debian:bookworm-slim" bash -c 'numfmt --to iec $(echo $(($(getconf _PHYS_PAGES) * $(getconf PAGE_SIZE))))'
 
 .. warning::
 
@@ -357,6 +357,49 @@ Networking
 ==========
 
 In general, if you want to use Airflow locally, your DAGs may try to connect to servers which are running on the host. In order to achieve that, an extra configuration must be added in ``docker-compose.yaml``. For example, on Linux the configuration must be in the section ``services: airflow-worker`` adding ``extra_hosts: - "host.docker.internal:host-gateway"``; and use ``host.docker.internal`` instead of ``localhost``. This configuration vary in different platforms. Please check the Docker documentation for `Windows <https://docs.docker.com/desktop/windows/networking/#use-cases-and-workarounds>`_ and `Mac <https://docs.docker.com/desktop/mac/networking/#use-cases-and-workarounds>`_ for further information.
+
+Debug Airflow inside docker container using PyCharm
+===================================================
+.. jinja:: quick_start_ctx
+
+    Prerequisites: Create a project in **PyCharm** and download the (`docker-compose.yaml <{{ doc_root_url }}docker-compose.yaml>`__).
+
+Steps:
+
+1) Modify  ``docker-compose.yaml``
+
+   Add the following section under the ``services`` section:
+
+.. code-block:: yaml
+
+    airflow-python:
+    <<: *airflow-common
+    profiles:
+        - debug
+    environment:
+        <<: *airflow-common-env
+    user: "50000:0"
+    entrypoint: ["bash"]
+
+.. note::
+
+    This code snippet creates a new service named **"airflow-python"** specifically for PyCharm's Python interpreter.
+    On a Linux system,  if you have executed the command ``echo -e "AIRFLOW_UID=$(id -u)" > .env``, you need to set ``user: "50000:0"`` in ``airflow-python`` service to avoid PyCharm's ``Unresolved reference 'airflow'`` error.
+
+2) Configure PyCharm Interpreter
+
+   * Open PyCharm and navigate to **Settings** > **Project: <Your Project Name>** > **Python Interpreter**.
+   * Click the **"Add Interpreter"** button and choose **"On Docker Compose"**.
+   * In the **Configuration file** field, select your ``docker-compose.yaml`` file.
+   * In the **Service field**, choose the newly added ``airflow-python`` service.
+   * Click **"Next"** and follow the prompts to complete the configuration.
+
+.. image:: /img/add_container_python_interpreter.png
+    :alt: Configuring the container's Python interpreter in PyCharm, step diagram
+
+Building the interpreter index might take some time.
+Once configured, you can debug your Airflow code within the container environment, mimicking your local setup.
+
 
 FAQ: Frequently asked questions
 ===============================

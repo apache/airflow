@@ -21,10 +21,9 @@ import gzip as gz
 import inspect
 import os
 import re
-import unittest
 from datetime import datetime as std_datetime, timezone
 from unittest import mock, mock as async_mock
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from urllib.parse import parse_qs
 
 import boto3
@@ -32,15 +31,18 @@ import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
 
+from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.s3 import (
+    NO_ACL,
     S3Hook,
     provide_bucket_name,
     unify_bucket_name_and_key,
 )
 from airflow.utils.timezone import datetime
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
 
 @pytest.fixture
@@ -62,6 +64,10 @@ class TestAwsS3Hook:
         hook = S3Hook()
         assert hook.get_conn() is not None
 
+    def test_resource(self):
+        hook = S3Hook()
+        assert hook.resource is not None
+
     def test_use_threads_default_value(self):
         hook = S3Hook()
         assert hook.transfer_config.use_threads is True
@@ -75,25 +81,61 @@ class TestAwsS3Hook:
         with pytest.raises(TypeError, match="transfer_config_args expected dict, got .*"):
             S3Hook(transfer_config_args=transfer_config_args)
 
-    def test_parse_s3_url(self):
-        parsed = S3Hook.parse_s3_url("s3://test/this/is/not/a-real-key.txt")
-        assert parsed == ("test", "this/is/not/a-real-key.txt"), "Incorrect parsing of the s3 url"
-
-    def test_parse_s3_url_s3a_style(self):
-        parsed = S3Hook.parse_s3_url("s3a://test/this/is/not/a-real-key.txt")
-        assert parsed == ("test", "this/is/not/a-real-key.txt"), "Incorrect parsing of the s3 url"
-
-    def test_parse_s3_url_s3n_style(self):
-        parsed = S3Hook.parse_s3_url("s3n://test/this/is/not/a-real-key.txt")
-        assert parsed == ("test", "this/is/not/a-real-key.txt"), "Incorrect parsing of the s3 url"
-
-    def test_parse_s3_url_path_style(self):
-        parsed = S3Hook.parse_s3_url("https://s3.us-west-2.amazonaws.com/DOC-EXAMPLE-BUCKET1/test.jpg")
-        assert parsed == ("DOC-EXAMPLE-BUCKET1", "test.jpg"), "Incorrect parsing of the s3 url"
-
-    def test_parse_s3_url_virtual_hosted_style(self):
-        parsed = S3Hook.parse_s3_url("https://DOC-EXAMPLE-BUCKET1.s3.us-west-2.amazonaws.com/test.png")
-        assert parsed == ("DOC-EXAMPLE-BUCKET1", "test.png"), "Incorrect parsing of the s3 url"
+    @pytest.mark.parametrize(
+        "url, expected",
+        [
+            pytest.param(
+                "s3://test/this/is/not/a-real-key.txt", ("test", "this/is/not/a-real-key.txt"), id="s3 style"
+            ),
+            pytest.param(
+                "s3a://test/this/is/not/a-real-key.txt",
+                ("test", "this/is/not/a-real-key.txt"),
+                id="s3a style",
+            ),
+            pytest.param(
+                "s3n://test/this/is/not/a-real-key.txt",
+                ("test", "this/is/not/a-real-key.txt"),
+                id="s3n style",
+            ),
+            pytest.param(
+                "https://s3.us-west-2.amazonaws.com/DOC-EXAMPLE-BUCKET1/test.jpg",
+                ("DOC-EXAMPLE-BUCKET1", "test.jpg"),
+                id="path style",
+            ),
+            pytest.param(
+                "https://DOC-EXAMPLE-BUCKET1.s3.us-west-2.amazonaws.com/test.png",
+                ("DOC-EXAMPLE-BUCKET1", "test.png"),
+                id="virtual hosted style",
+            ),
+            pytest.param(
+                "s3://test/this/is/not/a-real-key #2.txt",
+                ("test", "this/is/not/a-real-key #2.txt"),
+                id="s3 style with #",
+            ),
+            pytest.param(
+                "s3a://test/this/is/not/a-real-key #2.txt",
+                ("test", "this/is/not/a-real-key #2.txt"),
+                id="s3a style with #",
+            ),
+            pytest.param(
+                "s3n://test/this/is/not/a-real-key #2.txt",
+                ("test", "this/is/not/a-real-key #2.txt"),
+                id="s3n style with #",
+            ),
+            pytest.param(
+                "https://s3.us-west-2.amazonaws.com/DOC-EXAMPLE-BUCKET1/test #2.jpg",
+                ("DOC-EXAMPLE-BUCKET1", "test #2.jpg"),
+                id="path style with #",
+            ),
+            pytest.param(
+                "https://DOC-EXAMPLE-BUCKET1.s3.us-west-2.amazonaws.com/test #2.png",
+                ("DOC-EXAMPLE-BUCKET1", "test #2.png"),
+                id="virtual hosted style with #",
+            ),
+        ],
+    )
+    def test_parse_s3_url(self, url: str, expected: tuple[str, str]):
+        assert S3Hook.parse_s3_url(url) == expected, "Incorrect parsing of the s3 url"
 
     def test_parse_invalid_s3_url_virtual_hosted_style(self):
         with pytest.raises(
@@ -316,7 +358,7 @@ class TestAwsS3Hook:
     def test_read_key(self, s3_bucket):
         hook = S3Hook()
         bucket = hook.get_bucket(s3_bucket)
-        bucket.put_object(Key="my_key", Body=b"Cont\xC3\xA9nt")
+        bucket.put_object(Key="my_key", Body=b"Cont\xc3\xa9nt")
 
         assert hook.read_key("my_key", s3_bucket) == "Contént"
 
@@ -324,7 +366,7 @@ class TestAwsS3Hook:
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type")
     def test_select_key(self, mock_get_client_type, s3_bucket):
         mock_get_client_type.return_value.select_object_content.return_value = {
-            "Payload": [{"Records": {"Payload": b"Cont\xC3"}}, {"Records": {"Payload": b"\xA9nt"}}]
+            "Payload": [{"Records": {"Payload": b"Cont\xc3"}}, {"Records": {"Payload": b"\xa9nt"}}]
         }
         hook = S3Hook()
         assert hook.select_key("my_key", s3_bucket) == "Contént"
@@ -382,14 +424,23 @@ class TestAwsS3Hook:
         hook = S3Hook()
         hook.load_string("Contént", "my_key", s3_bucket)
         resource = boto3.resource("s3").Object(s3_bucket, "my_key")
-        assert resource.get()["Body"].read() == b"Cont\xC3\xA9nt"
+        assert resource.get()["Body"].read() == b"Cont\xc3\xa9nt"
+
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+    def test_load_string_exposes_lineage(self, s3_bucket, hook_lineage_collector):
+        hook = S3Hook()
+        hook.load_string("Contént", "my_key", s3_bucket)
+        assert len(hook_lineage_collector.collected_datasets.outputs) == 1
+        assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
+            uri=f"s3://{s3_bucket}/my_key"
+        )
 
     def test_load_string_compress(self, s3_bucket):
         hook = S3Hook()
         hook.load_string("Contént", "my_key", s3_bucket, compression="gzip")
         resource = boto3.resource("s3").Object(s3_bucket, "my_key")
         data = gz.decompress(resource.get()["Body"].read())
-        assert data == b"Cont\xC3\xA9nt"
+        assert data == b"Cont\xc3\xa9nt"
 
     def test_load_string_compress_exception(self, s3_bucket):
         hook = S3Hook()
@@ -400,9 +451,8 @@ class TestAwsS3Hook:
         hook = S3Hook()
         hook.load_string("Contént", "my_key", s3_bucket, acl_policy="public-read")
         response = boto3.client("s3").get_object_acl(Bucket=s3_bucket, Key="my_key", RequestPayer="requester")
-        assert (response["Grants"][1]["Permission"] == "READ") and (
-            response["Grants"][0]["Permission"] == "FULL_CONTROL"
-        )
+        assert response["Grants"][1]["Permission"] == "READ"
+        assert response["Grants"][0]["Permission"] == "FULL_CONTROL"
 
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
     @pytest.mark.asyncio
@@ -426,8 +476,9 @@ class TestAwsS3Hook:
 
         s3_hook_async = S3Hook(client_type="S3")
         mock_client.get_paginator = mock.Mock(return_value=mock_paginator)
-        task = await s3_hook_async.get_file_metadata_async(mock_client, "test_bucket", "test*")
-        assert task == [
+        keys = [x async for x in s3_hook_async.get_file_metadata_async(mock_client, "test_bucket", "test*")]
+
+        assert keys == [
             {"Key": "test_key", "ETag": "etag1", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
             {"Key": "test_key2", "ETag": "etag2", "LastModified": datetime(2020, 8, 14, 17, 19, 34)},
         ]
@@ -464,7 +515,6 @@ class TestAwsS3Hook:
 
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
     @pytest.mark.asyncio
-    @unittest.expectedFailure
     async def test_s3_key_hook_get_head_object_raise_exception_async(self, mock_client):
         """
         Test for 500 error if key not found and assert based on response.
@@ -489,10 +539,8 @@ class TestAwsS3Hook:
             operation_name="s3",
         )
         with pytest.raises(ClientError) as err:
-            response = await s3_hook_async.get_head_object_async(
-                mock_client, "s3://test_bucket/file", "test_bucket"
-            )
-            assert isinstance(response, err)
+            await s3_hook_async.get_head_object_async(mock_client, "s3://test_bucket/file", "test_bucket")
+        assert isinstance(err.value, ClientError)
 
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.async_conn")
@@ -633,64 +681,90 @@ class TestAwsS3Hook:
 
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_s3_bucket_key")
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_head_object_async")
     @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.async_conn")
-    async def test__check_key_async_without_wildcard_match(
-        self, mock_client, mock_head_object, mock_get_bucket_key
-    ):
+    async def test__check_key_async_without_wildcard_match(self, mock_get_conn, mock_get_bucket_key):
         """Test _check_key_async function without using wildcard_match"""
         mock_get_bucket_key.return_value = "test_bucket", "test.txt"
-        mock_head_object.return_value = {"ContentLength": 0}
+        mock_client = mock_get_conn.return_value
+        mock_client.head_object = AsyncMock(return_value={"ContentLength": 0})
         s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
         response = await s3_hook_async._check_key_async(
-            mock_client.return_value, "test_bucket", False, "s3://test_bucket/file/test.txt"
+            mock_client, "test_bucket", False, "s3://test_bucket/file/test.txt"
         )
         assert response is True
 
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_s3_bucket_key")
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_head_object_async")
     @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.async_conn")
     async def test_s3__check_key_async_without_wildcard_match_and_get_none(
-        self, mock_client, mock_head_object, mock_get_bucket_key
+        self, mock_get_conn, mock_get_bucket_key
     ):
         """Test _check_key_async function when get head object returns none"""
         mock_get_bucket_key.return_value = "test_bucket", "test.txt"
-        mock_head_object.return_value = None
         s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
+        mock_client = mock_get_conn.return_value
+        mock_client.head_object = AsyncMock(return_value=None)
         response = await s3_hook_async._check_key_async(
-            mock_client.return_value, "test_bucket", False, "s3://test_bucket/file/test.txt"
+            mock_client, "test_bucket", False, "s3://test_bucket/file/test.txt"
         )
         assert response is False
 
+    # @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_s3_bucket_key")
     @pytest.mark.asyncio
-    @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_s3_bucket_key")
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_file_metadata_async")
     @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.async_conn")
-    async def test_s3__check_key_async_with_wildcard_match(
-        self, mock_client, mock_get_file_metadata, mock_get_bucket_key
-    ):
+    @pytest.mark.parametrize(
+        "contents, result",
+        [
+            (
+                [
+                    {
+                        "Key": "test/example_s3_test_file.txt",
+                        "ETag": "etag1",
+                        "LastModified": datetime(2020, 8, 14, 17, 19, 34),
+                        "Size": 0,
+                    },
+                    {
+                        "Key": "test_key2",
+                        "ETag": "etag2",
+                        "LastModified": datetime(2020, 8, 14, 17, 19, 34),
+                        "Size": 0,
+                    },
+                ],
+                True,
+            ),
+            (
+                [
+                    {
+                        "Key": "test/example_aeoua.txt",
+                        "ETag": "etag1",
+                        "LastModified": datetime(2020, 8, 14, 17, 19, 34),
+                        "Size": 0,
+                    },
+                    {
+                        "Key": "test_key2",
+                        "ETag": "etag2",
+                        "LastModified": datetime(2020, 8, 14, 17, 19, 34),
+                        "Size": 0,
+                    },
+                ],
+                False,
+            ),
+        ],
+    )
+    async def test_s3__check_key_async_with_wildcard_match(self, mock_get_conn, contents, result):
         """Test _check_key_async function"""
-        mock_get_bucket_key.return_value = "test_bucket", "test"
-        mock_get_file_metadata.return_value = [
-            {
-                "Key": "test_key",
-                "ETag": "etag1",
-                "LastModified": datetime(2020, 8, 14, 17, 19, 34),
-                "Size": 0,
-            },
-            {
-                "Key": "test_key2",
-                "ETag": "etag2",
-                "LastModified": datetime(2020, 8, 14, 17, 19, 34),
-                "Size": 0,
-            },
-        ]
+        client = mock_get_conn.return_value
+        paginator = client.get_paginator.return_value
+        r = paginator.paginate.return_value
+        r.__aiter__.return_value = [{"Contents": contents}]
         s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
         response = await s3_hook_async._check_key_async(
-            mock_client.return_value, "test_bucket", True, "test/example_s3_test_file.txt"
+            client=client,
+            bucket_val="test_bucket",
+            wildcard_match=True,
+            key="test/example_s3_test_file.txt",
         )
-        assert response is False
+        assert response is result
 
     @pytest.mark.parametrize(
         "key, pattern, expected",
@@ -702,24 +776,31 @@ class TestAwsS3Hook:
     )
     @pytest.mark.asyncio
     @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_s3_bucket_key")
-    @async_mock.patch("airflow.providers.amazon.aws.triggers.s3.S3Hook.get_file_metadata_async")
     @async_mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.async_conn")
     async def test__check_key_async_with_use_regex(
-        self, mock_client, mock_get_file_metadata, mock_get_bucket_key, key, pattern, expected
+        self, mock_get_conn, mock_get_bucket_key, key, pattern, expected
     ):
         """Match AWS S3 key with regex expression"""
         mock_get_bucket_key.return_value = "test_bucket", pattern
-        mock_get_file_metadata.return_value = [
+        client = mock_get_conn.return_value
+        paginator = client.get_paginator.return_value
+        r = paginator.paginate.return_value
+        r.__aiter__.return_value = [
             {
-                "Key": key,
-                "ETag": "etag1",
-                "LastModified": datetime(2020, 8, 14, 17, 19, 34),
-                "Size": 0,
-            },
+                "Contents": [
+                    {
+                        "Key": key,
+                        "ETag": "etag1",
+                        "LastModified": datetime(2020, 8, 14, 17, 19, 34),
+                        "Size": 0,
+                    },
+                ]
+            }
         ]
+
         s3_hook_async = S3Hook(client_type="S3", resource_type="S3")
         response = await s3_hook_async._check_key_async(
-            client=mock_client.return_value,
+            client=client,
             bucket_val="test_bucket",
             wildcard_match=False,
             key=pattern,
@@ -908,9 +989,8 @@ class TestAwsS3Hook:
         hook = S3Hook()
         hook.load_bytes(b"Content", "my_key", s3_bucket, acl_policy="public-read")
         response = boto3.client("s3").get_object_acl(Bucket=s3_bucket, Key="my_key", RequestPayer="requester")
-        assert (response["Grants"][1]["Permission"] == "READ") and (
-            response["Grants"][0]["Permission"] == "FULL_CONTROL"
-        )
+        assert response["Grants"][1]["Permission"] == "READ"
+        assert response["Grants"][0]["Permission"] == "FULL_CONTROL"
 
     def test_load_fileobj(self, s3_bucket, tmp_path):
         hook = S3Hook()
@@ -926,9 +1006,8 @@ class TestAwsS3Hook:
         path.write_text("Content")
         hook.load_file_obj(path.open("rb"), "my_key", s3_bucket, acl_policy="public-read")
         response = boto3.client("s3").get_object_acl(Bucket=s3_bucket, Key="my_key", RequestPayer="requester")
-        assert (response["Grants"][1]["Permission"] == "READ") and (
-            response["Grants"][0]["Permission"] == "FULL_CONTROL"
-        )
+        assert response["Grants"][1]["Permission"] == "READ"
+        assert response["Grants"][0]["Permission"] == "FULL_CONTROL"
 
     def test_load_file_gzip(self, s3_bucket, tmp_path):
         hook = S3Hook()
@@ -938,15 +1017,25 @@ class TestAwsS3Hook:
         resource = boto3.resource("s3").Object(s3_bucket, "my_key")
         assert gz.decompress(resource.get()["Body"].read()) == b"Content"
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+    def test_load_file_exposes_lineage(self, s3_bucket, tmp_path, hook_lineage_collector):
+        hook = S3Hook()
+        path = tmp_path / "testfile"
+        path.write_text("Content")
+        hook.load_file(path, "my_key", s3_bucket)
+        assert len(hook_lineage_collector.collected_datasets.outputs) == 1
+        assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
+            uri=f"s3://{s3_bucket}/my_key"
+        )
+
     def test_load_file_acl(self, s3_bucket, tmp_path):
         hook = S3Hook()
         path = tmp_path / "testfile"
         path.write_text("Content")
         hook.load_file(path, "my_key", s3_bucket, gzip=True, acl_policy="public-read")
         response = boto3.client("s3").get_object_acl(Bucket=s3_bucket, Key="my_key", RequestPayer="requester")
-        assert (response["Grants"][1]["Permission"] == "READ") and (
-            response["Grants"][0]["Permission"] == "FULL_CONTROL"
-        )
+        assert response["Grants"][1]["Permission"] == "READ"
+        assert response["Grants"][0]["Permission"] == "FULL_CONTROL"
 
     def test_copy_object_acl(self, s3_bucket, tmp_path):
         hook = S3Hook()
@@ -957,7 +1046,64 @@ class TestAwsS3Hook:
         response = boto3.client("s3").get_object_acl(
             Bucket=s3_bucket, Key="my_key2", RequestPayer="requester"
         )
-        assert (response["Grants"][0]["Permission"] == "FULL_CONTROL") and (len(response["Grants"]) == 1)
+        assert response["Grants"][0]["Permission"] == "FULL_CONTROL"
+        assert len(response["Grants"]) == 1
+
+    @mock_aws
+    def test_copy_object_no_acl(
+        self,
+        s3_bucket,
+    ):
+        mock_hook = S3Hook()
+
+        with mock.patch.object(
+            S3Hook,
+            "get_conn",
+        ) as patched_get_conn:
+            mock_hook.copy_object("my_key", "my_key3", s3_bucket, s3_bucket, acl_policy=NO_ACL)
+
+            # Check we're not passing ACLs
+            patched_get_conn.return_value.copy_object.assert_called_once_with(
+                Bucket="airflow-test-s3-bucket",
+                Key="my_key3",
+                CopySource={"Bucket": "airflow-test-s3-bucket", "Key": "my_key", "VersionId": None},
+            )
+            patched_get_conn.reset_mock()
+
+            mock_hook.copy_object(
+                "my_key",
+                "my_key3",
+                s3_bucket,
+                s3_bucket,
+            )
+
+            # Check the default is "private"
+            patched_get_conn.return_value.copy_object.assert_called_once_with(
+                Bucket="airflow-test-s3-bucket",
+                Key="my_key3",
+                CopySource={"Bucket": "airflow-test-s3-bucket", "Key": "my_key", "VersionId": None},
+                ACL="private",
+            )
+
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+    @mock_aws
+    def test_copy_object_ol_instrumentation(self, s3_bucket, hook_lineage_collector):
+        mock_hook = S3Hook()
+
+        with mock.patch.object(
+            S3Hook,
+            "get_conn",
+        ):
+            mock_hook.copy_object("my_key", "my_key3", s3_bucket, s3_bucket)
+            assert len(hook_lineage_collector.collected_datasets.inputs) == 1
+            assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(
+                uri=f"s3://{s3_bucket}/my_key"
+            )
+
+            assert len(hook_lineage_collector.collected_datasets.outputs) == 1
+            assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
+                uri=f"s3://{s3_bucket}/my_key3"
+            )
 
     @mock_aws
     def test_delete_bucket_if_bucket_exist(self, s3_bucket):
@@ -1072,6 +1218,26 @@ class TestAwsS3Hook:
 
         assert path.name == output_file
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile")
+    def test_download_file_exposes_lineage(self, mock_temp_file, tmp_path, hook_lineage_collector):
+        path = tmp_path / "airflow_tmp_test_s3_hook"
+        mock_temp_file.return_value = path
+        s3_hook = S3Hook(aws_conn_id="s3_test")
+        s3_hook.check_for_key = Mock(return_value=True)
+        s3_obj = Mock()
+        s3_obj.download_fileobj = Mock(return_value=None)
+        s3_hook.get_key = Mock(return_value=s3_obj)
+        key = "test_key"
+        bucket = "test_bucket"
+
+        s3_hook.download_file(key=key, bucket_name=bucket)
+
+        assert len(hook_lineage_collector.collected_datasets.inputs) == 1
+        assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(
+            uri="s3://test_bucket/test_key"
+        )
+
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.open")
     def test_download_file_with_preserve_name(self, mock_open, tmp_path):
         path = tmp_path / "test.log"
@@ -1084,15 +1250,50 @@ class TestAwsS3Hook:
         s3_obj.key = f"s3://{bucket}/{key}"
         s3_obj.download_fileobj = Mock(return_value=None)
         s3_hook.get_key = Mock(return_value=s3_obj)
+        local_path = os.fspath(path.parent)
         s3_hook.download_file(
             key=key,
             bucket_name=bucket,
-            local_path=os.fspath(path.parent),
+            local_path=local_path,
             preserve_file_name=True,
             use_autogenerated_subdir=False,
         )
 
         mock_open.assert_called_once_with(path, "wb")
+
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.open")
+    def test_download_file_with_preserve_name_exposes_lineage(
+        self, mock_open, tmp_path, hook_lineage_collector
+    ):
+        path = tmp_path / "test.log"
+        bucket = "test_bucket"
+        key = f"test_key/{path.name}"
+
+        s3_hook = S3Hook(aws_conn_id="s3_test")
+        s3_hook.check_for_key = Mock(return_value=True)
+        s3_obj = Mock()
+        s3_obj.key = f"s3://{bucket}/{key}"
+        s3_obj.download_fileobj = Mock(return_value=None)
+        s3_hook.get_key = Mock(return_value=s3_obj)
+        local_path = os.fspath(path.parent)
+        s3_hook.download_file(
+            key=key,
+            bucket_name=bucket,
+            local_path=local_path,
+            preserve_file_name=True,
+            use_autogenerated_subdir=False,
+        )
+
+        assert len(hook_lineage_collector.collected_datasets.inputs) == 1
+        assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(
+            uri="s3://test_bucket/test_key/test.log"
+        )
+
+        assert len(hook_lineage_collector.collected_datasets.outputs) == 1
+        assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
+            uri=f"file://{local_path}/test.log",
+        )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.open")
     def test_download_file_with_preserve_name_with_autogenerated_subdir(self, mock_open, tmp_path):

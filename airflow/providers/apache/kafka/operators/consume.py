@@ -28,7 +28,8 @@ VALID_COMMIT_CADENCE = {"never", "end_of_batch", "end_of_operator"}
 
 
 class ConsumeFromTopicOperator(BaseOperator):
-    """An operator that consumes from Kafka a topic(s) and processing the messages.
+    """
+    An operator that consumes from Kafka a topic(s) and processing the messages.
 
     The operator creates a Kafka consumer that reads a batch of messages from the cluster and processes them
     using the user supplied callable function. The consumer will continue to read in batches until it reaches

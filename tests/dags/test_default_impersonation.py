@@ -30,7 +30,7 @@ args = {
     "start_date": DEFAULT_DATE,
 }
 
-dag = DAG(dag_id="test_default_impersonation", default_args=args)
+dag = DAG(dag_id="test_default_impersonation", schedule=None, default_args=args)
 
 deelevated_user = "airflow_test_user"
 

@@ -80,9 +80,9 @@ def get_variables(
     """Get all variable values."""
     total_entries = session.execute(select(func.count(Variable.id))).scalar()
     to_replace = {"value": "val"}
-    allowed_filter_attrs = ["value", "key", "id"]
+    allowed_sort_attrs = ["value", "key", "id"]
     query = select(Variable)
-    query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
+    query = apply_sorting(query, order_by, to_replace, allowed_sort_attrs)
     variables = session.scalars(query.offset(offset).limit(limit)).all()
     return variable_collection_schema.dump(
         {

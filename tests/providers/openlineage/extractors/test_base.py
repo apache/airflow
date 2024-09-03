@@ -16,16 +16,16 @@
 # under the License.
 from __future__ import annotations
 
-import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest import mock
 
 import pytest
 from attrs import Factory, define, field
-from openlineage.client.facet import BaseFacet, ParentRunFacet, SqlJobFacet
-from openlineage.client.run import Dataset
+from openlineage.client.event_v2 import Dataset
+from openlineage.client.facet_v2 import BaseFacet, JobFacet, parent_run, sql_job
 
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.taskinstance import TaskInstanceState
 from airflow.operators.python import PythonOperator
 from airflow.providers.openlineage.extractors.base import (
     BaseExtractor,
@@ -34,25 +34,29 @@ from airflow.providers.openlineage.extractors.base import (
 )
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
 from airflow.providers.openlineage.extractors.python import PythonExtractor
-from tests.test_utils.config import conf_vars
 
+if TYPE_CHECKING:
+    from openlineage.client.facet_v2 import RunFacet
 pytestmark = pytest.mark.db_test
 
 
 INPUTS = [Dataset(namespace="database://host:port", name="inputtable")]
 OUTPUTS = [Dataset(namespace="database://host:port", name="inputtable")]
-RUN_FACETS: dict[str, BaseFacet] = {
-    "parent": ParentRunFacet.create("3bb703d1-09c1-4a42-8da5-35a0b3216072", "namespace", "parentjob")
+RUN_FACETS: dict[str, RunFacet] = {
+    "parent": parent_run.ParentRunFacet(
+        run=parent_run.Run(runId="3bb703d1-09c1-4a42-8da5-35a0b3216072"),
+        job=parent_run.Job(namespace="namespace", name="parentjob"),
+    )
 }
-JOB_FACETS: dict[str, BaseFacet] = {"sql": SqlJobFacet(query="SELECT * FROM inputtable")}
+JOB_FACETS: dict[str, JobFacet] = {"sql": sql_job.SQLJobFacet(query="SELECT * FROM inputtable")}
 
 
 @define
-class CompleteRunFacet(BaseFacet):
+class CompleteRunFacet(JobFacet):
     finished: bool = field(default=False)
 
 
-FINISHED_FACETS: dict[str, BaseFacet] = {"complete": CompleteRunFacet(True)}
+FINISHED_FACETS: dict[str, JobFacet] = {"complete": CompleteRunFacet(True)}
 
 
 class ExampleExtractor(BaseExtractor):
@@ -220,7 +224,7 @@ def test_extraction_without_on_start():
         task_instance=task_instance
     )
 
-    assert metadata is None
+    assert metadata == OperatorLineage()
 
     assert metadata_on_complete == OperatorLineage(
         inputs=INPUTS,
@@ -230,20 +234,50 @@ def test_extraction_without_on_start():
     )
 
 
-@mock.patch.dict(
-    os.environ,
-    {"OPENLINEAGE_EXTRACTORS": "tests.providers.openlineage.extractors.test_base.ExampleExtractor"},
+@pytest.mark.parametrize(
+    "task_state, is_airflow_2_10_or_higher, should_call_on_failure",
+    (
+        # Airflow >= 2.10
+        (TaskInstanceState.FAILED, True, True),
+        (TaskInstanceState.UP_FOR_RETRY, True, True),
+        (TaskInstanceState.RUNNING, True, False),
+        (TaskInstanceState.SUCCESS, True, False),
+        # Airflow < 2.10
+        (TaskInstanceState.RUNNING, False, True),
+        (TaskInstanceState.SUCCESS, False, False),
+        (TaskInstanceState.FAILED, False, False),  # should never happen, fixed in #41053
+        (TaskInstanceState.UP_FOR_RETRY, False, False),  # should never happen, fixed in #41053
+    ),
 )
-def test_extractors_env_var():
-    extractor = ExtractorManager().get_extractor_class(ExampleOperator(task_id="example"))
-    assert extractor is ExampleExtractor
+def test_extract_on_failure(task_state, is_airflow_2_10_or_higher, should_call_on_failure):
+    task_instance = mock.Mock(state=task_state)
+    operator = mock.Mock()
+    operator.get_openlineage_facets_on_failure = mock.Mock(
+        return_value=OperatorLineage(run_facets={"failed": True})
+    )
+    operator.get_openlineage_facets_on_complete = mock.Mock(return_value=None)
+
+    extractor = DefaultExtractor(operator=operator)
+
+    with mock.patch(
+        "airflow.providers.openlineage.extractors.base.IS_AIRFLOW_2_10_OR_HIGHER", is_airflow_2_10_or_higher
+    ):
+        result = extractor.extract_on_complete(task_instance)
+
+        if should_call_on_failure:
+            operator.get_openlineage_facets_on_failure.assert_called_once_with(task_instance)
+            operator.get_openlineage_facets_on_complete.assert_not_called()
+            assert isinstance(result, OperatorLineage)
+            assert result.run_facets == {"failed": True}
+        else:
+            operator.get_openlineage_facets_on_failure.assert_not_called()
+            operator.get_openlineage_facets_on_complete.assert_called_once_with(task_instance)
+            assert result is None
 
 
-@mock.patch.dict(os.environ, {"OPENLINEAGE_EXTRACTORS": "no.such.extractor"})
-@conf_vars(
-    {("openlineage", "extractors"): "tests.providers.openlineage.extractors.test_base.ExampleExtractor"}
-)
-def test_config_has_precedence_over_env_var():
+@mock.patch("airflow.providers.openlineage.conf.custom_extractors")
+def test_extractors_env_var(custom_extractors):
+    custom_extractors.return_value = {"tests.providers.openlineage.extractors.test_base.ExampleExtractor"}
     extractor = ExtractorManager().get_extractor_class(ExampleOperator(task_id="example"))
     assert extractor is ExampleExtractor
 
@@ -285,17 +319,3 @@ def test_default_extractor_uses_wrong_operatorlineage_class():
     assert (
         ExtractorManager().extract_metadata(mock.MagicMock(), operator, complete=False) == OperatorLineage()
     )
-
-
-@mock.patch.dict(
-    os.environ,
-    {
-        "AIRFLOW__OPENLINEAGE__DISABLED_FOR_OPERATORS": "tests.providers.openlineage.extractors.test_base.ExampleOperator"
-    },
-)
-def test_default_extraction_disabled_operator():
-    extractor = DefaultExtractor(ExampleOperator(task_id="test"))
-    metadata = extractor.extract()
-    assert metadata is None
-    metadata = extractor.extract_on_complete(None)
-    assert metadata is None

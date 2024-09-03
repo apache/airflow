@@ -62,7 +62,7 @@ option_airflow_skip_constraints = click.option(
     envvar="AIRFLOW_SKIP_CONSTRAINTS",
 )
 option_install_airflow_with_constraints = click.option(
-    "--install-airflow-with-constraints",
+    "--install-airflow-with-constraints/--no-install-airflow-with-constraints",
     is_flag=True,
     default=False,
     show_default=True,

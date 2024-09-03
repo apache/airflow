@@ -46,10 +46,17 @@ function common::get_packaging_tool() {
         echo
         export PACKAGING_TOOL="uv"
         export PACKAGING_TOOL_CMD="uv pip"
-        export EXTRA_INSTALL_FLAGS="--python ${PYTHON_BIN}"
-        export EXTRA_UNINSTALL_FLAGS="--python ${PYTHON_BIN}"
-        export RESOLUTION_HIGHEST_FLAG="--resolution highest"
-        export RESOLUTION_LOWEST_DIRECT_FLAG="--resolution lowest-direct"
+        if [[ -z ${VIRTUAL_ENV=} ]]; then
+            export EXTRA_INSTALL_FLAGS="--python ${PYTHON_BIN}"
+            export EXTRA_UNINSTALL_FLAGS="--python ${PYTHON_BIN}"
+        else
+            export EXTRA_INSTALL_FLAGS=""
+            export EXTRA_UNINSTALL_FLAGS=""
+        fi
+        export UPGRADE_EAGERLY="--upgrade --resolution highest"
+        export UPGRADE_IF_NEEDED="--upgrade"
+        UV_CONCURRENT_DOWNLOADS=$(nproc --all)
+        export UV_CONCURRENT_DOWNLOADS
     else
         echo
         echo "${COLOR_BLUE}Using 'pip' to install Airflow${COLOR_RESET}"
@@ -58,8 +65,8 @@ function common::get_packaging_tool() {
         export PACKAGING_TOOL_CMD="pip"
         export EXTRA_INSTALL_FLAGS="--root-user-action ignore"
         export EXTRA_UNINSTALL_FLAGS="--yes"
-        export RESOLUTION_HIGHEST_FLAG="--upgrade-strategy eager"
-        export RESOLUTION_LOWEST_DIRECT_FLAG="--upgrade --upgrade-strategy only-if-needed"
+        export UPGRADE_EAGERLY="--upgrade --upgrade-strategy eager"
+        export UPGRADE_IF_NEEDED="--upgrade --upgrade-strategy only-if-needed"
     fi
 }
 
@@ -71,19 +78,7 @@ function common::get_airflow_version_specification() {
     fi
 }
 
-function common::override_pip_version_if_needed() {
-    if [[ -n ${AIRFLOW_VERSION} ]]; then
-        if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION=24.0
-        fi
-    fi
-}
-
 function common::get_constraints_location() {
-    if [[ -f "${HOME}/constraints.txt" ]]; then
-        # constraints are already downloaded, do not calculate/override again
-        return
-    fi
     # auto-detect Airflow-constraint reference and location
     if [[ -z "${AIRFLOW_CONSTRAINTS_REFERENCE=}" ]]; then
         if  [[ ${AIRFLOW_VERSION} =~ v?2.* && ! ${AIRFLOW_VERSION} =~ .*dev.* ]]; then
@@ -125,6 +120,15 @@ function common::show_packaging_tool_version_and_location() {
 }
 
 function common::install_packaging_tools() {
+    if [[ "${VIRTUAL_ENV=}" != "" ]]; then
+        echo
+        echo "${COLOR_BLUE}Checking packaging tools in venv: ${VIRTUAL_ENV}${COLOR_RESET}"
+        echo
+    else
+        echo
+        echo "${COLOR_BLUE}Checking packaging tools for system Python installation: $(which python)${COLOR_RESET}"
+        echo
+    fi
     if [[ ! ${AIRFLOW_PIP_VERSION} =~ [0-9.]* ]]; then
         echo
         echo "${COLOR_BLUE}Installing pip version from spec ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"

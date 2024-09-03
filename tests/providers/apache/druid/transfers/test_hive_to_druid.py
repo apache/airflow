@@ -57,7 +57,7 @@ class TestDruidHook:
         import requests_mock
 
         args = {"owner": "airflow", "start_date": "2017-01-01"}
-        self.dag = DAG("hive_to_druid", default_args=args)
+        self.dag = DAG("hive_to_druid", schedule=None, default_args=args)
 
         session = requests.Session()
         adapter = requests_mock.Adapter()

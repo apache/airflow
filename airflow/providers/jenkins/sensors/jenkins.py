@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -28,7 +28,8 @@ if TYPE_CHECKING:
 
 
 class JenkinsBuildSensor(BaseSensorOperator):
-    """Monitor a Jenkins job and pass when it is finished building.
+    """
+    Monitor a Jenkins job and pass when it is finished building.
 
     This is regardless of the build outcome.
 
@@ -67,11 +68,8 @@ class JenkinsBuildSensor(BaseSensorOperator):
         if build_result in self.target_states:
             return True
         else:
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = (
                 f"Build {build_number} finished with a result {build_result}, "
                 f"which does not meet the target state {self.target_states}."
             )
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)

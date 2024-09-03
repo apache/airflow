@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains AWS S3 operators."""
+
 from __future__ import annotations
 
 import subprocess
@@ -29,8 +30,9 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.helpers import exactly_one
 
 if TYPE_CHECKING:
-    from airflow.utils.context import Context
+    from datetime import datetime
 
+    from airflow.utils.context import Context
 
 BUCKET_DOES_NOT_EXIST_MSG = "Bucket with name: %s doesn't exist"
 
@@ -322,8 +324,7 @@ class S3CopyObjectOperator(BaseOperator):
         )
 
     def get_openlineage_facets_on_start(self):
-        from openlineage.client.run import Dataset
-
+        from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         dest_bucket_name, dest_bucket_key = S3Hook.get_s3_bucket_key(
@@ -437,8 +438,7 @@ class S3CreateObjectOperator(BaseOperator):
             s3_hook.load_bytes(self.data, s3_key, s3_bucket, self.replace, self.encrypt, self.acl_policy)
 
     def get_openlineage_facets_on_start(self):
-        from openlineage.client.run import Dataset
-
+        from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         bucket, key = S3Hook.get_s3_bucket_key(self.s3_bucket, self.s3_key, "dest_bucket", "dest_key")
@@ -472,6 +472,10 @@ class S3DeleteObjectsOperator(BaseOperator):
 
     :param prefix: Prefix of objects to delete. (templated)
         All objects matching this prefix in the bucket will be deleted.
+    :param from_datetime: Greater LastModified Date of objects to delete. (templated)
+        All objects which LastModified Date is greater than this datetime in the bucket will be deleted.
+    :param to_datetime: less LastModified Date of objects to delete. (templated)
+        All objects which LastModified Date is less than this datetime in the bucket will be deleted.
     :param aws_conn_id: Connection id of the S3 connection to use
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
@@ -486,7 +490,7 @@ class S3DeleteObjectsOperator(BaseOperator):
                  CA cert bundle than the one used by botocore.
     """
 
-    template_fields: Sequence[str] = ("keys", "bucket", "prefix")
+    template_fields: Sequence[str] = ("keys", "bucket", "prefix", "from_datetime", "to_datetime")
 
     def __init__(
         self,
@@ -494,6 +498,8 @@ class S3DeleteObjectsOperator(BaseOperator):
         bucket: str,
         keys: str | list | None = None,
         prefix: str | None = None,
+        from_datetime: datetime | None = None,
+        to_datetime: datetime | None = None,
         aws_conn_id: str | None = "aws_default",
         verify: str | bool | None = None,
         **kwargs,
@@ -502,36 +508,48 @@ class S3DeleteObjectsOperator(BaseOperator):
         self.bucket = bucket
         self.keys = keys
         self.prefix = prefix
+        self.from_datetime = from_datetime
+        self.to_datetime = to_datetime
         self.aws_conn_id = aws_conn_id
         self.verify = verify
 
         self._keys: str | list[str] = ""
 
-        if not exactly_one(prefix is None, keys is None):
-            raise AirflowException("Either keys or prefix should be set.")
+        if not exactly_one(keys is None, all(var is None for var in [prefix, from_datetime, to_datetime])):
+            raise AirflowException(
+                "Either keys or at least one of prefix, from_datetime, to_datetime should be set."
+            )
 
     def execute(self, context: Context):
-        if not exactly_one(self.keys is None, self.prefix is None):
-            raise AirflowException("Either keys or prefix should be set.")
+        if not exactly_one(
+            self.keys is None, all(var is None for var in [self.prefix, self.from_datetime, self.to_datetime])
+        ):
+            raise AirflowException(
+                "Either keys or at least one of prefix, from_datetime, to_datetime should be set."
+            )
 
         if isinstance(self.keys, (list, str)) and not self.keys:
             return
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
-        keys = self.keys or s3_hook.list_keys(bucket_name=self.bucket, prefix=self.prefix)
+        keys = self.keys or s3_hook.list_keys(
+            bucket_name=self.bucket,
+            prefix=self.prefix,
+            from_datetime=self.from_datetime,
+            to_datetime=self.to_datetime,
+        )
         if keys:
             s3_hook.delete_objects(bucket=self.bucket, keys=keys)
             self._keys = keys
 
     def get_openlineage_facets_on_complete(self, task_instance):
         """Implement _on_complete because object keys are resolved in execute()."""
-        from openlineage.client.facet import (
+        from airflow.providers.common.compat.openlineage.facet import (
+            Dataset,
             LifecycleStateChange,
             LifecycleStateChangeDatasetFacet,
-            LifecycleStateChangeDatasetFacetPreviousIdentifier,
+            PreviousIdentifier,
         )
-        from openlineage.client.run import Dataset
-
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         if not self._keys:
@@ -549,7 +567,7 @@ class S3DeleteObjectsOperator(BaseOperator):
                 facets={
                     "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
                         lifecycleStateChange=LifecycleStateChange.DROP.value,
-                        previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
+                        previousIdentifier=PreviousIdentifier(
                             namespace=bucket_url,
                             name=key,
                         ),
@@ -589,6 +607,7 @@ class S3FileTransformOperator(BaseOperator):
     :param dest_s3_key: The key to be written from S3. (templated)
     :param transform_script: location of the executable transformation script
     :param select_expression: S3 Select expression
+    :param select_expr_serialization_config: A dictionary that contains input and output serialization configurations for S3 Select.
     :param script_args: arguments for transformation script (templated)
     :param source_aws_conn_id: source s3 connection
     :param source_verify: Whether or not to verify SSL certificates for S3 connection.
@@ -620,6 +639,7 @@ class S3FileTransformOperator(BaseOperator):
         dest_s3_key: str,
         transform_script: str | None = None,
         select_expression=None,
+        select_expr_serialization_config: dict[str, dict[str, dict]] | None = None,
         script_args: Sequence[str] | None = None,
         source_aws_conn_id: str | None = "aws_default",
         source_verify: bool | str | None = None,
@@ -638,6 +658,7 @@ class S3FileTransformOperator(BaseOperator):
         self.replace = replace
         self.transform_script = transform_script
         self.select_expression = select_expression
+        self.select_expr_serialization_config = select_expr_serialization_config or {}
         self.script_args = script_args or []
         self.output_encoding = sys.getdefaultencoding()
 
@@ -657,7 +678,14 @@ class S3FileTransformOperator(BaseOperator):
             self.log.info("Dumping S3 file %s contents to local file %s", self.source_s3_key, f_source.name)
 
             if self.select_expression is not None:
-                content = source_s3.select_key(key=self.source_s3_key, expression=self.select_expression)
+                input_serialization = self.select_expr_serialization_config.get("input_serialization")
+                output_serialization = self.select_expr_serialization_config.get("output_serialization")
+                content = source_s3.select_key(
+                    key=self.source_s3_key,
+                    expression=self.select_expression,
+                    input_serialization=input_serialization,
+                    output_serialization=output_serialization,
+                )
                 f_source.write(content.encode("utf-8"))
             else:
                 source_s3_key_object.download_fileobj(Fileobj=f_source)
@@ -694,8 +722,7 @@ class S3FileTransformOperator(BaseOperator):
             self.log.info("Upload successful")
 
     def get_openlineage_facets_on_start(self):
-        from openlineage.client.run import Dataset
-
+        from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         dest_bucket_name, dest_bucket_key = S3Hook.get_s3_bucket_key(

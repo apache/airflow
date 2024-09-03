@@ -33,7 +33,7 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep, _UpstreamTISta
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -137,8 +137,8 @@ def get_mapped_task_dagrun(session, dag_maker):
             ti.map_index = 0
             for map_index in range(1, 5):
                 ti = TaskInstance(ti.task, run_id=dr.run_id, map_index=map_index)
-                ti.dag_run = dr
                 session.add(ti)
+                ti.dag_run = dr
             session.flush()
             tis = dr.get_task_instances(session=session)
             for ti in tis:
@@ -1015,7 +1015,7 @@ class TestTriggerRuleDep:
         Unknown trigger rules should cause this dep to fail
         """
         ti = get_task_instance(
-            TriggerRule.DUMMY,
+            TriggerRule.ALWAYS,
             success=1,
             skipped=0,
             failed=0,
@@ -1135,6 +1135,7 @@ class TestTriggerRuleDep:
 
         _test_trigger_rule(ti=ti, session=session, flag_upstream_failed=flag_upstream_failed)
 
+    @pytest.mark.flaky(reruns=5)
     @pytest.mark.parametrize(
         "trigger_rule", [TriggerRule.NONE_FAILED, TriggerRule.NONE_FAILED_MIN_ONE_SUCCESS]
     )

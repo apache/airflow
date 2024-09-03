@@ -39,7 +39,8 @@ ParamType = Union[str, dict, list, None]
 
 
 def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> JenkinsRequest | None:
-    """Create a Jenkins request from a raw request.
+    """
+    Create a Jenkins request from a raw request.
 
     We need to get the headers in addition to the body answer to get the
     location from them. This function uses ``jenkins_request`` from
@@ -75,7 +76,8 @@ def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> Jenki
 
 
 class JenkinsJobTriggerOperator(BaseOperator):
-    """Trigger a Jenkins Job and monitor its execution.
+    """
+    Trigger a Jenkins Job and monitor its execution.
 
     This operator depend on the python-jenkins library version >= 0.4.15 to
     communicate with the Jenkins server. You'll also need to configure a Jenkins
@@ -116,7 +118,8 @@ class JenkinsJobTriggerOperator(BaseOperator):
         self.allowed_jenkins_states = list(allowed_jenkins_states) if allowed_jenkins_states else ["SUCCESS"]
 
     def build_job(self, jenkins_server: Jenkins, params: ParamType = None) -> JenkinsRequest | None:
-        """Trigger a build job.
+        """
+        Trigger a build job.
 
         This returns a dict with 2 keys ``body`` and ``headers``. ``headers``
         contains also a dict-like object which can be queried to get the
@@ -136,7 +139,8 @@ class JenkinsJobTriggerOperator(BaseOperator):
         return jenkins_request_with_headers(jenkins_server, request)
 
     def poll_job_in_queue(self, location: str, jenkins_server: Jenkins) -> int:
-        """Poll the jenkins queue until the job is executed.
+        """
+        Poll the jenkins queue until the job is executed.
 
         When we trigger a job through an API call, the job is first put in the
         queue without having a build number assigned. We have to wait until the

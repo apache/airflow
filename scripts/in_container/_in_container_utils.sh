@@ -71,10 +71,17 @@ function in_container_get_packaging_tool() {
         echo
         export PACKAGING_TOOL=""
         export PACKAGING_TOOL_CMD="uv pip"
-        export EXTRA_INSTALL_FLAGS="--python ${PYTHON_BIN}"
-        export EXTRA_UNINSTALL_FLAGS="--python ${PYTHON_BIN}"
-        export RESOLUTION_HIGHEST_FLAG="--resolution highest"
-        export RESOLUTION_LOWEST_DIRECT_FLAG="--resolution lowest-direct"
+        if [[ -z ${VIRTUAL_ENV=} ]]; then
+            export EXTRA_INSTALL_FLAGS="--python ${PYTHON_BIN}"
+            export EXTRA_UNINSTALL_FLAGS="--python ${PYTHON_BIN}"
+        else
+            export EXTRA_INSTALL_FLAGS=""
+            export EXTRA_UNINSTALL_FLAGS=""
+        fi
+        export UPGRADE_EAGERLY="--upgrade --resolution highest"
+        export UPGRADE_IF_NEEDED="--upgrade"
+        UV_CONCURRENT_DOWNLOADS=$(nproc --all)
+        export UV_CONCURRENT_DOWNLOADS
     else
         echo
         echo "${COLOR_BLUE}Using 'pip' to install Airflow${COLOR_RESET}"
@@ -83,8 +90,8 @@ function in_container_get_packaging_tool() {
         export PACKAGING_TOOL_CMD="pip"
         export EXTRA_INSTALL_FLAGS="--root-user-action ignore"
         export EXTRA_UNINSTALL_FLAGS="--yes"
-        export RESOLUTION_HIGHEST_FLAG="--upgrade-strategy eager"
-        export RESOLUTION_LOWEST_DIRECT_FLAG="--upgrade --upgrade-strategy only-if-needed"
+        export UPGRADE_EAGERLY="--upgrade-strategy eager"
+        export UPGRADE_IF_NEEDED="--upgrade --upgrade-strategy only-if-needed"
     fi
 }
 

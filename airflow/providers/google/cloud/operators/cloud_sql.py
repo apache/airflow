@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud SQL operators."""
+
 from __future__ import annotations
 
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
 
 from googleapiclient.errors import HttpError
@@ -30,7 +32,7 @@ from airflow.providers.google.cloud.links.cloud_sql import CloudSQLInstanceDatab
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.cloud_sql import CloudSQLExportTrigger
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
-from airflow.providers.google.common.hooks.base_google import get_field
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, get_field
 from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
@@ -222,7 +224,8 @@ CLOUD_SQL_DATABASE_PATCH_VALIDATION = [
 
 
 class CloudSQLBaseOperator(GoogleCloudBaseOperator):
-    """Abstract base operator for Google Cloud SQL operators.
+    """
+    Abstract base operator for Google Cloud SQL operators.
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
     :param project_id: Optional, Google Cloud Project ID.  f set to None or missing,
@@ -243,7 +246,7 @@ class CloudSQLBaseOperator(GoogleCloudBaseOperator):
         self,
         *,
         instance: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -290,7 +293,8 @@ class CloudSQLBaseOperator(GoogleCloudBaseOperator):
 
 
 class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
-    """Create a new Cloud SQL instance.
+    """
+    Create a new Cloud SQL instance.
 
     If an instance with the same name exists, no action will be taken and
     the operator will succeed.
@@ -336,7 +340,7 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
         *,
         body: dict,
         instance: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         validate_body: bool = True,
@@ -391,7 +395,8 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
-    """Update settings of a Cloud SQL instance.
+    """
+    Update settings of a Cloud SQL instance.
 
     Caution: This is a partial update, so only included values for the settings will be
     updated.
@@ -439,7 +444,7 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
         *,
         body: dict,
         instance: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -483,7 +488,8 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
-    """Delete a Cloud SQL instance.
+    """
+    Delete a Cloud SQL instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -529,7 +535,8 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
-    """Clone an instance to a target instance.
+    """
+    Clone an instance to a target instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -571,7 +578,7 @@ class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
         instance: str,
         destination_instance_name: str,
         clone_context: dict | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -620,7 +627,8 @@ class CloudSQLCloneInstanceOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
-    """Create a new database inside a Cloud SQL instance.
+    """
+    Create a new database inside a Cloud SQL instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -662,7 +670,7 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
         *,
         instance: str,
         body: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         validate_body: bool = True,
@@ -724,7 +732,8 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
-    """Update resource containing information about a database using patch semantics.
+    """
+    Update resource containing information about a database using patch semantics.
 
     See: https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch
 
@@ -770,7 +779,7 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
         instance: str,
         database: str,
         body: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         validate_body: bool = True,
@@ -827,7 +836,8 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
-    """Delete a database from a Cloud SQL instance.
+    """
+    Delete a database from a Cloud SQL instance.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -866,7 +876,7 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
         *,
         instance: str,
         database: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -906,7 +916,8 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
-    """Export data from a Cloud SQL instance to a Cloud Storage bucket.
+    """
+    Export data from a Cloud SQL instance to a Cloud Storage bucket.
 
     The exported format can be a SQL dump or CSV file.
 
@@ -956,7 +967,7 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
         *,
         instance: str,
         body: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         validate_body: bool = True,
@@ -1043,7 +1054,8 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
-    """Import data into a Cloud SQL instance from Cloud Storage.
+    """
+    Import data into a Cloud SQL instance from Cloud Storage.
 
     CSV IMPORT
     ``````````
@@ -1103,7 +1115,7 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
         *,
         instance: str,
         body: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1beta4",
         validate_body: bool = True,
@@ -1155,7 +1167,8 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
 
 
 class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
-    """Perform DML or DDL query on an existing Cloud Sql instance.
+    """
+    Perform DML or DDL query on an existing Cloud Sql instance.
 
     It optionally uses cloud-sql-proxy to establish secure connection with the
     database.
@@ -1180,10 +1193,35 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
        details on how to define ``gcpcloudsql://`` connection.
     :param sql_proxy_binary_path: (optional) Path to the cloud-sql-proxy binary.
           is not specified or the binary is not present, it is automatically downloaded.
+    :param ssl_cert: (optional) Path to client certificate to authenticate when SSL is used. Overrides the
+        connection field ``sslcert``.
+    :param ssl_key: (optional) Path to client private key to authenticate when SSL is used. Overrides the
+        connection field ``sslkey``.
+    :param ssl_root_cert: (optional) Path to server's certificate to authenticate when SSL is used. Overrides
+        the connection field ``sslrootcert``.
+    :param ssl_secret_id: (optional) ID of the secret in Google Cloud Secret Manager that stores SSL
+        certificate in the format below:
+
+        {'sslcert': '',
+         'sslkey': '',
+         'sslrootcert': ''}
+
+        Overrides the connection fields ``sslcert``, ``sslkey``, ``sslrootcert``.
+        Note that according to the Secret Manager requirements, the mentioned dict should be saved as a
+        string, and encoded with base64.
+        Note that this parameter is incompatible with parameters ``ssl_cert``, ``ssl_key``, ``ssl_root_cert``.
     """
 
     # [START gcp_sql_query_template_fields]
-    template_fields: Sequence[str] = ("sql", "gcp_cloudsql_conn_id", "gcp_conn_id")
+    template_fields: Sequence[str] = (
+        "sql",
+        "gcp_cloudsql_conn_id",
+        "gcp_conn_id",
+        "ssl_server_cert",
+        "ssl_client_cert",
+        "ssl_client_key",
+        "ssl_secret_id",
+    )
     template_ext: Sequence[str] = (".sql",)
     template_fields_renderers = {"sql": "sql"}
     # [END gcp_sql_query_template_fields]
@@ -1198,6 +1236,10 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         gcp_cloudsql_conn_id: str = "google_cloud_sql_default",
         sql_proxy_binary_path: str | None = None,
+        ssl_server_cert: str | None = None,
+        ssl_client_cert: str | None = None,
+        ssl_client_key: str | None = None,
+        ssl_secret_id: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1208,6 +1250,10 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
         self.parameters = parameters
         self.gcp_connection: Connection | None = None
         self.sql_proxy_binary_path = sql_proxy_binary_path
+        self.ssl_server_cert = ssl_server_cert
+        self.ssl_client_cert = ssl_client_cert
+        self.ssl_client_key = ssl_client_key
+        self.ssl_secret_id = ssl_secret_id
 
     def _execute_query(self, hook: CloudSQLDatabaseHook, database_hook: PostgresHook | MySqlHook) -> None:
         cloud_sql_proxy_runner = None
@@ -1227,12 +1273,8 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
 
     def execute(self, context: Context):
         self.gcp_connection = BaseHook.get_connection(self.gcp_conn_id)
-        hook = CloudSQLDatabaseHook(
-            gcp_cloudsql_conn_id=self.gcp_cloudsql_conn_id,
-            gcp_conn_id=self.gcp_conn_id,
-            default_gcp_project_id=get_field(self.gcp_connection.extra_dejson, "project"),
-            sql_proxy_binary_path=self.sql_proxy_binary_path,
-        )
+
+        hook = self.hook
         hook.validate_ssl_certs()
         connection = hook.create_connection()
         hook.validate_socket_path_length()
@@ -1241,3 +1283,16 @@ class CloudSQLExecuteQueryOperator(GoogleCloudBaseOperator):
             self._execute_query(hook, database_hook)
         finally:
             hook.cleanup_database_hook()
+
+    @cached_property
+    def hook(self):
+        return CloudSQLDatabaseHook(
+            gcp_cloudsql_conn_id=self.gcp_cloudsql_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
+            default_gcp_project_id=get_field(self.gcp_connection.extra_dejson, "project"),
+            sql_proxy_binary_path=self.sql_proxy_binary_path,
+            ssl_root_cert=self.ssl_server_cert,
+            ssl_cert=self.ssl_client_cert,
+            ssl_key=self.ssl_client_key,
+            ssl_secret_id=self.ssl_secret_id,
+        )

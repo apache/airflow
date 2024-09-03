@@ -23,20 +23,20 @@ from unittest.mock import MagicMock
 import pytest
 from google.cloud.bigquery.retry import DEFAULT_RETRY
 from google.cloud.bigquery.table import Table
-from openlineage.client.facet import (
-    ColumnLineageDatasetFacet,
-    ColumnLineageDatasetFacetFieldsAdditional,
-    ColumnLineageDatasetFacetFieldsAdditionalInputFields,
-    DocumentationDatasetFacet,
-    ExternalQueryRunFacet,
-    SchemaDatasetFacet,
-    SchemaField,
-    SymlinksDatasetFacet,
-    SymlinksDatasetFacetIdentifiers,
-)
-from openlineage.client.run import Dataset
 
 from airflow.exceptions import TaskDeferred
+from airflow.providers.common.compat.openlineage.facet import (
+    ColumnLineageDatasetFacet,
+    Dataset,
+    DocumentationDatasetFacet,
+    ExternalQueryRunFacet,
+    Fields,
+    Identifier,
+    InputField,
+    SchemaDatasetFacet,
+    SchemaDatasetFacetFields,
+    SymlinksDatasetFacet,
+)
 from airflow.providers.google.cloud.transfers.bigquery_to_gcs import BigQueryToGCSOperator
 from airflow.providers.google.cloud.triggers.bigquery import BigQueryInsertJobTrigger
 
@@ -187,6 +187,26 @@ class TestBigQueryToGCSOperator:
             nowait=True,
         )
 
+    def test_execute_complete_reassigns_job_id(self):
+        """Assert that we use job_id from event after deferral."""
+
+        operator = BigQueryToGCSOperator(
+            project_id=JOB_PROJECT_ID,
+            task_id=TASK_ID,
+            source_project_dataset_table=f"{PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}",
+            destination_cloud_storage_uris=[f"gs://{TEST_BUCKET}/{TEST_FOLDER}/"],
+            deferrable=True,
+            job_id=None,
+        )
+        job_id = "123456"
+
+        assert operator.job_id is None
+        operator.execute_complete(
+            context=MagicMock(),
+            event={"status": "success", "message": "Job completed", "job_id": job_id},
+        )
+        assert operator.job_id == job_id
+
     @pytest.mark.parametrize(
         ("gcs_uri", "expected_dataset_name"),
         (
@@ -249,8 +269,8 @@ class TestBigQueryToGCSOperator:
         expected_input_dataset_facets = {
             "schema": SchemaDatasetFacet(
                 fields=[
-                    SchemaField(name="field1", type="STRING", description="field1 description"),
-                    SchemaField(name="field2", type="INTEGER"),
+                    SchemaDatasetFacetFields(name="field1", type="STRING", description="field1 description"),
+                    SchemaDatasetFacetFields(name="field2", type="INTEGER"),
                 ]
             ),
             "documentation": DocumentationDatasetFacet(description="Table description."),
@@ -358,8 +378,8 @@ class TestBigQueryToGCSOperator:
 
         schema_facet = SchemaDatasetFacet(
             fields=[
-                SchemaField(name="field1", type="STRING", description="field1 description"),
-                SchemaField(name="field2", type="INTEGER"),
+                SchemaDatasetFacetFields(name="field1", type="STRING", description="field1 description"),
+                SchemaDatasetFacetFields(name="field2", type="INTEGER"),
             ]
         )
         expected_input_facets = {
@@ -371,18 +391,18 @@ class TestBigQueryToGCSOperator:
             "schema": schema_facet,
             "columnLineage": ColumnLineageDatasetFacet(
                 fields={
-                    "field1": ColumnLineageDatasetFacetFieldsAdditional(
+                    "field1": Fields(
                         inputFields=[
-                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                            InputField(
                                 namespace=bq_namespace, name=source_project_dataset_table, field="field1"
                             )
                         ],
                         transformationType="IDENTITY",
                         transformationDescription="identical",
                     ),
-                    "field2": ColumnLineageDatasetFacetFieldsAdditional(
+                    "field2": Fields(
                         inputFields=[
-                            ColumnLineageDatasetFacetFieldsAdditionalInputFields(
+                            InputField(
                                 namespace=bq_namespace, name=source_project_dataset_table, field="field2"
                             )
                         ],
@@ -393,7 +413,7 @@ class TestBigQueryToGCSOperator:
             ),
             "symlink": SymlinksDatasetFacet(
                 identifiers=[
-                    SymlinksDatasetFacetIdentifiers(
+                    Identifier(
                         namespace=f"gs://{TEST_BUCKET}",
                         name=f"{TEST_FOLDER}/{TEST_OBJECT_WILDCARD}",
                         type="file",

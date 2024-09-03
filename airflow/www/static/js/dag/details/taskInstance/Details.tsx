@@ -17,11 +17,12 @@
  * under the License.
  */
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Text, Flex, Table, Tbody, Tr, Td, Code, Box } from "@chakra-ui/react";
 import { snakeCase } from "lodash";
 
-import { getGroupAndMapSummary } from "src/utils";
+import { useTIHistory } from "src/api";
+import { getGroupAndMapSummary, getMetaValue } from "src/utils";
 import { getDuration, formatDuration } from "src/datetime_utils";
 import { SimpleStatus } from "src/dag/StatusBox";
 import Time from "src/components/Time";
@@ -32,47 +33,99 @@ import type {
   TaskInstance as GridTaskInstance,
   TaskState,
 } from "src/types";
+import RenderedJsonField from "src/components/RenderedJsonField";
+import TrySelector from "./TrySelector";
 
 interface Props {
-  gridInstance: GridTaskInstance;
+  gridInstance?: GridTaskInstance;
   taskInstance?: API.TaskInstance;
-  group: Task;
+  group?: Task | null;
 }
 
+const dagId = getMetaValue("dag_id");
+
 const Details = ({ gridInstance, taskInstance, group }: Props) => {
-  const isGroup = !!group.children;
+  const isGroup = !!group?.children;
   const summary: React.ReactNode[] = [];
 
-  const { taskId, runId, startDate, endDate, state } = gridInstance;
+  const { runId, taskId } = gridInstance || {};
 
-  const mappedStates = !taskInstance ? gridInstance.mappedStates : undefined;
+  const finalTryNumber = gridInstance?.tryNumber || taskInstance?.tryNumber;
 
-  const { isMapped, tooltip, operator, triggerRule } = group;
-
-  const { totalTasks, childTaskMap } = getGroupAndMapSummary({
-    group,
-    runId,
-    mappedStates,
+  const { data: tiHistory } = useTIHistory({
+    dagId,
+    taskId: taskId || "",
+    dagRunId: runId || "",
+    mapIndex: taskInstance?.mapIndex || -1,
+    options: {
+      enabled: !!(finalTryNumber && finalTryNumber > 1) && !!taskId, // Only try to look up task tries if try number > 1
+    },
   });
 
-  childTaskMap.forEach((key, val) => {
-    const childState = snakeCase(val);
-    if (key > 0) {
-      summary.push(
-        <Tr key={childState}>
-          <Td />
-          <Td>
-            <Flex alignItems="center">
-              <SimpleStatus state={childState as TaskState} mx={2} />
-              {childState}
-              {": "}
-              {key}
-            </Flex>
-          </Td>
-        </Tr>
-      );
-    }
-  });
+  const [selectedTryNumber, setSelectedTryNumber] = useState(
+    finalTryNumber || 1
+  );
+
+  // update state if the final try number changes
+  useEffect(() => {
+    if (finalTryNumber) setSelectedTryNumber(finalTryNumber);
+  }, [finalTryNumber]);
+
+  const tryInstance = tiHistory?.taskInstances?.find(
+    (ti) => ti.tryNumber === selectedTryNumber
+  );
+
+  const instance =
+    selectedTryNumber !== finalTryNumber && finalTryNumber && finalTryNumber > 1
+      ? tryInstance
+      : taskInstance;
+
+  const state =
+    instance?.state ||
+    (instance?.state === "none" ? null : instance?.state) ||
+    gridInstance?.state ||
+    null;
+  const isMapped = group?.isMapped;
+  const startDate = instance?.startDate;
+  const endDate = instance?.endDate;
+  const executor = instance?.executor || "<default>";
+
+  const operator = instance?.operator || group?.operator;
+
+  const mappedStates = !taskInstance ? gridInstance?.mappedStates : undefined;
+
+  let totalTasks;
+  let childTaskMap;
+
+  if (group) {
+    const groupAndMapSummary = getGroupAndMapSummary({
+      group,
+      runId,
+      mappedStates,
+    });
+
+    totalTasks = groupAndMapSummary.totalTasks;
+    childTaskMap = groupAndMapSummary.childTaskMap;
+
+    childTaskMap.forEach((key, val) => {
+      const childState = snakeCase(val);
+      if (key > 0) {
+        summary.push(
+          <Tr key={childState}>
+            <Td />
+            <Td>
+              <Flex alignItems="center">
+                <SimpleStatus state={childState as TaskState} mx={2} />
+                {childState}
+                {": "}
+                {key}
+              </Flex>
+            </Td>
+          </Tr>
+        );
+      }
+    });
+  }
 
   const taskIdTitle = isGroup ? "Task Group ID" : "Task ID";
   const isStateFinal =
@@ -82,14 +135,18 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
 
   return (
     <Box mt={3} flexGrow={1}>
-      <Text as="strong" mb={3}>
-        Task Instance Details
-      </Text>
+      {!!taskInstance && (
+        <TrySelector
+          taskInstance={taskInstance}
+          selectedTryNumber={selectedTryNumber || finalTryNumber}
+          onSelectTryNumber={setSelectedTryNumber}
+        />
+      )}
       <Table variant="striped">
         <Tbody>
-          {tooltip && (
+          {group?.tooltip && (
             <Tr>
-              <Td colSpan={2}>{tooltip}</Td>
+              <Td colSpan={2}>{group.tooltip}</Td>
             </Tr>
           )}
           <Tr>
@@ -104,7 +161,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
               </Flex>
             </Td>
           </Tr>
-          {!!group.setupTeardownType && (
+          {!!group?.setupTeardownType && (
             <Tr>
               <Td>Type</Td>
               <Td>
@@ -114,7 +171,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
               </Td>
             </Tr>
           )}
-          {mappedStates && totalTasks > 0 && (
+          {mappedStates && !!totalTasks && totalTasks > 0 && (
             <Tr>
               <Td colSpan={2}>
                 {totalTasks} {isGroup ? "Task Group" : "Task"}
@@ -124,48 +181,47 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
             </Tr>
           )}
           {summary.length > 0 && summary}
-          <Tr>
-            <Td>{taskIdTitle}</Td>
-            <Td>
-              <ClipboardText value={taskId} />
-            </Td>
-          </Tr>
-          <Tr>
-            <Td>Run ID</Td>
-            <Td>
-              <Text whiteSpace="nowrap">
-                <ClipboardText value={runId} />
-              </Text>
-            </Td>
-          </Tr>
-          {taskInstance?.mapIndex !== undefined && (
+          {!!taskId && (
+            <Tr>
+              <Td>{taskIdTitle}</Td>
+              <Td>
+                <ClipboardText value={taskId} />
+              </Td>
+            </Tr>
+          )}
+          {!!runId && (
+            <Tr>
+              <Td>Run ID</Td>
+              <Td>
+                <Text whiteSpace="nowrap">
+                  <ClipboardText value={runId} />
+                </Text>
+              </Td>
+            </Tr>
+          )}
+          {instance?.mapIndex !== undefined && (
             <Tr>
               <Td>Map Index</Td>
-              <Td>{taskInstance.mapIndex}</Td>
+              <Td>{instance.mapIndex}</Td>
             </Tr>
           )}
-          {taskInstance?.renderedMapIndex !== undefined && (
-            <Tr>
-              <Td>Rendered Map Index</Td>
-              <Td>{taskInstance.renderedMapIndex}</Td>
-            </Tr>
-          )}
-          {!!taskInstance?.tryNumber && (
-            <Tr>
-              <Td>Try Number</Td>
-              <Td>{taskInstance.tryNumber}</Td>
-            </Tr>
-          )}
+          {instance?.renderedMapIndex !== undefined &&
+            instance?.renderedMapIndex !== null && (
+              <Tr>
+                <Td>Rendered Map Index</Td>
+                <Td>{instance.renderedMapIndex}</Td>
+              </Tr>
+            )}
           {operator && (
             <Tr>
               <Td>Operator</Td>
               <Td>{operator}</Td>
             </Tr>
           )}
-          {triggerRule && (
+          {group?.triggerRule && (
             <Tr>
               <Td>Trigger Rule</Td>
-              <Td>{triggerRule}</Td>
+              <Td>{group.triggerRule}</Td>
             </Tr>
           )}
           {startDate && (
@@ -193,91 +249,110 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
               </Td>
             </Tr>
           )}
-          {!!taskInstance?.pid && (
+          {!!instance?.pid && (
             <Tr>
               <Td>Process ID (PID)</Td>
               <Td>
-                <ClipboardText value={taskInstance.pid.toString()} />
+                <ClipboardText value={instance.pid.toString()} />
               </Td>
             </Tr>
           )}
-          {!!taskInstance?.hostname && (
+          {!!instance?.hostname && (
             <Tr>
               <Td>Hostname</Td>
               <Td>
-                <ClipboardText value={taskInstance.hostname} />
+                <ClipboardText value={instance.hostname} />
               </Td>
             </Tr>
           )}
-          {taskInstance?.renderedFields && (
-            <>
-              {Object.keys(taskInstance.renderedFields).map((key) => {
-                const renderedFields = taskInstance.renderedFields as Record<
+          {!!instance?.pool && (
+            <Tr>
+              <Td>Pool</Td>
+              <Td>{instance.pool}</Td>
+            </Tr>
+          )}
+          {!!instance?.poolSlots && (
+            <Tr>
+              <Td>Pool Slots</Td>
+              <Td>{instance.poolSlots}</Td>
+            </Tr>
+          )}
+          {executor && (
+            <Tr>
+              <Td>Executor</Td>
+              <Td>{executor}</Td>
+            </Tr>
+          )}
+          {!!instance?.executorConfig && (
+            <Tr>
+              <Td>Executor Config</Td>
+              <Td>
+                <Code fontSize="md">{instance.executorConfig.toString()}</Code>
+              </Td>
+            </Tr>
+          )}
+          {!!instance?.unixname && (
+            <Tr>
+              <Td>Unix Name</Td>
+              <Td>{instance.unixname}</Td>
+            </Tr>
+          )}
+          {!!instance?.maxTries && (
+            <Tr>
+              <Td>Max Tries</Td>
+              <Td>{instance.maxTries}</Td>
+            </Tr>
+          )}
+          {!!instance?.queue && (
+            <Tr>
+              <Td>Queue</Td>
+              <Td>{instance.queue}</Td>
+            </Tr>
+          )}
+          {!!instance?.priorityWeight && (
+            <Tr>
+              <Td>Priority Weight</Td>
+              <Td>{instance.priorityWeight}</Td>
+            </Tr>
+          )}
+        </Tbody>
+      </Table>
+      {instance?.renderedFields && (
+        <Box mt={3}>
+          <Text as="strong" mb={3}>
+            Rendered Templates
+          </Text>
+          <Table variant="striped">
+            <Tbody>
+              {Object.keys(instance.renderedFields).map((key) => {
+                const renderedFields = instance.renderedFields as Record<
                   string,
                   unknown
                 >;
-                if (renderedFields[key]) {
+                let field = renderedFields[key];
+                if (field) {
+                  if (typeof field !== "string") {
+                    try {
+                      field = JSON.stringify(field);
+                    } catch (e) {
+                      // skip
+                    }
+                  }
                   return (
                     <Tr key={key}>
                       <Td>{key}</Td>
                       <Td>
-                        <Code fontSize="md">
-                          {JSON.stringify(renderedFields[key])}
-                        </Code>
+                        <RenderedJsonField content={field as string} />
                       </Td>
                     </Tr>
                   );
                 }
                 return null;
               })}
-            </>
-          )}
-          {!!taskInstance?.pool && (
-            <Tr>
-              <Td>Pool</Td>
-              <Td>{taskInstance.pool}</Td>
-            </Tr>
-          )}
-          {!!taskInstance?.poolSlots && (
-            <Tr>
-              <Td>Pool Slots</Td>
-              <Td>{taskInstance.poolSlots}</Td>
-            </Tr>
-          )}
-          {!!taskInstance?.executorConfig && (
-            <Tr>
-              <Td>Executor Config</Td>
-              <Td>
-                <Code fontSize="md">{taskInstance.executorConfig}</Code>
-              </Td>
-            </Tr>
-          )}
-          {!!taskInstance?.unixname && (
-            <Tr>
-              <Td>Unix Name</Td>
-              <Td>{taskInstance.unixname}</Td>
-            </Tr>
-          )}
-          {!!taskInstance?.maxTries && (
-            <Tr>
-              <Td>Max Tries</Td>
-              <Td>{taskInstance.maxTries}</Td>
-            </Tr>
-          )}
-          {!!taskInstance?.queue && (
-            <Tr>
-              <Td>Queue</Td>
-              <Td>{taskInstance.queue}</Td>
-            </Tr>
-          )}
-          {!!taskInstance?.priorityWeight && (
-            <Tr>
-              <Td>Priority Weight</Td>
-              <Td>{taskInstance.priorityWeight}</Td>
-            </Tr>
-          )}
-        </Tbody>
-      </Table>
+            </Tbody>
+          </Table>
+        </Box>
+      )}
     </Box>
   );
 };

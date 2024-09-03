@@ -17,17 +17,27 @@
 from __future__ import annotations
 
 from itertools import chain
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import Mock
 
 import pytest
 from flask import Flask
 
-from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
-from airflow.exceptions import AirflowException
-from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
-from airflow.providers.fab.auth_manager.models import User
-from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+from airflow.exceptions import AirflowConfigException, AirflowException
+
+try:
+    from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
+except ImportError:
+    pass
+
+from tests.test_utils.compat import ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.9.0+", __file__):
+    from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+    from airflow.providers.fab.auth_manager.models import User
+    from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+
 from airflow.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_CREATE,
@@ -39,6 +49,7 @@ from airflow.security.permissions import (
     RESOURCE_DAG,
     RESOURCE_DAG_RUN,
     RESOURCE_DATASET,
+    RESOURCE_DOCS,
     RESOURCE_JOB,
     RESOURCE_PLUGIN,
     RESOURCE_PROVIDER,
@@ -48,6 +59,9 @@ from airflow.security.permissions import (
     RESOURCE_WEBSITE,
 )
 from airflow.www.extensions.init_appbuilder import init_appbuilder
+
+if TYPE_CHECKING:
+    from airflow.auth.managers.base_auth_manager import ResourceMethod
 
 IS_AUTHORIZED_METHODS_SIMPLE = {
     "is_authorized_configuration": RESOURCE_CONFIG,
@@ -140,10 +154,10 @@ class TestFabAuthManager:
                         [(ACTION_CAN_DELETE, resource_type), (ACTION_CAN_CREATE, "resource_test")],
                         True,
                     ),
-                    # With permission (testing that ACTION_CAN_ACCESS_MENU gives GET permissions)
+                    # With permission
                     (
                         api_name,
-                        "GET",
+                        "MENU",
                         [(ACTION_CAN_ACCESS_MENU, resource_type)],
                         True,
                     ),
@@ -346,12 +360,66 @@ class TestFabAuthManager:
                 [(ACTION_CAN_READ, RESOURCE_TRIGGER)],
                 False,
             ),
+            # Docs (positive)
+            (
+                AccessView.DOCS,
+                [(ACTION_CAN_ACCESS_MENU, RESOURCE_DOCS)],
+                True,
+            ),
+            # Without permission
+            (
+                AccessView.DOCS,
+                [(ACTION_CAN_READ, RESOURCE_DOCS)],
+                False,
+            ),
         ],
     )
     def test_is_authorized_view(self, access_view, user_permissions, expected_result, auth_manager):
         user = Mock()
         user.perms = user_permissions
         result = auth_manager.is_authorized_view(access_view=access_view, user=user)
+        assert result == expected_result
+
+    @pytest.mark.parametrize(
+        "method, resource_name, user_permissions, expected_result",
+        [
+            (
+                "GET",
+                "custom_resource",
+                [(ACTION_CAN_READ, "custom_resource")],
+                True,
+            ),
+            (
+                "GET",
+                "custom_resource",
+                [(ACTION_CAN_EDIT, "custom_resource")],
+                False,
+            ),
+            (
+                "GET",
+                "custom_resource",
+                [(ACTION_CAN_READ, "custom_resource2")],
+                False,
+            ),
+            (
+                "DUMMY",
+                "custom_resource",
+                [("DUMMY", "custom_resource")],
+                True,
+            ),
+        ],
+    )
+    def test_is_authorized_custom_view(
+        self,
+        method: ResourceMethod | str,
+        resource_name: str,
+        user_permissions,
+        expected_result,
+        auth_manager,
+    ):
+        user = Mock()
+        user.perms = user_permissions
+        result = auth_manager.is_authorized_custom_view(method=method, resource_name=resource_name, user=user)
         assert result == expected_result
 
     @pytest.mark.db_test
@@ -376,7 +444,8 @@ class TestFabAuthManager:
         flask_app.config["SECURITY_MANAGER_CLASS"] = TestSecurityManager
 
         with pytest.raises(
-            Exception, match="Your CUSTOM_SECURITY_MANAGER must extend FabAirflowSecurityManagerOverride."
+            AirflowConfigException,
+            match="Your CUSTOM_SECURITY_MANAGER must extend FabAirflowSecurityManagerOverride.",
         ):
             auth_manager_with_appbuilder.security_manager
 
@@ -399,7 +468,7 @@ class TestFabAuthManager:
         auth_manager_with_appbuilder.security_manager.auth_view = Mock()
         auth_manager_with_appbuilder.security_manager.auth_view.endpoint = "test_endpoint"
         auth_manager_with_appbuilder.get_url_login(next_url="next_url")
-        mock_url_for.assert_called_once_with("test_endpoint.login", next_url="next_url")
+        mock_url_for.assert_called_once_with("test_endpoint.login", next="next_url")
 
     @pytest.mark.db_test
     def test_get_url_logout_when_auth_view_not_defined(self, auth_manager_with_appbuilder):

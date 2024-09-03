@@ -49,6 +49,7 @@ Airflow's versatility in handling mixed triggers for dataset and time-based sche
 The DAGs dataset_consumes_1_never_scheduled and dataset_consumes_unknown_never_scheduled will not run
 automatically as they depend on datasets that do not get updated or are not produced by any scheduled tasks.
 """
+
 from __future__ import annotations
 
 import pendulum

@@ -107,7 +107,7 @@ Preparation step
 
 For each operator you must prepare and create dataset. Then put dataset id to ``dataset_id`` parameter in operator.
 
-How to run Container Training Job
+How to run a Custom Container Training Job
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomContainerTrainingJobOperator`
 
 Before start running this Job you should create a docker image with training script inside. Documentation how to
@@ -121,7 +121,16 @@ for container which will be created from this image in ``command`` parameter.
     :start-after: [START how_to_cloud_vertex_ai_create_custom_container_training_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_custom_container_training_job_operator]
 
-How to run Python Package Training Job
+The :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomContainerTrainingJobOperator`
+also provides the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_container.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_custom_container_training_job_operator_deferrable]
+    :end-before: [END how_to_cloud_vertex_ai_create_custom_container_training_job_operator_deferrable]
+
+How to run a Python Package Training Job
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`
 
 Before start running this Job you should create a python package with training script inside. Documentation how to
@@ -135,10 +144,19 @@ parameter should has the name of script which will run your training task.
     :start-after: [START how_to_cloud_vertex_ai_create_custom_python_package_training_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_custom_python_package_training_job_operator]
 
-How to run Training Job
+The :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomPythonPackageTrainingJobOperator`
+also provides the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_job_python_package.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_custom_python_package_training_job_operator_deferrable]
+    :end-before: [END how_to_cloud_vertex_ai_create_custom_python_package_training_job_operator_deferrable]
+
+How to run a Custom Training Job
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.custom_job.CreateCustomTrainingJobOperator`.
 
-For this Job you should put path to your local training script inside ``script_path`` parameter.
+To create and run a Custom Training Job you should put the path to your local training script inside the ``script_path`` parameter.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
     :language: python
@@ -146,15 +164,31 @@ For this Job you should put path to your local training script inside ``script_p
     :start-after: [START how_to_cloud_vertex_ai_create_custom_training_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_custom_training_job_operator]
 
-Additionally, you can create new version of existing Training Job instead. In this case, the result will be new
-version of existing Model instead of new Model created in Model Registry. This can be done by specifying
-``parent_model`` parameter when running Training Job.
+The same operation can be performed in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_custom_training_job_operator_deferrable]
+    :end-before: [END how_to_cloud_vertex_ai_create_custom_training_job_operator_deferrable]
+
+Additionally, you can create a new version of an existing Custom Training Job. It will replace the existing
+Model with another version, instead of creating a new Model in the Model Registry.
+This can be done by specifying the ``parent_model`` parameter when running a Custom Training Job.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_custom_training_job_v2_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_custom_training_job_v2_operator]
+
+The same operation can be performed in the deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_custom_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_custom_training_job_v2_deferrable_operator]
+    :end-before: [END how_to_cloud_vertex_ai_create_custom_training_job_v2_deferrable_operator]
 
 
 You can get a list of Training Jobs using
@@ -287,6 +321,16 @@ The operator returns batch prediction job id in :ref:`XCom <concepts:xcom>` unde
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_create_batch_prediction_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_create_batch_prediction_job_operator]
+
+The :class:`~airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.CreateBatchPredictionJobOperator`
+also provides deferrable mode:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_batch_prediction_job.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_create_batch_prediction_job_operator_def]
+    :end-before: [END how_to_cloud_vertex_ai_create_batch_prediction_job_operator_def]
+
 
 To delete batch prediction job you can use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.batch_prediction_job.DeleteBatchPredictionJobOperator`.
@@ -537,6 +581,70 @@ To get a pipeline job list you can use
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_list_pipeline_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_list_pipeline_job_operator]
+
+Interacting with Generative AI
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+To generate a prediction via language model you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextGenerationModelPredictOperator`.
+The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``model_response`` key.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_text_generation_model_predict_operator]
+    :end-before: [END how_to_cloud_vertex_ai_text_generation_model_predict_operator]
+
+To generate text embeddings you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextEmbeddingModelGetEmbeddingsOperator`.
+The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``model_response`` key.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_text_embedding_model_get_embeddings_operator]
+    :end-before: [END how_to_cloud_vertex_ai_text_embedding_model_get_embeddings_operator]
+
+To generate content with a generative model you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerativeModelGenerateContentOperator`.
+The operator returns the model's response in :ref:`XCom <concepts:xcom>` under ``model_response`` key.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_generative_model_generate_content_operator]
+    :end-before: [END how_to_cloud_vertex_ai_generative_model_generate_content_operator]
+
+To run a supervised fine tuning job you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`.
+The operator returns the tuned model's endpoint name in :ref:`XCom <concepts:xcom>` under ``tuned_model_endpoint_name`` key.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model_tuning.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
+    :end-before: [END how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
+
+
+To calculates the number of input tokens before sending a request to the Gemini API you can use:
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.CountTokensOperator`.
+The operator returns the total tokens in :ref:`XCom <concepts:xcom>` under ``total_tokens`` key.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_count_tokens_operator]
+    :end-before: [END how_to_cloud_vertex_ai_count_tokens_operator]
+
+To evaluate a model you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.RunEvaluationOperator`.
+The operator returns the evaluation summary metrics in :ref:`XCom <concepts:xcom>` under ``summary_metrics`` key.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_run_evaluation_operator]
+    :end-before: [END how_to_cloud_vertex_ai_run_evaluation_operator]
 
 Reference
 ^^^^^^^^^

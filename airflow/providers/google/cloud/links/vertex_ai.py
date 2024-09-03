@@ -25,7 +25,8 @@ if TYPE_CHECKING:
 
 VERTEX_AI_BASE_LINK = "/vertex-ai"
 VERTEX_AI_MODEL_LINK = (
-    VERTEX_AI_BASE_LINK + "/locations/{region}/models/{model_id}/deploy?project={project_id}"
+    VERTEX_AI_BASE_LINK
+    + "/models/locations/{region}/models/{model_id}/versions/default/properties?project={project_id}"
 )
 VERTEX_AI_MODEL_LIST_LINK = VERTEX_AI_BASE_LINK + "/models?project={project_id}"
 VERTEX_AI_MODEL_EXPORT_LINK = "/storage/browser/{bucket_name}/model-{model_id}?project={project_id}"

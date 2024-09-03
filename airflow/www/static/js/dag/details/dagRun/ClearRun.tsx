@@ -56,6 +56,10 @@ const ClearRun = ({ runId, ...otherProps }: Props) => {
     onClear({ confirmed: true });
   };
 
+  const clearFailedTasks = () => {
+    onClear({ confirmed: true, only_failed: true });
+  };
+
   const queueNewTasks = () => {
     onQueue({ confirmed: true });
   };
@@ -103,6 +107,9 @@ const ClearRun = ({ runId, ...otherProps }: Props) => {
         </MenuButton>
         <MenuList>
           <MenuItem onClick={clearExistingTasks}>Clear existing tasks</MenuItem>
+          <MenuItem onClick={clearFailedTasks}>
+            Clear only failed tasks
+          </MenuItem>
           <MenuItem onClick={queueNewTasks}>Queue up new tasks</MenuItem>
         </MenuList>
       </Menu>

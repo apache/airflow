@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Functions operators."""
+
 from __future__ import annotations
 
 import re
@@ -34,6 +35,7 @@ from airflow.providers.google.cloud.utils.field_validator import (
     GcpBodyFieldValidator,
     GcpFieldValidationException,
 )
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.version import version
 
 if TYPE_CHECKING:
@@ -154,7 +156,7 @@ class CloudFunctionDeployFunctionOperator(GoogleCloudBaseOperator):
         *,
         location: str,
         body: dict,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         zip_path: str | None = None,
@@ -362,7 +364,7 @@ class CloudFunctionDeleteFunctionOperator(GoogleCloudBaseOperator):
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         impersonation_chain: str | Sequence[str] | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         **kwargs,
     ) -> None:
         self.name = name
@@ -446,7 +448,7 @@ class CloudFunctionInvokeFunctionOperator(GoogleCloudBaseOperator):
         function_id: str,
         input_data: dict,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v1",
         impersonation_chain: str | Sequence[str] | None = None,

@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Implements the ``@task_group`` function decorator.
+"""
+Implements the ``@task_group`` function decorator.
 
 When the decorated function is called, a task group will be created to represent
 a collection of closely related tasks on the same DAG that should be grouped
@@ -79,10 +80,11 @@ class _TaskGroupFactory(ExpandableFactory, Generic[FParams, FReturn]):
                 group_id = repr(self.tg_kwargs["group_id"])
             except KeyError:
                 group_id = f"at {hex(id(self))}"
-            warnings.warn(f"Partial task group {group_id} was never mapped!")
+            warnings.warn(f"Partial task group {group_id} was never mapped!", stacklevel=1)
 
     def __call__(self, *args: FParams.args, **kwargs: FParams.kwargs) -> DAGNode:
-        """Instantiate the task group.
+        """
+        Instantiate the task group.
 
         This uses the wrapped function to create a task group. Depending on the
         return type of the wrapped function, this either returns the last task
@@ -186,18 +188,17 @@ def task_group(
     ui_color: str = "CornflowerBlue",
     ui_fgcolor: str = "#000",
     add_suffix_on_collision: bool = False,
-) -> Callable[[Callable[FParams, FReturn]], _TaskGroupFactory[FParams, FReturn]]:
-    ...
+) -> Callable[[Callable[FParams, FReturn]], _TaskGroupFactory[FParams, FReturn]]: ...
 
 
 # This covers the @task_group case (no parentheses).
 @overload
-def task_group(python_callable: Callable[FParams, FReturn]) -> _TaskGroupFactory[FParams, FReturn]:
-    ...
+def task_group(python_callable: Callable[FParams, FReturn]) -> _TaskGroupFactory[FParams, FReturn]: ...
 
 
 def task_group(python_callable=None, **tg_kwargs):
-    """Python TaskGroup decorator.
+    """
+    Python TaskGroup decorator.
 
     This wraps a function into an Airflow TaskGroup. When used as the
     ``@task_group()`` form, all arguments are forwarded to the underlying

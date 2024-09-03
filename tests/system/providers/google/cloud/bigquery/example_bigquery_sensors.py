@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for Google BigQuery Sensors.
 """
+
 from __future__ import annotations
 
 import os
@@ -31,8 +32,6 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryInsertJobOperator,
 )
 from airflow.providers.google.cloud.sensors.bigquery import (
-    BigQueryTableExistenceAsyncSensor,
-    BigQueryTableExistencePartitionAsyncSensor,
     BigQueryTableExistenceSensor,
     BigQueryTablePartitionExistenceSensor,
 )
@@ -97,7 +96,7 @@ with DAG(
     # [END howto_sensor_bigquery_table_defered]
 
     # [START howto_sensor_async_bigquery_table]
-    check_table_exists_async = BigQueryTableExistenceAsyncSensor(
+    check_table_exists_async = BigQueryTableExistenceSensor(
         task_id="check_table_exists_async",
         project_id=PROJECT_ID,
         dataset_id=DATASET_NAME,
@@ -137,7 +136,7 @@ with DAG(
     # [END howto_sensor_bigquery_table_partition_defered]
 
     # [START howto_sensor_bigquery_table_partition_async]
-    check_table_partition_exists_async = BigQueryTableExistencePartitionAsyncSensor(
+    check_table_partition_exists_async = BigQueryTablePartitionExistenceSensor(
         task_id="check_table_partition_exists_async",
         partition_id=PARTITION_NAME,
         project_id=PROJECT_ID,

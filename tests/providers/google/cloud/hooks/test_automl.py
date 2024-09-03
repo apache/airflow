@@ -251,3 +251,11 @@ class TestAutoMLHook:
         mock_delete_dataset.assert_called_once_with(
             request=dict(name=DATASET_PATH), retry=DEFAULT, timeout=None, metadata=()
         )
+
+    @mock.patch("airflow.providers.google.cloud.hooks.automl.AutoMlClient.get_dataset")
+    def test_get_dataset(self, mock_get_dataset):
+        self.hook.get_dataset(dataset_id=DATASET_ID, location=GCP_LOCATION, project_id=GCP_PROJECT_ID)
+
+        mock_get_dataset.assert_called_once_with(
+            request=dict(name=DATASET_PATH), retry=DEFAULT, timeout=None, metadata=()
+        )

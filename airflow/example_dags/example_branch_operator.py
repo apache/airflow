@@ -19,6 +19,7 @@
 
 It is showcasing the basic BranchPythonOperator and its sisters BranchExternalPythonOperator
 and BranchPythonVirtualenvOperator."""
+
 from __future__ import annotations
 
 import random
@@ -140,7 +141,7 @@ if is_venv_installed():
 
         branching_venv = BranchPythonVirtualenvOperator(
             task_id="branching_venv",
-            requirements=["numpy~=1.24.4"],
+            requirements=["numpy~=1.26.0"],
             venv_cache_path=VENV_CACHE_PATH,
             python_callable=branch_with_venv,
             op_args=[options],
@@ -161,7 +162,7 @@ if is_venv_installed():
         for option in options:
             t = PythonVirtualenvOperator(
                 task_id=f"venv_{option}",
-                requirements=["numpy~=1.24.4"],
+                requirements=["numpy~=1.26.0"],
                 venv_cache_path=VENV_CACHE_PATH,
                 python_callable=hello_world_with_venv,
             )

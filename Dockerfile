@@ -23,8 +23,9 @@
 # airflow-build-image  - there all airflow dependencies can be installed (and
 #                        built - for those dependencies that require
 #                        build essentials). Airflow is installed there with
-#                        --user switch so that all the dependencies are
-#                        installed to ${HOME}/.local
+#                        ${HOME}/.local virtualenv which is also considered
+#                        As --user folder by python when creating venv with
+#                        --system-site-packages
 #
 # main                 - this is the actual production image that is much
 #                        smaller because it does not contain all the build
@@ -35,7 +36,7 @@
 #                        much smaller.
 #
 # Use the same builder frontend version for everyone
-ARG AIRFLOW_EXTRAS="aiobotocore,amazon,async,celery,cncf-kubernetes,common-io,docker,elasticsearch,ftp,google,google-auth,graphviz,grpc,hashicorp,http,ldap,microsoft-azure,mysql,odbc,openlineage,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,virtualenv"
+ARG AIRFLOW_EXTRAS="aiobotocore,amazon,async,celery,cncf-kubernetes,common-io,docker,elasticsearch,fab,ftp,google,google-auth,graphviz,grpc,hashicorp,http,ldap,microsoft-azure,mysql,odbc,openlineage,pandas,postgres,redis,sendgrid,sftp,slack,snowflake,ssh,statsd,uv,virtualenv"
 ARG ADDITIONAL_AIRFLOW_EXTRAS=""
 ARG ADDITIONAL_PYTHON_DEPS=""
 
@@ -44,15 +45,26 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="2.8.2"
+ARG AIRFLOW_VERSION="2.10.0"
 
 ARG PYTHON_BASE_IMAGE="python:3.8-slim-bookworm"
 
-ARG AIRFLOW_PIP_VERSION=24.0
-ARG AIRFLOW_UV_VERSION=0.1.13
+ARG AIRFLOW_PIP_VERSION=24.2
+ARG AIRFLOW_UV_VERSION=0.4.1
 ARG AIRFLOW_USE_UV="false"
+ARG UV_HTTP_TIMEOUT="300"
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
+
+# By default we install latest airflow from PyPI so we do not need to copy sources of Airflow
+# from the host - so we are using Dockerfile and copy it to /Dockerfile in target image
+# because this is the only file we know exists locally. This way you can build the image in PyPI with
+# **just** the Dockerfile and no need for any other files from Airflow repository.
+# However, in case of breeze/development use we use latest sources and we override those
+# SOURCES_FROM/TO with "." and "/opt/airflow" respectively - so that sources of Airflow (and all providers)
+# are used to build the PROD image used in tests.
+ARG AIRFLOW_SOURCES_FROM="Dockerfile"
+ARG AIRFLOW_SOURCES_TO="/Dockerfile"
 
 # By default latest released version of airflow is installed (when empty) but this value can be overridden
 # and we can install version according to specification (For example ==2.0.2 or <3.0.0).
@@ -95,7 +107,7 @@ fi
 function get_dev_apt_deps() {
     if [[ "${DEV_APT_DEPS=}" == "" ]]; then
         DEV_APT_DEPS="apt-transport-https apt-utils build-essential ca-certificates dirmngr \
-freetds-bin freetds-dev git graphviz graphviz-dev krb5-user ldap-utils libffi-dev libgeos-dev \
+freetds-bin freetds-dev git graphviz graphviz-dev krb5-user ldap-utils libev4 libev-dev libffi-dev libgeos-dev \
 libkrb5-dev libldap2-dev libleveldb1d libleveldb-dev libsasl2-2 libsasl2-dev libsasl2-modules \
 libssl-dev libxmlsec1 libxmlsec1-dev locales lsb-release openssh-client pkgconf sasl2-bin \
 software-properties-common sqlite3 sudo unixodbc unixodbc-dev zlib1g-dev"
@@ -112,17 +124,13 @@ function get_runtime_apt_deps() {
     echo
     echo "DEBIAN CODENAME: ${debian_version}"
     echo
-    if [[ "${debian_version}" == "bullseye" ]]; then
-        debian_version_apt_deps="libffi7 libldap-2.4-2 libssl1.1 netcat"
-    else
-        debian_version_apt_deps="libffi8 libldap-2.5-0 libssl3 netcat-openbsd"
-    fi
+    debian_version_apt_deps="libffi8 libldap-2.5-0 libssl3 netcat-openbsd"
     echo
     echo "APPLIED INSTALLATION CONFIGURATION FOR DEBIAN VERSION: ${debian_version}"
     echo
     if [[ "${RUNTIME_APT_DEPS=}" == "" ]]; then
         RUNTIME_APT_DEPS="apt-transport-https apt-utils ca-certificates \
-curl dumb-init freetds-bin krb5-user libgeos-dev \
+curl dumb-init freetds-bin krb5-user libev4 libgeos-dev \
 ldap-utils libsasl2-2 libsasl2-modules libxmlsec1 locales ${debian_version_apt_deps} \
 lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc"
         export RUNTIME_APT_DEPS
@@ -165,19 +173,6 @@ function install_debian_dev_dependencies() {
     echo
     echo "DEBIAN CODENAME: ${debian_version}"
     echo
-    if [[ "${debian_version}" == "bullseye" ]]; then
-        echo
-        echo "Bullseye detected - replacing dependencies in additional dev apt deps"
-        echo
-        # Replace dependencies in additional dev apt deps to be compatible with Bullseye
-        ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS//libgcc-11-dev/libgcc-10-dev}
-        ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS//netcat-openbsd/netcat}
-        echo
-        echo "Replaced bullseye dev apt dependencies"
-        echo "${ADDITIONAL_DEV_APT_COMMAND}"
-        echo
-    fi
-
     # shellcheck disable=SC2086
     apt-get install -y --no-install-recommends ${DEV_APT_DEPS} ${ADDITIONAL_DEV_APT_DEPS}
 }
@@ -296,7 +291,6 @@ install_mariadb_client() {
     echo "${COLOR_YELLOW}MariaDB client protocol-compatible with MySQL client.${COLOR_RESET}"
     echo
 
-    curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
     echo "deb [arch=amd64,arm64] https://archive.mariadb.org/mariadb-${MARIADB_LTS_VERSION}/repo/debian/ $(lsb_release -cs) main" > \
         /etc/apt/sources.list.d/mariadb.list
     # Make sure that dependencies from MariaDB repo are preferred over Debian dependencies
@@ -419,10 +413,7 @@ COPY <<"EOF" /install_packaging_tools.sh
 
 common::get_colors
 common::get_packaging_tool
-common::get_airflow_version_specification
-common::override_pip_version_if_needed
 common::show_packaging_tool_version_and_location
-
 common::install_packaging_tools
 EOF
 
@@ -447,33 +438,58 @@ function install_airflow_dependencies_from_branch_tip() {
     if [[ ${INSTALL_POSTGRES_CLIENT} != "true" ]]; then
        AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
     fi
+    local TEMP_AIRFLOW_DIR
+    TEMP_AIRFLOW_DIR=$(mktemp -d)
     # Install latest set of dependencies - without constraints. This is to download a "base" set of
     # dependencies that we can cache and reuse when installing airflow using constraints and latest
     # pyproject.toml in the next step (when we install regular airflow).
     set -x
-    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
-      ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-      "apache-airflow[${AIRFLOW_EXTRAS}] @ https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz"
+    curl -fsSL "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz" | \
+        tar xz -C "${TEMP_AIRFLOW_DIR}" --strip 1
+    # Make sure editable dependencies are calculated when devel-ci dependencies are installed
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+        --editable "${TEMP_AIRFLOW_DIR}[${AIRFLOW_EXTRAS}]"
     set +x
     common::install_packaging_tools
     set -x
+    echo "${COLOR_BLUE}Uninstalling providers. Dependencies remain${COLOR_RESET}"
     # Uninstall airflow and providers to keep only the dependencies. In the future when
     # planned https://github.com/pypa/pip/issues/11440 is implemented in pip we might be able to use this
     # flag and skip the remove step.
-    ${PACKAGING_TOOL_CMD} freeze | grep apache-airflow-providers | xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} 2>/dev/null || true
+    pip freeze | grep apache-airflow-providers | xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} || true
     set +x
     echo
     echo "${COLOR_BLUE}Uninstalling just airflow. Dependencies remain. Now target airflow can be reinstalled using mostly cached dependencies${COLOR_RESET}"
     echo
     set +x
-    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} apache-airflow || true
+    ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} apache-airflow
+    rm -rf "${TEMP_AIRFLOW_DIR}"
     set -x
+    # If you want to make sure dependency is removed from cache in your PR when you removed it from
+    # pyproject.toml - please add your dependency here as a list of strings
+    # for example:
+    # DEPENDENCIES_TO_REMOVE=("package_a" "package_b")
+    # Once your PR is merged, you should make a follow-up PR to remove it from this list
+    # and increase the AIRFLOW_CI_BUILD_EPOCH in Dockerfile.ci to make sure your cache is rebuilt.
+    local DEPENDENCIES_TO_REMOVE
+    # IMPORTANT!! Make sure to increase AIRFLOW_CI_BUILD_EPOCH in Dockerfile.ci when you remove a dependency from that list
+    DEPENDENCIES_TO_REMOVE=()
+    if [[ "${DEPENDENCIES_TO_REMOVE[*]}" != "" ]]; then
+        echo
+        echo "${COLOR_BLUE}Uninstalling just removed dependencies (temporary until cache refreshes)${COLOR_RESET}"
+        echo "${COLOR_BLUE}Dependencies to uninstall: ${DEPENDENCIES_TO_REMOVE[*]}${COLOR_RESET}"
+        echo
+        set +x
+        ${PACKAGING_TOOL_CMD} uninstall "${DEPENDENCIES_TO_REMOVE[@]}" || true
+        set -x
+        # make sure that the dependency is not needed by something else
+        pip check
+    fi
 }
 
 common::get_colors
 common::get_packaging_tool
 common::get_airflow_version_specification
-common::override_pip_version_if_needed
 common::get_constraints_location
 common::show_packaging_tool_version_and_location
 
@@ -513,10 +529,17 @@ function common::get_packaging_tool() {
         echo
         export PACKAGING_TOOL="uv"
         export PACKAGING_TOOL_CMD="uv pip"
-        export EXTRA_INSTALL_FLAGS="--python ${PYTHON_BIN}"
-        export EXTRA_UNINSTALL_FLAGS="--python ${PYTHON_BIN}"
-        export RESOLUTION_HIGHEST_FLAG="--resolution highest"
-        export RESOLUTION_LOWEST_DIRECT_FLAG="--resolution lowest-direct"
+        if [[ -z ${VIRTUAL_ENV=} ]]; then
+            export EXTRA_INSTALL_FLAGS="--python ${PYTHON_BIN}"
+            export EXTRA_UNINSTALL_FLAGS="--python ${PYTHON_BIN}"
+        else
+            export EXTRA_INSTALL_FLAGS=""
+            export EXTRA_UNINSTALL_FLAGS=""
+        fi
+        export UPGRADE_EAGERLY="--upgrade --resolution highest"
+        export UPGRADE_IF_NEEDED="--upgrade"
+        UV_CONCURRENT_DOWNLOADS=$(nproc --all)
+        export UV_CONCURRENT_DOWNLOADS
     else
         echo
         echo "${COLOR_BLUE}Using 'pip' to install Airflow${COLOR_RESET}"
@@ -525,8 +548,8 @@ function common::get_packaging_tool() {
         export PACKAGING_TOOL_CMD="pip"
         export EXTRA_INSTALL_FLAGS="--root-user-action ignore"
         export EXTRA_UNINSTALL_FLAGS="--yes"
-        export RESOLUTION_HIGHEST_FLAG="--upgrade-strategy eager"
-        export RESOLUTION_LOWEST_DIRECT_FLAG="--upgrade --upgrade-strategy only-if-needed"
+        export UPGRADE_EAGERLY="--upgrade --upgrade-strategy eager"
+        export UPGRADE_IF_NEEDED="--upgrade --upgrade-strategy only-if-needed"
     fi
 }
 
@@ -538,19 +561,7 @@ function common::get_airflow_version_specification() {
     fi
 }
 
-function common::override_pip_version_if_needed() {
-    if [[ -n ${AIRFLOW_VERSION} ]]; then
-        if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION=24.0
-        fi
-    fi
-}
-
 function common::get_constraints_location() {
-    if [[ -f "${HOME}/constraints.txt" ]]; then
-        # constraints are already downloaded, do not calculate/override again
-        return
-    fi
     # auto-detect Airflow-constraint reference and location
     if [[ -z "${AIRFLOW_CONSTRAINTS_REFERENCE=}" ]]; then
         if  [[ ${AIRFLOW_VERSION} =~ v?2.* && ! ${AIRFLOW_VERSION} =~ .*dev.* ]]; then
@@ -592,6 +603,15 @@ function common::show_packaging_tool_version_and_location() {
 }
 
 function common::install_packaging_tools() {
+    if [[ "${VIRTUAL_ENV=}" != "" ]]; then
+        echo
+        echo "${COLOR_BLUE}Checking packaging tools in venv: ${VIRTUAL_ENV}${COLOR_RESET}"
+        echo
+    else
+        echo
+        echo "${COLOR_BLUE}Checking packaging tools for system Python installation: $(which python)${COLOR_RESET}"
+        echo
+    fi
     if [[ ! ${AIRFLOW_PIP_VERSION} =~ [0-9.]* ]]; then
         echo
         echo "${COLOR_BLUE}Installing pip version from spec ${AIRFLOW_PIP_VERSION}${COLOR_RESET}"
@@ -684,6 +704,7 @@ COPY <<"EOF" /install_from_docker_context_files.sh
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
+
 function install_airflow_and_providers_from_docker_context_files(){
     if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
@@ -699,45 +720,35 @@ function install_airflow_and_providers_from_docker_context_files(){
         exit 1
     fi
 
-    # shellcheck disable=SC2206
-    local packaging_flags=(
-        # Don't quote this -- if it is empty we don't want it to create an
-        # empty array element
-        --find-links="file:///docker-context-files"
-    )
+    # This is needed to get package names for local context packages
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} --constraint ${HOME}/constraints.txt packaging
 
-    # Find Apache Airflow packages in docker-context files
-    local reinstalling_apache_airflow_package
-    reinstalling_apache_airflow_package=$(ls \
-        /docker-context-files/apache?airflow?[0-9]*.{whl,tar.gz} 2>/dev/null || true)
-    # Add extras when installing airflow
-    if [[ -n "${reinstalling_apache_airflow_package}" ]]; then
-        # When a provider depends on a dev version of Airflow, we need to
-        # specify `apache-airflow==$VER`, otherwise pip will look for it on
-        # pip, and fail to find it
-
-        # This will work as long as the wheel file is correctly named, which it
-        # will be if it was build by wheel tooling
-        local ver
-        ver=$(basename "$reinstalling_apache_airflow_package" | cut -d "-" -f 2)
-        reinstalling_apache_airflow_package="apache-airflow[${AIRFLOW_EXTRAS}]==$ver"
+    if [[ -n ${AIRFLOW_EXTRAS=} ]]; then
+        AIRFLOW_EXTRAS_TO_INSTALL="[${AIRFLOW_EXTRAS}]"
+    else
+        AIRFLOW_EXTRAS_TO_INSTALL=""
     fi
 
-    if [[ -z "${reinstalling_apache_airflow_package}" && ${AIRFLOW_VERSION=} != "" ]]; then
+    # Find Apache Airflow package in docker-context files
+    readarray -t install_airflow_package < <(EXTRAS="${AIRFLOW_EXTRAS_TO_INSTALL}" \
+        python /scripts/docker/get_package_specs.py /docker-context-files/apache?airflow?[0-9]*.{whl,tar.gz} 2>/dev/null || true)
+    echo
+    echo "${COLOR_BLUE}Found airflow packages in docker-context-files folder: ${install_airflow_package[*]}${COLOR_RESET}"
+    echo
+
+    if [[ -z "${install_airflow_package[*]}" && ${AIRFLOW_VERSION=} != "" ]]; then
         # When we install only provider packages from docker-context files, we need to still
         # install airflow from PyPI when AIRFLOW_VERSION is set. This handles the case where
         # pre-release dockerhub image of airflow is built, but we want to install some providers from
         # docker-context files
-        reinstalling_apache_airflow_package="apache-airflow[${AIRFLOW_EXTRAS}]==${AIRFLOW_VERSION}"
+        install_airflow_package=("apache-airflow[${AIRFLOW_EXTRAS}]==${AIRFLOW_VERSION}")
     fi
-    # Find Apache Airflow packages in docker-context files
-    local reinstalling_apache_airflow_providers_packages
-    reinstalling_apache_airflow_providers_packages=$(ls \
-        /docker-context-files/apache?airflow?providers*.{whl,tar.gz} 2>/dev/null || true)
-    if [[ -z "${reinstalling_apache_airflow_package}" && \
-          -z "${reinstalling_apache_airflow_providers_packages}" ]]; then
-        return
-    fi
+
+    # Find Provider packages in docker-context files
+    readarray -t installing_providers_packages< <(python /scripts/docker/get_package_specs.py /docker-context-files/apache?airflow?providers*.{whl,tar.gz} 2>/dev/null || true)
+    echo
+    echo "${COLOR_BLUE}Found provider packages in docker-context-files folder: ${installing_providers_packages[*]}${COLOR_RESET}"
+    echo
 
     if [[ ${USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES=} == "true" ]]; then
         local python_version
@@ -750,19 +761,23 @@ function install_airflow_and_providers_from_docker_context_files(){
             echo
             # force reinstall all airflow + provider packages with constraints found in
             set -x
-            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "${packaging_flags[@]}" --upgrade \
+            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade \
                 ${ADDITIONAL_PIP_INSTALL_FLAGS} --constraint "${local_constraints_file}" \
-                ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
+                "${install_airflow_package[@]}" "${installing_providers_packages[@]}"
             set +x
+            echo
+            echo "${COLOR_BLUE}Copying ${local_constraints_file} to ${HOME}/constraints.txt${COLOR_RESET}"
+            echo
+            cp "${local_constraints_file}" "${HOME}/constraints.txt"
         else
             echo
             echo "${COLOR_BLUE}Installing docker-context-files packages with constraints from GitHub${COLOR_RESET}"
             echo
             set -x
-            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "${packaging_flags[@]}" \
+            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
                 ${ADDITIONAL_PIP_INSTALL_FLAGS} \
                 --constraint "${HOME}/constraints.txt" \
-                ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
+                "${install_airflow_package[@]}" "${installing_providers_packages[@]}"
             set +x
         fi
     else
@@ -770,9 +785,9 @@ function install_airflow_and_providers_from_docker_context_files(){
         echo "${COLOR_BLUE}Installing docker-context-files packages without constraints${COLOR_RESET}"
         echo
         set -x
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} "${packaging_flags[@]}" \
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-            ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
+            "${install_airflow_package[@]}" "${installing_providers_packages[@]}"
         set +x
     fi
     common::install_packaging_tools
@@ -799,7 +814,6 @@ function install_all_other_packages_from_docker_context_files() {
 common::get_colors
 common::get_packaging_tool
 common::get_airflow_version_specification
-common::override_pip_version_if_needed
 common::get_constraints_location
 common::show_packaging_tool_version_and_location
 
@@ -808,6 +822,41 @@ install_airflow_and_providers_from_docker_context_files
 install_all_other_packages_from_docker_context_files
 EOF
 
+# The content below is automatically copied from scripts/docker/get_package_specs.py
+COPY <<"EOF" /get_package_specs.py
+#!/usr/bin/env python
+from __future__ import annotations
+
+import os
+import sys
+from pathlib import Path
+
+from packaging.utils import (
+    InvalidSdistFilename,
+    InvalidWheelFilename,
+    parse_sdist_filename,
+    parse_wheel_filename,
+)
+
+
+def print_package_specs(extras: str = "") -> None:
+    for package_path in sys.argv[1:]:
+        try:
+            package, _, _, _ = parse_wheel_filename(Path(package_path).name)
+        except InvalidWheelFilename:
+            try:
+                package, _ = parse_sdist_filename(Path(package_path).name)
+            except InvalidSdistFilename:
+                print(f"Could not parse package name from {package_path}", file=sys.stderr)
+                continue
+        print(f"{package}{extras} @ file://{package_path}")
+
+
+if __name__ == "__main__":
+    print_package_specs(extras=os.environ.get("EXTRAS", ""))
+EOF
+
+
 # The content below is automatically copied from scripts/docker/install_airflow.sh
 COPY <<"EOF" /install_airflow.sh
 #!/usr/bin/env bash
@@ -815,14 +864,6 @@ COPY <<"EOF" /install_airflow.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 function install_airflow() {
-    # Coherence check for editable installation mode.
-    if [[ ${AIRFLOW_INSTALLATION_METHOD} != "." && \
-          ${AIRFLOW_INSTALL_EDITABLE_FLAG} == "--editable" ]]; then
-        echo
-        echo "${COLOR_RED}ERROR! You can only use --editable flag when installing airflow from sources!${COLOR_RESET}"
-        echo "${COLOR_RED}       Current installation method is '${AIRFLOW_INSTALLATION_METHOD} and should be '.'${COLOR_RESET}"
-        exit 1
-    fi
     # Remove mysql from extras if client is not going to be installed
     if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
@@ -833,7 +874,24 @@ function install_airflow() {
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
         echo "${COLOR_YELLOW}Postgres client installation is disabled. Extra 'postgres' installations were therefore omitted.${COLOR_RESET}"
     fi
-    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then
+    # Determine the installation_command_flags based on AIRFLOW_INSTALLATION_METHOD method
+    local installation_command_flags
+    if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then
+        # When installing from sources - we always use `--editable` mode
+        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
+    elif [[ ${AIRFLOW_INSTALLATION_METHOD} == "apache-airflow" ]]; then
+        installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
+    elif [[ ${AIRFLOW_INSTALLATION_METHOD} == apache-airflow\ @\ * ]]; then
+        installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}] @ ${AIRFLOW_VERSION_SPECIFICATION/apache-airflow @//}"
+    else
+        echo
+        echo "${COLOR_RED}The '${INSTALLATION_METHOD}' installation method is not supported${COLOR_RESET}"
+        echo
+        echo "${COLOR_YELLOW}Supported methods are ('.', 'apache-airflow', 'apache-airflow @ URL')${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+    if [[ "${UPGRADE_INVALIDATION_STRING=}" != "" ]]; then
         echo
         echo "${COLOR_BLUE}Remove airflow and all provider packages installed before potentially${COLOR_RESET}"
         echo
@@ -841,14 +899,10 @@ function install_airflow() {
         ${PACKAGING_TOOL_CMD} freeze | grep apache-airflow | xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} 2>/dev/null || true
         set +x
         echo
-        echo "${COLOR_BLUE}Installing all packages with eager upgrade with ${AIRFLOW_INSTALL_EDITABLE_FLAG} mode${COLOR_RESET}"
+        echo "${COLOR_BLUE}Installing all packages in eager upgrade mode. Installation method: ${AIRFLOW_INSTALLATION_METHOD}${COLOR_RESET}"
         echo
         set -x
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade ${RESOLUTION_HIGHEST_FLAG} \
-            ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-            ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
-            "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
-            ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_EAGERLY} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
         set +x
         common::install_packaging_tools
         echo
@@ -857,25 +911,19 @@ function install_airflow() {
         pip check
     else
         echo
-        echo "${COLOR_BLUE}Installing all packages with constraints${COLOR_RESET}"
+        echo "${COLOR_BLUE}Installing all packages with constraints. Installation method: ${AIRFLOW_INSTALLATION_METHOD}${COLOR_RESET}"
         echo
         set -x
         # Install all packages with constraints
-        if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
-            ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-            "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
-            --constraint "${HOME}/constraints.txt"; then
+        if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags} --constraint "${HOME}/constraints.txt"; then
             set +x
             echo
             echo "${COLOR_YELLOW}Likely pyproject.toml has new dependencies conflicting with constraints.${COLOR_RESET}"
             echo
-            echo "${COLOR_BLUE}Falling back to no-constraints, lowest-direct resolution installation.${COLOR_RESET}"
+            echo "${COLOR_BLUE}Falling back to no-constraints installation.${COLOR_RESET}"
             echo
             set -x
-            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade ${RESOLUTION_LOWEST_DIRECT_FLAG} \
-                ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-                ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
-                "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
+            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_IF_NEEDED} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags}
         fi
         set +x
         common::install_packaging_tools
@@ -890,7 +938,6 @@ function install_airflow() {
 common::get_colors
 common::get_packaging_tool
 common::get_airflow_version_specification
-common::override_pip_version_if_needed
 common::get_constraints_location
 common::show_packaging_tool_version_and_location
 
@@ -902,18 +949,17 @@ COPY <<"EOF" /install_additional_dependencies.sh
 #!/usr/bin/env bash
 set -euo pipefail
 
-: "${UPGRADE_TO_NEWER_DEPENDENCIES:?Should be true or false}"
 : "${ADDITIONAL_PYTHON_DEPS:?Should be set}"
 
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 function install_additional_dependencies() {
-    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then
+    if [[ "${UPGRADE_INVALIDATION_STRING=}" != "" ]]; then
         echo
         echo "${COLOR_BLUE}Installing additional dependencies while upgrading to newer dependencies${COLOR_RESET}"
         echo
         set -x
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade ${RESOLUTION_HIGHEST_FLAG} \
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_EAGERLY} \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             ${ADDITIONAL_PYTHON_DEPS} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
         set +x
@@ -927,7 +973,7 @@ function install_additional_dependencies() {
         echo "${COLOR_BLUE}Installing additional dependencies upgrading only if needed${COLOR_RESET}"
         echo
         set -x
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "${RESOLUTION_LOWEST_DIRECT_FLAG}" \
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_IF_NEEDED} \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             ${ADDITIONAL_PYTHON_DEPS}
         set +x
@@ -942,11 +988,30 @@ function install_additional_dependencies() {
 common::get_colors
 common::get_packaging_tool
 common::get_airflow_version_specification
-common::override_pip_version_if_needed
 common::get_constraints_location
 common::show_packaging_tool_version_and_location
 
 install_additional_dependencies
+EOF
+
+# The content below is automatically copied from scripts/docker/create_prod_venv.sh
+COPY <<"EOF" /create_prod_venv.sh
+#!/usr/bin/env bash
+. "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
+
+function create_prod_venv() {
+    echo
+    echo "${COLOR_BLUE}Removing ${HOME}/.local and re-creating it as virtual environment.${COLOR_RESET}"
+    rm -rf ~/.local
+    python -m venv ~/.local
+    echo "${COLOR_BLUE}The ${HOME}/.local virtualenv created.${COLOR_RESET}"
+}
+
+common::get_colors
+common::get_packaging_tool
+common::show_packaging_tool_version_and_location
+create_prod_venv
+common::install_packaging_tools
 EOF
 
 
@@ -1330,9 +1395,6 @@ ARG INSTALL_MYSQL_CLIENT="true"
 ARG INSTALL_MYSQL_CLIENT_TYPE="mariadb"
 ARG INSTALL_MSSQL_CLIENT="true"
 ARG INSTALL_POSTGRES_CLIENT="true"
-ARG AIRFLOW_PIP_VERSION
-ARG AIRFLOW_UV_VERSION
-ARG AIRFLOW_USE_UV
 
 ENV INSTALL_MYSQL_CLIENT=${INSTALL_MYSQL_CLIENT} \
     INSTALL_MYSQL_CLIENT_TYPE=${INSTALL_MYSQL_CLIENT_TYPE} \
@@ -1353,9 +1415,6 @@ ENV PATH=${PATH}:/opt/mssql-tools/bin
 # By default we do not install from docker context files but if we decide to install from docker context
 # files, we should override those variables to "docker-context-files"
 ARG DOCKER_CONTEXT_FILES="Dockerfile"
-
-COPY ${DOCKER_CONTEXT_FILES} /docker-context-files
-
 ARG AIRFLOW_HOME
 ARG AIRFLOW_USER_HOME_DIR
 ARG AIRFLOW_UID
@@ -1363,6 +1422,8 @@ ARG AIRFLOW_UID
 RUN adduser --gecos "First Last,RoomNumber,WorkPhone,HomePhone" --disabled-password \
        --quiet "airflow" --uid "${AIRFLOW_UID}" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" && \
     mkdir -p ${AIRFLOW_HOME} && chown -R "airflow:0" "${AIRFLOW_USER_HOME_DIR}" ${AIRFLOW_HOME}
+
+COPY --chown=${AIRFLOW_UID}:0 ${DOCKER_CONTEXT_FILES} /docker-context-files
 
 USER airflow
 
@@ -1394,12 +1455,9 @@ ARG AIRFLOW_VERSION_SPECIFICATION
 # set to "." and "/opt/airflow" respectively.
 ARG AIRFLOW_INSTALLATION_METHOD="apache-airflow"
 # By default we do not upgrade to latest dependencies
-ARG UPGRADE_TO_NEWER_DEPENDENCIES="false"
-# By default we install latest airflow from PyPI so we do not need to copy sources of Airflow
-# but in case of breeze/CI builds we use latest sources and we override those
-# those SOURCES_FROM/TO with "." and "/opt/airflow" respectively
-ARG AIRFLOW_SOURCES_FROM="Dockerfile"
-ARG AIRFLOW_SOURCES_TO="/Dockerfile"
+ARG UPGRADE_INVALIDATION_STRING=""
+ARG AIRFLOW_SOURCES_FROM
+ARG AIRFLOW_SOURCES_TO
 
 
 RUN if [[ -f /docker-context-files/pip.conf ]]; then \
@@ -1413,8 +1471,14 @@ RUN if [[ -f /docker-context-files/pip.conf ]]; then \
 # Additional PIP flags passed to all pip install commands except reinstalling pip itself
 ARG ADDITIONAL_PIP_INSTALL_FLAGS=""
 
+ARG AIRFLOW_PIP_VERSION
+ARG AIRFLOW_UV_VERSION
+ARG AIRFLOW_USE_UV
+ARG UV_HTTP_TIMEOUT
+
 ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
+    UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT} \
     AIRFLOW_USE_UV=${AIRFLOW_USE_UV} \
     AIRFLOW_PRE_CACHED_PIP_PACKAGES=${AIRFLOW_PRE_CACHED_PIP_PACKAGES} \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
@@ -1430,21 +1494,19 @@ ENV AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_CONSTRAINTS_REFERENCE=${AIRFLOW_CONSTRAINTS_REFERENCE} \
     AIRFLOW_CONSTRAINTS_LOCATION=${AIRFLOW_CONSTRAINTS_LOCATION} \
     DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH} \
-    PATH=${PATH}:${AIRFLOW_USER_HOME_DIR}/.local/bin \
+    PATH=${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH} \
     PIP_PROGRESS_BAR=${PIP_PROGRESS_BAR} \
     ADDITIONAL_PIP_INSTALL_FLAGS=${ADDITIONAL_PIP_INSTALL_FLAGS} \
     AIRFLOW_USER_HOME_DIR=${AIRFLOW_USER_HOME_DIR} \
     AIRFLOW_HOME=${AIRFLOW_HOME} \
     AIRFLOW_UID=${AIRFLOW_UID} \
-    AIRFLOW_INSTALL_EDITABLE_FLAG="" \
-    UPGRADE_TO_NEWER_DEPENDENCIES=${UPGRADE_TO_NEWER_DEPENDENCIES} \
-    # By default PIP installs everything to ~/.local
-    PIP_USER="true"
+    UPGRADE_INVALIDATION_STRING=${UPGRADE_INVALIDATION_STRING}
+
 
 # Copy all scripts required for installation - changing any of those should lead to
 # rebuilding from here
 COPY --from=scripts common.sh install_packaging_tools.sh \
-     install_airflow_dependencies_from_branch_tip.sh /scripts/docker/
+     install_airflow_dependencies_from_branch_tip.sh create_prod_venv.sh /scripts/docker/
 
 # We can set this value to true in case we want to install .whl/.tar.gz packages placed in the
 # docker-context-files folder. This can be done for both additional packages you want to install
@@ -1460,8 +1522,9 @@ ARG USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES="false"
 
 # By changing the epoch we can force reinstalling Airflow and pip all dependencies
 # It can also be overwritten manually by setting the AIRFLOW_CI_BUILD_EPOCH environment variable.
-ARG AIRFLOW_CI_BUILD_EPOCH="10"
+ARG AIRFLOW_CI_BUILD_EPOCH="11"
 ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
+
 
 # In case of Production build image segment we want to pre-install main version of airflow
 # dependencies from GitHub so that we do not have to always reinstall it from the scratch.
@@ -1469,10 +1532,15 @@ ENV AIRFLOW_CI_BUILD_EPOCH=${AIRFLOW_CI_BUILD_EPOCH}
 # the cache is only used when "upgrade to newer dependencies" is not set to automatically
 # account for removed dependencies (we do not install them in the first place) and in case
 # INSTALL_PACKAGES_FROM_CONTEXT is not set (because then caching it from main makes no sense).
+
+# By default PIP installs everything to ~/.local and it's also treated as VIRTUALENV
+ENV VIRTUAL_ENV="${AIRFLOW_USER_HOME_DIR}/.local"
+
 RUN bash /scripts/docker/install_packaging_tools.sh; \
+    bash /scripts/docker/create_prod_venv.sh; \
     if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
         ${INSTALL_PACKAGES_FROM_CONTEXT} == "false" && \
-        ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
+        ${UPGRADE_INVALIDATION_STRING} == "" ]]; then \
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
     fi
 
@@ -1492,7 +1560,7 @@ ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
 WORKDIR ${AIRFLOW_HOME}
 
 COPY --from=scripts install_from_docker_context_files.sh install_airflow.sh \
-     install_additional_dependencies.sh /scripts/docker/
+     install_additional_dependencies.sh create_prod_venv.sh get_package_specs.py /scripts/docker/
 
 # Useful for creating a cache id based on the underlying architecture, preventing the use of cached python packages from
 # an incorrect architecture.
@@ -1502,7 +1570,7 @@ ARG PIP_CACHE_EPOCH="9"
 
 # hadolint ignore=SC2086, SC2010, DL3042
 RUN --mount=type=cache,id=$PYTHON_BASE_IMAGE-$AIRFLOW_PIP_VERSION-$TARGETARCH-$PIP_CACHE_EPOCH,target=/tmp/.cache/pip,uid=${AIRFLOW_UID} \
-  if [[ ${INSTALL_PACKAGES_FROM_CONTEXT} == "true" ]]; then \
+    if [[ ${INSTALL_PACKAGES_FROM_CONTEXT} == "true" ]]; then \
         bash /scripts/docker/install_from_docker_context_files.sh; \
     fi; \
     if ! airflow version 2>/dev/null >/dev/null; then \
@@ -1514,8 +1582,8 @@ RUN --mount=type=cache,id=$PYTHON_BASE_IMAGE-$AIRFLOW_PIP_VERSION-$TARGETARCH-$P
     find "${AIRFLOW_USER_HOME_DIR}/.local/" -name '*.pyc' -print0 | xargs -0 rm -f || true ; \
     find "${AIRFLOW_USER_HOME_DIR}/.local/" -type d -name '__pycache__' -print0 | xargs -0 rm -rf || true ; \
     # make sure that all directories and files in .local are also group accessible
-    find "${AIRFLOW_USER_HOME_DIR}/.local" -executable -print0 | xargs --null chmod g+x; \
-    find "${AIRFLOW_USER_HOME_DIR}/.local" -print0 | xargs --null chmod g+rw
+    find "${AIRFLOW_USER_HOME_DIR}/.local" -executable ! -type l -print0 | xargs --null chmod g+x; \
+    find "${AIRFLOW_USER_HOME_DIR}/.local" ! -type l -print0 | xargs --null chmod g+rw
 
 # In case there is a requirements.txt file in "docker-context-files" it will be installed
 # during the build additionally to whatever has been installed so far. It is recommended that
@@ -1523,7 +1591,7 @@ RUN --mount=type=cache,id=$PYTHON_BASE_IMAGE-$AIRFLOW_PIP_VERSION-$TARGETARCH-$P
 # hadolint ignore=DL3042
 RUN --mount=type=cache,id=additional-requirements-$PYTHON_BASE_IMAGE-$AIRFLOW_PIP_VERSION-$TARGETARCH-$PIP_CACHE_EPOCH,target=/tmp/.cache/pip,uid=${AIRFLOW_UID} \
     if [[ -f /docker-context-files/requirements.txt ]]; then \
-        pip install --user -r /docker-context-files/requirements.txt; \
+        pip install -r /docker-context-files/requirements.txt; \
     fi
 
 ##############################################################################################
@@ -1545,9 +1613,6 @@ LABEL org.apache.airflow.distro="debian" \
   org.apache.airflow.uid="${AIRFLOW_UID}"
 
 ARG PYTHON_BASE_IMAGE
-ARG AIRFLOW_PIP_VERSION
-ARG AIRFLOW_UV_VERSION
-ARG AIRFLOW_USE_UV
 
 ENV PYTHON_BASE_IMAGE=${PYTHON_BASE_IMAGE} \
     # Make sure noninteractive debian install is used and language variables set
@@ -1588,6 +1653,7 @@ ARG AIRFLOW_HOME
 
 # By default PIP installs everything to ~/.local
 ENV PATH="${AIRFLOW_USER_HOME_DIR}/.local/bin:${PATH}" \
+    VIRTUAL_ENV="${AIRFLOW_USER_HOME_DIR}/.local" \
     AIRFLOW_UID=${AIRFLOW_UID} \
     AIRFLOW_USER_HOME_DIR=${AIRFLOW_USER_HOME_DIR} \
     AIRFLOW_HOME=${AIRFLOW_HOME}
@@ -1613,19 +1679,23 @@ RUN bash /scripts/docker/install_mysql.sh prod \
     && mkdir -pv "${AIRFLOW_HOME}/logs" \
     && chown -R airflow:0 "${AIRFLOW_USER_HOME_DIR}" "${AIRFLOW_HOME}" \
     && chmod -R g+rw "${AIRFLOW_USER_HOME_DIR}" "${AIRFLOW_HOME}" \
-    && find "${AIRFLOW_HOME}" -executable -print0 | xargs --null chmod g+x \
-    && find "${AIRFLOW_USER_HOME_DIR}" -executable -print0 | xargs --null chmod g+x
+    && find "${AIRFLOW_HOME}" -executable ! -type l -print0 | xargs --null chmod g+x \
+    && find "${AIRFLOW_USER_HOME_DIR}" -executable ! -type l -print0 | xargs --null chmod g+x
+
+ARG AIRFLOW_SOURCES_FROM
+ARG AIRFLOW_SOURCES_TO
 
 COPY --from=airflow-build-image --chown=airflow:0 \
      "${AIRFLOW_USER_HOME_DIR}/.local" "${AIRFLOW_USER_HOME_DIR}/.local"
+COPY --from=airflow-build-image --chown=airflow:0 \
+     "${AIRFLOW_USER_HOME_DIR}/constraints.txt" "${AIRFLOW_USER_HOME_DIR}/constraints.txt"
+# In case of editable build also copy airflow sources so that they are available in the main image
+# For regular image (non-editable) this will be just Dockerfile copied to /Dockerfile
+COPY --from=airflow-build-image --chown=airflow:0 "${AIRFLOW_SOURCES_TO}" "${AIRFLOW_SOURCES_TO}"
+
 COPY --from=scripts entrypoint_prod.sh /entrypoint
 COPY --from=scripts clean-logs.sh /clean-logs
 COPY --from=scripts airflow-scheduler-autorestart.sh /airflow-scheduler-autorestart
-
-
-ARG AIRFLOW_PIP_VERSION
-ARG AIRFLOW_UV_VERSION
-ARG AIRFLOW_USE_UV
 
 # Make /etc/passwd root-group-writeable so that user can be dynamically added by OpenShift
 # See https://github.com/apache/airflow/issues/9248
@@ -1638,12 +1708,13 @@ RUN chmod a+rx /entrypoint /clean-logs \
 
 # make sure that the venv is activated for all users
 # including plain sudo, sudo with --interactive flag
-RUN sed --in-place=.bak "s/secure_path=\"/secure_path=\"\/.venv\/bin:/" /etc/sudoers
+RUN sed --in-place=.bak "s/secure_path=\"/secure_path=\"$(echo -n ${AIRFLOW_USER_HOME_DIR} | \
+        sed 's/\//\\\//g')\/.local\/bin:/" /etc/sudoers
 
 ARG AIRFLOW_VERSION
-
-COPY --from=scripts install_packaging_tools.sh /scripts/docker/
-RUN bash /scripts/docker/install_packaging_tools.sh
+ARG AIRFLOW_PIP_VERSION
+ARG AIRFLOW_UV_VERSION
+ARG AIRFLOW_USE_UV
 
 # See https://airflow.apache.org/docs/docker-stack/entrypoint.html#signal-propagation
 # to learn more about the way how signals are handled by the image
@@ -1652,7 +1723,6 @@ ENV DUMB_INIT_SETSID="1" \
     PS1="(airflow)" \
     AIRFLOW_VERSION=${AIRFLOW_VERSION} \
     AIRFLOW__CORE__LOAD_EXAMPLES="false" \
-    PIP_USER="true" \
     PATH="/root/bin:${PATH}" \
     AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION} \
     AIRFLOW_UV_VERSION=${AIRFLOW_UV_VERSION} \
@@ -1698,5 +1768,6 @@ LABEL org.apache.airflow.distro="debian" \
   org.opencontainers.image.ref.name="airflow" \
   org.opencontainers.image.title="Production Airflow Image" \
   org.opencontainers.image.description="Reference, production-ready Apache Airflow image"
+
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/entrypoint"]
 CMD []

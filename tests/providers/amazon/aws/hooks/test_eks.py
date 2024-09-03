@@ -53,8 +53,7 @@ from moto.eks.models import (
 )
 
 from airflow.providers.amazon.aws.hooks.eks import COMMAND, EksHook
-
-from ..utils.eks_test_constants import (
+from tests.providers.amazon.aws.utils.eks_test_constants import (
     DEFAULT_CONN_ID,
     DEFAULT_NAMESPACE,
     DISK_SIZE,
@@ -83,7 +82,7 @@ from ..utils.eks_test_constants import (
     RegExTemplates,
     ResponseAttributes,
 )
-from ..utils.eks_test_utils import (
+from tests.providers.amazon.aws.utils.eks_test_utils import (
     attributes_to_test,
     generate_clusters,
     generate_dict,
@@ -791,11 +790,11 @@ class TestEksHooks:
         if expected_message:
             with pytest.raises(ClientError) as raised_exception:
                 eks_hook.create_nodegroup(**test_inputs)
-                assert_client_error_exception_thrown(
-                    expected_exception=expected_exception,
-                    expected_msg=expected_message,
-                    raised_exception=raised_exception,
-                )
+            assert_client_error_exception_thrown(
+                expected_exception=expected_exception,
+                expected_msg=expected_message,
+                raised_exception=raised_exception,
+            )
 
     def test_list_fargate_profiles_returns_empty_by_default(self, cluster_builder) -> None:
         eks_hook, generated_test_data = cluster_builder()

@@ -27,6 +27,89 @@
 Changelog
 ---------
 
+4.7.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+4.6.3
+.....
+
+Misc
+~~~~
+
+* ``Clean up remaining getattr connection DbApiHook (#40665)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave July 2024 (#40644)``
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+4.6.2
+.....
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+
+4.6.1
+.....
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
+4.6.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Always use the executemany method when inserting rows in DbApiHook as it's way much faster (#38715)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+
+4.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Make 'placeholder' of DbApiHook configurable in UI (#38528)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``D401 Support in Providers (simple) (#37258)``
+
 4.4.1
 .....
 

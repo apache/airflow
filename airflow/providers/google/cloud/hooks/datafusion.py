@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google DataFusion hook."""
+
 from __future__ import annotations
 
 import asyncio
@@ -522,7 +523,8 @@ class DataFusionHook(GoogleBaseHook):
 
     @staticmethod
     def cdap_program_type(pipeline_type: DataFusionPipelineType) -> str:
-        """Retrieve CDAP Program type depending on the pipeline type.
+        """
+        Retrieve CDAP Program type depending on the pipeline type.
 
         :param pipeline_type: Pipeline type.
         """
@@ -534,7 +536,8 @@ class DataFusionHook(GoogleBaseHook):
 
     @staticmethod
     def cdap_program_id(pipeline_type: DataFusionPipelineType) -> str:
-        """Retrieve CDAP Program id depending on the pipeline type.
+        """
+        Retrieve CDAP Program id depending on the pipeline type.
 
         :param pipeline_type: Pipeline type.
         """

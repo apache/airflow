@@ -193,7 +193,27 @@ class CacheableChoice(click.Choice):
         super().__init__(choices=choices, case_sensitive=case_sensitive)
 
 
-class MySQLBackendVersionType(CacheableChoice):
+class BackendVersionChoice(CacheableChoice):
+    """
+    This specialized type of parameter allows to override the value of parameter with the BACKEND_VERSION
+    environment variable if it is set.
+
+    It's used to pass single matrix element in the matrix of tests when we run tests in CI - so that we do
+    not have to pass different matrices for different backends (which will be used to get the workflows
+    muvh more DRY).
+    """
+
+    name = "BackendVersionChoice"
+
+    def convert(self, value: Any, param: Parameter | None, ctx: Context | None) -> Any:
+        backend_version_env_value = os.environ.get("BACKEND_VERSION")
+        if backend_version_env_value:
+            if backend_version_env_value in self.choices:
+                value = backend_version_env_value
+        return super().convert(value, param, ctx)
+
+
+class MySQLBackendVersionChoice(BackendVersionChoice):
     def convert(self, value, param, ctx):
         if isinstance(value, CacheableDefault):
             param_name = param.envvar if param.envvar else param.name.upper()

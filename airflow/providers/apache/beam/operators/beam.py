@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Apache Beam operators."""
+
 from __future__ import annotations
 
 import asyncio
@@ -91,7 +92,8 @@ class BeamDataflowMixin(metaclass=ABCMeta):
 
     def __get_dataflow_job_name(self) -> str:
         return DataflowHook.build_dataflow_job_name(
-            self.dataflow_config.job_name, self.dataflow_config.append_job_name
+            self.dataflow_config.job_name,  # type: ignore
+            self.dataflow_config.append_job_name,
         )
 
     def __get_dataflow_pipeline_options(
@@ -180,14 +182,21 @@ class BeamBasePipelineOperator(BaseOperator, BeamDataflowMixin, ABC):
         self.runner = runner
         self.default_pipeline_options = default_pipeline_options or {}
         self.pipeline_options = pipeline_options or {}
+        # ``dataflow_config`` type will resolve into the execute method
+        self.dataflow_config = dataflow_config or {}  # type: ignore[assignment]
         self.gcp_conn_id = gcp_conn_id
-        if isinstance(dataflow_config, dict):
-            self.dataflow_config = DataflowConfiguration(**dataflow_config)
-        else:
-            self.dataflow_config = dataflow_config or DataflowConfiguration()
         self.beam_hook: BeamHook
         self.dataflow_hook: DataflowHook | None = None
         self.dataflow_job_id: str | None = None
+
+    def _cast_dataflow_config(self):
+        if isinstance(self.dataflow_config, dict):
+            self.dataflow_config = DataflowConfiguration(**self.dataflow_config)
+        else:
+            self.dataflow_config = self.dataflow_config or DataflowConfiguration()
+
+        if not self.dataflow_config.job_name:
+            self.dataflow_config.job_name = self.task_id
 
         if self.dataflow_config and self.runner.lower() != BeamRunnerType.DataflowRunner.lower():
             self.log.warning(
@@ -333,13 +342,14 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
         self.py_interpreter = py_interpreter
         self.py_requirements = py_requirements
         self.py_system_site_packages = py_system_site_packages
-        self.pipeline_options.setdefault("labels", {}).update(
-            {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
-        )
         self.deferrable = deferrable
 
     def execute(self, context: Context):
         """Execute the Apache Beam Python Pipeline."""
+        self._cast_dataflow_config()
+        self.pipeline_options.setdefault("labels", {}).update(
+            {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
+        )
         (
             self.is_dataflow,
             self.dataflow_job_name,
@@ -358,11 +368,12 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
 
     def execute_sync(self, context: Context):
         with ExitStack() as exit_stack:
-            gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
             if self.py_file.lower().startswith("gs://"):
+                gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
                 tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.py_file))
                 self.py_file = tmp_gcs_file.name
             if self.snake_case_pipeline_options.get("requirements_file", "").startswith("gs://"):
+                gcs_hook = GCSHook(gcp_conn_id=self.gcp_conn_id)
                 tmp_req_file = exit_stack.enter_context(
                     gcs_hook.provide_file(object_url=self.snake_case_pipeline_options["requirements_file"])
                 )
@@ -410,7 +421,9 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
             # This means we can perform asynchronous operations with this file.
             create_tmp_file_call = gcs_hook.provide_file(object_url=self.py_file)
             tmp_gcs_file: IO[str] = await loop.run_in_executor(
-                None, contextlib.ExitStack().enter_context, create_tmp_file_call
+                None,
+                contextlib.ExitStack().enter_context,  # type: ignore[arg-type]
+                create_tmp_file_call,
             )
             self.py_file = tmp_gcs_file.name
 
@@ -526,6 +539,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
 
     def execute(self, context: Context):
         """Execute the Apache Beam Python Pipeline."""
+        self._cast_dataflow_config()
         (
             self.is_dataflow,
             self.dataflow_job_name,
@@ -536,7 +550,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
         if not self.beam_hook:
             raise AirflowException("Beam hook is not defined.")
         if self.deferrable:
-            asyncio.run(self.execute_async(context))
+            self.execute_async(context)
         else:
             return self.execute_sync(context)
 
@@ -595,21 +609,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                     process_line_callback=self.process_line_callback,
                 )
 
-    async def execute_async(self, context: Context):
-        # Creating a new event loop to manage I/O operations asynchronously
-        loop = asyncio.get_event_loop()
-        if self.jar.lower().startswith("gs://"):
-            gcs_hook = GCSHook(self.gcp_conn_id)
-            # Running synchronous `enter_context()` method in a separate
-            # thread using the default executor `None`. The `run_in_executor()` function returns the
-            # file object, which is created using gcs function `provide_file()`, asynchronously.
-            # This means we can perform asynchronous operations with this file.
-            create_tmp_file_call = gcs_hook.provide_file(object_url=self.jar)
-            tmp_gcs_file: IO[str] = await loop.run_in_executor(
-                None, contextlib.ExitStack().enter_context, create_tmp_file_call
-            )
-            self.jar = tmp_gcs_file.name
-
+    def execute_async(self, context: Context):
         if self.is_dataflow and self.dataflow_hook:
             DataflowJobLink.persist(
                 self,
@@ -645,6 +645,7 @@ class BeamRunJavaPipelineOperator(BeamBasePipelineOperator):
                     job_class=self.job_class,
                     runner=self.runner,
                     check_if_running=self.dataflow_config.check_if_running == CheckJobRunning.WaitForRun,
+                    gcp_conn_id=self.gcp_conn_id,
                 ),
                 method_name="execute_complete",
             )
@@ -726,27 +727,26 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
             dataflow_config=dataflow_config,
             **kwargs,
         )
-
-        if self.dataflow_config.impersonation_chain:
-            self.log.info(
-                "Impersonation chain parameter is not supported for Apache Beam GO SDK and will be skipped "
-                "in the execution"
-            )
-        self.dataflow_support_impersonation = False
-
-        if not exactly_one(go_file, launcher_binary):
-            raise ValueError("Exactly one of `go_file` and `launcher_binary` must be set")
-
         self.go_file = go_file
         self.launcher_binary = launcher_binary
         self.worker_binary = worker_binary or launcher_binary
 
+    def execute(self, context: Context):
+        """Execute the Apache Beam Pipeline."""
+        if not exactly_one(self.go_file, self.launcher_binary):
+            raise ValueError("Exactly one of `go_file` and `launcher_binary` must be set")
+
+        self._cast_dataflow_config()
+        if self.dataflow_config.impersonation_chain:
+            self.log.warning(
+                "Impersonation chain parameter is not supported for Apache Beam GO SDK and will be skipped "
+                "in the execution"
+            )
+        self.dataflow_support_impersonation = False
         self.pipeline_options.setdefault("labels", {}).update(
             {"airflow-version": "v" + version.replace(".", "-").replace("+", "-")}
         )
 
-    def execute(self, context: Context):
-        """Execute the Apache Beam Pipeline."""
         (
             is_dataflow,
             dataflow_job_name,
@@ -812,12 +812,10 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
 
 class _GoArtifact(ABC):
     @abstractmethod
-    def is_located_on_gcs(self) -> bool:
-        ...
+    def is_located_on_gcs(self) -> bool: ...
 
     @abstractmethod
-    def download_from_gcs(self, gcs_hook: GCSHook, tmp_dir: str) -> None:
-        ...
+    def download_from_gcs(self, gcs_hook: GCSHook, tmp_dir: str) -> None: ...
 
     @abstractmethod
     def start_pipeline(
@@ -825,8 +823,7 @@ class _GoArtifact(ABC):
         beam_hook: BeamHook,
         variables: dict,
         process_line_callback: Callable[[str], None] | None = None,
-    ) -> None:
-        ...
+    ) -> None: ...
 
 
 class _GoFile(_GoArtifact):

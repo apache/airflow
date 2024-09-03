@@ -65,7 +65,9 @@ ALLOWED_THICK_HOOKS_PARAMETERS: dict[str, set[str]] = {
 
 def get_aws_hooks_modules():
     """Parse Amazon Provider metadata and find all hooks based on `AwsGenericHook` and return it."""
-    hooks_dir = Path(__file__).absolute().parents[5] / "airflow" / "providers" / "amazon" / "aws" / "hooks"
+    import airflow.providers.amazon.aws.hooks as aws_hooks
+
+    hooks_dir = Path(aws_hooks.__path__[0])
     if not hooks_dir.exists():
         msg = f"Amazon Provider hooks directory not found: {hooks_dir.__fspath__()!r}"
         raise FileNotFoundError(msg)

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google BigQuery Data Transfer Service sensor."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
@@ -23,8 +24,9 @@ from typing import TYPE_CHECKING, Sequence
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.bigquery_datatransfer_v1 import TransferState
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.bigquery_dts import BiqQueryDataTransferServiceHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -82,7 +84,7 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         expected_statuses: (
             set[str | TransferState | int] | str | TransferState | int
         ) = TransferState.SUCCEEDED,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         retry: Retry | _MethodDefault = DEFAULT,
         request_timeout: float | None = None,
@@ -140,9 +142,6 @@ class BigQueryDataTransferServiceTransferRunSensor(BaseSensorOperator):
         self.log.info("Status of %s run: %s", self.run_id, run.state)
 
         if run.state in (TransferState.FAILED, TransferState.CANCELLED):
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Transfer {self.run_id} did not succeed"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
         return run.state in self.expected_statuses

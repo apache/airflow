@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud Bigtable operators."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable, Sequence
@@ -30,6 +31,7 @@ from airflow.providers.google.cloud.links.bigtable import (
     BigtableTablesLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     import enum
@@ -111,7 +113,7 @@ class BigtableCreateInstanceOperator(GoogleCloudBaseOperator, BigtableValidation
         instance_id: str,
         main_cluster_id: str,
         main_cluster_zone: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         replica_clusters: list[dict[str, str]] | None = None,
         instance_display_name: str | None = None,
         instance_type: enums.Instance.Type | None = None,
@@ -217,7 +219,7 @@ class BigtableUpdateInstanceOperator(GoogleCloudBaseOperator, BigtableValidation
         self,
         *,
         instance_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         instance_display_name: str | None = None,
         instance_type: enums.Instance.Type | enum.IntEnum | None = None,
         instance_labels: dict | None = None,
@@ -297,7 +299,7 @@ class BigtableDeleteInstanceOperator(GoogleCloudBaseOperator, BigtableValidation
         self,
         *,
         instance_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
@@ -373,7 +375,7 @@ class BigtableCreateTableOperator(GoogleCloudBaseOperator, BigtableValidationMix
         *,
         instance_id: str,
         table_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         initial_split_keys: list | None = None,
         column_families: dict[str, GarbageCollectionRule] | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -477,7 +479,7 @@ class BigtableDeleteTableOperator(GoogleCloudBaseOperator, BigtableValidationMix
         *,
         instance_id: str,
         table_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         app_profile_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -558,7 +560,7 @@ class BigtableUpdateClusterOperator(GoogleCloudBaseOperator, BigtableValidationM
         instance_id: str,
         cluster_id: str,
         nodes: int,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,

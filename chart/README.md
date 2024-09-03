@@ -30,13 +30,16 @@ cluster using the [Helm](https://helm.sh) package manager.
 
 ## Requirements
 
-- Kubernetes 1.25+ cluster
+- Kubernetes 1.26+ cluster
 - Helm 3.0+
 - PV provisioner support in the underlying infrastructure (optionally)
 
 ## Features
 
 * Supported executors: ``LocalExecutor``, ``CeleryExecutor``, ``KubernetesExecutor``, ``LocalKubernetesExecutor``, ``CeleryKubernetesExecutor``
+* Supported AWS executors with AWS provider version ``8.21.0+``:
+   * ``airflow.providers.amazon.aws.executors.batch.AwsBatchExecutor``
+   * ``airflow.providers.amazon.aws.executors.ecs.AwsEcsExecutor``
 * Supported Airflow version: ``1.10+``, ``2.0+``
 * Supported database backend: ``PostgreSQL``, ``MySQL``
 * Autoscaling for ``CeleryExecutor`` provided by KEDA

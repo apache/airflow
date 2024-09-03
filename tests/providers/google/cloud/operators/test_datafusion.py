@@ -363,7 +363,6 @@ class TestCloudDataFusionStartPipelineOperatorAsync:
             "serviceEndpoint": INSTANCE_URL,
         }
         mock_hook.return_value.start_pipeline.return_value = PIPELINE_ID
-
         op = CloudDataFusionStartPipelineOperator(
             task_id=TASK_ID,
             pipeline_name=PIPELINE_NAME,
@@ -374,10 +373,8 @@ class TestCloudDataFusionStartPipelineOperatorAsync:
             runtime_args=RUNTIME_ARGS,
             deferrable=True,
         )
-        op.dag = mock.MagicMock(spec=DAG, task_dict={}, dag_id="test")
         with pytest.raises(TaskDeferred):
-            result_pipeline_id = op.execute(context=mock.MagicMock())
-            assert result_pipeline_id == PIPELINE_ID
+            op.execute(context=mock.MagicMock())
 
         mock_hook.return_value.get_instance.assert_called_once_with(
             instance_name=INSTANCE_NAME, location=LOCATION, project_id=PROJECT_ID
@@ -397,22 +394,22 @@ class TestCloudDataFusionStartPipelineOperatorAsync:
             "serviceEndpoint": INSTANCE_URL,
         }
         mock_hook.return_value.start_pipeline.return_value = PIPELINE_ID
+        op = CloudDataFusionStartPipelineOperator(
+            task_id=TASK_ID,
+            pipeline_name=PIPELINE_NAME,
+            instance_name=INSTANCE_NAME,
+            namespace=NAMESPACE,
+            location=LOCATION,
+            project_id=PROJECT_ID,
+            runtime_args=RUNTIME_ARGS,
+            asynchronous=True,
+            deferrable=True,
+        )
+        op.dag = mock.MagicMock(spec=DAG, task_dict={}, dag_id="test")
         with pytest.raises(
             AirflowException,
             match=r"Both asynchronous and deferrable parameters were passed. Please, provide only one.",
         ):
-            op = CloudDataFusionStartPipelineOperator(
-                task_id=TASK_ID,
-                pipeline_name=PIPELINE_NAME,
-                instance_name=INSTANCE_NAME,
-                namespace=NAMESPACE,
-                location=LOCATION,
-                project_id=PROJECT_ID,
-                runtime_args=RUNTIME_ARGS,
-                asynchronous=True,
-                deferrable=True,
-            )
-            op.dag = mock.MagicMock(spec=DAG, task_dict={}, dag_id="test")
             op.execute(context=mock.MagicMock())
 
 

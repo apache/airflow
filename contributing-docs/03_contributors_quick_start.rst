@@ -19,7 +19,7 @@
 Contributor's Quick Start
 *************************
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Note to Starters
 ################
@@ -169,7 +169,8 @@ like system, this command will install all necessary dependencies that should be
   libssl-dev locales lsb-release openssh-client sasl2-bin \
   software-properties-common sqlite3 sudo unixodbc unixodbc-dev
 
-3. With Hatch you can enter virtual environment with ``hatch env shell`` command:
+3. With Hatch you can enter the virtual environment with ``hatch shell`` command, check
+   `Local virtualenvs <./07_local_virtualenv.rst#using-hatch>`__ for more details:
 
 Forking and cloning Project
 ---------------------------
@@ -239,7 +240,7 @@ Setting up Breeze
   The workaround is to downgrade packaging to 23.1 and re-running the ``pipx install`` command, for example
   by running ``pip install "packaging<23.2"``.
 
-  .. code-block::bash
+  .. code-block:: bash
 
      pip install "packaging==23.1"
      pipx install -e ./dev/breeze --force
@@ -334,6 +335,7 @@ Using Breeze
    Ports are forwarded to the running docker containers for webserver and database
      * 12322 -> forwarded to Airflow ssh server -> airflow:22
      * 28080 -> forwarded to Airflow webserver -> airflow:8080
+     * 29091 -> forwarded to Airflow UI API -> airflow:9091
      * 25555 -> forwarded to Flower dashboard -> airflow:5555
      * 25433 -> forwarded to Postgres database -> postgres:5432
      * 23306 -> forwarded to MySQL database  -> mysql:3306
@@ -342,6 +344,7 @@ Using Breeze
    Here are links to those services that you can use on host:
      * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 (password: airflow)
      * Webserver: http://127.0.0.1:28080
+     * UI API:    http://127.0.0.1:29091
      * Flower:    http://127.0.0.1:25555
      * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
      * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
@@ -468,8 +471,7 @@ on macOS, install via
 
 .. code-block:: bash
 
-  pyenv activate airflow-env
-  pip install pre-commit
+  pipx install pre-commit
 
 3. Go to your project directory
 

@@ -41,6 +41,7 @@ import useSetDagRunNote from "./useSetDagRunNote";
 import useSetTaskInstanceNote from "./useSetTaskInstanceNote";
 import useUpstreamDatasetEvents from "./useUpstreamDatasetEvents";
 import useTaskInstance from "./useTaskInstance";
+import useTaskFailedDependency from "./useTaskFailedDependency";
 import useDag from "./useDag";
 import useDagCode from "./useDagCode";
 import useDagDetails from "./useDagDetails";
@@ -51,6 +52,11 @@ import useDagRuns from "./useDagRuns";
 import useHistoricalMetricsData from "./useHistoricalMetricsData";
 import { useTaskXcomEntry, useTaskXcomCollection } from "./useTaskXcom";
 import useEventLogs from "./useEventLogs";
+import useCalendarData from "./useCalendarData";
+import useCreateDatasetEvent from "./useCreateDatasetEvent";
+import useRenderedK8s from "./useRenderedK8s";
+import useTaskDetail from "./useTaskDetail";
+import useTIHistory from "./useTIHistory";
 
 axios.interceptors.request.use((config) => {
   config.paramsSerializer = {
@@ -97,5 +103,11 @@ export {
   useHistoricalMetricsData,
   useTaskXcomEntry,
   useTaskXcomCollection,
+  useTaskFailedDependency,
   useEventLogs,
+  useCalendarData,
+  useCreateDatasetEvent,
+  useRenderedK8s,
+  useTaskDetail,
+  useTIHistory,
 };

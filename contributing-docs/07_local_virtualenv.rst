@@ -26,7 +26,7 @@ harder to debug the tests and to use your IDE to run them.
 
 That's why we recommend using local virtualenv for development and testing.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Installation in local virtualenv
 --------------------------------
@@ -37,7 +37,7 @@ Required Software Packages
 Use system-level package managers like yum, apt-get for Linux, or
 Homebrew for macOS to install required software packages:
 
-* Python (One of: 3.8, 3.9, 3.10, 3.11)
+* Python (One of: 3.8, 3.9, 3.10, 3.11, 3.12)
 * MySQL 5.7+
 * libxml
 * helm (only for helm chart tests)
@@ -50,6 +50,16 @@ of required packages.
    - MySql 2.2.0 needs pkgconf to be a pre requisite, refer `here <http://pkgconf.org/>`_ to install pkgconf
    - MacOs with ARM architectures require graphviz for venv setup, refer `here <https://graphviz.org/download/>`_ to install graphviz
    - The helm chart tests need helm to be installed as a pre requisite. Refer `here <https://helm.sh/docs/intro/install/>`_ to install and setup helm
+
+.. note::
+
+   As of version 2.8 Airflow follows PEP 517/518 and uses ``pyproject.toml`` file to define build dependencies
+   and build process and it requires relatively modern versions of packaging tools to get airflow built from
+   local sources or ``sdist`` packages, as PEP 517 compliant build hooks are used to determine dynamic build
+   dependencies. In case of ``pip`` it means that at least version 22.1.0 is needed (released at the beginning of
+   2022) to build or install Airflow from sources. This does not affect the ability of installing Airflow from
+   released wheel packages.
+
 
 Installing Airflow
 ..................
@@ -146,7 +156,8 @@ to upgrade ``hatch`` easily as needed with:
 
     pipx upgrade hatch
 
-## Using Hatch to manage your Python versions
+Using Hatch to manage your Python versions
+..........................................
 
 You can also use hatch to install and manage airflow virtualenvs and development
 environments. For example, you can install Python 3.10 with this command:
@@ -173,24 +184,31 @@ You can see the list of available envs with:
 
 This is what it shows currently:
 
-+-------------+---------+----------+---------------------------------------------------------------+
-| Name        | Type    | Features | Description                                                   |
-+=============+=========+==========+===============================================================+
-| default     | virtual | devel    | Default environment with Python 3.8 for maximum compatibility |
-+-------------+---------+----------+---------------------------------------------------------------+
-| airflow-38  | virtual | devel    | Environment with Python 3.8                                   |
-+-------------+---------+----------+---------------------------------------------------------------+
-| airflow-39  | virtual | devel    | Environment with Python 3.9                                   |
-+-------------+---------+----------+---------------------------------------------------------------+
-| airflow-310 | virtual | devel    | Environment with Python 3.10                                  |
-+-------------+---------+----------+---------------------------------------------------------------+
-| airflow-311 | virtual | devel    | Environment with Python 3.11                                  |
-+-------------+---------+----------+---------------------------------------------------------------+
++-------------+---------+---------------------------------------------------------------+
+| Name        | Type    | Description                                                   |
++=============+=========+===============================================================+
+| default     | virtual | Default environment with Python 3.8 for maximum compatibility |
++-------------+---------+---------------------------------------------------------------+
+| airflow-38  | virtual | Environment with Python 3.8. No devel installed.              |
++-------------+---------+---------------------------------------------------------------+
+| airflow-39  | virtual | Environment with Python 3.9. No devel installed.              |
++-------------+---------+---------------------------------------------------------------+
+| airflow-310 | virtual | Environment with Python 3.10. No devel installed.             |
++-------------+---------+---------------------------------------------------------------+
+| airflow-311 | virtual | Environment with Python 3.11. No devel installed              |
++-------------+---------+---------------------------------------------------------------+
+| airflow-312 | virtual | Environment with Python 3.12. No devel installed              |
++-------------+---------+---------------------------------------------------------------+
 
 The default env (if you have not used one explicitly) is ``default`` and it is a Python 3.8
-virtualenv for maximum compatibility with ``devel`` extra installed - this devel extra contains the minimum set
-of dependencies and tools that should be used during unit testing of core Airflow and running all ``airflow``
-CLI commands - without support for providers or databases.
+virtualenv for maximum compatibility. You can install devel set of dependencies with it
+by running:
+
+.. code:: bash
+
+    pip install -e ".[devel]"
+
+After entering the environment.
 
 The other environments are just bare-bones Python virtualenvs with Airflow core requirements only,
 without any extras installed and without any tools. They are much faster to create than the default
@@ -254,7 +272,8 @@ You can clean the env by running:
 
 More information about hatch can be found in `Hatch: Environments <https://hatch.pypa.io/latest/environment/>`__
 
-## Using Hatch to build your packages
+Using Hatch to build your packages
+..................................
 
 You can use hatch to build installable package from the airflow sources. Such package will
 include all metadata that is configured in ``pyproject.toml`` and will be installable with pip.
@@ -313,7 +332,7 @@ When you install airflow from sources using editable install, you can develop to
 of Airflow and providers, which is pretty convenient, because you can use the same environment for both.
 
 
-Running ``pipinstall -e .`` will install Airflow in editable mode, but all provider code will also be
+Running ``pip install -e .`` will install Airflow in editable mode, but all provider code will also be
 available in the same environment. However, most provider need some additional dependencies.
 
 You can install the dependencies of the provider you want to develop by installing airflow in editable

@@ -70,26 +70,26 @@
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-fab
+apache-airflow-providers-fab package
 ------------------------------------------------------
 
 `Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__
 
 
-Release: 1.0.0
+Release: 1.3.0
 
 Provider package
 ----------------
 
-This is a provider package for ``fab`` provider. All classes for this provider package
-are in ``airflow.providers.fab`` python package.
+This package is for the ``fab`` provider.
+All classes for this package are included in the ``airflow.providers.fab`` python package.
 
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
-for the minimum Airflow version supported) via
-``pip install apache-airflow-providers-fab``
+You can install this package on top of an existing Airflow 2 installation via
+``pip install apache-airflow-providers-fab``.
+For the minimum Airflow version supported, see ``Requirements`` below.
 
 Requirements
 ------------
@@ -101,7 +101,8 @@ PIP package           Version required
 ====================  ==================
 ``apache-airflow``    ``>=2.9.0``
 ``flask``             ``>=2.2,<2.3``
-``flask-appbuilder``  ``==4.3.10``
+``flask-appbuilder``  ``==4.5.0``
 ``flask-login``       ``>=0.6.2``
 ``google-re2``        ``>=1.0``
+``jmespath``          ``>=0.7.0``
 ====================  ==================

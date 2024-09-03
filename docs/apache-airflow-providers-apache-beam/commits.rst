@@ -35,14 +35,98 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-5.6.1
+5.8.0
 .....
 
-Latest change: 2024-01-30
+Latest change: 2024-08-12
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+=================================================================================================  ===========  =======================================================================
+
+5.7.2
+.....
+
+Latest change: 2024-07-21
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`0b0f8f0fc9 <https://github.com/apache/airflow/commit/0b0f8f0fc91891c9aa06fc6c23130a916e841872>`_  2024-07-21   ``Prepare Providers docs RC1 2nd (ad-hoc) wave July 2024 (#40908)``
+`519b0d028c <https://github.com/apache/airflow/commit/519b0d028c4bd8a27dbd10785139a260fb98154b>`_  2024-07-16   ``Fix BeamRunJavaPipelineOperator fails without job_name set (#40645)``
+=================================================================================================  ===========  =======================================================================
+
+5.7.1
+.....
+
+Latest change: 2024-05-26
+
+=================================================================================================  ===========  ================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`1489cf7a03 <https://github.com/apache/airflow/commit/1489cf7a0372898ab5f905fa7b56f3b1327d2cfe>`_  2024-05-14   ``Fix deferrable mode for BeamRunJavaPipelineOperator (#39371)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+=================================================================================================  ===========  ================================================================
+
+5.7.0
+.....
+
+Latest change: 2024-05-01
+
+=================================================================================================  ===========  =============================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+`fd8a05739f <https://github.com/apache/airflow/commit/fd8a05739f945643b5023db15d51a97459109a02>`_  2024-04-19   ``Bugfix to correct GCSHook being called even when not required with BeamRunPythonPipelineOperator (#38716)``
+=================================================================================================  ===========  =============================================================================================================
+
+5.6.3
+.....
+
+Latest change: 2024-04-10
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+`472b646acb <https://github.com/apache/airflow/commit/472b646acb67162c2b45f0ce9c93c89d9d7c35ae>`_  2024-04-07   ``fix: skip apache beam pipeline options if value is set to false (#38496)``
+`a022d7b70c <https://github.com/apache/airflow/commit/a022d7b70c4a9daae7911c3d04cd6e62fab17dc8>`_  2024-04-06   ``fix: try002 for provider apache beam (#38790)``
+`4506e7afe5 <https://github.com/apache/airflow/commit/4506e7afe57afde8f57afe1a944093298a8c3800>`_  2024-03-19   ``Avoid to use subprocess in asyncio loop (#38292)``
+`0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
+`2523cbf3ca <https://github.com/apache/airflow/commit/2523cbf3caa3b7552b5f06de165aa93bfb6718f5>`_  2024-03-18   ``bump mypy version to 1.9.0 (#38239)``
+`2ce28d5681 <https://github.com/apache/airflow/commit/2ce28d5681437e9f9c80aa03a98c0f72268fd9e5>`_  2024-03-08   ``Avoid change attributes into the constructor in Apache Beam operators (#37934)``
+`3f52790d42 <https://github.com/apache/airflow/commit/3f52790d425cd51386715c240d9a38a20756de2a>`_  2024-03-06   ``Resolve G004: Logging statement uses f-string (#37873)``
+`c29d7280bb <https://github.com/apache/airflow/commit/c29d7280bbad8ffbe28f0d268fc887e858911b66>`_  2024-03-05   ``Fix side-effect of default options in Beam Operators (#37916)``
+=================================================================================================  ===========  ==================================================================================
+
+5.6.2
+.....
+
+Latest change: 2024-03-04
+
+=================================================================================================  ===========  ===================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+`b53fe08797 <https://github.com/apache/airflow/commit/b53fe08797d910ffab82b7b2ff6a27ba50b1d8a5>`_  2024-02-14   ``Add Python 3.12 exclusions in providers/pyproject.toml (#37404)``
+=================================================================================================  ===========  ===================================================================
+
+5.6.1
+.....
+
+Latest change: 2024-02-12
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
 `dec2662190 <https://github.com/apache/airflow/commit/dec2662190dd4480d0c631da733e19d2ec9a479d>`_  2024-01-30   ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
 `8708bffa87 <https://github.com/apache/airflow/commit/8708bffa879e57a3c9379376fee5d6186027412d>`_  2024-01-26   ``Split contributing docs to multiple files (#36969)``
 =================================================================================================  ===========  ==================================================================================

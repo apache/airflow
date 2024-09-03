@@ -27,6 +27,121 @@
 Changelog
 ---------
 
+5.7.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Pass hook parameters to SnowflakeSqlApiHook and prep them for API call (#41150)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.6.1
+.....
+
+Misc
+~~~~
+
+* ``openlineage: migrate OpenLineage provider to V2 facets. (#39530)``
+* ``Clean up remaining getattr connection DbApiHook (#40665)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``chore: Add param support for client_request_mfa_token in SnowflakeHook (#40394)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+5.5.2
+.....
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``openlineage: add some debug logging around sql parser call sites (#40200)``
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+* ``Bump Snowflake client driver versions to minimum 2.7.11 per support policy (#39886)``
+
+5.5.1
+.....
+
+Misc
+~~~~
+
+* ``Remove 'openlineage.common' dependencies in Google and Snowflake providers. (#39614)``
+* ``Remove unused 'copy_into_postifx' param from docstring (#39454)``
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
+5.5.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``openlineage, snowflake: do not run external queries for Snowflake (#39113)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Activate RUF019 that checks for unnecessary key check (#38950)``
+
+5.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat: update SnowflakeSqlApiHook to support OAuth (#37922)``
+
+Misc
+~~~~
+
+* ``Remove reference to execution_info in snowflake hook docstring (#37804)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update yanked versions in providers changelogs (#38262)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Resolve G004: Logging statement uses f-string (#37873)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Avoid to use too broad 'noqa' (#37862)``
+
 5.3.1
 .....
 
@@ -356,8 +471,8 @@ The ``4.0.0`` and ``4.0.1`` versions have been broken and yanked, so the 4.0.2 i
 * ``Fix wrapping of run() method result of exasol and snowflake DB hooks (#27997)``
 * ``Make Snowflake Hook conform to semantics of DBApi (#28006)``
 
-4.0.1
-.....
+4.0.1 (YANKED)
+..............
 
 .. warning::
 
@@ -375,8 +490,8 @@ Bug Fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare for follow-up release for November providers (#27774)``
 
-4.0.0
-.....
+4.0.0 (YANKED)
+..............
 
 .. warning::
 
@@ -689,7 +804,9 @@ Features
 * ``Fix S3ToSnowflakeOperator to support uploading all files in the specified stage (#12505)``
 * ``Add connection arguments in S3ToSnowflakeOperator (#12564)``
 
-1.0.0
-.....
+1.0.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``Snowflake breaks openssl when used``
 
 Initial version of the provider.

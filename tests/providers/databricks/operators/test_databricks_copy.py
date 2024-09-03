@@ -21,6 +21,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.databricks.operators.databricks_sql import DatabricksCopyIntoOperator
+from airflow.utils import timezone
 
 DATE = "2017-04-20"
 TASK_ID = "databricks-sql-operator"
@@ -228,3 +229,29 @@ def test_incorrect_params_wrong_format():
             file_format=file_format,
             table_name="abc",
         )
+
+
+@pytest.mark.db_test
+def test_templating(create_task_instance_of_operator, session):
+    ti = create_task_instance_of_operator(
+        DatabricksCopyIntoOperator,
+        # Templated fields
+        file_location="{{ 'file-location' }}",
+        files="{{ 'files' }}",
+        table_name="{{ 'table-name' }}",
+        databricks_conn_id="{{ 'databricks-conn-id' }}",
+        # Other parameters
+        file_format="JSON",
+        dag_id="test_template_body_templating_dag",
+        task_id="test_template_body_templating_task",
+        execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        session=session,
+    )
+    session.add(ti)
+    session.commit()
+    ti.render_templates()
+    task: DatabricksCopyIntoOperator = ti.task
+    assert task.file_location == "file-location"
+    assert task.files == "files"
+    assert task.table_name == "table-name"
+    assert task.databricks_conn_id == "databricks-conn-id"

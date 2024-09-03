@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains ODBC hook."""
+
 from __future__ import annotations
 
 from collections import namedtuple
@@ -25,8 +26,6 @@ from pyodbc import Connection, Row, connect
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import merge_dicts
-
-DEFAULT_ODBC_PLACEHOLDERS = frozenset({"%s", "?"})
 
 
 class OdbcHook(DbApiHook):
@@ -57,6 +56,7 @@ class OdbcHook(DbApiHook):
     conn_type = "odbc"
     hook_name = "ODBC"
     supports_autocommit = True
+    supports_executemany = True
 
     default_driver: str | None = None
 
@@ -83,7 +83,7 @@ class OdbcHook(DbApiHook):
     def connection(self):
         """The Connection object with ID ``odbc_conn_id``."""
         if not self._connection:
-            self._connection = self.get_connection(getattr(self, self.conn_name_attr))
+            self._connection = self.get_connection(self.get_conn_id())
         return self._connection
 
     @property
@@ -139,7 +139,8 @@ class OdbcHook(DbApiHook):
 
     @property
     def odbc_connection_string(self):
-        """ODBC connection string.
+        """
+        ODBC connection string.
 
         We build connection string instead of using ``pyodbc.connect`` params
         because, for example, there is no param representing
@@ -176,7 +177,8 @@ class OdbcHook(DbApiHook):
 
     @property
     def connect_kwargs(self) -> dict:
-        """Effective kwargs to be passed to ``pyodbc.connect``.
+        """
+        Effective kwargs to be passed to ``pyodbc.connect``.
 
         The kwargs are merged from connection extra, ``connect_kwargs``, and
         the hook's init arguments. Values received to the hook precede those
@@ -200,20 +202,6 @@ class OdbcHook(DbApiHook):
         """Return ``pyodbc`` connection object."""
         conn = connect(self.odbc_connection_string, **self.connect_kwargs)
         return conn
-
-    @property
-    def placeholder(self):
-        placeholder = self.connection.extra_dejson.get("placeholder")
-        if placeholder in DEFAULT_ODBC_PLACEHOLDERS:
-            return placeholder
-        else:
-            self.log.warning(
-                "Placeholder defined in Connection '%s' is not listed in 'DEFAULT_ODBC_PLACEHOLDERS' "
-                "and got ignored. Falling back to the default placeholder '%s'.",
-                placeholder,
-                self._placeholder,
-            )
-            return self._placeholder
 
     def get_uri(self) -> str:
         """URI invoked in :meth:`~airflow.providers.common.sql.hooks.sql.DbApiHook.get_sqlalchemy_engine`."""

@@ -24,10 +24,11 @@ import warnings
 from typing import TYPE_CHECKING, Any, ClassVar, Collection, Iterable, Iterator, Mapping, Sequence, Union
 
 import attr
+import methodtools
 
-from airflow.compat.functools import cache
 from airflow.exceptions import AirflowException, UnmappableOperator
 from airflow.models.abstractoperator import (
+    DEFAULT_EXECUTOR,
     DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
@@ -48,7 +49,9 @@ from airflow.models.expandinput import (
 )
 from airflow.models.pool import Pool
 from airflow.serialization.enums import DagAttributeTypes
+from airflow.task.priority_strategy import PriorityWeightStrategy, validate_and_load_priority_weight_strategy
 from airflow.ti_deps.deps.mapped_task_expanded import MappedTaskIsExpanded
+from airflow.triggers.base import StartTriggerArgs
 from airflow.typing_compat import Literal
 from airflow.utils.context import context_update_for_unmapped
 from airflow.utils.helpers import is_container, prevent_duplicates
@@ -139,7 +142,8 @@ def ensure_xcomarg_return_value(arg: Any) -> None:
 
 @attr.define(kw_only=True, repr=False)
 class OperatorPartial:
-    """An "intermediate state" returned by ``BaseOperator.partial()``.
+    """
+    An "intermediate state" returned by ``BaseOperator.partial()``.
 
     This only exists at DAG-parsing time; the only intended usage is for the
     user to call ``.expand()`` on it at some point (usually in a method chain) to
@@ -153,10 +157,6 @@ class OperatorPartial:
     _expand_called: bool = False  # Set when expand() is called to ease user debugging.
 
     def __attrs_post_init__(self):
-        from airflow.operators.subdag import SubDagOperator
-
-        if issubclass(self.operator_class, SubDagOperator):
-            raise TypeError("Mapping over deprecated SubDagOperator is not supported")
         validate_mapping_kwargs(self.operator_class, "partial", self.kwargs)
 
     def __repr__(self) -> str:
@@ -169,7 +169,7 @@ class OperatorPartial:
                 task_id = repr(self.kwargs["task_id"])
             except KeyError:
                 task_id = f"at {hex(id(self))}"
-            warnings.warn(f"Task {task_id} was never mapped!")
+            warnings.warn(f"Task {task_id} was never mapped!", category=UserWarning, stacklevel=1)
 
     def expand(self, **mapped_kwargs: OperatorExpandArgument) -> MappedOperator:
         if not mapped_kwargs:
@@ -234,6 +234,8 @@ class OperatorPartial:
             # For classic operators, this points to expand_input because kwargs
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
+            start_trigger_args=self.operator_class.start_trigger_args,
+            start_from_trigger=self.operator_class.start_from_trigger,
         )
         return op
 
@@ -276,6 +278,9 @@ class MappedOperator(AbstractOperator):
     _task_module: str
     _task_type: str
     _operator_name: str
+    start_trigger_args: StartTriggerArgs | None
+    start_from_trigger: bool
+    _needs_expansion: bool = True
 
     dag: DAG | None
     task_group: TaskGroup | None
@@ -297,14 +302,10 @@ class MappedOperator(AbstractOperator):
     This should be a name to call ``getattr()`` on.
     """
 
-    subdag: None = None  # Since we don't support SubDagOperator, this is always None.
     supports_lineage: bool = False
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
-        (
-            "parse_time_mapped_ti_count",
-            "operator_class",
-        )
+        ("parse_time_mapped_ti_count", "operator_class", "start_trigger_args", "start_from_trigger")
     )
 
     def __hash__(self):
@@ -333,15 +334,14 @@ class MappedOperator(AbstractOperator):
                 f"{self.task_id!r}."
             )
 
+    @methodtools.lru_cache(maxsize=None)
     @classmethod
-    @cache
     def get_serialized_fields(cls):
         # Not using 'cls' here since we only want to serialize base fields.
         return frozenset(attr.fields_dict(MappedOperator)) - {
             "dag",
             "deps",
             "expand_input",  # This is needed to be able to accept XComArg.
-            "subdag",
             "task_group",
             "upstream_task_ids",
             "supports_lineage",
@@ -350,8 +350,8 @@ class MappedOperator(AbstractOperator):
             "_on_failure_fail_dagrun",
         }
 
+    @methodtools.lru_cache(maxsize=None)
     @staticmethod
-    @cache
     def deps_for(operator_class: type[BaseOperator]) -> frozenset[BaseTIDep]:
         operator_deps = operator_class.deps
         if not isinstance(operator_deps, collections.abc.Set):
@@ -384,6 +384,10 @@ class MappedOperator(AbstractOperator):
     def leaves(self) -> Sequence[AbstractOperator]:
         """Implementing DAGNode."""
         return [self]
+
+    @property
+    def task_display_name(self) -> str:
+        return self.partial_kwargs.get("task_display_name") or self.task_id
 
     @property
     def owner(self) -> str:  # type: ignore[override]
@@ -534,12 +538,14 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["priority_weight"] = value
 
     @property
-    def weight_rule(self) -> str:  # type: ignore[override]
-        return self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
+    def weight_rule(self) -> PriorityWeightStrategy:  # type: ignore[override]
+        return validate_and_load_priority_weight_strategy(
+            self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
+        )
 
     @weight_rule.setter
-    def weight_rule(self, value: str) -> None:
-        self.partial_kwargs["weight_rule"] = value
+    def weight_rule(self, value: str | PriorityWeightStrategy) -> None:
+        self.partial_kwargs["weight_rule"] = validate_and_load_priority_weight_strategy(value)
 
     @property
     def sla(self) -> datetime.timedelta | None:
@@ -614,6 +620,10 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("run_as_user")
 
     @property
+    def executor(self) -> str | None:
+        return self.partial_kwargs.get("executor", DEFAULT_EXECUTOR)
+
+    @property
     def executor_config(self) -> dict:
         return self.partial_kwargs.get("executor_config", {})
 
@@ -653,6 +663,10 @@ class MappedOperator(AbstractOperator):
     def doc_rst(self) -> str | None:
         return self.partial_kwargs.get("doc_rst")
 
+    @property
+    def allow_nested_operators(self) -> bool:
+        return bool(self.partial_kwargs.get("allow_nested_operators"))
+
     def get_dag(self) -> DAG | None:
         """Implement Operator."""
         return self.dag
@@ -668,16 +682,20 @@ class MappedOperator(AbstractOperator):
         """Implement DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    def _expand_mapped_kwargs(self, context: Context, session: Session) -> tuple[Mapping[str, Any], set[int]]:
-        """Get the kwargs to create the unmapped operator.
+    def _expand_mapped_kwargs(
+        self, context: Context, session: Session, *, include_xcom: bool
+    ) -> tuple[Mapping[str, Any], set[int]]:
+        """
+        Get the kwargs to create the unmapped operator.
 
         This exists because taskflow operators expand against op_kwargs, not the
         entire operator kwargs dict.
         """
-        return self._get_specified_expand_input().resolve(context, session)
+        return self._get_specified_expand_input().resolve(context, session, include_xcom=include_xcom)
 
     def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> dict[str, Any]:
-        """Get init kwargs to unmap the underlying operator class.
+        """
+        Get init kwargs to unmap the underlying operator class.
 
         :param mapped_kwargs: The dict returned by ``_expand_mapped_kwargs``.
         """
@@ -707,8 +725,72 @@ class MappedOperator(AbstractOperator):
             "params": params,
         }
 
+    def expand_start_from_trigger(self, *, context: Context, session: Session) -> bool:
+        """
+        Get the start_from_trigger value of the current abstract operator.
+
+        MappedOperator uses this to unmap start_from_trigger to decide whether to start the task
+        execution directly from triggerer.
+
+        :meta private:
+        """
+        # start_from_trigger only makes sense when start_trigger_args exists.
+        if not self.start_trigger_args:
+            return False
+
+        mapped_kwargs, _ = self._expand_mapped_kwargs(context, session, include_xcom=False)
+        if self._disallow_kwargs_override:
+            prevent_duplicates(
+                self.partial_kwargs,
+                mapped_kwargs,
+                fail_reason="unmappable or already specified",
+            )
+
+        # Ordering is significant; mapped kwargs should override partial ones.
+        return mapped_kwargs.get(
+            "start_from_trigger", self.partial_kwargs.get("start_from_trigger", self.start_from_trigger)
+        )
+
+    def expand_start_trigger_args(self, *, context: Context, session: Session) -> StartTriggerArgs | None:
+        """
+        Get the kwargs to create the unmapped start_trigger_args.
+
+        This method is for allowing mapped operator to start execution from triggerer.
+        """
+        if not self.start_trigger_args:
+            return None
+
+        mapped_kwargs, _ = self._expand_mapped_kwargs(context, session, include_xcom=False)
+        if self._disallow_kwargs_override:
+            prevent_duplicates(
+                self.partial_kwargs,
+                mapped_kwargs,
+                fail_reason="unmappable or already specified",
+            )
+
+        # Ordering is significant; mapped kwargs should override partial ones.
+        trigger_kwargs = mapped_kwargs.get(
+            "trigger_kwargs",
+            self.partial_kwargs.get("trigger_kwargs", self.start_trigger_args.trigger_kwargs),
+        )
+        next_kwargs = mapped_kwargs.get(
+            "next_kwargs",
+            self.partial_kwargs.get("next_kwargs", self.start_trigger_args.next_kwargs),
+        )
+        timeout = mapped_kwargs.get(
+            "trigger_timeout", self.partial_kwargs.get("trigger_timeout", self.start_trigger_args.timeout)
+        )
+        return StartTriggerArgs(
+            trigger_cls=self.start_trigger_args.trigger_cls,
+            trigger_kwargs=trigger_kwargs,
+            next_method=self.start_trigger_args.next_method,
+            next_kwargs=next_kwargs,
+            timeout=timeout,
+        )
+
     def unmap(self, resolve: None | Mapping[str, Any] | tuple[Context, Session]) -> BaseOperator:
-        """Get the "normal" Operator after applying the current mapping.
+        """
+        Get the "normal" Operator after applying the current mapping.
 
         The *resolve* argument is only used if ``operator_class`` is a real
         class, i.e. if this operator is not serialized. If ``operator_class`` is
@@ -726,7 +808,7 @@ class MappedOperator(AbstractOperator):
             if isinstance(resolve, collections.abc.Mapping):
                 kwargs = resolve
             elif resolve is not None:
-                kwargs, _ = self._expand_mapped_kwargs(*resolve)
+                kwargs, _ = self._expand_mapped_kwargs(*resolve, include_xcom=True)
             else:
                 raise RuntimeError("cannot unmap a non-serialized operator without context")
             kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
@@ -773,7 +855,7 @@ class MappedOperator(AbstractOperator):
         for operator, _ in XComArg.iter_xcom_references(self._get_specified_expand_input()):
             yield operator
 
-    @cache
+    @methodtools.lru_cache(maxsize=None)
     def get_parse_time_mapped_ti_count(self) -> int:
         current_count = self._get_specified_expand_input().get_parse_time_mapped_ti_count()
         try:
@@ -783,7 +865,12 @@ class MappedOperator(AbstractOperator):
         return parent_count * current_count
 
     def get_mapped_ti_count(self, run_id: str, *, session: Session) -> int:
-        current_count = self._get_specified_expand_input().get_total_map_length(run_id, session=session)
+        from airflow.serialization.serialized_objects import _ExpandInputRef
+
+        exp_input = self._get_specified_expand_input()
+        if isinstance(exp_input, _ExpandInputRef):
+            exp_input = exp_input.deref(self.dag)
+        current_count = exp_input.get_total_map_length(run_id, session=session)
         try:
             parent_count = super().get_mapped_ti_count(run_id, session=session)
         except NotMapped:
@@ -795,7 +882,8 @@ class MappedOperator(AbstractOperator):
         context: Context,
         jinja_env: jinja2.Environment | None = None,
     ) -> None:
-        """Template all attributes listed in *self.template_fields*.
+        """
+        Template all attributes listed in *self.template_fields*.
 
         This updates *context* to reference the map-expanded task and relevant
         information, without modifying the mapped operator. The expanded task
@@ -815,7 +903,7 @@ class MappedOperator(AbstractOperator):
         # set_current_task_session context manager to store the session in the current task.
         session = get_current_task_instance_session()
 
-        mapped_kwargs, seen_oids = self._expand_mapped_kwargs(context, session)
+        mapped_kwargs, seen_oids = self._expand_mapped_kwargs(context, session, include_xcom=True)
         unmapped_task = self.unmap(mapped_kwargs)
         context_update_for_unmapped(context, unmapped_task)
 
@@ -829,5 +917,4 @@ class MappedOperator(AbstractOperator):
             context=context,
             jinja_env=jinja_env,
             seen_oids=seen_oids,
-            session=session,
         )

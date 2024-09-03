@@ -27,6 +27,350 @@
 Changelog
 ---------
 
+10.22.0
+.......
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add 'CloudRunServiceHook' and 'CloudRunCreateServiceOperator' (#40008)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/google): add missing sync_hook_class to CloudDataTransferServiceAsyncHook (#41417)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+* ``Refactor 'DataprocCreateBatchOperator' (#41527)``
+* ``Upgrade package gcloud-aio-auth>=5.2.0 (#41262)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+10.21.1
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix unnecessary imports for CloudSQL hook (#41009)``
+* ``Move sensitive information to the secret manager for the system test google_analytics_admin (#40951)``
+* ``Fix Custom Training Job operators to accept results without managed model (#40685)``
+* ``Fix behavior for reattach_state parameter in BigQueryInsertJobOperator (#40664)``
+* ``Fix CloudSQLDatabaseHook temp file handling (#41092)``
+
+Misc
+~~~~
+
+* ``Refactor dataproc system tests (#40720)``
+* ``openlineage: migrate OpenLineage provider to V2 facets. (#39530)``
+* ``Resolve CloudSQLDatabaseHook deprecation warning (#40834)``
+* ``Fix BeamRunJavaPipelineOperator fails without job_name set (#40645)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare Providers docs ad hoc release (#41074)``
+
+10.21.0
+.......
+
+.. note::
+
+  The change  ``Fix 'GCSToGCSOperator' behavior difference for moving single object (#40162)`` has
+  been reverted as it turned out to break too much existing workflows. The behavior of the
+  ``GCSToGCSOperator`` has been restored to the previous behavior.
+
+Features
+~~~~~~~~
+
+* ``Update Google Cloud Generative Model Hooks/Operators to bring parity with Vertex AI API (#40484)``
+* ``DataflowStartFlexTemplateOperator. Check for Dataflow job type each check cycle. (#40584)``
+* ``Added chunk_size parameter to LocalFilesystemToGCSOperator (#40379)``
+* ``Add support for query parameters to BigQueryCheckOperator (#40558)``
+* ``Add link button to dataproc job in DataprocCreateBatchOperator (#40643)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Revert "Fix 'GCSToGCSOperator' behavior difference for moving single object (#40162)" (#40577)``
+* ``fix BigQueryInsertJobOperator's return value and openlineage extraction in deferrable mode (#40457)``
+* ``fix OpenLineage extraction for GCP deferrable operators (#40521)``
+* ``fix respect project_id in CloudBatchSubmitJobOperator (#40560)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Resolve google deprecations in tests (#40629)``
+   * ``Resolve google vertex ai deprecations in tests (#40506)``
+   * ``Add notes about reverting the change in GCSToGCSOperator (#40579)``
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+10.20.0
+.......
+
+.. note::
+
+  The ``GCSToGCSOperator`` now retains the nested folder structure when moving or copying a single
+  object, aligning its behavior with the behavior for multiple objects. If this change impacts your
+  workflows, you may need to adjust your ``source_object`` parameter to include the full path up to
+  the folder containing your single file and specify ``destination_object`` explicitly to ignore
+  nested folders. For example, if you previously used ``source_object='folder/nested_folder/'``, to
+  move file ``'folder/nested_folder/second_nested_folder/file'`` you should now use
+  ``source_object='folder/nested_folder/second_nested_folder/'`` and specify
+  ``destination_object='folder/nested_folder/'``. This would move the file to ``'folder/nested_folder/file'``
+  instead of the fixed behavior of moving it to ``'folder/nested_folder/second_nested_folder/file'``.
+
+.. warning::
+
+  The change above has been reverted in the 10.21.0 release. The behavior of the
+  ``GCSToGCSOperator`` has been restored to the previous behavior.
+
+Features
+~~~~~~~~
+
+* ``Add generation_config and safety_settings to google cloud multimodal model operators (#40126)``
+* ``Add missing location param to 'BigQueryUpdateTableSchemaOperator' (#40237)``
+* ``Add support for external IdP OIDC token retrieval for Google Cloud Operators. (#39873)``
+* ``Add encryption_configuration parameter to BigQuery operators (#40063)``
+* ``Add default gcp_conn_id to GoogleBaseAsyncHook (#40080)``
+* ``Add ordering key option for PubSubPublishMessageOperator GCP Operator (#39955)``
+* ``Add method to get metadata from GCS blob in GCSHook (#38398)``
+* ``Add window parameters to create_auto_ml_forecasting_training_job in AutoMLHook (#39767)``
+* ``Implement CloudComposerDAGRunSensor (#40088)``
+* ``Implement 'CloudDataTransferServiceRunJobOperator' (#39154)``
+* ``Fetch intermediate log async GKEStartPod   (#39348)``
+* ``Add OpenLineage support for AzureBlobStorageToGCSOperator in google provider package (#40290)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix hive_partition_sensor system test (#40023)``
+* ``Fix openai 1.32 breaking openai tests (#40110)``
+* ``Fix credentials initialization revealed by mypy version of google auth (#40108)``
+* ``Fix regular expression to exclude double quote and newline in DataflowHook (#39991)``
+* ``Fix replace parameter for BigQueryToPostgresOperator (#40278)``
+* ``Fix 'GCSToGCSOperator' behavior difference for moving single object (#40162)``
+
+Misc
+~~~~
+
+* ``Refactor datapipeline operators (#39716)``
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``openlineage: execute extraction and message sending in separate process (#40078)``
+* ``Bump minimum version of google-auth to 2.29.0 (#40190)``
+* ``Bump google-ads version to use v17 by default (#40158)``
+* ``google: move openlineage imports inside methods (#40062)``
+* ``Add job_id as template_field in DataplexGetDataQualityScanResultOperator (#40041)``
+* ``Add dependency to httpx >= 0.25.0 everywhere (#40256)``
+
+10.19.0
+.......
+
+.. note::
+  Several AutoML operators have stopped being supported following the shutdown of a legacy version of
+  AutoML Natural Language, Tables, Vision, and Video Intelligence services. This includes
+  ``AutoMLDeployModelOperator``, ``AutoMLTablesUpdateDatasetOperator``, ``AutoMLTablesListTableSpecsOperator``
+  and ``AutoMLTablesListColumnSpecsOperator``. Please refer to the operator documentation to find out
+  about available alternatives, if any. For additional information regarding the AutoML shutdown see:
+
+* `AutoML Natural Language <https://cloud.google.com/natural-language/automl/docs/deprecations>`_
+* `AutoML Tables <https://cloud.google.com/automl-tables/docs/deprecations>`_
+* `AutoML Vision <https://cloud.google.com/vision/automl/docs/deprecations>`_
+* `AutoML Video Intelligence <https://cloud.google.com/video-intelligence/automl/docs/deprecations>`_
+
+Features
+~~~~~~~~
+
+* ``Introduce anonymous credentials in GCP base hook (#39695)``
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove parent_model version suffix if it is passed to Vertex AI operators (#39640)``
+* ``Fix BigQueryCursor execute method if the location is missing (#39659)``
+* ``Fix acknowledged functionality in deferrable mode for PubSubPullSensor (#39711)``
+* ``Reroute AutoML operator links to Google Translation links (#39668)``
+* ``Pin google-cloud-bigquery to < 3.21.0 (#39583)``
+
+Misc
+~~~~
+
+* ``Remove 'openlineage.common' dependencies in Google and Snowflake providers. (#39614)``
+* ``Deprecate AutoML Tables operators (#39752)``
+* ``Resolve deprecation warnings in Azure FileShare-to-GCS tests (#39599)``
+* ``typo: wrong OpenLineage facet key in spec (#39782)``
+* ``removed stale code from StackdriverTaskHandler (#39744)``
+
+10.18.0
+.......
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+
+Features
+~~~~~~~~
+
+* ``add templated fields for google llm operators (#39174)``
+* ``Add logic to handle on_kill for BigQueryInsertJobOperator when deferrable=True (#38912)``
+* ``Create 'CloudComposerRunAirflowCLICommandOperator' operator (#38965)``
+* ``Deferrable mode for Dataflow sensors (#37693)``
+* ``Deferrable mode for Custom Training Job operators (#38584)``
+* ``Enhancement for SSL-support in CloudSQLExecuteQueryOperator (#38894)``
+* ``Create GKESuspendJobOperator and GKEResumeJobOperator operators (#38677)``
+* ``Add support for role arn for aws creds in Google Transfer Service operator (#38911)``
+* ``Add encryption_configuration parameter to BigQueryCheckOperator and BigQueryTableCheckOperator (#39432)``
+* ``Add 'job_id' parameter to 'BigQueryGetDataOperator' (#39315)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deferrable mode for DataflowTemplatedJobStartOperator and DataflowStartFlexTemplateOperator (#39018)``
+* ``Fix batching for BigQueryToPostgresOperator (#39233)``
+* ``Fix DataprocSubmitJobOperator in deferrable mode=True when task is marked as failed. (#39230)``
+* ``Fix GCSObjectExistenceSensor operator to return the same XCOM value in deferrable and non-deferrable mode (#39206)``
+* ``Fix conn_id BigQueryToMsSqlOperator (#39171)``
+* ``Fix add retry logic in case of google auth refresh credential error (#38961)``
+* ``Fix BigQueryCheckOperator skipped value and error check in deferrable mode (#38408)``
+* ``Fix Use prefixes instead of all file paths for OpenLineage datasets in GCSDeleteObjectsOperator (#39059)``
+* ``Fix Use prefixes instead of full file paths for OpenLineage datasets in GCSToGCSOperator (#39058)``
+* ``Fix OpenLineage datasets in GCSTimeSpanFileTransformOperator (#39064)``
+* ``Fix generation temp filename in 'DataprocSubmitPySparkJobOperator' (#39498)``
+* ``Fix logic to cancel the external job if the TaskInstance is not in a running or deferred state for DataprocSubmitJobOperator (#39447)``
+* ``Fix logic to cancel the external job if the TaskInstance is not in a running or deferred state for BigQueryInsertJobOperator (#39442)``
+* ``Fix logic to cancel the external job if the TaskInstance is not in a running or deferred state for DataprocCreateClusterOperator (#39446)``
+* ``Fix 'DataprocCreateBatchOperator' with 'result_retry' raises 'AttributeError' (#39462)``
+* ``Fix yaml parsing for GKEStartKueueInsideClusterOperator (#39234)``
+* ``Fix validation of label values in BigQueryInsertJobOperator (#39568)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+* ``Improve 'DataprocCreateClusterOperator' Triggers for Better Error Handling and Resource Cleanup (#39130)``
+* ``Adding MSGraphOperator in Microsoft Azure provider (#38111)``
+* ``Apply PROVIDE_PROJECT_ID mypy workaround across Google provider (#39129)``
+* ``handle KubernetesDeleteJobOperator import (#39036)``
+* ``Remove Airflow 2.6 back compact code (#39558)``
+* ``Reapply templates for all providers (#39554)``
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Add deprecation warnings and raise exception for already deprecated ones (#38673)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Disconnect GKE operators from deprecated hooks (#39434)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Activate RUF019 that checks for unnecessary key check (#38950)``
+   * ``Prepare docs 1st wave May 2024 (#39328)``
+
+10.17.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Add 'impersonation_scopes' to BigQuery (#38169)``
+* ``Add the deferrable mode to RunPipelineJobOperator (#37969)``
+* ``Add GKECreateCustomResourceOperator and GKEDeleteCustomResourceOperator operators (#37616)``
+* ``Add VertexAI Language Model and Multimodal Model Operators for Google Cloud Generative AI use (#37721)``
+* ``Add GKEListJobsOperator and GKEDescribeJobOperator (#37598)``
+* ``Create GKEStartKueueJobOperator operator (#37477)``
+* ``Create DeleteKubernetesJobOperator and GKEDeleteJobOperator operators (#37793)``
+* ``Update GCS hook to get crc32c hash for CMEK-protected objects (#38191)``
+* ``Set job labels for traceability in BigQuery jobs (#37736)``
+* ``Deferrable mode for CreateBatchPredictionJobOperator (#37818)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix BigQuery connection and add docs (#38430)``
+* ``fix(google,log): Avoid log name overriding (#38071)``
+* ``Fix credentials error for S3ToGCSOperator trigger (#37518)``
+* ``Fix 'parent_model' parameter in GCP Vertex AI AutoML and Custom Job operators (#38417)``
+* ``fix(google): add return statement to yield within a while loop in triggers (#38394)``
+* ``Fix cursor unique name surpasses Postgres identifier limit in 'PostgresToGCSOperator' (#38040)``
+* ``Fix gcs Anonymous user issue because none token (#38102)``
+* ``Fix BigQueryTablePartitionExistenceTrigger partition query (#37655)``
+
+Misc
+~~~~
+
+* ``Add google-cloud-bigquery as explicit google-provider dependency (#38753)``
+* ``Avoid to use 'functools.lru_cache' in class methods in 'google' provider (#38652)``
+* ``Refactor GKE hooks (#38404)``
+* ``Remove unused loop variable from airflow package (#38308)``
+* ``templated fields logic checks for cloud_storage_transfer_service (#37519)``
+* ``Rename mlengine's operators' fields' names to comply with templated fields validation (#38053)``
+* ``Rename Vertex AI AutoML operators fields' names to comply with templated fields validation (#38049)``
+* ``Rename 'DeleteCustomTrainingJobOperator''s fields' names to comply with templated fields validation (#38048)``
+* ``Restore delegate_to for Google Transfer Operators retrieving from Google Cloud. (#37925)``
+* ``Refactor CreateHyperparameterTuningJobOperator (#37938)``
+* ``Upgrade google-ads version (#37787)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``fix: try002 for provider google (#38803)``
+   * ``Revert "Delete deprecated AutoML operators and deprecate AutoML hook and links (#38418)" (#38633)``
+   * ``Implement deferrable mode for GKEStartJobOperator (#38454)``
+   * ``Delete deprecated AutoML operators and deprecate AutoML hook and links (#38418)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Resolve G004: Logging statement uses f-string (#37873)``
+
+10.16.0
+.......
+
+Features
+~~~~~~~~
+
+* ``'CloudRunExecuteJobOperator': Add project_id to hook.get_job calls (#37201)``
+* ``Add developer token as authentication method to GoogleAdsHook (#37417)``
+* ``Add GKEStartKueueInsideClusterOperator (#37072)``
+* ``Add optional 'location' parameter to the BigQueryInsertJobTrigger (#37282)``
+* ``feat(GKEPodAsyncHook): use async credentials token implementation (#37486)``
+* ``Create GKEStartJobOperator and KubernetesJobOperator (#36847)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix invalid deprecation of 'DataFusionPipelineLinkHelper' (#37755)``
+* ``fix templated field assignment 'google/cloud/operators/compute.py' (#37659)``
+* ``fix bq_to_mysql init checks (#37653)``
+* ``Fix Async GCSObjectsWithPrefixExistenceSensor xcom push (#37634)``
+* ``Fix GCSSynchronizeBucketsOperator timeout error (#37237)``
+* ``fix: Signature of insert_rows incompatible with supertype DbApiHook (#37391)``
+* ``Use offset-naive datetime in _CredentialsToken (#37539)``
+* ``Use wait_for_operation in DataprocInstantiateInlineWorkflowTemplateOperator (#37145)``
+
+Misc
+~~~~
+
+* ``Fix typo on DataflowStartFlexTemplateOperator documentation (#37595)``
+* ``Make 'executemany' keyword arguments only in 'DbApiHook.insert_rows' (#37840)``
+* ``Unify 'aws_conn_id' type to always be 'str | None' (#37768)``
+* ``Limit 'pandas' to '<2.2' (#37748)``
+* ``Remove broken deprecated fallback into the Google provider operators (#37740)``
+* ``Implement AIP-60 Dataset URI formats (#37005)``
+* ``resolve template fields init checks for 'bigquery' (#37586)``
+* ``Update docs for the DataprocCreateBatchOperator (#37562)``
+* ``Replace usage of 'datetime.utcnow' and 'datetime.utcfromtimestamp' in providers (#37138)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Add D401 fixes (#37348)``
+   * ``Avoid to use too broad 'noqa' (#37862)``
+   * ``Avoid non-recommended usage of logging (#37792)``
+
 10.15.0
 .......
 

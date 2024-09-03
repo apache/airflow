@@ -17,27 +17,24 @@
 # under the License.
 
 # Install airflow using regular 'pip install' command. This install airflow depending on the arguments:
+#
 # AIRFLOW_INSTALLATION_METHOD - determines where to install airflow form:
 #             "." - installs airflow from local sources
 #             "apache-airflow" - installs airflow from PyPI 'apache-airflow' package
+#             "apache-airflow @ URL - installs from URL
+#
+# (example GitHub URL https://github.com/apache/airflow/archive/main.tar.gz)
+#
 # AIRFLOW_VERSION_SPECIFICATION - optional specification for Airflow version to install (
 #                                 might be ==2.0.2 for example or <3.0.0
-# UPGRADE_TO_NEWER_DEPENDENCIES - determines whether eager-upgrade should be performed with the
-#                                 dependencies (with EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS added)
+# UPGRADE_INVALIDATION_STRING - if set with random value determines whether eager-upgrade should be done
+#                               for the dependencies (with EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS added)
 #
 # shellcheck shell=bash disable=SC2086
 # shellcheck source=scripts/docker/common.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
 function install_airflow() {
-    # Coherence check for editable installation mode.
-    if [[ ${AIRFLOW_INSTALLATION_METHOD} != "." && \
-          ${AIRFLOW_INSTALL_EDITABLE_FLAG} == "--editable" ]]; then
-        echo
-        echo "${COLOR_RED}ERROR! You can only use --editable flag when installing airflow from sources!${COLOR_RESET}"
-        echo "${COLOR_RED}       Current installation method is '${AIRFLOW_INSTALLATION_METHOD} and should be '.'${COLOR_RESET}"
-        exit 1
-    fi
     # Remove mysql from extras if client is not going to be installed
     if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/mysql,}
@@ -48,7 +45,24 @@ function install_airflow() {
         AIRFLOW_EXTRAS=${AIRFLOW_EXTRAS/postgres,}
         echo "${COLOR_YELLOW}Postgres client installation is disabled. Extra 'postgres' installations were therefore omitted.${COLOR_RESET}"
     fi
-    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then
+    # Determine the installation_command_flags based on AIRFLOW_INSTALLATION_METHOD method
+    local installation_command_flags
+    if [[ ${AIRFLOW_INSTALLATION_METHOD} == "." ]]; then
+        # When installing from sources - we always use `--editable` mode
+        installation_command_flags="--editable .[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
+    elif [[ ${AIRFLOW_INSTALLATION_METHOD} == "apache-airflow" ]]; then
+        installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
+    elif [[ ${AIRFLOW_INSTALLATION_METHOD} == apache-airflow\ @\ * ]]; then
+        installation_command_flags="apache-airflow[${AIRFLOW_EXTRAS}] @ ${AIRFLOW_VERSION_SPECIFICATION/apache-airflow @//}"
+    else
+        echo
+        echo "${COLOR_RED}The '${INSTALLATION_METHOD}' installation method is not supported${COLOR_RESET}"
+        echo
+        echo "${COLOR_YELLOW}Supported methods are ('.', 'apache-airflow', 'apache-airflow @ URL')${COLOR_RESET}"
+        echo
+        exit 1
+    fi
+    if [[ "${UPGRADE_INVALIDATION_STRING=}" != "" ]]; then
         echo
         echo "${COLOR_BLUE}Remove airflow and all provider packages installed before potentially${COLOR_RESET}"
         echo
@@ -56,14 +70,10 @@ function install_airflow() {
         ${PACKAGING_TOOL_CMD} freeze | grep apache-airflow | xargs ${PACKAGING_TOOL_CMD} uninstall ${EXTRA_UNINSTALL_FLAGS} 2>/dev/null || true
         set +x
         echo
-        echo "${COLOR_BLUE}Installing all packages with eager upgrade with ${AIRFLOW_INSTALL_EDITABLE_FLAG} mode${COLOR_RESET}"
+        echo "${COLOR_BLUE}Installing all packages in eager upgrade mode. Installation method: ${AIRFLOW_INSTALLATION_METHOD}${COLOR_RESET}"
         echo
         set -x
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade ${RESOLUTION_HIGHEST_FLAG} \
-            ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-            ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
-            "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
-            ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_EAGERLY} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
         set +x
         common::install_packaging_tools
         echo
@@ -72,25 +82,19 @@ function install_airflow() {
         pip check
     else
         echo
-        echo "${COLOR_BLUE}Installing all packages with constraints${COLOR_RESET}"
+        echo "${COLOR_BLUE}Installing all packages with constraints. Installation method: ${AIRFLOW_INSTALLATION_METHOD}${COLOR_RESET}"
         echo
         set -x
         # Install all packages with constraints
-        if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
-            ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-            "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
-            --constraint "${HOME}/constraints.txt"; then
+        if ! ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags} --constraint "${HOME}/constraints.txt"; then
             set +x
             echo
             echo "${COLOR_YELLOW}Likely pyproject.toml has new dependencies conflicting with constraints.${COLOR_RESET}"
             echo
-            echo "${COLOR_BLUE}Falling back to no-constraints, lowest-direct resolution installation.${COLOR_RESET}"
+            echo "${COLOR_BLUE}Falling back to no-constraints installation.${COLOR_RESET}"
             echo
             set -x
-            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade ${RESOLUTION_LOWEST_DIRECT_FLAG} \
-                ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-                ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
-                "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
+            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_IF_NEEDED} ${ADDITIONAL_PIP_INSTALL_FLAGS} ${installation_command_flags}
         fi
         set +x
         common::install_packaging_tools
@@ -105,7 +109,6 @@ function install_airflow() {
 common::get_colors
 common::get_packaging_tool
 common::get_airflow_version_specification
-common::override_pip_version_if_needed
 common::get_constraints_location
 common::show_packaging_tool_version_and_location
 

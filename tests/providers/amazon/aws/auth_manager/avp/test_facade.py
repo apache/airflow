@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -42,7 +43,9 @@ test_user_no_group = AwsAuthManagerUser(user_id="test_user_no_group", groups=[])
 def facade():
     with conf_vars(
         {
+            ("aws_auth_manager", "conn_id"): "aws_default",
             ("aws_auth_manager", "region_name"): REGION_NAME,
+            ("aws_auth_manager", "avp_policy_store_id"): AVP_POLICY_STORE_ID,
         }
     ):
         yield AwsAuthManagerAmazonVerifiedPermissionsFacade()
@@ -53,27 +56,17 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
         assert hasattr(facade, "avp_client")
 
     def test_avp_policy_store_id(self, facade):
-        with conf_vars(
-            {
-                ("aws_auth_manager", "avp_policy_store_id"): AVP_POLICY_STORE_ID,
-            }
-        ):
-            assert hasattr(facade, "avp_policy_store_id")
+        assert hasattr(facade, "avp_policy_store_id")
 
     def test_is_authorized_no_user(self, facade):
         method: ResourceMethod = "GET"
         entity_type = AvpEntities.VARIABLE
 
-        with conf_vars(
-            {
-                ("aws_auth_manager", "avp_policy_store_id"): AVP_POLICY_STORE_ID,
-            }
-        ):
-            result = facade.is_authorized(
-                method=method,
-                entity_type=entity_type,
-                user=None,
-            )
+        result = facade.is_authorized(
+            method=method,
+            entity_type=entity_type,
+            user=None,
+        )
 
         assert result is False
 
@@ -89,15 +82,15 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
                     {
                         "identifier": {"entityType": "Airflow::User", "entityId": "test_user"},
                         "parents": [
-                            {"entityType": "Airflow::Role", "entityId": "group1"},
-                            {"entityType": "Airflow::Role", "entityId": "group2"},
+                            {"entityType": "Airflow::Group", "entityId": "group1"},
+                            {"entityType": "Airflow::Group", "entityId": "group2"},
                         ],
                     },
                     {
-                        "identifier": {"entityType": "Airflow::Role", "entityId": "group1"},
+                        "identifier": {"entityType": "Airflow::Group", "entityId": "group1"},
                     },
                     {
-                        "identifier": {"entityType": "Airflow::Role", "entityId": "group2"},
+                        "identifier": {"entityType": "Airflow::Group", "entityId": "group2"},
                     },
                 ],
                 None,
@@ -113,15 +106,15 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
                     {
                         "identifier": {"entityType": "Airflow::User", "entityId": "test_user"},
                         "parents": [
-                            {"entityType": "Airflow::Role", "entityId": "group1"},
-                            {"entityType": "Airflow::Role", "entityId": "group2"},
+                            {"entityType": "Airflow::Group", "entityId": "group1"},
+                            {"entityType": "Airflow::Group", "entityId": "group2"},
                         ],
                     },
                     {
-                        "identifier": {"entityType": "Airflow::Role", "entityId": "group1"},
+                        "identifier": {"entityType": "Airflow::Group", "entityId": "group1"},
                     },
                     {
-                        "identifier": {"entityType": "Airflow::Role", "entityId": "group2"},
+                        "identifier": {"entityType": "Airflow::Group", "entityId": "group2"},
                     },
                 ],
                 None,
@@ -152,15 +145,15 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
                     {
                         "identifier": {"entityType": "Airflow::User", "entityId": "test_user"},
                         "parents": [
-                            {"entityType": "Airflow::Role", "entityId": "group1"},
-                            {"entityType": "Airflow::Role", "entityId": "group2"},
+                            {"entityType": "Airflow::Group", "entityId": "group1"},
+                            {"entityType": "Airflow::Group", "entityId": "group2"},
                         ],
                     },
                     {
-                        "identifier": {"entityType": "Airflow::Role", "entityId": "group1"},
+                        "identifier": {"entityType": "Airflow::Group", "entityId": "group1"},
                     },
                     {
-                        "identifier": {"entityType": "Airflow::Role", "entityId": "group2"},
+                        "identifier": {"entityType": "Airflow::Group", "entityId": "group2"},
                     },
                 ],
                 {"contextMap": {"context_param": {"string": "value"}}},
@@ -178,18 +171,13 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
         method: ResourceMethod = "GET"
         entity_type = AvpEntities.VARIABLE
 
-        with conf_vars(
-            {
-                ("aws_auth_manager", "avp_policy_store_id"): AVP_POLICY_STORE_ID,
-            }
-        ):
-            result = facade.is_authorized(
-                method=method,
-                entity_type=entity_type,
-                entity_id=entity_id,
-                user=user,
-                context=context,
-            )
+        result = facade.is_authorized(
+            method=method,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            user=user,
+            context=context,
+        )
 
         params = prune_dict(
             {
@@ -211,15 +199,8 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
         mock_is_authorized = Mock(return_value=avp_response)
         facade.avp_client.is_authorized = mock_is_authorized
 
-        with conf_vars(
-            {
-                ("aws_auth_manager", "avp_policy_store_id"): AVP_POLICY_STORE_ID,
-            }
-        ):
-            with pytest.raises(
-                AirflowException, match="Error occurred while making an authorization decision."
-            ):
-                facade.is_authorized(method="GET", entity_type=AvpEntities.VARIABLE, user=test_user)
+        with pytest.raises(AirflowException, match="Error occurred while making an authorization decision."):
+            facade.is_authorized(method="GET", entity_type=AvpEntities.VARIABLE, user=test_user)
 
     @pytest.mark.parametrize(
         "user, avp_response, expected",
@@ -245,18 +226,13 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
         mock_batch_is_authorized = Mock(return_value=avp_response)
         facade.avp_client.batch_is_authorized = mock_batch_is_authorized
 
-        with conf_vars(
-            {
-                ("aws_auth_manager", "avp_policy_store_id"): AVP_POLICY_STORE_ID,
-            }
-        ):
-            result = facade.batch_is_authorized(
-                requests=[
-                    {"method": "GET", "entity_type": AvpEntities.VARIABLE, "entity_id": "var1"},
-                    {"method": "GET", "entity_type": AvpEntities.VARIABLE, "entity_id": "var1"},
-                ],
-                user=user,
-            )
+        result = facade.batch_is_authorized(
+            requests=[
+                {"method": "GET", "entity_type": AvpEntities.VARIABLE, "entity_id": "var1"},
+                {"method": "GET", "entity_type": AvpEntities.VARIABLE, "entity_id": "var1"},
+            ],
+            user=user,
+        )
 
         assert result == expected
 
@@ -265,21 +241,16 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
         mock_batch_is_authorized = Mock(return_value=avp_response)
         facade.avp_client.batch_is_authorized = mock_batch_is_authorized
 
-        with conf_vars(
-            {
-                ("aws_auth_manager", "avp_policy_store_id"): AVP_POLICY_STORE_ID,
-            }
+        with pytest.raises(
+            AirflowException, match="Error occurred while making a batch authorization decision."
         ):
-            with pytest.raises(
-                AirflowException, match="Error occurred while making a batch authorization decision."
-            ):
-                facade.batch_is_authorized(
-                    requests=[
-                        {"method": "GET", "entity_type": AvpEntities.VARIABLE, "entity_id": "var1"},
-                        {"method": "GET", "entity_type": AvpEntities.VARIABLE, "entity_id": "var1"},
-                    ],
-                    user=test_user,
-                )
+            facade.batch_is_authorized(
+                requests=[
+                    {"method": "GET", "entity_type": AvpEntities.VARIABLE, "entity_id": "var1"},
+                    {"method": "GET", "entity_type": AvpEntities.VARIABLE, "entity_id": "var1"},
+                ],
+                user=test_user,
+            )
 
     def test_get_batch_is_authorized_single_result_successful(self, facade):
         single_result = {
@@ -291,12 +262,30 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
             "decision": "ALLOW",
         }
 
-        with conf_vars(
-            {
-                ("aws_auth_manager", "avp_policy_store_id"): AVP_POLICY_STORE_ID,
-            }
-        ):
-            result = facade.get_batch_is_authorized_single_result(
+        result = facade.get_batch_is_authorized_single_result(
+            batch_is_authorized_results=[
+                {
+                    "request": {
+                        "principal": {"entityType": "Airflow::User", "entityId": "test_user"},
+                        "action": {"actionType": "Airflow::Action", "actionId": "Variable.GET"},
+                        "resource": {"entityType": "Airflow::Variable", "entityId": "*"},
+                    },
+                    "decision": "ALLOW",
+                },
+                single_result,
+            ],
+            request={
+                "method": "GET",
+                "entity_type": AvpEntities.CONNECTION,
+            },
+            user=test_user,
+        )
+
+        assert result == single_result
+
+    def test_get_batch_is_authorized_single_result_unsuccessful(self, facade):
+        with pytest.raises(AirflowException, match="Could not find the authorization result."):
+            facade.get_batch_is_authorized_single_result(
                 batch_is_authorized_results=[
                     {
                         "request": {
@@ -306,7 +295,14 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
                         },
                         "decision": "ALLOW",
                     },
-                    single_result,
+                    {
+                        "request": {
+                            "principal": {"entityType": "Airflow::User", "entityId": "test_user"},
+                            "action": {"actionType": "Airflow::Action", "actionId": "Variable.POST"},
+                            "resource": {"entityType": "Airflow::Variable", "entityId": "*"},
+                        },
+                        "decision": "ALLOW",
+                    },
                 ],
                 request={
                     "method": "GET",
@@ -315,37 +311,26 @@ class TestAwsAuthManagerAmazonVerifiedPermissionsFacade:
                 user=test_user,
             )
 
-        assert result == single_result
+    def test_is_policy_store_schema_up_to_date_when_schema_up_to_date(self, facade, airflow_root_path):
+        schema_path = airflow_root_path.joinpath(
+            "airflow", "providers", "amazon", "aws", "auth_manager", "avp", "schema.json"
+        ).resolve()
+        with open(schema_path) as schema_file:
+            avp_response = {"schema": schema_file.read()}
+            mock_get_schema = Mock(return_value=avp_response)
+            facade.avp_client.get_schema = mock_get_schema
 
-    def test_get_batch_is_authorized_single_result_unsuccessful(self, facade):
-        with conf_vars(
-            {
-                ("aws_auth_manager", "avp_policy_store_id"): AVP_POLICY_STORE_ID,
-            }
-        ):
-            with pytest.raises(AirflowException, match="Could not find the authorization result."):
-                facade.get_batch_is_authorized_single_result(
-                    batch_is_authorized_results=[
-                        {
-                            "request": {
-                                "principal": {"entityType": "Airflow::User", "entityId": "test_user"},
-                                "action": {"actionType": "Airflow::Action", "actionId": "Variable.GET"},
-                                "resource": {"entityType": "Airflow::Variable", "entityId": "*"},
-                            },
-                            "decision": "ALLOW",
-                        },
-                        {
-                            "request": {
-                                "principal": {"entityType": "Airflow::User", "entityId": "test_user"},
-                                "action": {"actionType": "Airflow::Action", "actionId": "Variable.POST"},
-                                "resource": {"entityType": "Airflow::Variable", "entityId": "*"},
-                            },
-                            "decision": "ALLOW",
-                        },
-                    ],
-                    request={
-                        "method": "GET",
-                        "entity_type": AvpEntities.CONNECTION,
-                    },
-                    user=test_user,
-                )
+            assert facade.is_policy_store_schema_up_to_date()
+
+    def test_is_policy_store_schema_up_to_date_when_schema_is_modified(self, facade, airflow_root_path):
+        schema_path = airflow_root_path.joinpath(
+            "airflow", "providers", "amazon", "aws", "auth_manager", "avp", "schema.json"
+        ).resolve()
+        with open(schema_path) as schema_file:
+            schema = json.loads(schema_file.read())
+            schema["new_field"] = "new_value"
+            avp_response = {"schema": json.dumps(schema)}
+            mock_get_schema = Mock(return_value=avp_response)
+            facade.avp_client.get_schema = mock_get_schema
+
+            assert not facade.is_policy_store_schema_up_to_date()

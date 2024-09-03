@@ -28,7 +28,8 @@ DEFAULT_BATCH_LOCATION = "us-central1"
 
 
 class CloudBatchJobFinishedTrigger(BaseTrigger):
-    """Cloud Batch trigger to check if templated job has been finished.
+    """
+    Cloud Batch trigger to check if templated job has been finished.
 
     :param job_name: Required. Name of the job.
     :param project_id: Required. the Google Cloud project ID in which the job was started.
@@ -140,7 +141,7 @@ class CloudBatchJobFinishedTrigger(BaseTrigger):
             yield TriggerEvent({"status": "error", "message": str(e)})
             return
 
-        self.log.exception(f"Job with name [{self.job_name}] timed out")
+        self.log.exception("Job with name [%s] timed out", self.job_name)
         yield TriggerEvent(
             {
                 "job_name": self.job_name,

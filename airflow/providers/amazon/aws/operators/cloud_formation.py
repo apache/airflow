@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains AWS CloudFormation create/delete stack operators."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence

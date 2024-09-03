@@ -46,10 +46,8 @@ from airflow.api_connexion.schemas.dataset_schema import (
 from airflow.datasets import Dataset
 from airflow.datasets.manager import dataset_manager
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
-from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.db import get_query_count
-from airflow.utils.log.action_logger import action_event_from_permission
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.decorators import action_logging
 from airflow.www.extensions.init_auth_manager import get_auth_manager
@@ -207,6 +205,7 @@ def get_dag_dataset_queued_event(
 @security.requires_access_dataset("DELETE")
 @security.requires_access_dag("GET")
 @provide_session
+@action_logging
 def delete_dag_dataset_queued_event(
     *, dag_id: str, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
@@ -254,6 +253,7 @@ def get_dag_dataset_queued_events(
 
 @security.requires_access_dataset("DELETE")
 @security.requires_access_dag("GET")
+@action_logging
 @provide_session
 def delete_dag_dataset_queued_events(
     *, dag_id: str, before: str | None = None, session: Session = NEW_SESSION
@@ -303,6 +303,7 @@ def get_dataset_queued_events(
 
 
 @security.requires_access_dataset("DELETE")
+@action_logging
 @provide_session
 def delete_dataset_queued_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
@@ -327,12 +328,7 @@ def delete_dataset_queued_events(
 
 @security.requires_access_dataset("POST")
 @provide_session
-@action_logging(
-    event=action_event_from_permission(
-        prefix=RESOURCE_EVENT_PREFIX,
-        permission=permissions.ACTION_CAN_CREATE,
-    ),
-)
+@action_logging
 def create_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
     """Create dataset event."""
     body = get_json_request_dict()

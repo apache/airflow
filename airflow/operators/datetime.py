@@ -17,10 +17,9 @@
 from __future__ import annotations
 
 import datetime
-import warnings
 from typing import TYPE_CHECKING, Iterable
 
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException
 from airflow.operators.branch import BaseBranchOperator
 from airflow.utils import timezone
 
@@ -29,7 +28,8 @@ if TYPE_CHECKING:
 
 
 class BranchDateTimeOperator(BaseBranchOperator):
-    """Branches into one of two lists of tasks depending on the current datetime.
+    """
+    Branches into one of two lists of tasks depending on the current datetime.
 
     For more information on how to use this operator, take a look at the guide:
     :ref:`howto/operator:BranchDateTimeOperator`.
@@ -37,10 +37,10 @@ class BranchDateTimeOperator(BaseBranchOperator):
     True branch will be returned when ``datetime.datetime.now()`` falls below
     ``target_upper`` and above ``target_lower``.
 
-    :param follow_task_ids_if_true: task id or task ids to follow if
-        ``datetime.datetime.now()`` falls above target_lower and below ``target_upper``.
-    :param follow_task_ids_if_false: task id or task ids to follow if
-        ``datetime.datetime.now()`` falls below target_lower or above ``target_upper``.
+    :param follow_task_ids_if_true: task_id, task_group_id, or a list of task_ids and/or task_group_ids
+        to follow if ``datetime.datetime.now()`` falls above target_lower and below target_upper.
+    :param follow_task_ids_if_false: task_id, task_group_id, or a list of task_ids and/or task_group_ids
+        to follow if ``datetime.datetime.now()`` falls below target_lower or above target_upper.
     :param target_lower: target lower bound.
     :param target_upper: target upper bound.
     :param use_task_logical_date: If ``True``, uses task's logical date to compare with targets.
@@ -55,7 +55,6 @@ class BranchDateTimeOperator(BaseBranchOperator):
         target_lower: datetime.datetime | datetime.time | None,
         target_upper: datetime.datetime | datetime.time | None,
         use_task_logical_date: bool = False,
-        use_task_execution_date: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -70,13 +69,6 @@ class BranchDateTimeOperator(BaseBranchOperator):
         self.follow_task_ids_if_true = follow_task_ids_if_true
         self.follow_task_ids_if_false = follow_task_ids_if_false
         self.use_task_logical_date = use_task_logical_date
-        if use_task_execution_date:
-            self.use_task_logical_date = use_task_execution_date
-            warnings.warn(
-                "Parameter ``use_task_execution_date`` is deprecated. Use ``use_task_logical_date``.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
 
     def choose_branch(self, context: Context) -> str | Iterable[str]:
         if self.use_task_logical_date:

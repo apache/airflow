@@ -24,7 +24,7 @@ from unittest import mock
 import dill
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import DAG
 from airflow.operators.python import PythonOperator
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
@@ -94,19 +94,20 @@ class TestMlengineOperatorUtils:
     @mock.patch.object(PythonOperator, "set_upstream")
     @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")
     def test_create_evaluate_ops(self, mock_beam_pipeline, mock_python):
-        result = create_evaluate_ops(
-            task_prefix=TASK_PREFIX,
-            data_format=DATA_FORMAT,
-            input_paths=INPUT_PATHS,
-            prediction_path=PREDICTION_PATH,
-            metric_fn_and_keys=get_metric_fn_and_keys(),
-            validate_fn=validate_err_and_count,
-            batch_prediction_job_id=BATCH_PREDICTION_JOB_ID,
-            project_id=PROJECT_ID,
-            region=REGION,
-            dataflow_options=DATAFLOW_OPTIONS,
-            model_uri=MODEL_URI,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            result = create_evaluate_ops(
+                task_prefix=TASK_PREFIX,
+                data_format=DATA_FORMAT,
+                input_paths=INPUT_PATHS,
+                prediction_path=PREDICTION_PATH,
+                metric_fn_and_keys=get_metric_fn_and_keys(),
+                validate_fn=validate_err_and_count,
+                batch_prediction_job_id=BATCH_PREDICTION_JOB_ID,
+                project_id=PROJECT_ID,
+                region=REGION,
+                dataflow_options=DATAFLOW_OPTIONS,
+                model_uri=MODEL_URI,
+            )
 
         evaluate_prediction, evaluate_summary, evaluate_validation = result
 
@@ -119,13 +120,13 @@ class TestMlengineOperatorUtils:
         METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN, recurse=True)).decode()
 
         assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
-        assert PROJECT_ID == evaluate_prediction._project_id
-        assert BATCH_PREDICTION_JOB_ID == evaluate_prediction._job_id
-        assert REGION == evaluate_prediction._region
+        assert PROJECT_ID == evaluate_prediction.project_id
+        assert BATCH_PREDICTION_JOB_ID == evaluate_prediction.job_id
+        assert REGION == evaluate_prediction.region
         assert DATA_FORMAT == evaluate_prediction._data_format
-        assert INPUT_PATHS == evaluate_prediction._input_paths
-        assert PREDICTION_PATH == evaluate_prediction._output_path
-        assert MODEL_URI == evaluate_prediction._uri
+        assert INPUT_PATHS == evaluate_prediction.input_paths
+        assert PREDICTION_PATH == evaluate_prediction.output_path
+        assert MODEL_URI == evaluate_prediction.uri
 
         assert TASK_PREFIX_SUMMARY == evaluate_summary.task_id
         assert DATAFLOW_OPTIONS == evaluate_summary.default_pipeline_options
@@ -139,20 +140,21 @@ class TestMlengineOperatorUtils:
     @mock.patch.object(PythonOperator, "set_upstream")
     @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")
     def test_create_evaluate_ops_model_and_version_name(self, mock_beam_pipeline, mock_python):
-        result = create_evaluate_ops(
-            task_prefix=TASK_PREFIX,
-            data_format=DATA_FORMAT,
-            input_paths=INPUT_PATHS,
-            prediction_path=PREDICTION_PATH,
-            metric_fn_and_keys=get_metric_fn_and_keys(),
-            validate_fn=validate_err_and_count,
-            batch_prediction_job_id=BATCH_PREDICTION_JOB_ID,
-            project_id=PROJECT_ID,
-            region=REGION,
-            dataflow_options=DATAFLOW_OPTIONS,
-            model_name=MODEL_NAME,
-            version_name=VERSION_NAME,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            result = create_evaluate_ops(
+                task_prefix=TASK_PREFIX,
+                data_format=DATA_FORMAT,
+                input_paths=INPUT_PATHS,
+                prediction_path=PREDICTION_PATH,
+                metric_fn_and_keys=get_metric_fn_and_keys(),
+                validate_fn=validate_err_and_count,
+                batch_prediction_job_id=BATCH_PREDICTION_JOB_ID,
+                project_id=PROJECT_ID,
+                region=REGION,
+                dataflow_options=DATAFLOW_OPTIONS,
+                model_name=MODEL_NAME,
+                version_name=VERSION_NAME,
+            )
 
         evaluate_prediction, evaluate_summary, evaluate_validation = result
 
@@ -165,14 +167,14 @@ class TestMlengineOperatorUtils:
         METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN, recurse=True)).decode()
 
         assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
-        assert PROJECT_ID == evaluate_prediction._project_id
-        assert BATCH_PREDICTION_JOB_ID == evaluate_prediction._job_id
-        assert REGION == evaluate_prediction._region
+        assert PROJECT_ID == evaluate_prediction.project_id
+        assert BATCH_PREDICTION_JOB_ID == evaluate_prediction.job_id
+        assert REGION == evaluate_prediction.region
         assert DATA_FORMAT == evaluate_prediction._data_format
-        assert INPUT_PATHS == evaluate_prediction._input_paths
-        assert PREDICTION_PATH == evaluate_prediction._output_path
-        assert MODEL_NAME == evaluate_prediction._model_name
-        assert VERSION_NAME == evaluate_prediction._version_name
+        assert INPUT_PATHS == evaluate_prediction.input_paths
+        assert PREDICTION_PATH == evaluate_prediction.output_path
+        assert MODEL_NAME == evaluate_prediction.model_name
+        assert VERSION_NAME == evaluate_prediction.version_name
 
         assert TASK_PREFIX_SUMMARY == evaluate_summary.task_id
         assert DATAFLOW_OPTIONS == evaluate_summary.default_pipeline_options
@@ -186,16 +188,17 @@ class TestMlengineOperatorUtils:
     @mock.patch.object(PythonOperator, "set_upstream")
     @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")
     def test_create_evaluate_ops_dag(self, mock_dataflow, mock_python):
-        result = create_evaluate_ops(
-            task_prefix=TASK_PREFIX,
-            data_format=DATA_FORMAT,
-            input_paths=INPUT_PATHS,
-            prediction_path=PREDICTION_PATH,
-            metric_fn_and_keys=get_metric_fn_and_keys(),
-            validate_fn=validate_err_and_count,
-            batch_prediction_job_id=BATCH_PREDICTION_JOB_ID,
-            dag=TEST_DAG,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            result = create_evaluate_ops(
+                task_prefix=TASK_PREFIX,
+                data_format=DATA_FORMAT,
+                input_paths=INPUT_PATHS,
+                prediction_path=PREDICTION_PATH,
+                metric_fn_and_keys=get_metric_fn_and_keys(),
+                validate_fn=validate_err_and_count,
+                batch_prediction_job_id=BATCH_PREDICTION_JOB_ID,
+                dag=TEST_DAG,
+            )
 
         evaluate_prediction, evaluate_summary, evaluate_validation = result
 
@@ -208,14 +211,14 @@ class TestMlengineOperatorUtils:
         METRIC_FN_ENCODED = base64.b64encode(dill.dumps(METRIC_FN, recurse=True)).decode()
 
         assert TASK_PREFIX_PREDICTION == evaluate_prediction.task_id
-        assert PROJECT_ID == evaluate_prediction._project_id
-        assert BATCH_PREDICTION_JOB_ID == evaluate_prediction._job_id
-        assert REGION == evaluate_prediction._region
+        assert PROJECT_ID == evaluate_prediction.project_id
+        assert BATCH_PREDICTION_JOB_ID == evaluate_prediction.job_id
+        assert REGION == evaluate_prediction.region
         assert DATA_FORMAT == evaluate_prediction._data_format
-        assert INPUT_PATHS == evaluate_prediction._input_paths
-        assert PREDICTION_PATH == evaluate_prediction._output_path
-        assert MODEL_NAME == evaluate_prediction._model_name
-        assert VERSION_NAME == evaluate_prediction._version_name
+        assert INPUT_PATHS == evaluate_prediction.input_paths
+        assert PREDICTION_PATH == evaluate_prediction.output_path
+        assert MODEL_NAME == evaluate_prediction.model_name
+        assert VERSION_NAME == evaluate_prediction.version_name
 
         assert TASK_PREFIX_SUMMARY == evaluate_summary.task_id
         assert DATAFLOW_OPTIONS == evaluate_summary.default_pipeline_options
@@ -231,19 +234,20 @@ class TestMlengineOperatorUtils:
     @mock.patch.object(PythonOperator, "set_upstream")
     @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")
     def test_apply_validate_fn(self, mock_beam_pipeline, mock_python, mock_download):
-        result = create_evaluate_ops(
-            task_prefix=TASK_PREFIX,
-            data_format=DATA_FORMAT,
-            input_paths=INPUT_PATHS,
-            prediction_path=PREDICTION_PATH,
-            metric_fn_and_keys=get_metric_fn_and_keys(),
-            validate_fn=validate_err_and_count,
-            batch_prediction_job_id=BATCH_PREDICTION_JOB_ID,
-            project_id=PROJECT_ID,
-            region=REGION,
-            dataflow_options=DATAFLOW_OPTIONS,
-            model_uri=MODEL_URI,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            result = create_evaluate_ops(
+                task_prefix=TASK_PREFIX,
+                data_format=DATA_FORMAT,
+                input_paths=INPUT_PATHS,
+                prediction_path=PREDICTION_PATH,
+                metric_fn_and_keys=get_metric_fn_and_keys(),
+                validate_fn=validate_err_and_count,
+                batch_prediction_job_id=BATCH_PREDICTION_JOB_ID,
+                project_id=PROJECT_ID,
+                region=REGION,
+                dataflow_options=DATAFLOW_OPTIONS,
+                model_uri=MODEL_URI,
+            )
 
         _, _, evaluate_validation = result
 

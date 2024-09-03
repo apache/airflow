@@ -26,7 +26,7 @@ from tests.test_utils.api_connexion_utils import assert_401, create_user, delete
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_logs
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.fixture(scope="module")
@@ -67,6 +67,7 @@ def task_instance(session, create_task_instance, request):
         session=session,
         dag_id="TEST_DAG_ID",
         task_id="TEST_TASK_ID",
+        run_id="TEST_RUN_ID",
         execution_date=request.instance.default_time,
     )
 
@@ -108,6 +109,21 @@ class TestEventLogEndpoint:
     def teardown_method(self) -> None:
         clear_db_logs()
 
+    @pytest.mark.parametrize(
+        "set_auto_role_public, expected_status_code",
+        (("Public", 403), ("Admin", 200)),
+        indirect=["set_auto_role_public"],
+    )
+    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, log_model):
+        event_log_id = log_model.id
+        response = self.client.get(
+            f"/api/v1/eventLogs/{event_log_id}", environ_overrides={"REMOTE_USER": "test"}
+        )
+
+        response = self.client.get("/api/v1/eventLogs")
+
+        assert response.status_code == expected_status_code
+
 
 class TestGetEventLog(TestEventLogEndpoint):
     def test_should_respond_200(self, log_model):
@@ -116,11 +132,16 @@ class TestGetEventLog(TestEventLogEndpoint):
             f"/api/v1/eventLogs/{event_log_id}", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 200
+        data = response.json
+        data["try_number"]
         assert response.json == {
             "event_log_id": event_log_id,
             "event": "TEST_EVENT",
             "dag_id": "TEST_DAG_ID",
             "task_id": "TEST_TASK_ID",
+            "run_id": "TEST_RUN_ID",
+            "map_index": -1,
+            "try_number": 0,
             "execution_date": self.default_time.isoformat(),
             "owner": "airflow",
             "when": self.default_time.isoformat(),
@@ -150,6 +171,18 @@ class TestGetEventLog(TestEventLogEndpoint):
         )
         assert response.status_code == 403
 
+    @pytest.mark.parametrize(
+        "set_auto_role_public, expected_status_code",
+        (("Public", 403), ("Admin", 200)),
+        indirect=["set_auto_role_public"],
+    )
+    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, log_model):
+        event_log_id = log_model.id
+
+        response = self.client.get(f"/api/v1/eventLogs/{event_log_id}")
+
+        assert response.status_code == expected_status_code
+
 
 class TestGetEventLogs(TestEventLogEndpoint):
     def test_should_respond_200(self, session, create_log_model):
@@ -169,6 +202,9 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "event": "TEST_EVENT_1",
                     "dag_id": "TEST_DAG_ID",
                     "task_id": "TEST_TASK_ID",
+                    "run_id": "TEST_RUN_ID",
+                    "map_index": -1,
+                    "try_number": 0,
                     "execution_date": self.default_time.isoformat(),
                     "owner": "airflow",
                     "when": self.default_time.isoformat(),
@@ -179,6 +215,9 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "event": "TEST_EVENT_2",
                     "dag_id": "TEST_DAG_ID",
                     "task_id": "TEST_TASK_ID",
+                    "run_id": "TEST_RUN_ID",
+                    "map_index": -1,
+                    "try_number": 0,
                     "execution_date": self.default_time.isoformat(),
                     "owner": "airflow",
                     "when": self.default_time_2.isoformat(),
@@ -189,6 +228,9 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "event": "cli_scheduler",
                     "dag_id": None,
                     "task_id": None,
+                    "run_id": None,
+                    "map_index": None,
+                    "try_number": None,
                     "execution_date": None,
                     "owner": "root",
                     "when": self.default_time_2.isoformat(),
@@ -216,6 +258,9 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "event": "TEST_EVENT_2",
                     "dag_id": "TEST_DAG_ID",
                     "task_id": "TEST_TASK_ID",
+                    "run_id": "TEST_RUN_ID",
+                    "map_index": -1,
+                    "try_number": 0,
                     "execution_date": self.default_time.isoformat(),
                     "owner": "zsh",  # Order by name, sort order is descending(-)
                     "when": self.default_time_2.isoformat(),
@@ -226,6 +271,9 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "event": "cli_scheduler",
                     "dag_id": None,
                     "task_id": None,
+                    "run_id": None,
+                    "map_index": None,
+                    "try_number": None,
                     "execution_date": None,
                     "owner": "root",
                     "when": self.default_time_2.isoformat(),
@@ -236,6 +284,9 @@ class TestGetEventLogs(TestEventLogEndpoint):
                     "event": "TEST_EVENT_1",
                     "dag_id": "TEST_DAG_ID",
                     "task_id": "TEST_TASK_ID",
+                    "run_id": "TEST_RUN_ID",
+                    "map_index": -1,
+                    "try_number": 0,
                     "execution_date": self.default_time.isoformat(),
                     "owner": "airflow",
                     "when": self.default_time.isoformat(),
@@ -273,23 +324,47 @@ class TestGetEventLogs(TestEventLogEndpoint):
                 f"/api/v1/eventLogs?{attr}={attr_value}", environ_overrides={"REMOTE_USER": "test_granular"}
             )
             assert response.status_code == 200
-            assert {eventlog[attr] for eventlog in response.json["event_logs"]} == {attr_value}
+            assert response.json["total_entries"] == 1
+            assert len(response.json["event_logs"]) == 1
+            assert response.json["event_logs"][0][attr] == attr_value
 
     def test_should_filter_eventlogs_by_when(self, create_log_model, session):
         eventlog1 = create_log_model(event="TEST_EVENT_1", when=self.default_time)
         eventlog2 = create_log_model(event="TEST_EVENT_2", when=self.default_time_2)
         session.add_all([eventlog1, eventlog2])
         session.commit()
-        for when_attr, expected_eventlogs in {
-            "before": {"TEST_EVENT_1"},
-            "after": {"TEST_EVENT_2"},
+        for when_attr, expected_eventlog_event in {
+            "before": "TEST_EVENT_1",
+            "after": "TEST_EVENT_2",
         }.items():
             response = self.client.get(
                 f"/api/v1/eventLogs?{when_attr}=2020-06-10T20%3A00%3A01%2B00%3A00",  # self.default_time + 1s
                 environ_overrides={"REMOTE_USER": "test"},
             )
             assert response.status_code == 200
+            assert response.json["total_entries"] == 1
+            assert len(response.json["event_logs"]) == 1
+            assert response.json["event_logs"][0]["event"] == expected_eventlog_event
+
+    def test_should_filter_eventlogs_by_run_id(self, create_log_model, session):
+        eventlog1 = create_log_model(event="TEST_EVENT_1", when=self.default_time, run_id="run_1")
+        eventlog2 = create_log_model(event="TEST_EVENT_2", when=self.default_time, run_id="run_2")
+        eventlog3 = create_log_model(event="TEST_EVENT_3", when=self.default_time, run_id="run_2")
+        session.add_all([eventlog1, eventlog2, eventlog3])
+        session.commit()
+        for run_id, expected_eventlogs in {
+            "run_1": {"TEST_EVENT_1"},
+            "run_2": {"TEST_EVENT_2", "TEST_EVENT_3"},
+        }.items():
+            response = self.client.get(
+                f"/api/v1/eventLogs?run_id={run_id}",
+                environ_overrides={"REMOTE_USER": "test"},
+            )
+            assert response.status_code == 200
+            assert response.json["total_entries"] == len(expected_eventlogs)
+            assert len(response.json["event_logs"]) == len(expected_eventlogs)
             assert {eventlog["event"] for eventlog in response.json["event_logs"]} == expected_eventlogs
+            assert all({eventlog["run_id"] == run_id for eventlog in response.json["event_logs"]})
 
     def test_should_filter_eventlogs_by_included_events(self, create_log_model):
         for event in ["TEST_EVENT_1", "TEST_EVENT_2", "cli_scheduler"]:
@@ -301,6 +376,7 @@ class TestGetEventLogs(TestEventLogEndpoint):
         assert response.status_code == 200
         response_data = response.json
         assert len(response_data["event_logs"]) == 2
+        assert response_data["total_entries"] == 2
         assert {"TEST_EVENT_1", "TEST_EVENT_2"} == {x["event"] for x in response_data["event_logs"]}
 
     def test_should_filter_eventlogs_by_excluded_events(self, create_log_model):
@@ -313,7 +389,25 @@ class TestGetEventLogs(TestEventLogEndpoint):
         assert response.status_code == 200
         response_data = response.json
         assert len(response_data["event_logs"]) == 1
+        assert response_data["total_entries"] == 1
         assert {"cli_scheduler"} == {x["event"] for x in response_data["event_logs"]}
+
+    @pytest.mark.parametrize(
+        "set_auto_role_public, expected_status_code",
+        (("Public", 403), ("Admin", 200)),
+        indirect=["set_auto_role_public"],
+    )
+    def test_with_auth_role_public_set(
+        self, set_auto_role_public, expected_status_code, create_log_model, session
+    ):
+        log_model_3 = Log(event="cli_scheduler", owner="root", extra='{"host_name": "e24b454f002a"}')
+        log_model_3.dttm = self.default_time_2
+
+        session.add(log_model_3)
+        session.flush()
+        response = self.client.get("/api/v1/eventLogs")
+
+        assert response.status_code == expected_status_code
 
 
 class TestGetEventLogPagination(TestEventLogEndpoint):

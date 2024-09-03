@@ -18,7 +18,6 @@
 # shellcheck shell=bash disable=SC2086
 set -euo pipefail
 
-: "${UPGRADE_TO_NEWER_DEPENDENCIES:?Should be true or false}"
 : "${ADDITIONAL_PYTHON_DEPS:?Should be set}"
 
 # shellcheck source=scripts/docker/common.sh
@@ -26,12 +25,12 @@ set -euo pipefail
 
 # Installs additional dependencies passed as Argument to the Docker build command
 function install_additional_dependencies() {
-    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then
+    if [[ "${UPGRADE_INVALIDATION_STRING=}" != "" ]]; then
         echo
         echo "${COLOR_BLUE}Installing additional dependencies while upgrading to newer dependencies${COLOR_RESET}"
         echo
         set -x
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade ${RESOLUTION_HIGHEST_FLAG} \
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_EAGERLY} \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             ${ADDITIONAL_PYTHON_DEPS} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=}
         set +x
@@ -45,7 +44,7 @@ function install_additional_dependencies() {
         echo "${COLOR_BLUE}Installing additional dependencies upgrading only if needed${COLOR_RESET}"
         echo
         set -x
-        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade "${RESOLUTION_LOWEST_DIRECT_FLAG}" \
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${UPGRADE_IF_NEEDED} \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
             ${ADDITIONAL_PYTHON_DEPS}
         set +x
@@ -60,7 +59,6 @@ function install_additional_dependencies() {
 common::get_colors
 common::get_packaging_tool
 common::get_airflow_version_specification
-common::override_pip_version_if_needed
 common::get_constraints_location
 common::show_packaging_tool_version_and_location
 

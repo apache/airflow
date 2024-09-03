@@ -15,14 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 """Run ephemeral Docker Swarm services."""
+
 from __future__ import annotations
 
 import re
+import shlex
 from datetime import datetime
 from time import sleep
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from docker import types
+from docker.errors import APIError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.docker.operators.docker import DockerOperator
@@ -57,8 +60,10 @@ class DockerSwarmOperator(DockerOperator):
         container's process exits.
         The default is False.
     :param command: Command to be run in the container. (templated)
+    :param args: Arguments to the command.
     :param docker_url: URL of the host running the docker daemon.
-        Default is unix://var/run/docker.sock
+        Default is the value of the ``DOCKER_HOST`` environment variable or unix://var/run/docker.sock
+        if it is unset.
     :param environment: Environment variables to set in the container. (templated)
     :param force_pull: Pull the docker image on every run. Default is False.
     :param mem_limit: Maximum amount of memory the container can use.
@@ -83,6 +88,10 @@ class DockerSwarmOperator(DockerOperator):
     :param enable_logging: Show the application's logs in operator's logs.
         Supported only if the Docker engine is using json-file or journald logging drivers.
         The `tty` parameter should be set to use this with Python applications.
+    :param retrieve_output: Should this docker image consistently attempt to pull from and output
+        file before manually shutting down the image. Useful for cases where users want a pickle serialized
+        output that is not posted to logs
+    :param retrieve_output_path: path for output file that will be retrieved and passed to xcom
     :param configs: List of docker configs to be exposed to the containers of the swarm service.
         The configs are ConfigReference objects as per the docker api
         [https://docker-py.readthedocs.io/en/stable/services.html#docker.models.services.ServiceCollection.create]_
@@ -94,28 +103,62 @@ class DockerSwarmOperator(DockerOperator):
     :param networks: List of network names or IDs or NetworkAttachmentConfig to attach the service to.
     :param placement: Placement instructions for the scheduler. If a list is passed instead,
         it is assumed to be a list of constraints as part of a Placement object.
+    :param container_resources: Resources for the launched container.
+        The resources are Resources as per the docker api
+        [https://docker-py.readthedocs.io/en/stable/api.html#docker.types.Resources]_
+        This parameter has precedence on the mem_limit parameter.
+    :param logging_driver: The logging driver to use for container logs. Docker by default uses 'json-file'.
+        For more information on Docker logging drivers: https://docs.docker.com/engine/logging/configure/
+        NOTE: Only drivers 'json-file' and 'gelf' are currently supported. If left empty, 'json-file' will be used.
+    :param logging_driver_opts: Dictionary of logging options to use with the associated logging driver chosen.
+        Depending on the logging driver, some options are required.
+        Failure to include them, will result in the operator failing.
+        All option values must be strings and wrapped in double quotes.
+        For information on 'json-file' options: https://docs.docker.com/engine/logging/drivers/json-file/
+        For information on 'gelf' options: https://docs.docker.com/engine/logging/drivers/gelf/
+        NOTE: 'gelf' driver requires the 'gelf-address' option to be set.
     """
 
     def __init__(
         self,
         *,
         image: str,
+        args: str | list[str] | None = None,
         enable_logging: bool = True,
         configs: list[types.ConfigReference] | None = None,
         secrets: list[types.SecretReference] | None = None,
         mode: types.ServiceMode | None = None,
         networks: list[str | types.NetworkAttachmentConfig] | None = None,
         placement: types.Placement | list[types.Placement] | None = None,
+        container_resources: types.Resources | None = None,
+        logging_driver: Literal["json-path", "gelf"] | None = None,
+        logging_driver_opts: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(image=image, **kwargs)
+        self.args = args
         self.enable_logging = enable_logging
         self.service = None
+        self.tasks: list[dict] = []
+        self.containers: list[dict] = []
         self.configs = configs
         self.secrets = secrets
         self.mode = mode
         self.networks = networks
         self.placement = placement
+        self.container_resources = container_resources or types.Resources(mem_limit=self.mem_limit)
+        self.logging_driver = logging_driver
+        self.logging_driver_opts = logging_driver_opts
+
+        if self.logging_driver:
+            supported_logging_drivers = ("json-file", "gelf")
+            if self.logging_driver not in supported_logging_drivers:
+                raise AirflowException(
+                    f"Invalid logging driver provided: {self.logging_driver}. Must be one of: [{', '.join(supported_logging_drivers)}]"
+                )
+            self.log_driver_config = types.DriverConfig(self.logging_driver, self.logging_driver_opts)
+        else:
+            self.log_driver_config = None
 
     def execute(self, context: Context) -> None:
         self.environment["AIRFLOW_TMP_DIR"] = self.tmp_dir
@@ -128,6 +171,7 @@ class DockerSwarmOperator(DockerOperator):
                 container_spec=types.ContainerSpec(
                     image=self.image,
                     command=self.format_command(self.command),
+                    args=self.format_args(self.args),
                     mounts=self.mounts,
                     env=self.environment,
                     user=self.user,
@@ -136,16 +180,17 @@ class DockerSwarmOperator(DockerOperator):
                     secrets=self.secrets,
                 ),
                 restart_policy=types.RestartPolicy(condition="none"),
-                resources=types.Resources(mem_limit=self.mem_limit),
+                resources=self.container_resources,
                 networks=self.networks,
                 placement=self.placement,
+                log_driver=self.log_driver_config,
             ),
             name=f"airflow-{get_random_string()}",
             labels={"name": f"airflow__{self.dag_id}__{self.task_id}"},
             mode=self.mode,
         )
         if self.service is None:
-            raise Exception("Service should be set here")
+            raise RuntimeError("Service should be set here")
         self.log.info("Service started: %s", self.service)
 
         # wait for the service to start the task
@@ -160,6 +205,18 @@ class DockerSwarmOperator(DockerOperator):
                 self.log.info("Service status before exiting: %s", self._service_status())
                 break
 
+        if self.service and self._service_status() == "complete":
+            self.tasks = self.cli.tasks(filters={"service": self.service["ID"]})
+            for task in self.tasks:
+                container_id = task["Status"]["ContainerStatus"]["ContainerID"]
+                container = self.cli.inspect_container(container_id)
+                self.containers.append(container)
+        else:
+            raise AirflowException(f"Service did not complete: {self.service!r}")
+
+        if self.retrieve_output:
+            return self._attempt_to_retrieve_results()
+
         self.log.info("auto_removeauto_removeauto_removeauto_removeauto_remove : %s", str(self.auto_remove))
         if self.service and self._service_status() != "complete":
             if self.auto_remove == "success":
@@ -167,12 +224,12 @@ class DockerSwarmOperator(DockerOperator):
             raise AirflowException(f"Service did not complete: {self.service!r}")
         elif self.auto_remove == "success":
             if not self.service:
-                raise Exception("The 'service' should be initialized before!")
+                raise RuntimeError("The 'service' should be initialized before!")
             self.cli.remove_service(self.service["ID"])
 
     def _service_status(self) -> str | None:
         if not self.service:
-            raise Exception("The 'service' should be initialized before!")
+            raise RuntimeError("The 'service' should be initialized before!")
         return self.cli.tasks(filters={"service": self.service["ID"]})[0]["Status"]["State"]
 
     def _has_service_terminated(self) -> bool:
@@ -181,7 +238,7 @@ class DockerSwarmOperator(DockerOperator):
 
     def _stream_logs_to_output(self) -> None:
         if not self.service:
-            raise Exception("The 'service' should be initialized before!")
+            raise RuntimeError("The 'service' should be initialized before!")
         last_line_logged, last_timestamp = "", 0
 
         def stream_new_logs(last_line_logged, since=0):
@@ -194,7 +251,7 @@ class DockerSwarmOperator(DockerOperator):
                 since=since,
                 timestamps=True,
             )
-            logs = b"".join(logs).decode().splitlines()
+            logs = list(map(lambda line: line.decode("utf-8"), logs))
             if last_line_logged in logs:
                 logs = logs[logs.index(last_line_logged) + 1 :]
             for line in logs:
@@ -216,6 +273,40 @@ class DockerSwarmOperator(DockerOperator):
         while not self._has_service_terminated():
             sleep(2)
             last_line_logged, last_timestamp = stream_new_logs(last_line_logged, since=last_timestamp)
+
+    def _attempt_to_retrieve_results(self):
+        """
+        Attempt to pull the result from the expected file for each containers.
+
+        This uses Docker's ``get_archive`` function. If the file is not yet
+        ready, *None* is returned.
+        """
+        try:
+            file_contents = []
+            for container in self.containers:
+                file_content = self._copy_from_docker(container["Id"], self.retrieve_output_path)
+                file_contents.append(file_content)
+            if len(file_contents) == 1:
+                return file_contents[0]
+            else:
+                return file_contents
+        except APIError:
+            return None
+
+    @staticmethod
+    def format_args(args: list[str] | str | None) -> list[str] | None:
+        """
+        Retrieve args.
+
+        The args string is parsed to a list.
+
+        :param args: args to the docker service
+
+        :return: the args as list
+        """
+        if isinstance(args, str):
+            return shlex.split(args)
+        return args
 
     def on_kill(self) -> None:
         if self.hook.client_created and self.service is not None:

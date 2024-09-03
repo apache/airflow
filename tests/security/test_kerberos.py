@@ -167,8 +167,8 @@ class TestKerberos:
         mock_subp.stdout = mock.MagicMock(name="stdout", **{"readlines.return_value": ["STDOUT"]})
         mock_subp.stderr = mock.MagicMock(name="stderr", **{"readlines.return_value": ["STDERR"]})
 
+        caplog.clear()
         with pytest.raises(SystemExit) as ctx:
-            caplog.clear()
             renew_from_kt(principal="test-principal", keytab="keytab")
         assert ctx.value.code == 1
 
@@ -216,8 +216,8 @@ class TestKerberos:
         mock_subprocess.Popen.return_value.__enter__.return_value.returncode = 0
         mock_subprocess.call.return_value = 1
 
+        caplog.clear()
         with pytest.raises(SystemExit) as ctx:
-            caplog.clear()
             renew_from_kt(principal="test-principal", keytab="keytab")
         assert ctx.value.code == 1
 
@@ -264,9 +264,9 @@ class TestKerberos:
         ]
 
     def test_run_without_keytab(self, caplog):
-        with pytest.raises(SystemExit) as ctx:
-            with caplog.at_level(logging.WARNING, logger=kerberos.log.name):
-                caplog.clear()
+        with caplog.at_level(logging.WARNING, logger=kerberos.log.name):
+            caplog.clear()
+            with pytest.raises(SystemExit) as ctx:
                 kerberos.run(principal="test-principal", keytab=None)
         assert ctx.value.code == 0
         assert caplog.messages == ["Keytab renewer not starting, no keytab configured"]

@@ -25,10 +25,9 @@ import type { Row, SortingRule } from "react-table";
 import { formatDuration, getDuration } from "src/datetime_utils";
 import { useMappedInstances } from "src/api";
 import { StatusWithNotes } from "src/dag/StatusBox";
-import { Table } from "src/components/Table";
+import { Table, CellProps } from "src/components/Table";
 import Time from "src/components/Time";
 import { useOffsetTop } from "src/utils";
-import type { CellProps } from "src/components/Table";
 
 interface Props {
   dagId: string;
@@ -47,9 +46,7 @@ const MappedInstances = ({ dagId, runId, taskId, onRowClicked }: Props) => {
   const sort = sortBy[0];
 
   const orderBy =
-    sort && (sort.id === "state" || sort.id === "mapIndex")
-      ? `${sort.desc ? "-" : ""}${snakeCase(sort.id)}`
-      : "";
+    sort && sort.id ? `${sort.desc ? "-" : ""}${snakeCase(sort.id)}` : "";
 
   const {
     data: { taskInstances = [], totalEntries = 0 } = {
@@ -96,8 +93,11 @@ const MappedInstances = ({ dagId, runId, taskId, onRowClicked }: Props) => {
       {
         Header: "Map Index",
         accessor: "mapIndex",
-        Cell: ({ cell: { row } }: CellProps) =>
-          row.original.renderedMapIndex || row.original.mapIndex,
+        Cell: ({
+          cell: {
+            row: { original },
+          },
+        }: CellProps) => original.renderedMapIndex || original.mapIndex,
       },
       {
         Header: "State",
@@ -106,16 +106,18 @@ const MappedInstances = ({ dagId, runId, taskId, onRowClicked }: Props) => {
       {
         Header: "Duration",
         accessor: "duration",
-        disableSortBy: true,
       },
       {
         Header: "Start Date",
         accessor: "startDate",
-        disableSortBy: true,
       },
       {
         Header: "End Date",
         accessor: "endDate",
+      },
+      {
+        Header: "Try Number",
+        accessor: "tryNumber",
         disableSortBy: true,
       },
     ],

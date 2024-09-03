@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Renderer DAG (tasks and dependencies) to the graphviz object."""
+
 from __future__ import annotations
 
 import warnings
@@ -25,7 +26,11 @@ from typing import TYPE_CHECKING, Any
 try:
     import graphviz
 except ImportError:
-    warnings.warn("Could not import graphviz. Rendering graph to the graphical format will not be possible.")
+    warnings.warn(
+        "Could not import graphviz. Rendering graph to the graphical format will not be possible.",
+        UserWarning,
+        stacklevel=2,
+    )
     graphviz = None
 
 from airflow.exceptions import AirflowException
@@ -39,7 +44,7 @@ if TYPE_CHECKING:
     from airflow.models import TaskInstance
     from airflow.models.dag import DAG
     from airflow.models.taskmixin import DependencyMixin
-    from airflow.serialization.serialized_objects import DagDependency
+    from airflow.serialization.dag_dependency import DagDependency
 
 
 def _refine_color(color: str):

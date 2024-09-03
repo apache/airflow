@@ -19,6 +19,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
 
+from deprecated import deprecated
+
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import BaseOperator
 from airflow.providers.apache.spark.hooks.spark_sql import SparkSqlHook
 
@@ -52,9 +55,9 @@ class SparkSqlOperator(BaseOperator):
         (Default: The ``queue`` value set in the Connection, or ``"default"``)
     """
 
-    template_fields: Sequence[str] = ("_sql",)
+    template_fields: Sequence[str] = ("sql",)
     template_ext: Sequence[str] = (".sql", ".hql")
-    template_fields_renderers = {"_sql": "sql"}
+    template_fields_renderers = {"sql": "sql"}
 
     def __init__(
         self,
@@ -75,7 +78,7 @@ class SparkSqlOperator(BaseOperator):
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
-        self._sql = sql
+        self.sql = sql
         self._conf = conf
         self._conn_id = conn_id
         self._total_executor_cores = total_executor_cores
@@ -89,6 +92,15 @@ class SparkSqlOperator(BaseOperator):
         self._verbose = verbose
         self._yarn_queue = yarn_queue
         self._hook: SparkSqlHook | None = None
+
+    @property
+    @deprecated(
+        reason="`_sql` is deprecated and will be removed in the future. Please use `sql` instead.",
+        category=AirflowProviderDeprecationWarning,
+    )
+    def _sql(self):
+        """Alias for ``sql``, used for compatibility (deprecated)."""
+        return self.sql
 
     def execute(self, context: Context) -> None:
         """Call the SparkSqlHook to run the provided sql query."""
@@ -104,7 +116,7 @@ class SparkSqlOperator(BaseOperator):
     def _get_hook(self) -> SparkSqlHook:
         """Get SparkSqlHook."""
         return SparkSqlHook(
-            sql=self._sql,
+            sql=self.sql,
             conf=self._conf,
             conn_id=self._conn_id,
             total_executor_cores=self._total_executor_cores,

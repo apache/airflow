@@ -50,10 +50,17 @@ DEPRECATED_MODULES = [
     "airflow.providers.apache.hdfs.hooks.hdfs",
     "airflow.providers.cncf.kubernetes.triggers.kubernetes_pod",
     "airflow.providers.cncf.kubernetes.operators.kubernetes_pod",
+    "airflow.providers.tabular.hooks.tabular",
+    "airflow.providers.yandex.hooks.yandexcloud_dataproc",
+    "airflow.providers.yandex.operators.yandexcloud_dataproc",
 ]
 
 KNOWN_DEPRECATED_CLASSES = [
     "airflow.providers.google.cloud.links.dataproc.DataprocLink",
+    "airflow.providers.google.cloud.operators.automl.AutoMLTablesListColumnSpecsOperator",
+    "airflow.providers.google.cloud.operators.automl.AutoMLTablesListTableSpecsOperator",
+    "airflow.providers.google.cloud.operators.automl.AutoMLTablesUpdateDatasetOperator",
+    "airflow.providers.google.cloud.operators.automl.AutoMLDeployModelOperator",
 ]
 
 try:
@@ -62,7 +69,7 @@ except ImportError:
     from yaml import SafeLoader  # type: ignore
 
 if __name__ != "__main__":
-    raise Exception(
+    raise SystemExit(
         "This file is intended to be executed as an executable program. You cannot use it as a module."
     )
 
@@ -112,8 +119,9 @@ def _load_package_data(package_paths: Iterable[str]):
         rel_path = pathlib.Path(provider_yaml_path).relative_to(ROOT_DIR).as_posix()
         try:
             jsonschema.validate(provider, schema=schema)
-        except jsonschema.ValidationError:
-            raise Exception(f"Unable to parse: {rel_path}.")
+        except jsonschema.ValidationError as ex:
+            msg = f"Unable to parse: {provider_yaml_path}. Original error {type(ex).__name__}: {ex}"
+            raise RuntimeError(msg)
         if not provider["state"] == "suspended":
             result[rel_path] = provider
         else:

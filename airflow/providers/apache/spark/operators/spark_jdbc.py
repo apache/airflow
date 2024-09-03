@@ -44,14 +44,6 @@ class SparkJDBCOperator(SparkSubmitOperator):
     :param spark_files: Additional files to upload to the container running the job
     :param spark_jars: Additional jars to upload and add to the driver and
                        executor classpath
-    :param num_executors: number of executor to run. This should be set so as to manage
-                          the number of connections made with the JDBC database
-    :param executor_cores: Number of cores per executor
-    :param executor_memory: Memory per executor (e.g. 1000M, 2G)
-    :param driver_memory: Memory allocated to the driver (e.g. 1000M, 2G)
-    :param verbose: Whether to pass the verbose flag to spark-submit for debugging
-    :param keytab: Full path to the file that contains the keytab
-    :param principal: The name of the kerberos principal used for keytab
     :param cmd_type: Which way the data should flow. 2 possible values:
                      spark_to_jdbc: data written by spark from metastore to jdbc
                      jdbc_to_spark: data written by spark from jdbc to metastore
@@ -60,7 +52,7 @@ class SparkJDBCOperator(SparkSubmitOperator):
     :param jdbc_driver: Name of the JDBC driver to use for the JDBC connection. This
                         driver (usually a jar) should be passed in the 'jars' parameter
     :param metastore_table: The name of the metastore table,
-    :param jdbc_truncate: (spark_to_jdbc only) Whether or not Spark should truncate or
+    :param jdbc_truncate: (spark_to_jdbc only) Whether Spark should truncate or
                          drop and recreate the JDBC table. This only takes effect if
                          'save_mode' is set to Overwrite. Also, if the schema is
                          different, Spark cannot truncate, and will drop and recreate
@@ -91,9 +83,7 @@ class SparkJDBCOperator(SparkSubmitOperator):
                                       (e.g: "name CHAR(64), comments VARCHAR(1024)").
                                       The specified types should be valid spark sql data
                                       types.
-    :param use_krb5ccache: if True, configure spark to use ticket cache instead of relying
-                           on keytab for Kerberos login
-
+    :param kwargs: kwargs passed to SparkSubmitOperator.
     """
 
     def __init__(
@@ -105,13 +95,6 @@ class SparkJDBCOperator(SparkSubmitOperator):
         spark_py_files: str | None = None,
         spark_files: str | None = None,
         spark_jars: str | None = None,
-        num_executors: int | None = None,
-        executor_cores: int | None = None,
-        executor_memory: str | None = None,
-        driver_memory: str | None = None,
-        verbose: bool = False,
-        principal: str | None = None,
-        keytab: str | None = None,
         cmd_type: str = "spark_to_jdbc",
         jdbc_table: str | None = None,
         jdbc_conn_id: str = "jdbc-default",
@@ -127,7 +110,6 @@ class SparkJDBCOperator(SparkSubmitOperator):
         lower_bound: str | None = None,
         upper_bound: str | None = None,
         create_table_column_types: str | None = None,
-        use_krb5ccache: bool = False,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -137,13 +119,6 @@ class SparkJDBCOperator(SparkSubmitOperator):
         self._spark_py_files = spark_py_files
         self._spark_files = spark_files
         self._spark_jars = spark_jars
-        self._num_executors = num_executors
-        self._executor_cores = executor_cores
-        self._executor_memory = executor_memory
-        self._driver_memory = driver_memory
-        self._verbose = verbose
-        self._keytab = keytab
-        self._principal = principal
         self._cmd_type = cmd_type
         self._jdbc_table = jdbc_table
         self._jdbc_conn_id = jdbc_conn_id
@@ -160,7 +135,6 @@ class SparkJDBCOperator(SparkSubmitOperator):
         self._upper_bound = upper_bound
         self._create_table_column_types = create_table_column_types
         self._hook: SparkJDBCHook | None = None
-        self._use_krb5ccache = use_krb5ccache
 
     def execute(self, context: Context) -> None:
         """Call the SparkSubmitHook to run the provided spark job."""
@@ -186,8 +160,8 @@ class SparkJDBCOperator(SparkSubmitOperator):
             executor_memory=self._executor_memory,
             driver_memory=self._driver_memory,
             verbose=self._verbose,
-            keytab=self._keytab,
-            principal=self._principal,
+            keytab=self.keytab,
+            principal=self.principal,
             cmd_type=self._cmd_type,
             jdbc_table=self._jdbc_table,
             jdbc_conn_id=self._jdbc_conn_id,

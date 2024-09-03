@@ -18,32 +18,36 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from pathlib import Path
 
 from airflow.decorators import task
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
+from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.s3_to_gcs import S3ToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 DAG_ID = "example_s3_to_gcs"
 
+RESOURCES_BUCKET_NAME = "airflow-system-tests-resources"
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
 GCS_BUCKET_URL = f"gs://{BUCKET_NAME}/"
 FILE_NAME = "example_upload.txt"
-UPLOAD_FILE = str(Path(__file__).parent / "resources" / FILE_NAME)
-PREFIX = "TESTS"
+UPLOAD_FILE = f"gcs/{FILE_NAME}"
+PREFIX = "gcs"
 
 
 @task(task_id="upload_file_to_s3")
 def upload_file():
-    """A callable to upload file to AWS bucket"""
+    """A callable to upload file from GCS to AWS bucket"""
+    gcs_hook = GCSHook()
     s3_hook = S3Hook()
-    s3_hook.load_file(filename=UPLOAD_FILE, key=PREFIX, bucket_name=BUCKET_NAME)
+    with gcs_hook.provide_file(bucket_name=RESOURCES_BUCKET_NAME, object_name=UPLOAD_FILE) as gcs_file:
+        s3_hook.load_file_obj(file_obj=gcs_file, key=UPLOAD_FILE, bucket_name=BUCKET_NAME)
 
 
 with DAG(
@@ -72,6 +76,16 @@ with DAG(
     )
     # [END howto_transfer_s3togcs_operator]
 
+    # [START howto_transfer_s3togcs_operator_async]
+    transfer_to_gcs_def = S3ToGCSOperator(
+        task_id="s3_to_gcs_task_def",
+        bucket=BUCKET_NAME,
+        prefix=PREFIX,
+        dest_gcs=GCS_BUCKET_URL,
+        deferrable=True,
+    )
+    # [END howto_transfer_s3togcs_operator_async]
+
     delete_s3_bucket = S3DeleteBucketOperator(
         task_id="delete_s3_bucket",
         bucket_name=BUCKET_NAME,
@@ -89,7 +103,7 @@ with DAG(
         >> create_s3_bucket
         >> upload_file()
         # TEST BODY
-        >> transfer_to_gcs
+        >> [transfer_to_gcs, transfer_to_gcs_def]
         # TEST TEARDOWN
         >> delete_s3_bucket
         >> delete_gcs_bucket

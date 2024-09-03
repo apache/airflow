@@ -20,20 +20,19 @@ import contextlib
 import os
 import shutil
 import typing
-from pathlib import PurePath
+from typing import Any, Mapping
 from urllib.parse import urlsplit
 
-from fsspec.core import split_protocol
 from fsspec.utils import stringify_path
-from upath.implementations.cloud import CloudPath, _CloudAccessor
+from upath.implementations.cloud import CloudPath
 from upath.registry import get_upath_class
 
 from airflow.io.store import attach
 from airflow.io.utils.stat import stat_result
+from airflow.lineage.hook import get_hook_lineage_collector
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 if typing.TYPE_CHECKING:
-    from urllib.parse import SplitResult
-
     from fsspec import AbstractFileSystem
 
 
@@ -42,125 +41,96 @@ PT = typing.TypeVar("PT", bound="ObjectStoragePath")
 default = "file"
 
 
-class _AirflowCloudAccessor(_CloudAccessor):
-    __slots__ = ("_store",)
+class TrackingFileWrapper(LoggingMixin):
+    """Wrapper that tracks file operations to intercept lineage."""
 
-    def __init__(
-        self,
-        parsed_url: SplitResult | None,
-        conn_id: str | None = None,
-        **kwargs: typing.Any,
-    ) -> None:
-        # warning: we are not calling super().__init__ here
-        # as it will try to create a new fs from a different
-        # set if registered filesystems
-        if parsed_url and parsed_url.scheme:
-            self._store = attach(parsed_url.scheme, conn_id)
-        else:
-            self._store = attach("file", conn_id)
+    def __init__(self, path: ObjectStoragePath, obj):
+        super().__init__()
+        self._path: ObjectStoragePath = path
+        self._obj = obj
 
-    @property
-    def _fs(self) -> AbstractFileSystem:
-        return self._store.fs
+    def __getattr__(self, name):
+        attr = getattr(self._obj, name)
+        if callable(attr):
+            # If the attribute is a method, wrap it in another method to intercept the call
+            def wrapper(*args, **kwargs):
+                self.log.debug("Calling method: %s", name)
+                if name == "read":
+                    get_hook_lineage_collector().add_input_dataset(context=self._path, uri=str(self._path))
+                elif name == "write":
+                    get_hook_lineage_collector().add_output_dataset(context=self._path, uri=str(self._path))
+                result = attr(*args, **kwargs)
+                return result
 
-    def __eq__(self, other):
-        return isinstance(other, _AirflowCloudAccessor) and self._store == other._store
+            return wrapper
+        return attr
+
+    def __getitem__(self, key):
+        # Intercept item access
+        return self._obj[key]
+
+    def __enter__(self):
+        self._obj.__enter__()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self._obj.__exit__(exc_type, exc_val, exc_tb)
 
 
 class ObjectStoragePath(CloudPath):
     """A path-like object for object storage."""
 
-    _accessor: _AirflowCloudAccessor
-
     __version__: typing.ClassVar[int] = 1
 
-    _default_accessor = _AirflowCloudAccessor
+    _protocol_dispatch = False
 
     sep: typing.ClassVar[str] = "/"
     root_marker: typing.ClassVar[str] = "/"
 
-    _bucket: str
-    _key: str
-    _protocol: str
-    _hash: int | None
+    __slots__ = ("_hash_cached",)
 
-    __slots__ = (
-        "_bucket",
-        "_key",
-        "_conn_id",
-        "_protocol",
-        "_hash",
-    )
+    @classmethod
+    def _transform_init_args(
+        cls,
+        args: tuple[str | os.PathLike, ...],
+        protocol: str,
+        storage_options: dict[str, Any],
+    ) -> tuple[tuple[str | os.PathLike, ...], str, dict[str, Any]]:
+        """Extract conn_id from the URL and set it as a storage option."""
+        if args:
+            arg0 = args[0]
+            parsed_url = urlsplit(stringify_path(arg0))
+            userinfo, have_info, hostinfo = parsed_url.netloc.rpartition("@")
+            if have_info:
+                storage_options.setdefault("conn_id", userinfo or None)
+                parsed_url = parsed_url._replace(netloc=hostinfo)
+            args = (parsed_url.geturl(),) + args[1:]
+            protocol = protocol or parsed_url.scheme
+        return args, protocol, storage_options
 
-    def __new__(
-        cls: type[PT],
-        *args: str | os.PathLike,
-        scheme: str | None = None,
-        conn_id: str | None = None,
-        **kwargs: typing.Any,
-    ) -> PT:
-        args_list = list(args)
-
-        if args_list:
-            other = args_list.pop(0) or "."
-        else:
-            other = "."
-
-        if isinstance(other, PurePath):
-            _cls: typing.Any = type(other)
-            drv, root, parts = _cls._parse_args(args_list)
-            drv, root, parts = _cls._flavour.join_parsed_parts(
-                other._drv,  # type: ignore[attr-defined]
-                other._root,  # type: ignore[attr-defined]
-                other._parts,  # type: ignore[attr-defined]
-                drv,
-                root,
-                parts,  # type: ignore
-            )
-
-            _kwargs = getattr(other, "_kwargs", {})
-            _url = getattr(other, "_url", None)
-            other_kwargs = _kwargs.copy()
-            if _url and _url.scheme:
-                other_kwargs["url"] = _url
-            new_kwargs = _kwargs.copy()
-            new_kwargs.update(kwargs)
-
-            return _cls(_cls._format_parsed_parts(drv, root, parts, **other_kwargs), **new_kwargs)
-
-        url = stringify_path(other)
-        parsed_url: SplitResult = urlsplit(url)
-
-        if scheme:  # allow override of protocol
-            parsed_url = parsed_url._replace(scheme=scheme)
-
-        if not parsed_url.path:  # ensure path has root
-            parsed_url = parsed_url._replace(path="/")
-
-        if not parsed_url.scheme and not split_protocol(url)[0]:
-            args_list.insert(0, url)
-        else:
-            args_list.insert(0, parsed_url.path)
-
-        # This matches the parsing logic in urllib.parse; see:
-        # https://github.com/python/cpython/blob/46adf6b701c440e047abf925df9a75a/Lib/urllib/parse.py#L194-L203
-        userinfo, have_info, hostinfo = parsed_url.netloc.rpartition("@")
-        if have_info:
-            conn_id = conn_id or userinfo or None
-            parsed_url = parsed_url._replace(netloc=hostinfo)
-
-        return cls._from_parts(args_list, url=parsed_url, conn_id=conn_id, **kwargs)  # type: ignore
+    @classmethod
+    def _fs_factory(
+        cls, urlpath: str, protocol: str, storage_options: Mapping[str, Any]
+    ) -> AbstractFileSystem:
+        return attach(protocol or "file", storage_options.get("conn_id")).fs
 
     def __hash__(self) -> int:
-        if not (_hash := getattr(self, "_hash", None)):
-            self._hash = _hash = hash(str(self))
-        return _hash
+        self._hash_cached: int
+        try:
+            return self._hash_cached
+        except AttributeError:
+            self._hash_cached = hash(str(self))
+            return self._hash_cached
 
     def __eq__(self, other: typing.Any) -> bool:
         return self.samestore(other) and str(self) == str(other)
 
     def samestore(self, other: typing.Any) -> bool:
-        return isinstance(other, ObjectStoragePath) and self._accessor == other._accessor
+        return (
+            isinstance(other, ObjectStoragePath)
+            and self.protocol == other.protocol
+            and self.storage_options.get("conn_id") == other.storage_options.get("conn_id")
+        )
 
     @property
     def container(self) -> str:
@@ -186,12 +156,17 @@ class ObjectStoragePath(CloudPath):
     def namespace(self) -> str:
         return f"{self.protocol}://{self.bucket}" if self.bucket else self.protocol
 
+    def open(self, mode="r", **kwargs):
+        """Open the file pointed to by this path."""
+        kwargs.setdefault("block_size", kwargs.pop("buffering", None))
+        return TrackingFileWrapper(self, self.fs.open(self.path, mode=mode, **kwargs))
+
     def stat(self) -> stat_result:  # type: ignore[override]
         """Call ``stat`` and return the result."""
         return stat_result(
-            self._accessor.stat(self),
+            self.fs.stat(self.path),
             protocol=self.protocol,
-            conn_id=self._accessor._store.conn_id,
+            conn_id=self.storage_options.get("conn_id"),
         )
 
     def samefile(self, other_path: typing.Any) -> bool:
@@ -223,7 +198,7 @@ class ObjectStoragePath(CloudPath):
 
         Returns the new Path instance pointing to the target path.
         """
-        return self.rename(target, overwrite=True)
+        return self.rename(target)
 
     @classmethod
     def cwd(cls):
@@ -251,7 +226,8 @@ class ObjectStoragePath(CloudPath):
         return self.fs.checksum(self.path)
 
     def read_block(self, offset: int, length: int, delimiter=None):
-        r"""Read a block of bytes.
+        r"""
+        Read a block of bytes.
 
         Starting at ``offset`` of the file, read ``length`` bytes. If
         ``delimiter`` is set then we ensure that the read starts and stops at
@@ -286,7 +262,8 @@ class ObjectStoragePath(CloudPath):
         return self.fs.read_block(self.path, offset=offset, length=length, delimiter=delimiter)
 
     def sign(self, expiration: int = 100, **kwargs):
-        """Create a signed URL representing the given path.
+        """
+        Create a signed URL representing the given path.
 
         Some implementations allow temporary URLs to be generated, as a
         way of delegating credentials.
@@ -322,7 +299,8 @@ class ObjectStoragePath(CloudPath):
             shutil.copyfileobj(f1, f2, **kwargs)
 
     def copy(self, dst: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:
-        """Copy file(s) from this path to another location.
+        """
+        Copy file(s) from this path to another location.
 
         For remote to remote copies, the key used for the destination will be the same as the source.
         So that s3://src_bucket/foo/bar will be copied to gcs://dst_bucket/foo/bar and not
@@ -335,6 +313,11 @@ class ObjectStoragePath(CloudPath):
         """
         if isinstance(dst, str):
             dst = ObjectStoragePath(dst)
+
+        if self.samestore(dst) or self.protocol == "file" or dst.protocol == "file":
+            # only emit this in "optimized" variants - else lineage will be captured by file writes/reads
+            get_hook_lineage_collector().add_input_dataset(context=self, uri=str(self))
+            get_hook_lineage_collector().add_output_dataset(context=dst, uri=str(dst))
 
         # same -> same
         if self.samestore(dst):
@@ -368,21 +351,25 @@ class ObjectStoragePath(CloudPath):
                 if path == self.path:
                     continue
 
-                src_obj = ObjectStoragePath(path, conn_id=self._accessor._store.conn_id)
+                src_obj = ObjectStoragePath(
+                    path,
+                    protocol=self.protocol,
+                    conn_id=self.storage_options.get("conn_id"),
+                )
 
                 # skip directories, empty directories will not be created
                 if src_obj.is_dir():
                     continue
 
                 src_obj._cp_file(dst)
-
             return
 
         # remote file -> remote dir
         self._cp_file(dst, **kwargs)
 
     def move(self, path: str | ObjectStoragePath, recursive: bool = False, **kwargs) -> None:
-        """Move file(s) from this path to another location.
+        """
+        Move file(s) from this path to another location.
 
         :param path: Destination path
         :param recursive: bool
@@ -394,6 +381,8 @@ class ObjectStoragePath(CloudPath):
             path = ObjectStoragePath(path)
 
         if self.samestore(path):
+            get_hook_lineage_collector().add_input_dataset(context=self, uri=str(self))
+            get_hook_lineage_collector().add_output_dataset(context=path, uri=str(path))
             return self.fs.move(self.path, path.path, recursive=recursive, **kwargs)
 
         # non-local copy
@@ -401,7 +390,7 @@ class ObjectStoragePath(CloudPath):
         self.unlink()
 
     def serialize(self) -> dict[str, typing.Any]:
-        _kwargs = self._kwargs.copy()
+        _kwargs = {**self.storage_options}
         conn_id = _kwargs.pop("conn_id", None)
 
         return {
@@ -420,3 +409,9 @@ class ObjectStoragePath(CloudPath):
         conn_id = data.pop("conn_id", None)
 
         return ObjectStoragePath(path, conn_id=conn_id, **_kwargs)
+
+    def __str__(self):
+        conn_id = self.storage_options.get("conn_id")
+        if self._protocol and conn_id:
+            return f"{self._protocol}://{conn_id}@{self.path}"
+        return super().__str__()

@@ -197,18 +197,8 @@ def tag_image_as_latest(image_params: CommonBuildParams, output: Output | None) 
         check=False,
     )
     if command.returncode != 0:
-        return command
-    if image_params.push:
-        command = run_command(
-            [
-                "docker",
-                "push",
-                image_params.airflow_image_name + ":latest",
-            ],
-            output=output,
-            capture_output=True,
-            check=False,
-        )
+        get_console(output=output).print(command.stdout)
+        get_console(output=output).print(command.stderr)
     return command
 
 

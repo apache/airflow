@@ -20,12 +20,10 @@ from __future__ import annotations
 import contextlib
 import copy
 import datetime
-import json
 import logging
 from importlib import metadata
 from typing import TYPE_CHECKING, Any, Generator, Iterable, overload
 
-from dateutil import relativedelta
 from packaging import version
 from sqlalchemy import TIMESTAMP, PickleType, event, nullsfirst, tuple_
 from sqlalchemy.dialects import mysql
@@ -208,12 +206,8 @@ def ensure_pod_is_valid_after_unpickling(pod: V1Pod) -> V1Pod | None:
     if not isinstance(pod, V1Pod):
         return None
     try:
-        try:
-            from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-        except ImportError:
-            from airflow.kubernetes.pre_7_4_0_compatibility.pod_generator import (  # type: ignore[assignment]
-                PodGenerator,
-            )
+        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+
         # now we actually reserialize / deserialize the pod
         pod_dict = sanitize_for_serialization(pod)
         return PodGenerator.deserialize_model_dict(pod_dict)
@@ -293,52 +287,9 @@ class ExecutorConfigType(PickleType):
                 return False
 
 
-class Interval(TypeDecorator):
-    """Base class representing a time interval."""
-
-    impl = Text
-
-    cache_ok = True
-
-    attr_keys = {
-        datetime.timedelta: ("days", "seconds", "microseconds"),
-        relativedelta.relativedelta: (
-            "years",
-            "months",
-            "days",
-            "leapdays",
-            "hours",
-            "minutes",
-            "seconds",
-            "microseconds",
-            "year",
-            "month",
-            "day",
-            "hour",
-            "minute",
-            "second",
-            "microsecond",
-        ),
-    }
-
-    def process_bind_param(self, value, dialect):
-        if isinstance(value, tuple(self.attr_keys)):
-            attrs = {key: getattr(value, key) for key in self.attr_keys[type(value)]}
-            return json.dumps({"type": type(value).__name__, "attrs": attrs})
-        return json.dumps(value)
-
-    def process_result_value(self, value, dialect):
-        if not value:
-            return value
-        data = json.loads(value)
-        if isinstance(data, dict):
-            type_map = {key.__name__: key for key in self.attr_keys}
-            return type_map[data["type"]](**data["attrs"])
-        return data
-
-
 def nulls_first(col, session: Session) -> dict[str, Any]:
-    """Specify *NULLS FIRST* to the column ordering.
+    """
+    Specify *NULLS FIRST* to the column ordering.
 
     This is only done to Postgres, currently the only backend that supports it.
     Other databases do not need it since NULL values are considered lower than
@@ -395,7 +346,8 @@ def with_row_locks(
 
 @contextlib.contextmanager
 def lock_rows(query: Query, session: Session) -> Generator[None, None, None]:
-    """Lock database rows during the context manager block.
+    """
+    Lock database rows during the context manager block.
 
     This is a convenient method for ``with_row_locks`` when we don't need the
     locked rows.
@@ -482,8 +434,7 @@ def is_lock_not_available_error(error: OperationalError):
 def tuple_in_condition(
     columns: tuple[ColumnElement, ...],
     collection: Iterable[Any],
-) -> ColumnOperators:
-    ...
+) -> ColumnOperators: ...
 
 
 @overload
@@ -492,8 +443,7 @@ def tuple_in_condition(
     collection: Select,
     *,
     session: Session,
-) -> ColumnOperators:
-    ...
+) -> ColumnOperators: ...
 
 
 def tuple_in_condition(
@@ -517,8 +467,7 @@ def tuple_in_condition(
 def tuple_not_in_condition(
     columns: tuple[ColumnElement, ...],
     collection: Iterable[Any],
-) -> ColumnOperators:
-    ...
+) -> ColumnOperators: ...
 
 
 @overload
@@ -527,8 +476,7 @@ def tuple_not_in_condition(
     collection: Select,
     *,
     session: Session,
-) -> ColumnOperators:
-    ...
+) -> ColumnOperators: ...
 
 
 def tuple_not_in_condition(

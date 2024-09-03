@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Example DAG demonstrating the usage of the params arguments in templated arguments."""
+
 from __future__ import annotations
 
 import datetime

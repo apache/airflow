@@ -248,26 +248,30 @@ def selective_check(
     github_actor: str,
     github_context: str,
 ):
-    from airflow_breeze.utils.selective_checks import SelectiveChecks
+    try:
+        from airflow_breeze.utils.selective_checks import SelectiveChecks
 
-    github_context_dict = json.loads(github_context) if github_context else {}
-    github_event = GithubEvents(github_event_name)
-    if commit_ref is not None:
-        changed_files = get_changed_files(commit_ref=commit_ref)
-    else:
-        changed_files = ()
-    sc = SelectiveChecks(
-        commit_ref=commit_ref,
-        files=changed_files,
-        default_branch=default_branch,
-        default_constraints_branch=default_constraints_branch,
-        pr_labels=tuple(ast.literal_eval(pr_labels)) if pr_labels else (),
-        github_event=github_event,
-        github_repository=github_repository,
-        github_actor=github_actor,
-        github_context_dict=github_context_dict,
-    )
-    print(str(sc), file=sys.stderr)
+        github_context_dict = json.loads(github_context) if github_context else {}
+        github_event = GithubEvents(github_event_name)
+        if commit_ref is not None:
+            changed_files = get_changed_files(commit_ref=commit_ref)
+        else:
+            changed_files = ()
+        sc = SelectiveChecks(
+            commit_ref=commit_ref,
+            files=changed_files,
+            default_branch=default_branch,
+            default_constraints_branch=default_constraints_branch,
+            pr_labels=tuple(ast.literal_eval(pr_labels)) if pr_labels else (),
+            github_event=github_event,
+            github_repository=github_repository,
+            github_actor=github_actor,
+            github_context_dict=github_context_dict,
+        )
+        print(str(sc), file=sys.stderr)
+    except Exception:
+        get_console().print_exception(show_locals=True)
+        sys.exit(1)
 
 
 TEST_BRANCH_MATCHER = re.compile(r"^v.*test$")
@@ -310,7 +314,7 @@ class WorkflowInfo(NamedTuple):
         return RUNS_ON_SELF_HOSTED_RUNNER
 
     def in_workflow_build(self) -> str:
-        if self.event_name == "push" or self.head_repo == self.target_repo:
+        if self.event_name == GithubEvents.PUSH.value or self.head_repo == self.target_repo:
             return "true"
         return "false"
 
@@ -321,7 +325,12 @@ class WorkflowInfo(NamedTuple):
 
     def is_canary_run(self) -> str:
         if (
-            self.event_name == "push"
+            self.event_name
+            in [
+                GithubEvents.PUSH.value,
+                GithubEvents.WORKFLOW_DISPATCH.value,
+                GithubEvents.SCHEDULE.value,
+            ]
             and self.head_repo == "apache/airflow"
             and self.ref_name
             and (self.ref_name == "main" or TEST_BRANCH_MATCHER.match(self.ref_name))
@@ -332,7 +341,11 @@ class WorkflowInfo(NamedTuple):
         return "false"
 
     def run_coverage(self) -> str:
-        if self.event_name == "push" and self.head_repo == "apache/airflow" and self.ref == "refs/heads/main":
+        if (
+            self.event_name == GithubEvents.PUSH.value
+            and self.head_repo == "apache/airflow"
+            and self.ref == "refs/heads/main"
+        ):
             return "true"
         return "false"
 
@@ -349,10 +362,10 @@ def workflow_info(context: str) -> WorkflowInfo:
     pr_number: int | None = None
     ref_name = ctx.get("ref_name")
     ref = ctx.get("ref")
-    if event_name == "pull_request":
+    if event_name == GithubEvents.PULL_REQUEST.value:
         event = ctx.get("event")
         if event:
-            pr = event.get("pull_request")
+            pr = event.get(GithubEvents.PULL_REQUEST.value)
             if pr:
                 labels = pr.get("labels")
                 if labels:
@@ -361,15 +374,19 @@ def workflow_info(context: str) -> WorkflowInfo:
                 target_repo = pr["base"]["repo"]["full_name"]
                 head_repo = pr["head"]["repo"]["full_name"]
                 pr_number = pr["number"]
-    elif event_name == "push":
+    elif event_name == GithubEvents.PUSH.value:
         target_repo = ctx["repository"]
         head_repo = ctx["repository"]
         event_name = ctx["event_name"]
-    elif event_name == "schedule":
+    elif event_name == GithubEvents.SCHEDULE.value:
         target_repo = ctx["repository"]
         head_repo = ctx["repository"]
         event_name = ctx["event_name"]
-    elif event_name == "pull_request_target":
+    elif event_name == GithubEvents.WORKFLOW_DISPATCH.value:
+        target_repo = ctx["repository"]
+        head_repo = ctx["repository"]
+        event_name = ctx["event_name"]
+    elif event_name == GithubEvents.PULL_REQUEST_TARGET.value:
         target_repo = ctx["repository"]
         head_repo = ctx["repository"]
         event_name = ctx["event_name"]

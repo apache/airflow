@@ -30,6 +30,8 @@ import ExtraLinks from "./ExtraLinks";
 import Details from "./Details";
 import DatasetUpdateEvents from "./DatasetUpdateEvents";
 import TriggererInfo from "./TriggererInfo";
+import TaskFailedDependency from "./TaskFailedDependency";
+import TaskDocumentation from "./TaskDocumentation";
 
 const dagId = getMetaValue("dag_id")!;
 
@@ -52,7 +54,6 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
 
   const children = group?.children;
   const isMapped = group?.isMapped;
-  const operator = group?.operator;
 
   const isMappedTaskSummary = !!isMapped && !isMapIndexDefined && taskId;
   const isGroup = !!children;
@@ -63,13 +64,16 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
     dagRunId: runId,
     taskId,
     mapIndex,
-    enabled: (!isGroup && !isMapped) || isMapIndexDefined,
+    options: {
+      enabled: (!isGroup && !isMapped) || isMapIndexDefined,
+    },
   });
+
+  const showTaskSchedulingDependencies =
+    !isGroupOrMappedTaskSummary &&
+    (!taskInstance?.state || taskInstance?.state === "scheduled");
+
   const gridInstance = group?.instances.find((ti) => ti.runId === runId);
-
-  if (!group || !run || !gridInstance) return null;
-
-  const { executionDate } = run;
 
   return (
     <Box
@@ -79,39 +83,50 @@ const TaskInstance = ({ taskId, runId, mapIndex }: Props) => {
       ref={taskInstanceRef}
       overflowY="auto"
     >
-      {!isGroup && (
+      {!isGroup && run?.executionDate && (
         <TaskNav
           taskId={taskId}
           isMapped={isMapped}
           mapIndex={mapIndex}
-          executionDate={executionDate}
-          operator={operator}
+          executionDate={run?.executionDate}
         />
       )}
+      {!isGroupOrMappedTaskSummary && <TaskDocumentation taskId={taskId} />}
       {!isGroupOrMappedTaskSummary && (
         <NotesAccordion
           dagId={dagId}
           runId={runId}
           taskId={taskId}
-          mapIndex={gridInstance.mapIndex}
-          initialValue={gridInstance.note}
-          key={dagId + runId + taskId + gridInstance.mapIndex}
+          mapIndex={mapIndex}
+          initialValue={gridInstance?.note || taskInstance?.note}
+          key={dagId + runId + taskId + mapIndex}
+          isAbandonedTask={!!taskId && !group}
         />
       )}
-      {!!group.extraLinks?.length && !isGroupOrMappedTaskSummary && (
-        <ExtraLinks
-          taskId={taskId}
-          dagId={dagId}
-          mapIndex={isMapped && isMapIndexDefined ? mapIndex : undefined}
-          executionDate={executionDate}
-          extraLinks={group?.extraLinks}
-          tryNumber={taskInstance?.tryNumber || gridInstance.tryNumber}
-        />
-      )}
-      {group.hasOutletDatasets && (
+      {!!group?.extraLinks?.length &&
+        !isGroupOrMappedTaskSummary &&
+        run?.executionDate && (
+          <ExtraLinks
+            taskId={taskId}
+            dagId={dagId}
+            mapIndex={isMapped && isMapIndexDefined ? mapIndex : undefined}
+            executionDate={run.executionDate}
+            extraLinks={group.extraLinks}
+            tryNumber={taskInstance?.tryNumber || gridInstance?.tryNumber || 1}
+          />
+        )}
+      {group?.hasOutletDatasets && (
         <DatasetUpdateEvents taskId={taskId} runId={runId} />
       )}
       <TriggererInfo taskInstance={taskInstance} />
+      {showTaskSchedulingDependencies && (
+        <TaskFailedDependency
+          dagId={dagId}
+          runId={runId}
+          taskId={taskId}
+          mapIndex={isMapped && isMapIndexDefined ? mapIndex : undefined}
+        />
+      )}
       <Details
         gridInstance={gridInstance}
         taskInstance={taskInstance}

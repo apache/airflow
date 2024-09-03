@@ -1,0 +1,73 @@
+{
+    "version": 2,
+    "waiters": {
+        "model_customization_job_complete": {
+            "delay": 120,
+            "maxAttempts": 75,
+            "operation": "GetModelCustomizationJob",
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "InProgress",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "Completed",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "Failed",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "Stopping",
+                    "state": "failure"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "Stopped",
+                    "state": "failure"
+                }
+            ]
+        },
+        "provisioned_model_throughput_complete": {
+            "delay": 60,
+            "maxAttempts": 20,
+            "operation": "getProvisionedModelThroughput",
+            "acceptors": [
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "InService",
+                    "state": "success"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "Creating",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "Updating",
+                    "state": "retry"
+                },
+                {
+                    "matcher": "path",
+                    "argument": "status",
+                    "expected": "Failed",
+                    "state": "failure"
+                }
+            ]
+        }
+    }
+}

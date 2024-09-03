@@ -25,8 +25,9 @@ from __future__ import annotations
 
 import time
 from collections import defaultdict, deque
+from contextlib import suppress
 from copy import deepcopy
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from botocore.exceptions import ClientError, NoCredentialsError
 
@@ -47,12 +48,13 @@ from airflow.providers.amazon.aws.executors.utils.exponential_backoff_retry impo
     exponential_backoff_retry,
 )
 from airflow.providers.amazon.aws.hooks.ecs import EcsHook
+from airflow.stats import Stats
 from airflow.utils import timezone
 from airflow.utils.helpers import merge_dicts
 from airflow.utils.state import State
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
+    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
     from airflow.providers.amazon.aws.executors.ecs.utils import (
         CommandType,
         ExecutorConfigType,
@@ -182,7 +184,7 @@ class AwsEcsExecutor(BaseExecutor):
             AllEcsConfigKeys.AWS_CONN_ID,
             fallback=CONFIG_DEFAULTS[AllEcsConfigKeys.AWS_CONN_ID],
         )
-        region_name = conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.REGION_NAME)
+        region_name = conf.get(CONFIG_GROUP_NAME, AllEcsConfigKeys.REGION_NAME, fallback=None)
         self.ecs = EcsHook(aws_conn_id=aws_conn_id, region_name=region_name).conn
         self.attempts_since_last_successful_connection += 1
         self.last_connection_reload = timezone.utcnow()
@@ -208,7 +210,7 @@ class AwsEcsExecutor(BaseExecutor):
             if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
                 self.IS_BOTO_CONNECTION_HEALTHY = False
                 self.log.warning(
-                    f"AWS credentials are either missing or expired: {error}.\nRetrying connection"
+                    "AWS credentials are either missing or expired: %s.\nRetrying connection", error
                 )
 
         except Exception:
@@ -240,21 +242,19 @@ class AwsEcsExecutor(BaseExecutor):
         # Get state of current task.
         task_state = task.get_task_state()
         task_key = self.active_workers.arn_to_key[task.task_arn]
+
         # Mark finished tasks as either a success/failure.
-        if task_state == State.FAILED:
-            self.fail(task_key)
+        if task_state == State.FAILED or task_state == State.REMOVED:
             self.__log_container_failures(task_arn=task.task_arn)
-        elif task_state == State.SUCCESS:
-            self.success(task_key)
-        elif task_state == State.REMOVED:
             self.__handle_failed_task(task.task_arn, task.stopped_reason)
-        if task_state in (State.FAILED, State.SUCCESS):
+        elif task_state == State.SUCCESS:
             self.log.debug(
                 "Airflow task %s marked as %s after running on ECS Task (arn) %s",
                 task_key,
                 task_state,
                 task.task_arn,
             )
+            self.success(task_key)
             self.active_workers.pop_by_key(task_key)
 
     def __describe_tasks(self, task_arns):
@@ -287,7 +287,14 @@ class AwsEcsExecutor(BaseExecutor):
             )
 
     def __handle_failed_task(self, task_arn: str, reason: str):
-        """If an API failure occurs, the task is rescheduled."""
+        """
+        If an API failure occurs, the task is rescheduled.
+
+        This function will determine whether the task has been attempted the appropriate number
+        of times, and determine whether the task should be marked failed or not. The task will
+        be removed active_workers, and marked as FAILED, or set into pending_tasks depending on
+        how many times it has been retried.
+        """
         task_key = self.active_workers.arn_to_key[task_arn]
         task_info = self.active_workers.info_by_key(task_key)
         task_cmd = task_info.cmd
@@ -303,8 +310,7 @@ class AwsEcsExecutor(BaseExecutor):
                 self.__class__.MAX_RUN_TASK_ATTEMPTS,
                 task_arn,
             )
-            self.active_workers.increment_failure_count(task_key)
-            self.pending_tasks.appendleft(
+            self.pending_tasks.append(
                 EcsQueuedTask(
                     task_key,
                     task_cmd,
@@ -320,8 +326,8 @@ class AwsEcsExecutor(BaseExecutor):
                 task_key,
                 failure_count,
             )
-            self.active_workers.pop_by_key(task_key)
             self.fail(task_key)
+        self.active_workers.pop_by_key(task_key)
 
     def attempt_task_runs(self):
         """
@@ -342,63 +348,79 @@ class AwsEcsExecutor(BaseExecutor):
             queue = ecs_task.queue
             exec_config = ecs_task.executor_config
             attempt_number = ecs_task.attempt_number
-            _failure_reasons = []
+            failure_reasons = []
             if timezone.utcnow() < ecs_task.next_attempt_time:
+                self.pending_tasks.append(ecs_task)
                 continue
             try:
                 run_task_response = self._run_task(task_key, cmd, queue, exec_config)
             except NoCredentialsError:
-                self.pending_tasks.appendleft(ecs_task)
+                self.pending_tasks.append(ecs_task)
                 raise
             except ClientError as e:
                 error_code = e.response["Error"]["Code"]
                 if error_code in INVALID_CREDENTIALS_EXCEPTIONS:
-                    self.pending_tasks.appendleft(ecs_task)
+                    self.pending_tasks.append(ecs_task)
                     raise
-                _failure_reasons.append(str(e))
+                failure_reasons.append(str(e))
             except Exception as e:
                 # Failed to even get a response back from the Boto3 API or something else went
                 # wrong.  For any possible failure we want to add the exception reasons to the
                 # failure list so that it is logged to the user and most importantly the task is
                 # added back to the pending list to be retried later.
-                _failure_reasons.append(str(e))
+                failure_reasons.append(str(e))
             else:
                 # We got a response back, check if there were failures. If so, add them to the
                 # failures list so that it is logged to the user and most importantly the task
                 # is added back to the pending list to be retried later.
                 if run_task_response["failures"]:
-                    _failure_reasons.extend([f["reason"] for f in run_task_response["failures"]])
+                    failure_reasons.extend([f["reason"] for f in run_task_response["failures"]])
 
-            if _failure_reasons:
-                for reason in _failure_reasons:
-                    failure_reasons[reason] += 1
+            if failure_reasons:
                 # Make sure the number of attempts does not exceed MAX_RUN_TASK_ATTEMPTS
-                if int(attempt_number) <= int(self.__class__.MAX_RUN_TASK_ATTEMPTS):
+                if int(attempt_number) < int(self.__class__.MAX_RUN_TASK_ATTEMPTS):
                     ecs_task.attempt_number += 1
                     ecs_task.next_attempt_time = timezone.utcnow() + calculate_next_attempt_delay(
                         attempt_number
                     )
-                    self.pending_tasks.appendleft(ecs_task)
+                    self.pending_tasks.append(ecs_task)
                 else:
+                    reasons_str = ", ".join(failure_reasons)
                     self.log.error(
-                        "ECS task %s has failed a maximum of %s times. Marking as failed",
+                        "ECS task %s has failed a maximum of %s times. Marking as failed. Reasons: %s",
                         task_key,
                         attempt_number,
+                        reasons_str,
+                    )
+                    self.log_task_event(
+                        event="ecs task submit failure",
+                        ti_key=task_key,
+                        extra=(
+                            f"Task could not be queued after {attempt_number} attempts. "
+                            f"Marking as failed. Reasons: {reasons_str}"
+                        ),
                     )
                     self.fail(task_key)
             elif not run_task_response["tasks"]:
                 self.log.error("ECS RunTask Response: %s", run_task_response)
+                self.log_task_event(
+                    event="ecs task submit failure",
+                    extra=f"ECS RunTask Response: {run_task_response}",
+                    ti_key=task_key,
+                )
                 raise EcsExecutorException(
                     "No failures and no ECS tasks provided in response. This should never happen."
                 )
             else:
                 task = run_task_response["tasks"][0]
                 self.active_workers.add_task(task, task_key, queue, cmd, exec_config, attempt_number)
-        if failure_reasons:
-            self.log.error(
-                "Pending ECS tasks failed to launch for the following reasons: %s. Retrying later.",
-                dict(failure_reasons),
-            )
+                try:
+                    self.running_state(task_key, task.task_arn)
+                except AttributeError:
+                    # running_state is newly added, and only needed to support task adoption (an optional
+                    # executor feature).
+                    # TODO: remove when min airflow version >= 2.9.2
+                    pass
 
     def _run_task(
         self, task_id: TaskInstanceKey, cmd: CommandType, queue: str, exec_config: ExecutorConfigType
@@ -494,3 +516,48 @@ class AwsEcsExecutor(BaseExecutor):
                     'container "name" must be provided in "containerOverrides" configuration'
                 )
         raise KeyError(f"No such container found by container name: {self.container_name}")
+
+    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
+        """
+        Adopt task instances which have an external_executor_id (the ECS task ARN).
+
+        Anything that is not adopted will be cleared by the scheduler and becomes eligible for re-scheduling.
+        """
+        with Stats.timer("ecs_executor.adopt_task_instances.duration"):
+            adopted_tis: list[TaskInstance] = []
+
+            if task_arns := [ti.external_executor_id for ti in tis if ti.external_executor_id]:
+                task_descriptions = self.__describe_tasks(task_arns).get("tasks", [])
+
+                for task in task_descriptions:
+                    ti = next(ti for ti in tis if ti.external_executor_id == task.task_arn)
+                    self.active_workers.add_task(
+                        task,
+                        ti.key,
+                        ti.queue,
+                        ti.command_as_list(),
+                        ti.executor_config,
+                        ti.try_number,
+                    )
+                    adopted_tis.append(ti)
+
+            if adopted_tis:
+                tasks = [f"{task} in state {task.state}" for task in adopted_tis]
+                task_instance_str = "\n\t".join(tasks)
+                self.log.info(
+                    "Adopted the following %d tasks from a dead executor:\n\t%s",
+                    len(adopted_tis),
+                    task_instance_str,
+                )
+
+            not_adopted_tis = [ti for ti in tis if ti not in adopted_tis]
+            return not_adopted_tis
+
+    def log_task_event(self, *, event: str, extra: str, ti_key: TaskInstanceKey):
+        # TODO: remove this method when min_airflow_version is set to higher than 2.10.0
+        with suppress(AttributeError):
+            super().log_task_event(
+                event=event,
+                extra=extra,
+                ti_key=ti_key,
+            )

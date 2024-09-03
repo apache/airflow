@@ -49,7 +49,7 @@ This example is a basic demonstration of OpenLineage setup.
    .. code-block:: ini
 
       [openlineage]
-      transport = '{"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}'
+      transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
 
    or with ``AIRFLOW__OPENLINEAGE__TRANSPORT`` environment variable
 
@@ -87,7 +87,7 @@ The ``transport`` option in Airflow configuration is used for that purpose.
 .. code-block:: ini
 
     [openlineage]
-    transport = '{"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}'
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
 
 ``AIRFLOW__OPENLINEAGE__TRANSPORT`` environment variable is an equivalent.
 
@@ -101,7 +101,7 @@ If you want to look at OpenLineage events without sending them anywhere, you can
 .. code-block:: ini
 
     [openlineage]
-    transport = '{"type": "console"}'
+    transport = {"type": "console"}
 
 .. note::
   For full list of built-in transport types, specific transport's options or instructions on how to implement your custom transport, refer to
@@ -180,8 +180,8 @@ If not set, it's using ``default`` namespace. Provide the name of the namespace 
 .. code-block:: ini
 
     [openlineage]
-    transport = '{"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}'
-    namespace = 'my-team-airflow-instance`
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
+    namespace = 'my-team-airflow-instance'
 
 ``AIRFLOW__OPENLINEAGE__NAMESPACE`` environment variable is an equivalent.
 
@@ -189,6 +189,26 @@ If not set, it's using ``default`` namespace. Provide the name of the namespace 
 
   AIRFLOW__OPENLINEAGE__NAMESPACE='my-team-airflow-instance'
 
+Timeout
+^^^^^^^
+
+To add a layer of isolation between task execution and OpenLineage, adding a level of assurance that OpenLineage execution does not
+interfere with task execution in a way other than taking time, OpenLineage methods run in separate process.
+The code runs with default timeout of 10 seconds. You can increase this by setting the ``execution_timeout`` value.
+
+.. code-block:: ini
+
+    [openlineage]
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
+    execution_timeout = 60
+
+``AIRFLOW__OPENLINEAGE__EXECUTION_TIMEOUT`` environment variable is an equivalent.
+
+.. code-block:: ini
+
+  AIRFLOW__OPENLINEAGE__EXECUTION_TIMEOUT=60
+
+.. _options:disable:
 
 Disable
 ^^^^^^^
@@ -198,7 +218,7 @@ You can disable sending OpenLineage events without uninstalling OpenLineage prov
 .. code-block:: ini
 
     [openlineage]
-    transport = '{"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}'
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
     disabled = true
 
 ``AIRFLOW__OPENLINEAGE__DISABLED`` environment variable is an equivalent.
@@ -217,7 +237,7 @@ To prevent that, set ``disable_source_code`` option to ``true`` in Airflow confi
 .. code-block:: ini
 
     [openlineage]
-    transport = '{"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}'
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
     disable_source_code = true
 
 ``AIRFLOW__OPENLINEAGE__DISABLE_SOURCE_CODE`` environment variable is an equivalent.
@@ -236,7 +256,7 @@ full import paths of Airflow Operators to disable as ``disabled_for_operators`` 
 .. code-block:: ini
 
     [openlineage]
-    transport = '{"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}'
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
     disabled_for_operators = 'airflow.operators.bash.BashOperator;airflow.operators.python.PythonOperator'
 
 ``AIRFLOW__OPENLINEAGE__DISABLED_FOR_OPERATORS`` environment variable is an equivalent.
@@ -245,16 +265,42 @@ full import paths of Airflow Operators to disable as ``disabled_for_operators`` 
 
   AIRFLOW__OPENLINEAGE__DISABLED_FOR_OPERATORS='airflow.operators.bash.BashOperator;airflow.operators.python.PythonOperator'
 
+Full Task Info
+^^^^^^^^^^^^^^
+
+By default, OpenLineage integration's AirflowRunFacet - attached on START event for every task instance event - does
+not contain full serialized task information (parameters to given operator), but only includes select parameters.
+
+However, we allow users to set OpenLineage integration to include full task information. By doing this, rather than
+serializing only a few known attributes, we exclude certain non-serializable elements and send everything else.
+
+.. code-block:: ini
+
+    [openlineage]
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
+    include_full_task_info = true
+
+``AIRFLOW__OPENLINEAGE__INCLUDE_FULL_TASK_INFO`` environment variable is an equivalent.
+
+.. code-block:: ini
+
+  AIRFLOW__OPENLINEAGE__INCLUDE_FULL_TASK_INFO=true
+
+.. warning::
+
+  By setting this variable to true, OpenLineage integration does not control the size of event you sent. It can potentially include elements that are megabytes in size or larger, depending on the size of data you pass to the task.
+
+
 Custom Extractors
 ^^^^^^^^^^^^^^^^^
 
-If you use :ref:`custom Extractors <custom_extractors:openlineage>` feature, register the extractors by passing
+To use :ref:`custom Extractors <custom_extractors:openlineage>` feature, register the extractors by passing
 a string of semicolon separated Airflow Operators full import paths to ``extractors`` option in Airflow configuration.
 
 .. code-block:: ini
 
     [openlineage]
-    transport = '{"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}'
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
     extractors = full.path.to.ExtractorClass;full.path.to.AnotherExtractorClass
 
 ``AIRFLOW__OPENLINEAGE__EXTRACTORS`` environment variable is an equivalent.
@@ -263,11 +309,115 @@ a string of semicolon separated Airflow Operators full import paths to ``extract
 
   AIRFLOW__OPENLINEAGE__EXTRACTORS='full.path.to.ExtractorClass;full.path.to.AnotherExtractorClass'
 
+Custom Run Facets
+^^^^^^^^^^^^^^^^^
+
+To inject :ref:`custom run facets <custom_facets:openlineage>`, register the custom run facet functions by passing
+a string of semicolon separated full import paths to ``custom_run_facets`` option in Airflow configuration.
+
+.. code-block:: ini
+
+    [openlineage]
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
+    custom_run_facets = full.path.to.get_my_custom_facet;full.path.to.another_custom_facet_function
+
+``AIRFLOW__OPENLINEAGE__CUSTOM_RUN_FACETS`` environment variable is an equivalent.
+
+.. code-block:: ini
+
+  AIRFLOW__OPENLINEAGE__CUSTOM_RUN_FACETS='full.path.to.get_my_custom_facet;full.path.to.another_custom_facet_function'
+
+.. _options:debug_mode:
+
+Debug Mode
+^^^^^^^^^^
+
+You can enable sending additional information in OpenLineage events that can be useful for debugging and
+reproducing your environment setup by setting ``debug_mode`` option to ``true`` in Airflow configuration.
+
+.. code-block:: ini
+
+    [openlineage]
+    transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
+    debug_mode = true
+
+``AIRFLOW__OPENLINEAGE__DEBUG_MODE`` environment variable is an equivalent.
+
+.. code-block:: ini
+
+  AIRFLOW__OPENLINEAGE__DEBUG_MODE=true
+
+.. warning::
+
+  By setting this variable to true, OpenLineage integration may log and emit extensive details. It should only be enabled temporary for debugging purposes.
+
+
+Enabling OpenLineage on DAG/task level
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+One can selectively enable OpenLineage for specific DAGs and tasks by using the ``selective_enable`` policy.
+To enable this policy, set the ``selective_enable`` option to True in the [openlineage] section of your Airflow configuration file:
+
+.. code-block:: ini
+
+    [openlineage]
+    selective_enable = True
+
+``AIRFLOW__OPENLINEAGE__SELECTIVE_ENABLE`` environment variable is an equivalent.
+
+.. code-block:: ini
+
+  AIRFLOW__OPENLINEAGE__SELECTIVE_ENABLE=true
+
+
+While ``selective_enable`` enables selective control, the ``disabled`` :ref:`option <options:disable>` still has precedence.
+If you set ``disabled`` to True in the configuration, OpenLineage will be disabled for all DAGs and tasks regardless of the ``selective_enable`` setting.
+
+Once the ``selective_enable`` policy is enabled, you can choose to enable OpenLineage
+for individual DAGs and tasks using the ``enable_lineage`` and ``disable_lineage`` functions.
+
+1. Enabling Lineage on a DAG:
+
+.. code-block:: python
+
+    from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
+
+    with enable_lineage(DAG(...)):
+        # Tasks within this DAG will have lineage tracking enabled
+        MyOperator(...)
+
+        AnotherOperator(...)
+
+2. Enabling Lineage on a Task:
+
+While enabling lineage on a DAG implicitly enables it for all tasks within that DAG, you can still selectively disable it for specific tasks:
+
+.. code-block:: python
+
+    from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
+
+    with DAG(...) as dag:
+        t1 = MyOperator(...)
+        t2 = AnotherOperator(...)
+
+    # Enable lineage for the entire DAG
+    enable_lineage(dag)
+
+    # Disable lineage for task t1
+    disable_lineage(t1)
+
+Enabling lineage on the DAG level automatically enables it for all tasks within that DAG unless explicitly disabled per task.
+
+Enabling lineage on the task level implicitly enables lineage on its DAG.
+This is because each emitting task sends a `ParentRunFacet <https://openlineage.io/docs/spec/facets/run-facets/parent_run>`_,
+which requires the DAG-level lineage to be enabled in some OpenLineage backend systems.
+Disabling DAG-level lineage while enabling task-level lineage might cause errors or inconsistencies.
+
 
 Troubleshooting
 ===============
 
-See :ref:`local_troubleshooting:openlineage` for details on how to troubleshoot OpenLineage locally.
+See :ref:`troubleshooting:openlineage` for details on how to troubleshoot OpenLineage.
 
 
 Adding support for custom Operators

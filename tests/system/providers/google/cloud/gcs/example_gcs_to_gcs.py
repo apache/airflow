@@ -19,6 +19,7 @@
 Example Airflow DAG for Google Cloud Storage GCSSynchronizeBucketsOperator and
 GCSToGCSOperator operators.
 """
+
 from __future__ import annotations
 
 import os
@@ -29,17 +30,20 @@ from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
+from airflow.operators.python import PythonOperator
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
+    GCSListObjectsOperator,
     GCSSynchronizeBucketsOperator,
 )
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "gcs_to_gcs"
 
@@ -48,6 +52,15 @@ BUCKET_NAME_DST = f"bucket_dst_{DAG_ID}_{ENV_ID}"
 RANDOM_FILE_NAME = OBJECT_1 = OBJECT_2 = "random.bin"
 HOME = "/home/airflow/gcs"
 PREFIX = f"{HOME}/data/{DAG_ID}_{ENV_ID}/"
+
+
+def _assert_copied_files_exist(ti):
+    objects = ti.xcom_pull(task_ids=["list_objects"], key="return_value")[0]
+
+    assert PREFIX + OBJECT_1 in objects
+    assert f"{PREFIX}subdir/{OBJECT_1}" in objects
+    assert f"backup/{OBJECT_1}" in objects
+    assert f"backup_{OBJECT_1}" in objects
 
 
 with DAG(
@@ -157,43 +170,22 @@ with DAG(
     copy_single_file = GCSToGCSOperator(
         task_id="copy_single_gcs_file",
         source_bucket=BUCKET_NAME_SRC,
-        source_object=OBJECT_1,
+        source_object=PREFIX + OBJECT_1,
         destination_bucket=BUCKET_NAME_DST,  # If not supplied the source_bucket value will be used
         destination_object="backup_" + OBJECT_1,  # If not supplied the source_object value will be used
         exact_match=True,
     )
     # [END howto_operator_gcs_to_gcs_single_file]
 
-    # [START howto_operator_gcs_to_gcs_wildcard]
-    copy_files_with_wildcard = GCSToGCSOperator(
-        task_id="copy_files_with_wildcard",
-        source_bucket=BUCKET_NAME_SRC,
-        source_object="data/*.txt",
-        destination_bucket=BUCKET_NAME_DST,
-        destination_object="backup/",
-    )
-    # [END howto_operator_gcs_to_gcs_wildcard]
-
     # [START howto_operator_gcs_to_gcs_without_wildcard]
-    copy_files_without_wildcard = GCSToGCSOperator(
-        task_id="copy_files_without_wildcard",
+    copy_files = GCSToGCSOperator(
+        task_id="copy_files",
         source_bucket=BUCKET_NAME_SRC,
-        source_object="subdir/",
+        source_object=PREFIX + "subdir/",
         destination_bucket=BUCKET_NAME_DST,
         destination_object="backup/",
     )
     # [END howto_operator_gcs_to_gcs_without_wildcard]
-
-    # [START howto_operator_gcs_to_gcs_delimiter]
-    copy_files_with_delimiter = GCSToGCSOperator(
-        task_id="copy_files_with_delimiter",
-        source_bucket=BUCKET_NAME_SRC,
-        source_object="data/",
-        destination_bucket=BUCKET_NAME_DST,
-        destination_object="backup/",
-        delimiter=".txt",
-    )
-    # [END howto_operator_gcs_to_gcs_delimiter]
 
     # [START howto_operator_gcs_to_gcs_match_glob]
     copy_files_with_match_glob = GCSToGCSOperator(
@@ -210,7 +202,10 @@ with DAG(
     copy_files_with_list = GCSToGCSOperator(
         task_id="copy_files_with_list",
         source_bucket=BUCKET_NAME_SRC,
-        source_objects=[OBJECT_1, OBJECT_2],  # Instead of files each element could be a wildcard expression
+        source_objects=[
+            PREFIX + OBJECT_1,
+            PREFIX + OBJECT_2,
+        ],  # Instead of files each element could be a wildcard expression
         destination_bucket=BUCKET_NAME_DST,
         destination_object="backup/",
     )
@@ -220,7 +215,7 @@ with DAG(
     move_single_file = GCSToGCSOperator(
         task_id="move_single_file",
         source_bucket=BUCKET_NAME_SRC,
-        source_object=OBJECT_1,
+        source_object=PREFIX + OBJECT_1,
         destination_bucket=BUCKET_NAME_DST,
         destination_object="backup_" + OBJECT_1,
         exact_match=True,
@@ -232,11 +227,17 @@ with DAG(
     move_files_with_list = GCSToGCSOperator(
         task_id="move_files_with_list",
         source_bucket=BUCKET_NAME_SRC,
-        source_objects=[OBJECT_1, OBJECT_2],
+        source_objects=[PREFIX + OBJECT_1, PREFIX + OBJECT_2],
         destination_bucket=BUCKET_NAME_DST,
         destination_object="backup/",
     )
     # [END howto_operator_gcs_to_gcs_list_move]
+
+    list_objects = GCSListObjectsOperator(task_id="list_objects", bucket=BUCKET_NAME_DST)
+    assert_copied_files_exist = PythonOperator(
+        task_id="assert_copied_files_exist",
+        python_callable=_assert_copied_files_exist,
+    )
 
     delete_bucket_src = GCSDeleteBucketOperator(
         task_id="delete_bucket_src", bucket_name=BUCKET_NAME_SRC, trigger_rule=TriggerRule.ALL_DONE
@@ -262,13 +263,13 @@ with DAG(
         sync_to_subdirectory,
         sync_from_subdirectory,
         copy_single_file,
-        copy_files_with_wildcard,
-        copy_files_without_wildcard,
-        copy_files_with_delimiter,
+        copy_files,
         copy_files_with_match_glob,
         copy_files_with_list,
         move_single_file,
         move_files_with_list,
+        list_objects,
+        assert_copied_files_exist,
         # TEST TEARDOWN
         [delete_bucket_src, delete_bucket_dst, delete_work_dir(create_workdir_task)],
     )

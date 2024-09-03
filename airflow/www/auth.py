@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import functools
 import logging
-import warnings
 from functools import wraps
 from typing import TYPE_CHECKING, Callable, Sequence, TypeVar, cast
 
@@ -39,7 +38,6 @@ from airflow.auth.managers.models.resource_details import (
     VariableDetails,
 )
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.net import get_hostname
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
@@ -62,28 +60,6 @@ log = logging.getLogger(__name__)
 
 def get_access_denied_message():
     return conf.get("webserver", "access_denied_message")
-
-
-def has_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable[[T], T]:
-    """
-    Check current user's permissions against required permissions.
-
-    Deprecated. Do not use this decorator, use one of the decorator `has_access_*` defined in
-    airflow/www/auth.py instead.
-    This decorator will only work with FAB authentication and not with other auth providers.
-
-    This decorator is widely used in user plugins, do not remove it. See
-    https://github.com/apache/airflow/pull/33213#discussion_r1346287224
-    """
-    warnings.warn(
-        "The 'has_access' decorator is deprecated. Please use one of the decorator `has_access_*`"
-        "defined in airflow/www/auth.py instead.",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    from airflow.providers.fab.auth_manager.decorators.auth import _has_access_fab
-
-    return _has_access_fab(permissions)
 
 
 def has_access_with_pk(f):
@@ -167,7 +143,7 @@ def _has_access(*, is_authorized: bool, func: Callable, args, kwargs):
         return (
             render_template(
                 "airflow/no_roles_permissions.html",
-                hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "redact",
+                hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "",
                 logout_url=get_auth_manager().get_url_logout(),
             ),
             403,
@@ -222,18 +198,19 @@ def has_access_dag(method: ResourceMethod, access_entity: DagAccessEntity | None
 
             if len(unique_dag_ids) > 1:
                 log.warning(
-                    f"There are different dag_ids passed in the request: {unique_dag_ids}. Returning 403."
+                    "There are different dag_ids passed in the request: %s. Returning 403.", unique_dag_ids
                 )
                 log.warning(
-                    f"kwargs: {dag_id_kwargs}, args: {dag_id_args}, "
-                    f"form: {dag_id_form}, json: {dag_id_json}"
+                    "kwargs: %s, args: %s, form: %s, json: %s",
+                    dag_id_kwargs,
+                    dag_id_args,
+                    dag_id_form,
+                    dag_id_json,
                 )
                 return (
                     render_template(
                         "airflow/no_roles_permissions.html",
-                        hostname=get_hostname()
-                        if conf.getboolean("webserver", "EXPOSE_HOSTNAME")
-                        else "redact",
+                        hostname=get_hostname() if conf.getboolean("webserver", "EXPOSE_HOSTNAME") else "",
                         logout_url=get_auth_manager().get_url_logout(),
                     ),
                     403,

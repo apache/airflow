@@ -16,19 +16,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """Example DAG demonstrating the usage of the JdbcOperator."""
+
 from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta
 
 from airflow import DAG
-
-try:
-    from airflow.operators.empty import EmptyOperator
-except ModuleNotFoundError:
-    from airflow.operators.dummy import DummyOperator as EmptyOperator  # type: ignore
-
-from airflow.providers.jdbc.operators.jdbc import JdbcOperator
+from airflow.operators.empty import EmptyOperator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_jdbc_operator"
@@ -44,19 +40,19 @@ with DAG(
     run_this_last = EmptyOperator(task_id="run_this_last")
 
     # [START howto_operator_jdbc_template]
-    delete_data = JdbcOperator(
+    delete_data = SQLExecuteQueryOperator(
         task_id="delete_data",
         sql="delete from my_schema.my_table where dt = {{ ds }}",
-        jdbc_conn_id="my_jdbc_connection",
+        conn_id="my_jdbc_connection",
         autocommit=True,
     )
     # [END howto_operator_jdbc_template]
 
     # [START howto_operator_jdbc]
-    insert_data = JdbcOperator(
+    insert_data = SQLExecuteQueryOperator(
         task_id="insert_data",
         sql="insert into my_schema.my_table select dt, value from my_schema.source_data",
-        jdbc_conn_id="my_jdbc_connection",
+        conn_id="my_jdbc_connection",
         autocommit=True,
     )
     # [END howto_operator_jdbc]

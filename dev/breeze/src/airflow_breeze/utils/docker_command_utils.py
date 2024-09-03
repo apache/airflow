@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Various utils to prepare docker and docker compose commands."""
+
 from __future__ import annotations
 
 import copy
@@ -380,12 +381,15 @@ def prepare_base_build_command(image_params: CommonBuildParams) -> list[str]:
             ]
         )
         if not image_params.docker_host:
+            builder = get_and_use_docker_context(image_params.builder)
             build_command_param.extend(
                 [
                     "--builder",
-                    get_and_use_docker_context(image_params.builder),
+                    builder,
                 ]
             )
+            if builder != "default":
+                build_command_param.append("--load")
     else:
         build_command_param.append("build")
     return build_command_param
@@ -511,37 +515,43 @@ def get_docker_syntax_version() -> str:
     return (AIRFLOW_SOURCES_ROOT / "Dockerfile").read_text().splitlines()[0]
 
 
-def warm_up_docker_builder(image_params: CommonBuildParams):
+def warm_up_docker_builder(image_params_list: list[CommonBuildParams]):
     from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
-    docker_context = get_and_use_docker_context(image_params.builder)
-    if docker_context == "default":
-        return
-    docker_syntax = get_docker_syntax_version()
-    get_console().print(f"[info]Warming up the {docker_context} builder for syntax: {docker_syntax}")
-    warm_up_image_param = copy.deepcopy(image_params)
-    warm_up_image_param.image_tag = "warmup"
-    warm_up_image_param.push = False
-    build_command = prepare_base_build_command(image_params=warm_up_image_param)
-    warm_up_command = []
-    warm_up_command.extend(["docker"])
-    warm_up_command.extend(build_command)
-    warm_up_command.extend(["--platform", image_params.platform, "-"])
-    warm_up_command_result = run_command(
-        warm_up_command,
-        input=f"""{docker_syntax}
-FROM scratch
-LABEL description="test warmup image"
-""",
-        cwd=AIRFLOW_SOURCES_ROOT,
-        text=True,
-        check=False,
-    )
-    if warm_up_command_result.returncode != 0:
-        get_console().print(
-            f"[warning]Warning {warm_up_command_result.returncode} when warming up builder:"
-            f" {warm_up_command_result.stdout} {warm_up_command_result.stderr}"
+    platforms: set[str] = set()
+    for image_params in image_params_list:
+        platforms.add(image_params.platform)
+    get_console().print(f"[info]Warming up the builder for platforms: {platforms}")
+    for platform in platforms:
+        docker_context = get_and_use_docker_context(image_params.builder)
+        if docker_context == "default":
+            return
+        docker_syntax = get_docker_syntax_version()
+        get_console().print(f"[info]Warming up the {docker_context} builder for syntax: {docker_syntax}")
+        warm_up_image_param = copy.deepcopy(image_params_list[0])
+        warm_up_image_param.image_tag = "warmup"
+        warm_up_image_param.push = False
+        warm_up_image_param.platform = platform
+        build_command = prepare_base_build_command(image_params=warm_up_image_param)
+        warm_up_command = []
+        warm_up_command.extend(["docker"])
+        warm_up_command.extend(build_command)
+        warm_up_command.extend(["--platform", platform, "-"])
+        warm_up_command_result = run_command(
+            warm_up_command,
+            input=f"""{docker_syntax}
+    FROM scratch
+    LABEL description="test warmup image"
+    """,
+            cwd=AIRFLOW_SOURCES_ROOT,
+            text=True,
+            check=False,
         )
+        if warm_up_command_result.returncode != 0:
+            get_console().print(
+                f"[warning]Warning {warm_up_command_result.returncode} when warming up builder:"
+                f" {warm_up_command_result.stdout} {warm_up_command_result.stderr}"
+            )
 
 
 OWNERSHIP_CLEANUP_DOCKER_TAG = (
@@ -602,7 +612,7 @@ def remove_docker_networks(networks: list[str] | None = None) -> None:
 # and it does not require the user to belong to the "docker" group.
 # The "default" context is the traditional one that requires "/var/run/docker.sock" to be writeable by the
 # user running the docker command.
-PREFERRED_CONTEXTS = ["desktop-linux", "default"]
+PREFERRED_CONTEXTS = ["orbstack", "desktop-linux", "default"]
 
 
 def autodetect_docker_context():
@@ -638,7 +648,7 @@ def autodetect_docker_context():
         # On Windows, some contexts are used for WSL2. We don't want to use those.
         if context["DockerEndpoint"] == "npipe:////./pipe/dockerDesktopLinuxEngine":
             continue
-        get_console().print(f"[info]Using {preferred_context_name} as context.[/]")
+        get_console().print(f"[info]Using {preferred_context_name!r} as context.[/]")
         return preferred_context_name
     fallback_context = next(iter(known_contexts))
     get_console().print(
@@ -651,11 +661,10 @@ def autodetect_docker_context():
 def get_and_use_docker_context(context: str):
     if context == "autodetect":
         context = autodetect_docker_context()
-    output = run_command(["docker", "context", "use", context], check=False)
-    if output.returncode != 0:
-        get_console().print(
-            f"[warning] Could no use the context {context}. Continuing with current context[/]"
-        )
+    run_command(["docker", "context", "create", context], check=False)
+    output = run_command(["docker", "context", "use", context], check=False, stdout=DEVNULL, stderr=DEVNULL)
+    if output.returncode:
+        get_console().print(f"[warning]Could no use context {context!r}. Continuing with current context[/]")
     return context
 
 

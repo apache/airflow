@@ -27,26 +27,51 @@ import { useAutoRefresh } from "src/context/autorefresh";
 export default function useEventLogs({
   dagId,
   taskId,
+  runId,
   limit,
   offset,
   orderBy,
   after,
   before,
   owner,
+  includedEvents,
+  excludedEvents,
 }: API.GetEventLogsVariables) {
   const { isRefreshOn } = useAutoRefresh();
   return useQuery(
-    ["eventLogs", dagId, taskId, limit, offset, orderBy, after, before, owner],
+    [
+      "eventLogs",
+      dagId,
+      taskId,
+      runId,
+      limit,
+      offset,
+      orderBy,
+      after,
+      before,
+      owner,
+      excludedEvents,
+      includedEvents,
+    ],
     () => {
       const eventsLogUrl = getMetaValue("event_logs_api");
       const orderParam = orderBy ? { order_by: orderBy } : {};
+      const excludedParam = excludedEvents
+        ? { excluded_events: excludedEvents }
+        : {};
+      const includedParam = includedEvents
+        ? { included_events: includedEvents }
+        : {};
       return axios.get<AxiosResponse, API.EventLogCollection>(eventsLogUrl, {
         params: {
           offset,
           limit,
           ...{ dag_id: dagId },
           ...{ task_id: taskId },
+          ...{ run_id: runId },
           ...orderParam,
+          ...excludedParam,
+          ...includedParam,
           after,
           before,
         },
@@ -54,6 +79,7 @@ export default function useEventLogs({
     },
     {
       refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000,
+      keepPreviousData: true,
     }
   );
 }

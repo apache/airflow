@@ -144,6 +144,22 @@ class TestEmrContainerOperator:
             exc.value.trigger, EmrContainerTrigger
         ), f"{exc.value.trigger} is not a EmrContainerTrigger"
 
+    @mock.patch.object(EmrContainerHook, "submit_job")
+    @mock.patch.object(
+        EmrContainerHook, "check_query_status", return_value=EmrContainerHook.INTERMEDIATE_STATES[0]
+    )
+    def test_operator_defer_with_timeout(self, mock_submit_job, mock_check_query_status):
+        self.emr_container.deferrable = True
+        self.emr_container.max_polling_attempts = 1000
+
+        with pytest.raises(TaskDeferred) as e:
+            self.emr_container.execute(context=None)
+
+        trigger = e.value.trigger
+        assert isinstance(trigger, EmrContainerTrigger), f"{trigger} is not a EmrContainerTrigger"
+        assert trigger.waiter_delay == self.emr_container.poll_interval
+        assert trigger.attempts == self.emr_container.max_polling_attempts
+
 
 class TestEmrEksCreateClusterOperator:
     def setup_method(self):

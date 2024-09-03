@@ -35,14 +35,64 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.8.0
+.....
+
+Latest change: 2024-08-12
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
+`09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``
+`a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+=================================================================================================  ===========  =======================================================================
+
+1.7.1
+.....
+
+Latest change: 2024-05-26
+
+=================================================================================================  ===========  ================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+=================================================================================================  ===========  ================================================
+
 1.7.0
 .....
 
-Latest change: 2024-01-26
+Latest change: 2024-05-01
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+`b5b972a106 <https://github.com/apache/airflow/commit/b5b972a1068e19b09d48ec4d7663dd1d996d594f>`_  2024-03-18   ``Update yanked versions in providers changelogs (#38262)``
+`0a74928894 <https://github.com/apache/airflow/commit/0a74928894fb57b0160208262ccacad12da23fc7>`_  2024-03-18   ``Bump ruff to 0.3.3 (#38240)``
+`2523cbf3ca <https://github.com/apache/airflow/commit/2523cbf3caa3b7552b5f06de165aa93bfb6718f5>`_  2024-03-18   ``bump mypy version to 1.9.0 (#38239)``
+=================================================================================================  ===========  =======================================================================
+
+1.6.1
+.....
+
+Latest change: 2024-03-04
 
 =================================================================================================  ===========  ====================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================================================
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+`5b31b63203 <https://github.com/apache/airflow/commit/5b31b63203391dd39f485f1c9013ea55c83ed1aa>`_  2024-02-27   ``Deprecate smtp configs in airflow settings / local_settings (#37711)``
+`84a8f7ecc1 <https://github.com/apache/airflow/commit/84a8f7ecc122e9b63d4d2834ee8994587c467eb2>`_  2024-02-26   ``Fix backwards compatibility for SMTP provider (#37701)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+`bb414f0122 <https://github.com/apache/airflow/commit/bb414f012246aa9874e7c5e84388a1487bbd5bd3>`_  2024-02-10   ``Added D401 support to http, smtp and sftp provider (#37303)``
+`cead3da4a6 <https://github.com/apache/airflow/commit/cead3da4a6f483fa626b81efd27a24dcb5a36ab0>`_  2024-01-26   ``Add docs for RC2 wave of providers for 2nd round of Jan 2024 (#37019)``
 `0b680c9492 <https://github.com/apache/airflow/commit/0b680c94922e3f7ca1f3ada8328e315bbae37dc8>`_  2024-01-26   ``Revert "Provide the logger_name param in providers hooks in order to override the logger name (#36675)" (#37015)``
 `2b4da0101f <https://github.com/apache/airflow/commit/2b4da0101f0314989d148c3c8a02c87e87048974>`_  2024-01-22   ``Prepare docs 2nd wave of Providers January 2024 (#36945)``
 `6bd450da1e <https://github.com/apache/airflow/commit/6bd450da1eb6cacc2ccfd4544d520ae059b75c3b>`_  2024-01-10   ``Provide the logger_name param in providers hooks in order to override the logger name (#36675)``

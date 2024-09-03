@@ -35,8 +35,6 @@ export DOCKER_BUILDKIT=1
 docker build . \
     --build-arg DOCKER_CONTEXT_FILES=./docker-context-files \
     --tag "my-custom-pip-verbose-airflow:0.0.1"
-docker run -it my-beautifulsoup4-airflow:0.0.1 python -c 'import bs4; import sys; sys.exit(0)' && \
-    echo "Success! Beautifulsoup4 installed" && echo
 # [END build]
 docker rmi --force "my-custom-pip-verbose-airflow:0.0.1"
 popd

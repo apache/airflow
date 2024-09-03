@@ -70,7 +70,7 @@ const Dag = () => {
   const dagDataExcludeFields = [
     "defaultView",
     "fileToken",
-    "scheduleInterval",
+    "timetableSummary",
     "tags",
     "owners",
     "params",
@@ -242,6 +242,22 @@ const Dag = () => {
                 </Td>
                 <Td />
               </Tr>
+              {!!dagDetailsData.datasetExpression && (
+                <Tr>
+                  <Td>Dataset Conditions</Td>
+                  <Td>
+                    <Code>
+                      <pre>
+                        {JSON.stringify(
+                          dagDetailsData.datasetExpression,
+                          null,
+                          2
+                        )}
+                      </pre>
+                    </Code>
+                  </Td>
+                </Tr>
+              )}
               {renderDagDetailsData(dagDetailsData, dagDataExcludeFields)}
               <Tr>
                 <Td>Owners</Td>
@@ -282,20 +298,9 @@ const Dag = () => {
                 </Td>
               </Tr>
               <Tr>
-                <Td>Schedule interval</Td>
+                <Td>Timetable</Td>
                 <Td>
-                  {dagDetailsData.scheduleInterval?.type ===
-                  "CronExpression" ? (
-                    <Text>{dagDetailsData.scheduleInterval?.value}</Text>
-                  ) : (
-                    // for TimeDelta and RelativeDelta
-                    <ViewTimeDelta
-                      data={omit(dagDetailsData.scheduleInterval, [
-                        "type",
-                        "value",
-                      ])}
-                    />
-                  )}
+                  <Text>{dagDetailsData.timetableSummary || ""}</Text>
                 </Td>
               </Tr>
               <Tr>

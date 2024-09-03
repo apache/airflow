@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Dataflow operators."""
+
 from __future__ import annotations
 
 import copy
@@ -26,7 +27,7 @@ from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from deprecated import deprecated
+from googleapiclient.errors import HttpError
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -37,9 +38,15 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     process_line_and_extract_dataflow_job_id_callback,
 )
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-from airflow.providers.google.cloud.links.dataflow import DataflowJobLink
+from airflow.providers.google.cloud.links.dataflow import DataflowJobLink, DataflowPipelineLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
-from airflow.providers.google.cloud.triggers.dataflow import TemplateJobStartTrigger
+from airflow.providers.google.cloud.triggers.dataflow import (
+    DataflowStartYamlJobTrigger,
+    TemplateJobStartTrigger,
+)
+from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
+from airflow.providers.google.common.deprecated import deprecated
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.version import version
 
 if TYPE_CHECKING:
@@ -139,9 +146,9 @@ class DataflowConfiguration:
     def __init__(
         self,
         *,
-        job_name: str = "{{task.task_id}}",
+        job_name: str | None = None,
         append_job_name: bool = True,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str | None = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         poll_sleep: int = 10,
@@ -170,7 +177,8 @@ class DataflowConfiguration:
 
 # TODO: Remove one day
 @deprecated(
-    reason="Please use `providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator` instead.",
+    planned_removal_date="November 01, 2024",
+    use_instead="providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator",
     category=AirflowProviderDeprecationWarning,
 )
 class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
@@ -347,7 +355,7 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
         job_name: str = "{{task.task_id}}",
         dataflow_default_options: dict | None = None,
         options: dict | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         poll_sleep: int = 10,
@@ -458,7 +466,7 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
 
 class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
     """
-    Start a Templated Cloud Dataflow job; the parameters of the operation will be passed to the job.
+    Start a Dataflow job with a classic template; the parameters of the operation will be passed to the job.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -605,7 +613,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         self,
         *,
         template: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         job_name: str = "{{task.task_id}}",
         options: dict[str, Any] | None = None,
         dataflow_default_options: dict[str, Any] | None = None,
@@ -641,7 +649,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         self.deferrable = deferrable
         self.expected_terminal_state = expected_terminal_state
 
-        self.job: dict | None = None
+        self.job: dict[str, str] | None = None
 
         self._validate_deferrable_params()
 
@@ -679,29 +687,34 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
         if not self.location:
             self.location = DEFAULT_DATAFLOW_LOCATION
 
-        self.job = self.hook.start_template_dataflow(
+        if not self.deferrable:
+            self.job = self.hook.start_template_dataflow(
+                job_name=self.job_name,
+                variables=options,
+                parameters=self.parameters,
+                dataflow_template=self.template,
+                on_new_job_callback=set_current_job,
+                project_id=self.project_id,
+                location=self.location,
+                environment=self.environment,
+                append_job_name=self.append_job_name,
+            )
+            job_id = self.hook.extract_job_id(self.job)
+            self.xcom_push(context, key="job_id", value=job_id)
+            return job_id
+
+        self.job = self.hook.launch_job_with_template(
             job_name=self.job_name,
             variables=options,
             parameters=self.parameters,
             dataflow_template=self.template,
-            on_new_job_callback=set_current_job,
             project_id=self.project_id,
+            append_job_name=self.append_job_name,
             location=self.location,
             environment=self.environment,
-            append_job_name=self.append_job_name,
         )
-        job_id = self.job.get("id")
-
-        if job_id is None:
-            raise AirflowException(
-                "While reading job object after template execution error occurred. Job object has no id."
-            )
-
-        if not self.deferrable:
-            return job_id
-
-        context["ti"].xcom_push(key="job_id", value=job_id)
-
+        job_id = self.hook.extract_job_id(self.job)
+        DataflowJobLink.persist(self, context, self.project_id, self.location, job_id)
         self.defer(
             trigger=TemplateJobStartTrigger(
                 project_id=self.project_id,
@@ -712,16 +725,17 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
                 impersonation_chain=self.impersonation_chain,
                 cancel_timeout=self.cancel_timeout,
             ),
-            method_name="execute_complete",
+            method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
         )
 
-    def execute_complete(self, context: Context, event: dict[str, Any]):
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> str:
         """Execute after trigger finishes its work."""
         if event["status"] in ("error", "stopped"):
             self.log.info("status: %s, msg: %s", event["status"], event["message"])
             raise AirflowException(event["message"])
 
         job_id = event["job_id"]
+        self.xcom_push(context, key="job_id", value=job_id)
         self.log.info("Task %s completed with response %s", self.task_id, event["message"])
         return job_id
 
@@ -739,7 +753,7 @@ class DataflowTemplatedJobStartOperator(GoogleCloudBaseOperator):
 
 class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
     """
-    Starts flex templates with the Dataflow pipeline.
+    Starts a Dataflow Job with a Flex Template.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -801,6 +815,9 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
     :param expected_terminal_state: The expected final status of the operator on which the corresponding
         Airflow task succeeds. When not specified, it will be determined by the hook.
     :param append_job_name: True if unique suffix has to be appended to job name.
+    :param poll_sleep: The time in seconds to sleep between polling Google
+        Cloud Platform for the dataflow job status while the job is in the
+        JOB_STATE_RUNNING state.
     """
 
     template_fields: Sequence[str] = ("body", "location", "project_id", "gcp_conn_id")
@@ -810,7 +827,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         self,
         body: dict,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         drain_pipeline: bool = False,
         cancel_timeout: int | None = 10 * 60,
@@ -819,6 +836,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         append_job_name: bool = True,
         expected_terminal_state: str | None = None,
+        poll_sleep: int = 10,
         *args,
         **kwargs,
     ) -> None:
@@ -830,11 +848,12 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
         self.drain_pipeline = drain_pipeline
         self.cancel_timeout = cancel_timeout
         self.wait_until_finished = wait_until_finished
-        self.job: dict | None = None
+        self.job: dict[str, str] | None = None
         self.impersonation_chain = impersonation_chain
         self.deferrable = deferrable
         self.expected_terminal_state = expected_terminal_state
         self.append_job_name = append_job_name
+        self.poll_sleep = poll_sleep
 
         self._validate_deferrable_params()
 
@@ -869,32 +888,35 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
             self.job = current_job
             DataflowJobLink.persist(self, context, self.project_id, self.location, self.job.get("id"))
 
-        self.job = self.hook.start_flex_template(
+        if not self.deferrable:
+            self.job = self.hook.start_flex_template(
+                body=self.body,
+                location=self.location,
+                project_id=self.project_id,
+                on_new_job_callback=set_current_job,
+            )
+            job_id = self.hook.extract_job_id(self.job)
+            self.xcom_push(context, key="job_id", value=job_id)
+            return self.job
+
+        self.job = self.hook.launch_job_with_flex_template(
             body=self.body,
             location=self.location,
             project_id=self.project_id,
-            on_new_job_callback=set_current_job,
         )
-
-        job_id = self.job.get("id")
-        if job_id is None:
-            raise AirflowException(
-                "While reading job object after template execution error occurred. Job object has no id."
-            )
-
-        if not self.deferrable:
-            return self.job
-
+        job_id = self.hook.extract_job_id(self.job)
+        DataflowJobLink.persist(self, context, self.project_id, self.location, job_id)
         self.defer(
             trigger=TemplateJobStartTrigger(
                 project_id=self.project_id,
                 job_id=job_id,
                 location=self.location,
                 gcp_conn_id=self.gcp_conn_id,
+                poll_sleep=self.poll_sleep,
                 impersonation_chain=self.impersonation_chain,
                 cancel_timeout=self.cancel_timeout,
             ),
-            method_name="execute_complete",
+            method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
         )
 
     def _append_uuid_to_job_name(self):
@@ -905,7 +927,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
             job_body["jobName"] = job_name
             self.log.info("Job name was changed to %s", job_name)
 
-    def execute_complete(self, context: Context, event: dict):
+    def execute_complete(self, context: Context, event: dict) -> dict[str, str]:
         """Execute after trigger finishes its work."""
         if event["status"] in ("error", "stopped"):
             self.log.info("status: %s, msg: %s", event["status"], event["message"])
@@ -913,6 +935,7 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
 
         job_id = event["job_id"]
         self.log.info("Task %s completed with response %s", job_id, event["message"])
+        self.xcom_push(context, key="job_id", value=job_id)
         job = self.hook.get_job(job_id=job_id, project_id=self.project_id, location=self.location)
         return job
 
@@ -926,6 +949,11 @@ class DataflowStartFlexTemplateOperator(GoogleCloudBaseOperator):
             )
 
 
+@deprecated(
+    planned_removal_date="January 31, 2025",
+    use_instead="DataflowStartYamlJobOperator",
+    category=AirflowProviderDeprecationWarning,
+)
 class DataflowStartSqlJobOperator(GoogleCloudBaseOperator):
     """
     Starts Dataflow SQL query.
@@ -981,7 +1009,7 @@ class DataflowStartSqlJobOperator(GoogleCloudBaseOperator):
         query: str,
         options: dict[str, Any],
         location: str = DEFAULT_DATAFLOW_LOCATION,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
         drain_pipeline: bool = False,
         impersonation_chain: str | Sequence[str] | None = None,
@@ -1031,9 +1059,182 @@ class DataflowStartSqlJobOperator(GoogleCloudBaseOperator):
             )
 
 
+class DataflowStartYamlJobOperator(GoogleCloudBaseOperator):
+    """
+    Launch a Dataflow YAML job and return the result.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowStartYamlJobOperator`
+
+    .. warning::
+        This operator requires ``gcloud`` command (Google Cloud SDK) must be installed on the Airflow worker
+        <https://cloud.google.com/sdk/docs/install>`__
+
+    :param job_name: Required. The unique name to assign to the Cloud Dataflow job.
+    :param yaml_pipeline_file: Required. Path to a file defining the YAML pipeline to run.
+        Must be a local file or a URL beginning with 'gs://'.
+    :param region: Optional. Region ID of the job's regional endpoint. Defaults to 'us-central1'.
+    :param project_id: Required. The ID of the GCP project that owns the job.
+        If set to ``None`` or missing, the default project_id from the GCP connection is used.
+    :param gcp_conn_id: Optional. The connection ID used to connect to GCP.
+    :param append_job_name: Optional. Set to True if a unique suffix has to be appended to the `job_name`.
+        Defaults to True.
+    :param drain_pipeline: Optional. Set to True if you want to stop a streaming pipeline job by draining it
+        instead of canceling when killing the task instance. Note that this does not work for batch pipeline jobs
+        or in the deferrable mode. Defaults to False.
+        For more info see: https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
+    :param deferrable: Optional. Run operator in the deferrable mode.
+    :param expected_terminal_state: Optional. The expected terminal state of the Dataflow job at which the
+        operator task is set to succeed. Defaults to 'JOB_STATE_DONE' for the batch jobs and 'JOB_STATE_RUNNING'
+        for the streaming jobs.
+    :param poll_sleep: Optional. The time in seconds to sleep between polling Google Cloud Platform for the Dataflow job status.
+        Used both for the sync and deferrable mode.
+    :param cancel_timeout: Optional. How long (in seconds) operator should wait for the pipeline to be
+        successfully canceled when the task is being killed.
+    :param jinja_variables: Optional. A dictionary of Jinja2 variables to be used in reifying the yaml pipeline file.
+    :param options: Optional. Additional gcloud or Beam job parameters.
+        It must be a dictionary with the keys matching the optional flag names in gcloud.
+        The list of supported flags can be found at: `https://cloud.google.com/sdk/gcloud/reference/dataflow/yaml/run`.
+        Note that if a flag does not require a value, then its dictionary value must be either True or None.
+        For example, the `--log-http` flag can be passed as {'log-http': True}.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    :return: Dictionary containing the job's data.
+    """
+
+    template_fields: Sequence[str] = (
+        "job_name",
+        "yaml_pipeline_file",
+        "jinja_variables",
+        "options",
+        "region",
+        "project_id",
+        "gcp_conn_id",
+    )
+    template_fields_renderers = {
+        "jinja_variables": "json",
+    }
+    operator_extra_links = (DataflowJobLink(),)
+
+    def __init__(
+        self,
+        *,
+        job_name: str,
+        yaml_pipeline_file: str,
+        region: str = DEFAULT_DATAFLOW_LOCATION,
+        project_id: str = PROVIDE_PROJECT_ID,
+        gcp_conn_id: str = "google_cloud_default",
+        append_job_name: bool = True,
+        drain_pipeline: bool = False,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        poll_sleep: int = 10,
+        cancel_timeout: int | None = 5 * 60,
+        expected_terminal_state: str | None = None,
+        jinja_variables: dict[str, str] | None = None,
+        options: dict[str, Any] | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.job_name = job_name
+        self.yaml_pipeline_file = yaml_pipeline_file
+        self.region = region
+        self.project_id = project_id
+        self.gcp_conn_id = gcp_conn_id
+        self.append_job_name = append_job_name
+        self.drain_pipeline = drain_pipeline
+        self.deferrable = deferrable
+        self.poll_sleep = poll_sleep
+        self.cancel_timeout = cancel_timeout
+        self.expected_terminal_state = expected_terminal_state
+        self.options = options
+        self.jinja_variables = jinja_variables
+        self.impersonation_chain = impersonation_chain
+        self.job_id: str | None = None
+
+    def execute(self, context: Context) -> dict[str, Any]:
+        self.job_id = self.hook.launch_beam_yaml_job(
+            job_name=self.job_name,
+            yaml_pipeline_file=self.yaml_pipeline_file,
+            append_job_name=self.append_job_name,
+            options=self.options,
+            jinja_variables=self.jinja_variables,
+            project_id=self.project_id,
+            location=self.region,
+        )
+
+        DataflowJobLink.persist(self, context, self.project_id, self.region, self.job_id)
+
+        if self.deferrable:
+            self.defer(
+                trigger=DataflowStartYamlJobTrigger(
+                    job_id=self.job_id,
+                    project_id=self.project_id,
+                    location=self.region,
+                    gcp_conn_id=self.gcp_conn_id,
+                    poll_sleep=self.poll_sleep,
+                    cancel_timeout=self.cancel_timeout,
+                    expected_terminal_state=self.expected_terminal_state,
+                    impersonation_chain=self.impersonation_chain,
+                ),
+                method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
+            )
+
+        self.hook.wait_for_done(
+            job_name=self.job_name, location=self.region, project_id=self.project_id, job_id=self.job_id
+        )
+        job = self.hook.get_job(job_id=self.job_id, location=self.region, project_id=self.project_id)
+        return job
+
+    def execute_complete(self, context: Context, event: dict) -> dict[str, Any]:
+        """Execute after the trigger returns an event."""
+        if event["status"] in ("error", "stopped"):
+            self.log.info("status: %s, msg: %s", event["status"], event["message"])
+            raise AirflowException(event["message"])
+        job = event["job"]
+        self.log.info("Job %s completed with response %s", job["id"], event["message"])
+        self.xcom_push(context, key="job_id", value=job["id"])
+
+        return job
+
+    def on_kill(self):
+        """
+        Cancel the dataflow job if a task instance gets killed.
+
+        This method will not be called if a task instance is killed in a deferred
+        state.
+        """
+        self.log.info("On kill called.")
+        if self.job_id:
+            self.hook.cancel_job(
+                job_id=self.job_id,
+                project_id=self.project_id,
+                location=self.region,
+            )
+
+    @cached_property
+    def hook(self) -> DataflowHook:
+        return DataflowHook(
+            gcp_conn_id=self.gcp_conn_id,
+            poll_sleep=self.poll_sleep,
+            impersonation_chain=self.impersonation_chain,
+            drain_pipeline=self.drain_pipeline,
+            cancel_timeout=self.cancel_timeout,
+            expected_terminal_state=self.expected_terminal_state,
+        )
+
+
 # TODO: Remove one day
 @deprecated(
-    reason="Please use `providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator` instead.",
+    planned_removal_date="November 01, 2024",
+    use_instead="providers.apache.beam.operators.beam.BeamRunPythonPipelineOperator",
     category=AirflowProviderDeprecationWarning,
 )
 class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
@@ -1149,7 +1350,7 @@ class DataflowCreatePythonJobOperator(GoogleCloudBaseOperator):
         py_options: list[str] | None = None,
         py_requirements: list[str] | None = None,
         py_system_site_packages: bool = False,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         poll_sleep: int = 10,
@@ -1296,7 +1497,7 @@ class DataflowStopJobOperator(GoogleCloudBaseOperator):
         self,
         job_name_prefix: str | None = None,
         job_id: str | None = None,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         location: str = DEFAULT_DATAFLOW_LOCATION,
         gcp_conn_id: str = "google_cloud_default",
         poll_sleep: int = 10,
@@ -1338,5 +1539,238 @@ class DataflowStopJobOperator(GoogleCloudBaseOperator):
             )
         else:
             self.log.info("No jobs to stop")
+
+        return None
+
+
+class DataflowCreatePipelineOperator(GoogleCloudBaseOperator):
+    """
+    Creates a new Dataflow Data Pipeline instance.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowCreatePipelineOperator`
+
+    :param body: The request body (contains instance of Pipeline). See:
+        https://cloud.google.com/dataflow/docs/reference/data-pipelines/rest/v1/projects.locations.pipelines/create#request-body
+    :param project_id: The ID of the GCP project that owns the job.
+    :param location: The location to direct the Data Pipelines instance to (for example us-central1).
+    :param gcp_conn_id: The connection ID to connect to the Google Cloud
+        Platform.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+
+        .. warning::
+            This option requires Apache Beam 2.39.0 or newer.
+
+    Returns the created Dataflow Data Pipeline instance in JSON representation.
+    """
+
+    operator_extra_links = (DataflowPipelineLink(),)
+
+    def __init__(
+        self,
+        *,
+        body: dict,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.body = body
+        self.project_id = project_id
+        self.location = location
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.dataflow_hook: DataflowHook | None = None
+
+        self.pipeline_name = self.body["name"].split("/")[-1] if self.body else None
+
+    def execute(self, context: Context):
+        if self.body is None:
+            raise AirflowException(
+                "Request Body not given; cannot create a Data Pipeline without the Request Body."
+            )
+        if self.project_id is None:
+            raise AirflowException(
+                "Project ID not given; cannot create a Data Pipeline without the Project ID."
+            )
+        if self.location is None:
+            raise AirflowException("location not given; cannot create a Data Pipeline without the location.")
+
+        self.dataflow_hook = DataflowHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+        self.body["pipelineSources"] = {"airflow": "airflow"}
+        try:
+            self.pipeline = self.dataflow_hook.create_data_pipeline(
+                project_id=self.project_id,
+                body=self.body,
+                location=self.location,
+            )
+        except HttpError as e:
+            if e.resp.status == 409:
+                # If the pipeline already exists, retrieve it
+                self.log.info("Pipeline with given name already exists.")
+                self.pipeline = self.dataflow_hook.get_data_pipeline(
+                    project_id=self.project_id,
+                    pipeline_name=self.pipeline_name,
+                    location=self.location,
+                )
+        DataflowPipelineLink.persist(self, context, self.project_id, self.location, self.pipeline_name)
+        self.xcom_push(context, key="pipeline_name", value=self.pipeline_name)
+        if self.pipeline:
+            if "error" in self.pipeline:
+                raise AirflowException(self.pipeline.get("error").get("message"))
+
+        return self.pipeline
+
+
+class DataflowRunPipelineOperator(GoogleCloudBaseOperator):
+    """
+    Runs a Dataflow Data Pipeline.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowRunPipelineOperator`
+
+    :param pipeline_name:  The display name of the pipeline. In example
+        projects/PROJECT_ID/locations/LOCATION_ID/pipelines/PIPELINE_ID it would be the PIPELINE_ID.
+    :param project_id: The ID of the GCP project that owns the job.
+    :param location: The location to direct the Data Pipelines instance to (for example us-central1).
+    :param gcp_conn_id: The connection ID to connect to the Google Cloud Platform.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+
+    Returns the created Job in JSON representation.
+    """
+
+    operator_extra_links = (DataflowJobLink(),)
+
+    def __init__(
+        self,
+        pipeline_name: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.pipeline_name = pipeline_name
+        self.project_id = project_id
+        self.location = location
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.dataflow_hook: DataflowHook | None = None
+
+    def execute(self, context: Context):
+        self.dataflow_hook = DataflowHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
+
+        if self.pipeline_name is None:
+            raise AirflowException("Data Pipeline name not given; cannot run unspecified pipeline.")
+        if self.project_id is None:
+            raise AirflowException("Data Pipeline Project ID not given; cannot run pipeline.")
+        if self.location is None:
+            raise AirflowException("Data Pipeline location not given; cannot run pipeline.")
+        try:
+            self.job = self.dataflow_hook.run_data_pipeline(
+                pipeline_name=self.pipeline_name,
+                project_id=self.project_id,
+                location=self.location,
+            )["job"]
+            job_id = self.dataflow_hook.extract_job_id(self.job)
+            self.xcom_push(context, key="job_id", value=job_id)
+            DataflowJobLink.persist(self, context, self.project_id, self.location, job_id)
+        except HttpError as e:
+            if e.resp.status == 404:
+                raise AirflowException("Pipeline with given name was not found.")
+        except Exception as exc:
+            raise AirflowException("Error occurred when running Pipeline: %s", exc)
+
+        return self.job
+
+
+class DataflowDeletePipelineOperator(GoogleCloudBaseOperator):
+    """
+    Deletes a Dataflow Data Pipeline.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DataflowDeletePipelineOperator`
+
+    :param pipeline_name: The display name of the pipeline. In example
+        projects/PROJECT_ID/locations/LOCATION_ID/pipelines/PIPELINE_ID it would be the PIPELINE_ID.
+    :param project_id: The ID of the GCP project that owns the job.
+    :param location: The location to direct the Data Pipelines instance to (for example us-central1).
+    :param gcp_conn_id: The connection ID to connect to the Google Cloud Platform.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    def __init__(
+        self,
+        pipeline_name: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.pipeline_name = pipeline_name
+        self.project_id = project_id
+        self.location = location
+        self.gcp_conn_id = gcp_conn_id
+        self.impersonation_chain = impersonation_chain
+        self.dataflow_hook: DataflowHook | None = None
+        self.response: dict | None = None
+
+    def execute(self, context: Context):
+        self.dataflow_hook = DataflowHook(
+            gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
+        )
+
+        if self.pipeline_name is None:
+            raise AirflowException("Data Pipeline name not given; cannot run unspecified pipeline.")
+        if self.project_id is None:
+            raise AirflowException("Data Pipeline Project ID not given; cannot run pipeline.")
+        if self.location is None:
+            raise AirflowException("Data Pipeline location not given; cannot run pipeline.")
+
+        self.response = self.dataflow_hook.delete_data_pipeline(
+            pipeline_name=self.pipeline_name,
+            project_id=self.project_id,
+            location=self.location,
+        )
+
+        if self.response:
+            raise AirflowException(self.response)
 
         return None

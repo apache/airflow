@@ -34,8 +34,8 @@ The DAG itself doesn't care about *what* is happening inside the tasks; it is me
 Declaring a DAG
 ---------------
 
-There are three ways to declare a DAG - either you can use a context manager,
-which will add the DAG to anything inside it implicitly:
+There are three ways to declare a DAG - either you can use ``with`` statement (context manager),
+which will add anything inside it to the DAG implicitly:
 
 .. code-block:: python
    :emphasize-lines: 6-10
@@ -108,7 +108,7 @@ Or, you can also use the more explicit ``set_upstream`` and ``set_downstream`` m
     first_task.set_downstream([second_task, third_task])
     third_task.set_upstream(fourth_task)
 
-There are also shortcuts to declaring more complex dependencies. If you want to make two lists of tasks depend on all parts of each other, you can't use either of the approaches above, so you need to use ``cross_downstream``::
+There are also shortcuts to declaring more complex dependencies. If you want to make a list of tasks depend on another list of tasks, you can't use either of the approaches above, so you need to use ``cross_downstream``::
 
     from airflow.models.baseoperator import cross_downstream
 
@@ -543,14 +543,14 @@ TaskGroups
 
 A TaskGroup can be used to organize tasks into hierarchical groups in Graph view. It is useful for creating repeating patterns and cutting down visual clutter.
 
-Unlike :ref:`concepts:subdags`, TaskGroups are purely a UI grouping concept. Tasks in TaskGroups live on the same original DAG, and honor all the DAG settings and pool configurations.
+Tasks in TaskGroups live on the same original DAG, and honor all the DAG settings and pool configurations.
 
 .. image:: /img/task_group.gif
 
 Dependency relationships can be applied across all tasks in a TaskGroup with the ``>>`` and ``<<`` operators. For example, the following code puts ``task1`` and ``task2`` in TaskGroup ``group1`` and then puts both tasks upstream of ``task3``:
 
 .. code-block:: python
-   :emphasize-lines: 10
+   :emphasize-lines: 4,12
 
     from airflow.decorators import task_group
 
@@ -680,95 +680,6 @@ This is especially useful if your tasks are built dynamically from configuration
     """
 
 
-.. _concepts:subdags:
-
-SubDAGs
--------
-
-.. note::
-
-    SubDAG is deprecated hence TaskGroup is always the preferred choice.
-
-
-Sometimes, you will find that you are regularly adding exactly the same set of tasks to every DAG, or you want to group a lot of tasks into a single, logical unit. This is what SubDAGs are for.
-
-For example, here's a DAG that has a lot of parallel tasks in two sections:
-
-.. image:: /img/subdag_before.png
-
-We can combine all of the parallel ``task-*`` operators into a single SubDAG, so that the resulting DAG resembles the following:
-
-.. image:: /img/subdag_after.png
-
-Note that SubDAG operators should contain a factory method that returns a DAG object. This will prevent the SubDAG from being treated like a separate DAG in the main UI - remember, if Airflow sees a DAG at the top level of a Python file, it will :ref:`load it as its own DAG <concepts-dag-loading>`. For example:
-
-.. exampleinclude:: /../../airflow/example_dags/subdags/subdag.py
-    :language: python
-    :start-after: [START subdag]
-    :end-before: [END subdag]
-
-This SubDAG can then be referenced in your main DAG file:
-
-.. exampleinclude:: /../../airflow/example_dags/example_subdag_operator.py
-    :language: python
-    :start-after: [START example_subdag_operator]
-    :end-before: [END example_subdag_operator]
-
-You can zoom into a :class:`~airflow.operators.subdag.SubDagOperator` from the graph view of the main DAG to show the tasks contained within the SubDAG:
-
-.. image:: /img/subdag_zoom.png
-
-Some other tips when using SubDAGs:
-
--  By convention, a SubDAG's ``dag_id`` should be prefixed by the name of its parent DAG and a dot (``parent.child``)
--  You should share arguments between the main DAG and the SubDAG by passing arguments to the SubDAG operator (as demonstrated above)
--  SubDAGs must have a schedule and be enabled. If the SubDAG's schedule is set to ``None`` or ``@once``, the SubDAG will succeed without having done anything.
--  Clearing a :class:`~airflow.operators.subdag.SubDagOperator` also clears the state of the tasks within it.
--  Marking success on a :class:`~airflow.operators.subdag.SubDagOperator` does not affect the state of the tasks within it.
--  Refrain from using :ref:`concepts:depends-on-past` in tasks within the SubDAG as this can be confusing.
--  You can specify an executor for the SubDAG. It is common to use the SequentialExecutor if you want to run the SubDAG in-process and effectively limit its parallelism to one. Using LocalExecutor can be problematic as it may over-subscribe your worker, running multiple tasks in a single slot.
-
-See ``airflow/example_dags`` for a demonstration.
-
-
-.. note::
-
-    Parallelism is *not honored* by :class:`~airflow.operators.subdag.SubDagOperator`, and so resources could be consumed by SubdagOperators beyond any limits you may have set.
-
-
-
-TaskGroups vs SubDAGs
-----------------------
-
-SubDAGs, while serving a similar purpose as TaskGroups, introduces both performance and functional issues due to its implementation.
-
-* The SubDagOperator starts a BackfillJob, which ignores existing parallelism configurations potentially oversubscribing the worker environment.
-* SubDAGs have their own DAG attributes. When the SubDAG DAG attributes are inconsistent with its parent DAG, unexpected behavior can occur.
-* Unable to see the "full" DAG in one view as SubDAGs exists as a full fledged DAG.
-* SubDAGs introduces all sorts of edge cases and caveats. This can disrupt user experience and expectation.
-
-TaskGroups, on the other hand, is a better option given that it is purely a UI grouping concept. All tasks within the TaskGroup still behave as any other tasks outside of the TaskGroup.
-
-You can see the core differences between these two constructs.
-
-+--------------------------------------------------------+--------------------------------------------------------+
-| TaskGroup                                              | SubDAG                                                 |
-+========================================================+========================================================+
-| Repeating patterns as part of the same DAG             |  Repeating patterns as a separate DAG                  |
-+--------------------------------------------------------+--------------------------------------------------------+
-| One set of views and statistics for the DAG            |  Separate set of views and statistics between parent   |
-|                                                        |  and child DAGs                                        |
-+--------------------------------------------------------+--------------------------------------------------------+
-| One set of DAG configuration                           |  Several sets of DAG configurations                    |
-+--------------------------------------------------------+--------------------------------------------------------+
-| Honors parallelism configurations through existing     |  Does not honor parallelism configurations due to      |
-| SchedulerJob                                           |  newly spawned BackfillJob                             |
-+--------------------------------------------------------+--------------------------------------------------------+
-| Simple construct declaration with context manager      |  Complex DAG factory with naming restrictions          |
-+--------------------------------------------------------+--------------------------------------------------------+
-
-
-
 Packaging DAGs
 --------------
 
@@ -815,7 +726,7 @@ doesn't support many advanced features, please check its
 
 With the ``glob`` syntax, the patterns work just like those in a ``.gitignore`` file:
 
-* The ``*`` character will any number of characters, except ``/``
+* The ``*`` character will match any number of characters, except ``/``
 * The ``?`` character will match any single character, except ``/``
 * The range notation, e.g. ``[a-zA-Z]``, can be used to match one of the characters in a range
 * A pattern can be negated by prefixing with ``!``. Patterns are evaluated in order so
@@ -911,3 +822,15 @@ it in three steps:
 * pause the DAG
 * delete the historical metadata from the database, via UI or API
 * delete the DAG file from the ``DAGS_FOLDER`` and wait until it becomes inactive
+
+DAG Auto-pausing (Experimental)
+-------------------------------
+Dags can be configured to be auto-paused as well.
+There is a Airflow configuration which allows for automatically disabling of a dag
+if it fails for ``N`` number of times consecutively.
+
+- :ref:`config:core__max_consecutive_failed_dag_runs_per_dag`
+
+we can also provide and override these configuration from DAG argument:
+
+- ``max_consecutive_failed_dag_runs``: Overrides :ref:`config:core__max_consecutive_failed_dag_runs_per_dag`.

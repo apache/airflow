@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
+
 import pytest
 
 from airflow.models.dag import DAG
@@ -25,7 +27,7 @@ from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 def test_dagrun_state_enum_escape():
@@ -34,12 +36,13 @@ def test_dagrun_state_enum_escape():
     referenced in DB query
     """
     with create_session() as session:
-        dag = DAG(dag_id="test_dagrun_state_enum_escape", start_date=DEFAULT_DATE)
+        dag = DAG(dag_id="test_dagrun_state_enum_escape", schedule=timedelta(days=1), start_date=DEFAULT_DATE)
         dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             state=DagRunState.QUEUED,
             execution_date=DEFAULT_DATE,
             start_date=DEFAULT_DATE,
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
             session=session,
         )
 

@@ -16,7 +16,9 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from functools import cached_property
+from pathlib import Path
 from typing import TYPE_CHECKING, Sequence, TypedDict
 
 from airflow.configuration import conf
@@ -73,7 +75,7 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
     def is_authorized(
         self,
         *,
-        method: ResourceMethod,
+        method: ResourceMethod | str,
         entity_type: AvpEntities,
         user: AwsAuthManagerUser | None,
         entity_id: str | None = None,
@@ -84,7 +86,10 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
 
         Check whether the user has permissions to access given resource.
 
-        :param method: the method to perform
+        :param method: the method to perform.
+            The method can also be a string if the action has been defined in a plugin.
+            In that case, the action can be anything (e.g. can_do).
+            See https://github.com/apache/airflow/issues/39144
         :param entity_type: the entity type the user accesses
         :param user: the user
         :param entity_id: the entity ID the user accesses. If not provided, all entities of the type will be
@@ -94,7 +99,7 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
         if user is None:
             return False
 
-        entity_list = self._get_user_role_entities(user)
+        entity_list = self._get_user_group_entities(user)
 
         self.log.debug(
             "Making authorization request for user=%s, method=%s, entity_type=%s, entity_id=%s",
@@ -144,7 +149,7 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
         :param requests: the list of requests containing the method, the entity_type and the entity ID
         :param user: the user
         """
-        entity_list = self._get_user_role_entities(user)
+        entity_list = self._get_user_group_entities(user)
 
         self.log.debug("Making batch authorization request for user=%s, requests=%s", user.get_id(), requests)
 
@@ -222,20 +227,33 @@ class AwsAuthManagerAmazonVerifiedPermissionsFacade(LoggingMixin):
         )
         raise AirflowException("Could not find the authorization result.")
 
+    def is_policy_store_schema_up_to_date(self) -> bool:
+        """Return whether the policy store schema equals the latest version of the schema."""
+        resp = self.avp_client.get_schema(
+            policyStoreId=self.avp_policy_store_id,
+        )
+        policy_store_schema = json.loads(resp["schema"])
+
+        schema_path = Path(__file__).parents[0] / "schema.json"
+        with open(schema_path) as schema_file:
+            latest_schema = json.load(schema_file)
+
+        return policy_store_schema == latest_schema
+
     @staticmethod
-    def _get_user_role_entities(user: AwsAuthManagerUser) -> list[dict]:
+    def _get_user_group_entities(user: AwsAuthManagerUser) -> list[dict]:
         user_entity = {
             "identifier": {"entityType": get_entity_type(AvpEntities.USER), "entityId": user.get_id()},
             "parents": [
-                {"entityType": get_entity_type(AvpEntities.ROLE), "entityId": group}
+                {"entityType": get_entity_type(AvpEntities.GROUP), "entityId": group}
                 for group in user.get_groups()
             ],
         }
-        role_entities = [
-            {"identifier": {"entityType": get_entity_type(AvpEntities.ROLE), "entityId": group}}
+        group_entities = [
+            {"identifier": {"entityType": get_entity_type(AvpEntities.GROUP), "entityId": group}}
             for group in user.get_groups()
         ]
-        return [user_entity, *role_entities]
+        return [user_entity, *group_entities]
 
     @staticmethod
     def _build_context(context: dict | None) -> dict | None:

@@ -74,7 +74,7 @@ def test_no_catchup_first_starts_at_current_time(
     [pytest.param(True, id="catchup_true"), pytest.param(False, id="catchup_false")],
 )
 @time_machine.travel(CURRENT_TIME)
-def test_new_schedule_interval_next_info_starts_at_new_time(
+def test_new_schedule_next_info_starts_at_new_time(
     earliest: pendulum.DateTime | None,
     catchup: bool,
 ) -> None:
@@ -276,7 +276,8 @@ class TestCronIntervalDst:
 
         # Last run before DST. Interval starts and ends on 2am UTC (local time is +1).
         next_info = timetable.next_dagrun_info(last_automated_data_interval=None, restriction=restriction)
-        assert next_info and next_info.data_interval == DataInterval(
+        assert next_info
+        assert next_info.data_interval == DataInterval(
             pendulum.datetime(2023, 3, 24, 2, tz=utc),
             pendulum.datetime(2023, 3, 25, 2, tz=utc),
         )
@@ -287,7 +288,8 @@ class TestCronIntervalDst:
             last_automated_data_interval=next_info.data_interval,
             restriction=restriction,
         )
-        assert next_info and next_info.data_interval == DataInterval(
+        assert next_info
+        assert next_info.data_interval == DataInterval(
             pendulum.datetime(2023, 3, 25, 2, tz=utc),
             pendulum.datetime(2023, 3, 26, 1, tz=utc),
         )
@@ -297,7 +299,8 @@ class TestCronIntervalDst:
             last_automated_data_interval=next_info.data_interval,
             restriction=restriction,
         )
-        assert next_info and next_info.data_interval == DataInterval(
+        assert next_info
+        assert next_info.data_interval == DataInterval(
             pendulum.datetime(2023, 3, 26, 1, tz=utc),
             pendulum.datetime(2023, 3, 27, 1, tz=utc),
         )
@@ -312,7 +315,8 @@ class TestCronIntervalDst:
 
         # Last run before DST. Interval starts and ends on 1am UTC (local time is +1).
         next_info = timetable.next_dagrun_info(last_automated_data_interval=None, restriction=restriction)
-        assert next_info and next_info.data_interval == DataInterval(
+        assert next_info
+        assert next_info.data_interval == DataInterval(
             pendulum.datetime(2023, 3, 24, 1, tz=utc),
             pendulum.datetime(2023, 3, 25, 1, tz=utc),
         )
@@ -324,7 +328,8 @@ class TestCronIntervalDst:
             last_automated_data_interval=next_info.data_interval,
             restriction=restriction,
         )
-        assert next_info and next_info.data_interval == DataInterval(
+        assert next_info
+        assert next_info.data_interval == DataInterval(
             pendulum.datetime(2023, 3, 25, 1, tz=utc),
             pendulum.datetime(2023, 3, 26, 1, tz=utc),
         )
@@ -335,7 +340,8 @@ class TestCronIntervalDst:
             last_automated_data_interval=next_info.data_interval,
             restriction=restriction,
         )
-        assert next_info and next_info.data_interval == DataInterval(
+        assert next_info
+        assert next_info.data_interval == DataInterval(
             pendulum.datetime(2023, 3, 26, 1, tz=utc),
             pendulum.datetime(2023, 3, 27, 0, tz=utc),
         )
@@ -350,7 +356,8 @@ class TestCronIntervalDst:
 
         # Last run in DST. Interval starts and ends on 1am UTC (local time is +2).
         next_info = timetable.next_dagrun_info(last_automated_data_interval=None, restriction=restriction)
-        assert next_info and next_info.data_interval == DataInterval(
+        assert next_info
+        assert next_info.data_interval == DataInterval(
             pendulum.datetime(2023, 10, 27, 1, tz=utc),
             pendulum.datetime(2023, 10, 28, 1, tz=utc),
         )
@@ -361,7 +368,8 @@ class TestCronIntervalDst:
             last_automated_data_interval=next_info.data_interval,
             restriction=restriction,
         )
-        assert next_info and next_info.data_interval == DataInterval(
+        assert next_info
+        assert next_info.data_interval == DataInterval(
             pendulum.datetime(2023, 10, 28, 1, tz=utc),
             pendulum.datetime(2023, 10, 29, 2, tz=utc),
         )
@@ -371,7 +379,8 @@ class TestCronIntervalDst:
             last_automated_data_interval=next_info.data_interval,
             restriction=restriction,
         )
-        assert next_info and next_info.data_interval == DataInterval(
+        assert next_info
+        assert next_info.data_interval == DataInterval(
             pendulum.datetime(2023, 10, 29, 2, tz=utc),
             pendulum.datetime(2023, 10, 30, 2, tz=utc),
         )
@@ -387,7 +396,8 @@ class TestCronIntervalDst:
         # Last run before folding. Interval starts and ends on 0am UTC (local
         # time is +2).
         next_info = timetable.next_dagrun_info(last_automated_data_interval=None, restriction=restriction)
-        assert next_info and next_info.data_interval == DataInterval(
+        assert next_info
+        assert next_info.data_interval == DataInterval(
             pendulum.datetime(2023, 10, 27, 0, tz=utc),
             pendulum.datetime(2023, 10, 28, 0, tz=utc),
         )
@@ -401,7 +411,8 @@ class TestCronIntervalDst:
             last_automated_data_interval=next_info.data_interval,
             restriction=restriction,
         )
-        assert next_info and next_info.data_interval == DataInterval(
+        assert next_info
+        assert next_info.data_interval == DataInterval(
             pendulum.datetime(2023, 10, 28, 0, tz=utc),
             pendulum.datetime(2023, 10, 29, 1, tz=utc),
         )
@@ -413,7 +424,8 @@ class TestCronIntervalDst:
             last_automated_data_interval=next_info.data_interval,
             restriction=restriction,
         )
-        assert next_info and next_info.data_interval == DataInterval(
+        assert next_info
+        assert next_info.data_interval == DataInterval(
             pendulum.datetime(2023, 10, 29, 1, tz=utc),
             pendulum.datetime(2023, 10, 30, 1, tz=utc),
         )
@@ -439,7 +451,8 @@ class TestCronIntervalDstNonTrivial:
             last_automated_data_interval=None,
             restriction=restriction,
         )
-        assert next_info and next_info.data_interval == DataInterval(
+        assert next_info
+        assert next_info.data_interval == DataInterval(
             pendulum.datetime(2020, 3, 7, 7 + 8, tz=utc),
             pendulum.datetime(2020, 3, 7, 8 + 8, tz=utc),
         )
@@ -449,7 +462,8 @@ class TestCronIntervalDstNonTrivial:
             last_automated_data_interval=next_info.data_interval,
             restriction=restriction,
         )
-        assert next_info and next_info.data_interval == DataInterval(
+        assert next_info
+        assert next_info.data_interval == DataInterval(
             pendulum.datetime(2020, 3, 7, 8 + 8, tz=utc),
             pendulum.datetime(2020, 3, 8, 7 + 7, tz=utc),
         )
@@ -459,7 +473,8 @@ class TestCronIntervalDstNonTrivial:
             last_automated_data_interval=next_info.data_interval,
             restriction=restriction,
         )
-        assert next_info and next_info.data_interval == DataInterval(
+        assert next_info
+        assert next_info.data_interval == DataInterval(
             pendulum.datetime(2020, 3, 8, 7 + 7, tz=utc),
             pendulum.datetime(2020, 3, 8, 8 + 7, tz=utc),
         )
@@ -477,7 +492,8 @@ class TestCronIntervalDstNonTrivial:
             last_automated_data_interval=None,
             restriction=restriction,
         )
-        assert next_info and next_info.data_interval == DataInterval(
+        assert next_info
+        assert next_info.data_interval == DataInterval(
             pendulum.datetime(2020, 3, 7, 7 + 8, tz=utc),
             pendulum.datetime(2020, 3, 7, 9 + 8, tz=utc),
         )
@@ -487,7 +503,8 @@ class TestCronIntervalDstNonTrivial:
             last_automated_data_interval=next_info.data_interval,
             restriction=restriction,
         )
-        assert next_info and next_info.data_interval == DataInterval(
+        assert next_info
+        assert next_info.data_interval == DataInterval(
             pendulum.datetime(2020, 3, 7, 9 + 8, tz=utc),
             pendulum.datetime(2020, 3, 8, 7 + 7, tz=utc),
         )
@@ -497,7 +514,8 @@ class TestCronIntervalDstNonTrivial:
             last_automated_data_interval=next_info.data_interval,
             restriction=restriction,
         )
-        assert next_info and next_info.data_interval == DataInterval(
+        assert next_info
+        assert next_info.data_interval == DataInterval(
             pendulum.datetime(2020, 3, 8, 7 + 7, tz=utc),
             pendulum.datetime(2020, 3, 8, 9 + 7, tz=utc),
         )
@@ -516,7 +534,8 @@ def test_fold_scheduling():
         last_automated_data_interval=None,
         restriction=restriction,
     )
-    assert next_info and next_info.data_interval == DataInterval(
+    assert next_info
+    assert next_info.data_interval == DataInterval(
         pendulum.datetime(2023, 10, 28, 23, 30, tz=utc),
         pendulum.datetime(2023, 10, 29, 0, 0, tz=utc),  # Locally 2am (DST).
     )
@@ -524,7 +543,8 @@ def test_fold_scheduling():
         last_automated_data_interval=next_info.data_interval,
         restriction=restriction,
     )
-    assert next_info and next_info.data_interval == DataInterval(
+    assert next_info
+    assert next_info.data_interval == DataInterval(
         pendulum.datetime(2023, 10, 29, 0, 0, tz=utc),
         pendulum.datetime(2023, 10, 29, 0, 30, tz=utc),  # Locally 2:30 (DST).
     )
@@ -534,7 +554,8 @@ def test_fold_scheduling():
         last_automated_data_interval=next_info.data_interval,
         restriction=restriction,
     )
-    assert next_info and next_info.data_interval == DataInterval(
+    assert next_info
+    assert next_info.data_interval == DataInterval(
         pendulum.datetime(2023, 10, 29, 0, 30, tz=utc),
         pendulum.datetime(2023, 10, 29, 1, 0, tz=utc),  # Locally 2am (fold, not DST).
     )
@@ -544,7 +565,8 @@ def test_fold_scheduling():
         last_automated_data_interval=next_info.data_interval,
         restriction=restriction,
     )
-    assert next_info and next_info.data_interval == DataInterval(
+    assert next_info
+    assert next_info.data_interval == DataInterval(
         pendulum.datetime(2023, 10, 29, 1, 0, tz=utc),
         pendulum.datetime(2023, 10, 29, 1, 30, tz=utc),  # Locally 2am (fold, not DST).
     )
@@ -554,7 +576,8 @@ def test_fold_scheduling():
         last_automated_data_interval=next_info.data_interval,
         restriction=restriction,
     )
-    assert next_info and next_info.data_interval == DataInterval(
+    assert next_info
+    assert next_info.data_interval == DataInterval(
         pendulum.datetime(2023, 10, 29, 1, 30, tz=utc),
         pendulum.datetime(2023, 10, 29, 2, 0, tz=utc),  # Locally 3am (not DST).
     )

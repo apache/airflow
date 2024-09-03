@@ -20,6 +20,8 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING, Any, Sequence
 
+from airbyte_api.models import JobStatusEnum
+
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -79,37 +81,39 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         """Create Airbyte Job and wait to finish."""
         hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
         job_object = hook.submit_sync_connection(connection_id=self.connection_id)
-        self.job_id = job_object.json()["job"]["id"]
-        state = job_object.json()["job"]["status"]
+        self.job_id = job_object.job_id
+        state = job_object.status
         end_time = time.time() + self.timeout
 
         self.log.info("Job %s was submitted to Airbyte Server", self.job_id)
-        if not self.asynchronous:
-            self.log.info("Waiting for job %s to complete", self.job_id)
-            if self.deferrable:
-                if state in (hook.RUNNING, hook.PENDING, hook.INCOMPLETE):
-                    self.defer(
-                        timeout=self.execution_timeout,
-                        trigger=AirbyteSyncTrigger(
-                            conn_id=self.airbyte_conn_id,
-                            job_id=self.job_id,
-                            end_time=end_time,
-                            poll_interval=60,
-                        ),
-                        method_name="execute_complete",
-                    )
-                elif state == hook.SUCCEEDED:
-                    self.log.info("Job %s completed successfully", self.job_id)
-                    return
-                elif state == hook.ERROR:
-                    raise AirflowException(f"Job failed:\n{self.job_id}")
-                elif state == hook.CANCELLED:
-                    raise AirflowException(f"Job was cancelled:\n{self.job_id}")
-                else:
-                    raise Exception(f"Encountered unexpected state `{state}` for job_id `{self.job_id}")
+
+        if self.asynchronous:
+            self.log.info("Async Task returning job_id %s", self.job_id)
+            return self.job_id
+
+        if not self.deferrable:
+            hook.wait_for_job(job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
+        else:
+            if state in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
+                self.defer(
+                    timeout=self.execution_timeout,
+                    trigger=AirbyteSyncTrigger(
+                        conn_id=self.airbyte_conn_id,
+                        job_id=self.job_id,
+                        end_time=end_time,
+                        poll_interval=60,
+                    ),
+                    method_name="execute_complete",
+                )
+            elif state == JobStatusEnum.SUCCEEDED:
+                self.log.info("Job %s completed successfully", self.job_id)
+                return
+            elif state == JobStatusEnum.FAILED:
+                raise AirflowException(f"Job failed:\n{self.job_id}")
+            elif state == JobStatusEnum.CANCELLED:
+                raise AirflowException(f"Job was cancelled:\n{self.job_id}")
             else:
-                hook.wait_for_job(job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
-            self.log.info("Job %s completed successfully", self.job_id)
+                raise AirflowException(f"Encountered unexpected state `{state}` for job_id `{self.job_id}")
 
         return self.job_id
 
@@ -128,7 +132,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
 
     def on_kill(self):
         """Cancel the job if task is cancelled."""
-        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id)
+        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_type=self.api_type)
         if self.job_id:
             self.log.info("on_kill: cancel the airbyte Job %s", self.job_id)
             hook.cancel_job(self.job_id)

@@ -72,6 +72,7 @@ from airflow_breeze.commands.common_options import (
     option_run_in_parallel,
     option_skip_cleanup,
     option_use_uv,
+    option_uv_http_timeout,
     option_verbose,
 )
 from airflow_breeze.commands.common_package_installation_options import (
@@ -104,7 +105,6 @@ from airflow_breeze.utils.parallel import (
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.recording import generating_command_images
-from airflow_breeze.utils.registry import login_to_github_docker_registry
 from airflow_breeze.utils.run_tests import verify_an_image
 from airflow_breeze.utils.run_utils import (
     fix_group_permissions,
@@ -143,15 +143,15 @@ def check_if_image_building_is_needed(ci_image_params: BuildCiParams, output: Ou
 
 def run_build_in_parallel(
     image_params_list: list[BuildCiParams],
-    python_version_list: list[str],
+    params_description_list: list[str],
     include_success_outputs: bool,
     parallelism: int,
     skip_cleanup: bool,
     debug_resources: bool,
 ) -> None:
-    warm_up_docker_builder(image_params_list[0])
-    with ci_group(f"Building for {python_version_list}"):
-        all_params = [f"CI {image_params.python}" for image_params in image_params_list]
+    warm_up_docker_builder(image_params_list)
+    with ci_group(f"Building for {params_description_list}"):
+        all_params = [f"CI {param_description}" for param_description in params_description_list]
         with run_with_pool(
             parallelism=parallelism,
             all_params=all_params,
@@ -163,6 +163,7 @@ def run_build_in_parallel(
                     run_build_ci_image,
                     kwds={
                         "ci_image_params": image_params,
+                        "param_description": params_description_list[index],
                         "output": outputs[index],
                     },
                 )
@@ -180,10 +181,6 @@ def run_build_in_parallel(
 def prepare_for_building_ci_image(params: BuildCiParams):
     check_if_image_building_is_needed(params, output=None)
     make_sure_builder_configured(params=params)
-    login_to_github_docker_registry(
-        github_token=params.github_token,
-        output=None,
-    )
 
 
 def build_timout_handler(build_process_group_id: int, signum, frame):
@@ -321,6 +318,7 @@ option_version_suffix_for_pypi_ci = click.option(
 @option_upgrade_on_failure
 @option_upgrade_to_newer_dependencies
 @option_use_uv
+@option_uv_http_timeout
 @option_verbose
 @option_version_suffix_for_pypi_ci
 def build(
@@ -362,6 +360,7 @@ def build(
     upgrade_on_failure: bool,
     upgrade_to_newer_dependencies: bool,
     use_uv: bool,
+    uv_http_timeout: int,
     version_suffix_for_pypi: str,
 ):
     """Build CI image. Include building multiple images for all python versions."""
@@ -369,6 +368,7 @@ def build(
     def run_build(ci_image_params: BuildCiParams) -> None:
         return_code, info = run_build_ci_image(
             ci_image_params=ci_image_params,
+            param_description=ci_image_params.python + ":" + ci_image_params.platform,
             output=None,
         )
         if return_code != 0:
@@ -429,6 +429,7 @@ def build(
         upgrade_on_failure=upgrade_on_failure,
         upgrade_to_newer_dependencies=upgrade_to_newer_dependencies,
         use_uv=use_uv,
+        uv_http_timeout=uv_http_timeout,
         version_suffix_for_pypi=version_suffix_for_pypi,
     )
     if platform:
@@ -436,23 +437,38 @@ def build(
     if additional_dev_apt_deps:
         # For CI image we only set additional_dev_apt_deps when we explicitly pass it
         base_build_params.additional_dev_apt_deps = additional_dev_apt_deps
-
     if run_in_parallel:
-        python_version_list = get_python_version_list(python_versions)
         params_list: list[BuildCiParams] = []
-        for python in python_version_list:
-            build_params = deepcopy(base_build_params)
-            build_params.python = python
-            params_list.append(build_params)
-        prepare_for_building_ci_image(params=params_list[0])
-        run_build_in_parallel(
-            image_params_list=params_list,
-            python_version_list=python_version_list,
-            include_success_outputs=include_success_outputs,
-            parallelism=parallelism,
-            skip_cleanup=skip_cleanup,
-            debug_resources=debug_resources,
-        )
+        if prepare_buildx_cache:
+            platforms_list = base_build_params.platform.split(",")
+            for platform in platforms_list:
+                build_params = deepcopy(base_build_params)
+                build_params.platform = platform
+                params_list.append(build_params)
+            prepare_for_building_ci_image(params=params_list[0])
+            run_build_in_parallel(
+                image_params_list=params_list,
+                params_description_list=platforms_list,
+                include_success_outputs=include_success_outputs,
+                parallelism=parallelism,
+                skip_cleanup=skip_cleanup,
+                debug_resources=debug_resources,
+            )
+        else:
+            python_version_list = get_python_version_list(python_versions)
+            for python in python_version_list:
+                build_params = deepcopy(base_build_params)
+                build_params.python = python
+                params_list.append(build_params)
+            prepare_for_building_ci_image(params=params_list[0])
+            run_build_in_parallel(
+                image_params_list=params_list,
+                params_description_list=python_version_list,
+                include_success_outputs=include_success_outputs,
+                parallelism=parallelism,
+                skip_cleanup=skip_cleanup,
+                debug_resources=debug_resources,
+            )
     else:
         prepare_for_building_ci_image(params=base_build_params)
         run_build(ci_image_params=base_build_params)
@@ -494,10 +510,6 @@ def pull(
     """Pull and optionally verify CI images - possibly in parallel for all Python versions."""
     perform_environment_checks()
     check_remote_ghcr_io_commands()
-    login_to_github_docker_registry(
-        github_token=github_token,
-        output=None,
-    )
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
         ci_image_params_list = [
@@ -617,10 +629,7 @@ def verify(
 ):
     """Verify CI image."""
     perform_environment_checks()
-    login_to_github_docker_registry(
-        github_token=github_token,
-        output=None,
-    )
+    check_remote_ghcr_io_commands()
     if (pull or image_name) and run_in_parallel:
         get_console().print(
             "[error]You cannot use --pull,--image-name and --run-in-parallel at the same time. Exiting[/]"
@@ -738,6 +747,7 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
 
 def run_build_ci_image(
     ci_image_params: BuildCiParams,
+    param_description: str,
     output: Output | None,
 ) -> tuple[int, str]:
     """
@@ -754,6 +764,7 @@ def run_build_ci_image(
         for quick future check if the build is needed
 
     :param ci_image_params: CI image parameters
+    :param param_description: description of the parameter used
     :param output: output redirection
     """
     if (
@@ -768,8 +779,7 @@ def run_build_ci_image(
         return 1, "Error: building multi-platform image without --push."
     if get_verbose() or get_dry_run():
         get_console(output=output).print(
-            f"\n[info]Building CI image of airflow from {AIRFLOW_SOURCES_ROOT} "
-            f"python version: {ci_image_params.python}[/]\n"
+            f"\n[info]Building CI image of airflow from {AIRFLOW_SOURCES_ROOT}: {param_description}[/]\n"
         )
     if ci_image_params.prepare_buildx_cache:
         build_command_result = build_cache(
@@ -778,7 +788,7 @@ def run_build_ci_image(
         )
     else:
         env = get_docker_build_env(ci_image_params)
-        subprocess.run(
+        process = subprocess.run(
             [
                 sys.executable,
                 os.fspath(
@@ -786,12 +796,14 @@ def run_build_ci_image(
                     / "scripts"
                     / "ci"
                     / "pre_commit"
-                    / "pre_commit_update_providers_dependencies.py"
+                    / "update_providers_dependencies.py"
                 ),
             ],
             check=False,
         )
-        get_console(output=output).print(f"\n[info]Building CI Image for Python {ci_image_params.python}\n")
+        if process.returncode != 0:
+            sys.exit(process.returncode)
+        get_console(output=output).print(f"\n[info]Building CI Image for {param_description}\n")
         build_command_result = run_command(
             prepare_docker_build_command(
                 image_params=ci_image_params,
@@ -835,7 +847,7 @@ def run_build_ci_image(
                     )
                 else:
                     mark_image_as_refreshed(ci_image_params)
-    return build_command_result.returncode, f"Image build: {ci_image_params.python}"
+    return build_command_result.returncode, f"Image build: {param_description}"
 
 
 def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiParams) -> None:
@@ -887,4 +899,6 @@ def rebuild_or_pull_ci_image_if_needed(command_params: ShellParams | BuildCiPara
         ci_image_params=ci_image_params,
         output=None,
     ):
-        run_build_ci_image(ci_image_params=ci_image_params, output=None)
+        run_build_ci_image(
+            ci_image_params=ci_image_params, param_description=ci_image_params.python, output=None
+        )

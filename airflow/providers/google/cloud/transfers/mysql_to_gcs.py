@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """MySQL to GCS operator."""
+
 from __future__ import annotations
 
 import base64
@@ -29,7 +30,8 @@ from airflow.providers.mysql.hooks.mysql import MySqlHook
 
 
 class MySQLToGCSOperator(BaseSQLToGCSOperator):
-    """Copy data from MySQL to Google Cloud Storage in JSON, CSV or Parquet format.
+    """
+    Copy data from MySQL to Google Cloud Storage in JSON, CSV or Parquet format.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:

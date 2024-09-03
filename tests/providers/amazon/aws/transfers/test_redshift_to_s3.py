@@ -245,6 +245,12 @@ class TestRedshiftToS3Transfer:
                 "SELECT 'Single Quotes Break this Operator'",
             ],
             [False, "key", "SELECT ''", "SELECT ''"],
+            [
+                False,
+                "key",
+                "SELECT ''Single Quotes '' || ''Break this Operator''",
+                "SELECT 'Single Quotes ' || 'Break this Operator'",
+            ],
         ],
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
@@ -298,6 +304,123 @@ class TestRedshiftToS3Transfer:
         assert secret_key in unload_query
         assert_equal_ignore_multiple_spaces(mock_run.call_args.args[0], unload_query)
         assert f"UNLOAD ($${expected_query}$$)" in unload_query
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
+    @mock.patch("airflow.models.connection.Connection")
+    @mock.patch("boto3.session.Session")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
+    def test_custom_select_query_has_precedence_over_table_and_schema(
+        self,
+        mock_run,
+        mock_session,
+        mock_connection,
+        mock_hook,
+    ):
+        access_key = "aws_access_key_id"
+        secret_key = "aws_secret_access_key"
+        mock_session.return_value = Session(access_key, secret_key)
+        mock_session.return_value.access_key = access_key
+        mock_session.return_value.secret_key = secret_key
+        mock_session.return_value.token = None
+        mock_connection.return_value = Connection()
+        mock_hook.return_value = Connection()
+        s3_bucket = "bucket"
+        s3_key = "key"
+        unload_options = [
+            "HEADER",
+        ]
+        select_query = "select column from table"
+
+        op = RedshiftToS3Operator(
+            select_query=select_query,
+            table="table",
+            schema="schema",
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            unload_options=unload_options,
+            include_header=True,
+            redshift_conn_id="redshift_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            dag=None,
+        )
+
+        op.execute(None)
+
+        unload_options = "\n\t\t\t".join(unload_options)
+        credentials_block = build_credentials_block(mock_session.return_value)
+
+        unload_query = op._build_unload_query(credentials_block, select_query, "key/table_", unload_options)
+
+        assert mock_run.call_count == 1
+        assert access_key in unload_query
+        assert secret_key in unload_query
+        assert_equal_ignore_multiple_spaces(mock_run.call_args.args[0], unload_query)
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
+    @mock.patch("airflow.models.connection.Connection")
+    @mock.patch("boto3.session.Session")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook.run")
+    def test_default_select_query_used_when_table_and_schema_missing(
+        self,
+        mock_run,
+        mock_session,
+        mock_connection,
+        mock_hook,
+    ):
+        access_key = "aws_access_key_id"
+        secret_key = "aws_secret_access_key"
+        mock_session.return_value = Session(access_key, secret_key)
+        mock_session.return_value.access_key = access_key
+        mock_session.return_value.secret_key = secret_key
+        mock_session.return_value.token = None
+        mock_connection.return_value = Connection()
+        mock_hook.return_value = Connection()
+        s3_bucket = "bucket"
+        s3_key = "key"
+        unload_options = [
+            "HEADER",
+        ]
+        default_query = "SELECT * FROM schema.table"
+
+        op = RedshiftToS3Operator(
+            table="table",
+            schema="schema",
+            s3_bucket=s3_bucket,
+            s3_key=s3_key,
+            unload_options=unload_options,
+            include_header=True,
+            redshift_conn_id="redshift_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            dag=None,
+        )
+
+        op.execute(None)
+
+        unload_options = "\n\t\t\t".join(unload_options)
+        credentials_block = build_credentials_block(mock_session.return_value)
+
+        unload_query = op._build_unload_query(credentials_block, default_query, "key/table_", unload_options)
+
+        assert mock_run.call_count == 1
+        assert access_key in unload_query
+        assert secret_key in unload_query
+        assert_equal_ignore_multiple_spaces(mock_run.call_args.args[0], unload_query)
+
+    def test_lack_of_select_query_and_schema_and_table_raises_error(self):
+        op = RedshiftToS3Operator(
+            s3_bucket="bucket",
+            s3_key="key",
+            include_header=True,
+            redshift_conn_id="redshift_conn_id",
+            aws_conn_id="aws_conn_id",
+            task_id="task_id",
+            dag=None,
+        )
+
+        with pytest.raises(ValueError):
+            op.execute(None)
 
     @pytest.mark.parametrize("table_as_file_name, expected_s3_key", [[True, "key/table_"], [False, "key"]])
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")
@@ -358,31 +481,21 @@ class TestRedshiftToS3Transfer:
         assert extra["role_arn"] in unload_query
         assert_equal_ignore_multiple_spaces(mock_run.call_args.args[0], unload_query)
 
-    def test_template_fields_overrides(self):
-        assert RedshiftToS3Operator.template_fields == (
-            "s3_bucket",
-            "s3_key",
-            "schema",
-            "table",
-            "unload_options",
-            "select_query",
-            "redshift_conn_id",
-        )
-
     @pytest.mark.parametrize("param", ["sql", "parameters"])
     def test_invalid_param_in_redshift_data_api_kwargs(self, param):
         """
         Test passing invalid param in RS Data API kwargs raises an error
         """
+        redshift_operator = RedshiftToS3Operator(
+            s3_bucket="s3_bucket",
+            s3_key="s3_key",
+            select_query="select_query",
+            task_id="task_id",
+            dag=None,
+            redshift_data_api_kwargs={param: "param"},
+        )
         with pytest.raises(AirflowException):
-            RedshiftToS3Operator(
-                s3_bucket="s3_bucket",
-                s3_key="s3_key",
-                select_query="select_query",
-                task_id="task_id",
-                dag=None,
-                redshift_data_api_kwargs={param: "param"},
-            )
+            redshift_operator.execute(None)
 
     @pytest.mark.parametrize("table_as_file_name, expected_s3_key", [[True, "key/table_"], [False, "key"]])
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.get_connection")

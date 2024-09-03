@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for Google Cloud Storage GCSFileTransformOperator operator.
 """
+
 from __future__ import annotations
 
 import os
@@ -30,18 +31,20 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSDeleteBucketOperator,
     GCSFileTransformOperator,
 )
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "gcs_transform"
 
+RESOURCES_BUCKET_NAME = "airflow-system-tests-resources"
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
 FILE_NAME = "example_upload.txt"
-UPLOAD_FILE_PATH = str(Path(__file__).parent / "resources" / FILE_NAME)
+UPLOAD_FILE_PATH = f"gcs/{FILE_NAME}"
 
 TRANSFORM_SCRIPT_PATH = str(Path(__file__).parent / "resources" / "transform_script.py")
 
@@ -59,11 +62,13 @@ with DAG(
         project_id=PROJECT_ID,
     )
 
-    upload_file = LocalFilesystemToGCSOperator(
+    upload_file = GCSToGCSOperator(
         task_id="upload_file",
-        src=UPLOAD_FILE_PATH,
-        dst=FILE_NAME,
-        bucket=BUCKET_NAME,
+        source_bucket=RESOURCES_BUCKET_NAME,
+        source_object=UPLOAD_FILE_PATH,
+        destination_bucket=BUCKET_NAME,
+        destination_object=FILE_NAME,
+        exact_match=True,
     )
 
     # [START howto_operator_gcs_transform]

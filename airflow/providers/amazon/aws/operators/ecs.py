@@ -40,6 +40,7 @@ from airflow.providers.amazon.aws.utils.identifiers import generate_uuid
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.utils.helpers import prune_dict
+from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     import boto3
@@ -140,7 +141,7 @@ class EcsCreateClusterOperator(EcsBaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
-                    region_name=self.region,
+                    region_name=self.region_name,
                 ),
                 method_name="_complete_exec_with_cluster_desc",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
@@ -217,7 +218,7 @@ class EcsDeleteClusterOperator(EcsBaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
-                    region_name=self.region,
+                    region_name=self.region_name,
                 ),
                 method_name="_complete_exec_with_cluster_desc",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
@@ -257,19 +258,18 @@ class EcsDeregisterTaskDefinitionOperator(EcsBaseOperator):
         self,
         *,
         task_definition: str,
+        wait_for_completion=NOTSET,
+        waiter_delay=NOTSET,
+        waiter_max_attempts=NOTSET,
         **kwargs,
     ):
-        if "wait_for_completion" in kwargs or "waiter_delay" in kwargs or "waiter_max_attempts" in kwargs:
+        if any(arg is not NOTSET for arg in [wait_for_completion, waiter_delay, waiter_max_attempts]):
             warnings.warn(
                 "'wait_for_completion' and waiter related params have no effect and are deprecated, "
                 "please remove them.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            # remove args to not trigger Invalid arguments exception
-            kwargs.pop("wait_for_completion", None)
-            kwargs.pop("waiter_delay", None)
-            kwargs.pop("waiter_max_attempts", None)
 
         super().__init__(**kwargs)
         self.task_definition = task_definition
@@ -311,19 +311,18 @@ class EcsRegisterTaskDefinitionOperator(EcsBaseOperator):
         family: str,
         container_definitions: list[dict],
         register_task_kwargs: dict | None = None,
+        wait_for_completion=NOTSET,
+        waiter_delay=NOTSET,
+        waiter_max_attempts=NOTSET,
         **kwargs,
     ):
-        if "wait_for_completion" in kwargs or "waiter_delay" in kwargs or "waiter_max_attempts" in kwargs:
+        if any(arg is not NOTSET for arg in [wait_for_completion, waiter_delay, waiter_max_attempts]):
             warnings.warn(
                 "'wait_for_completion' and waiter related params have no effect and are deprecated, "
                 "please remove them.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
-            # remove args to not trigger Invalid arguments exception
-            kwargs.pop("wait_for_completion", None)
-            kwargs.pop("waiter_delay", None)
-            kwargs.pop("waiter_max_attempts", None)
 
         super().__init__(**kwargs)
         self.family = family
@@ -496,7 +495,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
         self.number_logs_exception = number_logs_exception
 
         if self.awslogs_region is None:
-            self.awslogs_region = self.region
+            self.awslogs_region = self.region_name
 
         self.arn: str | None = None
         self._started_by: str | None = None
@@ -547,7 +546,7 @@ class EcsRunTaskOperator(EcsBaseOperator):
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
                     aws_conn_id=self.aws_conn_id,
-                    region=self.region,
+                    region=self.region_name,
                     log_group=self.awslogs_group,
                     log_stream=self._get_logs_stream_name(),
                 ),
@@ -587,10 +586,11 @@ class EcsRunTaskOperator(EcsBaseOperator):
         if event["status"] != "success":
             raise AirflowException(f"Error in task execution: {event}")
         self.arn = event["task_arn"]  # restore arn to its updated value, needed for next steps
+        self.cluster = event["cluster"]
         self._after_execution()
         if self._aws_logs_enabled():
             # same behavior as non-deferrable mode, return last line of logs of the task.
-            logs_client = AwsLogsHook(aws_conn_id=self.aws_conn_id, region_name=self.region).conn
+            logs_client = AwsLogsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name).conn
             one_log = logs_client.get_log_events(
                 logGroupName=self.awslogs_group,
                 logStreamName=self._get_logs_stream_name(),

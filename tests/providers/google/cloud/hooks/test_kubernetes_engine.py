@@ -29,11 +29,9 @@ from kubernetes.client.models import V1Deployment, V1DeploymentStatus
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.kubernetes_engine import (
     GKEAsyncHook,
-    GKEDeploymentHook,
     GKEHook,
-    GKEJobHook,
-    GKEPodAsyncHook,
-    GKEPodHook,
+    GKEKubernetesAsyncHook,
+    GKEKubernetesHook,
 )
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
@@ -175,7 +173,7 @@ class TestGKEHookClient:
     @mock.patch(GKE_STRING.format("GKEHook.get_credentials"))
     @mock.patch(GKE_STRING.format("ClusterManagerClient"))
     def test_gke_cluster_client_creation(self, mock_client, mock_get_creds):
-        result = self.gke_hook.get_conn()
+        result = self.gke_hook.get_cluster_manager_client()
         mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
         assert mock_client.return_value == result
         assert self.gke_hook._client == result
@@ -228,10 +226,9 @@ class TestGKEHookDelete:
     def test_delete_cluster_error(self, wait_mock, mock_project_id):
         # To force an error
         self.gke_hook._client.delete_cluster.side_effect = AirflowException("400")
-
         with pytest.raises(AirflowException):
             self.gke_hook.delete_cluster(name="a-cluster")
-            wait_mock.assert_not_called()
+        wait_mock.assert_not_called()
 
 
 class TestGKEHookCreate:
@@ -291,7 +288,7 @@ class TestGKEHookCreate:
 
         with pytest.raises(AirflowException):
             self.gke_hook.create_cluster(mock_cluster_proto)
-            wait_mock.assert_not_called()
+        wait_mock.assert_not_called()
 
     @mock.patch(GKE_STRING.format("GKEHook.log"))
     @mock.patch(GKE_STRING.format("GKEHook.wait_for_operation"))
@@ -304,7 +301,7 @@ class TestGKEHookCreate:
 
         with pytest.raises(AlreadyExists):
             self.gke_hook.create_cluster(cluster={}, project_id=TEST_GCP_PROJECT_ID)
-            wait_mock.assert_not_called()
+        wait_mock.assert_not_called()
 
 
 class TestGKEHookGet:
@@ -343,7 +340,7 @@ class TestGKEHook:
     @mock.patch(GKE_STRING.format("GKEHook.get_credentials"))
     def test_get_client(self, mock_get_credentials, mock_client):
         self.gke_hook._client = None
-        self.gke_hook.get_conn()
+        self.gke_hook.get_cluster_manager_client()
         assert mock_get_credentials.called
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value, client_info=CLIENT_INFO
@@ -389,7 +386,7 @@ class TestGKEHook:
 
         with pytest.raises(GoogleCloudError):
             self.gke_hook.wait_for_operation(mock_op)
-            assert time_mock.call_count == 1
+        assert time_mock.call_count == 1
 
     @mock.patch(GKE_STRING.format("GKEHook.get_operation"))
     @mock.patch(GKE_STRING.format("time.sleep"))
@@ -429,7 +426,7 @@ class TestGKEDeploymentHook:
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
-            self.gke_hook = GKEDeploymentHook(gcp_conn_id="test", ssl_ca_cert=None, cluster_url=None)
+            self.gke_hook = GKEKubernetesHook(gcp_conn_id="test", ssl_ca_cert=None, cluster_url=None)
         self.gke_hook._client = mock.Mock()
 
         def refresh_token(request):
@@ -499,7 +496,7 @@ class TestGKEPodAsyncHook:
 
     @pytest.fixture
     def async_hook(self):
-        return GKEPodAsyncHook(
+        return GKEKubernetesAsyncHook(
             cluster_url=CLUSTER_URL,
             ssl_ca_cert=SSL_CA_CERT,
             gcp_conn_id=GCP_CONN_ID,
@@ -507,38 +504,28 @@ class TestGKEPodAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @mock.patch(BASE_STRING.format("_CredentialsToken"))
-    @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook.get_conn"))
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.read_namespaced_pod"))
-    async def test_get_pod(self, read_namespace_pod_mock, get_conn_mock, mock_token, async_hook):
-        async_hook.get_token = mock.AsyncMock()
-        async_hook.get_token.return_value = mock_token
-
+    async def test_get_pod(self, read_namespace_pod_mock, get_conn_mock, async_hook):
         self.make_mock_awaitable(read_namespace_pod_mock)
 
         await async_hook.get_pod(name=POD_NAME, namespace=POD_NAMESPACE)
 
-        async_hook.get_token.assert_called_once()
-        get_conn_mock.assert_called_once_with(mock_token)
+        get_conn_mock.assert_called_once_with()
         read_namespace_pod_mock.assert_called_with(
             name=POD_NAME,
             namespace=POD_NAMESPACE,
         )
 
     @pytest.mark.asyncio
-    @mock.patch(BASE_STRING.format("_CredentialsToken"))
-    @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook.get_conn"))
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.delete_namespaced_pod"))
-    async def test_delete_pod(self, delete_namespaced_pod, get_conn_mock, mock_token, async_hook):
-        async_hook.get_token = mock.AsyncMock()
-        async_hook.get_token.return_value = mock_token
-
+    async def test_delete_pod(self, delete_namespaced_pod, get_conn_mock, async_hook):
         self.make_mock_awaitable(delete_namespaced_pod)
 
         await async_hook.delete_pod(name=POD_NAME, namespace=POD_NAMESPACE)
 
-        async_hook.get_token.assert_called_once()
-        get_conn_mock.assert_called_once_with(mock_token)
+        get_conn_mock.assert_called_once_with()
         delete_namespaced_pod.assert_called_with(
             name=POD_NAME,
             namespace=POD_NAMESPACE,
@@ -546,19 +533,14 @@ class TestGKEPodAsyncHook:
         )
 
     @pytest.mark.asyncio
-    @mock.patch(BASE_STRING.format("_CredentialsToken"))
-    @mock.patch(GKE_STRING.format("GKEPodAsyncHook.get_conn"))
+    @mock.patch(GKE_STRING.format("GKEKubernetesAsyncHook.get_conn"))
     @mock.patch(GKE_STRING.format("async_client.CoreV1Api.read_namespaced_pod_log"))
-    async def test_read_logs(self, read_namespaced_pod_log, get_conn_mock, mock_token, async_hook, caplog):
-        async_hook.get_token = mock.AsyncMock()
-        async_hook.get_token.return_value = mock_token
-
+    async def test_read_logs(self, read_namespaced_pod_log, get_conn_mock, async_hook, caplog):
         self.make_mock_awaitable(read_namespaced_pod_log, result="Test string #1\nTest string #2\n")
 
         await async_hook.read_logs(name=POD_NAME, namespace=POD_NAMESPACE)
 
-        async_hook.get_token.assert_called_once()
-        get_conn_mock.assert_called_once_with(mock_token)
+        get_conn_mock.assert_called_once_with()
         read_namespaced_pod_log.assert_called_with(
             name=POD_NAME,
             namespace=POD_NAMESPACE,
@@ -609,7 +591,7 @@ class TestGKEPodHook:
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
-            self.gke_hook = GKEPodHook(
+            self.gke_hook = GKEKubernetesHook(
                 gcp_conn_id="test",
                 impersonation_chain=IMPERSONATE_CHAIN,
                 ssl_ca_cert=None,
@@ -671,12 +653,12 @@ class TestGKEPodHook:
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
-            gke_hook = GKEPodHook(
+            gke_hook = GKEKubernetesHook(
                 gcp_conn_id="test",
                 impersonation_chain=IMPERSONATE_CHAIN,
                 ssl_ca_cert=None,
                 cluster_url=None,
-                disable_tcp_keepalive=disable_tcp_keepalive,
+                enable_tcp_keepalive=not disable_tcp_keepalive,
             )
         gke_hook.get_credentials = self._get_credentials
 
@@ -690,7 +672,52 @@ class TestGKEJobHook:
         with mock.patch(
             BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
         ):
-            self.gke_hook = GKEJobHook(gcp_conn_id="test", ssl_ca_cert=None, cluster_url=None)
+            self.gke_hook = GKEKubernetesHook(gcp_conn_id="test", ssl_ca_cert=None, cluster_url=None)
+        self.gke_hook._client = mock.Mock()
+
+        def refresh_token(request):
+            self.credentials.token = "New"
+
+        self.credentials = mock.MagicMock()
+        self.credentials.token = "Old"
+        self.credentials.expired = False
+        self.credentials.refresh = refresh_token
+
+    @mock.patch(GKE_STRING.format("google_requests.Request"))
+    def test_get_connection_update_hook_with_invalid_token(self, mock_request):
+        self.gke_hook._get_config = self._get_config
+        self.gke_hook.get_credentials = self._get_credentials
+        self.gke_hook.get_credentials().expired = True
+        the_client: kubernetes.client.ApiClient = self.gke_hook.get_conn()
+
+        the_client.configuration.refresh_api_key_hook(the_client.configuration)
+
+        assert self.gke_hook.get_credentials().token == "New"
+
+    @mock.patch(GKE_STRING.format("google_requests.Request"))
+    def test_get_connection_update_hook_with_valid_token(self, mock_request):
+        self.gke_hook._get_config = self._get_config
+        self.gke_hook.get_credentials = self._get_credentials
+        self.gke_hook.get_credentials().expired = False
+        the_client: kubernetes.client.ApiClient = self.gke_hook.get_conn()
+
+        the_client.configuration.refresh_api_key_hook(the_client.configuration)
+
+        assert self.gke_hook.get_credentials().token == "Old"
+
+    def _get_config(self):
+        return kubernetes.client.configuration.Configuration()
+
+    def _get_credentials(self):
+        return self.credentials
+
+
+class TestGKECustomResourceHook:
+    def setup_method(self):
+        with mock.patch(
+            BASE_STRING.format("GoogleBaseHook.__init__"), new=mock_base_gcp_hook_default_project_id
+        ):
+            self.gke_hook = GKEKubernetesHook(gcp_conn_id="test", ssl_ca_cert=None, cluster_url=None)
         self.gke_hook._client = mock.Mock()
 
         def refresh_token(request):

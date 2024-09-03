@@ -23,7 +23,7 @@ Data-aware scheduling
 Quickstart
 ----------
 
-In addition to scheduling DAGs based upon time, they can also be scheduled based upon a task updating a dataset.
+In addition to scheduling DAGs based on time, you can also schedule DAGs to run based on when a task updates a dataset.
 
 .. code-block:: python
 
@@ -51,9 +51,9 @@ In addition to scheduling DAGs based upon time, they can also be scheduled based
 What is a "dataset"?
 --------------------
 
-An Airflow dataset is a stand-in for a logical grouping of data. Datasets may be updated by upstream "producer" tasks, and dataset updates contribute to scheduling downstream "consumer" DAGs.
+An Airflow dataset is a logical grouping of data. Upstream producer tasks can update datasets, and dataset updates contribute to scheduling downstream consumer DAGs.
 
-A dataset is defined by a Uniform Resource Identifier (URI):
+`Uniform Resource Identifier (URI) <https://en.wikipedia.org/wiki/Uniform_Resource_Identifier>`_ define datasets:
 
 .. code-block:: python
 
@@ -61,20 +61,20 @@ A dataset is defined by a Uniform Resource Identifier (URI):
 
     example_dataset = Dataset("s3://dataset-bucket/example.csv")
 
-Airflow makes no assumptions about the content or location of the data represented by the URI. It is treated as a string, so any use of regular expressions (eg ``input_\d+.csv``) or file glob patterns (eg ``input_2022*.csv``) as an attempt to create multiple datasets from one declaration will not work.
+Airflow makes no assumptions about the content or location of the data represented by the URI, and treats the URI like a string. This means that Airflow treats any regular expressions, like ``input_\d+.csv``, or file glob patterns, such as ``input_2022*.csv``, as an attempt to create multiple datasets from one declaration, and they will not work.
 
-A dataset should be created with a valid URI. Airflow core and providers define various URI schemes that you can use, such as ``file`` (core), ``postgres`` (by the Postgres provider), and ``s3`` (by the Amazon provider). Third-party providers and plugins may also provide their own schemes. These pre-defined schemes have individual semantics that are expected to be followed.
+You must create datasets with a valid URI. Airflow core and providers define various URI schemes that you can use, such as ``file`` (core), ``postgres`` (by the Postgres provider), and ``s3`` (by the Amazon provider). Third-party providers and plugins might also provide their own schemes. These pre-defined schemes have individual semantics that are expected to be followed.
 
 What is valid URI?
 ------------------
 
-Technically, the URI must conform to the valid character set in RFC 3986. If you don't know what this means, that's basically ASCII alphanumeric characters, plus ``%``,  ``-``, ``_``, ``.``, and ``~``. To identify a resource that cannot be represented by URI-safe characters, encode the resource name with `percent-encoding <https://en.wikipedia.org/wiki/Percent-encoding>`_.
+Technically, the URI must conform to the valid character set in RFC 3986, which is basically ASCII alphanumeric characters, plus ``%``,  ``-``, ``_``, ``.``, and ``~``. To identify a resource that cannot be represented by URI-safe characters, encode the resource name with `percent-encoding <https://en.wikipedia.org/wiki/Percent-encoding>`_.
 
 The URI is also case sensitive, so ``s3://example/dataset`` and ``s3://Example/Dataset`` are considered different. Note that the *host* part of the URI is also case sensitive, which differs from RFC 3986.
 
 Do not use the ``airflow`` scheme, which is is reserved for Airflow's internals.
 
-Airflow always prefers using lower cases in schemes, and case sensitivity is needed in the host part to correctly distinguish between resources.
+Airflow always prefers using lower cases in schemes, and case sensitivity is needed in the host part of the URI to correctly distinguish between resources.
 
 .. code-block:: python
 
@@ -82,7 +82,7 @@ Airflow always prefers using lower cases in schemes, and case sensitivity is nee
     reserved = Dataset("airflow://example_dataset")
     not_ascii = Dataset("èxample_datašet")
 
-If you wish to define datasets with a scheme without additional semantic constraints, use a scheme with the prefix ``x-``. Airflow will skip any semantic validation on URIs with such schemes.
+If you want to define datasets with a scheme that doesn't include additional semantic constraints, use a scheme with the prefix ``x-``. Airflow skips any semantic validation on URIs with these schemes.
 
 .. code-block:: python
 
@@ -99,10 +99,10 @@ The identifier does not have to be absolute; it can be a scheme-less, relative U
 
 Non-absolute identifiers are considered plain strings that do not carry any semantic meanings to Airflow.
 
-Extra information
------------------
+Extra information on dataset
+----------------------------
 
-If needed, an extra dictionary can be included in a Dataset:
+If needed, you can include an extra dictionary in a dataset:
 
 .. code-block:: python
 
@@ -111,7 +111,7 @@ If needed, an extra dictionary can be included in a Dataset:
         extra={"team": "trainees"},
     )
 
-This extra information does not affect a dataset's identity. This means a DAG will be triggered by a dataset with an identical URI, even if the extra dict is different:
+This can be used to supply custom description to the dataset, such as who has ownership to the target file, or what the file is for. The extra information does not affect a dataset's identity. This means a DAG will be triggered by a dataset with an identical URI, even if the extra dict is different:
 
 .. code-block:: python
 
@@ -128,12 +128,12 @@ This extra information does not affect a dataset's identity. This means a DAG wi
             ...,
         )
 
-.. note:: **Security Note:** Dataset URI and extra fields are not encrypted, they are stored in cleartext, in Airflow's metadata database. Do NOT store any sensitive values, especially credentials, in dataset URIs or extra key values!
+.. note:: **Security Note:** Dataset URI and extra fields are not encrypted, they are stored in cleartext in Airflow's metadata database. Do NOT store any sensitive values, especially credentials, in either dataset URIs or extra key values!
 
 How to use datasets in your DAGs
 --------------------------------
 
-You can use datasets to specify data dependencies in your DAGs. Take the following example:
+You can use datasets to specify data dependencies in your DAGs. The following example shows how after the ``producer`` task in the ``producer`` DAG successfully completes, Airflow schedules the ``consumer`` DAG. Airflow marks a dataset as ``updated`` only if the task completes successfully. If the task fails or if it is skipped, no update occurs, and Airflow doesn't schedule the ``consumer`` DAG.
 
 .. code-block:: python
 
@@ -145,15 +145,14 @@ You can use datasets to specify data dependencies in your DAGs. Take the followi
     with DAG(dag_id="consumer", schedule=[example_dataset], ...):
         ...
 
-Once the ``producer`` task in the ``producer`` DAG has completed successfully, Airflow schedules the ``consumer`` DAG. A dataset will be marked as updated only if the task completes successfully — if the task fails or if it is skipped, no update occurs, and the ``consumer`` DAG will not be scheduled.
 
-A listing of the relationships between datasets and DAGs can be found in the
+You can find a listing of the relationships between datasets and DAGs in the
 :ref:`Datasets View<ui:datasets-view>`
 
 Multiple Datasets
 -----------------
 
-As the ``schedule`` parameter is a list, DAGs can require multiple datasets, and the DAG will be scheduled once **all** datasets it consumes have been updated at least once since the last time it was run:
+Because the ``schedule`` parameter is a list, DAGs can require multiple datasets. Airflow schedules a DAG after **all** datasets the DAG consumes have been updated at least once since the last time the DAG ran:
 
 .. code-block:: python
 
@@ -169,7 +168,7 @@ As the ``schedule`` parameter is a list, DAGs can require multiple datasets, and
         ...
 
 
-If one dataset is updated multiple times before all consumed datasets have been updated, the downstream DAG will still only be run once, as shown in this illustration:
+If one dataset is updated multiple times before all consumed datasets update, the downstream DAG still only runs once, as shown in this illustration:
 
 .. ::
     ASCII art representation of this diagram
@@ -224,24 +223,75 @@ If one dataset is updated multiple times before all consumed datasets have been 
 
     }
 
-Notes on schedules
-------------------
+Attaching extra information to an emitting dataset event
+--------------------------------------------------------
 
-The ``schedule`` parameter to your DAG can take either a list of datasets to consume or a timetable-based option. The two cannot currently be mixed.
+.. versionadded:: 2.10.0
 
-When using datasets, in this first release (v2.4) waiting for all datasets in the list to be updated is the only option when multiple datasets are consumed by a DAG. A later release may introduce more fine-grained options allowing for greater flexibility.
+A task with a dataset outlet can optionally attach extra information before it emits a dataset event. This is different
+from `Extra information on dataset`_. Extra information on a dataset statically describes the entity pointed to by the dataset URI; extra information on the *dataset event* instead should be used to annotate the triggering data change, such as how many rows in the database are changed by the update, or the date range covered by it.
 
-Fetching information from a Triggering Dataset Event
+The easiest way to attach extra information to the dataset event is by ``yield``-ing a ``Metadata`` object from a task:
+
+.. code-block:: python
+
+    from airflow.datasets import Dataset
+    from airflow.datasets.metadata import Metadata
+
+    example_s3_dataset = Dataset("s3://dataset/example.csv")
+
+
+    @task(outlets=[example_s3_dataset])
+    def write_to_s3():
+        df = ...  # Get a Pandas DataFrame to write.
+        # Write df to dataset...
+        yield Metadata(example_s3_dataset, {"row_count": len(df)})
+
+Airflow automatically collects all yielded metadata, and populates dataset events with extra information for corresponding metadata objects.
+
+This can also be done in classic operators. The best way is to subclass the operator and override ``execute``. Alternatively, extras can also be added in a task's ``pre_execute`` or ``post_execute`` hook. If you choose to use hooks, however, remember that they are not rerun when a task is retried, and may cause the extra information to not match actual data in certain scenarios.
+
+Another way to achieve the same is by accessing ``outlet_events`` in a task's execution context directly:
+
+.. code-block:: python
+
+    @task(outlets=[example_s3_dataset])
+    def write_to_s3(*, outlet_events):
+        outlet_events[example_s3_dataset].extra = {"row_count": len(df)}
+
+There's minimal magic here---Airflow simply writes the yielded values to the exact same accessor. This also works in classic operators, including ``execute``, ``pre_execute``, and ``post_execute``.
+
+.. _fetching_information_from_previously_emitted_dataset_events:
+
+Fetching information from previously emitted dataset events
+-----------------------------------------------------------
+
+.. versionadded:: 2.10.0
+
+Events of a dataset defined in a task's ``outlets``, as described in the previous section, can be read by a task that declares the same dataset in its ``inlets``. A dataset event entry contains ``extra`` (see previous section for details), ``timestamp`` indicating when the event was emitted from a task, and ``source_task_instance`` linking the event back to its source.
+
+Inlet dataset events can be read with the ``inlet_events`` accessor in the execution context. Continuing from the ``write_to_s3`` task in the previous section:
+
+.. code-block:: python
+
+    @task(inlets=[example_s3_dataset])
+    def post_process_s3_file(*, inlet_events):
+        events = inlet_events[example_s3_dataset]
+        last_row_count = events[-1].extra["row_count"]
+
+Each value in the ``inlet_events`` mapping is a sequence-like object that orders past events of a given dataset by ``timestamp``, earliest to latest. It supports most of Python's list interface, so you can use ``[-1]`` to access the last event, ``[-2:]`` for the last two, etc. The accessor is lazy and only hits the database when you access items inside it.
+
+
+Fetching information from a triggering dataset event
 ----------------------------------------------------
 
-A triggered DAG can fetch information from the Dataset that triggered it using the ``triggering_dataset_events`` template or parameter.
-See more at :ref:`templates-ref`.
+A triggered DAG can fetch information from the dataset that triggered it using the ``triggering_dataset_events`` template or parameter. See more at :ref:`templates-ref`.
 
 Example:
 
 .. code-block:: python
 
-    example_snowflake_dataset = Dataset("snowflake://my_db.my_schema.my_table")
+    example_snowflake_dataset = Dataset("snowflake://my_db/my_schema/my_table")
 
     with DAG(dag_id="load_snowflake_data", schedule="@hourly", ...):
         SQLExecuteQueryOperator(
@@ -268,27 +318,56 @@ Example:
 
         print_triggering_dataset_events()
 
-Note that this example is using `(.values() | first | first) <https://jinja.palletsprojects.com/en/3.1.x/templates/#jinja-filters.first>`_ to fetch the first of one Dataset given to the DAG, and the first of one DatasetEvent for that Dataset. An implementation may be quite complex if you have multiple Datasets, potentially with multiple DatasetEvents.
+Note that this example is using `(.values() | first | first) <https://jinja.palletsprojects.com/en/3.1.x/templates/#jinja-filters.first>`_ to fetch the first of one dataset given to the DAG, and the first of one DatasetEvent for that dataset. An implementation can be quite complex if you have multiple datasets, potentially with multiple DatasetEvents.
 
-Advanced Dataset Scheduling with Conditional Expressions
+
+Manipulating queued dataset events through REST API
+---------------------------------------------------
+
+.. versionadded:: 2.9
+
+In this example, the DAG ``waiting_for_dataset_1_and_2`` will be triggered when tasks update both datasets "dataset-1" and "dataset-2". Once "dataset-1" is updated, Airflow creates a record. This ensures that Airflow knows to trigger the DAG when "dataset-2" is updated. We call such records queued dataset events.
+
+.. code-block:: python
+
+    with DAG(
+        dag_id="waiting_for_dataset_1_and_2",
+        schedule=[Dataset("dataset-1"), Dataset("dataset-2")],
+        ...,
+    ):
+        ...
+
+
+``queuedEvent`` API endpoints are introduced to manipulate such records.
+
+* Get a queued Dataset event for a DAG: ``/datasets/queuedEvent/{uri}``
+* Get queued Dataset events for a DAG: ``/dags/{dag_id}/datasets/queuedEvent``
+* Delete a queued Dataset event for a DAG: ``/datasets/queuedEvent/{uri}``
+* Delete queued Dataset events for a DAG: ``/dags/{dag_id}/datasets/queuedEvent``
+* Get queued Dataset events for a Dataset: ``/dags/{dag_id}/datasets/queuedEvent/{uri}``
+* Delete queued Dataset events for a Dataset: ``DELETE /dags/{dag_id}/datasets/queuedEvent/{uri}``
+
+ For how to use REST API and the parameters needed for these endpoints, please refer to :doc:`Airflow API </stable-rest-api-ref>`.
+
+Advanced dataset scheduling with conditional expressions
 --------------------------------------------------------
 
-Apache Airflow introduces advanced scheduling capabilities that leverage conditional expressions with datasets. This feature allows Airflow users to define complex dependencies for DAG executions based on dataset updates, using logical operators for more granular control over workflow triggers.
+Apache Airflow includes advanced scheduling capabilities that use conditional expressions with datasets. This feature allows you to define complex dependencies for DAG executions based on dataset updates, using logical operators for more control on workflow triggers.
 
-Logical Operators for Datasets
+Logical operators for datasets
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Airflow supports two logical operators for combining dataset conditions:
 
 - **AND (``&``)**: Specifies that the DAG should be triggered only after all of the specified datasets have been updated.
-- **OR (``|``)**: Specifies that the DAG should be triggered when any one of the specified datasets is updated.
+- **OR (``|``)**: Specifies that the DAG should be triggered when any of the specified datasets is updated.
 
-These operators enable the expression of complex dataset update conditions, enhancing the dynamism and flexibility of Airflow workflows.
+These operators enable you to configure your Airflow workflows to use more complex dataset update conditions, making them more dynamic and flexible.
 
-Example Usage
+Example Use
 -------------
 
-**Scheduling Based on Multiple Dataset Updates**
+**Scheduling based on multiple dataset updates**
 
 To schedule a DAG to run only when two specific datasets have both been updated, use the AND operator (``&``):
 
@@ -304,9 +383,9 @@ To schedule a DAG to run only when two specific datasets have both been updated,
     ):
         ...
 
-**Scheduling Based on Any Dataset Update**
+**Scheduling based on any dataset update**
 
-To trigger a DAG execution when either of two datasets is updated, apply the OR operator (``|``):
+To trigger a DAG execution when either one of two datasets is updated, apply the OR operator (``|``):
 
 .. code-block:: python
 
@@ -332,13 +411,122 @@ For scenarios requiring more intricate conditions, such as triggering a DAG when
     ):
         ...
 
-Combining Dataset and Time-Based Schedules
+
+Dynamic data events emitting and dataset creation through DatasetAlias
+-----------------------------------------------------------------------
+A dataset alias can be used to emit dataset events of datasets with association to the aliases. Downstreams can depend on resolved dataset. This feature allows you to define complex dependencies for DAG executions based on dataset updates.
+
+How to use DatasetAlias
+~~~~~~~~~~~~~~~~~~~~~~~
+
+``DatasetAlias`` has one single argument ``name`` that uniquely identifies the dataset. The task must first declare the alias as an outlet, and use ``outlet_events`` or yield ``Metadata`` to add events to it.
+
+The following example creates a dataset event against the S3 URI ``f"s3://bucket/my-task"``  with optional extra information ``extra``. If the dataset does not exist, Airflow will dynamically create it and log a warning message.
+
+**Emit a dataset event during task execution through outlet_events**
+
+.. code-block:: python
+
+    from airflow.datasets import DatasetAlias
+
+
+    @task(outlets=[DatasetAlias("my-task-outputs")])
+    def my_task_with_outlet_events(*, outlet_events):
+        outlet_events["my-task-outputs"].add(Dataset("s3://bucket/my-task"), extra={"k": "v"})
+
+
+**Emit a dataset event during task execution through yielding Metadata**
+
+.. code-block:: python
+
+    from airflow.datasets.metadata import Metadata
+
+
+    @task(outlets=[DatasetAlias("my-task-outputs")])
+    def my_task_with_metadata():
+        s3_dataset = Dataset("s3://bucket/my-task")
+        yield Metadata(s3_dataset, extra={"k": "v"}, alias="my-task-outputs")
+
+Only one dataset event is emitted for an added dataset, even if it is added to the alias multiple times, or added to multiple aliases. However, if different ``extra`` values are passed, it can emit multiple dataset events. In the following example, two dataset events will be emitted.
+
+.. code-block:: python
+
+    from airflow.datasets import DatasetAlias
+
+
+    @task(
+        outlets=[
+            DatasetAlias("my-task-outputs-1"),
+            DatasetAlias("my-task-outputs-2"),
+            DatasetAlias("my-task-outputs-3"),
+        ]
+    )
+    def my_task_with_outlet_events(*, outlet_events):
+        outlet_events["my-task-outputs-1"].add(Dataset("s3://bucket/my-task"), extra={"k": "v"})
+        # This line won't emit an additional dataset event as the dataset and extra are the same as the previous line.
+        outlet_events["my-task-outputs-2"].add(Dataset("s3://bucket/my-task"), extra={"k": "v"})
+        # This line will emit an additional dataset event as the extra is different.
+        outlet_events["my-task-outputs-3"].add(Dataset("s3://bucket/my-task"), extra={"k2": "v2"})
+
+Scheduling based on dataset aliases
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Since dataset events added to an alias are just simple dataset events, a downstream DAG depending on the actual dataset can read dataset events of it normally, without considering the associated aliases. A downstream DAG can also depend on a dataset alias. The authoring syntax is referencing the ``DatasetAlias`` by name, and the associated dataset events are picked up for scheduling. Note that a DAG can be triggered by a task with ``outlets=DatasetAlias("xxx")`` if and only if the alias is resolved into ``Dataset("s3://bucket/my-task")``. The DAG runs whenever a task with outlet ``DatasetAlias("out")`` gets associated with at least one dataset at runtime, regardless of the dataset's identity. The downstream DAG is not triggered if no datasets are associated to the alias for a particular given task run. This also means we can do conditional dataset-triggering.
+
+The dataset alias is resolved to the datasets during DAG parsing. Thus, if the "min_file_process_interval" configuration is set to a high value, there is a possibility that the dataset alias may not be resolved. To resolve this issue, you can trigger DAG parsing.
+
+.. code-block:: python
+
+    with DAG(dag_id="dataset-producer"):
+
+        @task(outlets=[Dataset("example-alias")])
+        def produce_dataset_events():
+            pass
+
+
+    with DAG(dag_id="dataset-alias-producer"):
+
+        @task(outlets=[DatasetAlias("example-alias")])
+        def produce_dataset_events(*, outlet_events):
+            outlet_events["example-alias"].add(Dataset("s3://bucket/my-task"))
+
+
+    with DAG(dag_id="dataset-consumer", schedule=Dataset("s3://bucket/my-task")):
+        ...
+
+    with DAG(dag_id="dataset-alias-consumer", schedule=DatasetAlias("example-alias")):
+        ...
+
+
+In the example provided, once the DAG ``dataset-alias-producer`` is executed, the dataset alias ``DatasetAlias("example-alias")`` will be resolved to ``Dataset("s3://bucket/my-task")``. However, the DAG ``dataset-alias-consumer`` will have to wait for the next DAG re-parsing to update its schedule. To address this, Airflow will re-parse the DAGs relying on the dataset alias ``DatasetAlias("example-alias")`` when it's resolved into datasets that these DAGs did not previously depend on. As a result, both the "dataset-consumer" and "dataset-alias-consumer" DAGs will be triggered after the execution of DAG ``dataset-alias-producer``.
+
+
+Fetching information from previously emitted dataset events through resolved dataset aliases
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+As mentioned in :ref:`Fetching information from previously emitted dataset events<fetching_information_from_previously_emitted_dataset_events>`, inlet dataset events can be read with the ``inlet_events`` accessor in the execution context, and you can also use dataset aliases to access the dataset events triggered by them.
+
+.. code-block:: python
+
+    with DAG(dag_id="dataset-alias-producer"):
+
+        @task(outlets=[DatasetAlias("example-alias")])
+        def produce_dataset_events(*, outlet_events):
+            outlet_events["example-alias"].add(Dataset("s3://bucket/my-task"), extra={"row_count": 1})
+
+
+    with DAG(dag_id="dataset-alias-consumer", schedule=None):
+
+        @task(inlets=[DatasetAlias("example-alias")])
+        def consume_dataset_alias_events(*, inlet_events):
+            events = inlet_events[DatasetAlias("example-alias")]
+            last_row_count = events[-1].extra["row_count"]
+
+
+Combining dataset and time-based schedules
 ------------------------------------------
 
 DatasetTimetable Integration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-With the introduction of ``DatasetTimetable``, it is now possible to schedule DAGs based on both dataset events and time-based schedules. This feature offers flexibility for scenarios where a DAG needs to be triggered by data updates as well as run periodically according to a fixed timetable.
+You can schedule DAGs based on both dataset events and time-based schedules using ``DatasetOrTimeSchedule``. This allows you to create workflows when a DAG needs both to be triggered by data updates and run periodically according to a fixed timetable.
 
-For more detailed information on ``DatasetTimetable`` and its usage, refer to the corresponding section in :ref:`DatasetTimetable <dataset-timetable-section>`.
-
-These examples illustrate how Airflow's conditional dataset expressions can be used to create complex data-dependent scheduling scenarios, providing precise control over when DAGs are triggered in response to data updates.
+For more detailed information on ``DatasetOrTimeSchedule``, refer to the corresponding section in :ref:`DatasetOrTimeSchedule <dataset-timetable-section>`.

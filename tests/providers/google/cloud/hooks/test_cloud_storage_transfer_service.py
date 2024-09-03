@@ -143,9 +143,9 @@ class TestGCPTransferServiceHookWithPassedName:
             httplib2.Response({"status": TEST_HTTP_ERR_CODE}), TEST_HTTP_ERR_CONTENT
         )
 
+        get_transfer_job.return_value = TEST_RESULT_STATUS_DELETED
         with pytest.raises(HttpError):
             # check status DELETED generates new job name
-            get_transfer_job.return_value = TEST_RESULT_STATUS_DELETED
             self.gct_hook.create_transfer_job(body=body)
 
         # check status DISABLED changes to status ENABLED
@@ -283,6 +283,25 @@ class TestGCPTransferServiceHookWithPassedProjectId:
                 PROJECT_ID: TEST_PROJECT_ID,
                 TRANSFER_JOB: {STATUS: GcpTransferJobsStatus.DELETED},
                 TRANSFER_JOB_FIELD_MASK: STATUS,
+            },
+        )
+        execute_method.assert_called_once_with(num_retries=5)
+
+    @mock.patch(
+        "airflow.providers.google.cloud.hooks.cloud_storage_transfer_service."
+        "CloudDataTransferServiceHook.get_conn"
+    )
+    def test_run_transfer_job(self, get_conn):
+        run_method = get_conn.return_value.transferJobs.return_value.run
+        execute_method = run_method.return_value.execute
+        execute_method.return_value = TEST_TRANSFER_OPERATION
+
+        res = self.gct_hook.run_transfer_job(job_name=TEST_TRANSFER_JOB_NAME, project_id=TEST_PROJECT_ID)
+        assert res == TEST_TRANSFER_OPERATION
+        run_method.assert_called_once_with(
+            jobName=TEST_TRANSFER_JOB_NAME,
+            body={
+                PROJECT_ID: TEST_PROJECT_ID,
             },
         )
         execute_method.assert_called_once_with(num_retries=5)
@@ -436,7 +455,7 @@ class TestGCPTransferServiceHookWithPassedProjectId:
 
         with pytest.raises(AirflowException):
             self.gct_hook.wait_for_transfer_job({PROJECT_ID: TEST_PROJECT_ID, NAME: "transferJobs/test-job"})
-            assert list_method.called
+        assert list_method.called
 
     @mock.patch(
         "airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id",

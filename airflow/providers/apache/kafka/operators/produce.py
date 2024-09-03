@@ -30,15 +30,19 @@ local_logger = logging.getLogger("airflow")
 
 def acked(err, msg):
     if err is not None:
-        local_logger.error(f"Failed to deliver message: {err}")
+        local_logger.error("Failed to deliver message: %s", err)
     else:
         local_logger.info(
-            f"Produced record to topic {msg.topic()} partition [{msg.partition()}] @ offset {msg.offset()}"
+            "Produced record to topic %s, partition [%s] @ offset %s",
+            msg.topic(),
+            msg.partition(),
+            msg.offset(),
         )
 
 
 class ProduceToTopicOperator(BaseOperator):
-    """An operator that produces messages to a Kafka topic.
+    """
+    An operator that produces messages to a Kafka topic.
 
     Registers a producer to a kafka topic and publishes messages to the log.
 

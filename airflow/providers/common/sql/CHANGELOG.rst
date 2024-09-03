@@ -25,6 +25,143 @@
 Changelog
 ---------
 
+1.16.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: rm deprecated import (#41461)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+
+1.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Create SQLAlchemy engine from connection in DB Hook and added autocommit param to insert_rows method (#40669)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.14.2
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``FIX: DbApiHook.insert_rows unnecessarily restarting connections (#40615)``
+
+Misc
+~~~~
+
+* ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Resolve postgres deprecations in tests (#40392)``
+
+1.14.1
+......
+
+Misc
+~~~~
+
+* ``implement per-provider tests with lowest-direct dependency resolution (#39946)``
+* ``Update pandas minimum requirement for Python 3.12 (#40272)``
+* ``standardizes template fields for 'BaseSQLOperator' and adds 'database' as a templated field (#39826)``
+
+1.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add 'parameters' as template field for SqlSensor (#39588)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``DbAPiHook: Don't log a warning message if placeholder is None and make sure warning message is formatted correctly (#39690)``
+
+Misc
+~~~~
+
+* ``refactor: The executemany parameter of insert_rows should not be deprecated as for some hooks we don't want to enable a system-wide supports_executemany parameter, that way we can also keep using it in dedicated situations (#39630)``
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Add typing for SqlSensor (#39773)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
+1.13.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+
+
+Features
+~~~~~~~~
+
+* ``Add 'sqlalchemy_url' property to 'DbApiHook' class (#38871)``
+* ``Always use the executemany method when inserting rows in DbApiHook as it's way much faster (#38715)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'DbApiHook.insert_rows' when 'rows' is a generator (#38972)``
+* ``Fix 'update-common-sql-api-stubs' pre-commit check (#38915)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+* ``openlineage, snowflake: do not run external queries for Snowflake (#39113)``
+
+1.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add hook_params to template_fields for BaseSQLOperator-related Operators (#38724)``
+* ``Make 'placeholder' of DbApiHook configurable in UI (#38528)``
+
+Misc
+~~~~
+
+* ``Undeprecating 'DBApiHookForTests._make_common_data_structure' (#38573)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update yanked versions in providers changelogs (#38262)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``fix: try002 for provider common sql (#38800)``
+
+1.11.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make 'executemany' keyword arguments only in 'DbApiHook.insert_rows' (#37840)``
+* ``Limit 'pandas' to '<2.2' (#37748)``
+
 1.11.0
 ......
 
@@ -232,8 +369,10 @@ Misc
 
 * ``Bring back min-airflow-version for preinstalled providers (#31469)``
 
-1.5.0
-.....
+1.5.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``This version might cause unconstrained installation of old airflow version lead to Runtime Error.``
 
 .. note::
   This release of provider is only available for Airflow 2.4+ as explained in the
@@ -337,8 +476,10 @@ Bug Fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Prepare for follow-up release for November providers (#27774)``
 
-1.3.0
-.....
+1.3.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``Breaks Google 8.4.0 provider for SQLExecute``
 
 .. note::
   This release of provider is only available for Airflow 2.3+ as explained in the

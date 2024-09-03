@@ -21,7 +21,7 @@ Installation
 
 This document describes prerequisites for running Breeze and installation process.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Docker Desktop
 --------------
@@ -251,7 +251,7 @@ Run this command to install Breeze (make sure to use ``-e`` flag):
 
   The workaround is to downgrade packaging to 23.1 and re-running the ``pipx install`` command.
 
-  .. code-block::bash
+  .. code-block:: bash
 
      pip install "packaging<23.2"
      pipx install -e ./dev/breeze --force

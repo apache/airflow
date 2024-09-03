@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Example DAG demonstrating the usage of dynamic task mapping with non-TaskFlow operators."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -52,6 +53,7 @@ class SumItOperator(BaseOperator):
 
 with DAG(
     dag_id="example_dynamic_task_mapping_with_no_taskflow_operators",
+    schedule=None,
     start_date=datetime(2022, 3, 4),
     catchup=False,
 ):

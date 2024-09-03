@@ -98,6 +98,16 @@ class TestPgbouncer:
             "foo": "bar",
         } == jmespath.search("metadata.annotations", docs[0])
 
+    def test_pgbouncer_service_static_cluster_ip(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {"enabled": True, "service": {"clusterIp": "10.10.10.10"}},
+            },
+            show_only=["templates/pgbouncer/pgbouncer-service.yaml"],
+        )
+
+        assert "10.10.10.10" == jmespath.search("spec.clusterIP", docs[0])
+
     @pytest.mark.parametrize(
         "revision_history_limit, global_revision_history_limit",
         [(8, 10), (10, 8), (8, None), (None, 10), (None, None)],
@@ -557,7 +567,7 @@ class TestPgbouncerConfig:
                 "pgbouncer": {
                     "enabled": True,
                     "extraContainers": [
-                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
+                        {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
                     ],
                 },
             },
@@ -565,7 +575,7 @@ class TestPgbouncerConfig:
         )
 
         assert {
-            "name": "test-container",
+            "name": "airflow",
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
 

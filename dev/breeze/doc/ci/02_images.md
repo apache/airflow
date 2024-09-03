@@ -438,7 +438,7 @@ can be used for CI images:
 | `AIRFLOW_CONSTRAINTS_LOCATION`    |                                                                         | If not empty, it will override the source of the constraints with the specified URL or file.                                                               |
 | `AIRFLOW_CONSTRAINTS_REFERENCE`   |                                                                         | reference (branch or tag) from GitHub repository from which constraints are used. By default it is set to `constraints-main` but can be `constraints-2-X`. |
 | `AIRFLOW_EXTRAS`                  | `all`                                                                   | extras to install                                                                                                                                          |
-| `UPGRADE_TO_NEWER_DEPENDENCIES`   | `false`                                                                 | If set to a value different than "false" the dependencies are upgraded to newer versions. In CI it is set to build id.                                     |
+| `UPGRADE_INVALIDATION_STRING`     |                                                                         | If set to any random value the dependencies are upgraded to newer versions. In CI it is set to build id.                                                   |
 | `AIRFLOW_PRE_CACHED_PIP_PACKAGES` | `true`                                                                  | Allows to pre-cache airflow PIP packages from the GitHub of Apache Airflow This allows to optimize iterations for Image builds and speeds up CI jobs.      |
 | `ADDITIONAL_AIRFLOW_EXTRAS`       |                                                                         | additional extras to install                                                                                                                               |
 | `ADDITIONAL_PYTHON_DEPS`          |                                                                         | additional Python dependencies to install                                                                                                                  |
@@ -574,7 +574,7 @@ percent-encoded when you access them via UI (/ = %2F)
 
 - \<BRANCH\> might be either "main" or "v2-\*-test"
 - \<X.Y\> - Python version (Major + Minor).Should be one of \["3.8",
-  "3.9", "3.10", "3.11"\].
+  "3.9", "3.10", "3.11", "3.12" \].
 - \<COMMIT_SHA\> - full-length SHA of commit either from the tip of the
   branch (for pushes/schedule) or commit from the tip of the branch used
   for the PR.

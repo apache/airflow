@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Interact with Amazon EKS, using the boto3 library."""
+
 from __future__ import annotations
 
 import base64

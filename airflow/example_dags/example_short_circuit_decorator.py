@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Example DAG demonstrating the usage of the `@task.short_circuit()` TaskFlow decorator."""
+
 from __future__ import annotations
 
 import pendulum
@@ -25,7 +26,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 
-@dag(start_date=pendulum.datetime(2021, 1, 1, tz="UTC"), catchup=False, tags=["example"])
+@dag(schedule=None, start_date=pendulum.datetime(2021, 1, 1, tz="UTC"), catchup=False, tags=["example"])
 def example_short_circuit_decorator():
     # [START howto_operator_short_circuit]
     @task.short_circuit()

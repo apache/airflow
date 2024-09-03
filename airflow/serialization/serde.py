@@ -85,7 +85,8 @@ def decode(d: dict[str, Any]) -> tuple[str, int, Any]:
 
 
 def serialize(o: object, depth: int = 0) -> U | None:
-    """Serialize an object into a representation consisting only built-in types.
+    """
+    Serialize an object into a representation consisting only built-in types.
 
     Primitives (int, float, bool, str) are returned as-is. Built-in collections
     are iterated over, where it is assumed that keys in a dict can be represented
@@ -168,7 +169,7 @@ def serialize(o: object, depth: int = 0) -> U | None:
 
     # pydantic models are recursive
     if _is_pydantic(cls):
-        data = o.dict()  # type: ignore[attr-defined]
+        data = o.model_dump()  # type: ignore[attr-defined]
         dct[DATA] = serialize(data, depth + 1)
         return dct
 
@@ -182,7 +183,7 @@ def serialize(o: object, depth: int = 0) -> U | None:
     # attr annotated
     if attr.has(cls):
         # Only include attributes which we can pass back to the classes constructor
-        data = attr.asdict(cast(attr.AttrsInstance, o), recurse=True, filter=lambda a, v: a.init)
+        data = attr.asdict(cast(attr.AttrsInstance, o), recurse=False, filter=lambda a, v: a.init)
         dct[DATA] = serialize(data, depth + 1)
         return dct
 
@@ -315,7 +316,8 @@ def _match_regexp(classname: str):
 
 
 def _stringify(classname: str, version: int, value: T | None) -> str:
-    """Convert a previously serialized object in a somewhat human-readable format.
+    """
+    Convert a previously serialized object in a somewhat human-readable format.
 
     This function is not designed to be exact, and will not extensively traverse
     the whole tree of an object.
@@ -337,7 +339,8 @@ def _stringify(classname: str, version: int, value: T | None) -> str:
 
 
 def _is_pydantic(cls: Any) -> bool:
-    """Return True if the class is a pydantic model.
+    """
+    Return True if the class is a pydantic model.
 
     Checking is done by attributes as it is significantly faster than
     using isinstance.
@@ -346,7 +349,8 @@ def _is_pydantic(cls: Any) -> bool:
 
 
 def _is_namedtuple(cls: Any) -> bool:
-    """Return True if the class is a namedtuple.
+    """
+    Return True if the class is a namedtuple.
 
     Checking is done by attributes as it is significantly faster than
     using isinstance.

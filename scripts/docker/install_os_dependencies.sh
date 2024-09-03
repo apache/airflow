@@ -35,7 +35,7 @@ fi
 function get_dev_apt_deps() {
     if [[ "${DEV_APT_DEPS=}" == "" ]]; then
         DEV_APT_DEPS="apt-transport-https apt-utils build-essential ca-certificates dirmngr \
-freetds-bin freetds-dev git graphviz graphviz-dev krb5-user ldap-utils libffi-dev libgeos-dev \
+freetds-bin freetds-dev git graphviz graphviz-dev krb5-user ldap-utils libev4 libev-dev libffi-dev libgeos-dev \
 libkrb5-dev libldap2-dev libleveldb1d libleveldb-dev libsasl2-2 libsasl2-dev libsasl2-modules \
 libssl-dev libxmlsec1 libxmlsec1-dev locales lsb-release openssh-client pkgconf sasl2-bin \
 software-properties-common sqlite3 sudo unixodbc unixodbc-dev zlib1g-dev"
@@ -52,17 +52,13 @@ function get_runtime_apt_deps() {
     echo
     echo "DEBIAN CODENAME: ${debian_version}"
     echo
-    if [[ "${debian_version}" == "bullseye" ]]; then
-        debian_version_apt_deps="libffi7 libldap-2.4-2 libssl1.1 netcat"
-    else
-        debian_version_apt_deps="libffi8 libldap-2.5-0 libssl3 netcat-openbsd"
-    fi
+    debian_version_apt_deps="libffi8 libldap-2.5-0 libssl3 netcat-openbsd"
     echo
     echo "APPLIED INSTALLATION CONFIGURATION FOR DEBIAN VERSION: ${debian_version}"
     echo
     if [[ "${RUNTIME_APT_DEPS=}" == "" ]]; then
         RUNTIME_APT_DEPS="apt-transport-https apt-utils ca-certificates \
-curl dumb-init freetds-bin krb5-user libgeos-dev \
+curl dumb-init freetds-bin krb5-user libev4 libgeos-dev \
 ldap-utils libsasl2-2 libsasl2-modules libxmlsec1 locales ${debian_version_apt_deps} \
 lsb-release openssh-client python3-selinux rsync sasl2-bin sqlite3 sudo unixodbc"
         export RUNTIME_APT_DEPS
@@ -105,19 +101,6 @@ function install_debian_dev_dependencies() {
     echo
     echo "DEBIAN CODENAME: ${debian_version}"
     echo
-    if [[ "${debian_version}" == "bullseye" ]]; then
-        echo
-        echo "Bullseye detected - replacing dependencies in additional dev apt deps"
-        echo
-        # Replace dependencies in additional dev apt deps to be compatible with Bullseye
-        ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS//libgcc-11-dev/libgcc-10-dev}
-        ADDITIONAL_DEV_APT_DEPS=${ADDITIONAL_DEV_APT_DEPS//netcat-openbsd/netcat}
-        echo
-        echo "Replaced bullseye dev apt dependencies"
-        echo "${ADDITIONAL_DEV_APT_COMMAND}"
-        echo
-    fi
-
     # shellcheck disable=SC2086
     apt-get install -y --no-install-recommends ${DEV_APT_DEPS} ${ADDITIONAL_DEV_APT_DEPS}
 }

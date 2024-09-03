@@ -35,14 +35,99 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-3.6.1
+3.10.0
+......
+
+Latest change: 2024-08-12
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
+`09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``
+`a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+=================================================================================================  ===========  =======================================================================
+
+3.9.0
 .....
 
-Latest change: 2024-01-31
+Latest change: 2024-06-22
+
+=================================================================================================  ===========  ===================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================================
+`6e5ae26382 <https://github.com/apache/airflow/commit/6e5ae26382b328e88907e8301d4b2352ef8524c5>`_  2024-06-22   ``Prepare docs 2nd wave June 2024 (#40273)``
+`83c118413c <https://github.com/apache/airflow/commit/83c118413cef8c140276489b408c4b46ea0a30b5>`_  2024-06-04   ``Add 'retry_from_failure' parameter to DbtCloudRunJobOperator (#38868)``
+`5d227860ad <https://github.com/apache/airflow/commit/5d227860ad38db8afd724fb9d3d9607c9888683e>`_  2024-06-04   ``Fix 'DbtCloudRunJobOperator' to Use Correct Status Parameters for 'reuse_existing_run' (#40048)``
+=================================================================================================  ===========  ===================================================================================================
+
+3.8.1
+.....
+
+Latest change: 2024-05-26
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`34500f3a2f <https://github.com/apache/airflow/commit/34500f3a2fa4652272bc831e3c18fd2a6a2da5ef>`_  2024-05-26   ``Prepare docs 3rd wave May 2024 (#39738)``
+`2b1a2f8d56 <https://github.com/apache/airflow/commit/2b1a2f8d561e569df194c4ee0d3a18930738886e>`_  2024-05-11   ``Reapply templates for all providers (#39554)``
+`2c05187b07 <https://github.com/apache/airflow/commit/2c05187b07baf7c41a32b18fabdbb3833acc08eb>`_  2024-05-10   ``Faster 'airflow_version' imports (#39552)``
+`3938f71dfa <https://github.com/apache/airflow/commit/3938f71dfae21c84a3518625543a28ad02edf641>`_  2024-05-08   ``Scheduler to handle incrementing of try_number (#39336)``
+`73918925ed <https://github.com/apache/airflow/commit/73918925edaf1c94790a6ad8bec01dec60accfa1>`_  2024-05-08   ``Simplify 'airflow_version' imports (#39497)``
+`7550a11f1d <https://github.com/apache/airflow/commit/7550a11f1d094b768942f28698b87c4f69fad7f5>`_  2024-05-07   ``Add (optional) dependency between dbt-cloud and openlineage providers (#39366)``
+`c528090335 <https://github.com/apache/airflow/commit/c528090335c7063cf4112a59ba8cc3353364e8ce>`_  2024-05-06   ``Validate dbt 'cause' field to be less than 255 characters (#38896)``
+=================================================================================================  ===========  ==================================================================================
+
+3.8.0
+.....
+
+Latest change: 2024-05-01
+
+=================================================================================================  ===========  ==========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==========================================================================================================
+`fe4605a10e <https://github.com/apache/airflow/commit/fe4605a10e26f1b8a180979ba5765d1cb7fb0111>`_  2024-05-01   ``Prepare docs 1st wave May 2024 (#39328)``
+`d4bdffc45c <https://github.com/apache/airflow/commit/d4bdffc45cd2e55783bba1e7442c346aef7ca573>`_  2024-04-30   ``migrate to dbt v3 api for project endpoints (#39214)``
+`79b5443d40 <https://github.com/apache/airflow/commit/79b5443d40545d16f219f4f7dc260257fdf45bbd>`_  2024-04-30   ``fix(dbt): fix wrong payload set when reuse_existing_run set to True in DbtCloudRunJobOperator (#39271)``
+`ead9b00f7c <https://github.com/apache/airflow/commit/ead9b00f7cd5acecf9d575c459bb62633088436a>`_  2024-04-25   ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+=================================================================================================  ===========  ==========================================================================================================
+
+3.7.1
+.....
+
+Latest change: 2024-04-10
+
+=================================================================================================  ===========  ====================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================
+`5fa80b6aea <https://github.com/apache/airflow/commit/5fa80b6aea60f93cdada66f160e2b54f723865ca>`_  2024-04-10   ``Prepare docs 1st wave (RC1) April 2024 (#38863)``
+`9c4e333f5b <https://github.com/apache/airflow/commit/9c4e333f5b7cc6f950f6791500ecd4bad41ba2f9>`_  2024-03-25   ``fix: disabled_for_operators now stops whole event emission (#38033)``
+`cddf1cc7dc <https://github.com/apache/airflow/commit/cddf1cc7dc2869f40a328f2619b776363aea6969>`_  2024-03-22   ``fix(dbt): add return statement to yield within a while loop in triggers (#38395)``
+=================================================================================================  ===========  ====================================================================================
+
+3.7.0
+.....
+
+Latest change: 2024-03-04
+
+=================================================================================================  ===========  ==================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================================================
+`83316b8158 <https://github.com/apache/airflow/commit/83316b81584c9e516a8142778fc509f19d95cc3e>`_  2024-03-04   ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+`26964f8a8e <https://github.com/apache/airflow/commit/26964f8a8e740115d40c608b153fa28d6f5979bf>`_  2024-02-20   ``feat(providers/dbt): add reuse_existing_run for allowing DbtCloudRunJobOperator to reuse existing run (#37474)``
+`5a0be392e6 <https://github.com/apache/airflow/commit/5a0be392e66f8e5426ba3478621115e92fcf245b>`_  2024-02-16   ``Add comment about versions updated by release manager (#37488)``
+=================================================================================================  ===========  ==================================================================================================================
+
+3.6.1
+.....
+
+Latest change: 2024-02-12
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`bfb054e9e8 <https://github.com/apache/airflow/commit/bfb054e9e867b8b9a6a449e43bfba97f645e025e>`_  2024-02-12   ``Prepare docs 1st wave of Providers February 2024 (#37326)``
 `0c4210af62 <https://github.com/apache/airflow/commit/0c4210af62d2e514f37c5c973163c0748716ccff>`_  2024-01-31   ``Bump aiohttp min version to avoid CVE-2024-23829 and CVE-2024-23334 (#37110)``
 `dec2662190 <https://github.com/apache/airflow/commit/dec2662190dd4480d0c631da733e19d2ec9a479d>`_  2024-01-30   ``feat: Switch all class, functions, methods deprecations to decorators (#36876)``
 =================================================================================================  ===========  ==================================================================================

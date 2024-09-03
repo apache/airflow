@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Database sub-commands."""
+
 from __future__ import annotations
 
 import logging
@@ -24,10 +25,11 @@ import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 
-from packaging.version import parse as parse_version
+from packaging.version import InvalidVersion, parse as parse_version
 from tenacity import Retrying, stop_after_attempt, wait_fixed
 
 from airflow import settings
+from airflow.api_internal.internal_api_call import InternalApiConfig
 from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils, db
 from airflow.utils.db import _REVISION_HEADS_MAP
@@ -48,6 +50,7 @@ def initdb(args):
         "`db init` is deprecated.  Use `db migrate` instead to migrate the db and/or "
         "airflow connections create-default-connections to create the default connections",
         DeprecationWarning,
+        stacklevel=2,
     )
     print(f"DB: {settings.engine.url!r}")
     db.initdb()
@@ -65,7 +68,7 @@ def resetdb(args):
 
 def upgradedb(args):
     """Upgrades the metadata database."""
-    warnings.warn("`db upgrade` is deprecated. Use `db migrate` instead.", DeprecationWarning)
+    warnings.warn("`db upgrade` is deprecated. Use `db migrate` instead.", DeprecationWarning, stacklevel=2)
     migratedb(args)
 
 
@@ -108,16 +111,24 @@ def migratedb(args):
     if args.from_revision:
         from_revision = args.from_revision
     elif args.from_version:
-        if parse_version(args.from_version) < parse_version("2.0.0"):
+        try:
+            parsed_version = parse_version(args.from_version)
+        except InvalidVersion:
+            raise SystemExit(f"Invalid version {args.from_version!r} supplied as `--from-version`.")
+        if parsed_version < parse_version("2.0.0"):
             raise SystemExit("--from-version must be greater or equal to than 2.0.0")
         from_revision = get_version_revision(args.from_version)
         if not from_revision:
             raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
 
     if args.to_version:
+        try:
+            parse_version(args.to_version)
+        except InvalidVersion:
+            raise SystemExit(f"Invalid version {args.to_version!r} supplied as `--to-version`.")
         to_revision = get_version_revision(args.to_version)
         if not to_revision:
-            raise SystemExit(f"Upgrading to version {args.to_version} is not supported.")
+            raise SystemExit(f"Unknown version {args.to_version!r} supplied as `--to-version`.")
     elif args.to_revision:
         to_revision = args.to_revision
 
@@ -231,6 +242,8 @@ def shell(args):
 @providers_configuration_loaded
 def check(args):
     """Run a check command that checks if db is available."""
+    if InternalApiConfig.get_use_internal_api():
+        return
     retries: int = args.retry
     retry_delay: int = args.retry_delay
 

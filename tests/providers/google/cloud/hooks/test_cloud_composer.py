@@ -37,6 +37,12 @@ TEST_ENVIRONMENT = {
         "software_config": {"image_version": "composer-1.17.7-airflow-2.1.4"},
     },
 }
+TEST_COMMAND = "dags"
+TEST_SUBCOMMAND = "list"
+TEST_PARAMETERS = ["--verbose", "-o", "json"]
+TEST_EXECUTION_ID = "test-execution-id"
+TEST_POD = "test-pod"
+TEST_POD_NAMESPACE = "test-namespace"
 
 TEST_UPDATE_MASK = {"paths": ["labels.label1"]}
 TEST_UPDATED_ENVIRONMENT = {
@@ -197,6 +203,64 @@ class TestCloudComposerHook:
             metadata=TEST_METADATA,
         )
 
+    @mock.patch(COMPOSER_STRING.format("CloudComposerHook.get_environment_client"))
+    def test_execute_airflow_command(self, mock_client) -> None:
+        self.hook.execute_airflow_command(
+            project_id=TEST_GCP_PROJECT,
+            region=TEST_GCP_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            command=TEST_COMMAND,
+            subcommand=TEST_SUBCOMMAND,
+            parameters=TEST_PARAMETERS,
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.execute_airflow_command.assert_called_once_with(
+            request={
+                "environment": self.hook.get_environment_name(
+                    TEST_GCP_PROJECT, TEST_GCP_REGION, TEST_ENVIRONMENT_ID
+                ),
+                "command": TEST_COMMAND,
+                "subcommand": TEST_SUBCOMMAND,
+                "parameters": TEST_PARAMETERS,
+            },
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+        )
+
+    @mock.patch(COMPOSER_STRING.format("CloudComposerHook.get_environment_client"))
+    def test_poll_airflow_command(self, mock_client) -> None:
+        self.hook.poll_airflow_command(
+            project_id=TEST_GCP_PROJECT,
+            region=TEST_GCP_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            execution_id=TEST_EXECUTION_ID,
+            pod=TEST_POD,
+            pod_namespace=TEST_POD_NAMESPACE,
+            next_line_number=1,
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.poll_airflow_command.assert_called_once_with(
+            request={
+                "environment": self.hook.get_environment_name(
+                    TEST_GCP_PROJECT, TEST_GCP_REGION, TEST_ENVIRONMENT_ID
+                ),
+                "execution_id": TEST_EXECUTION_ID,
+                "pod": TEST_POD,
+                "pod_namespace": TEST_POD_NAMESPACE,
+                "next_line_number": 1,
+            },
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+        )
+
 
 class TestCloudComposerAsyncHook:
     def test_delegate_to_runtime_error(self):
@@ -277,6 +341,70 @@ class TestCloudComposerAsyncHook:
                 ),
                 "environment": TEST_UPDATED_ENVIRONMENT,
                 "update_mask": TEST_UPDATE_MASK,
+            },
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(COMPOSER_STRING.format("CloudComposerAsyncHook.get_environment_client"))
+    async def test_execute_airflow_command(self, mock_client) -> None:
+        mock_env_client = AsyncMock(EnvironmentsAsyncClient)
+        mock_client.return_value = mock_env_client
+        await self.hook.execute_airflow_command(
+            project_id=TEST_GCP_PROJECT,
+            region=TEST_GCP_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            command=TEST_COMMAND,
+            subcommand=TEST_SUBCOMMAND,
+            parameters=TEST_PARAMETERS,
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.execute_airflow_command.assert_called_once_with(
+            request={
+                "environment": self.hook.get_environment_name(
+                    TEST_GCP_PROJECT, TEST_GCP_REGION, TEST_ENVIRONMENT_ID
+                ),
+                "command": TEST_COMMAND,
+                "subcommand": TEST_SUBCOMMAND,
+                "parameters": TEST_PARAMETERS,
+            },
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+        )
+
+    @pytest.mark.asyncio
+    @mock.patch(COMPOSER_STRING.format("CloudComposerAsyncHook.get_environment_client"))
+    async def test_poll_airflow_command(self, mock_client) -> None:
+        mock_env_client = AsyncMock(EnvironmentsAsyncClient)
+        mock_client.return_value = mock_env_client
+        await self.hook.poll_airflow_command(
+            project_id=TEST_GCP_PROJECT,
+            region=TEST_GCP_REGION,
+            environment_id=TEST_ENVIRONMENT_ID,
+            execution_id=TEST_EXECUTION_ID,
+            pod=TEST_POD,
+            pod_namespace=TEST_POD_NAMESPACE,
+            next_line_number=1,
+            retry=TEST_RETRY,
+            timeout=TEST_TIMEOUT,
+            metadata=TEST_METADATA,
+        )
+        mock_client.assert_called_once()
+        mock_client.return_value.poll_airflow_command.assert_called_once_with(
+            request={
+                "environment": self.hook.get_environment_name(
+                    TEST_GCP_PROJECT, TEST_GCP_REGION, TEST_ENVIRONMENT_ID
+                ),
+                "execution_id": TEST_EXECUTION_ID,
+                "pod": TEST_POD,
+                "pod_namespace": TEST_POD_NAMESPACE,
+                "next_line_number": 1,
             },
             retry=TEST_RETRY,
             timeout=TEST_TIMEOUT,

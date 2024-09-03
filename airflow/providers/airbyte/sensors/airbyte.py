@@ -16,14 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Airbyte Job sensor."""
+
 from __future__ import annotations
 
 import time
 import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
+from airbyte_api.models import JobStatusEnum
+
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.providers.airbyte.triggers.airbyte import AirbyteSyncTrigger
 from airflow.sensors.base import BaseSensorOperator
@@ -80,26 +83,18 @@ class AirbyteJobSensor(BaseSensorOperator):
 
     def poke(self, context: Context) -> bool:
         hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
-        job = hook.get_job(job_id=self.airbyte_job_id)
-        status = job.json()["job"]["status"]
+        job = hook.get_job_details(job_id=self.airbyte_job_id)
+        status = job.status
 
-        if status == hook.FAILED:
-            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+        if status == JobStatusEnum.FAILED:
             message = f"Job failed: \n{job}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
-        elif status == hook.CANCELLED:
-            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
+        elif status == JobStatusEnum.CANCELLED:
             message = f"Job was cancelled: \n{job}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
-        elif status == hook.SUCCEEDED:
+        elif status == JobStatusEnum.SUCCEEDED:
             self.log.info("Job %s completed successfully.", self.airbyte_job_id)
             return True
-        elif status == hook.ERROR:
-            self.log.info("Job %s attempt has failed.", self.airbyte_job_id)
 
         self.log.info("Waiting for job %s to complete.", self.airbyte_job_id)
         return False
@@ -109,14 +104,14 @@ class AirbyteJobSensor(BaseSensorOperator):
         if not self.deferrable:
             super().execute(context)
         else:
-            hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id)
-            job = hook.get_job(job_id=(int(self.airbyte_job_id)))
-            state = job.json()["job"]["status"]
+            hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
+            job = hook.get_job_details(job_id=(int(self.airbyte_job_id)))
+            state = job.status
             end_time = time.time() + self.timeout
 
             self.log.info("Airbyte Job Id: Job %s", self.airbyte_job_id)
 
-            if state in (hook.RUNNING, hook.PENDING, hook.INCOMPLETE):
+            if state in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
                 self.defer(
                     timeout=self.execution_timeout,
                     trigger=AirbyteSyncTrigger(
@@ -127,15 +122,17 @@ class AirbyteJobSensor(BaseSensorOperator):
                     ),
                     method_name="execute_complete",
                 )
-            elif state == hook.SUCCEEDED:
+            elif state == JobStatusEnum.SUCCEEDED:
                 self.log.info("%s completed successfully.", self.task_id)
                 return
-            elif state == hook.ERROR:
+            elif state == JobStatusEnum.FAILED:
                 raise AirflowException(f"Job failed:\n{job}")
-            elif state == hook.CANCELLED:
+            elif state == JobStatusEnum.CANCELLED:
                 raise AirflowException(f"Job was cancelled:\n{job}")
             else:
-                raise Exception(f"Encountered unexpected state `{state}` for job_id `{self.airbyte_job_id}")
+                raise AirflowException(
+                    f"Encountered unexpected state `{state}` for job_id `{self.airbyte_job_id}"
+                )
 
     def execute_complete(self, context: Context, event: Any = None) -> None:
         """

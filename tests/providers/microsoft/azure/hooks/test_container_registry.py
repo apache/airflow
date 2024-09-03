@@ -82,6 +82,6 @@ class TestAzureContainerRegistryHook:
         assert hook.connection.password == "password"
         assert hook.connection.server == "test.cr"
 
-        assert mocked_default_azure_credential.called_with(
+        mocked_default_azure_credential.assert_called_with(
             managed_identity_client_id=None, workload_identity_tenant_id=None
         )

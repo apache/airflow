@@ -15,12 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google DataFusion operators."""
+
 from __future__ import annotations
 
 import time
 from typing import TYPE_CHECKING, Any, Sequence
 
-from deprecated import deprecated
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
@@ -36,6 +36,8 @@ from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseO
 from airflow.providers.google.cloud.triggers.datafusion import DataFusionStartPipelineTrigger
 from airflow.providers.google.cloud.utils.datafusion import DataFusionPipelineType
 from airflow.providers.google.cloud.utils.helpers import resource_path_to_dict
+from airflow.providers.google.common.deprecated import deprecated
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -51,7 +53,8 @@ class DataFusionPipelineLinkHelper:
 
     @staticmethod
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.utils.helpers.resource_path_to_dict` instead.",
+        planned_removal_date="March 01, 2025",
+        use_instead="airflow.providers.google.cloud.utils.helpers.resource_path_to_dict",
         category=AirflowProviderDeprecationWarning,
     )
     def get_project_id(instance):
@@ -96,7 +99,7 @@ class CloudDataFusionRestartInstanceOperator(GoogleCloudBaseOperator):
         *,
         instance_name: str,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -168,7 +171,7 @@ class CloudDataFusionDeleteInstanceOperator(GoogleCloudBaseOperator):
         *,
         instance_name: str,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -236,7 +239,7 @@ class CloudDataFusionCreateInstanceOperator(GoogleCloudBaseOperator):
         instance_name: str,
         instance: dict[str, Any],
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -339,7 +342,7 @@ class CloudDataFusionUpdateInstanceOperator(GoogleCloudBaseOperator):
         instance: dict[str, Any],
         update_mask: str,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -416,7 +419,7 @@ class CloudDataFusionGetInstanceOperator(GoogleCloudBaseOperator):
         *,
         instance_name: str,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -498,7 +501,7 @@ class CloudDataFusionCreatePipelineOperator(GoogleCloudBaseOperator):
         instance_name: str,
         location: str,
         namespace: str = "default",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -586,7 +589,7 @@ class CloudDataFusionDeletePipelineOperator(GoogleCloudBaseOperator):
         location: str,
         version_id: str | None = None,
         namespace: str = "default",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -669,7 +672,7 @@ class CloudDataFusionListPipelinesOperator(GoogleCloudBaseOperator):
         artifact_name: str | None = None,
         artifact_version: str | None = None,
         namespace: str = "default",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -776,7 +779,7 @@ class CloudDataFusionStartPipelineOperator(GoogleCloudBaseOperator):
         success_states: list[str] | None = None,
         namespace: str = "default",
         pipeline_timeout: int = 5 * 60,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,
@@ -928,7 +931,7 @@ class CloudDataFusionStopPipelineOperator(GoogleCloudBaseOperator):
         instance_name: str,
         location: str,
         namespace: str = "default",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,

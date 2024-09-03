@@ -19,9 +19,11 @@
 
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
+from shutil import rmtree
 from typing import NamedTuple
 
 from in_container_utils import click, console, run_command
@@ -294,6 +296,7 @@ def find_installation_spec(
 
 ALLOWED_PACKAGE_FORMAT = ["wheel", "sdist", "both"]
 ALLOWED_CONSTRAINTS_MODE = ["constraints-source-providers", "constraints", "constraints-no-providers"]
+ALLOWED_MOUNT_SOURCES = ["remove", "tests", "providers-and-tests"]
 
 
 @click.command()
@@ -422,6 +425,13 @@ ALLOWED_CONSTRAINTS_MODE = ["constraints-source-providers", "constraints", "cons
     help="Should install packages from dist folder if set.",
 )
 @click.option(
+    "--mount-sources",
+    type=click.Choice(ALLOWED_MOUNT_SOURCES),
+    required=True,
+    envvar="MOUNT_SOURCES",
+    help="What sources are mounted .",
+)
+@click.option(
     "--install-airflow-with-constraints",
     is_flag=True,
     default=False,
@@ -439,6 +449,7 @@ def install_airflow_and_providers(
     github_actions: bool,
     github_repository: str,
     install_selected_providers: str,
+    mount_sources: str,
     package_format: str,
     providers_constraints_mode: str,
     providers_constraints_location: str,
@@ -469,37 +480,85 @@ def install_airflow_and_providers(
         use_packages_from_dist=use_packages_from_dist,
     )
     if installation_spec.airflow_package and install_airflow_with_constraints:
-        install_airflow_cmd = [
+        base_install_airflow_cmd = [
+            "/usr/local/bin/uv",
             "pip",
             "install",
-            "--root-user-action",
-            "ignore",
+            "--python",
+            "/usr/local/bin/python",
             installation_spec.airflow_package,
         ]
+        install_airflow_cmd = base_install_airflow_cmd.copy()
         console.print(f"\n[bright_blue]Installing airflow package: {installation_spec.airflow_package}")
         if installation_spec.airflow_constraints_location:
             console.print(f"[bright_blue]Use constraints: {installation_spec.airflow_constraints_location}")
             install_airflow_cmd.extend(["--constraint", installation_spec.airflow_constraints_location])
         console.print()
-        run_command(install_airflow_cmd, github_actions=github_actions, check=True)
+        result = run_command(install_airflow_cmd, github_actions=github_actions, check=False)
+        if result.returncode != 0:
+            console.print(
+                "[warning]Installation with constraints failed - might be because pre-installed provider"
+                " has conflicting dependencies in PyPI. Falling back to a non-constraint installation."
+            )
+            run_command(base_install_airflow_cmd, github_actions=github_actions, check=True)
     if installation_spec.provider_packages or not install_airflow_with_constraints:
-        install_providers_cmd = ["pip", "install", "--root-user-action", "ignore"]
+        base_install_providers_cmd = [
+            "/usr/local/bin/uv",
+            "pip",
+            "install",
+            "--python",
+            "/usr/local/bin/python",
+        ]
         if not install_airflow_with_constraints and installation_spec.airflow_package:
-            install_providers_cmd.append(installation_spec.airflow_package)
+            base_install_providers_cmd.append(installation_spec.airflow_package)
         console.print("\n[bright_blue]Installing provider packages:")
         for provider_package in sorted(installation_spec.provider_packages):
             console.print(f"  {provider_package}")
         console.print()
         for provider_package in installation_spec.provider_packages:
-            install_providers_cmd.append(provider_package)
+            base_install_providers_cmd.append(provider_package)
+        install_providers_command = base_install_providers_cmd.copy()
+        # if airflow is also being installed we should add airflow to the base_install_providers_cmd
+        # to avoid accidentally upgrading airflow to a version that is different than installed in the
+        # previous step
+        if installation_spec.airflow_package:
+            base_install_providers_cmd.append(installation_spec.airflow_package)
+
         if installation_spec.provider_constraints_location:
             console.print(
                 f"[bright_blue]with constraints: {installation_spec.provider_constraints_location}\n"
             )
-            install_providers_cmd.extend(["--constraint", installation_spec.provider_constraints_location])
-        console.print()
-        run_command(install_providers_cmd, github_actions=github_actions, check=True)
-    console.print("[green]Done!")
+            install_providers_command.extend(
+                ["--constraint", installation_spec.provider_constraints_location]
+            )
+            console.print()
+            result = run_command(install_providers_command, github_actions=github_actions, check=False)
+            if result.returncode != 0:
+                console.print(
+                    "[warning]Installation with constraints failed - might be because pre-installed provider"
+                    " has conflicting dependencies in PyPI. Falling back to a non-constraint installation."
+                )
+                run_command(base_install_providers_cmd, github_actions=github_actions, check=True)
+        else:
+            run_command(base_install_providers_cmd, github_actions=github_actions, check=True)
+    if mount_sources == "providers-and-tests":
+        console.print("[bright_blue]Removing installed providers")
+        run_command(
+            ["pip freeze | grep apache-airflow-providers | xargs pip uninstall -y "],
+            github_actions=github_actions,
+            shell=True,
+            check=False,
+        )
+        import importlib.util
+
+        spec = importlib.util.find_spec("airflow")
+        if spec is None or spec.origin is None:
+            console.print("[red]Airflow not found - cannot mount sources")
+            sys.exit(1)
+        airflow_path = Path(spec.origin).parent
+        rmtree(airflow_path / "providers", ignore_errors=True)
+        os.symlink("/opt/airflow/airflow/providers", (airflow_path / "providers").as_posix())
+    console.print("\n[green]Done!")
 
 
 if __name__ == "__main__":

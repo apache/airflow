@@ -70,7 +70,7 @@ outlined below.
 .. note::
     For more information about Airflow's public interface see :doc:`/public-airflow-interface`.
 
-Some reasons you may want to write a custom executor include:
+Some reasons you may want to write a custom auth manager include:
 
 * An auth manager does not exist which fits your specific use case, such as a specific tool or service for user management.
 * You'd like to use an auth manager that leverages an identity provider from your preferred cloud provider.
@@ -97,6 +97,7 @@ Let's go over the different parameters used by most of these methods.
   * ``POST``: Can the user create a resource?
   * ``PUT``: Can the user modify the resource?
   * ``DELETE``: Can the user delete the resource?
+  * ``MENU``: Can the user see the resource in the menu?
 
 * ``details``: Optional details about the resource being accessed.
 * ``user``: The user trying to access the resource.
@@ -113,6 +114,7 @@ These authorization methods are:
 * ``is_authorized_pool``: Return whether the user is authorized to access Airflow pools. Some details about the pool can be provided (e.g. the pool name).
 * ``is_authorized_variable``: Return whether the user is authorized to access Airflow variables. Some details about the variable can be provided (e.g. the variable key).
 * ``is_authorized_view``: Return whether the user is authorized to access a specific view in Airflow. The view is specified through ``access_view`` (e.g. ``AccessView.CLUSTER_ACTIVITY``).
+* ``is_authorized_custom_view``: Return whether the user is authorized to access a specific view not defined in Airflow. This view can be provided by the auth manager itself or a plugin defined by the user.
 
 Optional methods recommended to override for optimization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

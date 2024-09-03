@@ -29,6 +29,7 @@ from airflow.models import Connection, DagRun, TaskInstance as TI, XCom
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.common.sql.operators.sql import (
+    BaseSQLOperator,
     BranchSQLOperator,
     SQLCheckOperator,
     SQLColumnCheckOperator,
@@ -42,8 +43,13 @@ from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
-pytestmark = pytest.mark.db_test
+pytestmark = [
+    pytest.mark.db_test,
+    pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Tests for Airflow 2.8.0+ only"),
+    pytest.mark.skip_if_database_isolation_mode,
+]
 
 
 class MockHook:
@@ -55,9 +61,36 @@ def _get_mock_db_hook():
     return MockHook()
 
 
+class TestBaseSQLOperator:
+    def _construct_operator(self, **kwargs):
+        dag = DAG(
+            "test_dag",
+            schedule=None,
+            start_date=datetime.datetime(2017, 1, 1),
+            render_template_as_native_obj=True,
+        )
+        return BaseSQLOperator(
+            task_id="test_task",
+            conn_id="{{ conn_id }}",
+            database="{{ database }}",
+            hook_params="{{ hook_params }}",
+            **kwargs,
+            dag=dag,
+        )
+
+    def test_templated_fields(self):
+        operator = self._construct_operator()
+        operator.render_template_fields(
+            {"conn_id": "my_conn_id", "database": "my_database", "hook_params": {"key": "value"}}
+        )
+        assert operator.conn_id == "my_conn_id"
+        assert operator.database == "my_database"
+        assert operator.hook_params == {"key": "value"}
+
+
 class TestSQLExecuteQueryOperator:
     def _construct_operator(self, sql, **kwargs):
-        dag = DAG("test_dag", start_date=datetime.datetime(2017, 1, 1))
+        dag = DAG("test_dag", schedule=None, start_date=datetime.datetime(2017, 1, 1))
         return SQLExecuteQueryOperator(
             task_id="test_task",
             conn_id="default_conn",
@@ -186,30 +219,34 @@ class TestColumnCheckOperator:
         ]
 
     def test_max_less_than_fails_check(self, monkeypatch):
-        with pytest.raises(AirflowException):
-            records = [
-                ("X", "null_check", 1),
-                ("X", "distinct_check", 10),
-                ("X", "unique_check", 10),
-                ("X", "min", 1),
-                ("X", "max", 21),
-            ]
-            operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        records = [
+            ("X", "null_check", 1),
+            ("X", "distinct_check", 10),
+            ("X", "unique_check", 10),
+            ("X", "min", 1),
+            ("X", "max", 21),
+        ]
+        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        with pytest.raises(AirflowException, match="Test failed") as err_ctx:
             operator.execute(context=MagicMock())
-            assert operator.column_mapping["X"]["max"]["success"] is False
+        assert "Check: max" in str(err_ctx.value)
+        assert "{'less_than': 20, 'greater_than': 10, 'result': 21, 'success': False}" in str(err_ctx.value)
+        assert operator.column_mapping["X"]["max"]["success"] is False
 
     def test_max_greater_than_fails_check(self, monkeypatch):
-        with pytest.raises(AirflowException):
-            records = [
-                ("X", "null_check", 1),
-                ("X", "distinct_check", 10),
-                ("X", "unique_check", 10),
-                ("X", "min", 1),
-                ("X", "max", 9),
-            ]
-            operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        records = [
+            ("X", "null_check", 1),
+            ("X", "distinct_check", 10),
+            ("X", "unique_check", 10),
+            ("X", "min", 1),
+            ("X", "max", 9),
+        ]
+        operator = self._construct_operator(monkeypatch, self.valid_column_mapping, records)
+        with pytest.raises(AirflowException, match="Test failed") as err_ctx:
             operator.execute(context=MagicMock())
-            assert operator.column_mapping["X"]["max"]["success"] is False
+        assert "Check: max" in str(err_ctx.value)
+        assert "{'less_than': 20, 'greater_than': 10, 'result': 9, 'success': False}" in str(err_ctx.value)
+        assert operator.column_mapping["X"]["max"]["success"] is False
 
     def test_pass_all_checks_inexact_check(self, monkeypatch):
         records = [
@@ -622,6 +659,19 @@ class TestSQLCheckOperatorDbHook:
             assert self._operator._hook.use_legacy_sql
             assert self._operator._hook.location == "us-east1"
 
+    def test_sql_operator_hook_params_templated(self):
+        with mock.patch(
+            "airflow.providers.common.sql.operators.sql.BaseHook.get_connection",
+            return_value=Connection(conn_id="sql_default", conn_type="postgres"),
+        ) as mock_get_conn:
+            mock_get_conn.return_value = Connection(conn_id="snowflake_default", conn_type="snowflake")
+            self._operator.hook_params = {"session_parameters": {"query_tag": "{{ ds }}"}}
+            logical_date = "2024-04-02"
+            self._operator.render_template_fields({"ds": logical_date})
+
+            assert self._operator._hook.conn_type == "snowflake"
+            assert self._operator._hook.session_parameters == {"query_tag": logical_date}
+
 
 class TestCheckOperator:
     def setup_method(self):
@@ -663,7 +713,7 @@ class TestValueCheckOperator:
         self.conn_id = "default_conn"
 
     def _construct_operator(self, sql, pass_value, tolerance=None):
-        dag = DAG("test_dag", start_date=datetime.datetime(2017, 1, 1))
+        dag = DAG("test_dag", schedule=None, start_date=datetime.datetime(2017, 1, 1))
 
         return SQLValueCheckOperator(
             dag=dag,
@@ -837,7 +887,7 @@ class TestIntervalCheckOperator:
 
 class TestThresholdCheckOperator:
     def _construct_operator(self, sql, min_threshold, max_threshold):
-        dag = DAG("test_dag", start_date=datetime.datetime(2017, 1, 1))
+        dag = DAG("test_dag", schedule=None, start_date=datetime.datetime(2017, 1, 1))
 
         return SQLThresholdCheckOperator(
             task_id="test_task",
@@ -1076,6 +1126,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1116,6 +1167,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1157,6 +1209,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1199,6 +1252,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1238,6 +1292,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1268,6 +1323,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first
@@ -1307,6 +1363,7 @@ class TestSqlBranch:
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         )
 
         mock_get_records = mock_get_db_hook.return_value.get_first

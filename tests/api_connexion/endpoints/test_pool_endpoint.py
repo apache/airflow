@@ -25,8 +25,9 @@ from airflow.utils.session import provide_session
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools
+from tests.test_utils.www import _check_last_log
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.fixture(scope="module")
@@ -267,6 +268,7 @@ class TestDeletePool(TestBasePoolEndpoints):
         # Check if the pool is deleted from the db
         response = self.client.get(f"api/v1/pools/{pool_name}", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
+        _check_last_log(session, dag_id=None, event="api.delete_pool", execution_date=None)
 
     def test_response_404(self):
         response = self.client.delete("api/v1/pools/invalid_pool", environ_overrides={"REMOTE_USER": "test"})
@@ -294,7 +296,7 @@ class TestDeletePool(TestBasePoolEndpoints):
 
 
 class TestPostPool(TestBasePoolEndpoints):
-    def test_response_200(self):
+    def test_response_200(self, session):
         response = self.client.post(
             "api/v1/pools",
             json={"name": "test_pool_a", "slots": 3, "description": "test pool", "include_deferred": True},
@@ -313,6 +315,7 @@ class TestPostPool(TestBasePoolEndpoints):
             "description": "test pool",
             "include_deferred": True,
         } == response.json
+        _check_last_log(session, dag_id=None, event="api.post_pool", execution_date=None)
 
     def test_response_409(self, session):
         pool_name = "test_pool_a"
@@ -398,6 +401,7 @@ class TestPatchPool(TestBasePoolEndpoints):
             "description": None,
             "include_deferred": False,
         } == response.json
+        _check_last_log(session, dag_id=None, event="api.patch_pool", execution_date=None)
 
     @pytest.mark.parametrize(
         "error_detail, request_json",
@@ -590,10 +594,11 @@ class TestModifyDefaultPool(TestBasePoolEndpoints):
             ),
         ],
     )
-    def test_patch(self, status_code, url, json, expected_response):
+    def test_patch(self, status_code, url, json, expected_response, session):
         response = self.client.patch(url, json=json, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == status_code
         assert response.json == expected_response
+        _check_last_log(session, dag_id=None, event="api.patch_pool", execution_date=None)
 
 
 class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
@@ -658,6 +663,7 @@ class TestPatchPoolWithUpdateMask(TestBasePoolEndpoints):
             "description": None,
             "include_deferred": expected_include_deferred,
         } == response.json
+        _check_last_log(session, dag_id=None, event="api.patch_pool", execution_date=None)
 
     @pytest.mark.parametrize(
         "error_detail, url, patch_json",

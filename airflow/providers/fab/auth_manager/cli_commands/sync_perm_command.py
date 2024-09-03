@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Sync permission command."""
+
 from __future__ import annotations
 
 from airflow.utils import cli as cli_utils

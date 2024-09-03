@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Azure Data Explorer operators."""
+
 from __future__ import annotations
 
 from functools import cached_property

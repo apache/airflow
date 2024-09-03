@@ -17,15 +17,18 @@
 # under the License.
 
 """
-Example Airflow DAG for testing Google Dataflow
+Example Airflow DAG for testing Google Dataflow.
+
 :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowTemplatedJobStartOperator` operator.
 """
+
 from __future__ import annotations
 
 import os
 from datetime import datetime
 from pathlib import Path
 
+from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataflow import (
     DataflowStartFlexTemplateOperator,
@@ -34,9 +37,10 @@ from airflow.providers.google.cloud.operators.dataflow import (
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 DAG_ID = "dataflow_template"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
@@ -103,6 +107,7 @@ with DAG(
         template="gs://dataflow-templates/latest/Word_Count",
         parameters={"inputFile": f"gs://{BUCKET_NAME}/{CSV_FILE_NAME}", "output": GCS_OUTPUT},
         location=LOCATION,
+        wait_until_finished=True,
     )
     # [END howto_operator_start_template_job]
 
@@ -113,20 +118,43 @@ with DAG(
         body=BODY,
         location=LOCATION,
         append_job_name=False,
+        wait_until_finished=True,
     )
     # [END howto_operator_start_flex_template_job]
+
+    # [START howto_operator_start_template_job_deferrable]
+    start_template_job_deferrable = DataflowTemplatedJobStartOperator(
+        task_id="start_template_job_deferrable",
+        project_id=PROJECT_ID,
+        template="gs://dataflow-templates/latest/Word_Count",
+        parameters={"inputFile": f"gs://{BUCKET_NAME}/{CSV_FILE_NAME}", "output": GCS_OUTPUT},
+        location=LOCATION,
+        deferrable=True,
+    )
+    # [END howto_operator_start_template_job_deferrable]
+
+    # [START howto_operator_start_flex_template_job_deferrable]
+    start_flex_template_job_deferrable = DataflowStartFlexTemplateOperator(
+        task_id="start_flex_template_job_deferrable",
+        project_id=PROJECT_ID,
+        body=BODY,
+        location=LOCATION,
+        append_job_name=False,
+        deferrable=True,
+    )
+    # [END howto_operator_start_flex_template_job_deferrable]
 
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
-    (
-        create_bucket
-        >> upload_file
-        >> upload_schema
-        >> start_template_job
-        >> start_flex_template_job
-        >> delete_bucket
+    chain(
+        create_bucket,
+        upload_file,
+        upload_schema,
+        [start_template_job, start_flex_template_job],
+        [start_template_job_deferrable, start_flex_template_job_deferrable],
+        delete_bucket,
     )
 
     from tests.system.utils.watcher import watcher
