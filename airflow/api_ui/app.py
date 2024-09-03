@@ -16,9 +16,11 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 
 from airflow.www.extensions.init_dagbag import get_dag_bag
+
+app: FastAPI | None = None
 
 
 def init_dag_bag(app: FastAPI) -> None:
@@ -39,4 +41,31 @@ def create_app() -> FastAPI:
 
     init_dag_bag(app)
 
+    init_views(app)
+
     return app
+
+
+def init_views(app) -> None:
+    """Init views by registering the different routers."""
+    from airflow.api_ui.views.datasets import dataset_router
+
+    root_router = APIRouter(prefix="/ui")
+
+    root_router.include_router(dataset_router)
+
+    app.include_router(root_router)
+
+
+def cached_app(config=None, testing=False):
+    """Return cached instance of Airflow UI app."""
+    global app
+    if not app:
+        app = create_app()
+    return app
+
+
+def purge_cached_app():
+    """Remove the cached version of the app in global state."""
+    global app
+    app = None

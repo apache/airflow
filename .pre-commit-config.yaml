@@ -581,8 +581,9 @@ repos:
           (?x)
           ^airflow/api_connexion/openapi/v1.yaml$|
           ^airflow/ui/openapi-gen/|
-          ^airflow/cli/commands/webserver_command.py$|
           ^airflow/cli/commands/internal_api_command.py$|
+          ^airflow/cli/commands/ui_api_command.py$|
+          ^airflow/cli/commands/webserver_command.py$|
           ^airflow/config_templates/|
           ^airflow/models/baseoperator.py$|
           ^airflow/operators/__init__.py$|
@@ -1055,6 +1056,7 @@ repos:
         pass_filenames: true
         files: ^airflow/.*\.py$
         exclude: ^.*/.*_vendor/
+        additional_dependencies: ["rich>=12.4.4", "python-dateutil"]
       - id: lint-chart-schema
         name: Lint chart/values.schema.json file
         entry: ./scripts/ci/pre_commit/chart_schema.py

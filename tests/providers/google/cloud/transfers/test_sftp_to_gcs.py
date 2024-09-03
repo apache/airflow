@@ -35,6 +35,7 @@ DEFAULT_MIME_TYPE = "application/octet-stream"
 
 TEST_BUCKET = "test-bucket"
 SOURCE_OBJECT_WILDCARD_FILENAME = "main_dir/test_object*.json"
+SOURCE_OBJECT_WILDCARD_TXT_FILENAME = "main_dir/test_object*.txt"
 SOURCE_OBJECT_NO_WILDCARD = "main_dir/test_object3.json"
 SOURCE_OBJECT_MULTIPLE_WILDCARDS = "main_dir/csv/*/test_*.csv"
 
@@ -252,3 +253,51 @@ class TestSFTPToGCSOperator:
 
         err = ctx.value
         assert "Only one wildcard '*' is allowed in source_path parameter" in str(err)
+
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.GCSHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.sftp_to_gcs.SFTPHook")
+    def test_execute_copy_with_wildcard_and_default_destination_path(self, sftp_hook, gcs_hook):
+        sftp_hook.return_value.get_tree_map.return_value = [
+            ["main_dir/test_object1.txt", "main_dir/test_object2.txt"],
+            [],
+            [],
+        ]
+
+        task = SFTPToGCSOperator(
+            task_id=TASK_ID,
+            source_path=SOURCE_OBJECT_WILDCARD_TXT_FILENAME,
+            destination_bucket=TEST_BUCKET,
+            gcp_conn_id=GCP_CONN_ID,
+            sftp_conn_id=SFTP_CONN_ID,
+        )
+        task.execute(None)
+
+        sftp_hook.return_value.get_tree_map.assert_called_with(
+            "main_dir", prefix="main_dir/test_object", delimiter=".txt"
+        )
+
+        sftp_hook.return_value.retrieve_file.assert_has_calls(
+            [
+                mock.call("main_dir/test_object1.txt", mock.ANY, prefetch=True),
+                mock.call("main_dir/test_object2.txt", mock.ANY, prefetch=True),
+            ]
+        )
+
+        gcs_hook.return_value.upload.assert_has_calls(
+            [
+                mock.call(
+                    bucket_name=TEST_BUCKET,
+                    object_name="test_object1.txt",
+                    mime_type=DEFAULT_MIME_TYPE,
+                    filename=mock.ANY,
+                    gzip=False,
+                ),
+                mock.call(
+                    bucket_name=TEST_BUCKET,
+                    object_name="test_object2.txt",
+                    mime_type=DEFAULT_MIME_TYPE,
+                    filename=mock.ANY,
+                    gzip=False,
+                ),
+            ]
+        )

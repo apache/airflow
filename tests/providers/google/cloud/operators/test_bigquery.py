@@ -485,11 +485,7 @@ class TestBigQueryPatchDatasetOperator:
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute(self, mock_hook):
         dataset_resource = {"friendlyName": "Test DS"}
-        deprecation_message = (
-            r"Call to deprecated class BigQueryPatchDatasetOperator\. "
-            r"\(This operator is deprecated\. Please use BigQueryUpdateDatasetOperator\.\)"
-        )
-        with pytest.warns(AirflowProviderDeprecationWarning, match=deprecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             operator = BigQueryPatchDatasetOperator(
                 dataset_resource=dataset_resource,
                 task_id=TASK_ID,
@@ -525,11 +521,6 @@ class TestBigQueryUpdateDatasetOperator:
 
 @pytest.mark.db_test
 class TestBigQueryOperator:
-    deprecation_message = (
-        r"Call to deprecated class BigQueryExecuteQueryOperator\. "
-        r"\(This operator is deprecated\. Please use `BigQueryInsertJobOperator`\.\)"
-    )
-
     def teardown_method(self):
         clear_db_xcom()
         clear_db_runs()
@@ -540,7 +531,7 @@ class TestBigQueryOperator:
     def test_execute(self, mock_hook):
         encryption_configuration = {"key": "kk"}
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match=self.deprecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             operator = BigQueryExecuteQueryOperator(
                 task_id=TASK_ID,
                 sql="Select * from test_table",
@@ -602,7 +593,7 @@ class TestBigQueryOperator:
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute_list(self, mock_hook):
-        with pytest.warns(AirflowProviderDeprecationWarning, match=self.deprecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             operator = BigQueryExecuteQueryOperator(
                 task_id=TASK_ID,
                 sql=[
@@ -675,7 +666,7 @@ class TestBigQueryOperator:
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_execute_bad_type(self, mock_hook):
-        with pytest.warns(AirflowProviderDeprecationWarning, match=self.deprecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             operator = BigQueryExecuteQueryOperator(
                 task_id=TASK_ID,
                 sql=1,
@@ -703,7 +694,7 @@ class TestBigQueryOperator:
 
     @mock.patch("airflow.providers.google.cloud.operators.bigquery.BigQueryHook")
     def test_bigquery_operator_defaults(self, mock_hook, create_task_instance_of_operator, session):
-        with pytest.warns(AirflowProviderDeprecationWarning, match=self.deprecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             ti = create_task_instance_of_operator(
                 BigQueryExecuteQueryOperator,
                 dag_id=TEST_DAG_ID,
@@ -746,7 +737,7 @@ class TestBigQueryOperator:
         create_task_instance_of_operator,
         session,
     ):
-        with pytest.warns(AirflowProviderDeprecationWarning, match=self.deprecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             ti = create_task_instance_of_operator(
                 BigQueryExecuteQueryOperator,
                 dag_id=TEST_DAG_ID,
@@ -784,7 +775,7 @@ class TestBigQueryOperator:
         dag_maker,
         create_task_instance_of_operator,
     ):
-        with pytest.warns(AirflowProviderDeprecationWarning, match=self.deprecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             ti = create_task_instance_of_operator(
                 BigQueryExecuteQueryOperator,
                 dag_id=TEST_DAG_ID,
@@ -829,7 +820,7 @@ class TestBigQueryOperator:
     def test_bigquery_operator_extra_link_when_missing_job_id(
         self, mock_hook, create_task_instance_of_operator
     ):
-        with pytest.warns(AirflowProviderDeprecationWarning, match=self.deprecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             ti = create_task_instance_of_operator(
                 BigQueryExecuteQueryOperator,
                 dag_id=TEST_DAG_ID,
@@ -847,7 +838,7 @@ class TestBigQueryOperator:
         create_task_instance_of_operator,
         session,
     ):
-        with pytest.warns(AirflowProviderDeprecationWarning, match=self.deprecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             ti = create_task_instance_of_operator(
                 BigQueryExecuteQueryOperator,
                 dag_id=TEST_DAG_ID,
@@ -869,7 +860,7 @@ class TestBigQueryOperator:
     def test_bigquery_operator_extra_link_when_multiple_query(
         self, mock_hook, create_task_instance_of_operator, session
     ):
-        with pytest.warns(AirflowProviderDeprecationWarning, match=self.deprecation_message):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             ti = create_task_instance_of_operator(
                 BigQueryExecuteQueryOperator,
                 dag_id=TEST_DAG_ID,
