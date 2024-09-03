@@ -2772,6 +2772,12 @@ class DAG(LoggingMixin):
 
     def tree_view(self) -> None:
         """Print an ASCII tree representation of the DAG."""
+        warnings.warn(
+            "`tree_view` is deprecated and will be removed in Airflow 3.0.",
+            category=RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+
         for tmp in self._generate_tree_view():
             print(tmp)
 
@@ -2787,6 +2793,12 @@ class DAG(LoggingMixin):
 
     def get_tree_view(self) -> str:
         """Return an ASCII tree representation of the DAG."""
+        warnings.warn(
+            "`get_tree_view` is deprecated and will be removed in Airflow 3.0.",
+            category=RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+
         rst = ""
         for tmp in self._generate_tree_view():
             rst += tmp + "\n"

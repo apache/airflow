@@ -432,7 +432,11 @@ ARG_MARK_SUCCESS_PATTERN = Arg(
 )
 
 # list_tasks
-ARG_TREE = Arg(("-t", "--tree"), help="Tree view", action="store_true")
+ARG_TREE = Arg(
+    ("-t", "--tree"),
+    help="Deprecated - use `dags show` instead. Display tasks in a tree. Note that generating the tree can be slow and the output very large for some DAGs.",
+    action="store_true",
+)
 
 # tasks_run
 # This is a hidden option -- not meant for users to set or know about

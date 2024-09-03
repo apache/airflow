@@ -1653,7 +1653,11 @@ class TestDag:
             op1_a >> op2 >> op3
 
             with redirect_stdout(StringIO()) as stdout:
-                dag.tree_view()
+                with pytest.warns(
+                    RemovedInAirflow3Warning,
+                    match="`tree_view` is deprecated and will be removed in Airflow 3.0",
+                ):
+                    dag.tree_view()
                 stdout = stdout.getvalue()
 
             stdout_lines = stdout.splitlines()
@@ -1661,7 +1665,13 @@ class TestDag:
             assert "t2" in stdout_lines[1]
             assert "t3" in stdout_lines[2]
             assert "t1_b" in stdout_lines[3]
-            assert dag.get_tree_view() == (
+
+            with pytest.warns(
+                RemovedInAirflow3Warning,
+                match="`get_tree_view` is deprecated and will be removed in Airflow 3.0",
+            ):
+                get_tree_view = dag.get_tree_view()
+            assert get_tree_view == (
                 "<Task(EmptyOperator): t1_a>\n"
                 "    <Task(EmptyOperator): t2>\n"
                 "        <Task(EmptyOperator): t3>\n"
