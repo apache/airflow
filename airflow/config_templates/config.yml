@@ -1073,20 +1073,9 @@ metrics:
   description: |
     `StatsD <https://github.com/statsd/statsd>`__ integration settings.
   options:
-    metrics_use_pattern_match:
-      description: |
-        If true, ``[metrics] metrics_allow_list`` and ``[metrics] metrics_block_list`` will use
-        regex pattern matching anywhere within the metric name instead of only prefix matching
-        at the start of the name.
-      version_added: 2.9.0
-      type: boolean
-      example: ~
-      default: "False"
     metrics_allow_list:
       description: |
-        Configure an allow list (comma separated string) to send only certain metrics.
-        If ``[metrics] metrics_use_pattern_match`` is ``false``, match only the exact metric name prefix.
-        If ``[metrics] metrics_use_pattern_match`` is ``true``, provide regex patterns to match.
+        Configure an allow list (comma separated regex patterns to match) to send only certain metrics.
       version_added: 2.6.0
       type: string
       example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
@@ -1094,13 +1083,11 @@ metrics:
       default: ""
     metrics_block_list:
       description: |
-        Configure a block list (comma separated string) to block certain metrics from being emitted.
+        Configure a block list (comma separated regex patterns to match) to block certain metrics
+        from being emitted.
         If ``[metrics] metrics_allow_list`` and ``[metrics] metrics_block_list`` are both configured,
         ``[metrics] metrics_block_list`` is ignored.
 
-        If ``[metrics] metrics_use_pattern_match`` is ``false``, match only the exact metric name prefix.
-
-        If ``[metrics] metrics_use_pattern_match`` is ``true``, provide regex patterns to match.
       version_added: 2.6.0
       type: string
       example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"

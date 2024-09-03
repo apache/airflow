@@ -27,12 +27,10 @@ import pytest
 import statsd
 
 import airflow
-from airflow.exceptions import AirflowConfigException, InvalidStatsNameException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowConfigException, InvalidStatsNameException
 from airflow.metrics.datadog_logger import SafeDogStatsdLogger
 from airflow.metrics.statsd_logger import SafeStatsdLogger
 from airflow.metrics.validators import (
-    AllowListValidator,
-    BlockListValidator,
     PatternAllowListValidator,
     PatternBlockListValidator,
 )
@@ -99,7 +97,7 @@ class TestStats:
 
     def test_enabled_by_config(self):
         """Test that enabling this sets the right instance properties"""
-        with conf_vars({("metrics", "statsd_on"): "True", ("metrics", "metrics_use_pattern_match"): "True"}):
+        with conf_vars({("metrics", "statsd_on"): "True"}):
             importlib.reload(airflow.stats)
             assert isinstance(airflow.stats.Stats.statsd, statsd.StatsClient)
             assert not hasattr(airflow.stats.Stats, "dogstatsd")
@@ -111,7 +109,6 @@ class TestStats:
             {
                 ("metrics", "statsd_on"): "True",
                 ("metrics", "statsd_custom_client_path"): f"{__name__}.CustomStatsd",
-                ("metrics", "metrics_use_pattern_match"): "True",
             }
         ):
             importlib.reload(airflow.stats)
@@ -140,11 +137,10 @@ class TestStats:
             {
                 ("metrics", "statsd_on"): "True",
                 ("metrics", "metrics_allow_list"): "name1,name2",
-                ("metrics", "metrics_use_pattern_match"): "True",
             }
         ):
             importlib.reload(airflow.stats)
-            assert isinstance(airflow.stats.Stats.metrics_validator, AllowListValidator)
+            assert type(airflow.stats.Stats.metrics_validator) is PatternAllowListValidator
             assert airflow.stats.Stats.metrics_validator.validate_list == ("name1", "name2")
         # Avoid side-effects
         importlib.reload(airflow.stats)
@@ -154,11 +150,10 @@ class TestStats:
             {
                 ("metrics", "statsd_on"): "True",
                 ("metrics", "metrics_block_list"): "name1,name2",
-                ("metrics", "metrics_use_pattern_match"): "True",
             }
         ):
             importlib.reload(airflow.stats)
-            assert isinstance(airflow.stats.Stats.metrics_validator, BlockListValidator)
+            assert type(airflow.stats.Stats.metrics_validator) is PatternBlockListValidator
             assert airflow.stats.Stats.metrics_validator.validate_list == ("name1", "name2")
         # Avoid side-effects
         importlib.reload(airflow.stats)
@@ -169,11 +164,10 @@ class TestStats:
                 ("metrics", "statsd_on"): "True",
                 ("metrics", "metrics_allow_list"): "name1,name2",
                 ("metrics", "metrics_block_list"): "name1,name2",
-                ("metrics", "metrics_use_pattern_match"): "True",
             }
         ):
             importlib.reload(airflow.stats)
-            assert isinstance(airflow.stats.Stats.metrics_validator, AllowListValidator)
+            assert type(airflow.stats.Stats.metrics_validator) is PatternAllowListValidator
             assert airflow.stats.Stats.metrics_validator.validate_list == ("name1", "name2")
         # Avoid side-effects
         importlib.reload(airflow.stats)
@@ -257,9 +251,7 @@ class TestDogStats:
         """Test that enabling this sets the right instance properties"""
         from datadog import DogStatsd
 
-        with conf_vars(
-            {("metrics", "statsd_datadog_enabled"): "True", ("metrics", "metrics_use_pattern_match"): "True"}
-        ):
+        with conf_vars({("metrics", "statsd_datadog_enabled"): "True"}):
             importlib.reload(airflow.stats)
             assert isinstance(airflow.stats.Stats.dogstatsd, DogStatsd)
             assert not hasattr(airflow.stats.Stats, "statsd")
@@ -273,7 +265,6 @@ class TestDogStats:
             {
                 ("metrics", "statsd_on"): "True",
                 ("metrics", "statsd_datadog_enabled"): "True",
-                ("metrics", "metrics_use_pattern_match"): "True",
             }
         ):
             importlib.reload(airflow.stats)
@@ -291,22 +282,12 @@ class TestStatsAllowAndBlockLists:
             (PatternAllowListValidator, "stats_three.foo", True),
             (PatternAllowListValidator, "stats_foo_three", True),
             (PatternAllowListValidator, "stats_three", False),
-            (AllowListValidator, "stats_one", True),
-            (AllowListValidator, "stats_two.bla", True),
-            (AllowListValidator, "stats_three.foo", False),
-            (AllowListValidator, "stats_foo_three", False),
-            (AllowListValidator, "stats_three", False),
             (PatternBlockListValidator, "stats_one", False),
             (PatternBlockListValidator, "stats_two.bla", False),
             (PatternBlockListValidator, "stats_three.foo", False),
             (PatternBlockListValidator, "stats_foo_three", False),
             (PatternBlockListValidator, "stats_foo", False),
             (PatternBlockListValidator, "stats_three", True),
-            (BlockListValidator, "stats_one", False),
-            (BlockListValidator, "stats_two.bla", False),
-            (BlockListValidator, "stats_three.foo", True),
-            (BlockListValidator, "stats_foo_three", True),
-            (BlockListValidator, "stats_three", True),
         ],
     )
     def test_allow_and_block_list(self, validator, stat_name, expect_incr):
@@ -345,14 +326,12 @@ class TestStatsAllowAndBlockLists:
             statsd_client.assert_not_called()
 
 
-class TestPatternOrBasicValidatorConfigOption:
+class TestPatternValidatorConfigOption:
     def teardown_method(self):
         # Avoid side-effects
         importlib.reload(airflow.stats)
 
     stats_on = {("metrics", "statsd_on"): "True"}
-    pattern_on = {("metrics", "metrics_use_pattern_match"): "True"}
-    pattern_off = {("metrics", "metrics_use_pattern_match"): "False"}
     allow_list = {("metrics", "metrics_allow_list"): "foo,bar"}
     block_list = {("metrics", "metrics_block_list"): "foo,bar"}
 
@@ -360,61 +339,35 @@ class TestPatternOrBasicValidatorConfigOption:
         "config, expected",
         [
             pytest.param(
-                {**stats_on, **pattern_on},
+                {**stats_on},
                 PatternAllowListValidator,
                 id="pattern_allow_by_default",
             ),
             pytest.param(
-                stats_on,
-                AllowListValidator,
-                id="basic_allow_by_default",
-            ),
-            pytest.param(
-                {**stats_on, **pattern_on, **allow_list},
+                {**stats_on, **allow_list},
                 PatternAllowListValidator,
                 id="pattern_allow_list_provided",
             ),
             pytest.param(
-                {**stats_on, **pattern_off, **allow_list},
-                AllowListValidator,
-                id="basic_allow_list_provided",
-            ),
-            pytest.param(
-                {**stats_on, **pattern_on, **block_list},
+                {**stats_on, **block_list},
                 PatternBlockListValidator,
                 id="pattern_block_list_provided",
             ),
-            pytest.param(
-                {**stats_on, **block_list},
-                BlockListValidator,
-                id="basic_block_list_provided",
-            ),
         ],
     )
-    def test_pattern_or_basic_picker(self, config, expected):
+    def test_pattern_picker(self, config, expected):
         with conf_vars(config):
             importlib.reload(airflow.stats)
 
-            if eval(config.get(("metrics", "metrics_use_pattern_match"), "False")):
-                assert isinstance(airflow.stats.Stats.statsd, statsd.StatsClient)
-            else:
-                with pytest.warns(
-                    RemovedInAirflow3Warning,
-                    match="The basic metric validator will be deprecated in the future in favor of pattern-matching.  You can try this now by setting config option metrics_use_pattern_match to True.",
-                ):
-                    assert isinstance(airflow.stats.Stats.statsd, statsd.StatsClient)
-            assert isinstance(airflow.stats.Stats.instance.metrics_validator, expected)
+            assert isinstance(airflow.stats.Stats.statsd, statsd.StatsClient)
+            assert type(airflow.stats.Stats.instance.metrics_validator) is expected
 
     @conf_vars({**stats_on, **block_list, ("metrics", "metrics_allow_list"): "bax,qux"})
     def test_setting_allow_and_block_logs_warning(self, caplog):
         importlib.reload(airflow.stats)
 
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match="The basic metric validator will be deprecated in the future in favor of pattern-matching.  You can try this now by setting config option metrics_use_pattern_match to True.",
-        ):
-            assert isinstance(airflow.stats.Stats.statsd, statsd.StatsClient)
-        assert isinstance(airflow.stats.Stats.instance.metrics_validator, AllowListValidator)
+        assert isinstance(airflow.stats.Stats.statsd, statsd.StatsClient)
+        assert type(airflow.stats.Stats.instance.metrics_validator) is PatternAllowListValidator
         with caplog.at_level(logging.WARNING):
             assert "Ignoring metrics_block_list" in caplog.text
 
@@ -425,7 +378,9 @@ class TestDogStatsWithAllowList:
         from datadog import DogStatsd
 
         self.dogstatsd_client = Mock(speck=DogStatsd)
-        self.dogstats = SafeDogStatsdLogger(self.dogstatsd_client, AllowListValidator("stats_one, stats_two"))
+        self.dogstats = SafeDogStatsdLogger(
+            self.dogstatsd_client, PatternAllowListValidator("stats_one, stats_two")
+        )
 
     def test_increment_counter_with_allowed_key(self):
         self.dogstats.incr("stats_one")
@@ -468,7 +423,7 @@ class TestDogStatsWithDisabledMetricsTags:
         self.dogstatsd = SafeDogStatsdLogger(
             self.dogstatsd_client,
             metrics_tags=True,
-            metric_tags_validator=BlockListValidator("key1"),
+            metric_tags_validator=PatternBlockListValidator("key1"),
         )
 
     def test_does_send_stats_using_dogstatsd_with_tags(self):
@@ -490,7 +445,7 @@ class TestStatsWithInfluxDBEnabled:
             self.stats = SafeStatsdLogger(
                 self.statsd_client,
                 influxdb_tags_enabled=True,
-                metric_tags_validator=BlockListValidator("key2,key3"),
+                metric_tags_validator=PatternBlockListValidator("key2,key3"),
             )
 
     def test_increment_counter(self):
@@ -526,7 +481,6 @@ class TestCustomStatsName:
     @conf_vars(
         {
             ("metrics", "statsd_on"): "True",
-            ("metrics", "metrics_use_pattern_match"): "True",
             ("metrics", "stat_name_handler"): "tests.core.test_stats.always_invalid",
         }
     )
@@ -539,7 +493,6 @@ class TestCustomStatsName:
     @conf_vars(
         {
             ("metrics", "statsd_datadog_enabled"): "True",
-            ("metrics", "metrics_use_pattern_match"): "True",
             ("metrics", "stat_name_handler"): "tests.core.test_stats.always_invalid",
         }
     )
@@ -553,7 +506,6 @@ class TestCustomStatsName:
         {
             ("metrics", "statsd_on"): "True",
             ("metrics", "stat_name_handler"): "tests.core.test_stats.always_valid",
-            ("metrics", "metrics_use_pattern_match"): "True",
         }
     )
     @mock.patch("statsd.StatsClient")
@@ -565,7 +517,6 @@ class TestCustomStatsName:
     @conf_vars(
         {
             ("metrics", "statsd_datadog_enabled"): "True",
-            ("metrics", "metrics_use_pattern_match"): "True",
             ("metrics", "stat_name_handler"): "tests.core.test_stats.always_valid",
         }
     )

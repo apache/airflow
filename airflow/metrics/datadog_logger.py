@@ -24,8 +24,8 @@ from typing import TYPE_CHECKING
 from airflow.configuration import conf
 from airflow.metrics.protocols import Timer
 from airflow.metrics.validators import (
-    AllowListValidator,
-    BlockListValidator,
+    PatternAllowListValidator,
+    PatternBlockListValidator,
     get_validator,
     validate_stat,
 )
@@ -47,9 +47,9 @@ class SafeDogStatsdLogger:
     def __init__(
         self,
         dogstatsd_client: DogStatsd,
-        metrics_validator: ListValidator = AllowListValidator(),
+        metrics_validator: ListValidator = PatternAllowListValidator(),
         metrics_tags: bool = False,
-        metric_tags_validator: ListValidator = AllowListValidator(),
+        metric_tags_validator: ListValidator = PatternAllowListValidator(),
     ) -> None:
         self.dogstatsd = dogstatsd_client
         self.metrics_validator = metrics_validator
@@ -168,5 +168,7 @@ def get_dogstatsd_logger(cls) -> SafeDogStatsdLogger:
         constant_tags=cls.get_constant_tags(),
     )
     datadog_metrics_tags = conf.getboolean("metrics", "statsd_datadog_metrics_tags", fallback=True)
-    metric_tags_validator = BlockListValidator(conf.get("metrics", "statsd_disabled_tags", fallback=None))
+    metric_tags_validator = PatternBlockListValidator(
+        conf.get("metrics", "statsd_disabled_tags", fallback=None)
+    )
     return SafeDogStatsdLogger(dogstatsd, get_validator(), datadog_metrics_tags, metric_tags_validator)
