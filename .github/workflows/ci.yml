@@ -521,7 +521,7 @@ jobs:
       excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
       excludes: "[]"
       parallel-test-types-list-as-string: ${{ needs.build-info.outputs.separate-test-types-list-as-string }}
-      include-success-outputs: "true"
+      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       run-coverage: ${{ needs.build-info.outputs.run-coverage }}
       debug-resources: ${{ needs.build-info.outputs.debug-resources }}
       monitor-delay-time-in-seconds: 120
