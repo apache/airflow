@@ -87,7 +87,7 @@ COLUMN_SPECS = {
     "county": "categorical",
 }
 
-BIGQUERY_SOURCE = f"bq://{PROJECT_ID}.test_iowa_liquor_sales_forecasting_us.2021_sales_predict"
+BIGQUERY_SOURCE = "bq://airflow-system-tests-resources.vertex_ai_training_dataset.data"
 GCS_DESTINATION_PREFIX = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/output"
 MODEL_PARAMETERS: dict[str, str] = {}
 
