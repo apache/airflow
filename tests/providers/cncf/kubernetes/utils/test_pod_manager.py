@@ -95,7 +95,9 @@ class TestPodManager:
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_succeeded")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
-    def test_fetch_container_logs_do_not_log_none(self, mock_container_is_running, mock_container_is_succeeded, caplog):
+    def test_fetch_container_logs_do_not_log_none(
+        self, mock_container_is_running, mock_container_is_succeeded, caplog
+    ):
         MockWrapper.reset()
         caplog.set_level(logging.INFO)
 
@@ -282,7 +284,6 @@ class TestPodManager:
         assert timestamp == pendulum.parse(real_timestamp)
         assert line == log_message
 
-
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_succeeded")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
@@ -297,7 +298,6 @@ class TestPodManager:
         status = self.pod_manager.fetch_container_logs(mock.MagicMock(), mock.MagicMock(), follow=True)
 
         assert status.last_log_time == cast("DateTime", pendulum.parse(timestamp_string))
-
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_succeeded")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
@@ -369,7 +369,9 @@ class TestPodManager:
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_succeeded")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.read_pod_logs")
-    def test_parse_multi_line_logs(self, mock_read_pod_logs, mock_container_is_running, mock_container_is_succeeded, caplog):
+    def test_parse_multi_line_logs(
+        self, mock_read_pod_logs, mock_container_is_running, mock_container_is_succeeded, caplog
+    ):
         log = (
             "2020-10-08T14:16:17.793417674Z message1 line1\n"
             "message1 line2\n"
@@ -466,7 +468,9 @@ class TestPodManager:
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_succeeded")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodLogsConsumer.logs_available")
-    def test_fetch_container_done(self, logs_available, container_running, mock_container_is_succeeded, follow):
+    def test_fetch_container_done(
+        self, logs_available, container_running, mock_container_is_succeeded, follow
+    ):
         """If container done, should exit, no matter setting of follow."""
         mock_pod = MagicMock()
         logs_available.return_value = False
@@ -520,7 +524,9 @@ class TestPodManager:
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_succeeded")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodLogsConsumer.logs_available")
-    def test_fetch_container_since_time(self, logs_available, container_running, mock_container_is_succeeded, mock_now):
+    def test_fetch_container_since_time(
+        self, logs_available, container_running, mock_container_is_succeeded, mock_now
+    ):
         """If given since_time, should be used."""
         mock_pod = MagicMock()
         mock_now.return_value = pendulum.datetime(2020, 1, 1, 0, 0, 5, tz="UTC")

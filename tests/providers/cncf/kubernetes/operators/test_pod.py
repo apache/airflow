@@ -2243,7 +2243,6 @@ class TestKubernetesPodOperatorAsync:
                 op.execute_complete(fake_context, fake_event)
         mocked_trigger_reentry.assert_called_once_with(context=fake_context, event=fake_event)
 
-
     @patch(f"{HOOK_CLASS}.get_pod")
     @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_succeeded")
     @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running")
@@ -2282,7 +2281,6 @@ class TestKubernetesPodOperatorAsync:
         )
 
         assert cleanup.call_count == 2
-
 
 
 @pytest.mark.parametrize("do_xcom_push", [True, False])

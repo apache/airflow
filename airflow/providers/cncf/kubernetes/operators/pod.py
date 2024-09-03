@@ -391,9 +391,7 @@ class KubernetesPodOperator(BaseOperator):
         self.skip_on_exit_code = (
             skip_on_exit_code
             if isinstance(skip_on_exit_code, Container)
-            else [skip_on_exit_code]
-            if skip_on_exit_code is not None
-            else []
+            else [skip_on_exit_code] if skip_on_exit_code is not None else []
         )
         self.base_container_name = base_container_name or self.BASE_CONTAINER_NAME
         self.deferrable = deferrable
@@ -786,7 +784,6 @@ class KubernetesPodOperator(BaseOperator):
                             event["message"] = "pod failure"
                 else:
                     self.invoke_defer_method()
-
 
             if event["status"] in ("error", "failed", "timeout"):
                 # fetch some logs when pod is failed
