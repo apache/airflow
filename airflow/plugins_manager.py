@@ -27,7 +27,6 @@ import logging
 import os
 import sys
 import types
-from cgitb import Hook
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable
 
@@ -78,7 +77,7 @@ operator_extra_links: list[Any] | None = None
 registered_operator_link_classes: dict[str, type] | None = None
 registered_ti_dep_classes: dict[str, type] | None = None
 timetable_classes: dict[str, type[Timetable]] | None = None
-hook_lineage_reader_classes: list[type[Hook]] | None = None
+hook_lineage_reader_classes: list[type[HookLineageReader]] | None = None
 priority_weight_strategy_classes: dict[str, type[PriorityWeightStrategy]] | None = None
 """
 Mapping of class names to class of OperatorLinks registered by plugins.

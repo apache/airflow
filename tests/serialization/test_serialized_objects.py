@@ -29,6 +29,7 @@ import pytest
 from dateutil import relativedelta
 from kubernetes.client import models as k8s
 from pendulum.tz.timezone import Timezone
+from pydantic import BaseModel
 
 from airflow.datasets import Dataset, DatasetAlias, DatasetAliasEvent
 from airflow.exceptions import (
@@ -63,7 +64,6 @@ from airflow.utils import timezone
 from airflow.utils.context import OutletEventAccessor, OutletEventAccessors
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.operator_resources import Resources
-from airflow.utils.pydantic import BaseModel
 from airflow.utils.state import DagRunState, State
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
@@ -321,7 +321,7 @@ sample_objects = {
     DagModelPydantic: DagModel(
         dag_id="TEST_DAG_1",
         fileloc="/tmp/dag_1.py",
-        schedule_interval="2 2 * * *",
+        timetable_summary="2 2 * * *",
         is_paused=True,
     ),
     LogTemplatePydantic: LogTemplate(
@@ -370,7 +370,7 @@ sample_objects = {
             sample_objects.get(DagModelPydantic),
             DagModelPydantic,
             DAT.DAG_MODEL,
-            lambda a, b: a.fileloc == b.fileloc and a.schedule_interval == b.schedule_interval,
+            lambda a, b: a.fileloc == b.fileloc and a.timetable_summary == b.timetable_summary,
         ),
         (
             sample_objects.get(LogTemplatePydantic),

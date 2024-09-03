@@ -477,6 +477,31 @@ class TestDagRun:
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
         assert callback is None
 
+    def test_on_success_callback_when_task_skipped(self, session):
+        mock_on_success = mock.MagicMock()
+        mock_on_success.__name__ = "mock_on_success"
+
+        dag = DAG(
+            dag_id="test_dagrun_update_state_with_handle_callback_success",
+            start_date=datetime.datetime(2017, 1, 1),
+            on_success_callback=mock_on_success,
+            schedule=datetime.timedelta(days=1),
+        )
+
+        _ = EmptyOperator(task_id="test_state_succeeded1", dag=dag)
+
+        initial_task_states = {
+            "test_state_succeeded1": TaskInstanceState.SKIPPED,
+        }
+
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        _, _ = dag_run.update_state(execute_callbacks=True)
+        task = dag_run.get_task_instances()[0]
+
+        assert task.state == TaskInstanceState.SKIPPED
+        assert DagRunState.SUCCESS == dag_run.state
+        mock_on_success.assert_called_once()
+
     def test_dagrun_update_state_with_handle_callback_success(self, session):
         def on_success_callable(context):
             assert context["dag_run"].dag_id == "test_dagrun_update_state_with_handle_callback_success"
@@ -913,19 +938,19 @@ class TestDagRun:
         assert call(f"dagrun.{dag.dag_id}.first_task_scheduling_delay") not in stats_mock.mock_calls
 
     @pytest.mark.parametrize(
-        "schedule_interval, expected",
+        "schedule, expected",
         [
             ("*/5 * * * *", True),
             (None, False),
             ("@once", False),
         ],
     )
-    def test_emit_scheduling_delay(self, session, schedule_interval, expected):
+    def test_emit_scheduling_delay(self, session, schedule, expected):
         """
         Tests that dag scheduling delay stat is set properly once running scheduled dag.
         dag_run.update_state() invokes the _emit_true_scheduling_delay_stats_for_finished_state method.
         """
-        dag = DAG(dag_id="test_emit_dag_stats", start_date=DEFAULT_DATE, schedule=schedule_interval)
+        dag = DAG(dag_id="test_emit_dag_stats", start_date=DEFAULT_DATE, schedule=schedule)
         dag_task = EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
         expected_stat_tags = {"dag_id": f"{dag.dag_id}", "run_type": DagRunType.SCHEDULED}
 
@@ -1397,7 +1422,7 @@ def test_mapped_literal_faulty_state_in_db(dag_maker, session):
     assert len(decision.schedulable_tis) == 2
 
     # We insert a faulty record
-    session.add(TaskInstance(dag.get_task("task_2"), dr.execution_date, dr.run_id))
+    session.add(TaskInstance(task=dag.get_task("task_2"), run_id=dr.run_id))
     session.flush()
 
     decision = dr.task_instance_scheduling_decisions()

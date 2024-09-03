@@ -79,14 +79,13 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         *,
         base_log_folder: str,
         gcs_log_folder: str,
-        filename_template: str | None = None,
         gcp_key_path: str | None = None,
         gcp_keyfile_dict: dict | None = None,
         gcp_scopes: Collection[str] | None = _DEFAULT_SCOPESS,
         project_id: str = PROVIDE_PROJECT_ID,
         **kwargs,
     ):
-        super().__init__(base_log_folder, filename_template)
+        super().__init__(base_log_folder)
         self.handler: logging.FileHandler | None = None
         self.remote_base = gcs_log_folder
         self.log_relative_path = ""
