@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-03T03:14:09.649524
+# This constraints file was automatically generated on 2024-09-03T19:53:00.494712
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -246,7 +246,7 @@ celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.0
 cfgv==3.4.0
-cfn-lint==1.11.1
+cfn-lint==1.12.0
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -361,7 +361,7 @@ google-cloud-translate==3.16.0
 google-cloud-videointelligence==2.13.5
 google-cloud-vision==3.7.4
 google-cloud-workflows==1.14.5
-google-crc32c==1.5.0
+google-crc32c==1.6.0
 google-re2==1.1.20240702
 google-resumable-media==2.7.2
 googleapis-common-protos==1.65.0
@@ -460,7 +460,7 @@ moto==5.0.11
 mpmath==1.3.0
 msal-extensions==1.2.0
 msal==1.30.0
-msgraph-core==1.1.2
+msgraph-core==1.1.3
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
@@ -676,7 +676,7 @@ tableauserverclient==0.32
 tabulate==0.9.0
 tenacity==8.5.0
 teradatasql==20.0.0.15
-teradatasqlalchemy==20.0.0.1
+teradatasqlalchemy==20.0.0.2
 termcolor==2.4.0
 text-unidecode==1.3
 thrift-sasl==0.4.3
