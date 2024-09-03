@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-02T07:39:15.654231
+# This constraints file was automatically generated on 2024-09-03T02:02:23.869125
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -77,14 +77,14 @@ anyascii==0.3.2
 anyio==4.4.0
 apache-beam==2.56.0
 apispec==6.6.1
-apprise==1.8.1
+apprise==1.9.0
 argcomplete==3.5.0
 asana==3.2.3
 asgiref==3.8.1
 asn1crypto==1.5.1
 astroid==2.15.8
 asttokens==2.4.1
-asyncssh==2.16.0
+asyncssh==2.17.0
 atlasclient==1.0.0
 atlassian-python-api==3.41.15
 attrs==24.2.0
@@ -151,7 +151,7 @@ cohere==4.57
 colorama==0.4.6
 colorlog==6.8.2
 comm==0.2.2
-confluent-kafka==2.5.0
+confluent-kafka==2.5.3
 connexion==2.14.2
 coverage==7.6.1
 crcmod==1.7
@@ -288,6 +288,7 @@ identify==2.6.0
 idna==3.8
 ijson==3.3.0
 imagesize==1.4.1
+immutabledict==4.2.0
 importlib-metadata==6.11.0
 importlib_resources==6.4.4
 impyla==0.19.0
