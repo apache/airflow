@@ -108,38 +108,27 @@ def test_paths(test_type: str, backend: str, helm_test_package: str | None) -> t
     return result_log_file, warnings_file, coverage_file
 
 
-def get_suspended_provider_args() -> list[str]:
-    pytest_args = []
-    suspended_folders = get_suspended_provider_folders()
-    for providers in suspended_folders:
-        pytest_args.extend(
+def get_ignore_switches_for_provider(provider_folders: list[str]) -> list[str]:
+    args = []
+    for providers in provider_folders:
+        args.extend(
             [
-                "--ignore",
-                f"tests/providers/{providers}",
-                "--ignore",
-                f"tests/system/providers/{providers}",
-                "--ignore",
-                f"tests/integration/providers/{providers}",
+                f"--ignore=tests/providers/{providers}",
+                f"--ignore=tests/system/providers/{providers}",
+                f"--ignore=tests/integration/providers/{providers}",
             ]
         )
-    return pytest_args
+    return args
+
+
+def get_suspended_provider_args() -> list[str]:
+    suspended_folders = get_suspended_provider_folders()
+    return get_ignore_switches_for_provider(suspended_folders)
 
 
 def get_excluded_provider_args(python_version: str) -> list[str]:
-    pytest_args = []
     excluded_folders = get_excluded_provider_folders(python_version)
-    for providers in excluded_folders:
-        pytest_args.extend(
-            [
-                "--ignore",
-                f"tests/providers/{providers}",
-                "--ignore",
-                f"tests/system/providers/{providers}",
-                "--ignore",
-                f"tests/integration/providers/{providers}",
-            ]
-        )
-    return pytest_args
+    return get_ignore_switches_for_provider(excluded_folders)
 
 
 TEST_TYPE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
@@ -288,7 +277,7 @@ def convert_test_type_to_pytest_args(
         return find_all_other_tests()
     test_dirs = TEST_TYPE_MAP_TO_PYTEST_ARGS.get(test_type)
     if test_dirs:
-        return test_dirs
+        return test_dirs.copy()
     get_console().print(f"[error]Unknown test type: {test_type}[/]")
     sys.exit(1)
 
