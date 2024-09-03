@@ -1155,6 +1155,7 @@ class TestWebserverServiceAccount:
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
 
+
 class TestWebserverHPAAutoScaler:
     """Tests webserver HPA auto scaler."""
 
@@ -1183,7 +1184,7 @@ class TestWebserverHPAAutoScaler:
         )
         assert "replicas" not in jmespath.search("spec", docs[0])
 
-    def test_not_should_remove_replicas_field(self):
+    def test_should_not_remove_replicas_field(self):
         docs = render_chart(
             values={
                 "webserver": {
@@ -1193,17 +1194,6 @@ class TestWebserverHPAAutoScaler:
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
         assert "replicas" in jmespath.search("spec", docs[0])
-
-    def test_should_remove_replicas_field(self):
-        docs = render_chart(
-            values={
-                "webserver": {
-                    "hpa": {"enabled": True},
-                },
-            },
-            show_only=["templates/webserver/webserver-deployment.yaml"],
-        )
-        assert "replicas" not in jmespath.search("spec", docs[0])
 
     @pytest.mark.parametrize(
         "metrics, expected_metrics",
