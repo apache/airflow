@@ -1033,6 +1033,13 @@ class TestSparkSubmitHook:
         # Then
         assert command_masked == expected
 
+    def test_create_keytab_path_from_base64_keytab_with_decode_exception(self):
+        hook = SparkSubmitHook()
+        invalid_base64 = "invalid_base64"
+
+        with pytest.raises(AirflowException, match="Failed to decode base64 keytab"):
+            hook._create_keytab_path_from_base64_keytab(invalid_base64, None)
+
     @patch("airflow.providers.apache.spark.hooks.spark_submit.uuid.uuid4")
     @patch("pathlib.Path.resolve")
     @patch("airflow.providers.apache.spark.hooks.spark_submit.shutil.move")
