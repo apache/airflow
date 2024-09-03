@@ -19,10 +19,11 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Iterable, List, Optional
 
+from pydantic import BaseModel as BaseModelPydantic, ConfigDict
+
 from airflow.models.dagrun import DagRun
 from airflow.serialization.pydantic.dag import PydanticDag
 from airflow.serialization.pydantic.dataset import DatasetEventPydantic
-from airflow.utils.pydantic import BaseModel as BaseModelPydantic, ConfigDict, is_pydantic_2_installed
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -111,5 +112,4 @@ class DagRunPydantic(BaseModelPydantic):
         return DagRun._get_log_template(log_template_id=self.log_template_id)
 
 
-if is_pydantic_2_installed():
-    DagRunPydantic.model_rebuild()
+DagRunPydantic.model_rebuild()

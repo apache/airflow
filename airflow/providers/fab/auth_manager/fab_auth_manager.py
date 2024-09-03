@@ -503,7 +503,7 @@ class FabAuthManager(BaseAuthManager):
 
         :meta private:
         """
-        if "." in dag_id:
+        if "." in dag_id and hasattr(DagModel, "root_dag_id"):
             return self.appbuilder.get_session.scalar(
                 select(DagModel.dag_id, DagModel.root_dag_id).where(DagModel.dag_id == dag_id).limit(1)
             )

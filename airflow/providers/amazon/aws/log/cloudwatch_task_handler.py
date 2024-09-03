@@ -71,13 +71,12 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     :param base_log_folder: base folder to store logs locally
     :param log_group_arn: ARN of the Cloudwatch log group for remote log storage
         with format ``arn:aws:logs:{region name}:{account id}:log-group:{group name}``
-    :param filename_template: template for file name (local storage) or log stream name (remote)
     """
 
     trigger_should_wrap = True
 
-    def __init__(self, base_log_folder: str, log_group_arn: str, filename_template: str | None = None):
-        super().__init__(base_log_folder, filename_template)
+    def __init__(self, base_log_folder: str, log_group_arn: str, **kwargs):
+        super().__init__(base_log_folder)
         split_arn = log_group_arn.split(":")
 
         self.handler = None

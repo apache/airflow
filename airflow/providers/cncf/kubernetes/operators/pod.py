@@ -495,8 +495,10 @@ class KubernetesPodOperator(BaseOperator):
         if include_try_number:
             labels.update(try_number=ti.try_number)
         # In the case of sub dags this is just useful
-        if context["dag"].parent_dag:
-            labels["parent_dag_id"] = context["dag"].parent_dag.dag_id
+        # TODO: Remove this when the minimum version of Airflow is bumped to 3.0
+        if getattr(context["dag"], "parent_dag", False):
+            labels["parent_dag_id"] = context["dag"].parent_dag.dag_id  # type: ignore[attr-defined]
+
         # Ensure that label is valid for Kube,
         # and if not truncate/remove invalid chars and replace with short hash.
         for label_id, label in labels.items():
@@ -1003,7 +1005,7 @@ class KubernetesPodOperator(BaseOperator):
         return None
 
     def patch_already_checked(self, pod: k8s.V1Pod, *, reraise=True):
-        """Add an "already checked" annotation to ensure we don't reattach on retries."""
+        """Add an "already checked" label to ensure we don't reattach on retries."""
         with _optionally_suppress(reraise=reraise):
             self.client.patch_namespaced_pod(
                 name=pod.metadata.name,

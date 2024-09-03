@@ -74,9 +74,6 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - :mod:`airflow.operators.python`
      - :doc:`How to use <howto/operator/python>`
 
-   * - :mod:`airflow.operators.subdag`
-     -
-
    * - :mod:`airflow.operators.trigger_dagrun`
      -
 

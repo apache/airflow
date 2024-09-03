@@ -329,7 +329,7 @@ def test_mark_task_instance_state(test_app):
 
     clear_db_runs()
     start_date = datetime(2020, 1, 1)
-    with DAG("test_mark_task_instance_state", start_date=start_date) as dag:
+    with DAG("test_mark_task_instance_state", start_date=start_date, schedule="0 0 * * *") as dag:
         task_1 = EmptyOperator(task_id="task_1")
         task_2 = EmptyOperator(task_id="task_2")
         task_3 = EmptyOperator(task_id="task_3")
@@ -367,7 +367,7 @@ def test_mark_task_instance_state(test_app):
         session.commit()
 
     test_app.dag_bag = DagBag(dag_folder="/dev/null", include_examples=False)
-    test_app.dag_bag.bag_dag(dag=dag, root_dag=dag)
+    test_app.dag_bag.bag_dag(dag=dag)
 
     with test_app.test_request_context():
         view = Airflow()
@@ -420,7 +420,7 @@ def test_mark_task_group_state(test_app):
 
     clear_db_runs()
     start_date = datetime(2020, 1, 1)
-    with DAG("test_mark_task_group_state", start_date=start_date) as dag:
+    with DAG("test_mark_task_group_state", start_date=start_date, schedule="0 0 * * *") as dag:
         start = EmptyOperator(task_id="start")
 
         with TaskGroup("section_1", tooltip="Tasks for section_1") as section_1:
@@ -469,7 +469,7 @@ def test_mark_task_group_state(test_app):
         session.commit()
 
     test_app.dag_bag = DagBag(dag_folder="/dev/null", include_examples=False)
-    test_app.dag_bag.bag_dag(dag=dag, root_dag=dag)
+    test_app.dag_bag.bag_dag(dag=dag)
 
     with test_app.test_request_context():
         view = Airflow()
@@ -604,7 +604,7 @@ def test_invalid_dates(app, admin_client, url, content):
 @patch("airflow.utils.usage_data_collection.get_database_version", return_value="12.3")
 @patch("airflow.utils.usage_data_collection.get_database_name", return_value="postgres")
 @patch("airflow.utils.usage_data_collection.get_executor", return_value="SequentialExecutor")
-@patch("airflow.utils.usage_data_collection.get_python_version", return_value="3.8.5")
+@patch("airflow.utils.usage_data_collection.get_python_version", return_value="3.8")
 @patch("airflow.utils.usage_data_collection.get_plugin_counts")
 def test_build_scarf_url(
     get_plugin_counts,
@@ -626,8 +626,8 @@ def test_build_scarf_url(
         result = build_scarf_url(5)
         expected_url = (
             "https://apacheairflow.gateway.scarf.sh/webserver/"
-            f"{airflow_version}/3.8.5/Linux/x86_64/postgres/12.3/SequentialExecutor/5"
-            f"/10/15/20/25/30"
+            f"{airflow_version}/3.8/Linux/x86_64/postgres/12.3/SequentialExecutor/1-5"
+            f"/6-10/15/20/25/21-50"
         )
         if enabled:
             assert result == expected_url

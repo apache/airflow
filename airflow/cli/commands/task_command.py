@@ -330,7 +330,6 @@ def _run_task_by_local_task_job(args, ti: TaskInstance | TaskInstancePydantic) -
 
 RAW_TASK_UNSUPPORTED_OPTION = [
     "ignore_all_dependencies",
-    "ignore_depends_on_past",
     "ignore_dependencies",
     "force",
 ]
@@ -548,11 +547,8 @@ def task_state(args) -> None:
 def task_list(args, dag: DAG | None = None) -> None:
     """List the tasks within a DAG at the command line."""
     dag = dag or get_dag(args.subdir, args.dag_id)
-    if args.tree:
-        dag.tree_view()
-    else:
-        tasks = sorted(t.task_id for t in dag.tasks)
-        print("\n".join(tasks))
+    tasks = sorted(t.task_id for t in dag.tasks)
+    print("\n".join(tasks))
 
 
 class _SupportedDebugger(Protocol):
@@ -764,8 +760,6 @@ def task_clear(args) -> None:
         only_failed=args.only_failed,
         only_running=args.only_running,
         confirm_prompt=not args.yes,
-        include_subdags=not args.exclude_subdags,
-        include_parentdag=not args.exclude_parentdag,
     )
 
 

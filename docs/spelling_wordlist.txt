@@ -669,6 +669,8 @@ gcpcloudsql
 GCS
 gcs
 gdbm
+Gelf
+gelf
 generateUploadUrl
 Gentner
 geq

@@ -240,6 +240,9 @@ def build_scarf_url(dags_count: int) -> str:
     appbuilder_views_count = plugin_counts["appbuilder_views"]
     appbuilder_menu_items_count = plugin_counts["appbuilder_menu_items"]
     timetables_count = plugin_counts["timetables"]
+    dag_bucket = usage_data_collection.to_bucket(dags_count)
+    plugins_bucket = usage_data_collection.to_bucket(plugins_count)
+    timetable_bucket = usage_data_collection.to_bucket(timetables_count)
 
     # Path Format:
     # /{version}/{python_version}/{platform}/{arch}/{database}/{db_version}/{executor}/{num_dags}/{plugin_count}/{flask_blueprint_count}/{appbuilder_view_count}/{appbuilder_menu_item_count}/{timetables}
@@ -248,8 +251,8 @@ def build_scarf_url(dags_count: int) -> str:
     scarf_url = (
         f"{scarf_domain}/webserver"
         f"/{version}/{python_version}"
-        f"/{platform_sys}/{platform_arch}/{db_name}/{db_version}/{executor}/{dags_count}"
-        f"/{plugins_count}/{flask_blueprints_count}/{appbuilder_views_count}/{appbuilder_menu_items_count}/{timetables_count}"
+        f"/{platform_sys}/{platform_arch}/{db_name}/{db_version}/{executor}/{dag_bucket}"
+        f"/{plugins_bucket}/{flask_blueprints_count}/{appbuilder_views_count}/{appbuilder_menu_items_count}/{timetable_bucket}"
     )
 
     return scarf_url
@@ -844,7 +847,7 @@ class Airflow(AirflowBaseView):
 
         with create_session() as session:
             # read orm_dags from the db
-            dags_query = select(DagModel).where(~DagModel.is_subdag, DagModel.is_active)
+            dags_query = select(DagModel).where(DagModel.is_active)
 
             if arg_search_query:
                 escaped_arg_search_query = arg_search_query.replace("_", r"\_")
@@ -989,7 +992,7 @@ class Airflow(AirflowBaseView):
                     else:
                         current_dags = current_dags.order_by(null_case, sort_column)
 
-            dags = (
+            dags: list[DagModel] = (
                 session.scalars(
                     current_dags.options(joinedload(DagModel.tags)).offset(start).limit(dags_per_page)
                 )
@@ -997,7 +1000,7 @@ class Airflow(AirflowBaseView):
                 .all()
             )
 
-            dataset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.schedule_interval == "Dataset"}
+            dataset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.dataset_expression is not None}
             if dataset_triggered_dag_ids:
                 dataset_triggered_next_run_info = get_dataset_triggered_next_run_info(
                     dataset_triggered_dag_ids, session=session
@@ -1210,16 +1213,11 @@ class Airflow(AirflowBaseView):
         else:
             filter_dag_ids = allowed_dag_ids
 
-        dataset_triggered_dag_ids = [
-            dag_id
-            for dag_id in (
-                session.scalars(
-                    select(DagModel.dag_id)
-                    .where(DagModel.dag_id.in_(filter_dag_ids))
-                    .where(DagModel.schedule_interval == "Dataset")
-                )
-            )
-        ]
+        dataset_triggered_dag_ids = session.scalars(
+            select(DagModel.dag_id)
+            .where(DagModel.dag_id.in_(filter_dag_ids))
+            .where(DagModel.dataset_expression.is_not(None))
+        ).all()
 
         dataset_triggered_next_run_info = get_dataset_triggered_next_run_info(
             dataset_triggered_dag_ids, session=session
@@ -2059,8 +2057,6 @@ class Airflow(AirflowBaseView):
 
         # Prepare form fields with param struct details to render a proper form with schema information
         form_fields = {}
-        allow_raw_html_descriptions = conf.getboolean("webserver", "allow_raw_html_descriptions")
-        form_trust_problems = []
         for k, v in dag.params.items():
             form_fields[k] = v.dump()
             form_field: dict = form_fields[k]
@@ -2078,19 +2074,6 @@ class Airflow(AirflowBaseView):
                     form_field_schema["type"] = ["array", "null"]
                 elif isinstance(form_field_value, dict):
                     form_field_schema["type"] = ["object", "null"]
-            # Mark HTML fields as safe if allowed
-            if allow_raw_html_descriptions:
-                if "description_html" in form_field_schema:
-                    form_field["description"] = Markup(form_field_schema["description_html"])
-                if "custom_html_form" in form_field_schema:
-                    form_field_schema["custom_html_form"] = Markup(form_field_schema["custom_html_form"])
-            else:
-                if "description_html" in form_field_schema and "description_md" not in form_field_schema:
-                    form_trust_problems.append(f"Field {k} uses HTML description")
-                    form_field["description"] = form_field_schema.pop("description_html")
-                if "custom_html_form" in form_field_schema:
-                    form_trust_problems.append(f"Field {k} uses custom HTML form definition")
-                    form_field_schema.pop("custom_html_form")
             if "description_md" in form_field_schema:
                 form_field["description"] = wwwutils.wrapped_markdown(form_field_schema["description_md"])
             # Check for default values and pre-populate
@@ -2110,34 +2093,6 @@ class Airflow(AirflowBaseView):
                         )
                 else:
                     form_field["value"] = request.values.get(k)
-        if form_trust_problems:
-            flash(
-                Markup(
-                    "At least one field in the trigger form uses a raw HTML form definition. This is not allowed for "
-                    "security. Please switch to markdown description via <code>description_md</code>. "
-                    "Raw HTML is deprecated and must be enabled via "
-                    "<code>webserver.allow_raw_html_descriptions</code> configuration parameter. Using plain text "
-                    "as fallback for these fields. "
-                    f"<ul><li>{'</li><li>'.join(form_trust_problems)}</li></ul>"
-                ),
-                "warning",
-            )
-        if allow_raw_html_descriptions and any("description_html" in p.schema for p in dag.params.values()):
-            flash(
-                Markup(
-                    "The form params use raw HTML in <code>description_html</code> which is deprecated. "
-                    "Please migrate to <code>description_md</code>."
-                ),
-                "warning",
-            )
-        if allow_raw_html_descriptions and any("custom_html_form" in p.schema for p in dag.params.values()):
-            flash(
-                Markup(
-                    "The form params use <code>custom_html_form</code> definition. "
-                    "This is deprecated with Airflow 2.8.0 and will be removed in a future release."
-                ),
-                "warning",
-            )
 
         ui_fields_defined = any("const" not in f["schema"] for f in form_fields.values())
         show_trigger_form_if_no_params = conf.getboolean("webserver", "show_trigger_form_if_no_params")
@@ -2341,8 +2296,6 @@ class Airflow(AirflowBaseView):
                 start_date=start_date,
                 end_date=end_date,
                 task_ids=task_ids,
-                include_subdags=recursive,
-                include_parentdag=recursive,
                 only_failed=only_failed,
                 session=session,
             )
@@ -2355,8 +2308,6 @@ class Airflow(AirflowBaseView):
                 start_date=start_date,
                 end_date=end_date,
                 task_ids=task_ids,
-                include_subdags=recursive,
-                include_parentdag=recursive,
                 only_failed=only_failed,
                 dry_run=True,
                 session=session,
@@ -5488,8 +5439,6 @@ class TaskInstanceModelView(AirflowModelView):
                             start_date=dag_run.execution_date,
                             end_date=dag_run.execution_date,
                             task_ids=downstream_task_ids_to_clear,
-                            include_subdags=False,
-                            include_parentdag=False,
                             session=session,
                             dry_run=True,
                         )
@@ -5638,7 +5587,6 @@ class AutocompleteView(AirflowBaseView):
             DagModel.dag_id.label("name"),
             DagModel._dag_display_property_value.label("dag_display_name"),
         ).where(
-            ~DagModel.is_subdag,
             DagModel.is_active,
             or_(
                 DagModel.dag_id.ilike(f"%{query}%"),
@@ -5653,7 +5601,7 @@ class AutocompleteView(AirflowBaseView):
                 sqla.literal(None).label("dag_display_name"),
             )
             .distinct()
-            .where(~DagModel.is_subdag, DagModel.is_active, DagModel.owners.ilike(f"%{query}%"))
+            .where(DagModel.is_active, DagModel.owners.ilike(f"%{query}%"))
         )
 
         # Hide DAGs if not showing status: "all"

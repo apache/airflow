@@ -30,7 +30,6 @@ import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, TypeVar, cast
 
-from deprecated import deprecated
 from google.cloud.dataflow_v1beta3 import (
     GetJobRequest,
     Job,
@@ -51,6 +50,7 @@ from googleapiclient.discovery import Resource, build
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.apache.beam.hooks.beam import BeamHook, BeamRunnerType, beam_options_to_args
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
     GoogleBaseAsyncHook,
@@ -71,7 +71,7 @@ DEFAULT_DATAFLOW_LOCATION = "us-central1"
 
 
 JOB_ID_PATTERN = re.compile(
-    r"Submitted job: (?P<job_id_java>[^\"\n]*)|Created job with id: \[(?P<job_id_python>[^\"\n]*)\]"
+    r"Submitted job: (?P<job_id_java>[^\"\n\s]*)|Created job with id: \[(?P<job_id_python>[^\"\n\s]*)\]"
 )
 
 T = TypeVar("T", bound=Callable)
@@ -186,9 +186,9 @@ class DataflowJobType:
 
 class _DataflowJobsController(LoggingMixin):
     """
-    Interface for communication with Google API.
+    Interface for communication with Google Cloud Dataflow API.
 
-    It's not use Apache Beam, but only Google Dataflow API.
+    Does not use Apache Beam API.
 
     :param dataflow: Discovery resource
     :param project_number: The Google Cloud Project ID.
@@ -271,12 +271,12 @@ class _DataflowJobsController(LoggingMixin):
         else:
             raise ValueError("Missing both dataflow job ID and name.")
 
-    def fetch_job_by_id(self, job_id: str) -> dict:
+    def fetch_job_by_id(self, job_id: str) -> dict[str, str]:
         """
         Fetch the job with the specified Job ID.
 
-        :param job_id: Job ID to get.
-        :return: the Job
+        :param job_id: ID of the job that needs to be fetched.
+        :return: Dictionary containing the Job's data
         """
         return (
             self._dataflow.projects()
@@ -444,7 +444,6 @@ class _DataflowJobsController(LoggingMixin):
                 "Google Cloud Dataflow job's expected terminal state cannot be "
                 "JOB_STATE_DRAINED while it is a batch job"
             )
-
         if current_state == current_expected_state:
             if current_expected_state == DataflowJobStatus.JOB_STATE_RUNNING:
                 return not self._wait_until_finished
@@ -594,12 +593,12 @@ class DataflowHook(GoogleBaseHook):
     @_fallback_to_project_id_from_variables
     @GoogleBaseHook.fallback_to_default_project_id
     @deprecated(
-        reason=(
-            "This method is deprecated. "
-            "Please use `airflow.providers.apache.beam.hooks.beam.start.start_java_pipeline` "
-            "to start pipeline and `providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done` "
-            "to wait for the required pipeline state."
-        ),
+        planned_removal_date="March 01, 2025",
+        use_instead="airflow.providers.apache.beam.hooks.beam.start.start_java_pipeline, "
+        "providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done",
+        instructions="Please use airflow.providers.apache.beam.hooks.beam.start.start_java_pipeline "
+        "to start pipeline and providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done method "
+        "to wait for the required pipeline state instead.",
         category=AirflowProviderDeprecationWarning,
     )
     def start_java_dataflow(
@@ -938,6 +937,90 @@ class DataflowHook(GoogleBaseHook):
         response: dict = request.execute(num_retries=self.num_retries)
         return response["job"]
 
+    @GoogleBaseHook.fallback_to_default_project_id
+    def launch_beam_yaml_job(
+        self,
+        *,
+        job_name: str,
+        yaml_pipeline_file: str,
+        append_job_name: bool,
+        jinja_variables: dict[str, str] | None,
+        options: dict[str, Any] | None,
+        project_id: str,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+    ) -> str:
+        """
+        Launch a Dataflow YAML job and run it until completion.
+
+        :param job_name: The unique name to assign to the Cloud Dataflow job.
+        :param yaml_pipeline_file: Path to a file defining the YAML pipeline to run.
+            Must be a local file or a URL beginning with 'gs://'.
+        :param append_job_name: Set to True if a unique suffix has to be appended to the `job_name`.
+        :param jinja_variables: A dictionary of Jinja2 variables to be used in reifying the yaml pipeline file.
+        :param options: Additional gcloud or Beam job parameters.
+            It must be a dictionary with the keys matching the optional flag names in gcloud.
+            The list of supported flags can be found at: `https://cloud.google.com/sdk/gcloud/reference/dataflow/yaml/run`.
+            Note that if a flag does not require a value, then its dictionary value must be either True or None.
+            For example, the `--log-http` flag can be passed as {'log-http': True}.
+        :param project_id: The ID of the GCP project that owns the job.
+        :param location: Region ID of the job's regional endpoint. Defaults to 'us-central1'.
+        :param on_new_job_callback: Callback function that passes the job to the operator once known.
+        :return: Job ID.
+        """
+        gcp_flags = {
+            "yaml-pipeline-file": yaml_pipeline_file,
+            "project": project_id,
+            "format": "value(job.id)",
+            "region": location,
+        }
+
+        if jinja_variables:
+            gcp_flags["jinja-variables"] = json.dumps(jinja_variables)
+
+        if options:
+            gcp_flags.update(options)
+
+        job_name = self.build_dataflow_job_name(job_name, append_job_name)
+        cmd = self._build_gcloud_command(
+            command=["gcloud", "dataflow", "yaml", "run", job_name], parameters=gcp_flags
+        )
+        job_id = self._create_dataflow_job_with_gcloud(cmd=cmd)
+        return job_id
+
+    def _build_gcloud_command(self, command: list[str], parameters: dict[str, str]) -> list[str]:
+        _parameters = deepcopy(parameters)
+        if self.impersonation_chain:
+            if isinstance(self.impersonation_chain, str):
+                impersonation_account = self.impersonation_chain
+            elif len(self.impersonation_chain) == 1:
+                impersonation_account = self.impersonation_chain[0]
+            else:
+                raise AirflowException(
+                    "Chained list of accounts is not supported, please specify only one service account."
+                )
+            _parameters["impersonate-service-account"] = impersonation_account
+        return [*command, *(beam_options_to_args(_parameters))]
+
+    def _create_dataflow_job_with_gcloud(self, cmd: list[str]) -> str:
+        """Create a Dataflow job with a gcloud command and return the job's ID."""
+        self.log.info("Executing command: %s", " ".join(shlex.quote(c) for c in cmd))
+        success_code = 0
+
+        with self.provide_authorized_gcloud():
+            proc = subprocess.run(cmd, capture_output=True)
+
+        if proc.returncode != success_code:
+            stderr_last_20_lines = "\n".join(proc.stderr.decode().strip().splitlines()[-20:])
+            raise AirflowException(
+                f"Process exit with non-zero exit code. Exit code: {proc.returncode}. Error Details : "
+                f"{stderr_last_20_lines}"
+            )
+
+        job_id = proc.stdout.decode().strip()
+        self.log.info("Created job's ID: %s", job_id)
+
+        return job_id
+
     @staticmethod
     def extract_job_id(job: dict) -> str:
         try:
@@ -951,12 +1034,12 @@ class DataflowHook(GoogleBaseHook):
     @_fallback_to_project_id_from_variables
     @GoogleBaseHook.fallback_to_default_project_id
     @deprecated(
-        reason=(
-            "This method is deprecated. "
-            "Please use `airflow.providers.apache.beam.hooks.beam.start.start_python_pipeline` "
-            "to start pipeline and `providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done` "
-            "to wait for the required pipeline state."
-        ),
+        planned_removal_date="March 01, 2025",
+        use_instead="airflow.providers.apache.beam.hooks.beam.start.start_python_pipeline method, "
+        "providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done",
+        instructions="Please use airflow.providers.apache.beam.hooks.beam.start.start_python_pipeline method "
+        "to start pipeline and providers.google.cloud.hooks.dataflow.DataflowHook.wait_for_done method "
+        "to wait for the required pipeline state instead.",
         category=AirflowProviderDeprecationWarning,
     )
     def start_python_dataflow(
@@ -1139,33 +1222,15 @@ class DataflowHook(GoogleBaseHook):
         :param on_new_job_callback: Callback called when the job is known.
         :return: the new job object
         """
-        gcp_options = [
-            f"--project={project_id}",
-            "--format=value(job.id)",
-            f"--job-name={job_name}",
-            f"--region={location}",
-        ]
-
-        if self.impersonation_chain:
-            if isinstance(self.impersonation_chain, str):
-                impersonation_account = self.impersonation_chain
-            elif len(self.impersonation_chain) == 1:
-                impersonation_account = self.impersonation_chain[0]
-            else:
-                raise AirflowException(
-                    "Chained list of accounts is not supported, please specify only one service account"
-                )
-            gcp_options.append(f"--impersonate-service-account={impersonation_account}")
-
-        cmd = [
-            "gcloud",
-            "dataflow",
-            "sql",
-            "query",
-            query,
-            *gcp_options,
-            *(beam_options_to_args(options)),
-        ]
+        gcp_options = {
+            "project": project_id,
+            "format": "value(job.id)",
+            "job-name": job_name,
+            "region": location,
+        }
+        cmd = self._build_gcloud_command(
+            command=["gcloud", "dataflow", "sql", "query", query], parameters={**gcp_options, **options}
+        )
         self.log.info("Executing command: %s", " ".join(shlex.quote(c) for c in cmd))
         with self.provide_authorized_gcloud():
             proc = subprocess.run(cmd, capture_output=True)
