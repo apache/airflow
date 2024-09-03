@@ -2254,7 +2254,7 @@ class TestKubernetesPodOperatorAsync:
         container_succeeded,
         get_pod,
     ):
-        """When the container exits during a log collection, handle the completion depening on the exit status, do not defer"""
+        """When the container completes during a log collection, handle the pods exit status"""
         pod = MagicMock()
         get_pod.return_value = pod
         op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
