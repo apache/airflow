@@ -746,21 +746,17 @@ class KubernetesPodOperator(BaseOperator):
         try:
             pod_name = event["name"]
             pod_namespace = event["namespace"]
+            pod_status = event["status"]
 
             self.pod = self.hook.get_pod(pod_name, pod_namespace)
 
             if not self.pod:
                 raise PodNotFoundException("Could not find pod after resuming from deferral")
 
-            if self.callbacks and event["status"] != "running":
-                self.callbacks.on_operator_resuming(
-                    pod=self.pod, event=event, client=self.client, mode=ExecutionMode.SYNC
-                )
-
             follow = self.logging_interval is None
             last_log_time = event.get("last_log_time")
 
-            if event["status"] == "running":
+            if pod_status == "running":
                 if self.get_logs:
                     self.log.info("Resuming logs read from time %r", last_log_time)
 
@@ -775,17 +771,17 @@ class KubernetesPodOperator(BaseOperator):
                         self.log.info("Container still running; deferring again.")
                         self.invoke_defer_method(pod_log_status.last_log_time)
                     else:
-                        event = event.copy()
                         last_log_time = pod_log_status.last_log_time
-                        if pod_log_status.success:
-                            event["status"] = "success"
-                        else:
-                            event["status"] = "failed"
-                            event["message"] = "pod failure"
+                        pod_status = "success" if pod_log_status.success else "failed"
                 else:
                     self.invoke_defer_method()
 
-            if event["status"] in ("error", "failed", "timeout"):
+            if self.callbacks and pod_status != "running":
+                self.callbacks.on_operator_resuming(
+                    pod=self.pod, event=event, client=self.client, mode=ExecutionMode.SYNC
+                )
+
+            if pod_status in ("error", "failed", "timeout"):
                 # fetch some logs when pod is failed
                 if self.get_logs:
                     self._write_logs(self.pod, follow=follow, since_time=last_log_time)
@@ -793,9 +789,9 @@ class KubernetesPodOperator(BaseOperator):
                 if self.do_xcom_push:
                     _ = self.extract_xcom(pod=self.pod)
 
-                message = event.get("stack_trace", event["message"])
+                message = event.get("stack_trace") or event.get("message") or "pod failure"
                 raise AirflowException(message)
-            elif event["status"] == "success":
+            elif pod_status == "success":
                 # fetch some logs when pod is executed successfully
                 if self.get_logs:
                     self._write_logs(self.pod, follow=follow, since_time=last_log_time)
@@ -807,15 +803,15 @@ class KubernetesPodOperator(BaseOperator):
         except TaskDeferred:
             raise
         finally:
-            self._clean(event)
+            self._clean(pod_status)
 
-    def _clean(self, event: dict[str, Any]) -> None:
-        if event["status"] == "running":
+    def _clean(self, pod_status: str) -> None:
+        if pod_status == "running":
             return
         istio_enabled = self.is_istio_enabled(self.pod)
         # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
         # on the ErrImagePull or ContainerCreating step and it will never complete
-        if event["status"] != "timeout":
+        if pod_status != "timeout":
             try:
                 self.pod = self.pod_manager.await_pod_completion(
                     self.pod, istio_enabled, self.base_container_name
@@ -824,7 +820,7 @@ class KubernetesPodOperator(BaseOperator):
                 if e.status == 404:
                     self.pod = None
                     self.log.warning(
-                        "Pod not found while waiting for completion. The last status was %r", event["status"]
+                        "Pod not found while waiting for completion. The last status was %r", pod_status
                     )
                 else:
                     raise e
