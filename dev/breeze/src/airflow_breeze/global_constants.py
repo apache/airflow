@@ -228,7 +228,6 @@ SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
 ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
 
 ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
-ALLOWED_PYDANTIC_VERSIONS = ["v2", "v1", "none"]
 
 ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
 
@@ -253,6 +252,8 @@ RABBITMQ_HOST_PORT = "25672"
 REDIS_HOST_PORT = "26379"
 SSH_PORT = "12322"
 WEBSERVER_HOST_PORT = "28080"
+VITE_DEV_PORT = "5173"
+UI_API_HOST_PORT = "29091"
 
 CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"

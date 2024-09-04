@@ -75,7 +75,7 @@ from airflow.utils.sqlalchemy import (
     with_row_locks,
 )
 from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     import logging
@@ -849,7 +849,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 span.set_attribute("queue", ti.queue)
                 span.set_attribute("priority_weight", ti.priority_weight)
                 span.set_attribute("queued_dttm", str(ti.queued_dttm))
-                span.set_attribute("ququed_by_job_id", ti.queued_by_job_id)
+                span.set_attribute("queued_by_job_id", ti.queued_by_job_id)
                 span.set_attribute("pid", ti.pid)
                 if span.is_recording():
                     span.add_event(name="queued", timestamp=datetime_to_nano(ti.queued_dttm))
@@ -1144,6 +1144,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 for executor in self.job.executors:
                     try:
+                        # this is backcompat check if executor does not inherit from BaseExecutor
+                        if not hasattr(executor, "_task_event_logs"):
+                            continue
                         with create_session() as session:
                             self._process_task_event_logs(executor._task_event_logs, session)
                     except Exception:
@@ -1365,6 +1368,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                         session=session,
                         dag_hash=dag_hash,
                         creating_job_id=self.job.id,
+                        triggered_by=DagRunTriggeredByType.TIMETABLE,
                     )
                     active_runs_of_dags[dag.dag_id] += 1
                 # Exceptions like ValueError, ParamValidationError, etc. are raised by
@@ -1478,6 +1482,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     session=session,
                     dag_hash=dag_hash,
                     creating_job_id=self.job.id,
+                    triggered_by=DagRunTriggeredByType.DATASET,
                 )
                 Stats.incr("dataset.triggered_dagruns")
                 dag_run.consumed_dataset_events.extend(dataset_events)
@@ -1841,6 +1846,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 span.set_attribute(f"pool.queued_slots.{pool_name}", slot_stats["queued"])
                 span.set_attribute(f"pool.running_slots.{pool_name}", slot_stats["running"])
                 span.set_attribute(f"pool.deferred_slots.{pool_name}", slot_stats["deferred"])
+                span.set_attribute(f"pool.scheduled_slots.{pool_name}", slot_stats["scheduled"])
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:

@@ -114,7 +114,7 @@ with dag:
 
         task_operator_nb_1 = DatabricksTaskOperator(
             task_id="nb_1",
-            databricks_conn_id="databricks_conn",
+            databricks_conn_id=DATABRICKS_CONN_ID,
             job_cluster_key="Shared_job_cluster",
             task_config={
                 "notebook_task": {

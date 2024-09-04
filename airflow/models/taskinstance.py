@@ -79,7 +79,6 @@ from airflow.exceptions import (
     AirflowSkipException,
     AirflowTaskTerminated,
     AirflowTaskTimeout,
-    RemovedInAirflow3Warning,
     TaskDeferralError,
     TaskDeferred,
     UnmappableXComLengthPushed,
@@ -1048,9 +1047,13 @@ def _get_template_context(
         # for manually triggered tasks, i.e. triggered_date == execution_date.
         if dag_run.external_trigger:
             return logical_date
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
-            return dag.previous_schedule(logical_date)
+
+        # Workaround code copy until deprecated context fields are removed in Airflow 3
+        from airflow.timetables.interval import _DataIntervalTimetable
+
+        if not isinstance(dag.timetable, _DataIntervalTimetable):
+            return None
+        return dag.timetable._get_prev(timezone.coerce_datetime(logical_date))
 
     @cache
     def get_prev_ds() -> str | None:
@@ -3469,7 +3472,6 @@ class TaskInstance(Base, LoggingMixin):
         self,
         key: str,
         value: Any,
-        execution_date: datetime | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -3479,19 +3481,7 @@ class TaskInstance(Base, LoggingMixin):
         :param value: Value to store. What types are possible depends on whether
             ``enable_xcom_pickling`` is true or not. If so, this can be any
             picklable object; only be JSON-serializable may be used otherwise.
-        :param execution_date: Deprecated parameter that has no effect.
         """
-        if execution_date is not None:
-            self_execution_date = self.get_dagrun(session).execution_date
-            if execution_date < self_execution_date:
-                raise ValueError(
-                    f"execution_date can not be in the past (current execution_date is "
-                    f"{self_execution_date}; received {execution_date})"
-                )
-            elif execution_date is not None:
-                message = "Passing 'execution_date' to 'TaskInstance.xcom_push()' is deprecated."
-                warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
-
         XCom.set(
             key=key,
             value=value,

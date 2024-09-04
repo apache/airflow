@@ -28,7 +28,6 @@ import pickle
 import sys
 import time
 import traceback
-import warnings
 import weakref
 from collections import abc, defaultdict, deque
 from contextlib import ExitStack
@@ -40,7 +39,6 @@ from typing import (
     Callable,
     Collection,
     Container,
-    Generator,
     Iterable,
     Iterator,
     List,
@@ -90,7 +88,6 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     FailStopDagInvalidTriggerRule,
     ParamValidationError,
-    RemovedInAirflow3Warning,
     TaskDeferred,
     TaskNotFound,
     UnknownExecutorException,
@@ -139,7 +136,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, lock_rows, tuple_in_condition, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import NOTSET, DagRunType, EdgeInfoType
+from airflow.utils.types import NOTSET, DagRunTriggeredByType, DagRunType, EdgeInfoType
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -312,6 +309,7 @@ def _create_orm_dagrun(
     creating_job_id,
     data_interval,
     session,
+    triggered_by,
 ):
     run = DagRun(
         dag_id=dag_id,
@@ -325,6 +323,7 @@ def _create_orm_dagrun(
         dag_hash=dag_hash,
         creating_job_id=creating_job_id,
         data_interval=data_interval,
+        triggered_by=triggered_by,
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
     run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
@@ -511,13 +510,11 @@ class DAG(LoggingMixin):
         schedule: ScheduleArg = None,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
-        full_filepath: str | None = None,
         template_searchpath: str | Iterable[str] | None = None,
         template_undefined: type[jinja2.StrictUndefined] = jinja2.StrictUndefined,
         user_defined_macros: dict | None = None,
         user_defined_filters: dict | None = None,
         default_args: dict | None = None,
-        concurrency: int | None = None,
         max_active_tasks: int = airflow_conf.getint("core", "max_active_tasks_per_dag"),
         max_active_runs: int = airflow_conf.getint("core", "max_active_runs_per_dag"),
         max_consecutive_failed_dag_runs: int = airflow_conf.getint(
@@ -563,26 +560,11 @@ class DAG(LoggingMixin):
         # check self.params and convert them into ParamsDict
         self.params = ParamsDict(params)
 
-        if full_filepath:
-            warnings.warn(
-                "Passing full_filepath to DAG() is deprecated and has no effect",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-
         validate_key(dag_id)
 
         self._dag_id = dag_id
         self._dag_display_property_value = dag_display_name
 
-        if concurrency:
-            # TODO: Remove in Airflow 3.0
-            warnings.warn(
-                "The 'concurrency' parameter is deprecated. Please use 'max_active_tasks'.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            max_active_tasks = concurrency
         self._max_active_tasks = max_active_tasks
         self._pickle_id: int | None = None
 
@@ -662,13 +644,6 @@ class DAG(LoggingMixin):
         self.sla_miss_callback = sla_miss_callback
         if default_view in DEFAULT_VIEW_PRESETS:
             self._default_view: str = default_view
-        elif default_view == "tree":
-            warnings.warn(
-                "`default_view` of 'tree' has been renamed to 'grid' -- please update your DAG",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            self._default_view = "grid"
         else:
             raise AirflowException(
                 f"Invalid values of dag.default_view: only support "
@@ -819,30 +794,9 @@ class DAG(LoggingMixin):
 
     @staticmethod
     def _upgrade_outdated_dag_access_control(access_control=None):
-        """
-        Look for outdated dag level actions in DAG access_controls and replace them with updated actions.
-
-        For example, in DAG access_control {'role1': {'can_dag_read'}} 'can_dag_read'
-        will be replaced with 'can_read', in {'role2': {'can_dag_read', 'can_dag_edit'}}
-        'can_dag_edit' will be replaced with 'can_edit', etc.
-        """
+        """Look for outdated dag level actions in DAG access_controls and replace them with updated actions."""
         if access_control is None:
             return None
-        new_dag_perm_mapping = {
-            permissions.DEPRECATED_ACTION_CAN_DAG_READ: permissions.ACTION_CAN_READ,
-            permissions.DEPRECATED_ACTION_CAN_DAG_EDIT: permissions.ACTION_CAN_EDIT,
-        }
-
-        def update_old_perm(permission: str):
-            new_perm = new_dag_perm_mapping.get(permission, permission)
-            if new_perm != permission:
-                warnings.warn(
-                    f"The '{permission}' permission is deprecated. Please use '{new_perm}'.",
-                    RemovedInAirflow3Warning,
-                    stacklevel=3,
-                )
-            return new_perm
-
         updated_access_control = {}
         for role, perms in access_control.items():
             if packaging_version.parse(FAB_VERSION) >= packaging_version.parse("1.3.0"):
@@ -852,11 +806,6 @@ class DAG(LoggingMixin):
                     updated_access_control[role][permissions.RESOURCE_DAG] = set(perms)
                 else:
                     updated_access_control[role] = perms
-                if permissions.RESOURCE_DAG in updated_access_control[role]:
-                    updated_access_control[role][permissions.RESOURCE_DAG] = {
-                        update_old_perm(perm)
-                        for perm in updated_access_control[role][permissions.RESOURCE_DAG]
-                    }
             elif isinstance(perms, dict):
                 # Not allow new access control format with old FAB versions
                 raise AirflowException(
@@ -864,39 +813,9 @@ class DAG(LoggingMixin):
                     "use the Dag Level Access Control new format."
                 )
             else:
-                updated_access_control[role] = {update_old_perm(perm) for perm in perms}
+                updated_access_control[role] = set(perms)
 
         return updated_access_control
-
-    def following_schedule(self, dttm):
-        """
-        Calculate the following schedule for this dag in UTC.
-
-        :param dttm: utc datetime
-        :return: utc datetime
-        """
-        warnings.warn(
-            "`DAG.following_schedule()` is deprecated. Use `DAG.next_dagrun_info(restricted=False)` instead.",
-            category=RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        data_interval = self.infer_automated_data_interval(timezone.coerce_datetime(dttm))
-        next_info = self.next_dagrun_info(data_interval, restricted=False)
-        if next_info is None:
-            return None
-        return next_info.data_interval.start
-
-    def previous_schedule(self, dttm):
-        from airflow.timetables.interval import _DataIntervalTimetable
-
-        warnings.warn(
-            "`DAG.previous_schedule()` is deprecated.",
-            category=RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        if not isinstance(self.timetable, _DataIntervalTimetable):
-            return None
-        return self.timetable._get_prev(timezone.coerce_datetime(dttm))
 
     def get_next_data_interval(self, dag_model: DagModel) -> DataInterval | None:
         """
@@ -979,7 +898,7 @@ class DAG(LoggingMixin):
 
     def next_dagrun_info(
         self,
-        last_automated_dagrun: None | datetime | DataInterval,
+        last_automated_dagrun: None | DataInterval,
         *,
         restricted: bool = True,
     ) -> DagRunInfo | None:
@@ -1004,16 +923,10 @@ class DAG(LoggingMixin):
         """
         data_interval = None
         if isinstance(last_automated_dagrun, datetime):
-            warnings.warn(
-                "Passing a datetime to DAG.next_dagrun_info is deprecated. Use a DataInterval instead.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
+            raise ValueError(
+                "Passing a datetime to DAG.next_dagrun_info is not supported anymore. Use a DataInterval instead."
             )
-            data_interval = self.infer_automated_data_interval(
-                timezone.coerce_datetime(last_automated_dagrun)
-            )
-        else:
-            data_interval = last_automated_dagrun
+        data_interval = last_automated_dagrun
         if restricted:
             restriction = self._time_restriction
         else:
@@ -1273,16 +1186,6 @@ class DAG(LoggingMixin):
     def get_is_paused(self, session=NEW_SESSION) -> None:
         """Return a boolean indicating whether this DAG is paused."""
         return session.scalar(select(DagModel.is_paused).where(DagModel.dag_id == self.dag_id))
-
-    @property
-    def is_paused(self):
-        """Use `airflow.models.DAG.get_is_paused`, this attribute is deprecated."""
-        warnings.warn(
-            "This attribute is deprecated. Please use `airflow.models.DAG.get_is_paused` method.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        return self.get_is_paused()
 
     @staticmethod
     @internal_api_call
@@ -2009,9 +1912,6 @@ class DAG(LoggingMixin):
         dag_run_state: DagRunState = DagRunState.QUEUED,
         dry_run: bool = False,
         session: Session = NEW_SESSION,
-        get_tis: bool = False,
-        recursion_depth: int = 0,
-        max_recursion_depth: int | None = None,
         dag_bag: DagBag | None = None,
         exclude_task_ids: frozenset[str] | frozenset[tuple[str, int]] | None = frozenset(),
     ) -> int | Iterable[TaskInstance]:
@@ -2032,27 +1932,6 @@ class DAG(LoggingMixin):
         :param exclude_task_ids: A set of ``task_id`` or (``task_id``, ``map_index``)
             tuples that should not be cleared
         """
-        if get_tis:
-            warnings.warn(
-                "Passing `get_tis` to dag.clear() is deprecated. Use `dry_run` parameter instead.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            dry_run = True
-
-        if recursion_depth:
-            warnings.warn(
-                "Passing `recursion_depth` to dag.clear() is deprecated.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-        if max_recursion_depth:
-            warnings.warn(
-                "Passing `max_recursion_depth` to dag.clear() is deprecated.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-
         state: list[TaskInstanceState] = []
         if only_failed:
             state += [TaskInstanceState.FAILED, TaskInstanceState.UPSTREAM_FAILED]
@@ -2346,28 +2225,6 @@ class DAG(LoggingMixin):
 
         return dp
 
-    def tree_view(self) -> None:
-        """Print an ASCII tree representation of the DAG."""
-        for tmp in self._generate_tree_view():
-            print(tmp)
-
-    def _generate_tree_view(self) -> Generator[str, None, None]:
-        def get_downstream(task, level=0) -> Generator[str, None, None]:
-            yield (" " * level * 4) + str(task)
-            level += 1
-            for tmp_task in sorted(task.downstream_list, key=lambda x: x.task_id):
-                yield from get_downstream(tmp_task, level)
-
-        for t in sorted(self.roots, key=lambda x: x.task_id):
-            yield from get_downstream(t)
-
-    def get_tree_view(self) -> str:
-        """Return an ASCII tree representation of the DAG."""
-        rst = ""
-        for tmp in self._generate_tree_view():
-            rst += tmp + "\n"
-        return rst
-
     @property
     def task(self) -> TaskDecoratorCollection:
         from airflow.decorators import task
@@ -2592,6 +2449,7 @@ class DAG(LoggingMixin):
                 run_id=DagRun.generate_run_id(DagRunType.MANUAL, execution_date),
                 session=session,
                 conf=run_conf,
+                triggered_by=DagRunTriggeredByType.TEST,
                 data_interval=data_interval,
             )
 
@@ -2672,6 +2530,8 @@ class DAG(LoggingMixin):
     def create_dagrun(
         self,
         state: DagRunState,
+        *,
+        triggered_by: DagRunTriggeredByType,
         execution_date: datetime | None = None,
         run_id: str | None = None,
         start_date: datetime | None = None,
@@ -2688,10 +2548,11 @@ class DAG(LoggingMixin):
 
         Returns the dag run.
 
+        :param state: the state of the dag run
+        :param triggered_by: The entity which triggers the DagRun
         :param run_id: defines the run id for this dag run
         :param run_type: type of DagRun
         :param execution_date: the execution date of this dag run
-        :param state: the state of the dag run
         :param start_date: the date this dag run should be evaluated
         :param external_trigger: whether this dag run is externally triggered
         :param conf: Dict containing configuration/parameters to pass to the DAG
@@ -2706,15 +2567,9 @@ class DAG(LoggingMixin):
             data_interval = DataInterval(*map(timezone.coerce_datetime, data_interval))
 
         if data_interval is None and logical_date is not None:
-            warnings.warn(
-                "Calling `DAG.create_dagrun()` without an explicit data interval is deprecated",
-                RemovedInAirflow3Warning,
-                stacklevel=3,
+            raise ValueError(
+                "Calling `DAG.create_dagrun()` without an explicit data interval is not supported."
             )
-            if run_type == DagRunType.MANUAL:
-                data_interval = self.timetable.infer_manual_data_interval(run_after=logical_date)
-            else:
-                data_interval = self.infer_automated_data_interval(logical_date)
 
         if run_type is None or isinstance(run_type, DagRunType):
             pass
@@ -2773,6 +2628,7 @@ class DAG(LoggingMixin):
             creating_job_id=creating_job_id,
             data_interval=data_interval,
             session=session,
+            triggered_by=triggered_by,
         )
         return run
 
@@ -3410,18 +3266,10 @@ class DagModel(Base):
         "scheduler", "max_dagruns_to_create_per_loop", fallback=10
     )
 
-    def __init__(self, concurrency=None, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         if self.max_active_tasks is None:
-            if concurrency:
-                warnings.warn(
-                    "The 'DagModel.concurrency' parameter is deprecated. Please use 'max_active_tasks'.",
-                    RemovedInAirflow3Warning,
-                    stacklevel=2,
-                )
-                self.max_active_tasks = concurrency
-            else:
-                self.max_active_tasks = airflow_conf.getint("core", "max_active_tasks_per_dag")
+            self.max_active_tasks = airflow_conf.getint("core", "max_active_tasks_per_dag")
 
         if self.max_active_runs is None:
             self.max_active_runs = airflow_conf.getint("core", "max_active_runs_per_dag")
@@ -3669,7 +3517,7 @@ class DagModel(Base):
     def calculate_dagrun_date_fields(
         self,
         dag: DAG,
-        last_automated_dag_run: None | datetime | DataInterval,
+        last_automated_dag_run: None | DataInterval,
     ) -> None:
         """
         Calculate ``next_dagrun`` and `next_dagrun_create_after``.
@@ -3680,13 +3528,10 @@ class DagModel(Base):
         """
         last_automated_data_interval: DataInterval | None
         if isinstance(last_automated_dag_run, datetime):
-            warnings.warn(
-                "Passing a datetime to `DagModel.calculate_dagrun_date_fields` is deprecated. "
-                "Provide a data interval instead.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
+            raise ValueError(
+                "Passing a datetime to `DagModel.calculate_dagrun_date_fields` is not supported. "
+                "Provide a data interval instead."
             )
-            last_automated_data_interval = dag.infer_automated_data_interval(last_automated_dag_run)
         else:
             last_automated_data_interval = last_automated_dag_run
         next_dagrun_info = dag.next_dagrun_info(last_automated_data_interval)
@@ -3719,13 +3564,11 @@ def dag(
     schedule: ScheduleArg = None,
     start_date: datetime | None = None,
     end_date: datetime | None = None,
-    full_filepath: str | None = None,
     template_searchpath: str | Iterable[str] | None = None,
     template_undefined: type[jinja2.StrictUndefined] = jinja2.StrictUndefined,
     user_defined_macros: dict | None = None,
     user_defined_filters: dict | None = None,
     default_args: dict | None = None,
-    concurrency: int | None = None,
     max_active_tasks: int = airflow_conf.getint("core", "max_active_tasks_per_dag"),
     max_active_runs: int = airflow_conf.getint("core", "max_active_runs_per_dag"),
     max_consecutive_failed_dag_runs: int = airflow_conf.getint(
@@ -3775,13 +3618,11 @@ def dag(
                 description=description,
                 start_date=start_date,
                 end_date=end_date,
-                full_filepath=full_filepath,
                 template_searchpath=template_searchpath,
                 template_undefined=template_undefined,
                 user_defined_macros=user_defined_macros,
                 user_defined_filters=user_defined_filters,
                 default_args=default_args,
-                concurrency=concurrency,
                 max_active_tasks=max_active_tasks,
                 max_active_runs=max_active_runs,
                 max_consecutive_failed_dag_runs=max_consecutive_failed_dag_runs,
@@ -3933,6 +3774,7 @@ def _get_or_create_dagrun(
     execution_date: datetime,
     run_id: str,
     session: Session,
+    triggered_by: DagRunTriggeredByType,
     data_interval: tuple[datetime, datetime] | None = None,
 ) -> DagRun:
     """
@@ -3945,6 +3787,7 @@ def _get_or_create_dagrun(
     :param start_date: Start date of new run.
     :param execution_date: Logical date for finding an existing run.
     :param run_id: Run ID for the new DAG run.
+    :param triggered_by: the entity which triggers the dag_run
 
     :return: The newly created DAG run.
     """
@@ -3963,6 +3806,7 @@ def _get_or_create_dagrun(
         session=session,
         conf=conf,
         data_interval=data_interval,
+        triggered_by=triggered_by,
     )
     log.info("created dagrun %s", dr)
     return dr

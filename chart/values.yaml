@@ -1623,6 +1623,15 @@ triggerer:
   tolerations: []
   topologySpreadConstraints: []
 
+  #  hostAliases for the triggerer pod
+  hostAliases: []
+  #  - ip: "127.0.0.1"
+  #    hostnames:
+  #      - "foo.local"
+  #  - ip: "10.1.2.3"
+  #    hostnames:
+  #      - "foo.remote"
+
   priorityClassName: ~
 
   # annotations for the triggerer deployment
