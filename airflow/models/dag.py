@@ -81,7 +81,7 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
-from airflow.datasets import BaseDataset, Dataset, DatasetAlias, DatasetAll
+from airflow.datasets import BaseDataset, Dataset, DatasetAlias, DatasetAll, _sanitize_uri
 from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowException,
@@ -2805,7 +2805,7 @@ class DAG(LoggingMixin):
                             curr_outlet_references.remove(ref)
 
                 for d in dataset_outlets:
-                    outlet_references[(task.dag_id, task.task_id)].add(d.uri)
+                    outlet_references[(task.dag_id, task.task_id)].add(_sanitize_uri(d.uri))
                     outlet_datasets[DatasetModel.from_public(d)] = None
 
                 for d_a in dataset_alias_outlets:
@@ -2830,7 +2830,7 @@ class DAG(LoggingMixin):
             else:
                 new_datasets.append(dataset)
         dataset_manager.create_datasets(dataset_models=new_datasets, session=session)
-        stored_datasets.update({dataset.uri: dataset for dataset in new_datasets})
+        stored_datasets.update({_sanitize_uri(dataset.uri): dataset for dataset in new_datasets})
 
         del new_datasets
         del all_datasets
