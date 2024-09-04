@@ -21,6 +21,7 @@ import json
 import os
 import re
 import sys
+from collections import defaultdict
 from enum import Enum
 from functools import cached_property, lru_cache
 from pathlib import Path
@@ -1269,6 +1270,15 @@ class SelectiveChecks:
                 if check["python-version"] in self.python_versions
             ]
         )
+
+    @cached_property
+    def excluded_providers_as_string(self) -> str:
+        providers_to_exclude = defaultdict(list)
+        for provider, provider_info in DEPENDENCIES.items():
+            if "excluded-python-versions" in provider_info:
+                for python_version in provider_info["excluded-python-versions"]:
+                    providers_to_exclude[python_version].append(provider)
+        return json.dumps(providers_to_exclude)
 
     @cached_property
     def testable_integrations(self) -> list[str]:
