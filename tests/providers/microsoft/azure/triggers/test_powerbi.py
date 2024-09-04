@@ -81,7 +81,6 @@ class TestPowerBITrigger:
             "wait_for_termination": True,
         }
 
-
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
@@ -89,7 +88,9 @@ class TestPowerBITrigger:
         self, mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger
     ):
         """Assert task isn't completed until timeout if dataset refresh is in progress."""
-        mock_get_refresh_details_by_refresh_id.return_value = {"status": PowerBIDatasetRefreshStatus.IN_PROGRESS}
+        mock_get_refresh_details_by_refresh_id.return_value = {
+            "status": PowerBIDatasetRefreshStatus.IN_PROGRESS
+        }
         mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
         task = asyncio.create_task(powerbi_trigger.run().__anext__())
         await asyncio.sleep(0.5)
@@ -98,7 +99,6 @@ class TestPowerBITrigger:
         assert task.done() is False
         asyncio.get_event_loop().stop()
 
-
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
@@ -106,7 +106,9 @@ class TestPowerBITrigger:
         self, mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger
     ):
         """Assert event is triggered upon failed dataset refresh."""
-        mock_get_refresh_details_by_refresh_id.return_value = {"status": PowerBIDatasetRefreshStatus.FAILED}
+        mock_get_refresh_details_by_refresh_id.return_value = {
+            "status": PowerBIDatasetRefreshStatus.FAILED
+        }
         mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
 
         generator = powerbi_trigger.run()
@@ -121,7 +123,6 @@ class TestPowerBITrigger:
         )
         assert expected == actual
 
-
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
@@ -129,7 +130,9 @@ class TestPowerBITrigger:
         self, mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger
     ):
         """Assert event is triggered upon successful dataset refresh."""
-        mock_get_refresh_details_by_refresh_id.return_value = {"status": PowerBIDatasetRefreshStatus.COMPLETED}
+        mock_get_refresh_details_by_refresh_id.return_value = {
+            "status": PowerBIDatasetRefreshStatus.COMPLETED
+        }
         mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
 
         generator = powerbi_trigger.run()
@@ -143,7 +146,6 @@ class TestPowerBITrigger:
             }
         )
         assert expected == actual
-
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.cancel_dataset_refresh")
@@ -171,7 +173,6 @@ class TestPowerBITrigger:
         assert len(task) == 1
         assert response in task
         mock_cancel_dataset_refresh.assert_called_once()
-
 
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.cancel_dataset_refresh")
@@ -202,7 +203,6 @@ class TestPowerBITrigger:
         assert response in task
         mock_cancel_dataset_refresh.assert_called_once()
 
-
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
@@ -211,7 +211,9 @@ class TestPowerBITrigger:
     ):
         """Assert handling of exception when there is no dataset_refresh_id"""
         powerbi_trigger.dataset_refresh_id = None
-        mock_get_refresh_details_by_refresh_id.side_effect = Exception("Test exception for no dataset_refresh_id")
+        mock_get_refresh_details_by_refresh_id.side_effect = Exception(
+            "Test exception for no dataset_refresh_id"
+        )
         mock_trigger_dataset_refresh.return_value = None
 
         task = [i async for i in powerbi_trigger.run()]
@@ -225,7 +227,6 @@ class TestPowerBITrigger:
         assert len(task) == 1
         assert response in task
 
-
     @pytest.mark.asyncio
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.get_refresh_details_by_refresh_id")
     @mock.patch(f"{MODULE}.hooks.powerbi.PowerBIHook.trigger_dataset_refresh")
@@ -233,7 +234,9 @@ class TestPowerBITrigger:
         self, mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger
     ):
         """Assert that powerbi run timesout after end_time elapses"""
-        mock_get_refresh_details_by_refresh_id.return_value = {"status": PowerBIDatasetRefreshStatus.IN_PROGRESS}
+        mock_get_refresh_details_by_refresh_id.return_value = {
+            "status": PowerBIDatasetRefreshStatus.IN_PROGRESS
+        }
         mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
 
         generator = powerbi_trigger.run()

@@ -151,7 +151,8 @@ class TestKiotaRequestAdapterHook:
 
     def test_azure_tenant_id(self):
         airflow_connection = lambda conn_id: get_airflow_connection(
-            conn_id=conn_id, azure_tenant_id="azure-tenant-id",
+            conn_id=conn_id,
+            azure_tenant_id="azure-tenant-id",
         )
 
         with patch(

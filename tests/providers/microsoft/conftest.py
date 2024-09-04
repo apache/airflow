@@ -194,7 +194,6 @@ def get_airflow_connection(
     api_version: APIVersion | str | None = APIVersion.v1.value,
     authority: str | None = None,
     disable_instance_discovery: bool = False,
-
 ):
     from airflow.models import Connection
 
