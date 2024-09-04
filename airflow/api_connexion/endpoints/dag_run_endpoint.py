@@ -172,7 +172,7 @@ def _fetch_dag_runs(
         query = query.where(DagRun.updated_at <= updated_at_lte)
 
     total_entries = get_query_count(query, session=session)
-    to_replace = {"dag_run_id": "run_id"}
+    to_replace = {"dag_run_id": "run_id", "execution_date": "logical_date"}
     allowed_sort_attrs = [
         "id",
         "state",
