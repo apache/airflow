@@ -188,6 +188,11 @@ class PythonOperator(BaseOperator):
         logs. Defaults to True, which allows return value log output.
         It can be set to False to prevent log output of return value when you return huge data
         such as transmission a large amount of XCom to TaskAPI.
+    :param execute_tasks_new_python_interpreter: a boolean value whether tasks are executed
+        via forking of the parent process.
+        Defaults to False to execute via forking of the parent process.
+        It can be True when spawning a new python process, slower than fork, but means plugin
+        changes picked up by tasks straight away
     """
 
     template_fields: Sequence[str] = ("templates_dict", "op_args", "op_kwargs")
@@ -211,6 +216,7 @@ class PythonOperator(BaseOperator):
         templates_dict: dict[str, Any] | None = None,
         templates_exts: Sequence[str] | None = None,
         show_return_value_in_logs: bool = True,
+        execute_tasks_new_python_interpreter: bool | None = None,
         **kwargs,
     ) -> None:
         if kwargs.get("provide_context"):
@@ -230,6 +236,9 @@ class PythonOperator(BaseOperator):
         if templates_exts:
             self.template_ext = templates_exts
         self.show_return_value_in_logs = show_return_value_in_logs
+        self.execute_tasks_new_python_interpreter = execute_tasks_new_python_interpreter
+        if self.execute_tasks_new_python_interpreter:
+            self.modified_execute_tasks_new_python_interpreter()
 
     def execute(self, context: Context) -> Any:
         context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
@@ -255,6 +264,9 @@ class PythonOperator(BaseOperator):
         """
         runner = ExecutionCallableRunner(self.python_callable, self._dataset_events, logger=self.log)
         return runner.run(*self.op_args, **self.op_kwargs)
+
+    def modified_execute_tasks_new_python_interpreter(self):
+        os.environ["AIRFLOW__CORE__EXECUTE_TASKS_NEW_PYTHON_INTERPRETER"] = "True"
 
 
 class BranchPythonOperator(PythonOperator, BranchMixIn):

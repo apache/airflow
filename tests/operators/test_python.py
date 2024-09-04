@@ -374,6 +374,17 @@ class TestPythonOperator(BasePythonTest):
         python_operator = PythonOperator(task_id="task", python_callable=partial(int, 2), logger_name="")
         assert python_operator.log.name == "airflow.task.operators"
 
+    def test_execute_tasks_new_python_interpreter(self, monkeypatch):
+        def not_callable():
+            raise RuntimeError("Should not be triggered")
+
+        python_operator = PythonOperator(
+            task_id="task", python_callable=not_callable, execute_tasks_new_python_interpreter=False
+        )
+        monkeypatch.setattr(python_operator, "execute_tasks_new_python_interpreter", True)
+        python_operator.modified_execute_tasks_new_python_interpreter()
+        assert os.environ.get("AIRFLOW__CORE__EXECUTE_TASKS_NEW_PYTHON_INTERPRETER") == "True"
+
 
 class TestBranchOperator(BasePythonTest):
     opcls = BranchPythonOperator
