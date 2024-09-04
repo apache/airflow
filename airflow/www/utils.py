@@ -185,6 +185,7 @@ def encode_dag_run(
             "conf": dag_run_conf,
             "conf_is_json": conf_is_json,
             "note": dag_run.note,
+            "triggered_by": dag_run.triggered_by.value,
         }
     except ValueError as e:
         logger.error("Error while encoding the DAG Run!", exc_info=e)
