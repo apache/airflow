@@ -106,9 +106,7 @@ class TestPowerBITrigger:
         self, mock_trigger_dataset_refresh, mock_get_refresh_details_by_refresh_id, powerbi_trigger
     ):
         """Assert event is triggered upon failed dataset refresh."""
-        mock_get_refresh_details_by_refresh_id.return_value = {
-            "status": PowerBIDatasetRefreshStatus.FAILED
-        }
+        mock_get_refresh_details_by_refresh_id.return_value = {"status": PowerBIDatasetRefreshStatus.FAILED}
         mock_trigger_dataset_refresh.return_value = DATASET_REFRESH_ID
 
         generator = powerbi_trigger.run()
