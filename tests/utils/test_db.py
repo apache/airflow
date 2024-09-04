@@ -93,7 +93,7 @@ class TestDb:
             # sqlite sequence is used for autoincrementing columns created with `sqlite_autoincrement` option
             lambda t: (t[0] == "remove_table" and t[1].name == "sqlite_sequence"),
             # fab version table
-            lambda t: (t[0] == "remove_table" and t[1].name == "fab_alembic_version"),
+            lambda t: (t[0] == "remove_table" and t[1].name == "alembic_version_fab"),
         ]
 
         for ignore in ignores:
@@ -132,7 +132,8 @@ class TestDb:
     @mock.patch("alembic.command")
     def test_upgradedb(self, mock_alembic_command):
         upgradedb()
-        mock_alembic_command.upgrade.assert_called_once_with(mock.ANY, revision="heads")
+        mock_alembic_command.upgrade.assert_called_with(mock.ANY, revision="heads")
+        assert mock_alembic_command.upgrade.call_count == 2
 
     @pytest.mark.parametrize(
         "from_revision, to_revision",
