@@ -260,7 +260,7 @@ def test_run_ordering_inheritance(dataset_timetable: DatasetOrTimeSchedule) -> N
 
 @pytest.mark.db_test
 def test_summary(session: Session) -> None:
-    dataset_model = DatasetModel(uri="test_dataset")
+    dataset_model = DatasetModel(name="test_dataset", uri="test_dataset")
     dataset_alias_model = DatasetAliasModel(name="test_dataset_alias")
     session.add_all([dataset_model, dataset_alias_model])
     session.commit()

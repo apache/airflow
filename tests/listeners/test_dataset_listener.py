@@ -41,9 +41,8 @@ def clean_listener_manager():
 @pytest.mark.db_test
 @provide_session
 def test_dataset_listener_on_dataset_changed_gets_calls(create_task_instance_of_operator, session):
-    dataset_uri = "test_dataset_uri"
-    ds = Dataset(uri=dataset_uri)
-    ds_model = DatasetModel(uri=dataset_uri)
+    ds = Dataset(name="test_dataset_name", uri="test_dataset_uri")
+    ds_model = DatasetModel.from_public(ds)
     session.add(ds_model)
 
     session.flush()
@@ -58,4 +57,4 @@ def test_dataset_listener_on_dataset_changed_gets_calls(create_task_instance_of_
     ti.run()
 
     assert len(dataset_listener.changed) == 1
-    assert dataset_listener.changed[0].uri == dataset_uri
+    assert dataset_listener.changed[0].uri == "test_dataset_uri"

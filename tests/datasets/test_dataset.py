@@ -269,9 +269,9 @@ def test_nested_dataset_conditions_with_serialization(status_values, expected_ev
 @pytest.fixture
 def create_test_datasets(session):
     """Fixture to create test datasets and corresponding models."""
-    datasets = [Dataset(uri=f"hello{i}") for i in range(1, 3)]
+    datasets = [Dataset(name=f"hello{i}", uri=f"hello{i}") for i in range(1, 3)]
     for dataset in datasets:
-        session.add(DatasetModel(uri=dataset.uri))
+        session.add(DatasetModel.from_public(dataset))
     session.commit()
     return datasets
 
@@ -337,13 +337,11 @@ def test_dataset_dag_run_queue_processing(session, clear_datasets, dag_maker, cr
 @pytest.mark.usefixtures("clear_datasets")
 def test_dag_with_complex_dataset_condition(session, dag_maker):
     # Create Dataset instances
-    d1 = Dataset(uri="hello1")
-    d2 = Dataset(uri="hello2")
+    d1 = Dataset(name="hello1", uri="hello1")
+    d2 = Dataset(name="hello2", uri="hello2")
 
     # Create and add DatasetModel instances to the session
-    dm1 = DatasetModel(uri=d1.uri)
-    dm2 = DatasetModel(uri=d2.uri)
-    session.add_all([dm1, dm2])
+    session.add_all([DatasetModel.from_public(d1), DatasetModel.from_public(d2)])
     session.commit()
 
     # Setup a DAG with complex dataset triggers (DatasetAny with DatasetAll)
@@ -539,12 +537,11 @@ def test_normalize_uri_valid_uri():
 @pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 @pytest.mark.usefixtures("clear_datasets")
-class Test_DatasetAliasCondition:
+class TestDatasetAliasCondition:
     @pytest.fixture
     def ds_1(self, session):
         """Example dataset links to dataset alias resolved_dsa_2."""
-        ds_uri = "test_uri"
-        ds_1 = DatasetModel(id=1, uri=ds_uri)
+        ds_1 = DatasetModel(id=1, name="test_dataset", uri="test_uri")
 
         session.add(ds_1)
         session.commit()

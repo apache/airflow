@@ -110,12 +110,12 @@ class TestDatasetManager:
     def test_register_dataset_change(self, session, dag_maker, mock_task_instance):
         dsem = DatasetManager()
 
-        ds = Dataset(uri="test_dataset_uri")
+        ds = Dataset(name="test_dataset_uri", uri="test_dataset_uri")
         dag1 = DagModel(dag_id="dag1", is_active=True)
         dag2 = DagModel(dag_id="dag2", is_active=True)
         session.add_all([dag1, dag2])
 
-        dsm = DatasetModel(uri="test_dataset_uri")
+        dsm = DatasetModel.from_public(ds)
         session.add(dsm)
         dsm.consuming_dags = [DagScheduleDatasetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)]
         session.execute(delete(DatasetDagRunQueue))
@@ -130,8 +130,8 @@ class TestDatasetManager:
     def test_register_dataset_change_no_downstreams(self, session, mock_task_instance):
         dsem = DatasetManager()
 
-        ds = Dataset(uri="never_consumed")
-        dsm = DatasetModel(uri="never_consumed")
+        ds = Dataset(name="never_consumed", uri="never_consumed")
+        dsm = DatasetModel.from_public(ds)
         session.add(dsm)
         session.execute(delete(DatasetDagRunQueue))
         session.commit()
@@ -148,11 +148,11 @@ class TestDatasetManager:
         dataset_listener.clear()
         get_listener_manager().add_listener(dataset_listener)
 
-        ds = Dataset(uri="test_dataset_uri_2")
+        ds = Dataset(name="test_dataset_uri_2", uri="test_dataset_uri_2")
         dag1 = DagModel(dag_id="dag3")
         session.add_all([dag1])
 
-        dsm = DatasetModel(uri="test_dataset_uri_2")
+        dsm = DatasetModel.from_public(ds)
         session.add(dsm)
         dsm.consuming_dags = [DagScheduleDatasetReference(dag_id=dag1.dag_id)]
         session.commit()
