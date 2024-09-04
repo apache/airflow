@@ -388,11 +388,14 @@ class KubernetesPodOperator(BaseOperator):
         self.termination_grace_period = termination_grace_period
         self.pod_request_obj: k8s.V1Pod | None = None
         self.pod: k8s.V1Pod | None = None
-        self.skip_on_exit_code = (
-            skip_on_exit_code
-            if isinstance(skip_on_exit_code, Container)
-            else [skip_on_exit_code] if skip_on_exit_code is not None else []
-        )
+
+        if isinstance(skip_on_exit_code, Container):
+            self.skip_on_exit_code = skip_on_exit_code
+        elif skip_on_exit_code is not None:
+            self.skip_on_exit_code = [skip_on_exit_code]
+        else:
+            self.skip_on_exit_code = None
+
         self.base_container_name = base_container_name or self.BASE_CONTAINER_NAME
         self.deferrable = deferrable
         self.poll_interval = poll_interval
@@ -743,10 +746,10 @@ class KubernetesPodOperator(BaseOperator):
         grab the latest logs and defer back to the trigger again.
         """
         self.pod = None
+        pod_status = event["status"]
         try:
             pod_name = event["name"]
             pod_namespace = event["namespace"]
-            pod_status = event["status"]
 
             self.pod = self.hook.get_pod(pod_name, pod_namespace)
 
