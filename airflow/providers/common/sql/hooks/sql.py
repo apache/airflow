@@ -49,8 +49,7 @@ from airflow.exceptions import (
     AirflowProviderDeprecationWarning,
 )
 from airflow.hooks.base import BaseHook
-from airflow.providers.common.sql.dialects.mssql import MsSqlDialect
-from airflow.providers.common.sql.hooks.dialect import Dialect
+from airflow.providers.common.sql.dialects.dialect import Dialect
 
 if TYPE_CHECKING:
     from pandas import DataFrame
@@ -135,9 +134,7 @@ class DbApiHook(BaseHook):
     _test_connection_sql = "select 1"
     # Default SQL placeholder
     _placeholder: str = "%s"
-    dialects: dict[str, type[Dialect]] = {
-        "mssql": MsSqlDialect,
-    }
+    dialects: dict[str, type[Dialect]] = {}
 
     def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs):
         super().__init__()

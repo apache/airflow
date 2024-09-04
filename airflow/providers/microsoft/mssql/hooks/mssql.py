@@ -19,17 +19,18 @@
 
 from __future__ import annotations
 
-from typing import Any
+from functools import cached_property
+from typing import TYPE_CHECKING, Any
 
 import pymssql
 from pymssql import Connection as PymssqlConnection
 from typing import TYPE_CHECKING
 
-from airflow.providers.common.sql.dialects.mssql import MsSqlDialect
 from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.microsoft.mssql.dialects.mssql import MsSqlDialect
 
 if TYPE_CHECKING:
-    from airflow.providers.common.sql.hooks.dialect import Dialect
+    from airflow.providers.common.sql.dialects.dialect import Dialect
 
 
 class MsSqlHook(DbApiHook):

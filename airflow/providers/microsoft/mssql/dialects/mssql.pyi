@@ -31,6 +31,7 @@
 Definition of the public interface for airflow.providers.common.sql.dialects.mssql
 isort:skip_file
 """
+
 from airflow.providers.common.sql.hooks.dialect import Dialect as Dialect
 from airflow.providers.common.sql.hooks.handlers import fetch_all_handler as fetch_all_handler
 

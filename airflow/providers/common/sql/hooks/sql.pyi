@@ -32,7 +32,6 @@ Definition of the public interface for airflow.providers.common.sql.hooks.sql
 isort:skip_file
 """
 from _typeshed import Incomplete
-
 from airflow.exceptions import (
     AirflowException as AirflowException,
     AirflowOptionalProviderFeatureException as AirflowOptionalProviderFeatureException,
@@ -40,14 +39,12 @@ from airflow.exceptions import (
 )
 from airflow.hooks.base import BaseHook as BaseHook
 from airflow.models import Connection as Connection
-from airflow.providers.common.sql.dialects.mssql import MsSqlDialect as MsSqlDialect
 from airflow.providers.common.sql.hooks.dialect import Dialect as Dialect
 from airflow.providers.openlineage.extractors import OperatorLineage as OperatorLineage
 from airflow.providers.openlineage.sqlparser import DatabaseInfo as DatabaseInfo
 from functools import cached_property as cached_property
 from pandas import DataFrame as DataFrame
 from sqlalchemy.engine import Inspector, URL as URL
-
 from typing import Any, Callable, Generator, Iterable, Mapping, Protocol, Sequence, TypeVar, overload
 
 T = TypeVar("T")

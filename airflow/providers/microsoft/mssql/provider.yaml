@@ -75,6 +75,10 @@ operators:
     python-modules:
       - airflow.providers.microsoft.mssql.operators.mssql
 
+dialects:
+    dialect-type: mssql
+    dialect-class-name: airflow.providers.microsoft.mssql.hooks.mssql.MsSqlDialect
+
 hooks:
   - integration-name: Microsoft SQL Server (MSSQL)
     python-modules:
