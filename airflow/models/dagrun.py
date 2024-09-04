@@ -26,6 +26,7 @@ import re2
 from sqlalchemy import (
     Boolean,
     Column,
+    Enum,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
@@ -69,7 +70,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, tuple_in_condition, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.types import NOTSET, DagRunType
+from airflow.utils.types import NOTSET, DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -130,6 +131,9 @@ class DagRun(Base, LoggingMixin):
     creating_job_id = Column(Integer)
     external_trigger = Column(Boolean, default=True)
     run_type = Column(String(50), nullable=False)
+    triggered_by = Column(
+        Enum(DagRunTriggeredByType, native_enum=False, length=50)
+    )  # Airflow component that triggered the run.
     conf = Column(PickleType)
     # These two must be either both NULL or both datetime.
     data_interval_start = Column(UtcDateTime)
@@ -217,6 +221,7 @@ class DagRun(Base, LoggingMixin):
         dag_hash: str | None = None,
         creating_job_id: int | None = None,
         data_interval: tuple[datetime, datetime] | None = None,
+        triggered_by: DagRunTriggeredByType | None = None,
     ):
         if data_interval is None:
             # Legacy: Only happen for runs created prior to Airflow 2.2.
@@ -240,6 +245,7 @@ class DagRun(Base, LoggingMixin):
         self.dag_hash = dag_hash
         self.creating_job_id = creating_job_id
         self.clear_number = 0
+        self.triggered_by = triggered_by
         super().__init__()
 
     def __repr__(self):

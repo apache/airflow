@@ -41,7 +41,7 @@ from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.compat import ParseImportError
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS, ParseImportError
 from tests.test_utils.config import conf_vars, env_vars
 from tests.test_utils.db import (
     clear_db_dags,
@@ -53,6 +53,9 @@ from tests.test_utils.db import (
     clear_db_sla_miss,
 )
 from tests.test_utils.mock_executor import MockExecutor
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -512,12 +515,14 @@ class TestDagFileProcessor:
         with create_session() as session:
             session.query(TaskInstance).delete()
             dag = dagbag.get_dag("example_branch_operator")
+            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dagrun = dag.create_dagrun(
                 state=State.RUNNING,
                 execution_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
                 session=session,
+                **triggered_by_kwargs,
             )
             task = dag.get_task(task_id="run_this_first")
             ti = TaskInstance(task, run_id=dagrun.run_id, state=State.RUNNING)
@@ -547,12 +552,14 @@ class TestDagFileProcessor:
         with create_session() as session:
             session.query(TaskInstance).delete()
             dag = dagbag.get_dag("example_branch_operator")
+            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dagrun = dag.create_dagrun(
                 state=State.RUNNING,
                 execution_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
                 session=session,
+                **triggered_by_kwargs,
             )
             task = dag.get_task(task_id="run_this_first")
             ti = TaskInstance(task, run_id=dagrun.run_id, state=State.QUEUED)
@@ -583,12 +590,14 @@ class TestDagFileProcessor:
         with create_session() as session:
             dag = dagbag.get_dag("example_branch_operator")
             task = dag.get_task(task_id="run_this_first")
+            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dagrun = dag.create_dagrun(
                 state=State.RUNNING,
                 execution_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
                 session=session,
+                **triggered_by_kwargs,
             )
             ti = TaskInstance(task, run_id=dagrun.run_id, state=State.RUNNING)
             ti.hostname = "test_hostname"
@@ -617,12 +626,14 @@ class TestDagFileProcessor:
         dag = get_test_dag("test_on_failure_callback")
         task = dag.get_task(task_id="test_on_failure_callback_task")
         with create_session() as session:
+            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dagrun = dag.create_dagrun(
                 state=State.RUNNING,
                 execution_date=DEFAULT_DATE,
                 run_type=DagRunType.SCHEDULED,
                 data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
                 session=session,
+                **triggered_by_kwargs,
             )
             ti = dagrun.get_task_instance(task.task_id)
             ti.refresh_from_task(task)
