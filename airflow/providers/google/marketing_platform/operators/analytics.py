@@ -53,10 +53,6 @@ class GoogleAnalyticsListAccountsOperator(BaseOperator):
         and for python client
         http://googleapis.github.io/google-api-python-client/docs/dyn/analytics_v3.management.accounts.html#list
 
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleAnalyticsListAccountsOperator`
-
     :param api_version: The version of the api that will be requested for example 'v3'.
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :param impersonation_chain: Optional service account to impersonate using short-term
@@ -117,9 +113,6 @@ class GoogleAnalyticsGetAdsLinkOperator(BaseOperator):
         Check official API docs:
         https://developers.google.com/analytics/devguides/config/mgmt/v3/mgmtReference/management/webPropertyAdWordsLinks/get
 
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleAnalyticsGetAdsLinkOperator`
 
     :param account_id: ID of the account which the given web property belongs to.
     :param web_property_ad_words_link_id: Web property-Google Ads link ID.
@@ -194,10 +187,6 @@ class GoogleAnalyticsRetrieveAdsLinksListOperator(BaseOperator):
     .. seealso::
         Check official API docs:
         https://developers.google.com/analytics/devguides/config/mgmt/v3/mgmtReference/management/webPropertyAdWordsLinks/list#http-request
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GoogleAnalyticsRetrieveAdsLinksListOperator`
 
     :param account_id: ID of the account which the given web property belongs to.
     :param web_property_id: Web property UA-string to retrieve the Google Ads links for.

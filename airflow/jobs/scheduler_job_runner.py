@@ -1144,6 +1144,9 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 for executor in self.job.executors:
                     try:
+                        # this is backcompat check if executor does not inherit from BaseExecutor
+                        if not hasattr(executor, "_task_event_logs"):
+                            continue
                         with create_session() as session:
                             self._process_task_event_logs(executor._task_event_logs, session)
                     except Exception:
@@ -1841,6 +1844,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 span.set_attribute(f"pool.queued_slots.{pool_name}", slot_stats["queued"])
                 span.set_attribute(f"pool.running_slots.{pool_name}", slot_stats["running"])
                 span.set_attribute(f"pool.deferred_slots.{pool_name}", slot_stats["deferred"])
+                span.set_attribute(f"pool.scheduled_slots.{pool_name}", slot_stats["scheduled"])
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:

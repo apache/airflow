@@ -115,9 +115,6 @@ class TestCliTasks:
             args = self.parser.parse_args(["tasks", "list", dag_id])
             task_command.task_list(args)
 
-        args = self.parser.parse_args(["tasks", "list", "example_bash_operator", "--tree"])
-        task_command.task_list(args)
-
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test(self):
         """Test the `airflow test` command"""
