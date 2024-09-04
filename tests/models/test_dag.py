@@ -4002,9 +4002,11 @@ def test_statement_latest_runs_one_dag():
         compiled_stmt = str(stmt.compile())
         actual = [x.strip() for x in compiled_stmt.splitlines()]
         expected = [
-            "SELECT dag_run.id, dag_run.dag_id, dag_run.logical_date, dag_run.data_interval_start, dag_run.data_interval_end",
+            "SELECT dag_run.logical_date, dag_run.id, dag_run.dag_id, "
+            "dag_run.data_interval_start, dag_run.data_interval_end",
             "FROM dag_run",
-            "WHERE dag_run.dag_id = :dag_id_1 AND dag_run.logical_date = (SELECT max(dag_run.logical_date) AS max_execution_date",
+            "WHERE dag_run.dag_id = :dag_id_1 AND dag_run.logical_date = ("
+            "SELECT max(dag_run.logical_date) AS max_execution_date",
             "FROM dag_run",
             "WHERE dag_run.dag_id = :dag_id_2 AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]))",
         ]
@@ -4019,10 +4021,13 @@ def test_statement_latest_runs_many_dag():
         compiled_stmt = str(stmt.compile())
         actual = [x.strip() for x in compiled_stmt.splitlines()]
         expected = [
-            "SELECT dag_run.id, dag_run.dag_id, dag_run.logical_date, dag_run.data_interval_start, dag_run.data_interval_end",
-            "FROM dag_run, (SELECT dag_run.dag_id AS dag_id, max(dag_run.logical_date) AS max_execution_date",
+            "SELECT dag_run.logical_date, dag_run.id, dag_run.dag_id, "
+            "dag_run.data_interval_start, dag_run.data_interval_end",
+            "FROM dag_run, (SELECT dag_run.dag_id AS dag_id, "
+            "max(dag_run.logical_date) AS max_execution_date",
             "FROM dag_run",
-            "WHERE dag_run.dag_id IN (__[POSTCOMPILE_dag_id_1]) AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]) GROUP BY dag_run.dag_id) AS anon_1",
+            "WHERE dag_run.dag_id IN (__[POSTCOMPILE_dag_id_1]) "
+            "AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]) GROUP BY dag_run.dag_id) AS anon_1",
             "WHERE dag_run.dag_id = anon_1.dag_id AND dag_run.logical_date = anon_1.max_execution_date",
         ]
         assert actual == expected, compiled_stmt
