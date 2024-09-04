@@ -198,10 +198,10 @@ def pytest_command(shell_params, python_version, test_timeout):
     )
 
 
-def remove_ignored_pytest_directories(run_cmd):
+def remove_ignored_pytest_directories(run_cmd) -> tuple[bool, list[str]]:
     # Skip "FOLDER" in case "--ignore=FOLDER" is passed as an argument
     # Which might be the case if we are ignoring some providers during compatibility checks
-    return [arg for arg in run_cmd if f"--ignore={arg}" not in run_cmd]
+    return True, [arg for arg in run_cmd if f"--ignore={arg}" not in run_cmd]
 
 
 def _run_test(
@@ -232,9 +232,13 @@ def _run_test(
     pytest_args = []
     pytest_args.extend(pytest_command(shell_params, python_version, test_timeout))
     pytest_args.extend(list(extra_pytest_args))
-    pytest_args = remove_ignored_pytest_directories(pytest_args)
 
-    run_args = [*run_docker_args, *pytest_args]
+    should_run, filtered_pytest_args = remove_ignored_pytest_directories(pytest_args)
+    if not should_run:
+        get_console(output=output).print("[warning]Add a message here.\n")
+        return 0, f"Test skipped: {shell_params.test_type}"
+
+    run_args = [*run_docker_args, *filtered_pytest_args]
 
     run_command(down_args, output=output, check=False, env=env)
     try:
