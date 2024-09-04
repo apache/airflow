@@ -23,7 +23,7 @@ from sqlalchemy import Table
 
 from airflow.exceptions import AirflowException
 from airflow.models import Base
-from airflow.utils.db import downgrade, initdb, upgradedb
+from airflow.utils.db import downgrade, initdb
 from airflow.utils.db_manager import BaseDBManager, RunDBManager
 from tests.test_utils.config import conf_vars
 
@@ -64,22 +64,19 @@ class TestRunDBManager:
         initdb(session=session)
         mock_initdb.assert_called()
         mock_initdb.assert_called_once_with(session)
-        mock_upgrade_db.assert_not_called()
         mock_downgrade_db.assert_not_called()
 
     @mock.patch.object(RunDBManager, "downgrade")
     @mock.patch.object(RunDBManager, "upgradedb")
     @mock.patch.object(RunDBManager, "initdb")
     @mock.patch("alembic.command")
-    def test_upgradedb_or_downgrade_dont_call_rundbmanager(
+    def test_downgrade_dont_call_rundbmanager(
         self, mock_alembic_command, mock_initdb, mock_upgrade_db, mock_downgrade_db, session
     ):
-        upgradedb(session=session)
-        mock_alembic_command.upgrade.assert_called_once_with(mock.ANY, revision="heads")
         downgrade(to_revision="base")
         mock_alembic_command.downgrade.assert_called_once_with(mock.ANY, revision="base", sql=False)
-        mock_initdb.assert_not_called()
         mock_upgrade_db.assert_not_called()
+        mock_initdb.assert_not_called()
         mock_downgrade_db.assert_not_called()
 
     @conf_vars(
