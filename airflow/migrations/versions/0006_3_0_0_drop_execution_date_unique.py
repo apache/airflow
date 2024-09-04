@@ -44,14 +44,18 @@ airflow_version = "3.0.0"
 
 def upgrade():
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
+        batch_op.alter_column("execution_date", new_column_name="logical_date", existing_type=sa.TIMESTAMP)
         try:
             batch_op.drop_constraint("dag_run_dag_id_execution_date_key", type_="unique")
         except ValueError as e:
-            if str(e) != "No such constraint: 'dag_run_dag_id_execution_date_key'":
-                raise
             # SQLite seems to not have this constraint in some cases.
             # Let's skip since you shouldn't use SQLite in production anyway.
-        batch_op.alter_column("execution_date", new_column_name="logical_date", existing_type=sa.TIMESTAMP)
+            if (
+                op.get_bind().engine.name == "sqlite"
+                and str(e) == "No such constraint: 'dag_run_dag_id_execution_date_key'"
+            ):
+                pass
+            raise
 
 
 def downgrade():
