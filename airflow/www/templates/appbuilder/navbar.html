@@ -47,7 +47,7 @@
     </div>
     <div class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
-        {%- if not disable_nav_bar -%}
+        {%- if disable_nav_bar is not defined or not disable_nav_bar -%}
         {% include 'appbuilder/navbar_menu.html' %}
         {%- endif -%}
       </ul>
