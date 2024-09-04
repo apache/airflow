@@ -76,7 +76,7 @@
   "apache.beam": {
     "deps": [
       "apache-airflow>=2.8.0",
-      "apache-beam>=2.53.0",
+      "apache-beam>=2.59.0",
       "pyarrow>=14.0.1"
     ],
     "devel-deps": [],
@@ -84,9 +84,7 @@
     "cross-providers-deps": [
       "google"
     ],
-    "excluded-python-versions": [
-      "3.12"
-    ],
+    "excluded-python-versions": [],
     "state": "ready"
   },
   "apache.cassandra": {
