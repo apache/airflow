@@ -32,6 +32,7 @@ from httpx import Headers, Response
 from msgraph_core import APIVersion
 
 from airflow.models import Connection
+from airflow.providers.microsoft.azure.hooks.powerbi import PowerBIHook
 from airflow.utils.context import Context
 
 if TYPE_CHECKING:
@@ -213,3 +214,8 @@ def get_airflow_connection(
             "disable_instance_discovery": disable_instance_discovery,
         },
     )
+
+
+@pytest.fixture
+def powerbi_hook():
+    return PowerBIHook(**{"conn_id": "powerbi_conn_id", "timeout": 3, "api_version": "v1.0"})
