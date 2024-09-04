@@ -21,6 +21,7 @@ from json import JSONDecodeError
 from unittest.mock import patch
 
 import pytest
+from kiota_abstractions.request_adapter import RequestAdapter
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from msgraph_core import APIVersion, NationalClouds
 
@@ -42,6 +43,12 @@ from tests.providers.microsoft.conftest import (
 class TestKiotaRequestAdapterHook:
     def setup_method(self):
         KiotaRequestAdapterHook.cached_request_adapters.clear()
+
+    @staticmethod
+    def assert_tenant_id(request_adapter: RequestAdapter, expected_tenant_id: str):
+        assert isinstance(request_adapter, HttpxRequestAdapter)
+        tenant_id = request_adapter._authentication_provider.access_token_provider._credentials._tenant_id
+        assert tenant_id == expected_tenant_id
 
     def test_get_conn(self):
         with patch(
@@ -131,6 +138,30 @@ class TestKiotaRequestAdapterHook:
             actual = hook.get_host(connection)
 
             assert actual == NationalClouds.Global.value
+
+    def test_tenant_id(self):
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=get_airflow_connection,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            actual = hook.get_conn()
+
+            self.assert_tenant_id(actual, "tenant-id")
+
+    def test_azure_tenant_id(self):
+        airflow_connection = lambda conn_id: get_airflow_connection(
+            conn_id=conn_id, azure_tenant_id="azure-tenant-id",
+        )
+
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=airflow_connection,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            actual = hook.get_conn()
+
+            self.assert_tenant_id(actual, "azure-tenant-id")
 
     def test_encoded_query_parameters(self):
         actual = KiotaRequestAdapterHook.encoded_query_parameters(

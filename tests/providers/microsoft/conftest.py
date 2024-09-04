@@ -188,13 +188,29 @@ def get_airflow_connection(
     login: str = "client_id",
     password: str = "client_secret",
     tenant_id: str = "tenant-id",
+    azure_tenant_id: str | None = None,
     proxies: dict | None = None,
     scopes: list[str] | None = None,
     api_version: APIVersion | str | None = APIVersion.v1.value,
     authority: str | None = None,
     disable_instance_discovery: bool = False,
+
 ):
     from airflow.models import Connection
+
+    extra = {
+        "api_version": api_version,
+        "proxies": proxies or {},
+        "verify": False,
+        "scopes": scopes or [],
+        "authority": authority,
+        "disable_instance_discovery": disable_instance_discovery,
+    }
+
+    if azure_tenant_id:
+        extra["tenantId"] = azure_tenant_id
+    else:
+        extra["tenant_id"] = tenant_id
 
     return Connection(
         schema="https",
@@ -204,15 +220,7 @@ def get_airflow_connection(
         port=80,
         login=login,
         password=password,
-        extra={
-            "tenant_id": tenant_id,
-            "api_version": api_version,
-            "proxies": proxies or {},
-            "verify": False,
-            "scopes": scopes or [],
-            "authority": authority,
-            "disable_instance_discovery": disable_instance_discovery,
-        },
+        extra=extra,
     )
 
 
