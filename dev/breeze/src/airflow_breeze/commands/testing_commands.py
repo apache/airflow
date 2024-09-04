@@ -219,22 +219,23 @@ def _run_test(
             "[error]Only 'Providers' test type can specify actual tests with \\[\\][/]"
         )
         sys.exit(1)
+
     project_name = file_name_from_test_type(shell_params.test_type)
     compose_project_name = f"airflow-test-{project_name}"
     env = shell_params.env_variables_for_docker_commands
 
-    down_cmd = docker_down_command(compose_project_name)
-    run_command(down_cmd, output=output, check=False, env=env)
+    down_args = docker_down_command(compose_project_name)
 
-    run_cmd = docker_run_command(compose_project_name)
-    run_cmd.extend(pytest_command(python_version, shell_params, test_timeout))
-    run_cmd.extend(list(extra_pytest_args))
-    run_cmd = remove_ignored_pytest_directories(run_cmd)
+    run_args = docker_run_command(compose_project_name)
+    run_args.extend(pytest_command(python_version, shell_params, test_timeout))
+    run_args.extend(list(extra_pytest_args))
+    run_args = remove_ignored_pytest_directories(run_args)
 
+    run_command(down_args, output=output, check=False, env=env)
     try:
         remove_docker_networks(networks=[f"{compose_project_name}_default"])
         result = run_command(
-            run_cmd,
+            run_args,
             output=output,
             check=False,
             output_outside_the_group=output_outside_the_group,
