@@ -24,7 +24,7 @@ not changed. This allows us to not need to fix all the Python code at once, but
 still do the two changes in one migration instead of two.
 
 Revision ID: 1cdc775ca98f
-Revises: 0bfc26bc256e
+Revises: a2c32e6c7729
 Create Date: 2024-08-28 08:35:26.634475
 
 """
