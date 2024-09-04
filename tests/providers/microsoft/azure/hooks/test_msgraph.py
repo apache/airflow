@@ -18,10 +18,10 @@ from __future__ import annotations
 
 import asyncio
 from json import JSONDecodeError
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
-from kiota_abstractions.request_adapter import RequestAdapter
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from msgraph_core import APIVersion, NationalClouds
 
@@ -38,6 +38,9 @@ from tests.providers.microsoft.conftest import (
     mock_json_response,
     mock_response,
 )
+
+if TYPE_CHECKING:
+    from kiota_abstractions.request_adapter import RequestAdapter
 
 
 class TestKiotaRequestAdapterHook:
