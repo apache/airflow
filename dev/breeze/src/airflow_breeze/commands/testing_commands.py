@@ -165,7 +165,7 @@ def docker_down_command(compose_project_name):
 
 
 def docker_run_command(compose_project_name):
-    run_cmd = [
+    return [
         "docker",
         "compose",
         "--project-name",
@@ -176,10 +176,9 @@ def docker_run_command(compose_project_name):
         "--rm",
         "airflow",
     ]
-    return run_cmd
 
 
-def pytest_command(python_version, shell_params, test_timeout):
+def pytest_command(shell_params, python_version, test_timeout):
     return generate_args_for_pytest(
         test_type=shell_params.test_type,
         test_timeout=test_timeout,
@@ -224,12 +223,18 @@ def _run_test(
     compose_project_name = f"airflow-test-{project_name}"
     env = shell_params.env_variables_for_docker_commands
 
+    # build the docker down command args
     down_args = docker_down_command(compose_project_name)
 
-    run_args = docker_run_command(compose_project_name)
-    run_args.extend(pytest_command(python_version, shell_params, test_timeout))
-    run_args.extend(list(extra_pytest_args))
-    run_args = remove_ignored_pytest_directories(run_args)
+    # build the docker run command args
+    run_docker_args = docker_run_command(compose_project_name)
+
+    pytest_args = []
+    pytest_args.extend(pytest_command(shell_params, python_version, test_timeout))
+    pytest_args.extend(list(extra_pytest_args))
+    pytest_args = remove_ignored_pytest_directories(pytest_args)
+
+    run_args = [*run_docker_args, *pytest_args]
 
     run_command(down_args, output=output, check=False, env=env)
     try:
