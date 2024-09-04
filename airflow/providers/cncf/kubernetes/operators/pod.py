@@ -811,7 +811,7 @@ class KubernetesPodOperator(BaseOperator):
             self._clean(event, pod_status)
 
     def _clean(self, event: dict[str, Any], pod_status: str) -> None:
-        if pod_status == "running" or event["status"] not in ("success", "error", "failed", "timeout"):
+        if pod_status == "running" or (event["status"] == "running" and not pod_status):
             return
         istio_enabled = self.is_istio_enabled(self.pod)
         # Skip await_pod_completion when the event is 'timeout' due to the pod can hang
