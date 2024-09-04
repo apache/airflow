@@ -18,7 +18,7 @@ class TestMongoSensor:
 
     @patch("airflow.providers.mongo.hooks.mongo.MongoHook.find")
     def test_execute_operator(self, mock_mongo_find):
-        mock_mongo_find.return_value = {"test_key": "test"} 
+        mock_mongo_find.return_value = {"test_key": "test"}
         sensor = MongoSensor(
             collection="coll",
             query={"test_key": "test"},
@@ -31,10 +31,9 @@ class TestMongoSensor:
 
         assert result is True
 
-        # assert result is True
         mock_mongo_find.assert_called_once_with(
-            "coll", 
-            {"test_key": "test"}, 
-            mongo_db="test_db", 
+            "coll",
+            {"test_key": "test"},
+            mongo_db="test_db",
             find_one=True
         )
