@@ -53,7 +53,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.8.0
-  - apache-airflow-providers-common-sql>=1.14.1
+  - apache-airflow-providers-common-sql>=1.17.0
   - jaydebeapi>=1.1.1
 
 integrations:
