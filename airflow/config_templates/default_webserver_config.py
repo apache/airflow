@@ -134,6 +134,12 @@ AUTH_TYPE = AUTH_DB
 # ----------------------------------------------------
 # Simple auth manager config
 # ----------------------------------------------------
-# This list contains the list of users and their associated role in simple auth manager
-# If the simple auth manager is used in your environment, this list controls who can access the environment
+# This list contains the list of users and their associated role in simple auth manager.
+# If the simple auth manager is used in your environment, this list controls who can access the environment.
+# Example:
+# [{
+#     "username": "admin",
+#     "password": "admin",
+#     "role": "admin",
+# }]
 SIMPLE_AUTH_MANAGER_USERS = []
