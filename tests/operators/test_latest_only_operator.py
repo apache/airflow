@@ -30,7 +30,11 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.db import clear_db_runs, clear_db_xcom
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -90,12 +94,15 @@ class TestLatestOnlyOperator:
             downstream_task2.set_upstream(downstream_task)
             downstream_task3.set_upstream(downstream_task)
 
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+
         dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
 
         dag_maker.create_dagrun(
@@ -104,6 +111,7 @@ class TestLatestOnlyOperator:
             execution_date=timezone.datetime(2016, 1, 1, 12),
             state=State.RUNNING,
             data_interval=(timezone.datetime(2016, 1, 1, 12), timezone.datetime(2016, 1, 1, 12) + INTERVAL),
+            **triggered_by_kwargs,
         )
 
         dag_maker.create_dagrun(
@@ -112,6 +120,7 @@ class TestLatestOnlyOperator:
             execution_date=END_DATE,
             state=State.RUNNING,
             data_interval=(END_DATE, END_DATE + INTERVAL),
+            **triggered_by_kwargs,
         )
 
         latest_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
@@ -162,6 +171,8 @@ class TestLatestOnlyOperator:
             downstream_task.set_upstream(latest_task)
             downstream_task2.set_upstream(downstream_task)
 
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+
         dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
@@ -169,6 +180,7 @@ class TestLatestOnlyOperator:
             state=State.RUNNING,
             external_trigger=True,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
 
         execution_date = timezone.datetime(2016, 1, 1, 12)
@@ -179,6 +191,7 @@ class TestLatestOnlyOperator:
             state=State.RUNNING,
             external_trigger=True,
             data_interval=(execution_date, execution_date),
+            **triggered_by_kwargs,
         )
 
         dag_maker.create_dagrun(
@@ -188,6 +201,7 @@ class TestLatestOnlyOperator:
             state=State.RUNNING,
             external_trigger=True,
             data_interval=(END_DATE, END_DATE),
+            **triggered_by_kwargs,
         )
 
         latest_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
