@@ -792,7 +792,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
             aws_conn_id=self.aws_conn_id, emr_conn_id=self.emr_conn_id, region_name=self.region_name
         )
 
-    def execute(self, context: Context) -> str | None:
+    def execute(self, context: Context) -> str:
         self.log.info(
             "Creating job flow using aws_conn_id: %s, emr_conn_id: %s", self.aws_conn_id, self.emr_conn_id
         )
@@ -801,6 +801,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
             self.job_flow_overrides = job_flow_overrides
         else:
             job_flow_overrides = self.job_flow_overrides
+
         response = self._emr_hook.create_job_flow(job_flow_overrides)
 
         if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
@@ -808,6 +809,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
 
         self._job_flow_id = response["JobFlowId"]
         self.log.info("Job flow with id %s created", self._job_flow_id)
+
         EmrClusterLink.persist(
             context=context,
             operator=self,
@@ -824,6 +826,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
                 job_flow_id=self._job_flow_id,
                 log_uri=get_log_uri(emr_client=self._emr_hook.conn, job_flow_id=self._job_flow_id),
             )
+
         if self.wait_for_completion:
             if self.deferrable:
                 self.defer(
@@ -849,7 +852,8 @@ class EmrCreateJobFlowOperator(BaseOperator):
                     ),
                 )
 
-            return self._job_flow_id
+        return self._job_flow_id
+
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> str:
         event = validate_execute_complete_event(event)
