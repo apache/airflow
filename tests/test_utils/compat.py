@@ -36,7 +36,7 @@ try:
     # all providers are updated to airflow 2.10+.
     from airflow.models.errors import ParseImportError
 except ImportError:
-    from airflow.models.errors import ImportError as ParseImportError  # type: ignore[no-redef]
+    from airflow.models.errors import ImportError as ParseImportError  # type: ignore[no-redef,attr-defined]
 
 
 from airflow import __version__ as airflow_version
@@ -46,6 +46,7 @@ AIRFLOW_V_2_7_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.7.0")
 AIRFLOW_V_2_8_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.8.0")
 AIRFLOW_V_2_9_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.9.0")
 AIRFLOW_V_2_10_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.10.0")
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 try:
     from airflow.models.baseoperatorlink import BaseOperatorLink

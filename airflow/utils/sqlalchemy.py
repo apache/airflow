@@ -20,12 +20,10 @@ from __future__ import annotations
 import contextlib
 import copy
 import datetime
-import json
 import logging
 from importlib import metadata
 from typing import TYPE_CHECKING, Any, Generator, Iterable, overload
 
-from dateutil import relativedelta
 from packaging import version
 from sqlalchemy import TIMESTAMP, PickleType, event, nullsfirst, tuple_
 from sqlalchemy.dialects import mysql
@@ -208,12 +206,8 @@ def ensure_pod_is_valid_after_unpickling(pod: V1Pod) -> V1Pod | None:
     if not isinstance(pod, V1Pod):
         return None
     try:
-        try:
-            from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-        except ImportError:
-            from airflow.kubernetes.pre_7_4_0_compatibility.pod_generator import (  # type: ignore[assignment]
-                PodGenerator,
-            )
+        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
+
         # now we actually reserialize / deserialize the pod
         pod_dict = sanitize_for_serialization(pod)
         return PodGenerator.deserialize_model_dict(pod_dict)
@@ -291,50 +285,6 @@ class ExecutorConfigType(PickleType):
                 return x == y
             except AttributeError:
                 return False
-
-
-class Interval(TypeDecorator):
-    """Base class representing a time interval."""
-
-    impl = Text
-
-    cache_ok = True
-
-    attr_keys = {
-        datetime.timedelta: ("days", "seconds", "microseconds"),
-        relativedelta.relativedelta: (
-            "years",
-            "months",
-            "days",
-            "leapdays",
-            "hours",
-            "minutes",
-            "seconds",
-            "microseconds",
-            "year",
-            "month",
-            "day",
-            "hour",
-            "minute",
-            "second",
-            "microsecond",
-        ),
-    }
-
-    def process_bind_param(self, value, dialect):
-        if isinstance(value, tuple(self.attr_keys)):
-            attrs = {key: getattr(value, key) for key in self.attr_keys[type(value)]}
-            return json.dumps({"type": type(value).__name__, "attrs": attrs})
-        return json.dumps(value)
-
-    def process_result_value(self, value, dialect):
-        if not value:
-            return value
-        data = json.loads(value)
-        if isinstance(data, dict):
-            type_map = {key.__name__: key for key in self.attr_keys}
-            return type_map[data["type"]](**data["attrs"])
-        return data
 
 
 def nulls_first(col, session: Session) -> dict[str, Any]:

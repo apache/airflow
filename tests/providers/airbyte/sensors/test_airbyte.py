@@ -19,11 +19,16 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from airbyte_api.api import GetJobRequest
+from airbyte_api.models import JobResponse, JobStatusEnum, JobTypeEnum
 
 from airflow.exceptions import AirflowException
+from airflow.models import Connection
 from airflow.providers.airbyte.sensors.airbyte import AirbyteJobSensor
+from airflow.utils import db
 
 
+@pytest.mark.db_test
 class TestAirbyteJobSensor:
     task_id = "task-id"
     airbyte_conn_id = "airbyte-conn-test"
@@ -32,12 +37,23 @@ class TestAirbyteJobSensor:
 
     def get_job(self, status):
         response = mock.Mock()
-        response.json.return_value = {"job": {"status": status}}
+        response.job_response = JobResponse(
+            connection_id="connection-mock",
+            job_id=self.job_id,
+            start_time="today",
+            job_type=JobTypeEnum.SYNC,
+            status=status,
+        )
         return response
 
-    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job")
+    def setup_method(self):
+        db.merge_conn(
+            Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="http://test-airbyte")
+        )
+
+    @mock.patch("airbyte_api.jobs.Jobs.get_job")
     def test_done(self, mock_get_job):
-        mock_get_job.return_value = self.get_job("succeeded")
+        mock_get_job.return_value = self.get_job(JobStatusEnum.SUCCEEDED)
 
         sensor = AirbyteJobSensor(
             task_id=self.task_id,
@@ -45,12 +61,12 @@ class TestAirbyteJobSensor:
             airbyte_conn_id=self.airbyte_conn_id,
         )
         ret = sensor.poke(context={})
-        mock_get_job.assert_called_once_with(job_id=self.job_id)
+        mock_get_job.assert_called_once_with(request=GetJobRequest(job_id=self.job_id))
         assert ret
 
-    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job")
+    @mock.patch("airbyte_api.jobs.Jobs.get_job")
     def test_failed(self, mock_get_job):
-        mock_get_job.return_value = self.get_job("failed")
+        mock_get_job.return_value = self.get_job(JobStatusEnum.FAILED)
 
         sensor = AirbyteJobSensor(
             task_id=self.task_id,
@@ -60,11 +76,11 @@ class TestAirbyteJobSensor:
         with pytest.raises(AirflowException, match="Job failed"):
             sensor.poke(context={})
 
-        mock_get_job.assert_called_once_with(job_id=self.job_id)
+        mock_get_job.assert_called_once_with(request=GetJobRequest(job_id=self.job_id))
 
-    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job")
+    @mock.patch("airbyte_api.jobs.Jobs.get_job")
     def test_running(self, mock_get_job):
-        mock_get_job.return_value = self.get_job("running")
+        mock_get_job.return_value = self.get_job(JobStatusEnum.RUNNING)
 
         sensor = AirbyteJobSensor(
             task_id=self.task_id,
@@ -73,13 +89,13 @@ class TestAirbyteJobSensor:
         )
         ret = sensor.poke(context={})
 
-        mock_get_job.assert_called_once_with(job_id=self.job_id)
+        mock_get_job.assert_called_once_with(request=GetJobRequest(job_id=self.job_id))
 
         assert not ret
 
-    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job")
+    @mock.patch("airbyte_api.jobs.Jobs.get_job")
     def test_cancelled(self, mock_get_job):
-        mock_get_job.return_value = self.get_job("cancelled")
+        mock_get_job.return_value = self.get_job(JobStatusEnum.CANCELLED)
 
         sensor = AirbyteJobSensor(
             task_id=self.task_id,
@@ -89,4 +105,4 @@ class TestAirbyteJobSensor:
         with pytest.raises(AirflowException, match="Job was cancelled"):
             sensor.poke(context={})
 
-        mock_get_job.assert_called_once_with(job_id=self.job_id)
+        mock_get_job.assert_called_once_with(request=GetJobRequest(job_id=self.job_id))

@@ -2824,6 +2824,28 @@
                     "type": "boolean",
                     "default": true
                 },
+                "hostAliases": {
+                    "description": "HostAliases for the triggerer pod.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "examples": [
+                        {
+                            "ip": "127.0.0.1",
+                            "hostnames": [
+                                "foo.local"
+                            ]
+                        },
+                        {
+                            "ip": "10.1.2.3",
+                            "hostnames": [
+                                "foo.remote"
+                            ]
+                        }
+                    ]
+                },
                 "livenessProbe": {
                     "description": "Liveness probe configuration for triggerer.",
                     "type": "object",
@@ -7469,6 +7491,14 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        },
+                        "existingClaim": {
+                            "description": "The name of an existing PVC to use.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 },

@@ -1633,6 +1633,15 @@ triggerer:
   tolerations: []
   topologySpreadConstraints: []
 
+  #  hostAliases for the triggerer pod
+  hostAliases: []
+  #  - ip: "127.0.0.1"
+  #    hostnames:
+  #      - "foo.local"
+  #  - ip: "10.1.2.3"
+  #    hostnames:
+  #      - "foo.remote"
+
   priorityClassName: ~
 
   # annotations for the triggerer deployment
@@ -2304,6 +2313,8 @@ redis:
     storageClassName:
     # Annotations to add to redis volumes
     annotations: {}
+    # the name of an existing PVC to use
+    existingClaim:
 
   # Configuration for empty dir volume (if redis.persistence.enabled == false)
   # emptyDirConfig:
