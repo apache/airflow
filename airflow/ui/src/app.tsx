@@ -27,7 +27,7 @@ import { Nav } from "src/nav";
 
 export const App = () => {
   // TODO: Change this to be taken from airflow.cfg
-  const pageSize = 10;
+  const pageSize = 50;
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: pageSize,
