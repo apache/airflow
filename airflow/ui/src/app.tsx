@@ -39,9 +39,9 @@ export const App = () => {
   });
 
   return (
-    <Box maxWidth="100vw">
+    <div>
       <Nav />
-      <Box p={3}>
+      <Box p={3} ml={24}>
         {isLoading && <Spinner />}
         {!isLoading && !!data?.dags && (
           <DagsList
@@ -52,7 +52,7 @@ export const App = () => {
           />
         )}
       </Box>
-    </Box>
+    </div>
   );
 };
 
