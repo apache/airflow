@@ -133,6 +133,12 @@ class SFTPToGCSOperator(BaseOperator):
 
             for file in files:
                 destination_path = file.replace(base_path, self.destination_path, 1)
+                # See issue: https://github.com/apache/airflow/issues/41763
+                # If the destination_path is not specified, it defaults to an empty string. As a result,
+                # replacing base_path with an empty string is ineffective, causing the destination_path to
+                # retain the "/" prefix, if it has.
+                if not self.destination_path:
+                    destination_path = destination_path.lstrip("/")
                 self._copy_single_object(gcs_hook, sftp_hook, file, destination_path)
 
         else:
