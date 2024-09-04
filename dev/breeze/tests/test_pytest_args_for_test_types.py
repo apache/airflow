@@ -188,7 +188,6 @@ def test_pytest_args_for_regular_test_types(
         convert_test_type_to_pytest_args(
             test_type=test_type,
             skip_provider_tests=skip_provider_tests,
-            python_version=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         )
         == pytest_args
     )
@@ -199,7 +198,6 @@ def test_pytest_args_for_missing_provider():
         convert_test_type_to_pytest_args(
             test_type="Providers[missing.provider]",
             skip_provider_tests=False,
-            python_version=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         )
 
 
@@ -226,7 +224,6 @@ def test_pytest_args_for_helm_test_types(helm_test_package: str, pytest_args: li
             test_type="Helm",
             skip_provider_tests=False,
             helm_test_package=helm_test_package,
-            python_version=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         )
         == pytest_args
     )

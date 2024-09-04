@@ -34,6 +34,7 @@ from airflow_breeze.commands.common_options import (
     option_downgrade_pendulum,
     option_downgrade_sqlalchemy,
     option_dry_run,
+    option_excluded_providers,
     option_force_lowest_dependencies,
     option_forward_credentials,
     option_github_repository,
@@ -513,6 +514,7 @@ option_force_sa_warnings = click.option(
 @option_downgrade_sqlalchemy
 @option_dry_run
 @option_enable_coverage
+@option_excluded_providers
 @option_excluded_parallel_test_types
 @option_force_sa_warnings
 @option_force_lowest_dependencies
@@ -574,6 +576,7 @@ def command_for_tests(**kwargs):
 @option_dry_run
 @option_enable_coverage
 @option_excluded_parallel_test_types
+@option_excluded_providers
 @option_forward_credentials
 @option_force_lowest_dependencies
 @option_github_repository
@@ -635,6 +638,7 @@ def command_for_db_tests(**kwargs):
 @option_dry_run
 @option_enable_coverage
 @option_excluded_parallel_test_types
+@option_excluded_providers
 @option_forward_credentials
 @option_force_lowest_dependencies
 @option_github_repository
@@ -690,6 +694,7 @@ def _run_test_command(
     downgrade_pendulum: bool,
     enable_coverage: bool,
     excluded_parallel_test_types: str,
+    excluded_providers: str,
     extra_pytest_args: tuple,
     force_sa_warnings: bool,
     forward_credentials: bool,
@@ -745,6 +750,7 @@ def _run_test_command(
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         downgrade_pendulum=downgrade_pendulum,
         enable_coverage=enable_coverage,
+        excluded_providers=excluded_providers,
         force_sa_warnings=force_sa_warnings,
         force_lowest_dependencies=force_lowest_dependencies,
         forward_credentials=forward_credentials,
