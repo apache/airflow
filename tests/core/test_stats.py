@@ -353,6 +353,11 @@ class TestPatternValidatorConfigOption:
                 PatternBlockListValidator,
                 id="pattern_block_list_provided",
             ),
+            pytest.param(
+                {**stats_on, **allow_list, **block_list},
+                PatternAllowListValidator,
+                id="pattern_block_list_provided",
+            ),
         ],
     )
     def test_pattern_picker(self, config, expected):
@@ -362,7 +367,7 @@ class TestPatternValidatorConfigOption:
             assert isinstance(airflow.stats.Stats.statsd, statsd.StatsClient)
             assert type(airflow.stats.Stats.instance.metrics_validator) is expected
 
-    @conf_vars({**stats_on, **block_list, ("metrics", "metrics_allow_list"): "bax,qux"})
+    @conf_vars({**stats_on, **block_list, ("metrics", "metrics_allow_list"): "baz,qux"})
     def test_setting_allow_and_block_logs_warning(self, caplog):
         importlib.reload(airflow.stats)
 

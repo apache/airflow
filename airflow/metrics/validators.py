@@ -88,7 +88,8 @@ DEFAULT_VALIDATOR_TYPE = "allow"
 
 def get_validator() -> ListValidator:
     validators = {
-        "pattern": {"allow": PatternAllowListValidator, "block": PatternBlockListValidator},
+        "allow": PatternAllowListValidator,
+        "block": PatternBlockListValidator,
     }
     metric_lists = {
         "allow": (metric_allow_list := conf.get("metrics", "metrics_allow_list", fallback=None)),
@@ -106,7 +107,7 @@ def get_validator() -> ListValidator:
     else:
         list_type = DEFAULT_VALIDATOR_TYPE
 
-    return validators["pattern"][list_type](metric_lists[list_type])
+    return validators[list_type](metric_lists[list_type])
 
 
 def validate_stat(fn: Callable) -> Callable:
