@@ -1,6 +1,22 @@
 """
-Elastic dag copied from apache/airflow master and adjusted to work on python2 and with Airflow
-versions prior to 2.0
+Module generates number DAGs for the purpose of performance testing. The number of DAGs,
+number, types of tasks in each DAG and the shape of the DAG are controlled through
+environment variables:
+
+- `PERF_DAGS_COUNT` - number of DAGs to generate
+- `PERF_TASKS_COUNT` - number of tasks in each DAG
+- `PERF_START_DATE` - if not provided current time - `PERF_START_AGO` applies
+- `PERF_START_AGO` - start time relative to current time used if PERF_START_DATE is not provided. Default `1h`
+- `SCHEDULE_INTERVAL_ENV` - Schedule interval. Default `@once`
+- `PERF_SHAPE` - shape of DAG. See `DagShape`. Default `NO_STRUCTURE`
+- `PERF_SLEEP_TIME` - A non-negative float value specifying the time of sleep occurring
+    when each task is executed. Default `0`
+- `PERF_OPERATOR_TYPE` - A string identifying the type of operator. Default `bash`
+- `PERF_START_PAUSED` - Is DAG paused upon creation. Default  `1`
+- `PERF_TASKS_TRIGGER_RULE` - A string identifying the rule by which dependencies are applied
+    for the tasks to get triggered. Default `TriggerRule.ALL_SUCCESS`)
+- `PERF_OPERATOR_EXTRA_KWARGS` - A dictionary with extra kwargs for operator
+
 """
 
 import enum
@@ -15,6 +31,7 @@ from typing import List, Union, cast
 from airflow import DAG
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.models.baseoperator import chain
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
@@ -47,7 +64,7 @@ def parse_time_delta(time_str):
 
 def parse_start_date(date, start_ago):
     """
-    Returns the start date for the elastic DAGs and string to be used as part of their ids.
+    Returns the start date for the performance DAGs and string to be used as part of their ids.
     :return Tuple[datetime.datetime, str]: A tuple of datetime.datetime object to be used
         as a start_date and a string that should be used as part of the dag_id.
     """
@@ -131,54 +148,6 @@ def get_task_list(dag_object, operator_type_str, task_count, trigger_rule, sleep
     else:
         raise ValueError(f"Unsupported operator type: {operator_type_str}.")
     return task_list
-
-
-def chain(*tasks):
-    # type: (Union[BaseOperator, List[BaseOperator]]) -> None
-    r"""
-    Given a number of tasks, builds a dependency chain.
-    Support mix airflow.models.BaseOperator and List[airflow.models.BaseOperator].
-    If you want to chain between two List[airflow.models.BaseOperator], have to
-    make sure they have same length.
-    .. code-block:: python
-         chain(t1, [t2, t3], [t4, t5], t6)
-    is equivalent to::
-         / -> t2 -> t4 \
-       t1               -> t6
-         \ -> t3 -> t5 /
-    .. code-block:: python
-        t1.set_downstream(t2)
-        t1.set_downstream(t3)
-        t2.set_downstream(t4)
-        t3.set_downstream(t5)
-        t4.set_downstream(t6)
-        t5.set_downstream(t6)
-    :param tasks: List of tasks or List[airflow.models.BaseOperator] to set dependencies
-    :type tasks: List[airflow.models.BaseOperator] or airflow.models.BaseOperator
-    """
-    for index, up_task in enumerate(tasks[:-1]):
-        down_task = tasks[index + 1]
-        if isinstance(up_task, BaseOperator):
-            up_task.set_downstream(down_task)
-            continue
-        if isinstance(down_task, BaseOperator):
-            down_task.set_upstream(up_task)
-            continue
-        if not isinstance(up_task, list) or not isinstance(down_task, list):
-            raise TypeError(
-                "Chain not supported between instances of {up_type} and {down_type}".format(
-                    up_type=type(up_task), down_type=type(down_task)
-                )
-            )
-        up_task_list = cast(List[BaseOperator], up_task)
-        down_task_list = cast(List[BaseOperator], down_task)
-        if len(up_task_list) != len(down_task_list):
-            raise AirflowException(
-                "Chain not supported different length Iterable "
-                "but get {} and {}".format(len(up_task), len(down_task))
-            )
-        for up_t, down_t in zip(up_task_list, down_task_list):
-            up_t.set_downstream(down_t)
 
 
 def chain_as_binary_tree(*tasks):
@@ -306,7 +275,7 @@ for dag_no in range(1, DAG_COUNT + 1):
         catchup=True,
     )
 
-    elastic_dag_tasks = get_task_list(
+    performance_dag_tasks = get_task_list(
         dag, OPERATOR_TYPE, TASKS_COUNT, TASKS_TRIGGER_RULE, SLEEP_TIME, OPERATOR_EXTRA_KWARGS
     )
 
@@ -317,6 +286,6 @@ for dag_no in range(1, DAG_COUNT + 1):
         DagShape.GRID: chain_as_grid,
     }
     if SHAPE != DagShape.NO_STRUCTURE:
-        shape_function_map[SHAPE](*elastic_dag_tasks)
+        shape_function_map[SHAPE](*performance_dag_tasks)
 
     globals()["dag_{dag_no}".format(dag_no=dag_no)] = dag

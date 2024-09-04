@@ -1,5 +1,5 @@
 """
-Module containing functions used for validation of elastic dag configuration
+Module containing functions used for validation of performance dag configuration
 and collecting information about it's resulting DAGs' arrangement
 """
 
@@ -17,14 +17,14 @@ from typing import Callable, Dict, List, Tuple, Union
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
 
-MANDATORY_ELASTIC_DAG_VARIABLES = {
+MANDATORY_performance_DAG_VARIABLES = {
     "PERF_DAGS_COUNT",
     "PERF_TASKS_COUNT",
     "PERF_SHAPE",
     "PERF_START_DATE",
 }
 
-ELASTIC_DAG_VARIABLES_DEFAULT_VALUES = {
+performance_DAG_VARIABLES_DEFAULT_VALUES = {
     "PERF_DAG_FILES_COUNT": "1",
     "PERF_DAG_PREFIX": "perf_scheduler",
     "PERF_START_AGO": "1h",
@@ -51,57 +51,51 @@ RE_TIME_DELTA = re.compile(
 )
 
 
-def add_perf_start_date_env_to_conf(elastic_dag_conf: Dict[str, str]) -> None:
+def add_perf_start_date_env_to_conf(performance_dag_conf: Dict[str, str]) -> None:
     """
-    Calculates value for PERF_START_DATE environment variable and adds it to the elastic_dag_conf
+    Calculates value for PERF_START_DATE environment variable and adds it to the performance_dag_conf
     if it is not already present there.
 
-    :param elastic_dag_conf: dict with environment variables as keys and their values as values
-    :type elastic_dag_conf: Dict[str, str]
+    :param performance_dag_conf: dict with environment variables as keys and their values as values
+    :type performance_dag_conf: Dict[str, str]
     """
 
-    if "PERF_START_DATE" not in elastic_dag_conf:
-        start_ago = get_elastic_dag_environment_variable(
-            elastic_dag_conf, "PERF_START_AGO"
-        )
+    if "PERF_START_DATE" not in performance_dag_conf:
+        start_ago = get_performance_dag_environment_variable(performance_dag_conf, "PERF_START_AGO")
 
-        perf_start_date = datetime.utcnow() - check_and_parse_time_delta(
-            "PERF_START_AGO", start_ago
-        )
+        perf_start_date = datetime.utcnow() - check_and_parse_time_delta("PERF_START_AGO", start_ago)
 
-        elastic_dag_conf["PERF_START_DATE"] = str(perf_start_date)
+        performance_dag_conf["PERF_START_DATE"] = str(perf_start_date)
 
 
-def validate_elastic_dag_conf(elastic_dag_conf: Dict[str, str]) -> None:
+def validate_performance_dag_conf(performance_dag_conf: Dict[str, str]) -> None:
     """
-    Checks if elastic_dag_conf contains a valid configuration for elastic DAG
+    Checks if performance_dag_conf contains a valid configuration for performance DAG
 
-    :param elastic_dag_conf: dict with environment variables as keys and their values as values
-    :type elastic_dag_conf: Dict[str, str]
+    :param performance_dag_conf: dict with environment variables as keys and their values as values
+    :type performance_dag_conf: Dict[str, str]
 
     :raises:
-        TypeError: if elastic_dag_conf is not a Dict
-        KeyError: if elastic_dag_conf does not contain mandatory environment variables
-        ValueError: if any value in elastic_dag_conf is not a string
+        TypeError: if performance_dag_conf is not a Dict
+        KeyError: if performance_dag_conf does not contain mandatory environment variables
+        ValueError: if any value in performance_dag_conf is not a string
     """
 
-    if not isinstance(elastic_dag_conf, Dict):
+    if not isinstance(performance_dag_conf, Dict):
         raise TypeError(
-            f"elastic_dag configuration must be a dictionary containing at least following keys: "
-            f"{MANDATORY_ELASTIC_DAG_VARIABLES}."
+            f"performance_dag configuration must be a dictionary containing at least following keys: "
+            f"{MANDATORY_performance_DAG_VARIABLES}."
         )
 
-    missing_variables = MANDATORY_ELASTIC_DAG_VARIABLES.difference(
-        set(elastic_dag_conf.keys())
-    )
+    missing_variables = MANDATORY_performance_DAG_VARIABLES.difference(set(performance_dag_conf.keys()))
 
     if missing_variables:
         raise KeyError(
             f"Following mandatory environment variables are missing "
-            f"from elastic_dag configuration: {missing_variables}."
+            f"from performance_dag configuration: {missing_variables}."
         )
 
-    if not all(isinstance(env, str) for env in elastic_dag_conf.values()):
+    if not all(isinstance(env, str) for env in performance_dag_conf.values()):
         raise ValueError("All values of variables must be strings.")
 
     variable_to_validation_fun_map = {
@@ -123,12 +117,10 @@ def validate_elastic_dag_conf(elastic_dag_conf: Dict[str, str]) -> None:
 
     # we do not need to validate default values of variables
     for env_name in variable_to_validation_fun_map:
-        if env_name in elastic_dag_conf:
-            variable_to_validation_fun_map[env_name](
-                env_name, elastic_dag_conf[env_name]
-            )
+        if env_name in performance_dag_conf:
+            variable_to_validation_fun_map[env_name](env_name, performance_dag_conf[env_name])
 
-    check_max_runs_and_schedule_interval_compatibility(elastic_dag_conf)
+    check_max_runs_and_schedule_interval_compatibility(performance_dag_conf)
 
 
 def check_int_convertibility(env_name: str, env_value: str) -> None:
@@ -145,9 +137,7 @@ def check_int_convertibility(env_name: str, env_value: str) -> None:
     try:
         int(env_value)
     except ValueError:
-        raise ValueError(
-            f"{env_name} value must be convertible to int. Received: '{env_value}'."
-        )
+        raise ValueError(f"{env_name} value must be convertible to int. Received: '{env_value}'.")
 
 
 def check_positive_int_convertibility(env_name: str, env_value: str) -> None:
@@ -165,9 +155,7 @@ def check_positive_int_convertibility(env_name: str, env_value: str) -> None:
         converted_value = int(env_value)
         check_positive(converted_value)
     except ValueError:
-        raise ValueError(
-            f"{env_name} value must be convertible to positive int. Received: '{env_value}'."
-        )
+        raise ValueError(f"{env_name} value must be convertible to positive int. Received: '{env_value}'.")
 
 
 def check_positive(value: Union[int, float]) -> None:
@@ -207,9 +195,7 @@ def check_dag_prefix(env_name: str, env_value: str) -> None:
     safe_dag_prefix = safe_dag_id(env_value)
 
     matching_dag_ids = [
-        dag_id
-        for dag_id in DAG_IDS_NOT_ALLOWED_TO_MATCH_PREFIX
-        if dag_id.startswith(safe_dag_prefix)
+        dag_id for dag_id in DAG_IDS_NOT_ALLOWED_TO_MATCH_PREFIX if dag_id.startswith(safe_dag_prefix)
     ]
 
     if matching_dag_ids:
@@ -250,9 +236,7 @@ def check_and_parse_time_delta(env_name: str, env_value: str) -> timedelta:
             f"Examples of valid strings: '8h', '2d8h5m20s', '2m4s'"
         )
 
-    time_params = {
-        name: float(param) for name, param in parts.groupdict().items() if param
-    }
+    time_params = {name: float(param) for name, param in parts.groupdict().items() if param}
     return timedelta(**time_params)
 
 
@@ -276,9 +260,7 @@ def check_schedule_interval(env_name: str, env_value: str) -> None:
     except ValueError as exception:
         error_message = str(exception)
 
-    check_allowed_values = get_check_allowed_values_function(
-        ALLOWED_NON_REGEXP_SCHEDULE_INTERVALS
-    )
+    check_allowed_values = get_check_allowed_values_function(ALLOWED_NON_REGEXP_SCHEDULE_INTERVALS)
 
     try:
         check_allowed_values(env_name, env_value)
@@ -290,9 +272,7 @@ def check_schedule_interval(env_name: str, env_value: str) -> None:
         )
 
 
-def get_check_allowed_values_function(
-    values: Tuple[str, ...]
-) -> Callable[[str, str], None]:
+def get_check_allowed_values_function(values: Tuple[str, ...]) -> Callable[[str, str], None]:
     """
     Returns a function which will check if value of provided environment variable
     is within a specified set of values
@@ -353,14 +333,12 @@ def check_non_negative(value: Union[int, float]) -> None:
         raise ValueError
 
 
-def check_max_runs_and_schedule_interval_compatibility(
-    elastic_dag_conf: Dict[str, str]
-) -> None:
+def check_max_runs_and_schedule_interval_compatibility(performance_dag_conf: Dict[str, str]) -> None:
     """
     Checks if max_runs and schedule_interval values create a valid combination
 
-    :param elastic_dag_conf: dict with environment variables as keys and their values as values
-    :type elastic_dag_conf: Dict[str, str]
+    :param performance_dag_conf: dict with environment variables as keys and their values as values
+    :type performance_dag_conf: Dict[str, str]
 
     :raises: ValueError:
         if max_runs is specified when schedule_interval is not a duration time expression
@@ -369,26 +347,24 @@ def check_max_runs_and_schedule_interval_compatibility(
             to be in the future
     """
 
-    schedule_interval = get_elastic_dag_environment_variable(
-        elastic_dag_conf, "PERF_SCHEDULE_INTERVAL"
+    schedule_interval = get_performance_dag_environment_variable(
+        performance_dag_conf, "PERF_SCHEDULE_INTERVAL"
     )
-    max_runs = get_elastic_dag_environment_variable(elastic_dag_conf, "PERF_MAX_RUNS")
-    start_ago = get_elastic_dag_environment_variable(elastic_dag_conf, "PERF_START_AGO")
+    max_runs = get_performance_dag_environment_variable(performance_dag_conf, "PERF_MAX_RUNS")
+    start_ago = get_performance_dag_environment_variable(performance_dag_conf, "PERF_START_AGO")
 
     if schedule_interval == "@once":
 
         if max_runs is not None:
             raise ValueError(
-                "PERF_MAX_RUNS is allowed only if PERF_SCHEDULE_INTERVAL is "
-                "provided as a time expression."
+                "PERF_MAX_RUNS is allowed only if PERF_SCHEDULE_INTERVAL is " "provided as a time expression."
             )
         # if dags are set to be scheduled once, we do not need to check end_date
         return
 
     if max_runs is None:
         raise ValueError(
-            "PERF_MAX_RUNS must be specified if PERF_SCHEDULE_INTERVAL is "
-            "provided as a time expression."
+            "PERF_MAX_RUNS must be specified if PERF_SCHEDULE_INTERVAL is " "provided as a time expression."
         )
 
     max_runs = int(max_runs)
@@ -399,8 +375,7 @@ def check_max_runs_and_schedule_interval_compatibility(
     start_date = current_date - check_and_parse_time_delta("PERF_START_AGO", start_ago)
 
     end_date = start_date + (
-        check_and_parse_time_delta("PERF_SCHEDULE_INTERVAL", schedule_interval)
-        * (max_runs - 1)
+        check_and_parse_time_delta("PERF_SCHEDULE_INTERVAL", schedule_interval) * (max_runs - 1)
     )
 
     if current_date < end_date:
@@ -426,104 +401,99 @@ def check_valid_json(env_name: str, env_value: str) -> None:
     try:
         json.loads(env_value)
     except json.decoder.JSONDecodeError:
-        raise ValueError(
-            f"Value '{env_value}' of {env_name} cannot be json decoded.")
+        raise ValueError(f"Value '{env_value}' of {env_name} cannot be json decoded.")
 
 
 @contextmanager
-def generate_copies_of_elastic_dag(
-    elastic_dag_path: str, elastic_dag_conf: Dict[str, str]
+def generate_copies_of_performance_dag(
+    performance_dag_path: str, performance_dag_conf: Dict[str, str]
 ) -> Tuple[str, List[str]]:
     """
-    Contextmanager that creates copies of elastic DAG inside temporary directory using the
+    Contextmanager that creates copies of performance DAG inside temporary directory using the
     dag prefix env variable as a base for filenames.
 
-    :param elastic_dag_path: path to the elastic DAG that should be copied.
-    :type elastic_dag_path: str
-    :param elastic_dag_conf: dict with environment variables as keys and their values as values.
-    :type elastic_dag_conf: Dict[str, str]
+    :param performance_dag_path: path to the performance DAG that should be copied.
+    :type performance_dag_path: str
+    :param performance_dag_conf: dict with environment variables as keys and their values as values.
+    :type performance_dag_conf: Dict[str, str]
 
     :yields: a pair consisting of path to the temporary directory
-        and a list with paths to copies of elastic DAG
+        and a list with paths to copies of performance DAG
     :type: Tuple[str, List[str]]
     """
 
     dag_files_count = int(
-        get_elastic_dag_environment_variable(elastic_dag_conf, "PERF_DAG_FILES_COUNT")
+        get_performance_dag_environment_variable(performance_dag_conf, "PERF_DAG_FILES_COUNT")
     )
 
-    safe_dag_prefix = get_dag_prefix(elastic_dag_conf)
+    safe_dag_prefix = get_dag_prefix(performance_dag_conf)
 
     with tempfile.TemporaryDirectory() as temp_dir:
 
-        elastic_dag_copies = []
+        performance_dag_copies = []
 
         for i in range(1, dag_files_count + 1):
 
             destination_filename = f"{safe_dag_prefix}_{i}.py"
             destination_path = os.path.join(temp_dir, destination_filename)
 
-            copyfile(elastic_dag_path, destination_path)
-            elastic_dag_copies.append(destination_path)
+            copyfile(performance_dag_path, destination_path)
+            performance_dag_copies.append(destination_path)
 
-        yield temp_dir, elastic_dag_copies
+        yield temp_dir, performance_dag_copies
 
 
-def get_dag_prefix(elastic_dag_conf: Dict[str, str]) -> str:
+def get_dag_prefix(performance_dag_conf: Dict[str, str]) -> str:
     """
-    Returns prefix that will be assigned to DAGs created with given elastic DAG configuration
+    Returns prefix that will be assigned to DAGs created with given performance DAG configuration
 
-    :param elastic_dag_conf: dict with environment variables as keys and their values as values
-    :type elastic_dag_conf: Dict[str, str]
+    :param performance_dag_conf: dict with environment variables as keys and their values as values
+    :type performance_dag_conf: Dict[str, str]
 
     :return: final form of prefix after substituting inappropriate characters
     :rtype: str
     """
 
-    dag_prefix = get_elastic_dag_environment_variable(
-        elastic_dag_conf, "PERF_DAG_PREFIX"
-    )
+    dag_prefix = get_performance_dag_environment_variable(performance_dag_conf, "PERF_DAG_PREFIX")
 
     safe_dag_prefix = safe_dag_id(dag_prefix)
 
     return safe_dag_prefix
 
 
-def get_dags_count(elastic_dag_conf: Dict[str, str]) -> int:
+def get_dags_count(performance_dag_conf: Dict[str, str]) -> int:
     """
-    Returns the number of test DAGs based on given elastic DAG configuration.
+    Returns the number of test DAGs based on given performance DAG configuration.
 
-    :param elastic_dag_conf: dict with environment variables as keys and their values as values
-    :type elastic_dag_conf: Dict[str, str]
+    :param performance_dag_conf: dict with environment variables as keys and their values as values
+    :type performance_dag_conf: Dict[str, str]
 
     :return: number of test DAGs
     :rtype: int
     """
 
     dag_files_count = int(
-        get_elastic_dag_environment_variable(elastic_dag_conf, "PERF_DAG_FILES_COUNT")
+        get_performance_dag_environment_variable(performance_dag_conf, "PERF_DAG_FILES_COUNT")
     )
 
-    dags_per_dag_file = int(
-        get_elastic_dag_environment_variable(elastic_dag_conf, "PERF_DAGS_COUNT")
-    )
+    dags_per_dag_file = int(get_performance_dag_environment_variable(performance_dag_conf, "PERF_DAGS_COUNT"))
 
     return dag_files_count * dags_per_dag_file
 
 
-def calculate_number_of_dag_runs(elastic_dag_conf: Dict[str, str]) -> int:
+def calculate_number_of_dag_runs(performance_dag_conf: Dict[str, str]) -> int:
     """
-    Calculates how many Dag Runs will be created with given elastic DAG configuration
+    Calculates how many Dag Runs will be created with given performance DAG configuration
 
-    :param elastic_dag_conf: dict with environment variables as keys and their values as values
-    :type elastic_dag_conf: Dict[str, str]
+    :param performance_dag_conf: dict with environment variables as keys and their values as values
+    :type performance_dag_conf: Dict[str, str]
 
     :return: total number of Dag Runs
     :rtype: int
     """
-    max_runs = get_elastic_dag_environment_variable(elastic_dag_conf, "PERF_MAX_RUNS")
+    max_runs = get_performance_dag_environment_variable(performance_dag_conf, "PERF_MAX_RUNS")
 
-    total_dags_count = get_dags_count(elastic_dag_conf)
+    total_dags_count = get_dags_count(performance_dag_conf)
 
     # if PERF_MAX_RUNS is missing from the configuration,
     # it means that PERF_SCHEDULE_INTERVAL must be '@once'
@@ -533,20 +503,20 @@ def calculate_number_of_dag_runs(elastic_dag_conf: Dict[str, str]) -> int:
     return int(max_runs) * total_dags_count
 
 
-def prepare_elastic_dag_columns(elastic_dag_conf: Dict[str, str]) -> OrderedDict:
+def prepare_performance_dag_columns(performance_dag_conf: Dict[str, str]) -> OrderedDict:
     """
-    Prepares an OrderedDict containing chosen elastic dag environment variables
+    Prepares an OrderedDict containing chosen performance dag environment variables
     that will serve as columns for the results dataframe
 
-    :param elastic_dag_conf: dict with environment variables as keys and their values as values
-    :type elastic_dag_conf: Dict[str, str]
+    :param performance_dag_conf: dict with environment variables as keys and their values as values
+    :type performance_dag_conf: Dict[str, str]
 
     :return: a dict with a subset of environment variables
         in order in which they should appear in the results dataframe
     :rtype: OrderedDict
     """
 
-    max_runs = get_elastic_dag_environment_variable(elastic_dag_conf, "PERF_MAX_RUNS")
+    max_runs = get_performance_dag_environment_variable(performance_dag_conf, "PERF_MAX_RUNS")
 
     # TODO: if PERF_MAX_RUNS is missing from configuration, then PERF_SCHEDULE_INTERVAL must
     #  be '@once'; this is an equivalent of PERF_MAX_RUNS being '1', which will be the default value
@@ -567,126 +537,100 @@ def prepare_elastic_dag_columns(elastic_dag_conf: Dict[str, str]) -> OrderedDict
     else:
         max_runs = int(max_runs)
 
-    elastic_dag_columns = OrderedDict(
+    performance_dag_columns = OrderedDict(
         [
             (
                 "PERF_DAG_FILES_COUNT",
-                int(
-                    get_elastic_dag_environment_variable(
-                        elastic_dag_conf, "PERF_DAG_FILES_COUNT"
-                    )
-                ),
+                int(get_performance_dag_environment_variable(performance_dag_conf, "PERF_DAG_FILES_COUNT")),
             ),
             (
                 "PERF_DAGS_COUNT",
-                int(
-                    get_elastic_dag_environment_variable(
-                        elastic_dag_conf, "PERF_DAGS_COUNT"
-                    )
-                ),
+                int(get_performance_dag_environment_variable(performance_dag_conf, "PERF_DAGS_COUNT")),
             ),
             (
                 "PERF_TASKS_COUNT",
-                int(
-                    get_elastic_dag_environment_variable(
-                        elastic_dag_conf, "PERF_TASKS_COUNT"
-                    )
-                ),
+                int(get_performance_dag_environment_variable(performance_dag_conf, "PERF_TASKS_COUNT")),
             ),
             ("PERF_MAX_RUNS", max_runs),
             (
                 "PERF_SCHEDULE_INTERVAL",
-                get_elastic_dag_environment_variable(
-                    elastic_dag_conf, "PERF_SCHEDULE_INTERVAL"
-                ),
+                get_performance_dag_environment_variable(performance_dag_conf, "PERF_SCHEDULE_INTERVAL"),
             ),
             (
                 "PERF_SHAPE",
-                get_elastic_dag_environment_variable(elastic_dag_conf, "PERF_SHAPE"),
+                get_performance_dag_environment_variable(performance_dag_conf, "PERF_SHAPE"),
             ),
             (
                 "PERF_SLEEP_TIME",
-                float(
-                    get_elastic_dag_environment_variable(
-                        elastic_dag_conf, "PERF_SLEEP_TIME"
-                    )
-                ),
+                float(get_performance_dag_environment_variable(performance_dag_conf, "PERF_SLEEP_TIME")),
             ),
             (
                 "PERF_OPERATOR_TYPE",
-                get_elastic_dag_environment_variable(
-                    elastic_dag_conf, "PERF_OPERATOR_TYPE"
-                ),
+                get_performance_dag_environment_variable(performance_dag_conf, "PERF_OPERATOR_TYPE"),
             ),
         ]
     )
 
-    add_elastic_dag_configuration_type(elastic_dag_columns)
+    add_performance_dag_configuration_type(performance_dag_columns)
 
-    return elastic_dag_columns
+    return performance_dag_columns
 
 
-def get_elastic_dag_environment_variable(
-    elastic_dag_conf: Dict[str, str], env_name: str
-) -> str:
+def get_performance_dag_environment_variable(performance_dag_conf: Dict[str, str], env_name: str) -> str:
     """
-    Returns value of environment variable with given env_name based on provided elastic_dag_conf
+    Returns value of environment variable with given env_name based on provided performance_dag_conf
 
-    :param elastic_dag_conf: dict with environment variables as keys and their values as values
-    :type elastic_dag_conf: Dict[str, str]
+    :param performance_dag_conf: dict with environment variables as keys and their values as values
+    :type performance_dag_conf: Dict[str, str]
     :param env_name: name of the environment variable value of which should be returned.
     :type env_name: str
 
-    :return: value of environment variable taken from elastic_dag_conf or its default value, if it
+    :return: value of environment variable taken from performance_dag_conf or its default value, if it
         was not present in the dictionary (if applicable)
     :rtype: str
 
     :raises: ValueError:
-        if env_name is a mandatory environment variable but it is missing from elastic_dag_conf
-        if env_name is not a valid name of an elastic dag environment variable
+        if env_name is a mandatory environment variable but it is missing from performance_dag_conf
+        if env_name is not a valid name of an performance dag environment variable
     """
-    if env_name in MANDATORY_ELASTIC_DAG_VARIABLES:
-        if env_name not in elastic_dag_conf:
+    if env_name in MANDATORY_performance_DAG_VARIABLES:
+        if env_name not in performance_dag_conf:
             raise ValueError(
                 f"Mandatory environment variable '{env_name}' "
-                f"is missing from elastic dag configuration."
+                f"is missing from performance dag configuration."
             )
-        return elastic_dag_conf[env_name]
+        return performance_dag_conf[env_name]
 
-    if env_name not in ELASTIC_DAG_VARIABLES_DEFAULT_VALUES:
+    if env_name not in performance_DAG_VARIABLES_DEFAULT_VALUES:
         raise ValueError(
-            f"Provided environment variable '{env_name}' is not a valid elastic dag"
+            f"Provided environment variable '{env_name}' is not a valid performance dag"
             f"configuration variable."
         )
 
-    return elastic_dag_conf.get(
-        env_name, ELASTIC_DAG_VARIABLES_DEFAULT_VALUES[env_name]
-    )
+    return performance_dag_conf.get(env_name, performance_DAG_VARIABLES_DEFAULT_VALUES[env_name])
 
 
-def add_elastic_dag_configuration_type(elastic_dag_columns: OrderedDict) -> None:
+def add_performance_dag_configuration_type(performance_dag_columns: OrderedDict) -> None:
     """
-    Adds a key with type of given elastic dag configuration to the columns dict
+    Adds a key with type of given performance dag configuration to the columns dict
 
-    :param elastic_dag_columns: a dict with columns containing elastic dag configuration
-    :type elastic_dag_columns: OrderedDict
+    :param performance_dag_columns: a dict with columns containing performance dag configuration
+    :type performance_dag_columns: OrderedDict
     """
 
-    elastic_dag_configuration_type = "__".join(
+    performance_dag_configuration_type = "__".join(
         [
-            f"{elastic_dag_columns['PERF_SHAPE']}",
-            f"{elastic_dag_columns['PERF_DAG_FILES_COUNT']}_dag_files",
-            f"{elastic_dag_columns['PERF_DAGS_COUNT']}_dags",
-            f"{elastic_dag_columns['PERF_TASKS_COUNT']}_tasks",
-            f"{elastic_dag_columns['PERF_MAX_RUNS']}_dag_runs",
-            f"{elastic_dag_columns['PERF_SLEEP_TIME']}_sleep",
-            f"{elastic_dag_columns['PERF_OPERATOR_TYPE']}_operator",
+            f"{performance_dag_columns['PERF_SHAPE']}",
+            f"{performance_dag_columns['PERF_DAG_FILES_COUNT']}_dag_files",
+            f"{performance_dag_columns['PERF_DAGS_COUNT']}_dags",
+            f"{performance_dag_columns['PERF_TASKS_COUNT']}_tasks",
+            f"{performance_dag_columns['PERF_MAX_RUNS']}_dag_runs",
+            f"{performance_dag_columns['PERF_SLEEP_TIME']}_sleep",
+            f"{performance_dag_columns['PERF_OPERATOR_TYPE']}_operator",
         ]
     )
 
-    elastic_dag_columns.update(
-        {"elastic_dag_configuration_type": elastic_dag_configuration_type}
-    )
+    performance_dag_columns.update({"performance_dag_configuration_type": performance_dag_configuration_type})
 
     # move the type key to the beginning of dict
-    elastic_dag_columns.move_to_end("elastic_dag_configuration_type", last=False)
+    performance_dag_columns.move_to_end("performance_dag_configuration_type", last=False)

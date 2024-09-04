@@ -25,7 +25,7 @@ from airflow.configuration import AirflowConfigParser
 import os
 import re
 
-DAGS_DIR = os.path.join(os.path.dirname(__file__), "../src/performance_dags/elastic_dag")
+DAGS_DIR = os.path.join(os.path.dirname(__file__), "../src/performance_dags/performance_dag")
 
 
 def setup_dag(
@@ -99,6 +99,7 @@ def get_dags(dag_count=1, task_count=10, operator_type="bash", dag_shape="no_str
         task_count=str(task_count), dag_count=str(dag_count), operator_type=operator_type, dag_shape=dag_shape
     )
     dag_bag = DagBag(DAGS_DIR, include_examples=False)
+    dags_ids = dag_bag.dag_ids
 
     def strip_path_prefix(path):
         return os.path.relpath(path, DAGS_DIR)
@@ -128,22 +129,23 @@ def test_file_imports(rel_path, rv):
 
 
 @pytest.mark.parametrize("dag_count,task_count", [(1, 1), (1, 10), (10, 10), (10, 100)])
-def test_elastic_dag(dag_count, task_count):
+def test_performance_dag(dag_count, task_count):
     dags = get_dags(dag_count=dag_count, task_count=task_count)
+    assert len(dags) == dag_count
     ids = [x[0] for x in dags]
-    pattern = f"elastic_dag__SHAPE_no_structure__DAGS_COUNT_\\d+_of_{dag_count}__TASKS_COUNT_{task_count}__START_DATE_1h__SCHEDULE_INTERVAL_once"
+    pattern = f"performance_dag__SHAPE_no_structure__DAGS_COUNT_\\d+_of_{dag_count}__TASKS_COUNT_{task_count}__START_DATE_1h__SCHEDULE_INTERVAL_once"
     for id in ids:
         assert re.search(pattern, id)
     for dag in dags:
-        elastic_dag = dag[1]
-        assert len(elastic_dag.tasks) == task_count, f"elastic DAG has no {task_count} tasks"
-        for task in elastic_dag.tasks:
+        performance_dag = dag[1]
+        assert len(performance_dag.tasks) == task_count, f"DAG has no {task_count} tasks"
+        for task in performance_dag.tasks:
             t_rule = task.trigger_rule
-            assert t_rule == "all_success", f"{task} in elastic DAG has the trigger rule {t_rule}"
+            assert t_rule == "all_success", f"{task} in DAG has the trigger rule {t_rule}"
             assert task.operator_name == "BashOperator", f"{task} should be based on bash operator"
 
 
-def test_elastic_dag_shape_binary_tree():
+def test_performance_dag_shape_binary_tree():
     def assert_two_downstream(task):
         assert len(task.downstream_list) <= 2
         for downstream_task in task.downstream_list:
@@ -153,33 +155,10 @@ def test_elastic_dag_shape_binary_tree():
     id, dag, _ = dags[0]
     assert (
         id
-        == "elastic_dag__SHAPE_binary_tree__DAGS_COUNT_1_of_1__TASKS_COUNT_100__START_DATE_1h__SCHEDULE_INTERVAL_once"
+        == "performance_dag__SHAPE_binary_tree__DAGS_COUNT_1_of_1__TASKS_COUNT_100__START_DATE_1h__SCHEDULE_INTERVAL_once"
     )
     assert len(dag.tasks) == 100
     top_level_tasks = get_top_level_tasks(dag)
     assert len(top_level_tasks) == 1
-    for task in top_level_tasks:
-        assert_two_downstream(task)
-
-
-def test_elastic_dag_shape_linear():
-    def assert_two_downstream(task):
-        assert len(task.downstream_list) <= 2
-        for downstream_task in task.downstream_list:
-            assert_two_downstream(downstream_task)
-
-    dags = get_dags(task_count=100, dag_shape="linear")
-    id, dag, _ = dags[0]
-    assert (
-        id
-        == "elastic_dag__SHAPE_linear__DAGS_COUNT_1_of_1__TASKS_COUNT_100__START_DATE_1h__SCHEDULE_INTERVAL_once"
-    )
-    assert len(dag.tasks) == 100
-    top_level_tasks = get_top_level_tasks(dag)
-    leaf_tasks = get_leaf_tasks(dag)
-    assert len(top_level_tasks) == 1
-    assert len(leaf_tasks) == 1
-    assert len(top_level_tasks.downstream_tasks) == 2
-    assert len(leaf_tasks.upstream_tasks) == 2
     for task in top_level_tasks:
         assert_two_downstream(task)
