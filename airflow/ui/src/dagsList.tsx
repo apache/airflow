@@ -101,7 +101,7 @@ type PaginatorProps<TData> = {
   table: TanStackTable<TData>;
 };
 
-function TablePaginator({ table }: PaginatorProps<DAG>) {
+const TablePaginator = ({ table }: PaginatorProps<DAG>) => {
   const pageInterval = 3;
   const currentPageNumber = table.getState().pagination.pageIndex + 1;
   const startPageNumber = Math.max(1, currentPageNumber - pageInterval);
@@ -119,8 +119,7 @@ function TablePaginator({ table }: PaginatorProps<DAG>) {
         isDisabled={index === currentPageNumber}
         onClick={() => table.setPageIndex(index - 1)}
       >
-        {" "}
-        {index}{" "}
+        {index}
       </Button>
     );
   }
@@ -159,7 +158,7 @@ function TablePaginator({ table }: PaginatorProps<DAG>) {
       </Button>
     </Box>
   );
-}
+};
 
 const Table = ({
   data,
