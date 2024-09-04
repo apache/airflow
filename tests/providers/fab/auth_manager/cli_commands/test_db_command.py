@@ -102,7 +102,7 @@ try:
                     "Cannot supply both",
                     id="from both version and revision",
                 ),
-                pytest.param(["--to-version", "1.3.0"], "Unknown version '1.3.0'", id="unknown to version"),
+                pytest.param(["--to-version", "1.2.0"], "Unknown version '1.2.0'", id="unknown to version"),
                 pytest.param(["--to-version", "abc"], "Invalid version 'abc'", id="invalid to version"),
                 pytest.param(
                     ["--to-revision", "abc", "--from-revision", "abc123"],

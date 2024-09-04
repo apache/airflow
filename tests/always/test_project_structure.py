@@ -169,6 +169,8 @@ class TestProjectStructure:
         modules_files = list(f for f in modules_files if "/_vendor/" not in f)
         # Exclude __init__.py
         modules_files = list(f for f in modules_files if not f.endswith("__init__.py"))
+        # Exclude versions file
+        modules_files = list(f for f in modules_files if "/versions/" not in f)
         # Change airflow/ to tests/
         expected_test_files = list(
             f'tests/{f.partition("/")[2]}' for f in modules_files if not f.endswith("__init__.py")

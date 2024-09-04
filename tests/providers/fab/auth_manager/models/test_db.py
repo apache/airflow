@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import re
 from unittest import mock
 
 import pytest
@@ -40,7 +41,7 @@ try:
             self.airflow_dir = os.path.dirname(airflow.__file__)
 
         def test_version_table_name_set(self, session):
-            assert FABDBManager(session=session).version_table_name == "fab_alembic_version"
+            assert FABDBManager(session=session).version_table_name == "alembic_version_fab"
 
         def test_migration_dir_set(self, session):
             assert (
@@ -80,10 +81,8 @@ try:
         @mock.patch("airflow.providers.fab.auth_manager.models.db._offline_migration")
         def test_downgrade_sql_no_from(self, mock_om, session, caplog):
             FABDBManager(session=session).downgrade(to_revision="abc", show_sql_only=True, from_revision=None)
-            # TODO: When we have a migration, uncomment the following line and remove the last
-            # actual = mock_om.call_args.kwargs["revision"]
-            # assert re.match(r"[a-z0-9]+:abc", actual) is not None
-            assert "No revision found" in caplog.text
+            actual = mock_om.call_args.kwargs["revision"]
+            assert re.match(r"[a-z0-9]+:abc", actual) is not None
 
         @mock.patch("airflow.providers.fab.auth_manager.models.db._offline_migration")
         def test_downgrade_sql_with_from(self, mock_om, session):
