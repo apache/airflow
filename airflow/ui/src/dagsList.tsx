@@ -23,9 +23,13 @@ import {
   useReactTable,
   getCoreRowModel,
   getExpandedRowModel,
+  getPaginationRowModel,
   ColumnDef,
   flexRender,
   Row,
+  OnChangeFn,
+  PaginationState,
+  Table as TanStackTable,
 } from "@tanstack/react-table";
 import { MdExpandMore } from "react-icons/md";
 import {
@@ -33,6 +37,7 @@ import {
   Code,
   Table as ChakraTable,
   Thead,
+  Button,
   Td,
   Th,
   Tr,
@@ -84,16 +89,85 @@ const columns: ColumnDef<DAG>[] = [
 
 type TableProps<TData> = {
   data: TData[];
+  total: number | undefined;
   columns: ColumnDef<TData>[];
   renderSubComponent: (props: { row: Row<TData> }) => React.ReactElement;
   getRowCanExpand: (row: Row<TData>) => boolean;
+  pagination: PaginationState;
+  setPagination: OnChangeFn<PaginationState>;
+};
+
+type PaginatorProps<TData> = {
+  table: TanStackTable<TData>;
+};
+
+const TablePaginator = ({ table }: PaginatorProps<DAG>) => {
+  const pageInterval = 3;
+  const currentPageNumber = table.getState().pagination.pageIndex + 1;
+  const startPageNumber = Math.max(1, currentPageNumber - pageInterval);
+  const endPageNumber = Math.min(
+    table.getPageCount(),
+    startPageNumber + pageInterval * 2
+  );
+  const pageNumbers = [];
+
+  for (let index = startPageNumber; index <= endPageNumber; index++) {
+    pageNumbers.push(
+      <Button
+        borderRadius={0}
+        key={index}
+        isDisabled={index === currentPageNumber}
+        onClick={() => table.setPageIndex(index - 1)}
+      >
+        {index}
+      </Button>
+    );
+  }
+
+  return (
+    <Box mt={2} mb={2}>
+      <Button
+        borderRadius={0}
+        onClick={() => table.firstPage()}
+        isDisabled={!table.getCanPreviousPage()}
+      >
+        {"<<"}
+      </Button>
+
+      <Button
+        borderRadius={0}
+        onClick={() => table.previousPage()}
+        isDisabled={!table.getCanPreviousPage()}
+      >
+        {"<"}
+      </Button>
+      {pageNumbers}
+      <Button
+        borderRadius={0}
+        onClick={() => table.nextPage()}
+        isDisabled={!table.getCanNextPage()}
+      >
+        {">"}
+      </Button>
+      <Button
+        borderRadius={0}
+        onClick={() => table.lastPage()}
+        isDisabled={!table.getCanNextPage()}
+      >
+        {">>"}
+      </Button>
+    </Box>
+  );
 };
 
 const Table = ({
   data,
+  total,
   columns,
   renderSubComponent,
   getRowCanExpand,
+  pagination,
+  setPagination,
 }: TableProps<DAG>) => {
   const table = useReactTable<DAG>({
     data,
@@ -101,6 +175,13 @@ const Table = ({
     getRowCanExpand,
     getCoreRowModel: getCoreRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    onPaginationChange: setPagination,
+    rowCount: total ?? 0,
+    manualPagination: true,
+    state: {
+      pagination,
+    },
   });
 
   return (
@@ -156,6 +237,7 @@ const Table = ({
           })}
         </Tbody>
       </ChakraTable>
+      <TablePaginator table={table} />
     </TableContainer>
   );
 };
@@ -168,13 +250,26 @@ const renderSubComponent = ({ row }: { row: Row<DAG> }) => {
   );
 };
 
-export const DagsList = ({ data }: { data: DAG[] }) => {
+export const DagsList = ({
+  data,
+  total,
+  pagination,
+  setPagination,
+}: {
+  data: DAG[];
+  total: number | undefined;
+  pagination: PaginationState;
+  setPagination: OnChangeFn<PaginationState>;
+}) => {
   return (
     <Table
       data={data}
+      total={total}
       columns={columns}
       getRowCanExpand={() => true}
       renderSubComponent={renderSubComponent}
+      pagination={pagination}
+      setPagination={setPagination}
     />
   );
 };
