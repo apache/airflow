@@ -1835,6 +1835,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 span.set_attribute(f"pool.queued_slots.{pool_name}", slot_stats["queued"])
                 span.set_attribute(f"pool.running_slots.{pool_name}", slot_stats["running"])
                 span.set_attribute(f"pool.deferred_slots.{pool_name}", slot_stats["deferred"])
+                span.set_attribute(f"pool.scheduled_slots.{pool_name}", slot_stats["scheduled"])
 
     @provide_session
     def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
