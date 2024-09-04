@@ -58,7 +58,7 @@ def _create_dagruns(
     :param dag: The DAG to create runs for.
     :param infos: List of logical dates and data intervals to evaluate.
     :param state: The state to set the dag run to
-    :param run_type: The prefix will be used to construct dag run id: ``{run_id_prefix}__{execution_date}``.
+    :param run_type: The prefix will be used to construct dag run id: ``{run_id_prefix}__{logical_date}``.
     :return: Newly created and existing dag runs for the execution dates supplied.
     """
     # Find out existing DAG runs that we don't need to create.

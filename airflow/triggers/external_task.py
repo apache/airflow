@@ -187,7 +187,7 @@ class DagStateTrigger(BaseTrigger):
             .filter(
                 DagRun.dag_id == self.dag_id,
                 DagRun.state.in_(self.states),
-                DagRun.execution_date.in_(self.execution_dates),
+                DagRun.logical_date.in_(self.execution_dates),
             )
             .scalar()
         )
