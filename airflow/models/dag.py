@@ -682,7 +682,7 @@ class DAG(LoggingMixin):
 
         self.doc_md = self.get_doc_md(doc_md)
 
-        self.tags: abc.MutableSet[str] = set(tags or [])
+        self.tags: abc.MutableSet = set(tags or [])
         self._task_group = TaskGroup.create_root(self)
         self.validate_schedule_and_params()
         wrong_links = dict(self.iter_invalid_owner_links())
