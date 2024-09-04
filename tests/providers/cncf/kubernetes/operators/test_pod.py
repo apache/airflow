@@ -2257,7 +2257,7 @@ class TestKubernetesPodOperatorAsync:
         """When the container completes during a log collection, handle the pods exit status"""
         pod = MagicMock()
         get_pod.return_value = pod
-        op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True)
+        op = KubernetesPodOperator(task_id="test_task", name="test-pod", get_logs=True, logging_interval=10)
 
         container_running.return_value = True
         with pytest.raises(TaskDeferred):
