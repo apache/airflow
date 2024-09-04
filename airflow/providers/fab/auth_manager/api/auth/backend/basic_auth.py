@@ -21,7 +21,7 @@ from __future__ import annotations
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 
-from flask import Response, request
+from flask import Response, has_app_context, request
 from flask_appbuilder.const import AUTH_LDAP
 from flask_login import login_user
 
@@ -29,6 +29,9 @@ from airflow.providers.fab.auth_manager.security_manager.override import FabAirf
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
+    from fastapi.security import HTTPBasicCredentials
+    from werkzeug.datastructures import Authorization
+
     from airflow.providers.fab.auth_manager.models import User
 
 CLIENT_AUTH: tuple[str, str] | Any | None = None
@@ -40,29 +43,33 @@ def init_app(_):
     """Initialize authentication backend."""
 
 
-def auth_current_user() -> User | None:
+def auth_current_user(auth: HTTPBasicCredentials | Authorization | None = None) -> User | None:
     """Authenticate and set current user if Authorization header exists."""
-    auth = request.authorization
-    if auth is None or not auth.username or not auth.password:
-        return None
+    if auth is None:
+        auth = request.authorization
+        if auth is None or not auth.username or not auth.password:
+            return None
+
+    username = auth.username
+    password = auth.password
 
     security_manager = cast(FabAirflowSecurityManagerOverride, get_auth_manager().security_manager)
     user = None
     if security_manager.auth_type == AUTH_LDAP:
-        user = security_manager.auth_user_ldap(auth.username, auth.password)
+        user = security_manager.auth_user_ldap(username, password)
     if user is None:
-        user = security_manager.auth_user_db(auth.username, auth.password)
-    if user is not None:
+        user = security_manager.auth_user_db(username, password)
+    if user is not None and has_app_context():
         login_user(user, remember=False)
     return user
 
 
-def requires_authentication(function: T):
+def requires_authentication(function: T, auth: HTTPBasicCredentials | Authorization | None = None, *args):
     """Decorate functions that require authentication."""
 
     @wraps(function)
     def decorated(*args, **kwargs):
-        if auth_current_user() is not None:
+        if auth_current_user(auth) is not None:
             return function(*args, **kwargs)
         else:
             return Response("Unauthorized", 401, {"WWW-Authenticate": "Basic"})

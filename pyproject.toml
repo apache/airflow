@@ -360,6 +360,10 @@ combine-as-imports = true
 # Pydantic also require models to be imported during execution
 "airflow/serialization/pydantic/*.py" = ["I002", "UP007", "TCH001"]
 
+# Wrongly failing to detect types and functions used in `Annotated[...]` syntax as required at runtime.
+# Annotated is central for FastAPI dependency injection, skipping rules for FastAPI folder.
+"airflow/api_ui/*" = ["TCH001", "TCH002"]
+
 # Ignore pydoc style from these
 "*.pyi" = ["D"]
 "scripts/*" = ["D", "PT"]  # In addition ignore pytest specific rules

@@ -666,7 +666,7 @@ class AirflowAppBuilder:
                         view.get_init_inner_views().append(v)
 
 
-def init_appbuilder(app: Flask) -> AirflowAppBuilder:
+def init_appbuilder(app: Flask | None) -> AirflowAppBuilder:
     """Init `Flask App Builder <https://flask-appbuilder.readthedocs.io/en/latest/>`__."""
     return AirflowAppBuilder(
         app=app,

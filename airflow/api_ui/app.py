@@ -16,11 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, FastAPI
 
+from airflow.configuration import conf
+from airflow.www.app import create_app as create_flask_app
 from airflow.www.extensions.init_dagbag import get_dag_bag
 
 app: FastAPI | None = None
+
+log = logging.getLogger(__name__)
 
 
 def init_dag_bag(app: FastAPI) -> None:
@@ -32,16 +38,31 @@ def init_dag_bag(app: FastAPI) -> None:
     app.state.dag_bag = get_dag_bag()
 
 
-def create_app() -> FastAPI:
+def create_app(testing: bool = False) -> FastAPI:
     app = FastAPI(
         description="Internal Rest API for the UI frontend. It is subject to breaking change "
         "depending on the need of the frontend. Users should not rely on this API but use the "
-        "public API instead."
+        "public API instead.",
     )
 
     init_dag_bag(app)
-
     init_views(app)
+
+    # Auth providers and permission logic are tightly coupled to Flask.
+    # Leverage the create_app for flask to initialize the api_auth, app_builder, auth_manager
+    create_flask_app(testing=testing)
+
+    if "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth" not in conf.get(
+        "api", "auth_backends"
+    ):
+        raise ValueError(
+            "FastAPI UI API only supports 'airflow.providers.fab.auth_manager.api.auth.backend.basic_auth' for auth backend"
+        )
+
+    if conf.get("api", "auth_backends") != "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth":
+        log.warning(
+            "FastAPI UI API only supports 'airflow.providers.fab.auth_manager.api.auth.backend.basic_auth', other auth backends will be ignored."
+        )
 
     return app
 
