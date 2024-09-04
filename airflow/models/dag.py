@@ -236,7 +236,7 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     query = select(DR).where(DR.dag_id == dag_id)
     if not include_externally_triggered:
         query = query.where(DR.external_trigger == expression.false())
-    query = query.order_by(DR.execution_date.desc())
+    query = query.order_by(DR.logical_date.desc())
     return session.scalar(query.limit(1))
 
 
@@ -862,7 +862,7 @@ class DAG(LoggingMixin):
             return data_interval
         # Compatibility: runs created before AIP-39 implementation don't have an
         # explicit data interval. Try to infer from the logical date.
-        return self.infer_automated_data_interval(run.execution_date)
+        return self.infer_automated_data_interval(run.logical_date)
 
     def infer_automated_data_interval(self, logical_date: datetime) -> DataInterval:
         """
@@ -911,7 +911,7 @@ class DAG(LoggingMixin):
         performs calculations based on the various date and interval fields of
         this dag and its tasks.
 
-        :param last_automated_dagrun: The ``max(execution_date)`` of
+        :param last_automated_dagrun: The ``max(logical_date)`` of
             existing "automated" DagRuns for this dag (scheduled or backfill,
             but not manual).
         :param restricted: If set to *False* (default is *True*), ignore
@@ -1280,7 +1280,7 @@ class DAG(LoggingMixin):
 
         active_dates = []
         for run in runs:
-            active_dates.append(run.execution_date)
+            active_dates.append(run.logical_date)
 
         return active_dates
 
@@ -1315,8 +1315,8 @@ class DAG(LoggingMixin):
         dagruns = session.scalars(
             select(DagRun).where(
                 DagRun.dag_id == self.dag_id,
-                DagRun.execution_date >= start_date,
-                DagRun.execution_date <= end_date,
+                DagRun.logical_date >= start_date,
+                DagRun.logical_date <= end_date,
             )
         ).all()
 
@@ -1325,7 +1325,7 @@ class DAG(LoggingMixin):
     @provide_session
     def get_latest_execution_date(self, session: Session = NEW_SESSION) -> pendulum.DateTime | None:
         """Return the latest date for which at least one dag run exists."""
-        return session.scalar(select(func.max(DagRun.execution_date)).where(DagRun.dag_id == self.dag_id))
+        return session.scalar(select(func.max(DagRun.logical_date)).where(DagRun.dag_id == self.dag_id))
 
     def resolve_template_files(self):
         for t in self.tasks:
@@ -1381,21 +1381,21 @@ class DAG(LoggingMixin):
         corresponding to any DagRunType. It can have less if there are
         less than ``num`` scheduled DAG runs before ``base_date``.
         """
-        execution_dates: list[Any] = session.execute(
-            select(DagRun.execution_date)
+        logical_dates: list[Any] = session.execute(
+            select(DagRun.logical_date)
             .where(
                 DagRun.dag_id == self.dag_id,
-                DagRun.execution_date <= base_date,
+                DagRun.logical_date <= base_date,
             )
-            .order_by(DagRun.execution_date.desc())
+            .order_by(DagRun.logical_date.desc())
             .limit(num)
         ).all()
 
-        if not execution_dates:
+        if not logical_dates:
             return self.get_task_instances(start_date=base_date, end_date=base_date, session=session)
 
-        min_date: datetime | None = execution_dates[-1]._mapping.get(
-            "execution_date"
+        min_date: datetime | None = logical_dates[-1]._mapping.get(
+            "logical_date"
         )  # getting the last value from the list
 
         return self.get_task_instances(start_date=min_date, end_date=base_date, session=session)
@@ -1423,7 +1423,7 @@ class DAG(LoggingMixin):
             exclude_task_ids=(),
             session=session,
         )
-        return session.scalars(cast(Select, query).order_by(DagRun.execution_date)).all()
+        return session.scalars(cast(Select, query).order_by(DagRun.logical_date)).all()
 
     @overload
     def _get_task_instances(
@@ -1500,14 +1500,14 @@ class DAG(LoggingMixin):
         if run_id:
             tis = tis.where(TaskInstance.run_id == run_id)
         if start_date:
-            tis = tis.where(DagRun.execution_date >= start_date)
+            tis = tis.where(DagRun.logical_date >= start_date)
         if task_ids is not None:
             tis = tis.where(TaskInstance.ti_selector_condition(task_ids))
 
         # This allows allow_trigger_in_future config to take affect, rather than mandating exec_date <= UTC
         if end_date or not self.allow_trigger_dagrun_in_future:
             end_date = end_date or timezone.utcnow()
-            tis = tis.where(DagRun.execution_date <= end_date)
+            tis = tis.where(DagRun.logical_date <= end_date)
 
         if state:
             if isinstance(state, (str, TaskInstanceState)):
@@ -1572,7 +1572,7 @@ class DAG(LoggingMixin):
                     .where(
                         TI.dag_id == task.external_dag_id,
                         TI.task_id == task.external_task_id,
-                        DagRun.execution_date == pendulum.parse(task.execution_date),
+                        DagRun.logical_date == pendulum.parse(task.execution_date),
                     )
                 )
 
@@ -1734,7 +1734,7 @@ class DAG(LoggingMixin):
         Set TaskGroup to the given state and clear downstream tasks in failed or upstream_failed state.
 
         :param group_id: The group_id of the TaskGroup
-        :param execution_date: Execution date of the TaskInstance
+        :param logical_date: Execution date of the TaskInstance
         :param run_id: The run_id of the TaskInstance
         :param state: State to set the TaskInstance to
         :param upstream: Include all upstream tasks of the given task_id
@@ -1854,8 +1854,8 @@ class DAG(LoggingMixin):
         Clear a set of task instances associated with the current dag for a specified date range.
 
         :param task_ids: List of task ids or (``task_id``, ``map_index``) tuples to clear
-        :param start_date: The minimum execution_date to clear
-        :param end_date: The maximum execution_date to clear
+        :param start_date: The minimum logical_date to clear
+        :param end_date: The maximum logical_date to clear
         :param only_failed: Only clear failed tasks
         :param only_running: Only clear running tasks.
         :param confirm_prompt: Ask for confirmation
@@ -2504,13 +2504,13 @@ class DAG(LoggingMixin):
                     f"A {run_type.value} DAG run cannot use ID {run_id!r} since it "
                     f"is reserved for {inferred_run_type.value} runs"
                 )
-        elif run_type and logical_date is not None:  # Generate run_id from run_type and execution_date.
+        elif run_type and logical_date is not None:  # Generate run_id from run_type and logical_date.
             run_id = self.timetable.generate_run_id(
                 run_type=run_type, logical_date=logical_date, data_interval=data_interval
             )
         else:
             raise AirflowException(
-                "Creating DagRun needs either `run_id` or both `run_type` and `execution_date`"
+                "Creating DagRun needs either `run_id` or both `run_type` and `logical_date`"
             )
 
         regex = airflow_conf.get("scheduler", "allowed_run_id_pattern")

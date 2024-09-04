@@ -99,7 +99,7 @@ def get_airflow_context_vars(context) -> dict[str, str]:  # type: ignore[empty-b
 
     This setting allows getting the airflow context vars, which are key value pairs.  They are then injected
     to default airflow context vars, which in the end are available as environment variables when running
-    tasks dag_id, task_id, execution_date, dag_run_id, try_number are reserved keys.
+    tasks dag_id, task_id, logical_date, dag_run_id, try_number are reserved keys.
 
     :param context: The context for the task_instance of interest.
     """
