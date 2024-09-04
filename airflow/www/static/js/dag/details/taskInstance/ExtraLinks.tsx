@@ -57,25 +57,13 @@ const ExtraLinks = ({
     if (!url) {
       return true;
     }
-    try {
-      const path = new URL(url);
-      // The URL creation will succeed for
-      // 1. Absolute URL
-      // 2. URL with javascript:()
-      // URL(url) will fail for relative paths.
-      // eslint-disable-next-line
-      if (path.protocol === "javascript:") {
-        return false; // javascript:() is not allowed
-      }
-      if (path.protocol === "http:" || path.protocol === "https:") {
-        return true; // Absolute URL are allowed
-      }
-    } catch (e: any) {
-      // Relative URL are handled here
-      const path = new URL(url, "http://localhost");
-      if (path.protocol === "http:") {
-        return true;
-      }
+    const path = new URL(url, "http://localhost");
+    // The URL creation will succeed for
+    // 1. Absolute/Relative URL
+    // 2. URL with javascript:()
+    // URL(url) will fail for relative paths.
+    if (path.protocol === "http:" || path.protocol === "https:") {
+      return true; // Absolute/Relative URLs are allowed
     }
     return false;
   };
