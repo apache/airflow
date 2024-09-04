@@ -38,19 +38,19 @@ def init_dag_bag(app: FastAPI) -> None:
     app.state.dag_bag = get_dag_bag()
 
 
-def create_app(testing: bool = False) -> FastAPI:
-    app = FastAPI(
-        description="Internal Rest API for the UI frontend. It is subject to breaking change "
-        "depending on the need of the frontend. Users should not rely on this API but use the "
-        "public API instead.",
-    )
+def init_flask_app(app: FastAPI, testing: bool = False):
+    """
+    Auth providers and permission logic are tightly coupled to Flask.
 
-    init_dag_bag(app)
-    init_views(app)
+    Leverage the create_app for flask to initialize the api_auth, app_builder, auth_manager.
+    Also limit the backend auth in production mode.
+    """
+    flask_app = create_flask_app(testing=testing)
 
-    # Auth providers and permission logic are tightly coupled to Flask.
-    # Leverage the create_app for flask to initialize the api_auth, app_builder, auth_manager
-    create_flask_app(testing=testing)
+    app.state.flask_app = flask_app
+
+    if testing:
+        return
 
     if "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth" not in conf.get(
         "api", "auth_backends"
@@ -63,6 +63,19 @@ def create_app(testing: bool = False) -> FastAPI:
         log.warning(
             "FastAPI UI API only supports 'airflow.providers.fab.auth_manager.api.auth.backend.basic_auth', other auth backends will be ignored."
         )
+
+
+def create_app(testing: bool = False) -> FastAPI:
+    app = FastAPI(
+        description="Internal Rest API for the UI frontend. It is subject to breaking change "
+        "depending on the need of the frontend. Users should not rely on this API but use the "
+        "public API instead.",
+    )
+
+    init_dag_bag(app)
+    init_views(app)
+
+    init_flask_app(app, testing)
 
     return app
 

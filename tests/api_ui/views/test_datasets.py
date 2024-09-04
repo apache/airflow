@@ -20,28 +20,25 @@ import pytest
 
 from airflow.datasets import Dataset
 from airflow.operators.empty import EmptyOperator
-from tests.conftest import initial_db_init
 
 pytestmark = pytest.mark.db_test
 
 
-@pytest.fixture(autouse=True)
-def cleanup():
-    """
-    Before each test re-init the database dropping and recreating the tables.
-    This will allow to reset indexes to be able to assert auto-incremented primary keys.
-    """
-    initial_db_init()
+def test_next_run_datasets_unauthenticated(unauthenticated_test_client, dag_maker):
+    response = unauthenticated_test_client.get("/ui/next_run_datasets/upstream")
+    assert response.status_code == 401
 
 
-def test_next_run_datasets(test_client, dag_maker):
+def test_next_run_datasets_success(authenticated_test_client, dag_maker):
     with dag_maker(dag_id="upstream", schedule=[Dataset(uri="s3://bucket/key/1")], serialized=True):
         EmptyOperator(task_id="task1")
 
     dag_maker.create_dagrun()
     dag_maker.dagbag.sync_to_db()
 
-    response = test_client.get("/ui/next_run_datasets/upstream")
+    response = authenticated_test_client.get(
+        "/ui/next_run_datasets/upstream",
+    )
 
     assert response.status_code == 200
     assert response.json() == {

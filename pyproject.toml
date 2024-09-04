@@ -361,8 +361,9 @@ combine-as-imports = true
 "airflow/serialization/pydantic/*.py" = ["I002", "UP007", "TCH001"]
 
 # Wrongly failing to detect types and functions used in `Annotated[...]` syntax as required at runtime.
-# Annotated is central for FastAPI dependency injection, skipping rules for FastAPI folder.
+# Annotated is central for FastAPI dependency injection, skipping rules for FastAPI folders.
 "airflow/api_ui/*" = ["TCH001", "TCH002"]
+"tests/api_ui/*" = ["TCH001", "TCH002"]
 
 # Ignore pydoc style from these
 "*.pyi" = ["D"]

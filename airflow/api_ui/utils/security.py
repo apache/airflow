@@ -51,67 +51,55 @@ def check_authentication(
 
 def _requires_access(
     *,
-    request: Request,
-    is_authorized_callback: Callable[[BaseUser | None], bool],
-    credentials: Annotated[HTTPBasicCredentials, Depends(security)],
+    is_authorized_callback: Callable[[], bool],
 ) -> None:
-    user = check_authentication(request, credentials)
-    if not is_authorized_callback(user):
+    if not is_authorized_callback():
         raise HTTPException(403, "Forbidden")
 
 
 def requires_access_dataset(
     request: Request,
-    credentials: Annotated[HTTPBasicCredentials, Depends(security)],
     uri: str | None = None,
+    user: Annotated[BaseUser | None, Depends(check_authentication)] = None,
 ) -> None:
     _requires_access(
-        request=request,
-        is_authorized_callback=lambda user: get_auth_manager().is_authorized_dataset(
+        is_authorized_callback=lambda: get_auth_manager().is_authorized_dataset(
             user=user,
             method=cast(ResourceMethod, request.method),
             details=DatasetDetails(uri=uri),
-        ),
-        credentials=credentials,
+        )
     )
 
 
-def requires_access_dag(access_entity: DagAccessEntity | None = None):
+def requires_access_dag(access_entity: DagAccessEntity | None = None) -> Callable:
     def inner(
-        dag_id: str,
         request: Request,
-        credentials: Annotated[HTTPBasicCredentials, Depends(security)],
+        dag_id: str | None = None,
+        user: Annotated[BaseUser | None, Depends(check_authentication)] = None,
     ) -> None:
         method = cast(ResourceMethod, request.method)
 
-        def _is_authorized_callback(dag_id: str):
-            def callback(
-                user: BaseUser | None = None,
-            ):
-                access = get_auth_manager().is_authorized_dag(
-                    method=method, access_entity=access_entity, details=DagDetails(id=dag_id), user=user
-                )
+        def callback():
+            access = get_auth_manager().is_authorized_dag(
+                method=method, access_entity=access_entity, details=DagDetails(id=dag_id), user=user
+            )
 
-                # ``access`` means here:
-                # - if a DAG id is provided (``dag_id`` not None): is the user authorized to access this DAG
-                # - if no DAG id is provided: is the user authorized to access all DAGs
-                if dag_id or access or access_entity:
-                    return access
+            # ``access`` means here:
+            # - if a DAG id is provided (``dag_id`` not None): is the user authorized to access this DAG
+            # - if no DAG id is provided: is the user authorized to access all DAGs
+            if dag_id or access or access_entity:
+                return access
 
-                # No DAG id is provided, the user is not authorized to access all DAGs and authorization is done
-                # on DAG level
-                # If method is "GET", return whether the user has read access to any DAGs
-                # If method is "PUT", return whether the user has edit access to any DAGs
-                return (
-                    method == "GET" and any(get_auth_manager().get_permitted_dag_ids(methods=["GET"]))
-                ) or (method == "PUT" and any(get_auth_manager().get_permitted_dag_ids(methods=["PUT"])))
-
-            return callback
+            # No DAG id is provided, the user is not authorized to access all DAGs and authorization is done
+            # on DAG level
+            # If method is "GET", return whether the user has read access to any DAGs
+            # If method is "PUT", return whether the user has edit access to any DAGs
+            return (method == "GET" and any(get_auth_manager().get_permitted_dag_ids(methods=["GET"]))) or (
+                method == "PUT" and any(get_auth_manager().get_permitted_dag_ids(methods=["PUT"]))
+            )
 
         _requires_access(
-            request=request,
-            is_authorized_callback=_is_authorized_callback(dag_id),
-            credentials=credentials,
+            is_authorized_callback=callback,
         )
 
     return inner
