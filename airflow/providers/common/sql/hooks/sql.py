@@ -56,6 +56,7 @@ if TYPE_CHECKING:
     from pandas import DataFrame
     from sqlalchemy.engine import URL
 
+    from airflow.models import Connection
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.providers.openlineage.sqlparser import DatabaseInfo
 
@@ -161,14 +162,14 @@ class DbApiHook(BaseHook):
         self._replace_statement_format: str = kwargs.get(
             "replace_statement_format", "REPLACE INTO {} {} VALUES ({})"
         )
+        self._connection: Connection | None = kwargs.pop("connection", None)
 
     def get_conn_id(self) -> str:
         return getattr(self, self.conn_name_attr)
 
     @cached_property
     def placeholder(self):
-        conn = self.get_connection(self.get_conn_id())
-        placeholder = conn.extra_dejson.get("placeholder")
+        placeholder = self.connection_extra.get("placeholder")
         if placeholder:
             if placeholder in SQL_PLACEHOLDERS:
                 return placeholder
@@ -181,9 +182,28 @@ class DbApiHook(BaseHook):
             )
         return self._placeholder
 
+    @property
+    def connection(self) -> Connection:
+        if self._connection is None:
+            self._connection = self.get_connection(self.get_conn_id())
+        return self._connection
+
+    @property
+    def connection_extra(self) -> dict:
+        return self.connection.extra_dejson
+
+    @cached_property
+    def connection_extra_lower(self) -> dict:
+        """
+        ``connection.extra_dejson`` but where keys are converted to lower case.
+
+        This is used internally for case-insensitive access of extra params.
+        """
+        return {k.lower(): v for k, v in self.connection_extra.items()}
+
     def get_conn(self):
         """Return a connection object."""
-        db = self.get_connection(self.get_conn_id())
+        db = self.connection
         return self.connector.connect(host=db.host, port=db.port, username=db.login, schema=db.schema)
 
     def get_uri(self) -> str:
