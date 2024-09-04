@@ -222,7 +222,10 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             safety_settings=TEST_SAFETY_SETTINGS,
             pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL,
         )
-        mock_model.assert_called_once_with(TEST_MULTIMODAL_PRETRAINED_MODEL)
+        mock_model.assert_called_once_with(
+            pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL,
+            system_instruction=None,
+        )
         mock_model.return_value.generate_content.assert_called_once_with(
             contents=TEST_CONTENTS,
             tools=TEST_TOOLS,
@@ -257,7 +260,9 @@ class TestGenerativeModelWithDefaultProjectIdHook:
             location=GCP_LOCATION,
             pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL,
         )
-        mock_model.assert_called_once_with(TEST_MULTIMODAL_PRETRAINED_MODEL)
+        mock_model.assert_called_once_with(
+            pretrained_model=TEST_MULTIMODAL_PRETRAINED_MODEL,
+        )
         mock_model.return_value.count_tokens.assert_called_once_with(
             contents=TEST_CONTENTS,
         )
