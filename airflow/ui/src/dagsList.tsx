@@ -20,12 +20,6 @@
 import React, { Fragment } from "react";
 
 import {
-  OnChangeFn,
-  PaginationState,
-  Table as TanStackTable,
-} from "@tanstack/table-core";
-
-import {
   useReactTable,
   getCoreRowModel,
   getExpandedRowModel,
@@ -33,6 +27,9 @@ import {
   ColumnDef,
   flexRender,
   Row,
+  OnChangeFn,
+  PaginationState,
+  Table as TanStackTable,
 } from "@tanstack/react-table";
 import { MdExpandMore } from "react-icons/md";
 import {
