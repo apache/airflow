@@ -2649,8 +2649,6 @@ class DAG(LoggingMixin):
         if not dags:
             return
 
-        from airflow.models.dataset import DagScheduleDatasetAliasReference
-
         log.info("Sync %s DAGs", len(dags))
         dag_by_ids = {dag.dag_id: dag for dag in dags}
 
@@ -2750,12 +2748,13 @@ class DAG(LoggingMixin):
 
         from airflow.datasets import Dataset
         from airflow.models.dataset import (
+            DagScheduleDatasetAliasReference,
             DagScheduleDatasetReference,
             DatasetModel,
             TaskOutletDatasetReference,
         )
 
-        dag_references: dict[str, set[Dataset | DatasetAlias]] = defaultdict(set)
+        dag_references: dict[str, set[tuple[Literal["dataset", "dataset-alias"], str]]] = defaultdict(set)
         outlet_references = defaultdict(set)
         # We can't use a set here as we want to preserve order
         outlet_dataset_models: dict[DatasetModel, None] = {}
@@ -2777,11 +2776,11 @@ class DAG(LoggingMixin):
                         curr_orm_dag.schedule_dataset_alias_references = []
             else:
                 for _, dataset in dataset_condition.iter_datasets():
-                    dag_references[dag.dag_id].add(dataset)
+                    dag_references[dag.dag_id].add(("dataset", dataset.uri))
                     input_dataset_models[DatasetModel.from_public(dataset)] = None
 
                 for dataset_alias in dataset_condition.iter_dataset_aliases():
-                    dag_references[dag.dag_id].add(dataset_alias)
+                    dag_references[dag.dag_id].add(("dataset-alias", dataset_alias.name))
                     input_dataset_alias_models.add(DatasetAliasModel.from_public(dataset_alias))
 
             curr_outlet_references = curr_orm_dag and curr_orm_dag.task_outlet_dataset_references
@@ -2878,14 +2877,16 @@ class DAG(LoggingMixin):
         for dag_id, base_dataset_list in dag_references.items():
             dag_refs_needed = {
                 DagScheduleDatasetReference(
-                    dataset_id=stored_dataset_models[base_dataset.uri].id, dag_id=dag_id
+                    dataset_id=stored_dataset_models[base_dataset_identifier].id, dag_id=dag_id
                 )
-                if isinstance(base_dataset, Dataset)
+                if base_dataset_type == "dataset"
                 else DagScheduleDatasetAliasReference(
-                    alias_id=stored_dataset_alias_models[base_dataset.name].id, dag_id=dag_id
+                    alias_id=stored_dataset_alias_models[base_dataset_identifier].id, dag_id=dag_id
                 )
-                for base_dataset in base_dataset_list
+                for base_dataset_type, base_dataset_identifier in base_dataset_list
             }
+
+            # if isinstance(base_dataset, Dataset)
 
             dag_refs_stored = (
                 set(existing_dags.get(dag_id).schedule_dataset_references)  # type: ignore
