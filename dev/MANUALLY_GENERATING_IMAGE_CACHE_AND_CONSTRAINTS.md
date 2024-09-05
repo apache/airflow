@@ -393,10 +393,7 @@ First - we have a breeze command that can help us with that:
 breeze ci find-backtracking-candidates
 ```
 
-This command should be run rather quickly after we notice that the CI build is taking a long time and fail,
-because it is based on the fact that eager upgrade produced valid constraints at some point of time and
-it tries to find out what dependencies have been added since then and limit them to the version that
-was used in the constraints.
+This command should be run quickly after noticing that the CI build is taking a long time and failing. It relies on the fact that an eager upgrade produced valid constraints at some point of time, so it tries to identify which dependencies have been added since then. By doing it, it limits them to the versions used in the constraints.
 
 You can also - instead of running the command manually rely on the failing CI builds. We run the
 `find-backtracking-candidates` command in the `canary` build when it times out, so the
