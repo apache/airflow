@@ -872,7 +872,7 @@ def test_task_decorator_has_wrapped_attr():
 
 def test_task_decorator_has_doc_attr():
     """
-    Test  @task original underlying function docstring
+    Test @task original underlying function docstring
     through the __doc__ attribute.
     """
 
