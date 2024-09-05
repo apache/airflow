@@ -878,13 +878,9 @@ def test_task_decorator_has_doc_attr():
 
     def org_test_func():
         """Docstring"""
-        pass
 
     decorated_test_func = task_decorator(org_test_func)
-
-    assert hasattr(
-        decorated_test_func, "__doc__"
-    ), "decorated function does not have __doc__ attribute"
+    assert hasattr(decorated_test_func, "__doc__"), "decorated function does not have __doc__ attribute"
     assert decorated_test_func.__doc__ == org_test_func.__doc__, "__doc__ attr is not the original docstring"
 
 
