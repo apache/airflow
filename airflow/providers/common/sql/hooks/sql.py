@@ -50,6 +50,11 @@ from airflow.exceptions import (
 )
 from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.dialects.dialect import Dialect
+from airflow.providers.common.sql.hooks.handlers import (
+    fetch_all_handler,
+    fetch_one_handler,
+    return_single_query_results,
+)
 
 if TYPE_CHECKING:
     from pandas import DataFrame
@@ -64,30 +69,6 @@ T = TypeVar("T")
 SQL_PLACEHOLDERS = frozenset({"%s", "?"})
 WARNING_MESSAGE = """Import of {} from the 'airflow.providers.common.sql.hooks' module is deprecated and will
 be removed in the future. Please import it from 'airflow.providers.common.sql.hooks.handlers'."""
-
-
-def return_single_query_results(sql: str | Iterable[str], return_last: bool, split_statements: bool):
-    warnings.warn(WARNING_MESSAGE.format("return_single_query_results"), DeprecationWarning, stacklevel=2)
-
-    from airflow.providers.common.sql.hooks import handlers
-
-    return handlers.return_single_query_results(sql, return_last, split_statements)
-
-
-def fetch_all_handler(cursor) -> list[tuple] | None:
-    warnings.warn(WARNING_MESSAGE.format("fetch_all_handler"), DeprecationWarning, stacklevel=2)
-
-    from airflow.providers.common.sql.hooks import handlers
-
-    return handlers.fetch_all_handler(cursor)
-
-
-def fetch_one_handler(cursor) -> list[tuple] | None:
-    warnings.warn(WARNING_MESSAGE.format("fetch_one_handler"), DeprecationWarning, stacklevel=2)
-
-    from airflow.providers.common.sql.hooks import handlers
-
-    return handlers.fetch_one_handler(cursor)
 
 
 class ConnectorProtocol(Protocol):
