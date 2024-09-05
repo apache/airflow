@@ -870,6 +870,23 @@ def test_task_decorator_has_wrapped_attr():
     ), "decorated function does not have __wrapped__ attribute"
     assert decorated_test_func.__wrapped__ is org_test_func, "__wrapped__ attr is not the original function"
 
+def test_task_decorator_has_doc_attr():
+    """
+    Test  @task original underlying function is accessible
+    through the __wrapped__ attribute.
+    """
+
+    def org_test_func():
+        """Docstring"""
+        pass
+
+    decorated_test_func = task_decorator(org_test_func)
+
+    assert hasattr(
+        decorated_test_func, "__doc__"
+    ), "decorated function does not have __doc__ attribute"
+    assert decorated_test_func.__doc__ is org_test_func.__doc__, "__doc__ attr is not the original docstring"
+
 
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_upstream_exception_produces_none_xcom(dag_maker, session):
