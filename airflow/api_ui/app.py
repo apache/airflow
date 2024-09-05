@@ -49,19 +49,9 @@ def init_flask_app(app: FastAPI, testing: bool = False) -> None:
 
     app.state.flask_app = flask_app
 
-    if testing:
-        return
-
-    if "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth" not in conf.get(
-        "api", "auth_backends"
-    ):
-        raise ValueError(
-            "FastAPI UI API only supports 'airflow.providers.fab.auth_manager.api.auth.backend.basic_auth' for auth backend"
-        )
-
     if conf.get("api", "auth_backends") != "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth":
         log.warning(
-            "FastAPI UI API only supports 'airflow.providers.fab.auth_manager.api.auth.backend.basic_auth', other auth backends will be ignored."
+            "FastAPI UI API only supports 'airflow.providers.fab.auth_manager.api.auth.backend.basic_auth' other backends will be ignored",
         )
 
 
