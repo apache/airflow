@@ -42,6 +42,7 @@ NULL_HOST_SCHEMA_CONNECTION = Connection(
     password="password",
 )
 
+
 class TestSambaHook:
     @pytest.mark.db_test
     def test_get_conn_should_fail_if_conn_id_does_not_exist(self):
