@@ -1,5 +1,25 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 """
-Module generates number DAGs for the purpose of performance testing. The number of DAGs,
+Module generates number DAGs for the purpose of performance testing.
+
+The number of DAGs,
 number, types of tasks in each DAG and the shape of the DAG are controlled through
 environment variables:
 
@@ -19,6 +39,8 @@ environment variables:
 
 """
 
+from __future__ import annotations
+
 import enum
 import json
 import os
@@ -26,16 +48,13 @@ import re
 import time
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import List, Union, cast
+from typing import List
 
 from airflow import DAG
-from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
-from airflow.models.baseoperator import chain
+from airflow.models.baseoperator import BaseOperator, chain
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
-
 
 # DAG File used in performance tests. Its shape can be configured by environment variables.
 RE_TIME_DELTA = re.compile(
@@ -53,10 +72,11 @@ def parse_time_delta(time_str):
     """
     parts = RE_TIME_DELTA.match(time_str)
 
-    assert parts is not None, (
-        "Could not parse any time information from '{time_str}'. "
-        "Examples of valid strings: '8h', '2d8h5m20s', '2m4s'".format(time_str=time_str)
-    )
+    if parts is not None:
+        raise ValueError(
+            f"Could not parse any time information from '{time_str}'. "
+            "Examples of valid strings: '8h', '2d8h5m20s', '2m4s'"
+        )
 
     time_params = {name: float(param) for name, param in parts.groupdict().items() if param}
     return timedelta(**time_params)  # type: ignore
@@ -64,11 +84,13 @@ def parse_time_delta(time_str):
 
 def parse_start_date(date, start_ago):
     """
+    Parse date or relative distance to current time.
+
     Returns the start date for the performance DAGs and string to be used as part of their ids.
+
     :return Tuple[datetime.datetime, str]: A tuple of datetime.datetime object to be used
         as a start_date and a string that should be used as part of the dag_id.
     """
-
     if date:
         start_date = datetime.strptime(date, "%Y-%m-%d %H:%M:%S.%f")
         dag_id_component = int(start_date.timestamp())
@@ -97,16 +119,14 @@ def parse_schedule_interval(time_str):
 
 def safe_dag_id(dag_id):
     # type: (str) -> str
-    """
-    Remove invalid characters for dag_id
-    """
+    """Remove invalid characters for dag_id."""
     return re.sub("[^0-9a-zA-Z_]+", "_", dag_id)
 
 
 def get_task_list(dag_object, operator_type_str, task_count, trigger_rule, sleep_time, operator_extra_kwargs):
     # type: (DAG, str, int, float, int, dict) -> List[BaseOperator]
     """
-    Return list of tasks of test dag
+    Return list of tasks of test dag.
 
     :param dag_object: A DAG object the tasks should be assigned to.
     :param operator_type_str: A string identifying the type of operator
@@ -121,8 +141,8 @@ def get_task_list(dag_object, operator_type_str, task_count, trigger_rule, sleep
     if operator_type_str == "bash":
         task_list = [
             BashOperator(
-                task_id="__".join(["tasks", "{i}_of_{task_count}".format(i=i, task_count=task_count)]),
-                bash_command="sleep {sleep_time}; echo test".format(sleep_time=sleep_time),
+                task_id="__".join(["tasks", f"{i}_of_{task_count}"]),
+                bash_command=f"sleep {sleep_time}; echo test",
                 dag=dag_object,
                 trigger_rule=trigger_rule,
                 **operator_extra_kwargs,
@@ -137,7 +157,7 @@ def get_task_list(dag_object, operator_type_str, task_count, trigger_rule, sleep
 
         task_list = [
             PythonOperator(
-                task_id="__".join(["tasks", "{i}_of_{task_count}".format(i=i, task_count=task_count)]),
+                task_id="__".join(["tasks", f"{i}_of_{task_count}"]),
                 python_callable=sleep_function,
                 dag=dag_object,
                 trigger_rule=trigger_rule,
@@ -152,9 +172,10 @@ def get_task_list(dag_object, operator_type_str, task_count, trigger_rule, sleep
 
 def chain_as_binary_tree(*tasks):
     # type: (BaseOperator) -> None
-    r"""
-    Chain tasks as a binary tree where task i is child of task (i - 1) // 2 :
+    """
+    Chain tasks as a binary tree where task i is child of task (i - 1) // 2.
 
+    Example:
         t0 -> t1 -> t3 -> t7
           |    \
           |      -> t4 -> t8
@@ -170,8 +191,9 @@ def chain_as_binary_tree(*tasks):
 def chain_as_grid(*tasks):
     # type: (BaseOperator) -> None
     """
-    Chain tasks as a grid:
+    Chain tasks as a grid.
 
+    Example:
      t0 -> t1 -> t2 -> t3
       |     |     |
       v     v     v
@@ -188,9 +210,7 @@ def chain_as_grid(*tasks):
     grid_size = min([n for n in range(100) if n * (n + 1) / 2 >= len(tasks)])
 
     def index(i, j):
-        """
-        Return the index of node (i, j) on the grid.
-        """
+        """Return the index of node (i, j) on the grid."""
         return int(grid_size * i - i * (i - 1) / 2 + j)
 
     for i in range(grid_size - 1):
@@ -204,8 +224,9 @@ def chain_as_grid(*tasks):
 def chain_as_star(*tasks):
     # type: (BaseOperator) -> None
     """
-    Chain tasks as a star (all tasks are children of task 0)
+    Chain tasks as a star (all tasks are children of task 0).
 
+    Example:
      t0 -> t1
       | -> t2
       | -> t3
@@ -217,9 +238,7 @@ def chain_as_star(*tasks):
 
 @enum.unique
 class DagShape(Enum):
-    """
-    Define shape of the Dag that will be used for testing.
-    """
+    """Define shape of the Dag that will be used for testing."""
 
     NO_STRUCTURE = "no_structure"
     LINEAR = "linear"
@@ -261,11 +280,11 @@ for dag_no in range(1, DAG_COUNT + 1):
             "__".join(
                 [
                     os.path.splitext(os.path.basename(__file__))[0],
-                    "SHAPE={}".format(SHAPE.name.lower()),
-                    "DAGS_COUNT={}_of_{}".format(dag_no, DAG_COUNT),
-                    "TASKS_COUNT=${}".format(TASKS_COUNT),
-                    "START_DATE=${}".format(DAG_ID_START_DATE),
-                    "SCHEDULE_INTERVAL=${}".format(SCHEDULE_INTERVAL_ENV),
+                    f"SHAPE={SHAPE.name.lower()}",
+                    f"DAGS_COUNT={dag_no}_of_{DAG_COUNT}",
+                    f"TASKS_COUNT=${TASKS_COUNT}",
+                    f"START_DATE=${DAG_ID_START_DATE}",
+                    f"SCHEDULE_INTERVAL=${SCHEDULE_INTERVAL_ENV}",
                 ]
             )
         ),
@@ -288,4 +307,4 @@ for dag_no in range(1, DAG_COUNT + 1):
     if SHAPE != DagShape.NO_STRUCTURE:
         shape_function_map[SHAPE](*performance_dag_tasks)
 
-    globals()["dag_{dag_no}".format(dag_no=dag_no)] = dag
+    globals()[f"dag_{dag_no}"] = dag

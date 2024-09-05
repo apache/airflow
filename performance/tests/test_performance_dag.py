@@ -16,14 +16,14 @@
 #  under the License.
 
 import json
-import pytest
-
-from airflow.models import DagBag
-from airflow.utils.trigger_rule import TriggerRule
-from airflow.configuration import conf
-from airflow.configuration import AirflowConfigParser
 import os
 import re
+
+import pytest
+
+from airflow.configuration import AirflowConfigParser, conf
+from airflow.models import DagBag
+from airflow.utils.trigger_rule import TriggerRule
 
 DAGS_DIR = os.path.join(os.path.dirname(__file__), "../src/performance_dags/performance_dag")
 
@@ -74,7 +74,7 @@ def get_leaf_tasks(dag):
 @pytest.fixture(scope="session", autouse=True)
 def airflow_config():
     """
-    This fixture sets up the Airflow configuration for the tests.
+    Update airflow config for the test.
 
     It sets the following configuration values:
     - core.unit_test_mode: True
@@ -91,10 +91,7 @@ def airflow_config():
 
 
 def get_dags(dag_count=1, task_count=10, operator_type="bash", dag_shape="no_structure"):
-    """
-    Generate a tuple of dag_id, <DAG objects> in the DagBag
-    """
-
+    """Generate a tuple of dag_id, <DAG objects> in the DagBag."""
     setup_dag(
         task_count=str(task_count), dag_count=str(dag_count), operator_type=operator_type, dag_shape=dag_shape
     )
@@ -108,10 +105,7 @@ def get_dags(dag_count=1, task_count=10, operator_type="bash", dag_shape="no_str
 
 
 def get_import_errors():
-    """
-    Generate a tuple for import errors in the dag bag
-    """
-
+    """Generate a tuple for import errors in the dag bag."""
     dag_bag = DagBag(DAGS_DIR, include_examples=False)
 
     def strip_path_prefix(path):
@@ -123,9 +117,9 @@ def get_import_errors():
 
 @pytest.mark.parametrize("rel_path,rv", get_import_errors(), ids=[x[0] for x in get_import_errors()])
 def test_file_imports(rel_path, rv):
-    """Test for import errors on a file"""
+    """Test for import errors on a file."""
     if rel_path and rv:
-        raise Exception(f"{rel_path} failed to import with message \n {rv}")
+        pytest.fail(f"{rel_path} failed to import with message \n {rv}")
 
 
 @pytest.mark.parametrize("dag_count,task_count", [(1, 1), (1, 10), (10, 10), (10, 100)])
