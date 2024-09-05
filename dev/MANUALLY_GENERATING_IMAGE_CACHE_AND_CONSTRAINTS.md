@@ -375,7 +375,7 @@ a long loop trying to figure out if these dependencies can be used. Unfortunatel
 This is visible in the "build output" as `pip` attempting to continuously backtrack and download many new
 versions of various dependencies, trying to find a good match.
 
-This is why we sometimes we need to help pip to skip newer versions of those dependencies, until the
+This is why we need to help pip to skip newer versions of those dependencies, until the
 condition that caused the backtracking is solved.
 
 We do it by adding `dependency<=version` to the EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS variable in
