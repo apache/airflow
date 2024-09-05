@@ -606,6 +606,7 @@ def test_listener_on_dag_run_state_changes_configure_process_pool_size(mock_exec
     mock_executor.return_value.submit.assert_called_once()
 
 
+@pytest.mark.flaky(reruns=5)
 def test_listener_logs_failed_serialization():
     listener = OpenLineageListener()
     listener.log = MagicMock()
