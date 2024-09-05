@@ -21,8 +21,8 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
-from airflow.api_ui.utils.db import get_session
-from airflow.api_ui.utils.security import (
+from airflow.api_ui.db import get_session
+from airflow.api_ui.security import (
     requires_access_dag,
     requires_access_dataset,
 )

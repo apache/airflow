@@ -22,7 +22,7 @@ from fastapi.security import HTTPBasicCredentials
 from fastapi.testclient import TestClient
 
 from airflow.api_ui.app import create_app
-from airflow.api_ui.utils.security import security
+from airflow.api_ui.security import security
 from airflow.security import permissions
 from tests.conftest import initial_db_init
 from tests.test_utils.api_connexion_utils import create_user
