@@ -40,16 +40,16 @@ from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
 alias_association_table = Table(
-    "dataset_alias_dataset",
+    "asset_alias_dataset",
     Base.metadata,
-    Column("alias_id", ForeignKey("dataset_alias.id", ondelete="CASCADE"), primary_key=True),
+    Column("alias_id", ForeignKey("asset_alias.id", ondelete="CASCADE"), primary_key=True),
     Column("dataset_id", ForeignKey("dataset.id", ondelete="CASCADE"), primary_key=True),
-    Index("idx_dataset_alias_dataset_alias_id", "alias_id"),
-    Index("idx_dataset_alias_dataset_alias_dataset_id", "dataset_id"),
+    Index("idx_asset_alias_asset_alias_id", "alias_id"),
+    Index("idx_asset_alias_asset_dataset_id", "dataset_id"),
     ForeignKeyConstraint(
         ("alias_id",),
-        ["dataset_alias.id"],
-        name="ds_dsa_alias_id",
+        ["asset_alias.id"],
+        name="a_aa_alias_id",
         ondelete="CASCADE",
     ),
     ForeignKeyConstraint(
@@ -63,13 +63,13 @@ alias_association_table = Table(
 asset_alias_asset_event_assocation_table = Table(
     "asset_alias_asset_event",
     Base.metadata,
-    Column("alias_id", ForeignKey("dataset_alias.id", ondelete="CASCADE"), primary_key=True),
+    Column("alias_id", ForeignKey("asset_alias.id", ondelete="CASCADE"), primary_key=True),
     Column("event_id", ForeignKey("dataset_event.id", ondelete="CASCADE"), primary_key=True),
     Index("idx_asset_alias_asset_event_alias_id", "alias_id"),
     Index("idx_asset_alias_asset_event_event_id", "event_id"),
     ForeignKeyConstraint(
         ("alias_id",),
-        ["dataset_alias.id"],
+        ["asset_alias.id"],
         name="dss_de_alias_id",
         ondelete="CASCADE",
     ),
@@ -116,7 +116,7 @@ class AssetAliasModel(Base):
         nullable=False,
     )
 
-    __tablename__ = "dataset_alias"
+    __tablename__ = "asset_alias"
     __table_args__ = (
         Index("idx_dataset_alias_name_unique", name, unique=True),
         {"sqlite_autoincrement": True},  # ensures PK values not reused
@@ -132,7 +132,7 @@ class AssetAliasModel(Base):
         secondary=asset_alias_asset_event_assocation_table,
         back_populates="source_aliases",
     )
-    consuming_dags = relationship("DagScheduleAssetAliasReference", back_populates="dataset_alias")
+    consuming_dags = relationship("DagScheduleAssetAliasReference", back_populates="asset_alias")
 
     @classmethod
     def from_public(cls, obj: AssetAlias) -> AssetAliasModel:
@@ -314,16 +314,16 @@ class DagScheduleAssetAliasReference(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    dataset_alias = relationship("AssetAliasModel", back_populates="consuming_dags")
-    dag = relationship("DagModel", back_populates="schedule_dataset_alias_references")
+    asset_alias = relationship("AssetAliasModel", back_populates="consuming_dags")
+    dag = relationship("DagModel", back_populates="schedule_asset_alias_references")
 
-    __tablename__ = "dag_schedule_dataset_alias_reference"
+    __tablename__ = "dag_schedule_asset_alias_reference"
     __table_args__ = (
         PrimaryKeyConstraint(alias_id, dag_id, name="dsdar_pkey"),
         ForeignKeyConstraint(
             (alias_id,),
-            ["dataset_alias.id"],
-            name="dsdar_dataset_alias_fkey",
+            ["asset_alias.id"],
+            name="dsaar_asset_alias_fkey",
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
@@ -332,7 +332,7 @@ class DagScheduleAssetAliasReference(Base):
             name="dsdar_dag_fkey",
             ondelete="CASCADE",
         ),
-        Index("idx_dag_schedule_dataset_alias_reference_dag_id", dag_id),
+        Index("idx_dag_schedule_asset_alias_reference_dag_id", dag_id),
     )
 
     def __eq__(self, other):
