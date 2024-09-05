@@ -210,28 +210,28 @@ class TestEmrCreateJobFlowOperatorExtended(TestEmrCreateJobFlowOperator):
 
     @mock.patch("airflow.providers.amazon.aws.operators.emr.EmrCreateJobFlowOperator.defer")
     def test_deferrable_and_wait_for_completion(self, mock_defer, mocked_hook_client):
-       
         mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
 
         self.operator.deferrable = True
         self.operator.wait_for_completion = True
+        self.operator.waiter_delay = 10  # Example value
+        self.operator.waiter_max_attempts = 5  # Example value
 
         self.operator.execute(self.mock_context)
         mock_defer.assert_called_once_with(
             trigger=EmrCreateJobFlowTrigger(
                 job_flow_id=JOB_FLOW_ID,
                 aws_conn_id=self.operator.aws_conn_id,
-                waiter_delay=None,
-                waiter_max_attempts=None,
+                waiter_delay=self.operator.waiter_delay,
+                waiter_max_attempts=self.operator.waiter_max_attempts,
             ),
             method_name="execute_complete",
-            timeout=timedelta(seconds=None * None + 60),
+            timeout=timedelta(seconds=self.operator.waiter_max_attempts * self.operator.waiter_delay + 60),
         )
 
     @mock.patch("botocore.waiter.get_service_module_name", return_value="emr")
     @mock.patch.object(Waiter, "wait")
     def test_non_deferrable_but_wait_for_completion(self, mock_waiter, _, mocked_hook_client):
-
         mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
 
         self.operator.deferrable = False
@@ -241,7 +241,6 @@ class TestEmrCreateJobFlowOperatorExtended(TestEmrCreateJobFlowOperator):
         mock_waiter.assert_called_once_with(mock.ANY, ClusterId=JOB_FLOW_ID, WaiterConfig=mock.ANY)
 
     def test_no_wait_for_completion(self, mocked_hook_client):
-        
         mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
 
         self.operator.deferrable = True  
@@ -249,4 +248,3 @@ class TestEmrCreateJobFlowOperatorExtended(TestEmrCreateJobFlowOperator):
 
         assert self.operator.execute(self.mock_context) == JOB_FLOW_ID
         assert not mocked_hook_client.get_waiter.called
-
