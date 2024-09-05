@@ -325,7 +325,7 @@ class TestDBCleanup:
             "ab_user",
             "variable",  # leave alone
             "dataset",  # not good way to know if "stale"
-            "dataset_alias",  # not good way to know if "stale"
+            "asset_alias",  # not good way to know if "stale"
             "task_map",  # keys to TI, so no need
             "serialized_dag",  # handled through FK to Dag
             "log_template",  # not a significant source of data; age not indicative of staleness
@@ -336,7 +336,7 @@ class TestDBCleanup:
             "dag_warning",  # self-maintaining
             "connection",  # leave alone
             "slot_pool",  # leave alone
-            "dag_schedule_dataset_reference",  # leave alone for now
+            "dag_schedule_asset_reference",  # leave alone for now
             "dag_schedule_dataset_alias_reference",  # leave alone for now
             "task_outlet_dataset_reference",  # leave alone for now
             "dataset_dag_run_queue",  # self-managed
