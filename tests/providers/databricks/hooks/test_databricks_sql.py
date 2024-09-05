@@ -31,7 +31,7 @@ from databricks.sql.types import Row
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
-from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
+from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook, create_timeout_thread
 from airflow.utils.session import provide_session
 from airflow.utils.timezone import datetime
 
@@ -99,6 +99,10 @@ def mock_get_requests():
     # Stop the patcher after the test
     mock_patch.stop()
 
+@pytest.fixture
+def mock_timer():
+    with patch("threading.Timer") as mock_timer:
+        yield mock_timer
 
 def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
     return [(field,) for field in fields]
@@ -413,3 +417,32 @@ def test_execution_timeout_exceeded(
         assert "Timeout threshold exceeded" in str(exc_info.value)
 
 
+def test_create_timeout_thread(
+    mock_get_conn,
+    mock_get_requests,
+    mock_timer,
+    cursor_descriptions=["id", "value"],
+):
+        cur = mock.MagicMock(
+            rowcount=1,
+            description=get_cursor_descriptions(cursor_descriptions),
+        )
+        timeout = timedelta(seconds=1)
+        thread = create_timeout_thread(cur=cur, execution_timeout=timeout)
+        mock_timer.assert_called_once_with(timeout.total_seconds(), cur.connection.cancel)
+        assert thread is not None
+
+
+def test_create_timeout_thread_no_timeout(
+    mock_get_conn,
+    mock_get_requests,
+    mock_timer,
+    cursor_descriptions=["id", "value"],
+):
+        cur = mock.MagicMock(
+            rowcount=1,
+            description=get_cursor_descriptions(cursor_descriptions),
+        )
+        thread = create_timeout_thread(cur=cur, execution_timeout=None)
+        mock_timer.assert_not_called()
+        assert thread is None
