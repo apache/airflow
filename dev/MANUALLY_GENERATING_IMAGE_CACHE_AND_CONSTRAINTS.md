@@ -395,9 +395,9 @@ breeze ci find-backtracking-candidates
 
 This command should be run quickly after noticing that the CI build is taking a long time and failing. It relies on the fact that an eager upgrade produced valid constraints at some point of time, so it tries to identify which dependencies have been added since then. By doing it, it limits them to the versions used in the constraints.
 
-You can also - instead of running the command manually rely on the failing CI builds. We run the
+Instead of running the command manually, you could also rely on the failing CI builds. We run the
 `find-backtracking-candidates` command in the `canary` build when it times out, so the
-easiest way to find backtracking candidates is to find the first build that failed with timeout - it
+easiest way to find backtracking candidates is to find the first build that failed with timeout. It
 will likely have the smallest number of backtracking candidates. The command outputs the limitation
 for those backtracking candidates that are guaranteed to work (because they are taken from the latest
 constraints and they already succeeded in the past when the constraints were updated).
