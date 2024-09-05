@@ -34,11 +34,9 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Awaitable, Callable
 from urllib.parse import urlsplit
 
-from azure.core.credentials import AccessToken
-from azure.identity import DefaultAzureCredential
-
 import aiohttp
 import requests
+<<<<<<< HEAD:providers/src/airflow/providers/databricks/hooks/databricks_base.py
 <<<<<<< HEAD:providers/src/airflow/providers/databricks/hooks/databricks_base.py
 <<<<<<< HEAD:providers/src/airflow/providers/databricks/hooks/databricks_base.py
 from aiohttp.client_exceptions import ClientConnectorError
@@ -48,6 +46,13 @@ from azure.identity import DefaultAzureCredential, WorkloadIdentityCredential
 >>>>>>> 29de4a2773 (add kubernetes check):airflow/providers/databricks/hooks/databricks_base.py
 =======
 >>>>>>> d0bac3f2a8 (Cleanup imports):airflow/providers/databricks/hooks/databricks_base.py
+=======
+from azure.core.credentials import AccessToken
+from azure.identity import DefaultAzureCredential
+from azure.identity.aio import (
+    DefaultAzureCredential as AsyncDefaultAzureCredential,
+)
+>>>>>>> a927365ae2 (Ruff format):airflow/providers/databricks/hooks/databricks_base.py
 from requests import PreparedRequest, exceptions as requests_exceptions
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.exceptions import JSONDecodeError
@@ -58,9 +63,6 @@ from tenacity import (
     retry_if_exception,
     stop_after_attempt,
     wait_exponential,
-)
-from azure.identity.aio import (
-    DefaultAzureCredential as AsyncDefaultAzureCredential,
 )
 
 from airflow import __version__
@@ -301,7 +303,7 @@ class BaseDatabricksHook(BaseHook):
             raise AirflowException(msg)
 
         return jsn["access_token"]
-    
+
     def _call_aad_token_executor(self, resource: str, get_token_callable: Callable[[str], AccessToken]):
         """
         Get AAD token for given resource.
@@ -319,7 +321,7 @@ class BaseDatabricksHook(BaseHook):
             for attempt in self._get_retry_object():
                 with attempt:
                     token = get_token_callable(f"{resource}/.default")
-                       
+
                     jsn = {
                         "access_token": token.token,
                         "token_type": "Bearer",
@@ -337,8 +339,10 @@ class BaseDatabricksHook(BaseHook):
             raise AirflowException(msg)
 
         return jsn["access_token"]
-    
-    async def _a_call_aad_token_executor(self, resource: str, get_token_callable: Callable[[str], Awaitable[AccessToken]]):
+
+    async def _a_call_aad_token_executor(
+        self, resource: str, get_token_callable: Callable[[str], Awaitable[AccessToken]]
+    ):
         """
         Get AAD token for given resource.
 
@@ -418,8 +422,6 @@ class BaseDatabricksHook(BaseHook):
             raise AirflowException(msg)
 
         return jsn["access_token"]
-    
-    
 
     async def _a_get_aad_token(self, resource: str) -> str:
         """
@@ -579,7 +581,9 @@ class BaseDatabricksHook(BaseHook):
             return self._get_aad_token(DEFAULT_DATABRICKS_SCOPE)
         elif self.databricks_conn.extra_dejson.get(DEFAULT_AZURE_CREDENTIAL_SETTING_KEY, False):
             self.log.debug("Using default Azure Credential authentication.")
-            return self._call_aad_token_executor(DEFAULT_DATABRICKS_SCOPE, self._get_aad_token_for_default_az_credential)
+            return self._call_aad_token_executor(
+                DEFAULT_DATABRICKS_SCOPE, self._get_aad_token_for_default_az_credential
+            )
         elif self.databricks_conn.extra_dejson.get("service_principal_oauth", False):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
@@ -614,7 +618,9 @@ class BaseDatabricksHook(BaseHook):
                     "Workload identity authentication is only supporting when running in an Kubernetes cluster"
                 )
             self.log.debug("Using Azure Workload Identity authentication.")
-            return await self._a_call_aad_token_executor(DEFAULT_DATABRICKS_SCOPE, self._a_get_aad_token_for_default_az_credential)
+            return await self._a_call_aad_token_executor(
+                DEFAULT_DATABRICKS_SCOPE, self._a_get_aad_token_for_default_az_credential
+            )
         elif self.databricks_conn.extra_dejson.get("service_principal_oauth", False):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
