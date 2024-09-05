@@ -60,8 +60,8 @@ alias_association_table = Table(
     ),
 )
 
-dataset_alias_dataset_event_assocation_table = Table(
-    "dataset_alias_dataset_event",
+asset_alias_asset_event_assocation_table = Table(
+    "asset_alias_asset_event",
     Base.metadata,
     Column("alias_id", ForeignKey("dataset_alias.id", ondelete="CASCADE"), primary_key=True),
     Column("event_id", ForeignKey("dataset_event.id", ondelete="CASCADE"), primary_key=True),
@@ -129,7 +129,7 @@ class AssetAliasModel(Base):
     )
     dataset_events = relationship(
         "AssetEvent",
-        secondary=dataset_alias_dataset_event_assocation_table,
+        secondary=asset_alias_asset_event_assocation_table,
         back_populates="source_aliases",
     )
     consuming_dags = relationship("DagScheduleAssetAliasReference", back_populates="dataset_alias")
@@ -543,7 +543,7 @@ class AssetEvent(Base):
 
     source_aliases = relationship(
         "AssetAliasModel",
-        secondary=dataset_alias_dataset_event_assocation_table,
+        secondary=asset_alias_asset_event_assocation_table,
         back_populates="dataset_events",
     )
 
