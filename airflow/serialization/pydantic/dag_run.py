@@ -24,6 +24,7 @@ from pydantic import BaseModel as BaseModelPydantic, ConfigDict
 from airflow.models.dagrun import DagRun
 from airflow.serialization.pydantic.dag import PydanticDag
 from airflow.serialization.pydantic.dataset import DatasetEventPydantic
+from airflow.utils.types import DagRunTriggeredByType
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -56,6 +57,7 @@ class DagRunPydantic(BaseModelPydantic):
     dag: Optional[PydanticDag]
     consumed_dataset_events: List[DatasetEventPydantic]  # noqa: UP006
     log_template_id: Optional[int]
+    triggered_by: Optional[DagRunTriggeredByType]
 
     model_config = ConfigDict(from_attributes=True, arbitrary_types_allowed=True)
 

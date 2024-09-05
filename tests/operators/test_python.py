@@ -69,7 +69,11 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, DagRunType
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.db import clear_db_runs
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
@@ -136,6 +140,7 @@ class BasePythonTest:
         return kwargs
 
     def create_dag_run(self) -> DagRun:
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         return self.dag_maker.create_dagrun(
             state=DagRunState.RUNNING,
             start_date=self.dag_maker.start_date,
@@ -143,6 +148,7 @@ class BasePythonTest:
             execution_date=self.default_date,
             run_type=DagRunType.MANUAL,
             data_interval=(self.default_date, self.default_date),
+            **triggered_by_kwargs,  # type: ignore
         )
 
     def create_ti(self, fn, **kwargs) -> TI:

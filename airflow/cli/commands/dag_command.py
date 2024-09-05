@@ -49,6 +49,7 @@ from airflow.utils.helpers import ask_yesno
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunTriggeredByType
 
 if TYPE_CHECKING:
     from graphviz.dot import Dot
@@ -86,6 +87,7 @@ def _run_dag_backfill(dags: list[DAG], args) -> None:
                     dag.dag_id,
                     execution_date=dagrun_info.logical_date,
                     data_interval=dagrun_info.data_interval,
+                    triggered_by=DagRunTriggeredByType.CLI,
                 )
 
                 for task in dag.tasks:

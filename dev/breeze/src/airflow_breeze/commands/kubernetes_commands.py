@@ -82,8 +82,7 @@ PARALLEL_PYTEST_ARGS = [
     "--maxfail=50",
     "--color=yes",
     # timeouts in seconds for individual tests
-    "--timeouts-order",
-    "moi",
+    "--timeouts-order=moi",
     "--setup-timeout=300",
     "--execution-timeout=300",
     "--teardown-timeout=300",

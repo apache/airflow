@@ -1,5 +1,0 @@
-Removed provider fab auth manager deprecated methods as follows.
-
-Removed methods ``get_readable_dags``, ``get_editable_dags``, ``get_accessible_dags``, ``get_accessible_dag_ids`` and ``get_readable_dag_ids``. Please use ``get_auth_manager().get_permitted_dag_ids`` instead.
-Removed method ``init_role``. Please use ``bulk_sync_roles`` instead.
-Removed method ``prefixed_dag_id``. Please use ``airflow.security.permissions.resource_name`` instead.

@@ -24,7 +24,11 @@ import pytest
 
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.utils.log.task_context_logger import TaskContextLogger
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.config import conf_vars
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 logger = logging.getLogger(__name__)
 
@@ -51,7 +55,8 @@ def ti(dag_maker):
 
         nothing()
 
-    dr = dag.create_dagrun("running", run_id="abc")
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    dr = dag.create_dagrun("running", run_id="abc", **triggered_by_kwargs)
     ti = dr.get_task_instances()[0]
     return ti
 

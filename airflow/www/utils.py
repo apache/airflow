@@ -185,6 +185,7 @@ def encode_dag_run(
             "conf": dag_run_conf,
             "conf_is_json": conf_is_json,
             "note": dag_run.note,
+            "triggered_by": dag_run.triggered_by.value,
         }
     except ValueError as e:
         logger.error("Error while encoding the DAG Run!", exc_info=e)
@@ -521,7 +522,7 @@ def dag_run_link(attr):
 
 
 def _get_run_ordering_expr(name: str) -> ColumnOperators:
-    expr = DagRun.__table__.columns[name]
+    expr = DagRun.__mapper__.columns[name]
     # Data interval columns are NULL for runs created before 2.3, but SQL's
     # NULL-sorting logic would make those old runs always appear first. In a
     # perfect world we'd want to sort by ``get_run_data_interval()``, but that's

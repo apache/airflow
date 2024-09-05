@@ -879,6 +879,10 @@ def dag_maker(request):
             from airflow.utils import timezone
             from airflow.utils.state import State
             from airflow.utils.types import DagRunType
+            from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.utils.types import DagRunTriggeredByType
 
             dag = self.dag
             kwargs = {
@@ -906,6 +910,8 @@ def dag_maker(request):
                 else:
                     data_interval = dag.infer_automated_data_interval(logical_date)
                 kwargs["data_interval"] = data_interval
+            if AIRFLOW_V_3_0_PLUS and "triggered_by" not in kwargs:
+                kwargs["triggered_by"] = DagRunTriggeredByType.TEST
 
             self.dag_run = dag.create_dagrun(**kwargs)
             for ti in self.dag_run.task_instances:
@@ -1115,6 +1121,11 @@ def create_task_instance(dag_maker, create_dummy_dag):
         map_index=-1,
         **kwargs,
     ) -> TaskInstance:
+        from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.utils.types import DagRunTriggeredByType
+
         if execution_date is None:
             from airflow.utils import timezone
 
@@ -1140,7 +1151,11 @@ def create_task_instance(dag_maker, create_dummy_dag):
                 **op_kwargs,
             )
 
-        dagrun_kwargs = {"execution_date": execution_date, "state": dagrun_state}
+        dagrun_kwargs = {
+            "execution_date": execution_date,
+            "state": dagrun_state,
+        }
+        dagrun_kwargs.update({"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {})
         if run_id is not None:
             dagrun_kwargs["run_id"] = run_id
         if run_type is not None:

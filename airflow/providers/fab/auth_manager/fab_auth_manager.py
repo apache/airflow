@@ -368,6 +368,9 @@ class FabAuthManager(BaseAuthManager):
             return None
         return url_for(f"{self.security_manager.user_view.endpoint}.userinfo")
 
+    def register_views(self) -> None:
+        self.security_manager.register_views()
+
     def _is_authorized(
         self,
         *,

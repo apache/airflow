@@ -36,6 +36,10 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
 from tests.test_utils import db
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -637,12 +641,14 @@ class TestClearTasks:
             )
             task = EmptyOperator(task_id=f"test_task_clear_{i}", owner="test", dag=dag)
 
+            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dr = dag.create_dagrun(
                 execution_date=DEFAULT_DATE,
                 state=State.RUNNING,
                 run_type=DagRunType.SCHEDULED,
                 session=session,
                 data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+                **triggered_by_kwargs,
             )
             ti = dr.task_instances[0]
             ti.task = task

@@ -417,9 +417,6 @@ ARG_MARK_SUCCESS_PATTERN = Arg(
     ),
 )
 
-# list_tasks
-ARG_TREE = Arg(("-t", "--tree"), help="Tree view", action="store_true")
-
 # tasks_run
 # This is a hidden option -- not meant for users to set or know about
 ARG_SHUT_DOWN_LOGGING = Arg(
@@ -1324,7 +1321,7 @@ TASKS_COMMANDS = (
         name="list",
         help="List the tasks within a DAG",
         func=lazy_load_command("airflow.cli.commands.task_command.task_list"),
-        args=(ARG_DAG_ID, ARG_TREE, ARG_SUBDIR, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_VERBOSE),
     ),
     ActionCommand(
         name="clear",

@@ -99,7 +99,7 @@ from airflow.utils.operator_resources import Resources
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.setup_teardown import SetupTeardownContext
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.types import NOTSET, AttributeRemoved
+from airflow.utils.types import NOTSET, AttributeRemoved, DagRunTriggeredByType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
@@ -1472,6 +1472,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     run_type=DagRunType.MANUAL,
                     execution_date=info.logical_date,
                     data_interval=info.data_interval,
+                    triggered_by=DagRunTriggeredByType.TEST,
                 )
                 ti = TaskInstance(self, run_id=dr.run_id)
                 ti.dag_run = dr

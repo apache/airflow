@@ -104,12 +104,6 @@ SBOM_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             ],
         },
         {
-            "name": "CSV flags",
-            "options": [
-                "--csv-file",
-            ],
-        },
-        {
             "name": "Github auth flags",
             "options": [
                 "--github-token",

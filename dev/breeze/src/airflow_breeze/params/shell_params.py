@@ -147,6 +147,7 @@ class ShellParams:
     downgrade_pendulum: bool = False
     dry_run: bool = False
     enable_coverage: bool = False
+    excluded_providers: str = ""
     executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
     extra_args: tuple = ()
     force_build: bool = False
@@ -519,6 +520,7 @@ class ShellParams:
         _set_var(_env, "ENABLED_SYSTEMS", None, "")
         _set_var(_env, "ENABLE_COVERAGE", self.enable_coverage)
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
+        _set_var(_env, "EXCLUDED_PROVIDERS", self.excluded_providers)
         _set_var(_env, "FORCE_LOWEST_DEPENDENCIES", self.force_lowest_dependencies)
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)

@@ -242,8 +242,8 @@ Name                                                 Description
 ``pool.running_slots``                               Number of running slots in the pool. Metric with pool_name tagging.
 ``pool.deferred_slots.<pool_name>``                  Number of deferred slots in the pool
 ``pool.deferred_slots``                              Number of deferred slots in the pool. Metric with pool_name tagging.
-``pool.scheduled_tasks.<pool_name>``                 Number of scheduled tasks in the pool
-``pool.scheduled_tasks``                             Number of scheduled tasks in the pool. Metric with pool_name tagging.
+``pool.scheduled_slots.<pool_name>``                 Number of scheduled slots in the pool
+``pool.scheduled_slots``                             Number of scheduled slots in the pool. Metric with pool_name tagging.
 ``pool.starving_tasks.<pool_name>``                  Number of starving tasks in the pool
 ``pool.starving_tasks``                              Number of starving tasks in the pool. Metric with pool_name tagging.
 ``task.cpu_usage_percent.<dag_id>.<task_id>``        Percentage of CPU used by a task

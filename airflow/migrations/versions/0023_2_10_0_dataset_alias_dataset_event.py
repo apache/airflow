@@ -17,11 +17,11 @@
 # under the License.
 
 """
-Add dag_schedule_dataset_alias_reference table.
+Add dataset_alias_dataset_event.
 
-Revision ID: 22ed7efa9da2
-Revises:
-Create Date: 2024-08-05 08:41:47.696495
+Revision ID: ec3471c1e067
+Revises: 05e19f3176be
+Create Date: 2024-07-11 09:42:00.643179
 
 """
 
@@ -30,47 +30,39 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-import airflow
-from airflow.migrations.db_types import StringID
-
 # revision identifiers, used by Alembic.
-revision = "22ed7efa9da2"
-down_revision = None
+revision = "ec3471c1e067"
+down_revision = "05e19f3176be"
 branch_labels = None
 depends_on = None
 airflow_version = "2.10.0"
 
 
 def upgrade():
-    """Add dag_schedule_dataset_alias_reference table."""
+    """Add dataset_alias_dataset_event table."""
     op.create_table(
-        "dag_schedule_dataset_alias_reference",
+        "dataset_alias_dataset_event",
         sa.Column("alias_id", sa.Integer(), nullable=False),
-        sa.Column("dag_id", StringID(), primary_key=True, nullable=False),
-        sa.Column("created_at", airflow.utils.sqlalchemy.UtcDateTime(timezone=True), nullable=False),
-        sa.Column("updated_at", airflow.utils.sqlalchemy.UtcDateTime(timezone=True), nullable=False),
+        sa.Column("event_id", sa.Integer(), nullable=False),
         sa.ForeignKeyConstraint(
-            ("alias_id",),
+            ["alias_id"],
             ["dataset_alias.id"],
-            name="dsdar_dataset_fkey",
+            name=op.f("dataset_alias_dataset_event_alias_id_fkey"),
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
-            columns=("dag_id",),
-            refcolumns=["dag.dag_id"],
-            name="dsdar_dag_id_fkey",
+            ["event_id"],
+            ["dataset_event.id"],
+            name=op.f("dataset_alias_dataset_event_event_id_fkey"),
             ondelete="CASCADE",
         ),
-        sa.PrimaryKeyConstraint("alias_id", "dag_id", name="dsdar_pkey"),
+        sa.PrimaryKeyConstraint("alias_id", "event_id", name=op.f("dataset_alias_dataset_event_pkey")),
     )
-    op.create_index(
-        "idx_dag_schedule_dataset_alias_reference_dag_id",
-        "dag_schedule_dataset_alias_reference",
-        ["dag_id"],
-        unique=False,
-    )
+    with op.batch_alter_table("dataset_alias_dataset_event", schema=None) as batch_op:
+        batch_op.create_index("idx_dataset_alias_dataset_event_alias_id", ["alias_id"], unique=False)
+        batch_op.create_index("idx_dataset_alias_dataset_event_event_id", ["event_id"], unique=False)
 
 
 def downgrade():
-    """Drop dag_schedule_dataset_alias_reference table."""
-    op.drop_table("dag_schedule_dataset_alias_reference")
+    """Drop dataset_alias_dataset_event table."""
+    op.drop_table("dataset_alias_dataset_event")

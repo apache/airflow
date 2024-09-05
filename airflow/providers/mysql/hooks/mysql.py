@@ -72,7 +72,6 @@ class MySqlHook(DbApiHook):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
-        self.connection = kwargs.pop("connection", None)
         self.local_infile = kwargs.pop("local_infile", False)
         self.init_command = kwargs.pop("init_command", None)
 

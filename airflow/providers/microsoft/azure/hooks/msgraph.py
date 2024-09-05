@@ -96,6 +96,8 @@ class KiotaRequestAdapterHook(BaseHook):
     :param timeout: The HTTP timeout being used by the KiotaRequestAdapter (default is None).
         When no timeout is specified or set to None then no HTTP timeout is applied on each request.
     :param proxies: A Dict defining the HTTP proxies to be used (default is None).
+    :param host: The host to be used (default is "https://graph.microsoft.com").
+    :param scopes: The scopes to be used (default is ["https://graph.microsoft.com/.default"]).
     :param api_version: The API version of the Microsoft Graph API to be used (default is v1).
         You can pass an enum named APIVersion which has 2 possible members v1 and beta,
         or you can pass a string as "v1.0" or "beta".
@@ -123,27 +125,22 @@ class KiotaRequestAdapterHook(BaseHook):
         self._api_version = self.resolve_api_version_from_value(api_version)
 
     @property
-    def api_version(self) -> APIVersion:
+    def api_version(self) -> str | None:
         self.get_conn()  # Make sure config has been loaded through get_conn to have correct api version!
         return self._api_version
 
     @staticmethod
     def resolve_api_version_from_value(
-        api_version: APIVersion | str, default: APIVersion | None = None
-    ) -> APIVersion:
+        api_version: APIVersion | str, default: str | None = None
+    ) -> str | None:
         if isinstance(api_version, APIVersion):
-            return api_version
-        return next(
-            filter(lambda version: version.value == api_version, APIVersion),
-            default,
-        )
+            return api_version.value
+        return api_version or default
 
-    def get_api_version(self, config: dict) -> APIVersion:
-        if self._api_version is None:
-            return self.resolve_api_version_from_value(
-                api_version=config.get("api_version"), default=APIVersion.v1
-            )
-        return self._api_version
+    def get_api_version(self, config: dict) -> str:
+        return self._api_version or self.resolve_api_version_from_value(
+            config.get("api_version"), APIVersion.v1.value
+        )  # type: ignore
 
     def get_host(self, connection: Connection) -> str:
         if connection.schema and connection.host:
@@ -169,15 +166,15 @@ class KiotaRequestAdapterHook(BaseHook):
         return proxies
 
     def to_msal_proxies(self, authority: str | None, proxies: dict):
-        self.log.info("authority: %s", authority)
+        self.log.debug("authority: %s", authority)
         if authority:
             no_proxies = proxies.get("no")
-            self.log.info("no_proxies: %s", no_proxies)
+            self.log.debug("no_proxies: %s", no_proxies)
             if no_proxies:
                 for url in no_proxies.split(","):
                     self.log.info("url: %s", url)
                     domain_name = urlparse(url).path.replace("*", "")
-                    self.log.info("domain_name: %s", domain_name)
+                    self.log.debug("domain_name: %s", domain_name)
                     if authority.endswith(domain_name):
                         return None
         return proxies
@@ -193,10 +190,10 @@ class KiotaRequestAdapterHook(BaseHook):
             client_id = connection.login
             client_secret = connection.password
             config = connection.extra_dejson if connection.extra else {}
-            tenant_id = config.get("tenant_id")
+            tenant_id = config.get("tenant_id") or config.get("tenantId")
             api_version = self.get_api_version(config)
             host = self.get_host(connection)
-            base_url = config.get("base_url", urljoin(host, api_version.value))
+            base_url = config.get("base_url", urljoin(host, api_version))
             authority = config.get("authority")
             proxies = self.proxies or config.get("proxies", {})
             msal_proxies = self.to_msal_proxies(authority=authority, proxies=proxies)
@@ -209,7 +206,7 @@ class KiotaRequestAdapterHook(BaseHook):
 
             self.log.info(
                 "Creating Microsoft Graph SDK client %s for conn_id: %s",
-                api_version.value,
+                api_version,
                 self.conn_id,
             )
             self.log.info("Host: %s", host)
@@ -217,7 +214,7 @@ class KiotaRequestAdapterHook(BaseHook):
             self.log.info("Tenant id: %s", tenant_id)
             self.log.info("Client id: %s", client_id)
             self.log.info("Client secret: %s", client_secret)
-            self.log.info("API version: %s", api_version.value)
+            self.log.info("API version: %s", api_version)
             self.log.info("Scope: %s", scopes)
             self.log.info("Verify: %s", verify)
             self.log.info("Timeout: %s", self.timeout)
@@ -238,17 +235,17 @@ class KiotaRequestAdapterHook(BaseHook):
                 connection_verify=verify,
             )
             http_client = GraphClientFactory.create_with_default_middleware(
-                api_version=api_version,
+                api_version=api_version,  # type: ignore
                 client=httpx.AsyncClient(
                     proxies=httpx_proxies,
                     timeout=Timeout(timeout=self.timeout),
                     verify=verify,
                     trust_env=trust_env,
                 ),
-                host=host,
+                host=host,  # type: ignore
             )
             auth_provider = AzureIdentityAuthenticationProvider(
-                credentials=credentials,
+                credentials=credentials,  # type: ignore
                 scopes=scopes,
                 allowed_hosts=allowed_hosts,
             )
@@ -295,7 +292,7 @@ class KiotaRequestAdapterHook(BaseHook):
             error_map=self.error_mapping(),
         )
 
-        self.log.info("response: %s", response)
+        self.log.debug("response: %s", response)
 
         return response
 

@@ -27,7 +27,7 @@ from abc import abstractmethod
 from dataclasses import dataclass
 from multiprocessing.pool import Pool
 from pathlib import Path
-from typing import Any, Generator
+from typing import TYPE_CHECKING, Any, Generator
 
 import yaml
 
@@ -41,8 +41,12 @@ from airflow_breeze.utils.github import (
     download_file_from_github,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, FILES_SBOM_DIR
+from airflow_breeze.utils.projects_google_spreadsheet import MetadataFromSpreadsheet, get_project_metadata
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
+
+if TYPE_CHECKING:
+    from rich.console import Console
 
 
 def start_cdxgen_server(application_root_path: Path, run_in_parallel: bool, parallelism: int) -> None:
@@ -572,76 +576,9 @@ OPEN_PSF_CHECKS = [
 CHECK_DOCS: dict[str, str] = {}
 
 
-KNOWN_REPUTABLE_FOUNDATIONS = [
-    "apache",
-    "python",
-    "zopefoundation",
-    "uqfoundation",
-    "numpy",
-    "django",
-]
-
-KNOWN_STRONG_COMMUNITIES = ["pallets-eco", "celery", "fsspec", "aio-libs", "pyasn1", "pytest-dev", "aio-libs"]
-
-KNOWN_COMPANIES = ["getsentry", "prometheus", "Textualize", "google", "googleapis", "boto"]
-
-KNOWN_STABLE_PROJECTS = [
-    "Deprecated",
-    "Flask-Bcrypt",
-    "SQLAlchemy-Utils",
-    "aiohttp",
-    "aiosignal",
-    "async-timeout",
-    "backoff",
-    "botocore",
-    "cgroupspy",
-    "charset-normalizer",
-    "colorlog",
-    "decorator",
-    "google-re2",
-    "h11",
-    "inflection",
-    "isodate",
-    "jmespath",
-    "lazy-object-proxy",
-    "ldap3",
-    "multidict",
-    "prison",
-    "prometheus_client",
-    "pure-sasl",
-    "rfc3339-validator",
-    "six",
-    "setproctitle",
-    "text-unidecode",
-    "thrift-sasl",
-    "tzdata",
-    "vine",
-]
-
-KNOWN_LOW_IMPORTANCE_PROJECTS = [
-    "flask-appbuilder",
-]
-
-KNOWN_MEDIUM_IMPORTANCE_PROJECTS: list[str] = []
-
-KNOWN_HIGH_IMPORTANCE_PROJECTS: list[str] = []
-
-# Project we have a relationship with the community
-RELATIONSHIP_PROJECT = [
-    "flask-appbuilder",
-    "thrift-sasl",
-    "python-slugify",
-    "plyvel",
-    "pure-sasl",
-    "python-nvd3",
-    "flask-caching",
-    "universal-pathlib",
-]
-
-CONTACTED_PROJECTS: list[str] = []
-
-
-def get_github_stats(vcs: str, project_name: str, github_token: str | None) -> dict[str, Any]:
+def get_github_stats(
+    vcs: str, project_name: str, github_token: str | None, console: Console
+) -> dict[str, Any]:
     import requests
 
     result = {}
@@ -651,34 +588,36 @@ def get_github_stats(vcs: str, project_name: str, github_token: str | None) -> d
         if api_url.endswith("/"):
             api_url = api_url[:-1]
         headers = {"Authorization": f"token {github_token}"} if github_token else {}
-        get_console().print(f"[info]Retrieving Github Stats from {api_url}")
+        console.print(f"[bright_blue]Retrieving GitHub Stats from {api_url}")
         response = requests.get(api_url, headers=headers)
         if response.status_code == 404:
-            get_console().print(f"[warning]Github API returned 404 for {api_url}")
+            console.print(f"[yellow]Github API returned 404 for {api_url}")
             return {}
         response.raise_for_status()
         github_data = response.json()
         stargazer_count = github_data.get("stargazers_count")
         forks_count = github_data.get("forks_count")
-        if project_name in KNOWN_LOW_IMPORTANCE_PROJECTS:
+        if project_name in get_project_metadata(MetadataFromSpreadsheet.KNOWN_LOW_IMPORTANCE_PROJECTS):
             importance = "Low"
-        elif project_name in KNOWN_MEDIUM_IMPORTANCE_PROJECTS:
+        elif project_name in get_project_metadata(MetadataFromSpreadsheet.KNOWN_MEDIUM_IMPORTANCE_PROJECTS):
             importance = "Medium"
-        elif project_name in KNOWN_HIGH_IMPORTANCE_PROJECTS:
+        elif project_name in get_project_metadata(MetadataFromSpreadsheet.KNOWN_HIGH_IMPORTANCE_PROJECTS):
             importance = "High"
         elif forks_count > 1000 or stargazer_count > 1000:
             importance = "High"
         elif stargazer_count > 100 or forks_count > 100:
             importance = "Medium"
         result["Industry importance"] = importance
+        console.print("[green]Successfully retrieved GitHub Stats.")
     else:
-        get_console().print(f"[warning]Not retrieving Github Stats for {vcs}")
+        console.print(f"[yellow]Not retrieving Github Stats for {vcs}")
     return result
 
 
-def get_open_psf_scorecard(vcs: str, project_name: str) -> dict[str, Any]:
+def get_open_psf_scorecard(vcs: str, project_name: str, console: Console) -> dict[str, Any]:
     import requests
 
+    console.print(f"[info]Retrieving Open PSF Scorecard for {project_name}")
     repo_url = vcs.split("://")[1]
     open_psf_url = f"https://api.securityscorecards.dev/projects/{repo_url}"
     scorecard_response = requests.get(open_psf_url)
@@ -699,7 +638,7 @@ def get_open_psf_scorecard(vcs: str, project_name: str) -> dict[str, Any]:
             results["OPSF-Details-" + check_name] = reason
             CHECK_DOCS[check_name] = check["documentation"]["short"] + "\n" + check["documentation"]["url"]
             if check_name == "Maintained":
-                if project_name in KNOWN_STABLE_PROJECTS:
+                if project_name in get_project_metadata(MetadataFromSpreadsheet.KNOWN_STABLE_PROJECTS):
                     lifecycle_status = "Stable"
                 else:
                     if score == 0:
@@ -711,6 +650,7 @@ def get_open_psf_scorecard(vcs: str, project_name: str) -> dict[str, Any]:
                 results["Lifecycle status"] = lifecycle_status
             if check_name == "Vulnerabilities":
                 results["Unpatched Vulns"] = "Yes" if score != 10 else ""
+    console.print(f"[success]Retrieved Open PSF Scorecard for {project_name}")
     return results
 
 
@@ -718,115 +658,13 @@ def get_governance(vcs: str | None):
     if not vcs or not vcs.startswith("https://github.com/"):
         return ""
     organization = vcs.split("/")[3]
-    if organization.lower() in KNOWN_REPUTABLE_FOUNDATIONS:
+    if organization.lower() in get_project_metadata(MetadataFromSpreadsheet.KNOWN_REPUTABLE_FOUNDATIONS):
         return "Reputable Foundation"
-    if organization.lower() in KNOWN_STRONG_COMMUNITIES:
+    if organization.lower() in get_project_metadata(MetadataFromSpreadsheet.KNOWN_STRONG_COMMUNITIES):
         return "Strong Community"
-    if organization.lower() in KNOWN_COMPANIES:
+    if organization.lower() in get_project_metadata(MetadataFromSpreadsheet.KNOWN_COMPANIES):
         return "Company"
     return "Loose community/ Single Person"
-
-
-ACTIONS: dict[str, tuple[int, str]] = {
-    "Security-Policy": (9, "Add Security Policy to the repository"),
-    "Vulnerabilities": (10, "Follow up with vulnerabilities"),
-    "Packaging": (10, "Propose Trusted Publishing"),
-    "Dangerous-Workflow": (10, "Follow up with dangerous workflow"),
-    "Code-Review": (7, "Propose mandatory code review"),
-}
-
-
-def convert_sbom_entry_to_dict(
-    dependency: dict[str, Any],
-    dependency_depth: dict[str, int],
-    is_core: bool,
-    is_devel: bool,
-    include_open_psf_scorecard: bool,
-    include_github_stats: bool,
-    include_actions: bool,
-    github_token: str | None,
-) -> dict[str, Any] | None:
-    """
-    Convert SBOM to Row for CSV or spreadsheet output
-    :param dependency: Dependency to convert
-    :param is_core: Whether the dependency is core or not
-    :param is_devel: Whether the dependency is devel or not
-    :param include_open_psf_scorecard: Whether to include Open PSF Scorecard
-    """
-    get_console().print(f"[info]Converting {dependency['name']} to CSV")
-    vcs = get_vcs(dependency)
-    name = dependency.get("name", "")
-    if name.startswith("apache-airflow"):
-        return None
-    normalized_name = normalize_package_name(dependency.get("name", ""))
-    row = {
-        "Name": normalized_name,
-        "Author": dependency.get("author", ""),
-        "Version": dependency.get("version", ""),
-        "Description": dependency.get("description"),
-        "Core": is_core,
-        "Devel": is_devel,
-        "Depth": dependency_depth.get(normalized_name, "Extra"),
-        "Licenses": convert_licenses(dependency.get("licenses", [])),
-        "Purl": dependency.get("purl"),
-        "Pypi": get_pypi_link(dependency),
-        "Vcs": vcs,
-        "Governance": get_governance(vcs),
-    }
-    if vcs and include_open_psf_scorecard:
-        open_psf_scorecard = get_open_psf_scorecard(vcs, name)
-        row.update(open_psf_scorecard)
-    if vcs and include_github_stats:
-        github_stats = get_github_stats(vcs=vcs, project_name=name, github_token=github_token)
-        row.update(github_stats)
-    if name in RELATIONSHIP_PROJECT:
-        row["Relationship"] = "Yes"
-    if include_actions:
-        if name in CONTACTED_PROJECTS:
-            row["Contacted"] = "Yes"
-        num_actions = 0
-        for action, (threshold, action_text) in ACTIONS.items():
-            opsf_action = "OPSF-" + action
-            if opsf_action in row and int(row[opsf_action]) < threshold:
-                row[action_text] = "Yes"
-                num_actions += 1
-        row["Num Actions"] = num_actions
-    return row
-
-
-def get_field_names(
-    include_open_psf_scorecard: bool, include_github_stats: bool, include_actions: bool
-) -> list[str]:
-    names = [
-        "Name",
-        "Author",
-        "Version",
-        "Description",
-        "Core",
-        "Devel",
-        "Depth",
-        "Licenses",
-        "Purl",
-        "Pypi",
-        "Vcs",
-    ]
-    if include_open_psf_scorecard:
-        names.append("OPSF-Score")
-        for check in OPEN_PSF_CHECKS:
-            names.append("OPSF-" + check)
-            names.append("OPSF-Details-" + check)
-    names.append("Governance")
-    if include_open_psf_scorecard:
-        names.extend(["Lifecycle status", "Unpatched Vulns"])
-    if include_github_stats:
-        names.append("Industry importance")
-    if include_actions:
-        names.append("Relationship")
-        names.append("Contacted")
-        for action in ACTIONS.values():
-            names.append(action[1])
-        names.append("Num Actions")
-    return names
 
 
 def normalize_package_name(name):

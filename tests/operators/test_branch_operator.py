@@ -28,6 +28,10 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -54,6 +58,7 @@ class TestBranchOperator:
     def test_without_dag_run(self, dag_maker):
         """This checks the defensive against non existent tasks in a dag run"""
         dag_id = "branch_operator_test"
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with dag_maker(
             dag_id,
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
@@ -65,7 +70,7 @@ class TestBranchOperator:
             branch_op = ChooseBranchOne(task_id="make_choice")
             branch_1.set_upstream(branch_op)
             branch_2.set_upstream(branch_op)
-        dag_maker.create_dagrun()
+        dag_maker.create_dagrun(**triggered_by_kwargs)
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -83,6 +88,7 @@ class TestBranchOperator:
     def test_branch_list_without_dag_run(self, dag_maker):
         """This checks if the BranchOperator supports branching off to a list of tasks."""
         dag_id = "branch_operator_test"
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with dag_maker(
             dag_id,
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
@@ -96,7 +102,7 @@ class TestBranchOperator:
             branch_1.set_upstream(branch_op)
             branch_2.set_upstream(branch_op)
             branch_3.set_upstream(branch_op)
-        dag_maker.create_dagrun()
+        dag_maker.create_dagrun(**triggered_by_kwargs)
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -115,6 +121,7 @@ class TestBranchOperator:
 
     def test_with_dag_run(self, dag_maker):
         dag_id = "branch_operator_test"
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with dag_maker(
             dag_id,
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
@@ -132,6 +139,7 @@ class TestBranchOperator:
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -150,6 +158,7 @@ class TestBranchOperator:
 
     def test_with_skip_in_branch_downstream_dependencies(self, dag_maker):
         dag_id = "branch_operator_test"
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with dag_maker(
             dag_id,
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
@@ -168,6 +177,7 @@ class TestBranchOperator:
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -186,6 +196,7 @@ class TestBranchOperator:
 
     def test_xcom_push(self, dag_maker):
         dag_id = "branch_operator_test"
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with dag_maker(
             dag_id,
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
@@ -204,6 +215,7 @@ class TestBranchOperator:
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -214,6 +226,7 @@ class TestBranchOperator:
 
     def test_with_dag_run_task_groups(self, dag_maker):
         dag_id = "branch_operator_test"
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         with dag_maker(
             dag_id,
             default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
@@ -236,6 +249,7 @@ class TestBranchOperator:
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)

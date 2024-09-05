@@ -25,6 +25,14 @@
 Changelog
 ---------
 
+1.17.0
+......
+
+Features
+~~~~~~~~
+
+* ``Connection in DB Hook is now cached to avoid multiple lookups when properties from extras have to be resolved``
+
 1.16.0
 ......
 

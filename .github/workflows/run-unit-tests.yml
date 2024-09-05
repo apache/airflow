@@ -53,6 +53,10 @@ on:  # yamllint disable-line rule:truthy
         description: "The list of backend versions (stringified JSON array) to run the tests on."
         required: true
         type: string
+      excluded-providers-as-string:
+        description: "Excluded providers (per Python version) as json string"
+        required: true
+        type: string
       excludes:
         description: "Excluded combos (stringified JSON array of python-version/backend-version dicts)"
         required: true
@@ -133,6 +137,7 @@ jobs:
       DOWNGRADE_SQLALCHEMY: "${{ inputs.downgrade-sqlalchemy }}"
       DOWNGRADE_PENDULUM: "${{ inputs.downgrade-pendulum }}"
       ENABLE_COVERAGE: "${{ inputs.run-coverage }}"
+      EXCLUDED_PROVIDERS: "${{ inputs.excluded-providers-as-string }}"
       FORCE_LOWEST_DEPENDENCIES: "${{ inputs.force-lowest-dependencies }}"
       GITHUB_REPOSITORY: ${{ github.repository }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

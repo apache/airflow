@@ -21,6 +21,7 @@ import json
 import os
 import re
 import sys
+from collections import defaultdict
 from enum import Enum
 from functools import cached_property, lru_cache
 from pathlib import Path
@@ -264,9 +265,11 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^airflow/api/",
             r"^airflow/api_connexion/",
             r"^airflow/api_internal/",
+            r"^airflow/api_ui/",
             r"^tests/api/",
             r"^tests/api_connexion/",
             r"^tests/api_internal/",
+            r"^tests/api_ui/",
         ],
         SelectiveUnitTestTypes.CLI: [
             r"^airflow/cli/",
@@ -1267,6 +1270,15 @@ class SelectiveChecks:
                 if check["python-version"] in self.python_versions
             ]
         )
+
+    @cached_property
+    def excluded_providers_as_string(self) -> str:
+        providers_to_exclude = defaultdict(list)
+        for provider, provider_info in DEPENDENCIES.items():
+            if "excluded-python-versions" in provider_info:
+                for python_version in provider_info["excluded-python-versions"]:
+                    providers_to_exclude[python_version].append(provider)
+        return json.dumps(providers_to_exclude)
 
     @cached_property
     def testable_integrations(self) -> list[str]:
