@@ -207,7 +207,7 @@ class AssetModel(Base):
 
     active = relationship("AssetActive", uselist=False, viewonly=True)
 
-    consuming_dags = relationship("DagScheduleAssetReference", back_populates="dataset")
+    consuming_dags = relationship("DagScheduleAssetReference", back_populates="asset")
     producing_tasks = relationship("TaskOutletAssetReference", back_populates="dataset")
 
     __tablename__ = "dataset"
@@ -358,7 +358,7 @@ class DagScheduleAssetReference(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    dataset = relationship("AssetModel", back_populates="consuming_dags")
+    asset = relationship("AssetModel", back_populates="consuming_dags")
     dag = relationship("DagModel", back_populates="schedule_dataset_references")
 
     queue_records = relationship(
@@ -370,37 +370,34 @@ class DagScheduleAssetReference(Base):
         cascade="all, delete, delete-orphan",
     )
 
-    __tablename__ = "dag_schedule_dataset_reference"
+    __tablename__ = "dag_schedule_asset_reference"
     __table_args__ = (
         PrimaryKeyConstraint(dataset_id, dag_id, name="dsdr_pkey"),
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
-            name="dsdr_dataset_fkey",
+            name="dsar_dataset_fkey",
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
             columns=(dag_id,),
             refcolumns=["dag.dag_id"],
-            name="dsdr_dag_id_fkey",
+            name="dsar_dag_id_fkey",
             ondelete="CASCADE",
         ),
-        Index("idx_dag_schedule_dataset_reference_dag_id", dag_id),
+        Index("idx_dag_schedule_asset_reference_dag_id", dag_id),
     )
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
             return self.dataset_id == other.dataset_id and self.dag_id == other.dag_id
-        else:
-            return NotImplemented
+        return NotImplemented
 
     def __hash__(self):
         return hash(self.__mapper__.primary_key)
 
     def __repr__(self):
-        args = []
-        for attr in [x.name for x in self.__mapper__.primary_key]:
-            args.append(f"{attr}={getattr(self, attr)!r}")
+        args = [f"{attr}={getattr(self, attr)!r}" for attr in [x.name for x in self.__mapper__.primary_key]]
         return f"{self.__class__.__name__}({', '.join(args)})"
 
 
