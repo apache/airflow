@@ -22,10 +22,10 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING, Any
 
-if (3, 10) <= sys.version_info < (3, 12):
-    from ibmcloudant import CloudantV1, CouchDbSessionAuthenticator
-else:
+if sys.version_info < (3, 10):
     from airflow.providers.cloudant.cloudant_fake import CloudantV1, CouchDbSessionAuthenticator
+else:
+    from ibmcloudant import CloudantV1, CouchDbSessionAuthenticator
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
