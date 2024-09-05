@@ -401,8 +401,8 @@ will likely have the smallest number of backtracking candidates. The command out
 for those backtracking candidates that are guaranteed to work (because they are taken from the latest
 constraints and they already succeeded in the past when the constraints were updated).
 
-Then we run ``breeze ci-image build --upgrade-to-newer-dependencies --eager-upgrade-additional-requirements "REQUIREMENTS"``
-to check which of the candidates causes the long builds. Initially you put there the whole list of
+Then, we run ``breeze ci-image build --upgrade-to-newer-dependencies --eager-upgrade-additional-requirements "REQUIREMENTS"``
+to check which of the candidates causes the long builds. Initially, you put there the whole list of
 candidates that you got from the `find-backtracking-candidates` command. This **should** succeed. Now,
 the next step is to narrow down the list of candidates to the one that is causing the backtracking.
 
