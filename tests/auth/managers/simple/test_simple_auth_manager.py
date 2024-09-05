@@ -104,15 +104,12 @@ class TestSimpleAuthManager:
     @pytest.mark.parametrize(
         "is_logged_in, role, method, result",
         [
-            (True, "admin", "GET", True),
-            (True, "admin", "DELETE", True),
-            (True, "viewer", "GET", True),
-            (True, "viewer", "POST", False),
-            (True, "viewer", "PUT", False),
-            (True, "user", "GET", True),
-            (True, "op", "GET", True),
-            (True, "viewer", "DELETE", False),
-            (False, "admin", "GET", False),
+            (True, "ADMIN", "GET", True),
+            (True, "ADMIN", "DELETE", True),
+            (True, "VIEWER", "POST", False),
+            (True, "VIEWER", "PUT", False),
+            (True, "VIEWER", "DELETE", False),
+            (False, "ADMIN", "GET", False),
         ],
     )
     def test_is_authorized_methods(
@@ -142,11 +139,11 @@ class TestSimpleAuthManager:
     @pytest.mark.parametrize(
         "is_logged_in, role, result",
         [
-            (True, "admin", True),
-            (True, "viewer", True),
-            (True, "user", True),
-            (True, "op", True),
-            (False, "admin", False),
+            (True, "ADMIN", True),
+            (True, "VIEWER", True),
+            (True, "USER", True),
+            (True, "OP", True),
+            (False, "ADMIN", False),
         ],
     )
     def test_is_authorized_view_methods(
@@ -173,11 +170,10 @@ class TestSimpleAuthManager:
     @pytest.mark.parametrize(
         "role, method, result",
         [
-            ("admin", "GET", True),
-            ("op", "DELETE", True),
-            ("user", "GET", True),
-            ("user", "DELETE", False),
-            ("viewer", "PUT", False),
+            ("ADMIN", "GET", True),
+            ("OP", "DELETE", True),
+            ("USER", "DELETE", False),
+            ("VIEWER", "PUT", False),
         ],
     )
     def test_is_authorized_methods_op_role_required(
@@ -198,14 +194,39 @@ class TestSimpleAuthManager:
     @pytest.mark.parametrize(
         "role, method, result",
         [
-            ("admin", "GET", True),
-            ("op", "DELETE", True),
-            ("user", "GET", True),
-            ("user", "DELETE", True),
-            ("viewer", "PUT", False),
+            ("ADMIN", "GET", True),
+            ("OP", "DELETE", True),
+            ("USER", "GET", True),
+            ("USER", "DELETE", True),
+            ("VIEWER", "PUT", False),
         ],
     )
     def test_is_authorized_methods_user_role_required(
+        self, mock_is_logged_in, auth_manager, app, api, role, method, result
+    ):
+        mock_is_logged_in.return_value = True
+
+        with app.test_request_context():
+            session["user"] = SimpleAuthManagerUser(username="test", role=role)
+            assert getattr(auth_manager, api)(method=method) is result
+
+    @pytest.mark.db_test
+    @patch.object(SimpleAuthManager, "is_logged_in")
+    @pytest.mark.parametrize(
+        "api",
+        ["is_authorized_dag", "is_authorized_dataset", "is_authorized_pool"],
+    )
+    @pytest.mark.parametrize(
+        "role, method, result",
+        [
+            ("ADMIN", "GET", True),
+            ("VIEWER", "GET", True),
+            ("OP", "GET", True),
+            ("USER", "GET", True),
+            ("VIEWER", "POST", False),
+        ],
+    )
+    def test_is_authorized_methods_viewer_role_required_for_get(
         self, mock_is_logged_in, auth_manager, app, api, role, method, result
     ):
         mock_is_logged_in.return_value = True

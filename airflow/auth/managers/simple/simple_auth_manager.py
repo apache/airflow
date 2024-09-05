@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from collections import namedtuple
 from enum import Enum
 from typing import TYPE_CHECKING
 
@@ -40,20 +41,26 @@ if TYPE_CHECKING:
     from airflow.auth.managers.simple.user import SimpleAuthManagerUser
 
 
-class SimpleAuthManagerRole(Enum):
-    """List of pre-defined roles in simple auth manager."""
+class SimpleAuthManagerRole(namedtuple("SimpleAuthManagerRole", "name order"), Enum):
+    """
+    List of pre-defined roles in simple auth manager.
 
-    # Admin role gives all permissions
-    ADMIN = "admin"
+    The first attribute defines the name that references this role in the config.
+    The second attribute defines the order between roles. The role with order X means it grants access to
+    resources under its umbrella and all resources under the umbrella of roles of lower order
+    """
 
-    # Viewer role gives all read-only permissions
-    VIEWER = "viewer"
+    # VIEWER role gives all read-only permissions
+    VIEWER = "VIEWER", 0
 
-    # User role gives viewer role permissions + access to DAGs
-    USER = "user"
+    # USER role gives viewer role permissions + access to DAGs
+    USER = "USER", 1
 
     # OP role gives user role permissions + access to connections, config, pools, variables
-    OP = "op"
+    OP = "OP", 2
+
+    # ADMIN role gives all permissions
+    ADMIN = "ADMIN", 3
 
 
 class SimpleAuthManager(BaseAuthManager):
@@ -85,7 +92,7 @@ class SimpleAuthManager(BaseAuthManager):
         details: ConfigurationDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
-        return self._is_authorized(method=method, roles_to_allow=[SimpleAuthManagerRole.OP.value])
+        return self._is_authorized(method=method, allow_role=SimpleAuthManagerRole.OP)
 
     def is_authorized_connection(
         self,
@@ -94,7 +101,7 @@ class SimpleAuthManager(BaseAuthManager):
         details: ConnectionDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
-        return self._is_authorized(method=method, roles_to_allow=[SimpleAuthManagerRole.OP.value])
+        return self._is_authorized(method=method, allow_role=SimpleAuthManagerRole.OP)
 
     def is_authorized_dag(
         self,
@@ -106,31 +113,40 @@ class SimpleAuthManager(BaseAuthManager):
     ) -> bool:
         return self._is_authorized(
             method=method,
-            roles_to_allow=[SimpleAuthManagerRole.USER.value, SimpleAuthManagerRole.OP.value],
+            allow_get_role=SimpleAuthManagerRole.VIEWER,
+            allow_role=SimpleAuthManagerRole.USER,
         )
 
     def is_authorized_dataset(
         self, *, method: ResourceMethod, details: DatasetDetails | None = None, user: BaseUser | None = None
     ) -> bool:
-        return self._is_authorized(method=method, roles_to_allow=[SimpleAuthManagerRole.OP.value])
+        return self._is_authorized(
+            method=method,
+            allow_get_role=SimpleAuthManagerRole.VIEWER,
+            allow_role=SimpleAuthManagerRole.OP,
+        )
 
     def is_authorized_pool(
         self, *, method: ResourceMethod, details: PoolDetails | None = None, user: BaseUser | None = None
     ) -> bool:
-        return self._is_authorized(method=method, roles_to_allow=[SimpleAuthManagerRole.OP.value])
+        return self._is_authorized(
+            method=method,
+            allow_get_role=SimpleAuthManagerRole.VIEWER,
+            allow_role=SimpleAuthManagerRole.OP,
+        )
 
     def is_authorized_variable(
         self, *, method: ResourceMethod, details: VariableDetails | None = None, user: BaseUser | None = None
     ) -> bool:
-        return self._is_authorized(method=method, roles_to_allow=[SimpleAuthManagerRole.OP.value])
+        return self._is_authorized(method=method, allow_role=SimpleAuthManagerRole.OP)
 
     def is_authorized_view(self, *, access_view: AccessView, user: BaseUser | None = None) -> bool:
-        return self._is_authorized(method="GET")
+        return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER)
 
     def is_authorized_custom_view(
         self, *, method: ResourceMethod | str, resource_name: str, user: BaseUser | None = None
     ):
-        return self.is_logged_in()
+        return self._is_authorized(method="GET", allow_role=SimpleAuthManagerRole.VIEWER)
 
     def register_views(self) -> None:
         self.appbuilder.add_view_no_menu(
@@ -143,24 +159,29 @@ class SimpleAuthManager(BaseAuthManager):
         self,
         *,
         method: ResourceMethod,
-        roles_to_allow: list[str] | None = None,
+        allow_role: SimpleAuthManagerRole,
+        allow_get_role: SimpleAuthManagerRole | None = None,
     ):
         """
         Return whether the user is authorized to access a given resource.
 
         :param method: the method to perform
-        :param roles_to_allow: list of roles giving access to the resource, if the user's role is one of these roles, they have access
+        :param allow_role: minimal role giving access to the resource, if the user's role is greater or
+            equal than this role, they have access
+        :param allow_get_role: minimal role giving access to the resource, if the user's role is greater or
+            equal than this role, they have access. If not provided, ``allow_role`` is used
         """
         user = self.get_user()
         if not user:
             return False
-        role = user.get_role()
-        if role == SimpleAuthManagerRole.ADMIN.value:
+        role_str = user.get_role()
+        role = SimpleAuthManagerRole[role_str]
+        if role == SimpleAuthManagerRole.ADMIN:
             return True
+
+        if not allow_get_role:
+            allow_get_role = allow_role
+
         if method == "GET":
-            return True
-
-        if not roles_to_allow:
-            roles_to_allow = []
-
-        return role in roles_to_allow
+            return role.order >= allow_get_role.order
+        return role.order >= allow_role.order
