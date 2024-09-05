@@ -872,8 +872,8 @@ def test_task_decorator_has_wrapped_attr():
 
 def test_task_decorator_has_doc_attr():
     """
-    Test  @task original underlying function is accessible
-    through the __wrapped__ attribute.
+    Test  @task original underlying function docstring
+    through the __doc__ attribute.
     """
 
     def org_test_func():
@@ -885,7 +885,7 @@ def test_task_decorator_has_doc_attr():
     assert hasattr(
         decorated_test_func, "__doc__"
     ), "decorated function does not have __doc__ attribute"
-    assert decorated_test_func.__doc__ is org_test_func.__doc__, "__doc__ attr is not the original docstring"
+    assert decorated_test_func.__doc__ == org_test_func.__doc__, "__doc__ attr is not the original docstring"
 
 
 @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
