@@ -116,9 +116,6 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "bcrypt>=2.0.0",
         "flask-bcrypt>=0.7.1",
     ],
-    "pydantic": [
-        "pydantic>=2.3.0",
-    ],
     "rabbitmq": [
         "amqp",
     ],
@@ -431,6 +428,7 @@ DEPENDENCIES = [
     "cryptography>=41.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
+    "fastapi[standard]>=0.112.2",
     "flask-caching>=2.0.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
     # all parameters now are mandatory which make AirflowDatabaseSessionInterface incopatible with this version.
@@ -468,6 +466,7 @@ DEPENDENCIES = [
     'pendulum>=3.0.0,<4.0;python_version>="3.12"',
     "pluggy>=1.5.0",
     "psutil>=5.8.0",
+    "pydantic>=2.3.0",
     "pygments>=2.0.1",
     "pyjwt>=2.0.0",
     "python-daemon>=3.0.0",
@@ -495,9 +494,7 @@ DEPENDENCIES = [
     # See https://github.com/apache/airflow/pull/31693
     # We should also remove "3rd-party-licenses/LICENSE-unicodecsv.txt" file when we remove this dependency
     "unicodecsv>=0.14.1",
-    # The Universal Pathlib provides  Pathlib-like interface for FSSPEC
-    # https://github.com/apache/airflow/issues/41723  describes the issue
-    "universal-pathlib==0.2.2",  # Temporarily pin to 0.2.2 as 0.2.3 generates mypy errors
+    "universal-pathlib>=0.2.2",
     # Werkzug 3 breaks Flask-Login 0.6.2, also connexion needs to be updated to >= 3.0
     # we should remove this limitation when FAB supports Flask 2.3 and we migrate connexion to 3+
     "werkzeug>=2.0,<3",

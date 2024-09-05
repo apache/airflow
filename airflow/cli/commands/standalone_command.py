@@ -80,6 +80,12 @@ class StandaloneCommand:
             command=["webserver"],
             env=env,
         )
+        self.subcommands["ui-api"] = SubCommand(
+            self,
+            name="ui-api",
+            command=["ui-api"],
+            env=env,
+        )
         self.subcommands["triggerer"] = SubCommand(
             self,
             name="triggerer",
@@ -136,6 +142,7 @@ class StandaloneCommand:
         You can pass multiple lines to output if you wish; it will be split for you.
         """
         color = {
+            "ui-api": "magenta",
             "webserver": "green",
             "scheduler": "blue",
             "triggerer": "cyan",

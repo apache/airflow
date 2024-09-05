@@ -51,6 +51,7 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     # If the deprecation is postponed, the item should be added to this tuple,
     # and a corresponding Issue should be created on GitHub.
     "tests/system/providers/google/cloud/bigquery/example_bigquery_operations.py",
+    "tests/system/providers/google/cloud/dataflow/example_dataflow_sql.py",
     "tests/system/providers/google/cloud/dataproc/example_dataproc_gke.py",
     "tests/system/providers/google/cloud/datapipelines/example_datapipeline.py",
     "tests/system/providers/google/cloud/gcs/example_gcs_sensor.py",
@@ -60,15 +61,8 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     "tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_kueue.py",
     "tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_resource.py",
     "tests/system/providers/google/cloud/life_sciences/example_life_sciences.py",
-    "tests/system/providers/google/marketing_platform/example_analytics.py",
     # Deprecated Operators/Hooks, which replaced by common.sql Operators/Hooks
 )
-
-
-if os.environ.get("PYDANTIC", "v2") != "v2":
-    pytest.skip(
-        "The test is skipped because we are running in limited Pydantic environment", allow_module_level=True
-    )
 
 
 def match_optional_dependencies(distribution_name: str, specifier: str | None) -> tuple[bool, str]:

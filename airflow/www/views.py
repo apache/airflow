@@ -132,7 +132,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.strings import to_boolean
 from airflow.utils.task_group import TaskGroup, task_group_to_dict
 from airflow.utils.timezone import td_format, utcnow
-from airflow.utils.types import NOTSET
+from airflow.utils.types import NOTSET, DagRunTriggeredByType
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
@@ -240,6 +240,9 @@ def build_scarf_url(dags_count: int) -> str:
     appbuilder_views_count = plugin_counts["appbuilder_views"]
     appbuilder_menu_items_count = plugin_counts["appbuilder_menu_items"]
     timetables_count = plugin_counts["timetables"]
+    dag_bucket = usage_data_collection.to_bucket(dags_count)
+    plugins_bucket = usage_data_collection.to_bucket(plugins_count)
+    timetable_bucket = usage_data_collection.to_bucket(timetables_count)
 
     # Path Format:
     # /{version}/{python_version}/{platform}/{arch}/{database}/{db_version}/{executor}/{num_dags}/{plugin_count}/{flask_blueprint_count}/{appbuilder_view_count}/{appbuilder_menu_item_count}/{timetables}
@@ -248,8 +251,8 @@ def build_scarf_url(dags_count: int) -> str:
     scarf_url = (
         f"{scarf_domain}/webserver"
         f"/{version}/{python_version}"
-        f"/{platform_sys}/{platform_arch}/{db_name}/{db_version}/{executor}/{dags_count}"
-        f"/{plugins_count}/{flask_blueprints_count}/{appbuilder_views_count}/{appbuilder_menu_items_count}/{timetables_count}"
+        f"/{platform_sys}/{platform_arch}/{db_name}/{db_version}/{executor}/{dag_bucket}"
+        f"/{plugins_bucket}/{flask_blueprints_count}/{appbuilder_views_count}/{appbuilder_menu_items_count}/{timetable_bucket}"
     )
 
     return scarf_url
@@ -2249,6 +2252,7 @@ class Airflow(AirflowBaseView):
                 external_trigger=True,
                 dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
                 run_id=run_id,
+                triggered_by=DagRunTriggeredByType.UI,
             )
         except (ValueError, ParamValidationError) as ve:
             flash(f"{ve}", "error")
