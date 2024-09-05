@@ -27,6 +27,7 @@ from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models.abstractoperator import DEFAULT_QUEUE
 from airflow.models.taskinstance import TaskInstanceState
+from airflow.providers.edge.cli.edge_command import EDGE_COMMANDS
 from airflow.providers.edge.models.edge_job import EdgeJobModel
 from airflow.providers.edge.models.edge_logs import EdgeLogsModel
 from airflow.providers.edge.models.edge_worker import EdgeWorkerModel
@@ -161,7 +162,7 @@ class EdgeExecutor(BaseExecutor):
                     "Start and manage Edge Worker. Works only when using EdgeExecutor. For more information, "
                     "see https://airflow.apache.org/docs/apache-airflow-providers-edge/stable/edge_executor.html"
                 ),
-                subcommands=[],
+                subcommands=EDGE_COMMANDS,
             ),
         ]
 
