@@ -494,7 +494,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
 
 
 Setup and teardown
-------------------
+~~~~~~~~~~~~~~~~~~
 
 In data workflows it's common to create a resource (such as a compute resource), use it to do some work, and then tear it down. Airflow provides setup and teardown tasks to support this need.
 
