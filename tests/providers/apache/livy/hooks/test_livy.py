@@ -291,7 +291,7 @@ class TestLivyDbHook:
 
     @patch("airflow.providers.apache.livy.hooks.livy.LivyHook.run_method")
     @patch("airflow.providers.apache.livy.hooks.livy.LivyHook.get_conn")
-    def test_post_batch_calls_get_conn_if_no_batch_id(self, mock_run_method, mock_get_conn):
+    def test_post_batch_calls_get_conn_if_no_batch_id(self, mock_get_conn, mock_run_method):
         # mock run_method to get rid of call get_conn in it
         mock_response = MagicMock(resp=requests.Response)
         mock_response.json.return_value = {"id": BATCH_ID, "state": BatchState.STARTING.value, "log": []}
@@ -304,6 +304,7 @@ class TestLivyDbHook:
         mock_get_conn.assert_called_once()
 
         # base_url is set
+        mock_get_conn.reset_mock()
         hook.base_url = "//livy:8998"
         hook.post_batch(file="sparkapp")
         mock_get_conn.assert_not_called()
