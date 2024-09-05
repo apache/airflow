@@ -58,6 +58,7 @@ body:
         - dingding
         - discord
         - docker
+        - edge
         - elasticsearch
         - exasol
         - fab
