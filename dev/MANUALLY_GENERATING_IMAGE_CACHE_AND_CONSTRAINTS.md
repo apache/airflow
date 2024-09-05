@@ -365,7 +365,7 @@ breeze release-management update-constraints --constraints-repo /home/user/airfl
 
 ## Why we need to figure out backtracking dependencies
 
-Sometimes, very rarely the CI image in `canary` builds take a very long time to build. This is usually
+Very rarely the CI image in `canary` builds take a very long time to build. This is usually
 caused by `pip` trying to figure out the latest set of dependencies (`eager upgrade`) .
 The resolution of dependencies is a very complex problem and sometimes it takes a long time to figure out
 the best set of dependencies. This is especially true when we have a lot of dependencies and they all have
