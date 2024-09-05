@@ -2676,7 +2676,7 @@ class DAG(LoggingMixin):
         if not cls.__serialized_fields:
             exclusion_list = {
                 "schedule_dataset_references",
-                "schedule_dataset_alias_references",
+                "schedule_asset_alias_references",
                 "task_outlet_dataset_references",
                 "_old_context_manager_dags",
                 "safe_dag_id",
@@ -2875,7 +2875,7 @@ class DagModel(Base):
         back_populates="dag",
         cascade="all, delete, delete-orphan",
     )
-    schedule_dataset_alias_references = relationship(
+    schedule_asset_alias_references = relationship(
         "DagScheduleAssetAliasReference",
         back_populates="dag",
         cascade="all, delete, delete-orphan",
