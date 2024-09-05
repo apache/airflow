@@ -2677,7 +2677,7 @@ class DAG(LoggingMixin):
             exclusion_list = {
                 "schedule_dataset_references",
                 "schedule_asset_alias_references",
-                "task_outlet_dataset_references",
+                "task_outlet_asset_references",
                 "_old_context_manager_dags",
                 "safe_dag_id",
                 "last_loaded",
@@ -2881,7 +2881,7 @@ class DagModel(Base):
         cascade="all, delete, delete-orphan",
     )
     schedule_datasets = association_proxy("schedule_dataset_references", "dataset")
-    task_outlet_dataset_references = relationship(
+    task_outlet_asset_references = relationship(
         "TaskOutletAssetReference",
         cascade="all, delete, delete-orphan",
     )

@@ -69,7 +69,7 @@ def _find_orm_dags(dag_ids: Iterable[str], *, session: Session) -> dict[str, Dag
         .where(DagModel.dag_id.in_(dag_ids))
         .options(joinedload(DagModel.schedule_dataset_references))
         .options(joinedload(DagModel.schedule_dataset_alias_references))
-        .options(joinedload(DagModel.task_outlet_dataset_references))
+        .options(joinedload(DagModel.task_outlet_asset_references))
     )
     stmt = with_row_locks(stmt, of=DagModel, session=session)
     return {dm.dag_id: dm for dm in session.scalars(stmt).unique()}
@@ -419,13 +419,13 @@ class AssetModelOperation(NamedTuple):
         for dag_id, references in self.outlet_references.items():
             # Optimization: no references at all; this is faster than repeated delete().
             if not references:
-                dags[dag_id].task_outlet_dataset_references = []
+                dags[dag_id].task_outlet_asset_references = []
                 continue
             referenced_outlets = {
                 (task_id, asset.id)
                 for task_id, asset in ((task_id, assets[d.uri]) for task_id, d in references)
             }
-            orm_refs = {(r.task_id, r.dataset_id): r for r in dags[dag_id].task_outlet_dataset_references}
+            orm_refs = {(r.task_id, r.asset_id): r for r in dags[dag_id].task_outlet_asset_references}
             for key, ref in orm_refs.items():
                 if key not in referenced_outlets:
                     session.delete(ref)
