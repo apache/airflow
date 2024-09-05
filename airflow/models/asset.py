@@ -66,7 +66,7 @@ dataset_alias_dataset_event_assocation_table = Table(
     Column("alias_id", ForeignKey("dataset_alias.id", ondelete="CASCADE"), primary_key=True),
     Column("event_id", ForeignKey("dataset_event.id", ondelete="CASCADE"), primary_key=True),
     Index("idx_asset_alias_asset_event_alias_id", "alias_id"),
-    Index("idx_dataset_alias_dataset_event_event_id", "event_id"),
+    Index("idx_asset_alias_asset_event_event_id", "event_id"),
     ForeignKeyConstraint(
         ("alias_id",),
         ["dataset_alias.id"],
