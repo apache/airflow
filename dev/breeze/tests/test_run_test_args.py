@@ -100,50 +100,35 @@ def test_irregular_provider_with_extra_ignore_should_be_valid_cmd(mock_run_comma
 
 
 def test_skip_when_primary_test_arg_is_excluded_by_extra_pytest_arg(mock_run_command):
-    """This code scenario currently has a bug - if a test type resolves to a single test directory,
-     but the same directory is also set to be ignored (either by extra_pytest_args or because a provider is
-     suspended or excluded), the _run_test function removes the test directory from the argument list,
-     which has the effect of running all of the tests pytest can find. Not good!
-
-     NB: this test accurately describes the buggy behavior; IOW when fixing the bug the test must be changed.
-
-    TODO: fix this bug that runs unintended tests; probably the correct behavior is to skip the run."""
     test_provider = "http"  # "Providers[<id>]" scans the source tree so we need to use a real provider id
-    result = _run_test(
-        shell_params=ShellParams(test_type=f"Providers[{test_provider}]"),
-        extra_pytest_args=(f"--ignore=tests/providers/{test_provider}",),
-        python_version="3.8",
-        output=None,
-        test_timeout=60,
-        skip_docker_compose_down=True,
-    )
+
+    with pytest.raises(SystemExit, match="1"):
+        _run_test(
+            shell_params=ShellParams(test_type=f"Providers[{test_provider}]"),
+            extra_pytest_args=(f"--ignore=tests/providers/{test_provider}",),
+            python_version="3.8",
+            output=None,
+            test_timeout=60,
+            skip_docker_compose_down=True,
+        )
 
     mock_run_command.assert_not_called()
-    assert result == (0, f"Test skipped: Providers[{test_provider}]")
 
 
 def test_skip_when_primary_test_arg_is_excluded_by_excluded_provider(
     mock_run_command, mock_get_excluded_provider_folders
 ):
-    """This code scenario currently has a bug - if a test type resolves to a single test directory,
-     but the same directory is also set to be ignored (either by extra_pytest_args or because a provider is
-     suspended or excluded), the _run_test function removes the test directory from the argument list,
-     which has the effect of running all of the tests pytest can find. Not good!
-
-     NB: this test accurately describes the buggy behavior; IOW when fixing the bug the test must be changed.
-
-    TODO: fix this bug that runs unintended tests; probably the correct behavior is to skip the run."""
     test_provider = "http"  # "Providers[<id>]" scans the source tree so we need to use a real provider id
     mock_get_excluded_provider_folders.return_value = [test_provider]
 
-    result = _run_test(
-        shell_params=ShellParams(test_type=f"Providers[{test_provider}]"),
-        extra_pytest_args=(),
-        python_version="3.8",
-        output=None,
-        test_timeout=60,
-        skip_docker_compose_down=True,
-    )
+    with pytest.raises(SystemExit, match="1"):
+        _run_test(
+            shell_params=ShellParams(test_type=f"Providers[{test_provider}]"),
+            extra_pytest_args=(),
+            python_version="3.8",
+            output=None,
+            test_timeout=60,
+            skip_docker_compose_down=True,
+        )
 
     mock_run_command.assert_not_called()
-    assert result == (0, f"Test skipped: Providers[{test_provider}]")
