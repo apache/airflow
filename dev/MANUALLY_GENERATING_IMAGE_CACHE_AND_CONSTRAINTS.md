@@ -369,9 +369,8 @@ Very rarely the CI image in `canary` builds take a very long time to build. This
 caused by `pip` trying to figure out the latest set of dependencies (`eager upgrade`) .
 The resolution of dependencies is a very complex problem and sometimes it takes a long time to figure out
 the best set of dependencies. This is especially true when we have a lot of dependencies and they all have
-to be found compatible with each other. In case new dependencies are released, sometimes `pip` enters
-a long loop trying to figure out if the newly released dependency can be used, but due to some other
-dependencies of ours it is impossible, but it will take `pip` a very long time to figure it out.
+to be found compatible with each other. In case new dependencies are released, `pip` might enter
+a long loop trying to figure out if these dependencies can be used. Unfortunately, this long loop could end up in an error due to conflicts.
 
 This is visible in the "build output" as `pip` attempting to continuously backtrack and download many new
 versions of various dependencies, trying to find a good match.
