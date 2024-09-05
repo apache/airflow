@@ -38,7 +38,7 @@ def init_dag_bag(app: FastAPI) -> None:
     app.state.dag_bag = get_dag_bag()
 
 
-def init_flask_app(app: FastAPI, testing: bool = False):
+def init_flask_app(app: FastAPI, testing: bool = False) -> None:
     """
     Auth providers and permission logic are tightly coupled to Flask.
 
@@ -91,7 +91,7 @@ def init_views(app) -> None:
     app.include_router(root_router)
 
 
-def cached_app(config=None, testing=False):
+def cached_app(config=None, testing=False) -> FastAPI:
     """Return cached instance of Airflow UI app."""
     global app
     if not app:
@@ -99,7 +99,7 @@ def cached_app(config=None, testing=False):
     return app
 
 
-def purge_cached_app():
+def purge_cached_app() -> None:
     """Remove the cached version of the app in global state."""
     global app
     app = None

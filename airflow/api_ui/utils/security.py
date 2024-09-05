@@ -32,8 +32,11 @@ from airflow.www.extensions.init_auth_manager import get_auth_manager
 security = HTTPBasic()
 
 
+def method(request: Request) -> ResourceMethod:
+    return cast(ResourceMethod, request.method)
+
+
 def check_authentication(
-    request: Request,
     credentials: Annotated[HTTPBasicCredentials, Depends(security)],
 ) -> User | None:
     """Check that the request has valid authorization information."""
@@ -58,14 +61,14 @@ def _requires_access(
 
 
 def requires_access_dataset(
-    request: Request,
+    method: Annotated[ResourceMethod, Depends(method)],
     uri: str | None = None,
     user: Annotated[BaseUser | None, Depends(check_authentication)] = None,
 ) -> None:
     _requires_access(
         is_authorized_callback=lambda: get_auth_manager().is_authorized_dataset(
             user=user,
-            method=cast(ResourceMethod, request.method),
+            method=method,
             details=DatasetDetails(uri=uri),
         )
     )
@@ -73,12 +76,10 @@ def requires_access_dataset(
 
 def requires_access_dag(access_entity: DagAccessEntity | None = None) -> Callable:
     def inner(
-        request: Request,
+        method: Annotated[ResourceMethod, Depends(method)],
         dag_id: str | None = None,
         user: Annotated[BaseUser | None, Depends(check_authentication)] = None,
     ) -> None:
-        method = cast(ResourceMethod, request.method)
-
         def callback():
             access = get_auth_manager().is_authorized_dag(
                 method=method, access_entity=access_entity, details=DagDetails(id=dag_id), user=user
