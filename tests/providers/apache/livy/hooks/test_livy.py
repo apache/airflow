@@ -306,7 +306,7 @@ class TestLivyDbHook:
         # base_url is set
         hook.base_url = "//livy:8998"
         hook.post_batch(file="sparkapp")
-        mock_get_conn.not_called()
+        mock_get_conn.assert_not_called()
 
     def test_invalid_uri(self):
         with pytest.raises(RequestException):
