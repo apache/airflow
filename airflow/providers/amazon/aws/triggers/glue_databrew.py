@@ -50,14 +50,14 @@ class GlueDataBrewJobCompleteTrigger(AwsBaseWaiterTrigger):
     ):
         if delay is not None:
             warnings.warn(
-                "please use waiter_delay instead of delay.",
+                "please use `waiter_delay` instead of delay.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
             waiter_delay = delay or waiter_delay
         if max_attempts is not None:
             warnings.warn(
-                "please use waiter_max_attempts instead of max_attempts.",
+                "please use `waiter_max_attempts` instead of max_attempts.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )

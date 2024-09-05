@@ -93,7 +93,7 @@ class GlueDataBrewStartJobOperator(AwsBaseOperator[GlueDataBrewHook]):
         self.deferrable = deferrable
         if delay is not None:
             warnings.warn(
-                "please use waiter_delay instead of delay.",
+                "please use `waiter_delay` instead of delay.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=2,
             )
