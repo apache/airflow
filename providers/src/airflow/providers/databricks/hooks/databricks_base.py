@@ -31,11 +31,12 @@ import platform
 import time
 from asyncio.exceptions import TimeoutError
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Awaitable, Callable
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 import aiohttp
 import requests
+<<<<<<< HEAD:providers/src/airflow/providers/databricks/hooks/databricks_base.py
 <<<<<<< HEAD:providers/src/airflow/providers/databricks/hooks/databricks_base.py
 <<<<<<< HEAD:providers/src/airflow/providers/databricks/hooks/databricks_base.py
 <<<<<<< HEAD:providers/src/airflow/providers/databricks/hooks/databricks_base.py
@@ -53,6 +54,8 @@ from azure.identity.aio import (
     DefaultAzureCredential as AsyncDefaultAzureCredential,
 )
 >>>>>>> a927365ae2 (Ruff format):airflow/providers/databricks/hooks/databricks_base.py
+=======
+>>>>>>> ee82bb116a (Revert "Work with callables"):airflow/providers/databricks/hooks/databricks_base.py
 from requests import PreparedRequest, exceptions as requests_exceptions
 from requests.auth import AuthBase, HTTPBasicAuth
 from requests.exceptions import JSONDecodeError
@@ -304,80 +307,6 @@ class BaseDatabricksHook(BaseHook):
 
         return jsn["access_token"]
 
-    def _call_aad_token_executor(self, resource: str, get_token_callable: Callable[[str], AccessToken]):
-        """
-        Get AAD token for given resource.
-
-        Supports managed identity or service principal auth.
-        :param resource: resource to issue token to
-        :return: AAD token, or raise an exception
-        """
-        aad_token = self.oauth_tokens.get(resource)
-        if aad_token and self._is_oauth_token_valid(aad_token):
-            return aad_token["access_token"]
-
-        self.log.info("Existing AAD token is expired, or going to expire soon. Refreshing...")
-        try:
-            for attempt in self._get_retry_object():
-                with attempt:
-                    token = get_token_callable(f"{resource}/.default")
-
-                    jsn = {
-                        "access_token": token.token,
-                        "token_type": "Bearer",
-                        "expires_on": token.expires_on,
-                    }
-                    self._is_oauth_token_valid(jsn)
-                    self.oauth_tokens[resource] = jsn
-                    break
-        except ImportError as e:
-            raise AirflowOptionalProviderFeatureException(e)
-        except RetryError:
-            raise AirflowException(f"API requests to Azure failed {self.retry_limit} times. Giving up.")
-        except requests_exceptions.HTTPError as e:
-            msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
-            raise AirflowException(msg)
-
-        return jsn["access_token"]
-
-    async def _a_call_aad_token_executor(
-        self, resource: str, get_token_callable: Callable[[str], Awaitable[AccessToken]]
-    ):
-        """
-        Get AAD token for given resource.
-
-        Supports managed identity or service principal auth.
-        :param resource: resource to issue token to
-        :return: AAD token, or raise an exception
-        """
-        aad_token = self.oauth_tokens.get(resource)
-        if aad_token and self._is_oauth_token_valid(aad_token):
-            return aad_token["access_token"]
-
-        self.log.info("Existing AAD token is expired, or going to expire soon. Refreshing...")
-        try:
-            for attempt in self._get_retry_object():
-                with attempt:
-                    token = await get_token_callable(f"{resource}/.default")
-
-                    jsn = {
-                        "access_token": token.token,
-                        "token_type": "Bearer",
-                        "expires_on": token.expires_on,
-                    }
-                    self._is_oauth_token_valid(jsn)
-                    self.oauth_tokens[resource] = jsn
-                    break
-        except ImportError as e:
-            raise AirflowOptionalProviderFeatureException(e)
-        except RetryError:
-            raise AirflowException(f"API requests to Azure failed {self.retry_limit} times. Giving up.")
-        except requests_exceptions.HTTPError as e:
-            msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
-            raise AirflowException(msg)
-
-        return jsn["access_token"]
-
     def _get_aad_token(self, resource: str) -> str:
         """
         Get AAD token for given resource.
@@ -469,11 +398,94 @@ class BaseDatabricksHook(BaseHook):
 
         return jsn["access_token"]
 
-    def _get_aad_token_for_default_az_credential(self, resource: str):
-        return DefaultAzureCredential().get_token(resource)
+    def _get_aad_token_for_default_az_credential(self, resource: str) -> str:
+        """
+        Get AAD token for given resource for workload identity.
 
-    async def _a_get_aad_token_for_default_az_credential(self, resource: str):
-        return await AsyncDefaultAzureCredential().get_token(resource)
+        Supports managed identity or service principal auth.
+        :param resource: resource to issue token to
+        :return: AAD token, or raise an exception
+        """
+        aad_token = self.oauth_tokens.get(resource)
+        if aad_token and self._is_oauth_token_valid(aad_token):
+            return aad_token["access_token"]
+
+        self.log.info("Existing AAD token is expired, or going to expire soon. Refreshing...")
+        try:
+            from azure.identity import DefaultAzureCredential
+
+            for attempt in self._get_retry_object():
+                with attempt:
+                    # This only works in an AKS Cluster given the following environment variables:
+                    # AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_FEDERATED_TOKEN_FILE
+                    #
+                    # While there is a WorkloadIdentityCredential class, the below class is advised by microsoft examples
+                    # https://learn.microsoft.com/nl-nl/azure/aks/workload-identity-overview
+                    token = DefaultAzureCredential().get_token(f"{resource}/.default")
+
+                    jsn = {
+                        "access_token": token.token,
+                        "token_type": "Bearer",
+                        "expires_on": token.expires_on,
+                    }
+                    self._is_oauth_token_valid(jsn)
+                    self.oauth_tokens[resource] = jsn
+                    break
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(e)
+        except RetryError:
+            raise AirflowException(f"API requests to Azure failed {self.retry_limit} times. Giving up.")
+        except requests_exceptions.HTTPError as e:
+            msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
+            raise AirflowException(msg)
+
+        return token.token
+
+    async def _a_get_aad_token_for_default_az_credential(self, resource: str) -> str:
+        """
+        Get AAD token for given resource for workload identity.
+
+        Supports managed identity or service principal auth.
+        :param resource: resource to issue token to
+        :return: AAD token, or raise an exception
+        """
+        aad_token = self.oauth_tokens.get(resource)
+        if aad_token and self._is_oauth_token_valid(aad_token):
+            return aad_token["access_token"]
+
+        self.log.info("Existing AAD token is expired, or going to expire soon. Refreshing...")
+        try:
+            # from azure.identity import DefaultAzureCredential
+            from azure.identity.aio import (
+                DefaultAzureCredential as AsyncDefaultAzureCredential,
+            )
+
+            for attempt in self._get_retry_object():
+                with attempt:
+                    # This only works in an AKS Cluster given the following environment variables:
+                    # AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_FEDERATED_TOKEN_FILE
+                    #
+                    # While there is a WorkloadIdentityCredential class, the below class is advised by microsoft examples
+                    # https://learn.microsoft.com/nl-nl/azure/aks/workload-identity-overview
+                    token = await AsyncDefaultAzureCredential().get_token(f"{resource}/.default")
+
+                    jsn = {
+                        "access_token": token.token,
+                        "token_type": "Bearer",
+                        "expires_on": token.expires_on,
+                    }
+                    self._is_oauth_token_valid(jsn)
+                    self.oauth_tokens[resource] = jsn
+                    break
+        except ImportError as e:
+            raise AirflowOptionalProviderFeatureException(e)
+        except RetryError:
+            raise AirflowException(f"API requests to Azure failed {self.retry_limit} times. Giving up.")
+        except requests_exceptions.HTTPError as e:
+            msg = f"Response: {e.response.content.decode()}, Status Code: {e.response.status_code}"
+            raise AirflowException(msg)
+
+        return token.token
 
     def _get_aad_headers(self) -> dict:
         """
@@ -557,10 +569,6 @@ class BaseDatabricksHook(BaseHook):
         except (requests_exceptions.RequestException, ValueError) as e:
             raise AirflowException(f"Can't reach Azure Metadata Service: {e}")
 
-    def _running_in_kubernetes(self):
-        """https://kubernetes.io/docs/tutorials/services/connect-applications-service/#environment-variables."""
-        return bool(os.environ.get("KUBERNETES_SERVICE_HOST", ""))
-
     def _get_token(self, raise_error: bool = False) -> str | None:
         if "token" in self.databricks_conn.extra_dejson:
             self.log.info(
@@ -581,9 +589,7 @@ class BaseDatabricksHook(BaseHook):
             return self._get_aad_token(DEFAULT_DATABRICKS_SCOPE)
         elif self.databricks_conn.extra_dejson.get(DEFAULT_AZURE_CREDENTIAL_SETTING_KEY, False):
             self.log.debug("Using default Azure Credential authentication.")
-            return self._call_aad_token_executor(
-                DEFAULT_DATABRICKS_SCOPE, self._get_aad_token_for_default_az_credential
-            )
+            return self._get_aad_token_for_default_az_credential(DEFAULT_DATABRICKS_SCOPE)
         elif self.databricks_conn.extra_dejson.get("service_principal_oauth", False):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
@@ -613,14 +619,9 @@ class BaseDatabricksHook(BaseHook):
             await self._a_check_azure_metadata_service()
             return await self._a_get_aad_token(DEFAULT_DATABRICKS_SCOPE)
         elif self.databricks_conn.extra_dejson.get(DEFAULT_AZURE_CREDENTIAL_SETTING_KEY, False):
-            if not self._running_in_kubernetes():
-                raise AirflowException(
-                    "Workload identity authentication is only supporting when running in an Kubernetes cluster"
-                )
-            self.log.debug("Using Azure Workload Identity authentication.")
-            return await self._a_call_aad_token_executor(
-                DEFAULT_DATABRICKS_SCOPE, self._a_get_aad_token_for_default_az_credential
-            )
+            self.log.debug("Using AzureDefaultCredentialy for authentication.")
+
+            return await self._a_get_aad_token_for_default_az_credential(DEFAULT_DATABRICKS_SCOPE)
         elif self.databricks_conn.extra_dejson.get("service_principal_oauth", False):
             if self.databricks_conn.login == "" or self.databricks_conn.password == "":
                 raise AirflowException("Service Principal credentials aren't provided")
