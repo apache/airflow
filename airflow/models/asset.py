@@ -208,7 +208,7 @@ class AssetModel(Base):
     active = relationship("AssetActive", uselist=False, viewonly=True)
 
     consuming_dags = relationship("DagScheduleAssetReference", back_populates="asset")
-    producing_tasks = relationship("TaskOutletAssetReference", back_populates="dataset")
+    producing_tasks = relationship("TaskOutletAssetReference", back_populates="asset")
 
     __tablename__ = "dataset"
     __table_args__ = (
@@ -344,9 +344,7 @@ class DagScheduleAssetAliasReference(Base):
         return hash(self.__mapper__.primary_key)
 
     def __repr__(self):
-        args = []
-        for attr in [x.name for x in self.__mapper__.primary_key]:
-            args.append(f"{attr}={getattr(self, attr)!r}")
+        args = [f"{x.name}={getattr(self, x.name)!r}" for x in self.__mapper__.primary_key]
         return f"{self.__class__.__name__}({', '.join(args)})"
 
 
@@ -410,14 +408,14 @@ class TaskOutletAssetReference(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    dataset = relationship("AssetModel", back_populates="producing_tasks")
+    asset = relationship("AssetModel", back_populates="producing_tasks")
 
-    __tablename__ = "task_outlet_dataset_reference"
+    __tablename__ = "task_outlet_asset_reference"
     __table_args__ = (
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
-            name="todr_dataset_fkey",
+            name="todr_asset_fkey",
             ondelete="CASCADE",
         ),
         PrimaryKeyConstraint(dataset_id, dag_id, task_id, name="todr_pkey"),
@@ -427,7 +425,7 @@ class TaskOutletAssetReference(Base):
             name="todr_dag_id_fkey",
             ondelete="CASCADE",
         ),
-        Index("idx_task_outlet_dataset_reference_dag_id", dag_id),
+        Index("idx_task_outlet_asset_reference_dag_id", dag_id),
     )
 
     def __eq__(self, other):
@@ -437,8 +435,8 @@ class TaskOutletAssetReference(Base):
                 and self.dag_id == other.dag_id
                 and self.task_id == other.task_id
             )
-        else:
-            return NotImplemented
+
+        return NotImplemented
 
     def __hash__(self):
         return hash(self.__mapper__.primary_key)
