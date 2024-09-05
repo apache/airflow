@@ -145,55 +145,37 @@ def test_calls_docker_run_with_expected_args(mock_run_command, mock_generate_arg
     ]
 
 
-def test_calls_docker_run_with_ignored_directory_removed(mock_run_command, mock_generate_args_for_pytest):
+def test_raises_when_one_test_directory_is_also_ignored(mock_run_command, mock_generate_args_for_pytest):
     test_mocked_pytest_args = ["tests/providers/alpha", "tests/providers/beta"]
     test_extra_pytest_args = ("--ignore=tests/providers/alpha", "--verbose")
     mock_generate_args_for_pytest.return_value = test_mocked_pytest_args
 
-    _run_test(
-        shell_params=ShellParams(test_type="Core"),
-        extra_pytest_args=test_extra_pytest_args,
-        python_version="3.8",
-        output=None,
-        test_timeout=60,
-        skip_docker_compose_down=True,
-    )
+    with pytest.raises(SystemExit, match="1"):
+        _run_test(
+            shell_params=ShellParams(test_type="Providers[alpha,beta]"),
+            extra_pytest_args=test_extra_pytest_args,
+            python_version="3.8",
+            output=None,
+            test_timeout=60,
+            skip_docker_compose_down=True,
+        )
 
-    docker_run_call_args = mock_run_command.call_args_list[1].args[0]
-
-    assert docker_run_call_args == [
-        # docker command args:
-        "docker",
-        "compose",
-        "--project-name",
-        "airflow-test-core",
-        "run",
-        "-T",
-        "--service-ports",
-        "--rm",
-        "airflow",
-        # test_mocked_pytest_args, minus the "tests/providers/alpha" element:
-        "tests/providers/beta",
-        # extra_pytest_args:
-        *test_extra_pytest_args,
-    ]
+    mock_run_command.assert_not_called()
 
 
-def test_skips_docker_commands_when_all_test_directories_removed(
-    mock_run_command, mock_generate_args_for_pytest
-):
+def test_raises_when_all_test_directories_are_also_ignored(mock_run_command, mock_generate_args_for_pytest):
     test_mocked_pytest_args = ["tests/providers/alpha"]
     test_extra_pytest_args = ("--ignore=tests/providers/alpha",)
     mock_generate_args_for_pytest.return_value = test_mocked_pytest_args
 
-    result = _run_test(
-        shell_params=ShellParams(test_type="Providers[alpha]"),
-        extra_pytest_args=test_extra_pytest_args,
-        python_version="3.8",
-        output=None,
-        test_timeout=60,
-        skip_docker_compose_down=True,
-    )
+    with pytest.raises(SystemExit, match="1"):
+        _run_test(
+            shell_params=ShellParams(test_type="Providers[alpha]"),
+            extra_pytest_args=test_extra_pytest_args,
+            python_version="3.8",
+            output=None,
+            test_timeout=60,
+            skip_docker_compose_down=True,
+        )
 
     mock_run_command.assert_not_called()
-    assert result == (0, "Test skipped: Providers[alpha]")
