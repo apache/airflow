@@ -381,9 +381,8 @@ condition that caused the backtracking is solved.
 We do it by adding `dependency<=version` to the EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS variable in
 `Dockerfile.ci`. The trick is to find the dependency that is causing the backtracking.
 
-Here is how. We use `bisecting` methodology to try out candidates for backtrack triggering among the
-candidates that have been released in PyPI since the last time we successfully run
-``--upgrade-to-newer-dependencies`` and committed the constraints in the `canary` build.
+We use a "bisecting" methodology to test candidates for backtrack triggering among those released in PyPI since the last successful run
+of ``--upgrade-to-newer-dependencies`` and committed the constraints in the `canary` build.
 
 ## How to figure out backtracking dependencies
 
