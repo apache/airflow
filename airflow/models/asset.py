@@ -490,12 +490,12 @@ class AssetDagRunQueue(Base):
 
 
 association_table = Table(
-    "dagrun_dataset_event",
+    "dagrun_asset_event",
     Base.metadata,
     Column("dag_run_id", ForeignKey("dag_run.id", ondelete="CASCADE"), primary_key=True),
     Column("event_id", ForeignKey("dataset_event.id", ondelete="CASCADE"), primary_key=True),
-    Index("idx_dagrun_dataset_events_dag_run_id", "dag_run_id"),
-    Index("idx_dagrun_dataset_events_event_id", "event_id"),
+    Index("idx_dagrun_asset_events_dag_run_id", "dag_run_id"),
+    Index("idx_dagrun_asset_events_event_id", "event_id"),
 )
 
 
