@@ -35,6 +35,12 @@ CONNECTION = Connection(
     password="password",
 )
 
+NULL_HOST_SCHEMA_CONNECTION = Connection(
+    host=None,
+    schema=None,
+    login="username",
+    password="password",
+)
 
 class TestSambaHook:
     @pytest.mark.db_test
@@ -142,5 +148,18 @@ class TestSambaHook:
     @mock.patch("airflow.hooks.base.BaseHook.get_connection")
     def test__join_path(self, get_conn_mock, path, full_path):
         get_conn_mock.return_value = CONNECTION
+        hook = SambaHook("samba_default")
+        assert hook._join_path(path) == full_path
+
+    @pytest.mark.parametrize(
+        "path, full_path",
+        [
+            ("/start/path/with/slash", "//start/path/with/slash"),
+            ("start/path/without/slash", "//start/path/without/slash"),
+        ],
+    )
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection")
+    def test__join_path_with_null_host_schema(self, get_conn_mock, path, full_path):
+        get_conn_mock.return_value = NULL_HOST_SCHEMA_CONNECTION
         hook = SambaHook("samba_default")
         assert hook._join_path(path) == full_path
