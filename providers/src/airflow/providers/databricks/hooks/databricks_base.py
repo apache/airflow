@@ -619,7 +619,7 @@ class BaseDatabricksHook(BaseHook):
             await self._a_check_azure_metadata_service()
             return await self._a_get_aad_token(DEFAULT_DATABRICKS_SCOPE)
         elif self.databricks_conn.extra_dejson.get(DEFAULT_AZURE_CREDENTIAL_SETTING_KEY, False):
-            self.log.debug("Using AzureDefaultCredentialy for authentication.")
+            self.log.debug("Using AzureDefaultCredential for authentication.")
 
             return await self._a_get_aad_token_for_default_az_credential(DEFAULT_DATABRICKS_SCOPE)
         elif self.databricks_conn.extra_dejson.get("service_principal_oauth", False):
