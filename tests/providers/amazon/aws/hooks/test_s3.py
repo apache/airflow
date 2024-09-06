@@ -1303,12 +1303,12 @@ class TestAwsS3Hook:
 
         assert len(hook_lineage_collector.collected_assets.inputs) == 1
         assert hook_lineage_collector.collected_assets.inputs[0].asset == Asset(
-            uri="s3://test_bucket/test_key/test.log"
+            uri="s3://test_bucket/test_key/test.log", extra={}
         )
 
         assert len(hook_lineage_collector.collected_assets.outputs) == 1
         assert hook_lineage_collector.collected_assets.outputs[0].asset == Asset(
-            uri=f"file://{local_path}/test.log",
+            uri=f"file://{local_path}/test.log", extra={}
         )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.open")
