@@ -19,12 +19,13 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.mongo.sensors.mongo import MongoSensor
 from airflow.utils import timezone
+from airflow.providers.mongo.hooks.mongo import MongoHook
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
-
 
 class TestMongoSensor:
     def setup_method(self, method):
@@ -34,9 +35,18 @@ class TestMongoSensor:
 
         self.mock_context = MagicMock()
 
+    @patch.object(MongoHook, '_create_uri', return_value="mocked_uri")
     @patch("airflow.providers.mongo.hooks.mongo.MongoHook.find")
-    def test_execute_operator(self, mock_mongo_find):
+    @patch("airflow.providers.mongo.hooks.mongo.MongoHook.get_connection")
+    def test_execute_operator(self, mock_mongo_conn, mock_mongo_find, mock_create_uri):
         mock_mongo_find.return_value = {"test_key": "test"}
+        mock_connection = MagicMock(spec=Connection)
+        
+        mock_extra_dejson = {"ssl": "false", "srv": "false"}
+        mock_connection.extra_dejson = MagicMock(spec=dict)
+        mock_connection.extra_dejson.copy.return_value = mock_extra_dejson
+        mock_mongo_conn.return_value = mock_connection
+
         sensor = MongoSensor(
             collection="coll",
             query={"test_key": "test"},
@@ -45,10 +55,11 @@ class TestMongoSensor:
             task_id="test_task",
             dag=self.dag,
         )
+
         result = sensor.poke(self.mock_context)
 
+        mock_mongo_conn.assert_called_once_with("mongo_default")
         assert result is True
-
         mock_mongo_find.assert_called_once_with(
             "coll", {"test_key": "test"}, mongo_db="test_db", find_one=True
         )
