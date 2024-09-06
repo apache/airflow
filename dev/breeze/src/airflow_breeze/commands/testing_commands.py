@@ -199,7 +199,7 @@ def pytest_command(shell_params, python_version, test_timeout):
 
 
 def find_specified_and_ignored_pytest_directories(run_cmd) -> list[str]:
-    # Skip "FOLDER" in case "--ignore=FOLDER" is passed as an argument
+    # Find any "FOLDER" argument where "--ignore=FOLDER" is also passed as an argument
     # Which might be the case if we are ignoring some providers during compatibility checks
     return [arg for arg in run_cmd if f"--ignore={arg}" in run_cmd]
 
