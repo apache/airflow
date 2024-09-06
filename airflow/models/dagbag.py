@@ -47,6 +47,7 @@ from airflow.exceptions import (
     AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowException,
+    AirflowTaskTimeout,
     RemovedInAirflow3Warning,
 )
 from airflow.listeners.listener import get_listener_manager
@@ -381,7 +382,7 @@ class DagBag(LoggingMixin):
                 sys.modules[spec.name] = new_module
                 loader.exec_module(new_module)
                 return [new_module]
-            except Exception as e:
+            except (Exception, AirflowTaskTimeout) as e:
                 DagContext.autoregistered_dags.clear()
                 self.log.exception("Failed to import: %s", filepath)
                 if self.dagbag_import_error_tracebacks:
