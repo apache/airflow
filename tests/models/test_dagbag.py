@@ -794,7 +794,7 @@ class TestDagBag:
 
         # Make a change in the DAG and write Serialized DAG to the DB
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 6)), tick=False):
-            example_bash_op_dag.tags += ["new_tag"]
+            example_bash_op_dag.tags.add("new_tag")
             SerializedDagModel.write_dag(dag=example_bash_op_dag)
 
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
@@ -843,7 +843,7 @@ class TestDagBag:
         # Note the date *before* the deserialize step above, simulating a serialization happening
         # long before the transaction is committed
         with time_machine.travel((tz.datetime(2020, 1, 5, 1, 0, 0)), tick=False):
-            example_bash_op_dag.tags += ["new_tag"]
+            example_bash_op_dag.tags.add("new_tag")
             SerializedDagModel.write_dag(dag=example_bash_op_dag)
 
         # Since min_serialized_dag_fetch_interval is passed verify that calling 'dag_bag.get_dag'
