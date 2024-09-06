@@ -96,7 +96,7 @@ class TestHookLineageCollector:
     @patch("airflow.lineage.hook.ProvidersManager")
     def test_create_dataset(self, mock_providers_manager):
         def create_dataset(arg1, arg2="default", extra=None):
-            return Dataset(uri=f"myscheme://{arg1}/{arg2}", extra=extra)
+            return Dataset(uri=f"myscheme://{arg1}/{arg2}", extra=extra or {})
 
         mock_providers_manager.return_value.dataset_factories = {"myscheme": create_dataset}
         assert self.collector.create_dataset(
