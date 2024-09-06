@@ -22,7 +22,7 @@ from flask import Blueprint
 
 
 def init_react_ui(app):
-    dev_mode = bool(os.environ.get("DEV_MODE", ""))
+    dev_mode = os.environ.get("DEV_MODE", False) == "true"
 
     bp = Blueprint(
         "ui",

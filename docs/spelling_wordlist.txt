@@ -250,8 +250,8 @@ classpaths
 cleartext
 cli
 clientId
-Cloudant
 cloudant
+CloudantV
 cloudbuild
 CloudBuildClient
 cloudml
@@ -775,6 +775,7 @@ hyperparameter
 hyperparameters
 IaC
 iam
+ibmcloudant
 idempotence
 idempotency
 IdP
