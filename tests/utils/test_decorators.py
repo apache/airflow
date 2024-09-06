@@ -24,7 +24,12 @@ from airflow.decorators import task
 
 if TYPE_CHECKING:
     from airflow.decorators.base import Task, TaskDecorator
-DECORATORS = sorted(set(x for x in dir(task) if not x.startswith("_")) - {"skip_if", "run_if"})
+
+_CONDITION_DECORATORS = frozenset({"skip_if", "run_if"})
+_NO_SOURCE_DECORATORS = frozenset({"sensor"})
+DECORATORS = sorted(
+    set(x for x in dir(task) if not x.startswith("_")) - _CONDITION_DECORATORS - _NO_SOURCE_DECORATORS
+)
 DECORATORS_USING_SOURCE = ("external_python", "virtualenv", "branch_virtualenv", "branch_external_python")
 
 
@@ -115,9 +120,6 @@ def test_run_if_allow_decorator():
 
 def parse_python_source(task: Task, custom_operator_name: str | None = None) -> str:
     operator = task().operator
-    if not hasattr(operator, "get_python_source"):
-        pytest.skip(f"Operator {operator} does not have get_python_source method")
-
     if custom_operator_name:
         custom_operator_name = (
             custom_operator_name if custom_operator_name.startswith("@") else f"@{custom_operator_name}"
