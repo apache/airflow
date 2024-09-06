@@ -16,12 +16,17 @@
 # under the License.
 from __future__ import annotations
 
+from typing import Any
 from unittest import mock
 
 import pytest
 
 try:
-    from azure.servicebus import ServiceBusClient, ServiceBusMessage, ServiceBusMessageBatch
+    from azure.servicebus import (
+        ServiceBusClient,
+        ServiceBusMessage,
+        ServiceBusMessageBatch,
+    )
     from azure.servicebus.management import ServiceBusAdministrationClient
 except ImportError:
     pytest.skip("Azure Service Bus not available", allow_module_level=True)
@@ -265,6 +270,31 @@ class TestMessageHook:
         ]
         mock_sb_client.assert_has_calls(expected_calls)
 
+    @mock.patch("azure.servicebus.ServiceBusReceivedMessage")
+    @mock.patch(f"{MODULE}.MessageHook.get_conn", autospec=True)
+    def test_receive_message_callback(self, mock_sb_client, mock_service_bus_message):
+        """
+        Test `receive_message` hook function and assert the function with mock value,
+        mock the azure service bus `receive_messages` function
+        """
+        hook = MessageHook(azure_service_bus_conn_id=self.conn_id)
+
+        mock_sb_client.return_value.__enter__.return_value.get_queue_receiver.return_value.__enter__.return_value.receive_messages.return_value = [
+            mock_service_bus_message
+        ]
+
+        received_messages = []
+
+        def message_callback(msg: Any) -> None:
+            nonlocal received_messages
+            print("received message:", msg)
+            received_messages.append(msg)
+
+        hook.receive_message(self.queue_name, message_callback=message_callback)
+
+        assert len(received_messages) == 1
+        assert received_messages[0] == mock_service_bus_message
+
     @mock.patch(f"{MODULE}.MessageHook.get_conn")
     def test_receive_message_exception(self, mock_sb_client):
         """
@@ -299,6 +329,37 @@ class TestMessageHook:
             .__exit__
         ]
         mock_sb_client.assert_has_calls(expected_calls)
+
+    @mock.patch("azure.servicebus.ServiceBusReceivedMessage")
+    @mock.patch(f"{MODULE}.MessageHook.get_conn")
+    def test_receive_subscription_message_callback(self, mock_sb_client, mock_sb_message):
+        """
+        Test `receive_subscription_message` hook function and assert the function with mock value,
+        mock the azure service bus `receive_message` function of subscription
+        """
+        subscription_name = "subscription_1"
+        topic_name = "topic_name"
+        max_message_count = 10
+        max_wait_time = 5
+        hook = MessageHook(azure_service_bus_conn_id=self.conn_id)
+
+        mock_sb_client.return_value.__enter__.return_value.get_subscription_receiver.return_value.__enter__.return_value.receive_messages.return_value = [
+            mock_sb_message,
+            mock_sb_message,
+        ]
+
+        received_messages = []
+
+        def message_callback(msg: ServiceBusMessage) -> None:
+            nonlocal received_messages
+            print("received message:", msg)
+            received_messages.append(msg)
+
+        hook.receive_subscription_message(
+            topic_name, subscription_name, max_message_count, max_wait_time, message_callback=message_callback
+        )
+
+        assert len(received_messages) == 2
 
     @pytest.mark.parametrize(
         "mock_subscription_name, mock_topic_name, mock_max_count, mock_wait_time",
