@@ -132,7 +132,7 @@ annotations:
       links:
       - name: '#40318'
         url: https://github.com/apache/airflow/pull/40318
-    - description: 'Misc: Default airflow version to 2.10.1'
+    - description: 'Misc: Default airflow version to 2.9.3'
       kind: changed
       links:
       - name: '#40816'
