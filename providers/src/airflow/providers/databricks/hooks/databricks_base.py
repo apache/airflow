@@ -111,6 +111,7 @@ class BaseDatabricksHook(BaseHook):
         "token",
         "host",
         "use_azure_managed_identity",
+        DEFAULT_AZURE_CREDENTIAL_SETTING_KEY,
         "azure_ad_endpoint",
         "azure_resource_id",
         "azure_tenant_id",
