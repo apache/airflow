@@ -1,3 +1,20 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
@@ -7,6 +24,7 @@ from airflow.providers.mongo.sensors.mongo import MongoSensor
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
+
 
 class TestMongoSensor:
     def setup_method(self, method):
@@ -25,15 +43,12 @@ class TestMongoSensor:
             mongo_conn_id="mongo_default",
             mongo_db="test_db",
             task_id="test_task",
-            dag=self.dag
+            dag=self.dag,
         )
         result = sensor.poke(self.mock_context)
 
         assert result is True
 
         mock_mongo_find.assert_called_once_with(
-            "coll",
-            {"test_key": "test"},
-            mongo_db="test_db",
-            find_one=True
+            "coll", {"test_key": "test"}, mongo_db="test_db", find_one=True
         )
