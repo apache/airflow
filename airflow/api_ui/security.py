@@ -40,9 +40,7 @@ def check_authentication(
     credentials: Annotated[HTTPBasicCredentials, Depends(security)],
 ) -> User | None:
     """Check that the request has valid authorization information."""
-    # TODO:
-    #    - Handle other auth backends
-    #    - Handle AUTH_ROLE_PUBLIC
+    # TODO: Handle other auth backends when they support FastAPI. (session, kerberos, etc.)
     user = auth_current_user(credentials)
     if user is not None:
         return user
