@@ -69,7 +69,7 @@ class TestHookLineageCollector:
         self.collector.add_input_dataset(hook, uri="test_uri")
 
         assert next(iter(self.collector._inputs.values())) == (dataset, hook)
-        mock_dataset.assert_called_once_with(uri="test_uri", extra={})
+        mock_dataset.assert_called_once_with(uri="test_uri", extra=None)
 
     def test_grouping_datasets(self):
         hook_1 = MagicMock()
@@ -96,7 +96,7 @@ class TestHookLineageCollector:
     @patch("airflow.lineage.hook.ProvidersManager")
     def test_create_dataset(self, mock_providers_manager):
         def create_dataset(arg1, arg2="default", extra=None):
-            return Dataset(uri=f"myscheme://{arg1}/{arg2}", extra=extra or {})
+            return Dataset(uri=f"myscheme://{arg1}/{arg2}", extra=extra)
 
         mock_providers_manager.return_value.dataset_factories = {"myscheme": create_dataset}
         assert self.collector.create_dataset(
