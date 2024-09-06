@@ -870,6 +870,7 @@ def test_task_decorator_has_wrapped_attr():
     ), "decorated function does not have __wrapped__ attribute"
     assert decorated_test_func.__wrapped__ is org_test_func, "__wrapped__ attr is not the original function"
 
+
 def test_task_decorator_has_doc_attr():
     """
     Test @task original underlying function docstring
