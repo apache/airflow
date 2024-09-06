@@ -112,7 +112,7 @@ class HookLineageCollector(LoggingMixin):
         """
         if uri:
             # Fallback to default factory using the provided URI
-            return Dataset(uri=uri, extra=dataset_extra)
+            return Dataset(uri=uri, extra=dataset_extra or {})
 
         if not scheme:
             self.log.debug(
