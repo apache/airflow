@@ -241,7 +241,7 @@ class Dataset(os.PathLike, BaseDataset):
         converter=_sanitize_uri,
         validator=[attr.validators.min_len(1), attr.validators.max_len(3000)],
     )
-    extra: dict[str, Any] | None = None
+    extra: dict[str, Any] = attr.field(factory=dict)
 
     __version__: ClassVar[int] = 1
 
