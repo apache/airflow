@@ -283,7 +283,7 @@ templated field:
         class HelloOperator(BaseOperator):
             template_fields = "field_a"
 
-            def __init__(field_a_id) -> None:  # <- should be def __init__(field_a)-> None
+            def __init__(self, field_a_id) -> None:  # <- should be def __init__(self, field_a)-> None
                 self.field_a = field_a_id  # <- should be self.field_a = field_a
 
 2. Templated fields' instance members must be assigned with their corresponding parameter from the constructor,
@@ -297,7 +297,7 @@ templated field:
         class HelloOperator(BaseOperator):
             template_fields = ("field_a", "field_b")
 
-            def __init__(field_a, field_b) -> None:
+            def __init__(self, field_a, field_b) -> None:
                 self.field_b = field_b
 
 
@@ -309,14 +309,14 @@ implicitly as part of the ``kwargs`` passed to its parent constructor:
         class HelloOperator(BaseOperator):
             template_fields = "field_a"
 
-            def __init__(field_a) -> None:
+            def __init__(self, field_a) -> None:
                 self.field_a = field_a
 
 
         class MyHelloOperator(HelloOperator):
             template_fields = ("field_a", "field_b")
 
-            def __init__(field_b, **kwargs) -> None:  # <- should be def __init__(field_a, field_b, **kwargs)
+            def __init__(self, field_b, **kwargs) -> None:  # <- should be def __init__(self, field_a, field_b, **kwargs)
                 super().__init__(**kwargs)  # <- should be super().__init__(field_a=field_a, **kwargs)
                 self.field_b = field_b
 
@@ -329,7 +329,7 @@ Therefore, the following example is invalid:
         class HelloOperator(BaseOperator):
             template_fields = "field_a"
 
-            def __init__(field_a) -> None:
+            def __init__(self, field_a) -> None:
                 self.field_a = field_a.lower()  # <- assignment should be only self.field_a = field_a
 
 When an operator inherits from a base operator and does not have a constructor defined on its own, the limitations above
@@ -342,7 +342,7 @@ Thus, the following example is valid:
         class HelloOperator(BaseOperator):
             template_fields = "field_a"
 
-            def __init__(field_a) -> None:
+            def __init__(self, field_a) -> None:
                 self.field_a = field_a
 
 
