@@ -21,7 +21,7 @@ import re
 
 import pytest
 
-from airflow.configuration import AirflowConfigParser, conf
+from airflow.configuration import conf
 from airflow.models import DagBag
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -96,7 +96,6 @@ def get_dags(dag_count=1, task_count=10, operator_type="bash", dag_shape="no_str
         task_count=str(task_count), dag_count=str(dag_count), operator_type=operator_type, dag_shape=dag_shape
     )
     dag_bag = DagBag(DAGS_DIR, include_examples=False)
-    dags_ids = dag_bag.dag_ids
 
     def strip_path_prefix(path):
         return os.path.relpath(path, DAGS_DIR)
