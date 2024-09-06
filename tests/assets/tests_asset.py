@@ -183,8 +183,8 @@ def test_assset_boolean_condition_evaluate_iter():
     # Testing iter_assets indirectly through the subclasses
     assets_any = dict(any_condition.iter_assets())
     assets_all = dict(all_condition.iter_assets())
-    assert assets_any == {"s3://bucket1/data1", asset1, "s3://bucket2/data2", asset2}
-    assert assets_all == {"s3://bucket1/data1", asset1, "s3://bucket2/data2", asset2}
+    assert assets_any == {"s3://bucket1/data1": asset1, "s3://bucket2/data2": asset2}
+    assert assets_all == {"s3://bucket1/data1": asset1, "s3://bucket2/data2": asset2}
 
 
 @pytest.mark.parametrize(
