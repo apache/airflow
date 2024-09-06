@@ -19,12 +19,19 @@
 
 from __future__ import annotations
 
-from typing import Any
+import sys
+from typing import TYPE_CHECKING, Any
 
-from cloudant import cloudant  # type: ignore[attr-defined]
+if sys.version_info < (3, 10):
+    from airflow.providers.cloudant.cloudant_fake import CloudantV1, CouchDbSessionAuthenticator
+else:
+    from ibmcloudant import CloudantV1, CouchDbSessionAuthenticator
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+
+if TYPE_CHECKING:
+    from airflow.models import Connection
 
 
 class CloudantHook(BaseHook):
@@ -45,35 +52,44 @@ class CloudantHook(BaseHook):
     def get_ui_field_behaviour(cls) -> dict[str, Any]:
         """Return custom field behaviour."""
         return {
-            "hidden_fields": ["port", "extra"],
-            "relabeling": {"host": "Account", "login": "Username (or API Key)", "schema": "Database"},
+            "hidden_fields": ["schema", "port", "extra"],
+            "relabeling": {"host": "Account", "login": "Username (or API Key)"},
         }
 
     def __init__(self, cloudant_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.cloudant_conn_id = cloudant_conn_id
 
-    def get_conn(self) -> cloudant:
+    def get_conn(self) -> CloudantV1:
         """
-        Open a connection to the cloudant service and close it automatically if used as context manager.
+        Create an authenticated service object for connection to the Cloudant service.
 
         .. note::
             In the connection form:
-            - 'host' equals the 'Account' (optional)
+            - 'host' equals the 'Account' (required)
             - 'login' equals the 'Username (or API Key)' (required)
             - 'password' equals the 'Password' (required)
 
-        :return: an authorized cloudant session context manager object.
+        :return: a CloudantV1 service object backed by a session-based user/password authenticator.
         """
         conn = self.get_connection(self.cloudant_conn_id)
 
         self._validate_connection(conn)
 
-        cloudant_session = cloudant(user=conn.login, passwd=conn.password, account=conn.host)
+        authenticator = CouchDbSessionAuthenticator(username=conn.login, password=conn.password)
+        service = CloudantV1(authenticator=authenticator)
+        service.set_service_url(f"https://{conn.host}.cloudant.com")
 
-        return cloudant_session
+        return service
 
-    def _validate_connection(self, conn: cloudant) -> None:
-        for conn_param in ["login", "password"]:
+    @staticmethod
+    def _validate_connection(conn: Connection) -> None:
+        missing_params = []
+        for conn_param in ["host", "login", "password"]:
             if not getattr(conn, conn_param):
-                raise AirflowException(f"missing connection parameter {conn_param}")
+                missing_params.append(conn_param)
+
+        if missing_params:
+            raise AirflowException(
+                f"Missing connection parameter{'s' if len(missing_params) > 1 else ''}: {', '.join(missing_params)}"
+            )
