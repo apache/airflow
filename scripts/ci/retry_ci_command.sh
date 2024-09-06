@@ -34,4 +34,3 @@ while [ "$SUCCESS" = false ] && [ "$CURRENT_RETRY" -le "$NUMBER_OF_RETRY" ]; do
   fi
   echo "$CURRENT_OUTPUT"
 done
-
