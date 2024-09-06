@@ -18,59 +18,122 @@
  */
 
 import {
-  Badge,
   Box,
+  Button,
+  ButtonProps,
   Flex,
   Icon,
-  IconButton,
   Link,
-  Stack,
   Text,
   useColorMode,
+  useColorModeValue,
+  VStack,
 } from "@chakra-ui/react";
 import { motion } from "framer-motion";
-import { MdDarkMode, MdLightMode } from "react-icons/md";
 
 import { AirflowPin } from "./assets/AirflowPin";
+import {
+  FiBarChart2,
+  FiCornerUpLeft,
+  FiDatabase,
+  FiGlobe,
+  FiHome,
+  FiMoon,
+  FiSettings,
+  FiSun,
+} from "react-icons/fi";
+import { DagIcon } from "./assets/DagIcon";
+import { ReactElement } from "react";
+
+type NavButtonProps = {
+  title?: string;
+  icon: ReactElement;
+  href?: string;
+} & ButtonProps;
+
+const NavButton = ({ icon, title, ...rest }: NavButtonProps) => (
+  <Button
+    variant="ghost"
+    borderRadius="none"
+    height={16}
+    alignItems="center"
+    flexDir="column"
+    whiteSpace="wrap"
+    {...rest}
+  >
+    <Box alignSelf="center">{icon}</Box>
+    <Text fontSize="xs">{title}</Text>
+  </Button>
+);
 
 export const Nav = () => {
   const { colorMode, toggleColorMode } = useColorMode();
+  const navBg = useColorModeValue("blue.100", "blue.900");
   return (
-    <Flex
-      p={3}
-      boxShadow="base"
+    <VStack
+      py={3}
+      width={24}
+      height="100%"
+      position="fixed"
+      top={0}
+      left={0}
+      zIndex={1}
+      bg={navBg}
       justifyContent="space-between"
-      alignContent="center"
+      alignItems="center"
     >
-      <Flex>
+      <Flex width="100%" flexDir="column" alignItems="center">
         <Box
           as={motion.div}
           whileHover={{
             transform: ["rotate(0)", "rotate(360deg)"],
             transition: { duration: 1.5, repeat: Infinity, ease: "linear" },
           }}
+          mb={3}
         >
           <Icon as={AirflowPin} height="35px" width="35px" />
         </Box>
-        <Text
-          fontFamily="rubik,sans-serif"
-          alignSelf="center"
-          fontSize="lg"
-          ml={2}
-        >
-          Airflow
-        </Text>
-      </Flex>
-      <Stack direction="row">
-        <Badge colorScheme="blue" alignSelf="center">
-          <Link href="/">Return to the legacy UI</Link>
-        </Badge>
-        <IconButton
-          onClick={toggleColorMode}
-          icon={colorMode === "light" ? <MdDarkMode /> : <MdLightMode />}
-          aria-label={`Toggle ${colorMode} mode`}
+        <NavButton title="Home" icon={<FiHome size="1.75rem" />} isDisabled />
+        <NavButton title="DAGs" icon={<DagIcon height={7} width={7} />} />
+        <NavButton
+          title="Datasets"
+          icon={<FiDatabase size="1.75rem" />}
+          isDisabled
         />
-      </Stack>
-    </Flex>
+        <NavButton
+          title="DAG Runs"
+          icon={<FiBarChart2 size="1.75rem" />}
+          isDisabled
+        />
+        <NavButton
+          title="Browse"
+          icon={<FiGlobe size="1.75rem" />}
+          isDisabled
+        />
+        <NavButton
+          title="Admin"
+          icon={<FiSettings size="1.75rem" />}
+          isDisabled
+        />
+      </Flex>
+      <Flex flexDir="column">
+        <NavButton
+          title="Return to legacy UI"
+          icon={<FiCornerUpLeft size="1.5rem" />}
+          as={Link}
+          href="/"
+        />
+        <NavButton
+          icon={
+            colorMode === "light" ? (
+              <FiMoon size="1.75rem" />
+            ) : (
+              <FiSun size="1.75rem" />
+            )
+          }
+          onClick={toggleColorMode}
+        />
+      </Flex>
+    </VStack>
   );
 };

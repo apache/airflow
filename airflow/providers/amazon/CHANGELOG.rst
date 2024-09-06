@@ -34,7 +34,7 @@ Changelog
   `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 .. warning:: When deferrable mode was introduced for ``RedshiftDataOperator``, in version 8.17.0, tasks configured with
-  ``deferrable=True`` and ``wait_for_completion=True`` wouldn't enter the deferred state. Instead, the task would occupy
+  ``deferrable=True`` and ``wait_for_completion=True`` would not enter the deferred state. Instead, the task would occupy
   an executor slot until the statement was completed. A workaround may have been to set ``wait_for_completion=False``.
   In this version, tasks set up with ``wait_for_completion=False`` will not wait anymore, regardless of the value of
   ``deferrable``.

@@ -85,6 +85,7 @@ class TestProjectStructure:
             "tests/providers/apache/hive/plugins/test_hive.py",
             "tests/providers/celery/executors/test_celery_executor_utils.py",
             "tests/providers/celery/executors/test_default_celery.py",
+            "tests/providers/cloudant/test_cloudant_fake.py",
             "tests/providers/cncf/kubernetes/backcompat/test_backwards_compat_converters.py",
             "tests/providers/cncf/kubernetes/executors/test_kubernetes_executor_types.py",
             "tests/providers/cncf/kubernetes/executors/test_kubernetes_executor_utils.py",

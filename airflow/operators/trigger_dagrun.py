@@ -224,9 +224,7 @@ class TriggerDagRunOperator(BaseOperator):
             raise RuntimeError("The dag_run should be set here!")
         # Store the run id from the dag run (either created or found above) to
         # be used when creating the extra link on the webserver.
-        # TODO: Logical date as xcom stored only for backwards compatibility. Remove in Airflow 3.0
         ti = context["task_instance"]
-        ti.xcom_push(key=XCOM_LOGICAL_DATE_ISO, value=dag_run.logical_date.isoformat())
         ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id)
 
         if self.wait_for_completion:

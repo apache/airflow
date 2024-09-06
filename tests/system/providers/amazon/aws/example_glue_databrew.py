@@ -120,7 +120,7 @@ with DAG(DAG_ID, schedule="@once", start_date=pendulum.datetime(2023, 1, 1, tz="
     )
 
     # [START howto_operator_glue_databrew_start]
-    start_job = GlueDataBrewStartJobOperator(task_id="startjob", job_name=job_name, delay=15)
+    start_job = GlueDataBrewStartJobOperator(task_id="startjob", job_name=job_name, waiter_delay=15)
     # [END howto_operator_glue_databrew_start]
 
     delete_bucket = S3DeleteBucketOperator(

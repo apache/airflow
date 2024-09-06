@@ -16,24 +16,19 @@
 # under the License.
 from __future__ import annotations
 
-import os
 
-from flask import Blueprint
+class CloudantV1:
+    """Phony class to pass mypy when real class is not imported."""
+
+    def __init__(self, authenticator):
+        pass
+
+    def set_service_url(self, service_url: str):
+        pass
 
 
-def init_react_ui(app):
-    dev_mode = os.environ.get("DEV_MODE", False) == "true"
+class CouchDbSessionAuthenticator:
+    """Phony class to pass mypy when real class is not imported."""
 
-    bp = Blueprint(
-        "ui",
-        __name__,
-        # The dev mode index file points to the vite dev server instead of static build files
-        static_folder="../../ui/dev" if dev_mode else "../../ui/dist",
-        static_url_path="/ui",
-    )
-
-    @bp.route("/ui")
-    def index():
-        return bp.send_static_file("index.html")
-
-    app.register_blueprint(bp)
+    def __init__(self, username: str, password: str):
+        pass
