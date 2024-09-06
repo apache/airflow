@@ -193,6 +193,9 @@ additional-extras:
     dependencies:
       - apache-airflow-providers-amazon>=2.6.0
 
+devel-dependencies:
+  - google-cloud-spanner[testing]>=3.49.1
+
 integrations:
   - integration-name: Google Analytics (GA4)
     external-doc-url: https://analytics.google.com/
