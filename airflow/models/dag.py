@@ -2787,12 +2787,12 @@ class DAG(LoggingMixin):
             curr_outlet_references = curr_orm_dag and curr_orm_dag.task_outlet_dataset_references
             for task in dag.tasks:
                 dataset_outlets: list[Dataset] = []
-                dataset_alias_outlets: set[DatasetAlias] = set()
+                dataset_alias_outlets: list[DatasetAlias] = []
                 for outlet in task.outlets:
                     if isinstance(outlet, Dataset):
                         dataset_outlets.append(outlet)
                     elif isinstance(outlet, DatasetAlias):
-                        dataset_alias_outlets.add(outlet)
+                        dataset_alias_outlets.append(outlet)
 
                 if not dataset_outlets:
                     if curr_outlet_references:
