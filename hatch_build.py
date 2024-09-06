@@ -43,7 +43,7 @@ PRE_INSTALLED_PROVIDERS = [
     "common.compat",
     "common.io",
     "common.sql",
-    "fab>=1.4.0",
+    "fab>=1.0.2",
     "ftp",
     "http",
     "imap",
