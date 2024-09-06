@@ -283,7 +283,7 @@ templated field:
         class HelloOperator(BaseOperator):
             template_fields = "field_a"
 
-            def __init__(self, field_a_id) -> None:  # <- should be def __init__(self, field_a)-> None
+            def __init__(self, field_a_id) -> None:  # <- should be def __init__(self, field_a) -> None
                 self.field_a = field_a_id  # <- should be self.field_a = field_a
 
 2. Templated fields' instance members must be assigned with their corresponding parameter from the constructor,
