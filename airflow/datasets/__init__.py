@@ -206,19 +206,11 @@ class BaseDataset:
         raise NotImplementedError
 
 
-@attr.define()
+@attr.define(unsafe_hash=False)
 class DatasetAlias(BaseDataset):
     """A represeation of dataset alias which is used to create dataset during the runtime."""
 
     name: str
-
-    def __eq__(self, other: Any) -> bool:
-        if isinstance(other, DatasetAlias):
-            return self.name == other.name
-        return NotImplemented
-
-    def __hash__(self) -> int:
-        return hash(self.name)
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
@@ -241,7 +233,7 @@ class DatasetAliasEvent(TypedDict):
     dest_dataset_uri: str
 
 
-@attr.define()
+@attr.define(unsafe_hash=False)
 class Dataset(os.PathLike, BaseDataset):
     """A representation of data dependencies between workflows."""
 
@@ -255,14 +247,6 @@ class Dataset(os.PathLike, BaseDataset):
 
     def __fspath__(self) -> str:
         return self.uri
-
-    def __eq__(self, other: Any) -> bool:
-        if isinstance(other, self.__class__):
-            return self.uri == other.uri
-        return NotImplemented
-
-    def __hash__(self) -> int:
-        return hash(self.uri)
 
     @property
     def normalized_uri(self) -> str | None:
