@@ -69,7 +69,7 @@ class TestHookLineageCollector:
         self.collector.add_input_dataset(hook, uri="test_uri")
 
         assert next(iter(self.collector._inputs.values())) == (dataset, hook)
-        mock_dataset.assert_called_once_with(uri="test_uri", extra=None)
+        mock_dataset.assert_called_once_with(uri="test_uri", extra={})
 
     def test_grouping_datasets(self):
         hook_1 = MagicMock()
