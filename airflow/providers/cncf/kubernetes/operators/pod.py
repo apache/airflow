@@ -388,14 +388,13 @@ class KubernetesPodOperator(BaseOperator):
         self.termination_grace_period = termination_grace_period
         self.pod_request_obj: k8s.V1Pod | None = None
         self.pod: k8s.V1Pod | None = None
-
-        if isinstance(skip_on_exit_code, Container):
-            self.skip_on_exit_code = skip_on_exit_code
-        elif skip_on_exit_code is not None:
-            self.skip_on_exit_code = [skip_on_exit_code]
-        else:
-            self.skip_on_exit_code = None
-
+        self.skip_on_exit_code = (
+            skip_on_exit_code
+            if isinstance(skip_on_exit_code, Container)
+            else [skip_on_exit_code]
+            if skip_on_exit_code is not None
+            else []
+        )
         self.base_container_name = base_container_name or self.BASE_CONTAINER_NAME
         self.deferrable = deferrable
         self.poll_interval = poll_interval
@@ -810,7 +809,7 @@ class KubernetesPodOperator(BaseOperator):
         finally:
             self._clean(event, pod_status)
 
-    def _clean(self, event: dict[str, Any], pod_status: str) -> None:
+    def _clean(self, event: dict[str, Any], pod_status: str | None) -> None:
         if pod_status == "running" or (event["status"] == "running" and not pod_status):
             return
         istio_enabled = self.is_istio_enabled(self.pod)
