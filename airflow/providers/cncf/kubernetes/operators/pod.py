@@ -786,7 +786,7 @@ class KubernetesPodOperator(BaseOperator):
                 )
 
             if pod_status == "failed" or event["status"] in ("error", "failed", "timeout"):
-                # fetch some logs when pod is failed
+                # fetch logs when pod is failed
                 if self.get_logs:
                     self._write_logs(self.pod, follow=follow, since_time=last_log_time)
 
@@ -796,7 +796,7 @@ class KubernetesPodOperator(BaseOperator):
                 message = event.get("stack_trace") or event.get("message") or "pod failure"
                 raise AirflowException(message)
             elif pod_status == "success" or event["status"] == "success":
-                # fetch some logs when pod is executed successfully
+                # fetch logs when pod is executed successfully
                 if self.get_logs:
                     self._write_logs(self.pod, follow=follow, since_time=last_log_time)
 
