@@ -36,8 +36,6 @@ import jinja2
 import pendulum
 import pytest
 import time_machine
-from dateutil.relativedelta import relativedelta
-from pendulum.tz.timezone import Timezone
 from sqlalchemy import func, inspect, select
 from sqlalchemy.exc import SAWarning
 

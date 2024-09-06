@@ -643,21 +643,26 @@ def test_build_scarf_url(
             assert result == ""
 
 
-def test_clear():
-    from airflow.decorators import dag, task_group
+def test_clear(dag_maker, session, clean_dags_and_dagruns):
+    from airflow.decorators import task_group
     from airflow.models.dagbag import DagBag
     from airflow.operators.empty import EmptyOperator
-    from airflow.utils.session import create_session
     from airflow.utils.state import State
     from airflow.utils.timezone import datetime
     from airflow.utils.types import DagRunType
-    from tests.test_utils.db import clear_db_runs
 
-    clear_db_runs()
     files = ["a", "b", "c"]
+    start_date = datetime(2024, 1, 1)
+    end_date = datetime(2024, 1, 2)
 
-    @dag(start_date=datetime(2024, 1, 1), schedule=None, catchup=False)
-    def task_group_mapping_example():
+    with dag_maker(
+        dag_id="task_group_mapping_example",
+        start_date=start_date,
+        schedule=None,
+        catchup=False,
+        session=session,
+    ):
+
         @task_group(group_id="etl")
         def etl_pipeline(file):
             e = EmptyOperator(task_id="e")
@@ -668,9 +673,7 @@ def test_clear():
 
         etl_pipeline.expand(file=files)
 
-    dag_instance = task_group_mapping_example()
-    start_date = datetime(2024, 1, 1)
-    end_date = datetime(2024, 1, 2)
+    dag_instance = dag_maker.dag
 
     dag_instance.create_dagrun(
         run_id="manual_run_2024_01_01",
@@ -678,7 +681,8 @@ def test_clear():
         execution_date=start_date,
         start_date=start_date,
         data_interval=(start_date, start_date),
-        run_type=DagRunType.SCHEDULED,
+        run_type=DagRunType.MANUAL,
+        triggered_by=None,
     )
     test_app.dag_bag = DagBag(dag_folder="/dev/null", include_examples=False)
     test_app.dag_bag.bag_dag(dag=dag_instance)
@@ -706,27 +710,25 @@ def test_clear():
     )
 
     # handling downstream tasks:
-    if len(partial_dag.task_dict) > 1:
-        task_ids.extend(tid for tid in partial_dag.task_dict if tid != task_id)
+    task_ids.extend(tid for tid in partial_dag.task_dict if tid != task_id)
 
-    if len(partial_dag_task_group.task_dict) > 1:
-        task_ids_group.extend(tid for tid in partial_dag_task_group.task_dict if tid != task_id)
+    task_ids_group.extend(tid for tid in partial_dag_task_group.task_dict if tid != task_id)
 
-    with create_session() as session:
-        count = partial_dag.clear(
-            start_date=start_date,
-            end_date=end_date,
-            task_ids=task_ids,
-            only_failed=None,
-            session=session,
-        )
-        assert count == 6
-        count_task_group = partial_dag_task_group.clear(
-            start_date=start_date,
-            end_date=end_date,
-            task_ids=task_ids_group,
-            only_failed=None,
-            session=session,
-        )
-        assert count_task_group == 9
-        session.close()
+    count = partial_dag.clear(
+        start_date=start_date,
+        end_date=end_date,
+        task_ids=task_ids,
+        only_failed=None,
+        session=session,
+    )
+    assert count == 6
+    session.commit()
+    count_task_group = partial_dag_task_group.clear(
+        start_date=start_date,
+        end_date=end_date,
+        task_ids=task_ids_group,
+        only_failed=None,
+        session=session,
+    )
+    assert count_task_group == 9
+    session.close()
