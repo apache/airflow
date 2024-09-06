@@ -1,11 +1,11 @@
 **Breaking Change**
 
-Replaced Python's ``list`` with ``collections.abc.MutableSet`` for the property ``Dag.tags``.
+Replaced Python's ``list`` with ``MutableSet`` for the property ``Dag.tags``.
 
 At the constractur you still can use list,
 you actually can use any data structure that implements the
-``collections.abc.Collection`` interface.
+``Collection`` interface.
 
 The ``tags`` property of the ``Dag`` model would be of type
-``collections.abc.MutableSet`` instead of ``list``,
+``MutableSet`` instead of ``list``,
 as there are no actual duplicates at the tags.
