@@ -225,13 +225,15 @@ class TeradataHook(DbApiHook):
             conn_config["sslprotocol"] = conn.extra_dejson["sslprotocol"]
         if conn.extra_dejson.get("query_band", False):
             conn_config["query_band"] = conn.extra_dejson["query_band"]
-
+        if conn.extra_dejson.get("logmech", False):
+            conn_config["logmech"] = conn.extra_dejson["logmech"]
         return conn_config
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """Return a connection object using sqlalchemy."""
         conn: Connection = self.get_connection(self.get_conn_id())
-        link = f"teradatasql://{conn.login}:{conn.password}@{conn.host}"
+        logmech = conn.logmech or 'LDAP'
+        link = f"teradatasql://{conn.login}:{conn.password}@{conn.host}&logmech={logmech}"
         connection = sqlalchemy.create_engine(link)
         return connection
 
@@ -249,7 +251,7 @@ class TeradataHook(DbApiHook):
             },
             "placeholders": {
                 "extra": json.dumps(
-                    {"tmode": "TERA", "sslmode": "verify-ca", "sslca": "/tmp/server-ca.pem"}, indent=4
+                    {"tmode": "TERA", "sslmode": "verify-ca", "sslca": "/tmp/server-ca.pem", "logmech": "LDAP"}, indent=4
                 ),
                 "login": "dbc",
                 "password": "dbc",
