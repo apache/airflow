@@ -233,6 +233,18 @@ class DatasetAliasEvent(TypedDict):
     dest_dataset_uri: str
 
 
+def _set_extra_default(extra: dict | None) -> dict:
+    """
+    Automatically convert None to an empty dict.
+
+    This allows the caller site to continue doing ``Dataset(uri, extra=None)``,
+    but still allow the ``extra`` attribute to always be a dict.
+    """
+    if extra is None:
+        return {}
+    return extra
+
+
 @attr.define(unsafe_hash=False)
 class Dataset(os.PathLike, BaseDataset):
     """A representation of data dependencies between workflows."""
@@ -241,7 +253,7 @@ class Dataset(os.PathLike, BaseDataset):
         converter=_sanitize_uri,
         validator=[attr.validators.min_len(1), attr.validators.max_len(3000)],
     )
-    extra: dict[str, Any] = attr.field(factory=dict)
+    extra: dict[str, Any] = attr.field(factory=dict, converter=_set_extra_default)
 
     __version__: ClassVar[int] = 1
 
