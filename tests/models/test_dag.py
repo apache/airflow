@@ -3351,9 +3351,21 @@ def test__tags_length(tags: list[str], should_pass: bool):
     "input_tags, expected_result",
     [
         pytest.param([], set(), id="empty tags"),
-        pytest.param(["a normal tag"], {"a normal tag",}, id="one tag"),
-        pytest.param(["a normal tag", "another normal tag"], {"a normal tag", "another normal tag"}, id="two different tags"),
-        pytest.param(["a", "a"], {"a",}, id="two same tags"),
+        pytest.param(
+            ["a normal tag"],
+            {"a normal tag"},
+            id="one tag",
+        ),
+        pytest.param(
+            ["a normal tag", "another normal tag"],
+            {"a normal tag", "another normal tag"},
+            id="two different tags",
+        ),
+        pytest.param(
+            ["a", "a"],
+            {"a"},
+            id="two same tags",
+        ),
     ],
 )
 def test__tags_duplicates(input_tags: list[str], expected_result: set[str]):
