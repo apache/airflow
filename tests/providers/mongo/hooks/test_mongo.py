@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 import pymongo
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.mongo.hooks.mongo import MongoHook
 from tests.test_utils.compat import connection_as_json
@@ -119,19 +119,20 @@ class TestMongoHook:
 
     def test_invalid_conn_type(self):
         with pytest.raises(
-            AirflowException, match="conn_type 'mongodb' not allowed for MongoHook; conn_type must be 'mongo'"
+            AirflowConfigException,
+            match="conn_type 'mongodb' not allowed for MongoHook; conn_type must be 'mongo'",
         ):
             MongoHook(mongo_conn_id="mongo_invalid_conn_type")
 
     def test_invalid_conn_type_srv(self):
         with pytest.raises(
-            AirflowException,
+            AirflowConfigException,
             match="Mongo SRV connections should have the conn_type 'mongo' and set 'use_srv=true' in extras",
         ):
             MongoHook(mongo_conn_id="mongo_invalid_conn_type_srv")
 
     def test_invalid_srv_with_port(self):
-        with pytest.raises(AirflowException, match="srv URI should not specify a port"):
+        with pytest.raises(AirflowConfigException, match="srv URI should not specify a port"):
             MongoHook(mongo_conn_id="mongo_invalid_srv_with_port")
 
     def test_insert_one(self):

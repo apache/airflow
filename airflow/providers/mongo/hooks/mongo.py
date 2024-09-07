@@ -26,7 +26,7 @@ from urllib.parse import quote_plus, urlunsplit
 import pymongo
 from pymongo import MongoClient, ReplaceOne
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
@@ -160,15 +160,15 @@ class MongoHook(BaseHook):
         conn_type = conn.conn_type
         if conn_type != "mongo":
             if conn_type == "mongodb+srv":
-                raise AirflowException(
+                raise AirflowConfigException(
                     "Mongo SRV connections should have the conn_type 'mongo' and set 'use_srv=true' in extras"
                 )
-            raise AirflowException(
+            raise AirflowConfigException(
                 f"conn_type '{conn_type}' not allowed for MongoHook; conn_type must be 'mongo'"
             )
 
         if conn.port and "srv" in conn.extra_dejson and conn.extra_dejson["srv"] is True:
-            raise AirflowException("srv URI should not specify a port")
+            raise AirflowConfigException("srv URI should not specify a port")
 
     def __enter__(self):
         """Return the object when a context manager is created."""
