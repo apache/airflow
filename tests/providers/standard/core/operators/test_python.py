@@ -353,7 +353,9 @@ class TestPythonOperator(BasePythonTest):
     def test_python_operator_has_default_logger_name(self):
         python_operator = PythonOperator(task_id="task", python_callable=partial(int, 2))
 
-        logger_name: str = "airflow.task.operators.airflow.operators.python.PythonOperator"
+        logger_name: str = (
+            "airflow.task.operators.airflow.providers.standard.core.operators.python.PythonOperator"
+        )
         assert python_operator.log.name == logger_name
 
     def test_custom_logger_name_is_correctly_set(self):
