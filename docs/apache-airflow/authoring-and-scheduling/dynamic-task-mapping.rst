@@ -196,7 +196,7 @@ Since the template is rendered after the main execution block, it is possible to
 
 .. code-block:: python
 
-    from airflow.operators.python import get_current_context
+    from airflow.providers.standard.core.operators.python import get_current_context
 
 
     @task(map_index_template="{{ my_variable }}")

@@ -20,7 +20,7 @@ from __future__ import annotations
 import datetime
 
 from airflow.models.dag import DAG
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.core.operators.python import PythonOperator
 
 dag = DAG(
     dag_id="test_dag_xcom_openlineage",

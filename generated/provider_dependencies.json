@@ -68,7 +68,8 @@
       "mongo",
       "openlineage",
       "salesforce",
-      "ssh"
+      "ssh",
+      "standard"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -286,7 +287,8 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "cncf.kubernetes"
+      "cncf.kubernetes",
+      "standard"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -345,7 +347,8 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "cncf.kubernetes"
+      "cncf.kubernetes",
+      "standard"
     ],
     "excluded-python-versions": [],
     "state": "ready"
@@ -518,7 +521,9 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "standard"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -722,6 +727,7 @@
       "salesforce",
       "sftp",
       "ssh",
+      "standard",
       "trino"
     ],
     "excluded-python-versions": [],
