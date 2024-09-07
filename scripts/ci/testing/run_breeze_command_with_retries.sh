@@ -30,7 +30,7 @@ fi
 
 # Param 1: Breeze Command
 # Param 2: Number of Retry(ies)
-COMMAND_TO_ATTEMPT=$1
+COMMAND_TO_ATTEMPT="breeze $1"
 NUMBER_OF_ATTEMPT=$2
 NUMBER_OF_ATTEMPT="${NUMBER_OF_ATTEMPT:-1}"
 CURRENT_ATTEMPT=2
