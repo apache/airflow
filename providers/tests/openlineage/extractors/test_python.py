@@ -28,7 +28,7 @@ from openlineage.client.facet_v2 import source_code_job
 
 from airflow import DAG
 from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.operators.python import PythonOperator
 from airflow.providers.openlineage.extractors.python import PythonExtractor
 
 from tests_common.test_utils.compat import BashOperator

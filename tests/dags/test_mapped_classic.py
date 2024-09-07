@@ -20,7 +20,7 @@ import datetime
 
 from airflow.decorators import task
 from airflow.models.dag import DAG
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.core.operators.python import PythonOperator
 
 
 @task

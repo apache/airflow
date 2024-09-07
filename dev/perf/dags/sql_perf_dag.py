@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from airflow.models.dag import DAG
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.core.operators.python import PythonOperator
 
 default_args = {
     "owner": "Airflow",

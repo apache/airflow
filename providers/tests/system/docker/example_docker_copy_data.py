@@ -32,7 +32,7 @@ from datetime import datetime
 from docker.types import Mount
 
 from airflow import models
-from airflow.operators.python import ShortCircuitOperator
+from airflow.providers.standard.operators.python import ShortCircuitOperator
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.providers.standard.operators.bash import BashOperator
 

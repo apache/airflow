@@ -23,10 +23,9 @@ from datetime import date
 import pytest
 
 from airflow.exceptions import AirflowSensorTimeout
+from airflow.providers.standard.sensors.python import PythonSensor
 from airflow.sensors.base import PokeReturnValue
-from airflow.sensors.python import PythonSensor
-
-from tests.operators.test_python import BasePythonTest
+from tests.providers.standard.operators.test_python import BasePythonTest
 
 pytestmark = pytest.mark.db_test
 

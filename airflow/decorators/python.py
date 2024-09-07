@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Callable, Sequence
 
 from airflow.decorators.base import DecoratedOperator, task_decorator_factory
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.core.operators.python import PythonOperator
 
 if TYPE_CHECKING:
     from airflow.decorators.base import TaskDecorator

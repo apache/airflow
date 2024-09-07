@@ -30,7 +30,7 @@ from pprint import pprint
 import pendulum
 
 from airflow.models.dag import DAG
-from airflow.operators.python import (
+from airflow.providers.standard.core.operators.python import (
     ExternalPythonOperator,
     PythonOperator,
     PythonVirtualenvOperator,

@@ -45,7 +45,7 @@ def example_python_context_decorator():
         """Print the Airflow context."""
         from pprint import pprint
 
-        from airflow.operators.python import get_current_context
+        from airflow.providers.standard.core.operators.python import get_current_context
 
         context = get_current_context()
         pprint(context)
@@ -60,7 +60,7 @@ def example_python_context_decorator():
         """Print the Airflow context in venv."""
         from pprint import pprint
 
-        from airflow.operators.python import get_current_context
+        from airflow.providers.standard.core.operators.python import get_current_context
 
         context = get_current_context()
         pprint(context)
@@ -77,7 +77,7 @@ def example_python_context_decorator():
         """Print the Airflow context in external python."""
         from pprint import pprint
 
-        from airflow.operators.python import get_current_context
+        from airflow.providers.standard.core.operators.python import get_current_context
 
         context = get_current_context()
         pprint(context)

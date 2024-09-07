@@ -34,7 +34,7 @@ Airflow has a very extensive set of operators available, with some built-in to t
 - Use the ``@task`` decorator to execute an arbitrary Python function. It doesn't support rendering jinja templates passed as arguments.
 
 .. note::
-    The ``@task`` decorator is recommended over the classic :class:`~airflow.operators.python.PythonOperator`
+    The ``@task`` decorator is recommended over the classic :class:`~airflow.providers.standard.operators.python.PythonOperator`
     to execute Python callables with no template rendering in its arguments.
 
 For a list of all core operators, see: :doc:`Core Operators and Hooks Reference </operators-and-hooks-ref>`.

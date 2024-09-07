@@ -85,7 +85,7 @@ if len(sys.argv) > 5:
 
 
     MockPython = _MockPython("MockPython")
-    sys.modules["airflow.operators.python"] = MockPython
+    sys.modules["airflow.providers.standard.core.operators.python"] = MockPython
 {% endif %}
 
 try:

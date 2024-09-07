@@ -22,7 +22,7 @@ from datetime import datetime
 from time import sleep
 
 from airflow.models.dag import DAG
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.core.operators.python import PythonOperator
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow

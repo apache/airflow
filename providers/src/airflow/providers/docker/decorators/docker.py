@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     Serializer = Literal["pickle", "dill", "cloudpickle"]
 
 try:
-    from airflow.operators.python import _SERIALIZERS
+    from airflow.providers.standard.core.operators.python import _SERIALIZERS
 except ImportError:
     import logging
 

@@ -94,11 +94,11 @@ def task(python_callable: Callable | None = None, multiple_outputs: bool | None 
         Defaults to False.
     """
     # To maintain backwards compatibility, we import the task object into this file
-    # This prevents breakages in dags that use `from airflow.operators.python import task`
+    # This prevents breakages in dags that use `from airflow.providers.standard.core.operators.python import task`
     from airflow.decorators.python import python_task
 
     warnings.warn(
-        """airflow.operators.python.task is deprecated. Please use the following instead
+        """from airflow.providers.standard.core.operators.python.task is deprecated. Please use the following instead
 
         from airflow.decorators import task
         @task
@@ -1165,7 +1165,7 @@ def get_current_context() -> Context:
 
     .. code:: python
 
-        from airflow.operators.python import get_current_context
+        from airflow.providers.standard.core.operators.python import get_current_context
 
 
         def my_task():
