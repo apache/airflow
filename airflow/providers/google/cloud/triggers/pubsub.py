@@ -21,12 +21,12 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Sequence
 
+from google.cloud.pubsub_v1.types import ReceivedMessage
+
 from airflow.providers.google.cloud.hooks.pubsub import PubSubAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
-    from google.cloud.pubsub_v1.types import ReceivedMessage
-
     from airflow.utils.context import Context
 
 
@@ -106,7 +106,10 @@ class PubsubPullTrigger(BaseTrigger):
                 ):
                     if self.ack_messages:
                         await self.message_acknowledgement(pulled_messages)
-                    yield TriggerEvent({"status": "success", "message": pulled_messages})
+
+                    messages_json = [ReceivedMessage.to_dict(m) for m in pulled_messages]
+
+                    yield TriggerEvent({"status": "success", "message": messages_json})
                     return
                 self.log.info("Sleeping for %s seconds.", self.poke_interval)
                 await asyncio.sleep(self.poke_interval)

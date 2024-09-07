@@ -16,9 +16,13 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
+from google.cloud.pubsub_v1.types import ReceivedMessage
 
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
+from airflow.triggers.base import TriggerEvent
 
 TEST_POLL_INTERVAL = 10
 TEST_GCP_CONN_ID = "google_cloud_default"
@@ -41,6 +45,19 @@ def trigger():
     )
 
 
+async def generate_messages(count):
+    return [
+        ReceivedMessage(
+            ack_id=f"{i}",
+            message={
+                "data": f"Message {i}".encode(),
+                "attributes": {"type": "generated message"},
+            },
+        )
+        for i in range(1, count + 1)
+    ]
+
+
 class TestPubsubPullTrigger:
     def test_async_pubsub_pull_trigger_serialization_should_execute_successfully(self, trigger):
         """
@@ -59,3 +76,40 @@ class TestPubsubPullTrigger:
             "gcp_conn_id": TEST_GCP_CONN_ID,
             "impersonation_chain": None,
         }
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.google.cloud.hooks.pubsub.PubSubAsyncHook.pull")
+    async def test_async_pubsub_pull_trigger_return_event(self, mock_pull):
+        mock_pull.return_value = generate_messages(1)
+        trigger = PubsubPullTrigger(
+            project_id=PROJECT_ID,
+            subscription="subscription",
+            max_messages=MAX_MESSAGES,
+            ack_messages=False,
+            messages_callback=None,
+            poke_interval=TEST_POLL_INTERVAL,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=None,
+        )
+
+        expected_event = TriggerEvent(
+            {
+                "status": "success",
+                "message": [
+                    {
+                        "ack_id": "1",
+                        "message": {
+                            "data": "TWVzc2FnZSAx",
+                            "attributes": {"type": "generated message"},
+                            "message_id": "",
+                            "ordering_key": "",
+                        },
+                        "delivery_attempt": 0,
+                    }
+                ],
+            }
+        )
+
+        response = await trigger.run().asend(None)
+
+        assert response == expected_event
