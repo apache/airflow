@@ -20,12 +20,13 @@ from __future__ import annotations
 import contextlib
 import json
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Sequence, cast
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional, Sequence, Tuple, Union, cast
 
 import requests
 import weaviate
 import weaviate.exceptions
 from tenacity import Retrying, retry, retry_if_exception, retry_if_exception_type, stop_after_attempt
+from typing_extensions import TypeAlias
 from weaviate import WeaviateClient
 from weaviate.auth import Auth
 from weaviate.classes.query import Filter
@@ -61,6 +62,8 @@ REQUESTS_EXCEPTIONS_TYPES = (
     requests.exceptions.HTTPError,
     requests.exceptions.ConnectTimeout,
 )
+
+FailedSets: TypeAlias = Tuple[List[str], List[str], List[str], List[str]]
 
 
 def check_http_error_is_retryable(exc: BaseException):
@@ -190,8 +193,13 @@ class WeaviateHook(BaseHook):
         return client.collections.get(name)
 
     def delete_collections(
-        self, collection_names: list[str] | str, if_error: str = "stop"
-    ) -> list[str] | None:
+        self,
+        collection_names: list[str] | str,
+        by_property: list[str] | str | None = None,
+        contains_any: list[Any] | None = None,
+        contains_all: list[Any] | None = None,
+        if_error: str = "stop",
+    ) -> Union[List[str], Optional[FailedSets], None]:
         """
         Delete all or specific collections if collection_names are provided.
 
@@ -205,30 +213,99 @@ class WeaviateHook(BaseHook):
         collection_names = (
             [collection_names] if collection_names and isinstance(collection_names, str) else collection_names
         )
+        by_property = [by_property] if by_property and isinstance(by_property, str) else by_property
 
-        failed_collection_list = []
-        for collection_name in collection_names:
-            try:
-                for attempt in Retrying(
-                    stop=stop_after_attempt(3),
-                    retry=(
-                        retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
-                        | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
-                    ),
-                ):
-                    with attempt:
-                        self.log.info(attempt)
-                        client.collections.delete(collection_name)
-            except Exception as e:
-                if if_error == "continue":
-                    self.log.error(e)
-                    failed_collection_list.append(collection_name)
-                elif if_error == "stop":
-                    raise e
+        if isinstance(contains_any, str):
+            contains_any = [contains_any]
+        elif contains_any is None:
+            contains_any = []
 
-        if if_error == "continue":
-            return failed_collection_list
-        return None
+        if isinstance(contains_all, str):
+            contains_all = [contains_all]
+        elif contains_all is None:
+            contains_all = []
+
+        if by_property:
+            failed_collection_set: set[str] = set()
+            failed_property_set: set[str] = set()
+            failed_contains_any_set = set()
+            failed_contains_all_set = set()
+            for collection_name in collection_names:
+                try:
+                    collection = client.collections.get(collection_name)
+                    for attempt in Retrying(
+                        stop=stop_after_attempt(3),
+                        retry=(
+                            retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
+                            | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
+                        ),
+                    ):
+                        with attempt:
+                            self.log.info(attempt)
+                            for prop in by_property:
+                                try:
+                                    if contains_any:
+                                        collection.data.delete_many(
+                                            where=Filter.by_property(prop).contains_any(contains_any),
+                                        )
+                                    elif contains_all:
+                                        collection.data.delete_many(
+                                            where=Filter.by_property(prop).contains_all(contains_all),
+                                        )
+                                    else:
+                                        collection.data.delete_many(
+                                            where=Filter.by_property(prop).like(collection_name + "*"),
+                                        )
+                                except Exception as e:
+                                    if if_error == "continue":
+                                        self.log.error(e)
+                                        failed_property_set.add(prop)
+                                        if contains_any:
+                                            failed_contains_any_set.update(contains_any)
+                                        elif contains_all:
+                                            failed_contains_all_set.update(contains_all)
+                                    elif if_error == "stop":
+                                        raise e
+                except Exception as e:
+                    if if_error == "continue":
+                        self.log.error(e)
+                        failed_collection_set.add(collection_name)
+                    elif if_error == "stop":
+                        raise e
+
+            if if_error == "continue":
+                return (
+                    list(failed_collection_set),
+                    list(failed_property_set),
+                    list(failed_contains_any_set),
+                    list(failed_contains_all_set),
+                )
+            return None
+
+        else:
+            failed_collection_list = []
+            for collection_name in collection_names:
+                try:
+                    for attempt in Retrying(
+                        stop=stop_after_attempt(3),
+                        retry=(
+                            retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
+                            | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
+                        ),
+                    ):
+                        with attempt:
+                            self.log.info(attempt)
+                            client.collections.delete(collection_name)
+                except Exception as e:
+                    if if_error == "continue":
+                        self.log.error(e)
+                        failed_collection_list.append(collection_name)
+                    elif if_error == "stop":
+                        raise e
+
+            if if_error == "continue":
+                return failed_collection_list
+            return None
 
     @retry(
         reraise=True,

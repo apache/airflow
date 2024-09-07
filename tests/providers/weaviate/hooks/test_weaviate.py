@@ -528,6 +528,55 @@ def test_delete_collections(get_conn, weaviate_hook):
 
 
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_conn")
+def test_delete_collections_contains_any(get_conn, weaviate_hook):
+    collection_names = ["collection_a", "collection_b", "collection_c"]
+    get_conn.return_value.collections.get.side_effect = [
+        weaviate.UnexpectedStatusCodeException("something failed", requests.Response()),
+        weaviate.UnexpectedStatusCodeException("something failed", requests.Response()),
+        None,
+    ]
+    get_conn.return_value.collections.get.return_value.data.delete_many.side_effect = [
+        weaviate.UnexpectedStatusCodeException("something failed", requests.Response()),
+        weaviate.UnexpectedStatusCodeException("something failed", requests.Response()),
+        None,
+    ]
+    col_error_list, prop_error_list, contains_any_error_list, _ = weaviate_hook.delete_collections(
+        collection_names=collection_names,
+        by_property=["question", "answer", "category"],
+        contains_any=["value1", "value2"],
+        contains_all=None,
+        if_error="continue",
+    )
+    assert sorted(col_error_list) == sorted(["collection_a", "collection_b"])
+    assert sorted(prop_error_list) == sorted(["question", "answer", "category"])
+    assert sorted(contains_any_error_list) == sorted(["value1", "value2"])
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_conn")
+def test_delete_collections_contains_all(get_conn, weaviate_hook):
+    collection_names = sorted(["collection_a", "collection_b", "collection_c"])
+    get_conn.return_value.collections.get.side_effect = [
+        weaviate.UnexpectedStatusCodeException("something failed", requests.Response()),
+        weaviate.UnexpectedStatusCodeException("something failed", requests.Response()),
+        None,
+    ]
+    get_conn.return_value.collections.get.return_value.data.delete_many.side_effect = [
+        weaviate.UnexpectedStatusCodeException("something failed", requests.Response()),
+        weaviate.UnexpectedStatusCodeException("something failed", requests.Response()),
+        None,
+    ]
+    col_error_list, prop_error_list, _, contains_all_error_list = weaviate_hook.delete_collections(
+        collection_names=collection_names,
+        by_property=["question", "answer", "category"],
+        contains_all=["value1", "value2"],
+        if_error="continue",
+    )
+    assert sorted(col_error_list) == sorted(["collection_a", "collection_b"])
+    assert sorted(prop_error_list) == sorted(["question", "answer", "category"])
+    assert sorted(contains_all_error_list) == sorted(["value1", "value2"])
+
+
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_conn")
 def test_http_errors_of_delete_collections(get_conn, weaviate_hook):
     collection_names = ["collection_a", "collection_b"]
     resp = requests.Response()
