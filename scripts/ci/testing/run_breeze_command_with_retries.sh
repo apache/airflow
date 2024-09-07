@@ -19,7 +19,6 @@
 # This script should be only used commands without waiting interactive inputs.
 # For example: 'apt-get install [package_name]' will ask you to input 'y' while installing.
 # This is an interactive input which you cannot provide.
-(ies)
 export COLOR_RED=$'\e[31m'
 export COLOR_YELLOW=$'\e[33m'
 export COLOR_RESET=$'\e[0m'
@@ -30,38 +29,38 @@ if [ ! "$#" -eq 2 ]; then
 fi
 
 # Param 1: Breeze Command
-# Param 2: Number of Retry
-COMMAND_TO_RETRY=$1
-NUMBER_OF_RETRY=$2
-NUMBER_OF_RETRY="${NUMBER_OF_RETRY:-1}"
-CURRENT_RETRY=2
-SUCCESS=false
+# Param 2: Number of Retry(ies)
+COMMAND_TO_ATTEMPT=$1
+NUMBER_OF_ATTEMPT=$2
+NUMBER_OF_ATTEMPT="${NUMBER_OF_ATTEMPT:-1}"
+CURRENT_ATTEMPT=2
+ATTEMPT_SUCCESS=false
 
 breeze down
 set +e
-CURRENT_OUTPUT=$($COMMAND_TO_RETRY)
+CURRENT_RUN_OUTPUT=$($COMMAND_TO_ATTEMPT)
 RESULT=$?
-echo "$CURRENT_OUTPUT"
+echo "$CURRENT_RUN_OUTPUT"
 set -e
 
-while [ "${SUCCESS}" = false ] && [ "${CURRENT_RETRY}" -le "${NUMBER_OF_RETRY}" ]; do
+while [ "${ATTEMPT_SUCCESS}" = false ] && [ "${CURRENT_ATTEMPT}" -le "${NUMBER_OF_ATTEMPT}" ]; do
   if [ "${RESULT}" != "0" ]; then
-    ATTEMPT_LEFT=$((NUMBER_OF_RETRY-CURRENT_RETRY))
+    ATTEMPT_LEFT=$((NUMBER_OF_ATTEMPT-CURRENT_ATTEMPT))
     echo
     echo "${COLOR_YELLOW}Breeze Command failed. Retrying once${COLOR_RESET}"
     echo
     echo "This could be due to a flaky test, re-running once to re-check it After restarting docker."
-    echo "Current Attempt: $CURRENT_RETRY, Attempt Left: ${ATTEMPT_LEFT}"
+    echo "Current Attempt: CURRENT_ATTEMPT, Attempt Left: ${ATTEMPT_LEFT}"
     echo
     sudo service docker restart
     breeze down
     set +e
-    CURRENT_OUTPUT=$($COMMAND_TO_RETRY)
+    CURRENT_RUN_OUTPUT=$($COMMAND_TO_ATTEMPT)
     RESULT=$?
-    echo "$CURRENT_OUTPUT"
+    echo "$CURRENT_RUN_OUTPUT"
     set -e
-    CURRENT_RETRY=$(( CURRENT_RETRY + 1 ))
+    CURRENT_ATTEMPT=$(( CURRENT_ATTEMPT + 1 ))
   else
-    SUCCESS=true
+    ATTEMPT_SUCCESS=true
   fi
 done
