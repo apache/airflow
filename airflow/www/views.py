@@ -132,7 +132,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.strings import to_boolean
 from airflow.utils.task_group import TaskGroup, task_group_to_dict
 from airflow.utils.timezone import td_format, utcnow
-from airflow.utils.types import NOTSET
+from airflow.utils.types import NOTSET, DagRunTriggeredByType
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
@@ -2252,6 +2252,7 @@ class Airflow(AirflowBaseView):
                 external_trigger=True,
                 dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
                 run_id=run_id,
+                triggered_by=DagRunTriggeredByType.UI,
             )
         except (ValueError, ParamValidationError) as ve:
             flash(f"{ve}", "error")

@@ -97,7 +97,7 @@ with DAG(
             """
             Example function that will be performed in a virtual environment.
 
-            Importing at the module level ensures that it will not attempt to import the
+            Importing at the function level ensures that it will not attempt to import the
             library before it is installed.
             """
             from time import sleep

@@ -334,6 +334,10 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
     is_teardown: bool = False
     on_failure_fail_dagrun: bool = False
 
+    @property
+    def __doc__(self):
+        return self.function.__doc__
+
     @multiple_outputs.default
     def _infer_multiple_outputs(self):
         if "return" not in self.function.__annotations__:

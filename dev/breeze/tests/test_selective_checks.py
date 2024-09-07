@@ -845,6 +845,22 @@ def test_hatch_build_py_changes():
     )
 
 
+def test_excluded_providers():
+    stderr = SelectiveChecks(
+        files=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    assert_outputs_are_printed(
+        {
+            "excluded-providers-as-string": json.dumps(
+                {"3.8": ["cloudant"], "3.9": ["cloudant"], "3.12": ["apache.beam"]}
+            ),
+        },
+        str(stderr),
+    )
+
+
 @pytest.mark.parametrize(
     "files, expected_outputs",
     [
