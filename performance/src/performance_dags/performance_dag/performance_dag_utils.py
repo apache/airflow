@@ -1,3 +1,22 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+# Note: Any AirflowException raised is expected to cause the TaskInstance
+#       to be marked in an ERROR state
 """
 Module containing functions used for validation of performance dag configuration
 and collecting information about it's resulting DAGs' arrangement
@@ -272,7 +291,9 @@ def check_schedule_interval(env_name: str, env_value: str) -> None:
         )
 
 
-def get_check_allowed_values_function(values: Tuple[str, ...]) -> Callable[[str, str], None]:
+def get_check_allowed_values_function(
+    values: Tuple[str, ...],
+) -> Callable[[str, str], None]:
     """
     Returns a function which will check if value of provided environment variable
     is within a specified set of values
@@ -333,7 +354,9 @@ def check_non_negative(value: Union[int, float]) -> None:
         raise ValueError
 
 
-def check_max_runs_and_schedule_interval_compatibility(performance_dag_conf: Dict[str, str]) -> None:
+def check_max_runs_and_schedule_interval_compatibility(
+    performance_dag_conf: Dict[str, str],
+) -> None:
     """
     Checks if max_runs and schedule_interval values create a valid combination
 
@@ -354,7 +377,6 @@ def check_max_runs_and_schedule_interval_compatibility(performance_dag_conf: Dic
     start_ago = get_performance_dag_environment_variable(performance_dag_conf, "PERF_START_AGO")
 
     if schedule_interval == "@once":
-
         if max_runs is not None:
             raise ValueError(
                 "PERF_MAX_RUNS is allowed only if PERF_SCHEDULE_INTERVAL is " "provided as a time expression."
@@ -429,11 +451,9 @@ def generate_copies_of_performance_dag(
     safe_dag_prefix = get_dag_prefix(performance_dag_conf)
 
     with tempfile.TemporaryDirectory() as temp_dir:
-
         performance_dag_copies = []
 
         for i in range(1, dag_files_count + 1):
-
             destination_filename = f"{safe_dag_prefix}_{i}.py"
             destination_path = os.path.join(temp_dir, destination_filename)
 
@@ -503,7 +523,9 @@ def calculate_number_of_dag_runs(performance_dag_conf: Dict[str, str]) -> int:
     return int(max_runs) * total_dags_count
 
 
-def prepare_performance_dag_columns(performance_dag_conf: Dict[str, str]) -> OrderedDict:
+def prepare_performance_dag_columns(
+    performance_dag_conf: Dict[str, str],
+) -> OrderedDict:
     """
     Prepares an OrderedDict containing chosen performance dag environment variables
     that will serve as columns for the results dataframe
@@ -610,7 +632,9 @@ def get_performance_dag_environment_variable(performance_dag_conf: Dict[str, str
     return performance_dag_conf.get(env_name, performance_DAG_VARIABLES_DEFAULT_VALUES[env_name])
 
 
-def add_performance_dag_configuration_type(performance_dag_columns: OrderedDict) -> None:
+def add_performance_dag_configuration_type(
+    performance_dag_columns: OrderedDict,
+) -> None:
     """
     Adds a key with type of given performance dag configuration to the columns dict
 
