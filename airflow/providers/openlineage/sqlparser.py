@@ -331,8 +331,11 @@ class SQLParser(LoggingMixin):
             split_statement = DbApiHook.split_sql_string
         except (ImportError, AttributeError):
             # No common.sql Airflow provider available or version is too old.
-            def split_statement(sql: str) -> list[str]:
-                splits = sqlparse.split(sqlparse.format(sql, strip_comments=True))
+            def split_statement(sql: str, strip_semicolon: bool = False) -> list[str]:
+                splits = sqlparse.split(
+                    sql=sqlparse.format(sql, strip_comments=True),
+                    strip_semicolon=strip_semicolon,
+                )
                 return [s for s in splits if s]
 
         if isinstance(sql, str):
