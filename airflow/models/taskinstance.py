@@ -170,7 +170,7 @@ if TYPE_CHECKING:
 
 PAST_DEPENDS_MET = "past_depends_met"
 
-metrics_consistency_on = conf.getboolean("metrics", "metrics_consistency_on", fallback=False)
+metrics_consistency_on = conf.getboolean("metrics", "metrics_consistency_on", fallback=True)
 if not metrics_consistency_on:
     warnings.warn(
         "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",

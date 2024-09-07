@@ -1084,7 +1084,7 @@ metrics:
       version_added: 2.10.0
       type: string
       example: ~
-      default: "False"
+      default: "True"
     statsd_on:
       description: |
         Enables sending metrics to StatsD.
