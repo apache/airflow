@@ -21,9 +21,9 @@ from unittest.mock import MagicMock, patch
 
 from airflow.models import Connection
 from airflow.models.dag import DAG
+from airflow.providers.mongo.hooks.mongo import MongoHook
 from airflow.providers.mongo.sensors.mongo import MongoSensor
 from airflow.utils import timezone
-from airflow.providers.mongo.hooks.mongo import MongoHook
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
@@ -35,7 +35,7 @@ class TestMongoSensor:
 
         self.mock_context = MagicMock()
 
-    @patch.object(MongoHook, '_create_uri', return_value="mocked_uri")
+    @patch.object(MongoHook, "_create_uri", return_value="mocked_uri")
     @patch("airflow.providers.mongo.hooks.mongo.MongoHook.find")
     @patch("airflow.providers.mongo.hooks.mongo.MongoHook.get_connection")
     def test_execute_operator(self, mock_mongo_conn, mock_mongo_find, mock_create_uri):
