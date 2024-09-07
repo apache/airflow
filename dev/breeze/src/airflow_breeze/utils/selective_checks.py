@@ -81,7 +81,6 @@ UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 USE_SELF_HOSTED_RUNNERS_LABEL = "use self-hosted runners"
 
-
 ALL_CI_SELECTIVE_TEST_TYPES = (
     "API Always BranchExternalPython BranchPythonVenv "
     "CLI Core ExternalPython Operators Other PlainAsserts "
@@ -1278,7 +1277,10 @@ class SelectiveChecks:
             if "excluded-python-versions" in provider_info:
                 for python_version in provider_info["excluded-python-versions"]:
                     providers_to_exclude[python_version].append(provider)
-        return json.dumps(providers_to_exclude)
+        sorted_providers_to_exclude = dict(
+            sorted(providers_to_exclude.items(), key=lambda item: int(item[0].split(".")[1]))
+        )  # ^ sort by Python minor version
+        return json.dumps(sorted_providers_to_exclude)
 
     @cached_property
     def testable_integrations(self) -> list[str]:

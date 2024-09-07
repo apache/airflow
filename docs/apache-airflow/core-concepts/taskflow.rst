@@ -88,6 +88,8 @@ To use logging from your task functions, simply import and use Python's logging 
 
 Every logging line created this way will be recorded in the task log.
 
+.. _concepts:arbitrary-arguments:
+
 Passing Arbitrary Objects As Arguments
 --------------------------------------
 
