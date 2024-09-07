@@ -342,7 +342,7 @@ def with_row_locks(
         kwargs["nowait"] = True
     if skip_locked:
         kwargs["skip_locked"] = True
-    return query.with_for_update(**kwargs)
+    return query.with_for_update(**kwargs, key_share=True)
 
 
 @contextlib.contextmanager
