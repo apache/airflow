@@ -20,7 +20,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from airflow.models.dag import DAG
-from airflow.operators.python import PythonOperator
+from airflow.providers.standard.core.operators.python import PythonOperator
 from airflow.utils.timezone import datetime
 
 DEFAULT_DATE = datetime(2016, 1, 1)

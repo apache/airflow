@@ -32,11 +32,11 @@ from openlineage.client.transport.console import ConsoleConfig
 
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator
-from airflow.operators.python import PythonOperator
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
 from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
+from airflow.providers.standard.core.operators.python import PythonOperator
 from airflow.utils.state import DagRunState, State
 
 from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS

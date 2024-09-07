@@ -22,13 +22,13 @@ import logging
 from datetime import datetime, timedelta
 
 from airflow import DAG
-
-# This is just for setting up connections in the demo - you should use standard
-# methods for setting these connections in production
-from airflow.operators.python import PythonOperator
 from airflow.providers.apache.kafka.operators.consume import ConsumeFromTopicOperator
 from airflow.providers.apache.kafka.operators.produce import ProduceToTopicOperator
 from airflow.providers.apache.kafka.sensors.kafka import AwaitMessageSensor
+
+# This is just for setting up connections in the demo - you should use standard
+# methods for setting these connections in production
+from airflow.providers.standard.core.operators.python import PythonOperator
 
 default_args = {
     "owner": "airflow",
