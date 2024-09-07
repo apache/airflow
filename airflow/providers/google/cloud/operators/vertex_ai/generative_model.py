@@ -670,8 +670,12 @@ class SupervisedFineTuningTrainOperator(GoogleCloudBaseOperator):
         self.xcom_push(context, key="tuned_model_name", value=response.tuned_model_name)
         self.xcom_push(context, key="tuned_model_endpoint_name", value=response.tuned_model_endpoint_name)
 
-        # return types_v1.SupervisedTuningJob.to_dict(response) # SupervisedTuningJob object type not supported as of 9/2/2024
-        return response.tuned_model_endpoint_name
+        result = {
+            "tuned_model_name": response.tuned_model_name,
+            "tuned_model_endpoint_name": response.tuned_model_endpoint_name,
+        }
+
+        return result
 
 
 class CountTokensOperator(GoogleCloudBaseOperator):
