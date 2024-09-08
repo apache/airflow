@@ -25,8 +25,8 @@ export COLOR_RESET=$'\e[0m'
 NUMBER_OF_ATTEMPT="${NUMBER_OF_ATTEMPT:-3}"
 
 for i in $(seq 1 "$NUMBER_OF_ATTEMPT") ; do
-    set +e
     breeze down
+    set +e
     if breeze "$@"; then
         exit 0
     else
