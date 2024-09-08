@@ -223,7 +223,7 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/check_deferrable_default.py
         pass_filenames: false
-        additional_dependencies: ["libcst>=1.4.0"]
+        additional_dependencies: ["libcst>=1.1.0"]
         files: ^airflow/.*/sensors/.*\.py$|^airflow/.*/operators/.*\.py$
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.18.0
