@@ -160,7 +160,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-decorated-operator-implements-custom-name           | Check @task decorator implements custom_operator_name        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-deferrable-default-value                            | Check default value of deferrable attribute                  |         |
+| check-deferrable-default                                  | Check and fix default value of default_deferrable            |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-docstring-param-types                               | Check that docstrings do not specify param types             |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
