@@ -232,7 +232,7 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_upload_model_operator]
     upload_model_with_parent_model = UploadModelOperator(
-        task_id="upload_model",
+        task_id="upload_model_with_parent_model",
         region=REGION,
         project_id=PROJECT_ID,
         model=MODEL_OBJ,
@@ -259,7 +259,7 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_delete_model_operator]
     delete_model_with_parent_model = DeleteModelOperator(
-        task_id="delete_model",
+        task_id="delete_model_with_parent_model",
         project_id=PROJECT_ID,
         region=REGION,
         model_id=upload_model_with_parent_model.output["model_id"],
