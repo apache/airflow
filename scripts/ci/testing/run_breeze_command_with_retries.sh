@@ -16,51 +16,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# This script should be only used commands without waiting interactive inputs.
-# For example: 'apt-get install [package_name]' will ask you to input 'y' while installing.
-# This is an interactive input which you cannot provide.
+# If you want different number of retries for your breeze command, please set NUMBER_OF_ATTEMPT environment variable.
+# Default number of retries is 3 unless NUMBER_OF_ATTEMPT is set.
 export COLOR_RED=$'\e[31m'
 export COLOR_YELLOW=$'\e[33m'
 export COLOR_RESET=$'\e[0m'
 
-if [ ! "$#" -eq 2 ]; then
-    echo "${COLOR_RED}You must provide exactly two argument!.${COLOR_RESET}"
-    exit 1
-fi
+NUMBER_OF_ATTEMPT="${NUMBER_OF_ATTEMPT:-3}"
 
-# Param 1: Breeze Command
-# Param 2: Number of Retry(ies)
-COMMAND_TO_ATTEMPT="breeze $1"
-NUMBER_OF_ATTEMPT=$2
-NUMBER_OF_ATTEMPT="${NUMBER_OF_ATTEMPT:-1}"
-CURRENT_ATTEMPT=2
-ATTEMPT_SUCCESS=false
-
-breeze down
-set +e
-CURRENT_RUN_OUTPUT=$($COMMAND_TO_ATTEMPT)
-RESULT=$?
-echo "$CURRENT_RUN_OUTPUT"
-set -e
-
-while [ "${ATTEMPT_SUCCESS}" = false ] && [ "${CURRENT_ATTEMPT}" -le "${NUMBER_OF_ATTEMPT}" ]; do
-  if [ "${RESULT}" != "0" ]; then
-    ATTEMPT_LEFT=$((NUMBER_OF_ATTEMPT-CURRENT_ATTEMPT))
-    echo
-    echo "${COLOR_YELLOW}Breeze Command failed. Retrying.${COLOR_RESET}"
-    echo
-    echo "This could be due to a flaky test, re-running once to re-check it After restarting docker."
-    echo "Current Attempt: CURRENT_ATTEMPT, Attempt Left: ${ATTEMPT_LEFT}"
-    echo
-    sudo service docker restart
-    breeze down
+for i in $(seq 1 "$NUMBER_OF_ATTEMPT") ; do
     set +e
-    CURRENT_RUN_OUTPUT=$($COMMAND_TO_ATTEMPT)
-    RESULT=$?
-    echo "$CURRENT_RUN_OUTPUT"
+    breeze down
+    if breeze "$@"; then
+        exit 0
+    else
+        echo
+        echo "${COLOR_YELLOW}Breeze Command failed. Retrying again.${COLOR_RESET}"
+        echo
+        echo "This could be due to a flaky test, re-running once to re-check it After restarting docker."
+        echo "Current Attempt: ${i}, Attempt Left: $((NUMBER_OF_ATTEMPT-i))"
+        echo
+    fi
     set -e
-    CURRENT_ATTEMPT=$(( CURRENT_ATTEMPT + 1 ))
-  else
-    ATTEMPT_SUCCESS=true
-  fi
+    sudo service docker restart
 done
