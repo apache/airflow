@@ -1,6 +1,6 @@
 **Breaking Change**
 
-Replaced Python's ``list`` with ``MutableSet`` for the property ``Dag.tags``.
+Replaced Python's ``list`` with ``MutableSet`` for the property ``DAG.tags``.
 
 At the constractur you still can use list,
 you actually can use any data structure that implements the
