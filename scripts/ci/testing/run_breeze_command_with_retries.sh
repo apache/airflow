@@ -47,7 +47,7 @@ while [ "${ATTEMPT_SUCCESS}" = false ] && [ "${CURRENT_ATTEMPT}" -le "${NUMBER_O
   if [ "${RESULT}" != "0" ]; then
     ATTEMPT_LEFT=$((NUMBER_OF_ATTEMPT-CURRENT_ATTEMPT))
     echo
-    echo "${COLOR_YELLOW}Breeze Command failed. Retrying once${COLOR_RESET}"
+    echo "${COLOR_YELLOW}Breeze Command failed. Retrying.${COLOR_RESET}"
     echo
     echo "This could be due to a flaky test, re-running once to re-check it After restarting docker."
     echo "Current Attempt: CURRENT_ATTEMPT, Attempt Left: ${ATTEMPT_LEFT}"
