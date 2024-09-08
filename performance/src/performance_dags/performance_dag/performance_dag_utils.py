@@ -19,6 +19,7 @@
 """
 Module containing functions used for validation of performance dag configuration
 and collecting information about it's resulting DAGs' arrangement.
+
 """
 
 import json
@@ -178,7 +179,7 @@ def check_positive_int_convertibility(env_name: str, env_value: str) -> None:
         raise ValueError(f"{env_name} value must be convertible to positive int. Received: '{env_value}'.")
 
 
-def check_positive(value: Union[int, float]) -> None:
+def check_positive(value: int | float) -> None:
     """Check if provided value is positive and raises ValueError otherwise."""
     if value <= 0:
         raise ValueError
@@ -203,8 +204,9 @@ def check_datetime_convertibility(env_name: str, env_value: str) -> None:
 
 
 def check_dag_prefix(env_name: str, env_value: str) -> None:
-    """
-    Check if value of dag prefix env variable is a prefix for one of the forbidden dag ids
+    """Validate dag prefix value.
+
+    Checks if value of dag prefix env variable is a prefix for one of the forbidden dag ids
     (which would cause runs of corresponding DAGs to be collected alongside the real test Dag Runs).
     """
     # TODO: allow every environment type to specify its own "forbidden" matching dag ids
@@ -228,7 +230,8 @@ def safe_dag_id(dag_id: str) -> str:
 
 
 def check_and_parse_time_delta(env_name: str, env_value: str) -> timedelta:
-    """
+    """Validate and parse time delta value.
+
     Check if value of provided environment variable is a parsable time expression
     and returns timedelta object with duration.
 
@@ -256,8 +259,9 @@ def check_and_parse_time_delta(env_name: str, env_value: str) -> timedelta:
 
 
 def check_schedule_interval(env_name: str, env_value: str) -> None:
-    """
-    Check if value of schedule_interval is a parsable time expression
+    """Validate schedule_interval value.
+
+    Checks if value of schedule_interval is a parsable time expression
     or within a specified set of non-parsable values.
 
     :param env_name: name of the environment variable which is being checked.
@@ -288,10 +292,11 @@ def check_schedule_interval(env_name: str, env_value: str) -> None:
 
 
 def get_check_allowed_values_function(
-    values: Tuple[str, ...],
+    values: tuple[str, ...],
 ) -> Callable[[str, str], None]:
-    """
-    Return a function which will check if value of provided environment variable
+    """Return function that validates environment variable value.
+
+    Returns a function which will check if value of provided environment variable
     is within a specified set of values
 
     :param values: tuple of any length with allowed string values of environment variable
@@ -323,8 +328,9 @@ def get_check_allowed_values_function(
 
 
 def check_non_negative_float_convertibility(env_name: str, env_value: str) -> None:
-    """
-    Check if value of provided environment variable is convertible to non negative float value.
+    """Validate if a string is parsable float.
+
+    Checks if value of provided environment variable is convertible to non negative float value.
 
     :param env_name: name of the environment variable which is being checked.
     :type env_name: str
@@ -343,9 +349,7 @@ def check_non_negative_float_convertibility(env_name: str, env_value: str) -> No
 
 
 def check_non_negative(value: Union[int, float]) -> None:
-    """
-    Check if provided value is not negative and raises ValueError otherwise.
-    """
+    """Check if provided value is not negative and raises ValueError otherwise."""
     if value < 0:
         raise ValueError
 
@@ -353,7 +357,8 @@ def check_non_negative(value: Union[int, float]) -> None:
 def check_max_runs_and_schedule_interval_compatibility(
     performance_dag_conf: dict[str, str],
 ) -> None:
-    """
+    """Validate max_runs value.
+
     Check if max_runs and schedule_interval values create a valid combination.
 
     :param performance_dag_conf: dict with environment variables as keys and their values as values
@@ -407,7 +412,8 @@ def check_max_runs_and_schedule_interval_compatibility(
 
 
 def check_valid_json(env_name: str, env_value: str) -> None:
-    """
+    """Validate json string.
+
     Check if value of provided environment variable is a valid json.
 
     :param env_name: name of the environment variable which is being checked.
@@ -426,7 +432,8 @@ def check_valid_json(env_name: str, env_value: str) -> None:
 def generate_copies_of_performance_dag(
     performance_dag_path: str, performance_dag_conf: dict[str, str]
 ) -> tuple[str, List[str]]:
-    """
+    """Create context manager that creates copies of DAG.
+
     Contextmanager that creates copies of performance DAG inside temporary directory using the
     dag prefix env variable as a base for filenames.
 
@@ -460,8 +467,9 @@ def generate_copies_of_performance_dag(
 
 
 def get_dag_prefix(performance_dag_conf: dict[str, str]) -> str:
-    """
-    Return prefix that will be assigned to DAGs created with given performance DAG configuration.
+    """Return DAG prefix.
+
+    Returns prefix that will be assigned to DAGs created with given performance DAG configuration.
 
     :param performance_dag_conf: dict with environment variables as keys and their values as values
     :type performance_dag_conf: dict[str, str]
@@ -520,7 +528,8 @@ def calculate_number_of_dag_runs(performance_dag_conf: dict[str, str]) -> int:
 def prepare_performance_dag_columns(
     performance_dag_conf: dict[str, str],
 ) -> OrderedDict:
-    """
+    """Prepare dict containing DAG env variables.
+
     Prepare an OrderedDict containing chosen performance dag environment variables
     that will serve as columns for the results dataframe.
 
@@ -593,8 +602,9 @@ def prepare_performance_dag_columns(
 
 
 def get_performance_dag_environment_variable(performance_dag_conf: dict[str, str], env_name: str) -> str:
-    """
-    Return value of environment variable with given env_name based on provided `performance_dag_conf`.
+    """Get env variable value.
+
+    Returns value of environment variable with given env_name based on provided `performance_dag_conf`.
 
     :param performance_dag_conf: dict with environment variables as keys and their values as values
     :type performance_dag_conf: dict[str, str]
