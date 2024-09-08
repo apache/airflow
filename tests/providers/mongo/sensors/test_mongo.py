@@ -27,6 +27,7 @@ from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
+
 class TestMongoSensor:
     def setup_method(self, method):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
@@ -41,7 +42,7 @@ class TestMongoSensor:
     def test_execute_operator(self, mock_mongo_conn, mock_mongo_find, mock_create_uri):
         mock_mongo_find.return_value = {"test_key": "test"}
         mock_connection = MagicMock(spec=Connection)
-        
+
         mock_extra_dejson = {"ssl": "false", "srv": "false"}
         mock_connection.extra_dejson = MagicMock(spec=dict)
         mock_connection.extra_dejson.copy.return_value = mock_extra_dejson
