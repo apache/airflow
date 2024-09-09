@@ -72,7 +72,8 @@ class GlueDataBrewStartJobOperator(AwsBaseOperator[GlueDataBrewHook]):
         "job_name",
         "wait_for_completion",
         "waiter_delay",
-        "waiter_max_attemptsdeferrable",
+        "waiter_max_attempts",
+        "deferrable",
     )
 
     def __init__(
