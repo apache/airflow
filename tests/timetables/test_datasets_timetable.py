@@ -134,7 +134,7 @@ def test_serialization(dataset_timetable: DatasetOrTimeSchedule, monkeypatch: An
         "timetable": "mock_serialized_timetable",
         "dataset_condition": {
             "__type": "dataset_all",
-            "objects": [{"__type": "dataset", "uri": "test_dataset", "extra": None}],
+            "objects": [{"__type": "dataset", "uri": "test_dataset", "extra": {}}],
         },
     }
 
@@ -267,7 +267,7 @@ def test_summary(session: Session) -> None:
 
     dataset_alias = DatasetAlias("test_dataset_alias")
     table = DatasetTriggeredTimetable(dataset_alias)
-    assert table.summary == "unresolved DatasetAlias"
+    assert table.summary == "Unresolved DatasetAlias"
 
     dataset_alias_model.datasets.append(dataset_model)
     session.add(dataset_alias_model)

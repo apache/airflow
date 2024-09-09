@@ -104,7 +104,7 @@ def test_get_long_package_name():
 
 def test_get_provider_requirements():
     # update me when asana dependencies change
-    assert get_provider_requirements("asana") == ["apache-airflow>=2.7.0", "asana>=0.10,<4.0.0"]
+    assert get_provider_requirements("asana") == ["apache-airflow>=2.8.0", "asana>=0.10,<4.0.0"]
 
 
 def test_get_removed_providers():
@@ -204,8 +204,8 @@ def test_get_documentation_package_path():
             "postgres",
             "beta0",
             """
-    "apache-airflow-providers-common-sql>=1.14.1b0",
-    "apache-airflow>=2.7.0b0",
+    "apache-airflow-providers-common-sql>=1.17.0b0",
+    "apache-airflow>=2.8.0b0",
     "psycopg2-binary>=2.9.4",
     """,
             id="beta0 suffix postgres",
@@ -214,8 +214,8 @@ def test_get_documentation_package_path():
             "postgres",
             "",
             """
-    "apache-airflow-providers-common-sql>=1.14.1",
-    "apache-airflow>=2.7.0",
+    "apache-airflow-providers-common-sql>=1.17.0",
+    "apache-airflow>=2.8.0",
     "psycopg2-binary>=2.9.4",
     """,
             id="No suffix postgres",
@@ -431,8 +431,8 @@ def test_validate_provider_info_with_schema():
 @pytest.mark.parametrize(
     "provider_id, min_version",
     [
-        ("amazon", "2.7.0"),
-        ("common.io", "2.8.0"),
+        ("amazon", "2.8.0"),
+        ("fab", "2.9.0"),
     ],
 )
 def test_get_min_airflow_version(provider_id: str, min_version: str):
@@ -496,7 +496,7 @@ def test_provider_jinja_context():
         "CHANGELOG_RELATIVE_PATH": "../../airflow/providers/amazon",
         "SUPPORTED_PYTHON_VERSIONS": ["3.8", "3.9", "3.10", "3.11", "3.12"],
         "PLUGINS": [],
-        "MIN_AIRFLOW_VERSION": "2.7.0",
+        "MIN_AIRFLOW_VERSION": "2.8.0",
         "PROVIDER_REMOVED": False,
         "PROVIDER_INFO": provider_info,
     }

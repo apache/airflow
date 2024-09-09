@@ -25,6 +25,7 @@ from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 from airflow.utils import timezone
+from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
@@ -74,7 +75,7 @@ class TestSparkSubmitOperator:
 
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     def test_execute(self):
         # Given / When
@@ -188,12 +189,18 @@ class TestSparkSubmitOperator:
         assert operator2.queue == "default"  # airflow queue
 
     @pytest.mark.db_test
-    def test_render_template(self):
+    def test_render_template(self, session):
         # Given
         operator = SparkSubmitOperator(task_id="spark_submit_job", dag=self.dag, **self._config)
         ti = TaskInstance(operator, run_id="spark_test")
-        ti.dag_run = DagRun(dag_id=self.dag.dag_id, run_id="spark_test", execution_date=DEFAULT_DATE)
-
+        ti.dag_run = DagRun(
+            dag_id=self.dag.dag_id,
+            run_id="spark_test",
+            execution_date=DEFAULT_DATE,
+            run_type=DagRunType.MANUAL,
+        )
+        session.add(ti)
+        session.commit()
         # When
         ti.render_templates()
 
@@ -215,7 +222,9 @@ class TestSparkSubmitOperator:
         assert expected_name == getattr(operator, "name")
 
     @pytest.mark.db_test
-    def test_templating_with_create_task_instance_of_operator(self, create_task_instance_of_operator):
+    def test_templating_with_create_task_instance_of_operator(
+        self, create_task_instance_of_operator, session
+    ):
         ti = create_task_instance_of_operator(
             SparkSubmitOperator,
             # Templated fields
@@ -239,6 +248,8 @@ class TestSparkSubmitOperator:
             task_id="test_template_body_templating_task",
             execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: SparkSubmitOperator = ti.task
         assert task.application == "application"

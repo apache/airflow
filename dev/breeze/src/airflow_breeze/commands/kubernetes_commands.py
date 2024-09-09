@@ -82,8 +82,7 @@ PARALLEL_PYTEST_ARGS = [
     "--maxfail=50",
     "--color=yes",
     # timeouts in seconds for individual tests
-    "--timeouts-order",
-    "moi",
+    "--timeouts-order=moi",
     "--setup-timeout=300",
     "--execution-timeout=300",
     "--teardown-timeout=300",
@@ -1024,7 +1023,7 @@ def _deploy_helm_chart(
             "-v",
             "1",
             "--set",
-            "config.api.auth_backends=airflow.api.auth.backend.basic_auth",
+            "config.api.auth_backends=airflow.providers.fab.auth_manager.api.auth.backend.basic_auth",
             "--set",
             "config.logging.logging_level=DEBUG",
             "--set",

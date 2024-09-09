@@ -22,9 +22,11 @@ description: |
     `Elasticsearch <https://www.elastic.co/elasticsearch>`__
 
 state: ready
-source-date-epoch: 1716287658
+source-date-epoch: 1723970114
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 5.5.0
+  - 5.4.2
   - 5.4.1
   - 5.4.0
   - 5.3.4
@@ -65,8 +67,8 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.7.0
-  - apache-airflow-providers-common-sql>=1.14.1
+  - apache-airflow>=2.8.0
+  - apache-airflow-providers-common-sql>=1.17.0
   - elasticsearch>=8.10,<9
 
 integrations:

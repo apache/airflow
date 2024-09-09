@@ -49,6 +49,9 @@ dependencies = [
     "click>=8.1.7",
     "filelock>=3.13.0",
     "flit>=3.5.0",
+    "google-api-python-client>=2.142.0",
+    "google-auth-httplib2>=0.2.0",
+    "google-auth-oauthlib>=1.2.0",
     "gitpython>=3.1.40",
     "hatch==1.9.4",
     # Importib_resources 6.2.0-6.3.1 break pytest_rewrite

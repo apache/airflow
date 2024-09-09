@@ -21,9 +21,7 @@ import inspect
 import json
 import logging
 import pickle
-import warnings
-from functools import wraps
-from typing import TYPE_CHECKING, Any, Iterable, cast, overload
+from typing import TYPE_CHECKING, Any, Iterable, cast
 
 from sqlalchemy import (
     Column,
@@ -40,15 +38,13 @@ from sqlalchemy import (
 from sqlalchemy.dialects.mysql import LONGBLOB
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Query, reconstructor, relationship
-from sqlalchemy.orm.exc import NoResultFound
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.base import COLLATION_ARGS, ID_LEN, TaskInstanceDependencies
 from airflow.utils import timezone
 from airflow.utils.db import LazySelectSequence
-from airflow.utils.helpers import exactly_one, is_container
+from airflow.utils.helpers import is_container
 from airflow.utils.json import XComDecoder, XComEncoder
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -64,9 +60,6 @@ from airflow.utils.xcom import (
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    import datetime
-
-    import pendulum
     from sqlalchemy.engine import Row
     from sqlalchemy.orm import Session
     from sqlalchemy.sql.expression import Select, TextClause
@@ -134,8 +127,9 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             return f'<XCom "{self.key}" ({self.task_id} @ {self.run_id})>'
         return f'<XCom "{self.key}" ({self.task_id}[{self.map_index}] @ {self.run_id})>'
 
-    @overload
     @classmethod
+    @internal_api_call
+    @provide_session
     def set(
         cls,
         key: str,
@@ -150,9 +144,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         """
         Store an XCom value.
 
-        A deprecated form of this function accepts ``execution_date`` instead of
-        ``run_id``. The two arguments are mutually exclusive.
-
         :param key: Key to store the XCom.
         :param value: XCom value to store.
         :param dag_id: DAG ID.
@@ -163,67 +154,14 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
-
-    @overload
-    @classmethod
-    def set(
-        cls,
-        key: str,
-        value: Any,
-        task_id: str,
-        dag_id: str,
-        execution_date: datetime.datetime,
-        session: Session = NEW_SESSION,
-    ) -> None:
-        """
-        Store an XCom value.
-
-        :sphinx-autoapi-skip:
-        """
-
-    @classmethod
-    @internal_api_call
-    @provide_session
-    def set(
-        cls,
-        key: str,
-        value: Any,
-        task_id: str,
-        dag_id: str,
-        execution_date: datetime.datetime | None = None,
-        session: Session = NEW_SESSION,
-        *,
-        run_id: str | None = None,
-        map_index: int = -1,
-    ) -> None:
-        """
-        Store an XCom value.
-
-        :sphinx-autoapi-skip:
-        """
         from airflow.models.dagrun import DagRun
 
-        if not exactly_one(execution_date is not None, run_id is not None):
-            raise ValueError(
-                f"Exactly one of run_id or execution_date must be passed. "
-                f"Passed execution_date={execution_date}, run_id={run_id}"
-            )
+        if not run_id:
+            raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
-        if run_id is None:
-            message = "Passing 'execution_date' to 'XCom.set()' is deprecated. Use 'run_id' instead."
-            warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
-            try:
-                dag_run_id, run_id = (
-                    session.query(DagRun.id, DagRun.run_id)
-                    .filter(DagRun.dag_id == dag_id, DagRun.execution_date == execution_date)
-                    .one()
-                )
-            except NoResultFound:
-                raise ValueError(f"DAG run not found on DAG {dag_id!r} at {execution_date}") from None
-        else:
-            dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
-            if dag_run_id is None:
-                raise ValueError(f"DAG run not found on DAG {dag_id!r} with ID {run_id!r}")
+        dag_run_id = session.query(DagRun.id).filter_by(dag_id=dag_id, run_id=run_id).scalar()
+        if dag_run_id is None:
+            raise ValueError(f"DAG run not found on DAG {dag_id!r} with ID {run_id!r}")
 
         # Seamlessly resolve LazySelectSequence to a list. This intends to work
         # as a "lazy list" to avoid pulling a ton of XComs unnecessarily, but if
@@ -242,7 +180,7 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
                 "return value" if key == XCOM_RETURN_KEY else f"value {key}",
                 task_id,
                 dag_id,
-                run_id or execution_date,
+                run_id,
             )
             value = list(value)
 
@@ -311,17 +249,18 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             session=session,
         )
 
-    @overload
     @staticmethod
+    @provide_session
     @internal_api_call
     def get_one(
         *,
         key: str | None = None,
         dag_id: str | None = None,
         task_id: str | None = None,
-        run_id: str | None = None,
+        run_id: str,
         map_index: int | None = None,
         session: Session = NEW_SESSION,
+        include_prior_dates: bool = False,
     ) -> Any | None:
         """
         Retrieve an XCom value, optionally meeting certain criteria.
@@ -332,9 +271,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
 
         If there are no results, *None* is returned. If multiple XCom entries
         match the criteria, an arbitrary one is returned.
-
-        A deprecated form of this function accepts ``execution_date`` instead of
-        ``run_id``. The two arguments are mutually exclusive.
 
         .. seealso:: ``get_value()`` is a convenience function if you already
             have a structured TaskInstance or TaskInstanceKey object available.
@@ -354,83 +290,27 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
-
-    @overload
-    @staticmethod
-    @internal_api_call
-    def get_one(
-        execution_date: datetime.datetime,
-        key: str | None = None,
-        task_id: str | None = None,
-        dag_id: str | None = None,
-        include_prior_dates: bool = False,
-        session: Session = NEW_SESSION,
-    ) -> Any | None:
-        """
-        Retrieve an XCom value, optionally meeting certain criteria.
-
-        :sphinx-autoapi-skip:
-        """
-
-    @staticmethod
-    @provide_session
-    @internal_api_call
-    def get_one(
-        execution_date: datetime.datetime | None = None,
-        key: str | None = None,
-        task_id: str | None = None,
-        dag_id: str | None = None,
-        include_prior_dates: bool = False,
-        session: Session = NEW_SESSION,
-        *,
-        run_id: str | None = None,
-        map_index: int | None = None,
-    ) -> Any | None:
-        """
-        Retrieve an XCom value, optionally meeting certain criteria.
-
-        :sphinx-autoapi-skip:
-        """
-        if not exactly_one(execution_date is not None, run_id is not None):
-            raise ValueError("Exactly one of run_id or execution_date must be passed")
-
-        if run_id:
-            query = BaseXCom.get_many(
-                run_id=run_id,
-                key=key,
-                task_ids=task_id,
-                dag_ids=dag_id,
-                map_indexes=map_index,
-                include_prior_dates=include_prior_dates,
-                limit=1,
-                session=session,
-            )
-        elif execution_date is not None:
-            message = "Passing 'execution_date' to 'XCom.get_one()' is deprecated. Use 'run_id' instead."
-            warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
-
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", RemovedInAirflow3Warning)
-                query = BaseXCom.get_many(
-                    execution_date=execution_date,
-                    key=key,
-                    task_ids=task_id,
-                    dag_ids=dag_id,
-                    map_indexes=map_index,
-                    include_prior_dates=include_prior_dates,
-                    limit=1,
-                    session=session,
-                )
-        else:
-            raise RuntimeError("Should not happen?")
+        query = BaseXCom.get_many(
+            run_id=run_id,
+            key=key,
+            task_ids=task_id,
+            dag_ids=dag_id,
+            map_indexes=map_index,
+            include_prior_dates=include_prior_dates,
+            limit=1,
+            session=session,
+        )
 
         result = query.with_entities(BaseXCom.value).first()
         if result:
             return XCom.deserialize_value(result)
         return None
 
-    @overload
+    # The 'get_many` is not supported via database isolation mode. Attempting to use it in DB isolation
+    # mode will result in a crash - Resulting Query object cannot be **really** serialized
+    # TODO(potiuk) - document it in AIP-44 docs
     @staticmethod
+    @provide_session
     def get_many(
         *,
         run_id: str,
@@ -448,9 +328,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         This function returns an SQLAlchemy query of full XCom objects. If you
         just want one stored value, use :meth:`get_one` instead.
 
-        A deprecated form of this function accepts ``execution_date`` instead of
-        ``run_id``. The two arguments are mutually exclusive.
-
         :param run_id: DAG run ID for the task.
         :param key: A key for the XComs. If provided, only XComs with matching
             keys will be returned. Pass *None* (default) to remove the filter.
@@ -467,56 +344,10 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             created for this function.
         :param limit: Limiting returning XComs
         """
-
-    @overload
-    @staticmethod
-    @internal_api_call
-    def get_many(
-        execution_date: datetime.datetime,
-        key: str | None = None,
-        task_ids: str | Iterable[str] | None = None,
-        dag_ids: str | Iterable[str] | None = None,
-        map_indexes: int | Iterable[int] | None = None,
-        include_prior_dates: bool = False,
-        limit: int | None = None,
-        session: Session = NEW_SESSION,
-    ) -> Query:
-        """
-        Composes a query to get one or more XCom entries.
-
-        :sphinx-autoapi-skip:
-        """
-
-    @staticmethod
-    @provide_session
-    @internal_api_call
-    def get_many(
-        execution_date: datetime.datetime | None = None,
-        key: str | None = None,
-        task_ids: str | Iterable[str] | None = None,
-        dag_ids: str | Iterable[str] | None = None,
-        map_indexes: int | Iterable[int] | None = None,
-        include_prior_dates: bool = False,
-        limit: int | None = None,
-        session: Session = NEW_SESSION,
-        *,
-        run_id: str | None = None,
-    ) -> Query:
-        """
-        Composes a query to get one or more XCom entries.
-
-        :sphinx-autoapi-skip:
-        """
         from airflow.models.dagrun import DagRun
 
-        if not exactly_one(execution_date is not None, run_id is not None):
-            raise ValueError(
-                f"Exactly one of run_id or execution_date must be passed. "
-                f"Passed execution_date={execution_date}, run_id={run_id}"
-            )
-        if execution_date is not None:
-            message = "Passing 'execution_date' to 'XCom.get_many()' is deprecated. Use 'run_id' instead."
-            warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
+        if not run_id:
+            raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
         query = session.query(BaseXCom).join(BaseXCom.dag_run)
 
@@ -543,13 +374,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
             query = query.filter(BaseXCom.map_index == map_indexes)
 
         if include_prior_dates:
-            if execution_date is not None:
-                query = query.filter(DagRun.execution_date <= execution_date)
-            else:
-                dr = session.query(DagRun.execution_date).filter(DagRun.run_id == run_id).subquery()
-                query = query.filter(BaseXCom.execution_date <= dr.c.execution_date)
-        elif execution_date is not None:
-            query = query.filter(DagRun.execution_date == execution_date)
+            dr = session.query(DagRun.execution_date).filter(DagRun.run_id == run_id).subquery()
+            query = query.filter(BaseXCom.execution_date <= dr.c.execution_date)
         else:
             query = query.filter(BaseXCom.run_id == run_id)
 
@@ -576,8 +402,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         """Purge an XCom entry from underlying storage implementations."""
         pass
 
-    @overload
     @staticmethod
+    @provide_session
     @internal_api_call
     def clear(
         *,
@@ -590,9 +416,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         """
         Clear all XCom data from the database for the given task instance.
 
-        A deprecated form of this function accepts ``execution_date`` instead of
-        ``run_id``. The two arguments are mutually exclusive.
-
         :param dag_id: ID of DAG to clear the XCom for.
         :param task_id: ID of task to clear the XCom for.
         :param run_id: ID of DAG run to clear the XCom for.
@@ -601,41 +424,6 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         :param session: Database session. If not given, a new session will be
             created for this function.
         """
-
-    @overload
-    @staticmethod
-    @internal_api_call
-    def clear(
-        execution_date: pendulum.DateTime,
-        dag_id: str,
-        task_id: str,
-        session: Session = NEW_SESSION,
-    ) -> None:
-        """
-        Clear all XCom data from the database for the given task instance.
-
-        :sphinx-autoapi-skip:
-        """
-
-    @staticmethod
-    @provide_session
-    @internal_api_call
-    def clear(
-        execution_date: pendulum.DateTime | None = None,
-        dag_id: str | None = None,
-        task_id: str | None = None,
-        session: Session = NEW_SESSION,
-        *,
-        run_id: str | None = None,
-        map_index: int | None = None,
-    ) -> None:
-        """
-        Clear all XCom data from the database for the given task instance.
-
-        :sphinx-autoapi-skip:
-        """
-        from airflow.models import DagRun
-
         # Given the historic order of this function (execution_date was first argument) to add a new optional
         # param we need to add default values for everything :(
         if dag_id is None:
@@ -643,20 +431,8 @@ class BaseXCom(TaskInstanceDependencies, LoggingMixin):
         if task_id is None:
             raise TypeError("clear() missing required argument: task_id")
 
-        if not exactly_one(execution_date is not None, run_id is not None):
-            raise ValueError(
-                f"Exactly one of run_id or execution_date must be passed. "
-                f"Passed execution_date={execution_date}, run_id={run_id}"
-            )
-
-        if execution_date is not None:
-            message = "Passing 'execution_date' to 'XCom.clear()' is deprecated. Use 'run_id' instead."
-            warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
-            run_id = (
-                session.query(DagRun.run_id)
-                .filter(DagRun.dag_id == dag_id, DagRun.execution_date == execution_date)
-                .scalar()
-            )
+        if not run_id:
+            raise ValueError(f"run_id must be passed. Passed run_id={run_id}")
 
         query = session.query(BaseXCom).filter_by(dag_id=dag_id, task_id=task_id, run_id=run_id)
         if map_index is not None:
@@ -745,33 +521,6 @@ class LazyXComSelectSequence(LazySelectSequence[Any]):
         return XCom.deserialize_value(row)
 
 
-def _patch_outdated_serializer(clazz: type[BaseXCom], params: Iterable[str]) -> None:
-    """
-    Patch a custom ``serialize_value`` to accept the modern signature.
-
-    To give custom XCom backends more flexibility with how they store values, we
-    now forward all params passed to ``XCom.set`` to ``XCom.serialize_value``.
-    In order to maintain compatibility with custom XCom backends written with
-    the old signature, we check the signature and, if necessary, patch with a
-    method that ignores kwargs the backend does not accept.
-    """
-    old_serializer = clazz.serialize_value
-
-    @wraps(old_serializer)
-    def _shim(**kwargs):
-        kwargs = {k: kwargs.get(k) for k in params}
-        warnings.warn(
-            f"Method `serialize_value` in XCom backend {XCom.__name__} is using outdated signature and"
-            f"must be updated to accept all params in `BaseXCom.set` except `session`. Support will be "
-            f"removed in a future release.",
-            RemovedInAirflow3Warning,
-            stacklevel=1,
-        )
-        return old_serializer(**kwargs)
-
-    clazz.serialize_value = _shim  # type: ignore[assignment]
-
-
 def _get_function_params(function) -> list[str]:
     """
     Return the list of variables names of a function.
@@ -799,10 +548,6 @@ def resolve_xcom_backend() -> type[BaseXCom]:
         raise TypeError(
             f"Your custom XCom class `{clazz.__name__}` is not a subclass of `{BaseXCom.__name__}`."
         )
-    base_xcom_params = _get_function_params(BaseXCom.serialize_value)
-    xcom_params = _get_function_params(clazz.serialize_value)
-    if set(base_xcom_params) != set(xcom_params):
-        _patch_outdated_serializer(clazz=clazz, params=xcom_params)
     return clazz
 
 

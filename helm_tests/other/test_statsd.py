@@ -337,6 +337,20 @@ class TestStatsd:
         assert "annotations" in jmespath.search("metadata", docs)
         assert jmespath.search("metadata.annotations", docs)["test_annotation"] == "test_annotation_value"
 
+    @pytest.mark.parametrize(
+        "statsd_values, expected",
+        [
+            ({}, 30),
+            ({"statsd": {"terminationGracePeriodSeconds": 1200}}, 1200),
+        ],
+    )
+    def test_statsd_termination_grace_period_seconds(self, statsd_values, expected):
+        docs = render_chart(
+            values=statsd_values,
+            show_only=["templates/statsd/statsd-deployment.yaml"],
+        )
+        assert expected == jmespath.search("spec.template.spec.terminationGracePeriodSeconds", docs[0])
+
 
 class TestStatsdServiceAccount:
     """Tests statsd service account."""

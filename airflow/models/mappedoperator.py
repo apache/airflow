@@ -157,10 +157,6 @@ class OperatorPartial:
     _expand_called: bool = False  # Set when expand() is called to ease user debugging.
 
     def __attrs_post_init__(self):
-        from airflow.operators.subdag import SubDagOperator
-
-        if issubclass(self.operator_class, SubDagOperator):
-            raise TypeError("Mapping over deprecated SubDagOperator is not supported")
         validate_mapping_kwargs(self.operator_class, "partial", self.kwargs)
 
     def __repr__(self) -> str:
@@ -306,7 +302,6 @@ class MappedOperator(AbstractOperator):
     This should be a name to call ``getattr()`` on.
     """
 
-    subdag: None = None  # Since we don't support SubDagOperator, this is always None.
     supports_lineage: bool = False
 
     HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
@@ -347,7 +342,6 @@ class MappedOperator(AbstractOperator):
             "dag",
             "deps",
             "expand_input",  # This is needed to be able to accept XComArg.
-            "subdag",
             "task_group",
             "upstream_task_ids",
             "supports_lineage",

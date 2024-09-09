@@ -37,6 +37,8 @@ from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 
+pytestmark = pytest.mark.skip_if_database_isolation_mode
+
 
 def test_supports_sentry():
     assert not BaseExecutor.supports_sentry
@@ -358,14 +360,6 @@ def test_empty_airflow_tasks_run_command(generate_command_mock, dag_maker):
     tis = dagrun.task_instances
     dag_id, task_id = BaseExecutor.validate_airflow_tasks_run_command(tis[0].command_as_list())
     assert dag_id is None, task_id is None
-
-
-@pytest.mark.db_test
-def test_deprecate_validate_api(dag_maker):
-    dagrun = setup_dagrun(dag_maker)
-    tis = dagrun.task_instances
-    with pytest.warns(DeprecationWarning):
-        BaseExecutor.validate_command(tis[0].command_as_list())
 
 
 def test_debug_dump(caplog):

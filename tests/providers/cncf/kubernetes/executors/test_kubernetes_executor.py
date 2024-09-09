@@ -57,6 +57,8 @@ from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.skip_if_database_isolation_mode
+
 
 class TestAirflowKubernetesScheduler:
     @staticmethod
@@ -1797,6 +1799,13 @@ class TestKubernetesJobWatcher:
 
     def test_process_status_failed(self):
         self.pod.status.phase = "Failed"
+        self.events.append({"type": "MODIFIED", "object": self.pod})
+
+        self._run()
+        self.assert_watcher_queue_called_once_with_state(State.FAILED)
+
+    def test_process_status_provider_failed(self):
+        self.pod.status.reason = "ProviderFailed"
         self.events.append({"type": "MODIFIED", "object": self.pod})
 
         self._run()

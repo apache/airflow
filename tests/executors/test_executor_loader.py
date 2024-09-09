@@ -31,6 +31,8 @@ from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecut
 from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from tests.test_utils.config import conf_vars
 
+pytestmark = pytest.mark.skip_if_database_isolation_mode
+
 # Plugin Manager creates new modules, which is difficult to mock, so we use test isolation by a unique name.
 TEST_PLUGIN_NAME = "unique_plugin_name_to_avoid_collision_i_love_kitties"
 

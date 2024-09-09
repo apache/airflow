@@ -22,13 +22,36 @@ import pytest
 
 openai = pytest.importorskip("openai")
 
-from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator
+from openai.types.batch import Batch
+
+from airflow.exceptions import TaskDeferred
+from airflow.providers.openai.operators.openai import OpenAIEmbeddingOperator, OpenAITriggerBatchOperator
+from airflow.providers.openai.triggers.openai import OpenAIBatchTrigger
 from airflow.utils.context import Context
+
+TASK_ID = "TaskId"
+CONN_ID = "test_conn_id"
+BATCH_ID = "batch_id"
+FILE_ID = "file_id"
+BATCH_ENDPOINT = "/v1/chat/completions"
+
+
+@pytest.fixture
+def mock_batch():
+    return Batch(
+        id=BATCH_ID,
+        object="batch",
+        completion_window="24h",
+        created_at=1699061776,
+        endpoint=BATCH_ENDPOINT,
+        input_file_id=FILE_ID,
+        status="in_progress",
+    )
 
 
 def test_execute_with_input_text():
     operator = OpenAIEmbeddingOperator(
-        task_id="TaskId", conn_id="test_conn_id", model="test_model", input_text="Test input text"
+        task_id=TASK_ID, conn_id=CONN_ID, model="test_model", input_text="Test input text"
     )
     mock_hook_instance = Mock()
     mock_hook_instance.create_embeddings.return_value = [1.0, 2.0, 3.0]
@@ -43,8 +66,53 @@ def test_execute_with_input_text():
 @pytest.mark.parametrize("invalid_input", ["", None, 123])
 def test_execute_with_invalid_input(invalid_input):
     operator = OpenAIEmbeddingOperator(
-        task_id="TaskId", conn_id="test_conn_id", model="test_model", input_text=invalid_input
+        task_id=TASK_ID, conn_id=CONN_ID, model="test_model", input_text=invalid_input
     )
     context = Context()
     with pytest.raises(ValueError):
         operator.execute(context)
+
+
+@pytest.mark.parametrize("wait_for_completion", [True, False])
+def test_openai_trigger_batch_operator_not_deferred(mock_batch, wait_for_completion):
+    operator = OpenAITriggerBatchOperator(
+        task_id=TASK_ID,
+        conn_id=CONN_ID,
+        file_id=FILE_ID,
+        endpoint=BATCH_ENDPOINT,
+        wait_for_completion=wait_for_completion,
+        deferrable=False,
+    )
+    mock_hook_instance = Mock()
+    mock_hook_instance.get_batch.return_value = mock_batch
+    mock_hook_instance.create_batch.return_value = mock_batch
+    operator.hook = mock_hook_instance
+
+    context = Context()
+    batch_id = operator.execute(context)
+    assert batch_id == BATCH_ID
+
+
+@pytest.mark.parametrize("wait_for_completion", [True, False])
+def test_openai_trigger_batch_operator_with_deferred(mock_batch, wait_for_completion):
+    operator = OpenAITriggerBatchOperator(
+        task_id=TASK_ID,
+        conn_id=CONN_ID,
+        file_id=FILE_ID,
+        endpoint=BATCH_ENDPOINT,
+        deferrable=True,
+        wait_for_completion=wait_for_completion,
+    )
+    mock_hook_instance = Mock()
+    mock_hook_instance.get_batch.return_value = mock_batch
+    mock_hook_instance.create_batch.return_value = mock_batch
+    operator.hook = mock_hook_instance
+
+    context = Context()
+    if wait_for_completion:
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(context)
+        assert isinstance(exc.value.trigger, OpenAIBatchTrigger)
+    else:
+        batch_id = operator.execute(context)
+        assert batch_id == BATCH_ID

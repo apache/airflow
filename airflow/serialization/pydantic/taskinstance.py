@@ -19,6 +19,12 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Iterable, Optional
 
+from pydantic import (
+    BaseModel as BaseModelPydantic,
+    ConfigDict,
+    PlainSerializer,
+    PlainValidator,
+)
 from typing_extensions import Annotated
 
 from airflow.exceptions import AirflowRescheduleException, TaskDeferred
@@ -36,22 +42,15 @@ from airflow.serialization.pydantic.dag import DagModelPydantic
 from airflow.serialization.pydantic.dag_run import DagRunPydantic
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
-from airflow.utils.pydantic import (
-    BaseModel as BaseModelPydantic,
-    ConfigDict,
-    PlainSerializer,
-    PlainValidator,
-    is_pydantic_2_installed,
-)
 from airflow.utils.xcom import XCOM_RETURN_KEY
 
 if TYPE_CHECKING:
     import pendulum
+    from pydantic import ValidationInfo
     from sqlalchemy.orm import Session
 
     from airflow.models.dagrun import DagRun
     from airflow.utils.context import Context
-    from airflow.utils.pydantic import ValidationInfo
     from airflow.utils.state import DagRunState
 
 
@@ -204,7 +203,6 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         self,
         key: str,
         value: Any,
-        execution_date: datetime | None = None,
         session: Session | None = None,
     ) -> None:
         """
@@ -212,13 +210,11 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         :param key: the key to identify the XCom value
         :param value: the value of the XCom
-        :param execution_date: the execution date to push the XCom for
         """
         return TaskInstance.xcom_push(
             self=self,  # type: ignore[arg-type]
             key=key,
             value=value,
-            execution_date=execution_date,
             session=session,
         )
 
@@ -381,6 +377,21 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
 
         return _get_previous_execution_date(task_instance=self, state=state, session=session)
 
+    def get_previous_start_date(
+        self,
+        state: DagRunState | None = None,
+        session: Session | None = None,
+    ) -> pendulum.DateTime | None:
+        """
+        Return the execution date from property previous_ti_success.
+
+        :param state: If passed, it only take into account instances of a specific state.
+        :param session: SQLAlchemy ORM Session
+        """
+        from airflow.models.taskinstance import _get_previous_start_date
+
+        return _get_previous_start_date(task_instance=self, state=state, session=session)
+
     def email_alert(self, exception, task: BaseOperator) -> None:
         """
         Send alert email with exception information.
@@ -537,5 +548,4 @@ class TaskInstancePydantic(BaseModelPydantic, LoggingMixin):
         )
 
 
-if is_pydantic_2_installed():
-    TaskInstancePydantic.model_rebuild()
+TaskInstancePydantic.model_rebuild()

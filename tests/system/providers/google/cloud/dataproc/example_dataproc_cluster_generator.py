@@ -25,6 +25,8 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from google.api_core.retry import Retry
+
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.dataproc import (
     ClusterGenerator,
@@ -103,6 +105,7 @@ with DAG(
         project_id=PROJECT_ID,
         region=REGION,
         cluster_config=CLUSTER_GENERATOR_CONFIG,
+        retry=Retry(maximum=100.0, initial=10.0, multiplier=1.0),
     )
 
     # [END how_to_cloud_dataproc_create_cluster_generate_cluster_config_operator]

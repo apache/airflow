@@ -59,6 +59,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.listeners import dag_listener
 from tests.models import TEST_DAGS_FOLDER
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import (
     clear_db_dags,
@@ -68,7 +69,9 @@ from tests.test_utils.db import (
     set_default_pool_slots,
 )
 from tests.test_utils.mock_executor import MockExecutor
-from tests.test_utils.timetables import cron_timetable
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -1447,153 +1450,6 @@ class TestBackfillJob:
             elif ti.task_id == op5.task_id:
                 assert ti.state == State.UPSTREAM_FAILED
 
-    def test_backfill_execute_subdag(self, mock_executor):
-        dag = self.dagbag.get_dag("example_subdag_operator")
-        subdag_op_task = dag.get_task("section-1")
-
-        subdag = subdag_op_task.subdag
-        subdag.timetable = cron_timetable("@daily")
-
-        start_date = timezone.utcnow()
-        executor = mock_executor
-        job = Job()
-        job_runner = BackfillJobRunner(
-            job=job,
-            dag=subdag,
-            start_date=start_date,
-            end_date=start_date,
-            donot_pickle=True,
-        )
-        run_job(job=job, execute_callable=job_runner._execute)
-
-        subdag_op_task.pre_execute(context={"execution_date": start_date})
-        subdag_op_task.execute(context={"execution_date": start_date})
-        subdag_op_task.post_execute(context={"execution_date": start_date})
-
-        history = executor.history
-        subdag_history = history[0]
-
-        # check that all 5 task instances of the subdag 'section-1' were executed
-        assert 5 == len(subdag_history)
-        for sdh in subdag_history:
-            ti = sdh[3]
-            assert "section-1-task-" in ti.task_id
-
-        with create_session() as session:
-            successful_subdag_runs = (
-                session.query(DagRun)
-                .filter(DagRun.dag_id == subdag.dag_id)
-                .filter(DagRun.execution_date == start_date)
-                .filter(DagRun.state == State.SUCCESS)
-                .count()
-            )
-
-            assert 1 == successful_subdag_runs
-
-        subdag.clear()
-        dag.clear()
-
-    def test_subdag_clear_parentdag_downstream_clear(self, mock_executor):
-        dag = self.dagbag.get_dag("clear_subdag_test_dag")
-        subdag_op_task = dag.get_task("daily_job")
-
-        subdag = subdag_op_task.subdag
-
-        job = Job()
-        job_runner = BackfillJobRunner(
-            job=job,
-            dag=dag,
-            start_date=DEFAULT_DATE,
-            end_date=DEFAULT_DATE,
-            donot_pickle=True,
-        )
-
-        with timeout(seconds=30):
-            run_job(job=job, execute_callable=job_runner._execute)
-
-        run_id = f"backfill__{DEFAULT_DATE.isoformat()}"
-        ti_subdag = TI(task=dag.get_task("daily_job"), run_id=run_id)
-        ti_subdag.refresh_from_db()
-        assert ti_subdag.state == State.SUCCESS
-
-        ti_irrelevant = TI(task=dag.get_task("daily_job_irrelevant"), run_id=run_id)
-        ti_irrelevant.refresh_from_db()
-        assert ti_irrelevant.state == State.SUCCESS
-
-        ti_downstream = TI(task=dag.get_task("daily_job_downstream"), run_id=run_id)
-        ti_downstream.refresh_from_db()
-        assert ti_downstream.state == State.SUCCESS
-
-        sdag = subdag.partial_subset(
-            task_ids_or_regex="daily_job_subdag_task", include_downstream=True, include_upstream=False
-        )
-
-        sdag.clear(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, include_parentdag=True)
-
-        ti_subdag.refresh_from_db()
-        assert State.NONE == ti_subdag.state
-
-        ti_irrelevant.refresh_from_db()
-        assert State.SUCCESS == ti_irrelevant.state
-
-        ti_downstream.refresh_from_db()
-        assert State.NONE == ti_downstream.state
-
-        subdag.clear()
-        dag.clear()
-
-    def test_backfill_execute_subdag_with_removed_task(self, mock_executor):
-        """
-        Ensure that subdag operators execute properly in the case where
-        an associated task of the subdag has been removed from the dag
-        definition, but has instances in the database from previous runs.
-        """
-        dag = self.dagbag.get_dag("example_subdag_operator")
-        subdag = dag.get_task("section-1").subdag
-
-        session = settings.Session()
-        job = Job()
-        job_runner = BackfillJobRunner(
-            job=job,
-            dag=subdag,
-            start_date=DEFAULT_DATE,
-            end_date=DEFAULT_DATE,
-            donot_pickle=True,
-        )
-        dr = DagRun(
-            dag_id=subdag.dag_id, execution_date=DEFAULT_DATE, run_id="test", run_type=DagRunType.BACKFILL_JOB
-        )
-        session.add(dr)
-
-        removed_task_ti = TI(
-            task=EmptyOperator(task_id="removed_task"), run_id=dr.run_id, state=State.REMOVED
-        )
-        removed_task_ti.dag_id = subdag.dag_id
-        dr.task_instances.append(removed_task_ti)
-
-        session.commit()
-
-        with timeout(seconds=30):
-            run_job(job=job, execute_callable=job_runner._execute)
-
-        for task in subdag.tasks:
-            instance = (
-                session.query(TI)
-                .filter(
-                    TI.dag_id == subdag.dag_id, TI.task_id == task.task_id, TI.execution_date == DEFAULT_DATE
-                )
-                .first()
-            )
-
-            assert instance is not None
-            assert instance.state == State.SUCCESS
-
-        removed_task_ti.refresh_from_db()
-        assert removed_task_ti.state == State.REMOVED
-
-        subdag.clear()
-        dag.clear()
-
     def test_update_counters(self, dag_maker, session):
         with dag_maker(dag_id="test_manage_executor_state", start_date=DEFAULT_DATE, session=session) as dag:
             task1 = EmptyOperator(task_id="dummy", owner="airflow")
@@ -1798,6 +1654,7 @@ class TestBackfillJob:
         prefix = "backfill_job_test_test_reset_orphaned_tasks"
         states = [State.QUEUED, State.SCHEDULED, State.NONE, State.RUNNING, State.SUCCESS]
         states_to_reset = [State.QUEUED, State.SCHEDULED, State.NONE]
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
 
         tasks = []
         with dag_maker(dag_id=prefix) as dag:
@@ -1811,7 +1668,7 @@ class TestBackfillJob:
         job_runner = BackfillJobRunner(job=job, dag=dag)
         # create dagruns
         dr1 = dag_maker.create_dagrun(run_id=DEFAULT_DAG_RUN_ID, state=State.RUNNING)
-        dr2 = dag.create_dagrun(run_id="test2", state=State.SUCCESS)
+        dr2 = dag.create_dagrun(run_id="test2", state=State.SUCCESS, **triggered_by_kwargs)
 
         # create taskinstances and set states
         dr1_tis = []
@@ -1870,8 +1727,14 @@ class TestBackfillJob:
         job = Job()
         job_runner = BackfillJobRunner(job=job, dag=dag)
         # make two dagruns, only reset for one
-        dr1 = dag_maker.create_dagrun(state=State.SUCCESS)
-        dr2 = dag.create_dagrun(run_id="test2", state=State.RUNNING, session=session)
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        dr1 = dag_maker.create_dagrun(state=State.SUCCESS, **triggered_by_kwargs)
+        dr2 = dag.create_dagrun(
+            run_id="test2",
+            state=State.RUNNING,
+            session=session,
+            **triggered_by_kwargs,
+        )
         ti1 = dr1.get_task_instances(session=session)[0]
         ti2 = dr2.get_task_instances(session=session)[0]
         ti1.state = State.SCHEDULED

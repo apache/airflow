@@ -17,17 +17,10 @@
 from __future__ import annotations
 
 from attrs import define
-from deprecated import deprecated
 from openlineage.client.facet_v2 import JobFacet, RunFacet
 from openlineage.client.utils import RedactMixin
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 
-
-@deprecated(
-    reason="To be removed in the next release. Make sure to use information from AirflowRunFacet instead.",
-    category=AirflowProviderDeprecationWarning,
-)
 @define
 class AirflowMappedTaskRunFacet(RunFacet):
     """Run facet containing information about mapped tasks."""
@@ -109,6 +102,13 @@ class AirflowDagRunFacet(RunFacet):
 
 
 @define
+class AirflowDebugRunFacet(RunFacet):
+    """Airflow Debug run facet."""
+
+    packages: dict
+
+
+@define
 class UnknownOperatorInstance(RedactMixin):
     """
     Describes an unknown operator.
@@ -123,10 +123,6 @@ class UnknownOperatorInstance(RedactMixin):
     _skip_redact = ["name", "type"]
 
 
-@deprecated(
-    reason="To be removed in the next release. Make sure to use information from AirflowRunFacet instead.",
-    category=AirflowProviderDeprecationWarning,
-)
 @define
 class UnknownOperatorAttributeRunFacet(RunFacet):
     """RunFacet that describes unknown operators in an Airflow DAG."""

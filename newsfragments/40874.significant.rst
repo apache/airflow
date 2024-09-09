@@ -1,1 +1,0 @@
-Support for OpenTelemetry Traces is no longer "Experimental"

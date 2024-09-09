@@ -148,7 +148,6 @@ class SSHOperator(BaseOperator):
 
     def get_ssh_client(self) -> SSHClient:
         # Remember to use context manager or call .close() on this when done
-        self.log.info("Creating ssh_client")
         return self.hook.get_conn()
 
     @deprecated(

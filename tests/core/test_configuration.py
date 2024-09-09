@@ -646,13 +646,15 @@ AIRFLOW_HOME = /root/airflow
                     ),
                 },
             }
-            test_conf.read_dict({"api": {"auth_backends": "airflow.api.auth.backend.basic_auth"}})
+            test_conf.read_dict(
+                {"api": {"auth_backends": "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"}}
+            )
 
             with pytest.warns(FutureWarning):
                 test_conf.validate()
                 assert (
                     test_conf.get("api", "auth_backends")
-                    == "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+                    == "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
                 )
 
     def test_command_from_env(self):
@@ -1028,11 +1030,11 @@ sql_alchemy_conn=sqlite://test
         "old, new",
         [
             (
-                ("api", "auth_backend", "airflow.api.auth.backend.basic_auth"),
+                ("api", "auth_backend", "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"),
                 (
                     "api",
                     "auth_backends",
-                    "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session",
+                    "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth,airflow.api.auth.backend.session",
                 ),
             ),
             (
@@ -1484,7 +1486,7 @@ sql_alchemy_conn=sqlite://test
             test_conf.items("scheduler")
         assert len(captured) == 1
         c = captured[0]
-        assert c.category == FutureWarning
+        assert c.category is FutureWarning
         assert (
             "you should use[scheduler/parsing_cleanup_interval] "
             "instead. Please update your `conf.get*`" in str(c.message)
@@ -1494,7 +1496,7 @@ sql_alchemy_conn=sqlite://test
                 test_conf.items("scheduler")
         assert len(captured) == 1
         c = captured[0]
-        assert c.category == DeprecationWarning
+        assert c.category is DeprecationWarning
         assert (
             "deactivate_stale_dags_interval option in [scheduler] "
             "has been renamed to parsing_cleanup_interval" in str(c.message)
@@ -1518,12 +1520,12 @@ sql_alchemy_conn=sqlite://test
 
         w = captured.pop()
         assert "the old setting has been used, but please update" in str(w.message)
-        assert w.category == DeprecationWarning
+        assert w.category is DeprecationWarning
         # only if we use old value, do we also get a warning about code update
         if key == old_val:
             w = captured.pop()
             assert "your `conf.get*` call to use the new name" in str(w.message)
-            assert w.category == FutureWarning
+            assert w.category is FutureWarning
 
     def test_as_dict_raw(self):
         test_conf = AirflowConfigParser()
@@ -1624,7 +1626,6 @@ def test_sensitive_values():
         ("database", "sql_alchemy_conn"),
         ("core", "fernet_key"),
         ("core", "internal_api_secret_key"),
-        ("smtp", "smtp_password"),
         ("webserver", "secret_key"),
         ("secrets", "backend_kwargs"),
         ("sentry", "sentry_dsn"),

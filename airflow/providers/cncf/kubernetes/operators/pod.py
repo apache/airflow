@@ -22,6 +22,7 @@ import datetime
 import json
 import logging
 import math
+import os
 import re
 import shlex
 import string
@@ -494,8 +495,10 @@ class KubernetesPodOperator(BaseOperator):
         if include_try_number:
             labels.update(try_number=ti.try_number)
         # In the case of sub dags this is just useful
-        if context["dag"].parent_dag:
-            labels["parent_dag_id"] = context["dag"].parent_dag.dag_id
+        # TODO: Remove this when the minimum version of Airflow is bumped to 3.0
+        if getattr(context["dag"], "parent_dag", False):
+            labels["parent_dag_id"] = context["dag"].parent_dag.dag_id  # type: ignore[attr-defined]
+
         # Ensure that label is valid for Kube,
         # and if not truncate/remove invalid chars and replace with short hash.
         for label_id, label in labels.items():
@@ -695,7 +698,17 @@ class KubernetesPodOperator(BaseOperator):
         ti.xcom_push(key="pod_name", value=self.pod.metadata.name)
         ti.xcom_push(key="pod_namespace", value=self.pod.metadata.namespace)
 
+        self.convert_config_file_to_dict()
         self.invoke_defer_method()
+
+    def convert_config_file_to_dict(self):
+        """Convert passed config_file to dict representation."""
+        config_file = self.config_file if self.config_file else os.environ.get(KUBE_CONFIG_ENV_VAR)
+        if config_file:
+            with open(config_file) as f:
+                self._config_dict = yaml.safe_load(f)
+        else:
+            self._config_dict = None
 
     def invoke_defer_method(self, last_log_time: DateTime | None = None) -> None:
         """Redefine triggers which are being used in child classes."""
@@ -707,7 +720,7 @@ class KubernetesPodOperator(BaseOperator):
                 trigger_start_time=trigger_start_time,
                 kubernetes_conn_id=self.kubernetes_conn_id,
                 cluster_context=self.cluster_context,
-                config_file=self.config_file,
+                config_dict=self._config_dict,
                 in_cluster=self.in_cluster,
                 poll_interval=self.poll_interval,
                 get_logs=self.get_logs,
@@ -992,7 +1005,7 @@ class KubernetesPodOperator(BaseOperator):
         return None
 
     def patch_already_checked(self, pod: k8s.V1Pod, *, reraise=True):
-        """Add an "already checked" annotation to ensure we don't reattach on retries."""
+        """Add an "already checked" label to ensure we don't reattach on retries."""
         with _optionally_suppress(reraise=reraise):
             self.client.patch_namespaced_pod(
                 name=pod.metadata.name,

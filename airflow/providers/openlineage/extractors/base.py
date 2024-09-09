@@ -29,6 +29,7 @@ with warnings.catch_warnings():
     from openlineage.client.facet import BaseFacet as BaseFacet_V1
 from openlineage.client.facet_v2 import JobFacet, RunFacet
 
+from airflow.providers.openlineage.utils.utils import IS_AIRFLOW_2_10_OR_HIGHER
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import TaskInstanceState
 
@@ -112,10 +113,17 @@ class DefaultExtractor(BaseExtractor):
                 "Operator %s does not have the get_openlineage_facets_on_start method.",
                 self.operator.task_type,
             )
-            return None
+            return OperatorLineage()
 
     def extract_on_complete(self, task_instance) -> OperatorLineage | None:
-        if task_instance.state == TaskInstanceState.FAILED:
+        failed_states = [TaskInstanceState.FAILED, TaskInstanceState.UP_FOR_RETRY]
+        if not IS_AIRFLOW_2_10_OR_HIGHER:  # todo: remove when min airflow version >= 2.10.0
+            # Before fix (#41053) implemented in Airflow 2.10 TaskInstance's state was still RUNNING when
+            # being passed to listener's on_failure method. Since `extract_on_complete()` is only called
+            # after task completion, RUNNING state means that we are dealing with FAILED task in < 2.10
+            failed_states = [TaskInstanceState.RUNNING]
+
+        if task_instance.state in failed_states:
             on_failed = getattr(self.operator, "get_openlineage_facets_on_failure", None)
             if on_failed and callable(on_failed):
                 self.log.debug(

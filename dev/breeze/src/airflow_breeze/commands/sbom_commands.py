@@ -21,16 +21,20 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import click
 
 from airflow_breeze.commands.common_options import (
+    option_airflow_version,
     option_answer,
     option_debug_resources,
     option_dry_run,
+    option_github_token,
     option_historical_python_version,
     option_include_success_outputs,
     option_parallelism,
+    option_python,
     option_run_in_parallel,
     option_skip_cleanup,
     option_verbose,
@@ -38,22 +42,32 @@ from airflow_breeze.commands.common_options import (
 from airflow_breeze.global_constants import (
     AIRFLOW_PYTHON_COMPATIBILITY_MATRIX,
     ALL_HISTORICAL_PYTHON_VERSIONS,
+    DEVEL_DEPS_PATH,
     PROVIDER_DEPENDENCIES,
 )
 from airflow_breeze.utils.cdxgen import (
+    CHECK_DOCS,
+    OPEN_PSF_CHECKS,
     PROVIDER_REQUIREMENTS_DIR_PATH,
     SbomApplicationJob,
     SbomCoreJob,
     SbomProviderJob,
     build_all_airflow_versions_base_image,
+    convert_licenses,
     get_cdxgen_port_mapping,
+    get_github_stats,
+    get_governance,
+    get_open_psf_scorecard,
+    get_pypi_link,
     get_requirements_for_provider,
+    get_vcs,
     list_providers_from_providers_requirements,
+    normalize_package_name,
 )
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import Answer, user_confirm
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import get_console, get_theme
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import perform_environment_checks
 from airflow_breeze.utils.parallel import (
@@ -62,8 +76,24 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
-from airflow_breeze.utils.path_utils import FILES_SBOM_DIR, PROVIDER_METADATA_JSON_FILE_PATH
+from airflow_breeze.utils.path_utils import (
+    AIRFLOW_SOURCES_ROOT,
+    FILES_SBOM_DIR,
+    PROVIDER_METADATA_JSON_FILE_PATH,
+)
+from airflow_breeze.utils.projects_google_spreadsheet import (
+    ACTIONS,
+    MetadataFromSpreadsheet,
+    get_project_metadata,
+    get_sheets,
+    read_metadata_from_google_spreadsheet,
+    write_sbom_information_to_google_spreadsheet,
+)
+from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.shared_options import get_dry_run
+
+if TYPE_CHECKING:
+    from rich.console import Console
 
 
 @click.group(
@@ -78,7 +108,7 @@ def sbom():
 SBOM_INDEX_TEMPLATE = """
 {% set project_name = " " + provider_id + " " if provider_id else " " -%}
 <html>
-<head><title>CycloneDX SBOMs for Apache Airflow{{project_name}}{{ version }}</title></head>
+<head><title>CycloneDX SBOMs for Apache Airflow{{project_name}}{{ version }}</title></head>ń
 <body>
     <h1>CycloneDX SBOMs for Apache Airflow{{project_name}}{{ version }}</h1>
     <ul>
@@ -627,3 +657,319 @@ def generate_providers_requirements(
                 force=force,
                 output=None,
             )
+
+
+@sbom.command(name="export-dependency-information", help="Export dependency information from SBOM.")
+@option_airflow_version
+@option_python
+@click.option(
+    "-g",
+    "--google-spreadsheet-id",
+    type=str,
+    help="Google Spreadsheet Id to fill with SBOM data.",
+    envvar="GOOGLE_SPREADSHEET_ID",
+    required=True,
+)
+@option_github_token
+@click.option(
+    "--json-credentials-file",
+    type=click.Path(file_okay=True, dir_okay=False, path_type=Path, writable=False, exists=False),
+    help="Gsheet JSON credentials file (defaults to ~/.config/gsheet/credentials.json",
+    envvar="JSON_CREDENTIALS_FILE",
+    default=Path.home() / ".config" / "gsheet" / "credentials.json"
+    if not generating_command_images()
+    else "credentials.json",
+)
+@click.option(
+    "-s",
+    "--include-open-psf-scorecard",
+    help="Include statistics from the Open PSF Scorecard",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "-G",
+    "--include-github-stats",
+    help="Include statistics from GitHub",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "--include-actions",
+    help="Include Actions recommended for the project",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "-l",
+    "--limit-output",
+    help="Limit the output to the first N dependencies. Default is to output all dependencies. "
+    "If you want to output all dependencies, do not specify this option.",
+    type=int,
+    required=False,
+)
+@click.option(
+    "--project-name",
+    help="Only used for debugging purposes. The name of the project to generate the sbom for.",
+    type=str,
+    required=False,
+)
+@option_dry_run
+@option_answer
+def export_dependency_information(
+    python: str,
+    airflow_version: str,
+    google_spreadsheet_id: str | None,
+    github_token: str | None,
+    json_credentials_file: Path,
+    include_open_psf_scorecard: bool,
+    include_github_stats: bool,
+    include_actions: bool,
+    limit_output: int | None,
+    project_name: str | None,
+):
+    if google_spreadsheet_id and not json_credentials_file.exists():
+        get_console().print(
+            f"[error]The JSON credentials file {json_credentials_file} does not exist. "
+            "Please specify a valid path to the JSON credentials file.[/]\n"
+            "You can download credentials file from your google developer console:"
+            "https://console.cloud.google.com/apis/credentials after creating a Desktop Client ID."
+        )
+        sys.exit(1)
+    if include_actions and not include_open_psf_scorecard:
+        get_console().print(
+            "[error]You cannot specify --include-actions without --include-open-psf-scorecard"
+        )
+        sys.exit(1)
+
+    read_metadata_from_google_spreadsheet(get_sheets(json_credentials_file))
+
+    import requests
+
+    base_url = f"https://airflow.apache.org/docs/apache-airflow/{airflow_version}/sbom"
+    sbom_file_base = f"apache-airflow-sbom-{airflow_version}-python{python}-python-only"
+
+    sbom_core_url = f"{base_url}/{sbom_file_base}.json"
+    sbom_full_url = f"{base_url}/{sbom_file_base}-full.json"
+    core_sbom_r = requests.get(sbom_core_url)
+    core_sbom_r.raise_for_status()
+    full_sbom_r = requests.get(sbom_full_url)
+    full_sbom_r.raise_for_status()
+
+    core_sbom = core_sbom_r.json()
+    full_sbom = full_sbom_r.json()
+
+    all_dependency_value_dicts = convert_all_sbom_to_value_dictionaries(
+        core_sbom=core_sbom,
+        full_sbom=full_sbom,
+        include_open_psf_scorecard=include_open_psf_scorecard,
+        include_github_stats=include_github_stats,
+        include_actions=include_actions,
+        limit_output=limit_output,
+        github_token=github_token,
+        project_name=project_name,
+    )
+    all_dependency_value_dicts = sorted(all_dependency_value_dicts, key=sort_deps_key)
+
+    fieldnames = get_field_names(
+        include_open_psf_scorecard=include_open_psf_scorecard,
+        include_github_stats=include_github_stats,
+        include_actions=include_actions,
+    )
+    get_console().print(
+        f"[info]Writing {len(all_dependency_value_dicts)} dependencies to Google Spreadsheet."
+    )
+
+    write_sbom_information_to_google_spreadsheet(
+        sheets=get_sheets(json_credentials_file),
+        docs=CHECK_DOCS,
+        google_spreadsheet_id=google_spreadsheet_id,
+        all_dependencies=all_dependency_value_dicts,
+        fieldnames=fieldnames,
+        include_opsf_scorecard=include_open_psf_scorecard,
+    )
+
+
+def sort_deps_key(dependency: dict[str, Any]) -> str:
+    if dependency.get("Vcs"):
+        return "0:" + dependency["Name"]
+    else:
+        return "1:" + dependency["Name"]
+
+
+def convert_all_sbom_to_value_dictionaries(
+    core_sbom: dict[str, Any],
+    full_sbom: dict[str, Any],
+    include_open_psf_scorecard: bool,
+    include_github_stats: bool,
+    include_actions: bool,
+    limit_output: int | None,
+    github_token: str | None = None,
+    project_name: str | None = None,
+) -> list[dict[str, Any]]:
+    core_dependencies = set()
+    dev_deps = set(normalize_package_name(name) for name in DEVEL_DEPS_PATH.read_text().splitlines())
+    num_deps = 0
+    all_dependency_value_dicts = []
+    dependency_depth: dict[str, int] = json.loads(
+        (AIRFLOW_SOURCES_ROOT / "generated" / "dependency_depth.json").read_text()
+    )
+    from rich.progress import Progress
+
+    with Progress() as progress:
+        progress.console.use_theme(get_theme())
+        core_dependencies_progress = progress.add_task(
+            "Core dependencies", total=len(core_sbom["components"])
+        )
+        other_dependencies_progress = progress.add_task(
+            "Other dependencies", total=len(full_sbom["components"]) - len(core_sbom["components"])
+        )
+        for key, value in dependency_depth.items():
+            dependency_depth[normalize_package_name(key)] = value
+        for dependency in core_sbom["components"]:
+            normalized_name = normalize_package_name(dependency["name"])
+            if project_name and normalized_name != project_name:
+                continue
+            core_dependencies.add(normalized_name)
+            is_devel = normalized_name in dev_deps
+            value_dict = convert_sbom_entry_to_dict(
+                dependency,
+                dependency_depth=dependency_depth,
+                is_core=True,
+                is_devel=is_devel,
+                include_open_psf_scorecard=include_open_psf_scorecard,
+                include_github_stats=include_github_stats,
+                include_actions=include_actions,
+                github_token=github_token,
+                console=progress.console,
+            )
+            if value_dict:
+                all_dependency_value_dicts.append(value_dict)
+            num_deps += 1
+            progress.advance(task_id=core_dependencies_progress, advance=1)
+            if limit_output and num_deps >= limit_output:
+                get_console().print(f"[info]Processed limited {num_deps} dependencies and stopping.")
+                return all_dependency_value_dicts
+        for dependency in full_sbom["components"]:
+            normalized_name = normalize_package_name(dependency["name"])
+            if project_name and normalized_name != project_name:
+                continue
+            if normalized_name not in core_dependencies:
+                is_devel = normalized_name in dev_deps
+                value_dict = convert_sbom_entry_to_dict(
+                    dependency,
+                    dependency_depth=dependency_depth,
+                    is_core=False,
+                    is_devel=is_devel,
+                    include_open_psf_scorecard=include_open_psf_scorecard,
+                    include_github_stats=include_github_stats,
+                    include_actions=include_actions,
+                    github_token=github_token,
+                    console=progress.console,
+                )
+                if value_dict:
+                    all_dependency_value_dicts.append(value_dict)
+                num_deps += 1
+                progress.advance(task_id=other_dependencies_progress, advance=1)
+            if limit_output and num_deps >= limit_output:
+                get_console().print(f"[info]Processed limited {num_deps} dependencies and stopping.")
+                return all_dependency_value_dicts
+    get_console().print(f"[info]Processed {num_deps} dependencies")
+    return all_dependency_value_dicts
+
+
+def convert_sbom_entry_to_dict(
+    dependency: dict[str, Any],
+    dependency_depth: dict[str, int],
+    is_core: bool,
+    is_devel: bool,
+    include_open_psf_scorecard: bool,
+    include_github_stats: bool,
+    include_actions: bool,
+    github_token: str | None,
+    console: Console,
+) -> dict[str, Any] | None:
+    """
+    Convert SBOM to Row for CSV or spreadsheet output
+    :param dependency: Dependency to convert
+    :param is_core: Whether the dependency is core or not
+    :param is_devel: Whether the dependency is devel or not
+    :param include_open_psf_scorecard: Whether to include Open PSF Scorecard
+    """
+    console.print(f"[bright_blue]Calculating {dependency['name']} information.")
+    vcs = get_vcs(dependency)
+    name = dependency.get("name", "")
+    if name.startswith("apache-airflow"):
+        return None
+    normalized_name = normalize_package_name(dependency.get("name", ""))
+    row = {
+        "Name": normalized_name,
+        "Author": dependency.get("author", ""),
+        "Version": dependency.get("version", ""),
+        "Description": dependency.get("description"),
+        "Core": is_core,
+        "Devel": is_devel,
+        "Depth": dependency_depth.get(normalized_name, "Extra"),
+        "Licenses": convert_licenses(dependency.get("licenses", [])),
+        "Purl": dependency.get("purl"),
+        "Pypi": get_pypi_link(dependency),
+        "Vcs": vcs,
+        "Governance": get_governance(vcs),
+    }
+    if vcs and include_open_psf_scorecard:
+        open_psf_scorecard = get_open_psf_scorecard(vcs, name, console)
+        row.update(open_psf_scorecard)
+    if vcs and include_github_stats:
+        github_stats = get_github_stats(
+            vcs=vcs, project_name=name, github_token=github_token, console=console
+        )
+        row.update(github_stats)
+    if name in get_project_metadata(MetadataFromSpreadsheet.RELATIONSHIP_PROJECTS):
+        row["Relationship"] = "Yes"
+    if include_actions:
+        if name in get_project_metadata(MetadataFromSpreadsheet.CONTACTED_PROJECTS):
+            row["Contacted"] = "Yes"
+        num_actions = 0
+        for action, (threshold, action_text) in ACTIONS.items():
+            opsf_action = "OPSF-" + action
+            if opsf_action in row and int(row[opsf_action]) < threshold:
+                row[action_text] = "Yes"
+                num_actions += 1
+        row["Num Actions"] = num_actions
+    console.print(f"[green]Calculated {dependency['name']} information.")
+    return row
+
+
+def get_field_names(
+    include_open_psf_scorecard: bool, include_github_stats: bool, include_actions: bool
+) -> list[str]:
+    names = [
+        "Name",
+        "Author",
+        "Version",
+        "Description",
+        "Core",
+        "Devel",
+        "Depth",
+        "Licenses",
+        "Purl",
+        "Pypi",
+        "Vcs",
+    ]
+    if include_open_psf_scorecard:
+        names.append("OPSF-Score")
+        for check in OPEN_PSF_CHECKS:
+            names.append("OPSF-" + check)
+            names.append("OPSF-Details-" + check)
+    names.append("Governance")
+    if include_open_psf_scorecard:
+        names.extend(["Lifecycle status", "Unpatched Vulns"])
+    if include_github_stats:
+        names.append("Industry importance")
+    if include_actions:
+        names.append("Relationship")
+        names.append("Contacted")
+        for action in ACTIONS.values():
+            names.append(action[1])
+        names.append("Num Actions")
+    return names

@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 from paramiko.sftp import SFTP_NO_SUCH_FILE
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.triggers.sftp import SFTPTrigger
 from airflow.sensors.base import BaseSensorOperator, PokeReturnValue
@@ -98,10 +98,7 @@ class SFTPSensor(BaseSensorOperator):
                 self.log.info("Found File %s last modified: %s", actual_file_to_check, mod_time)
             except OSError as e:
                 if e.errno != SFTP_NO_SUCH_FILE:
-                    # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
-                    if self.soft_fail:
-                        raise AirflowSkipException from e
-                    raise e
+                    raise AirflowException from e
                 continue
 
             if self.newer_than:

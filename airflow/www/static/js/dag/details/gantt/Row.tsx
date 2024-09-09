@@ -19,11 +19,13 @@
 
 import React, { useEffect } from "react";
 import { Box } from "@chakra-ui/react";
+
 import useSelection from "src/dag/useSelection";
 import { boxSize } from "src/dag/StatusBox";
 import { getMetaValue } from "src/utils";
 import type { Task } from "src/types";
 import { useTIHistory } from "src/api";
+
 import InstanceBar from "./InstanceBar";
 
 interface Props {
@@ -67,9 +69,20 @@ const Row = ({
   const isSelected = taskId === instance?.taskId;
   const isOpen = openGroupIds.includes(task.id || "");
 
+  // Adjust gantt start/end if the instance dates are out of bounds
+  useEffect(() => {
+    if (setGanttDuration) {
+      setGanttDuration(
+        instance?.queuedDttm,
+        instance?.startDate,
+        instance?.endDate
+      );
+    }
+  }, [instance, setGanttDuration]);
+
   // Adjust gantt start/end if the ti history dates are out of bounds
   useEffect(() => {
-    tiHistory?.forEach(
+    tiHistory?.taskInstances?.forEach(
       (tih) =>
         setGanttDuration &&
         setGanttDuration(tih.queuedWhen, tih.startDate, tih.endDate)
@@ -89,6 +102,7 @@ const Row = ({
       >
         {!!instance && (
           <InstanceBar
+            key={`${instance.taskId}-${instance.tryNumber}`}
             instance={{
               ...instance,
               queuedWhen: instance.queuedDttm,
@@ -100,16 +114,19 @@ const Row = ({
             ganttEndDate={ganttEndDate}
           />
         )}
-        {(tiHistory?.taskInstances || []).map((ti) => (
-          <InstanceBar
-            key={`${taskId}-${ti.tryNumber}`}
-            instance={ti}
-            task={task}
-            ganttWidth={ganttWidth}
-            ganttStartDate={ganttStartDate}
-            ganttEndDate={ganttEndDate}
-          />
-        ))}
+        {tiHistory?.taskInstances?.map(
+          (ti) =>
+            ti.tryNumber !== instance?.tryNumber && (
+              <InstanceBar
+                key={`${ti.taskId}-${ti.tryNumber}`}
+                instance={ti}
+                task={task}
+                ganttWidth={ganttWidth}
+                ganttStartDate={ganttStartDate}
+                ganttEndDate={ganttEndDate}
+              />
+            )
+        )}
       </Box>
       {isOpen &&
         !!task.children &&

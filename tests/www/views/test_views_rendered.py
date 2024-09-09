@@ -36,8 +36,12 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.conftest import initial_db_init
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_rendered_ti_fields
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 DEFAULT_DATE = timezone.datetime(2020, 3, 1)
 
@@ -49,6 +53,7 @@ def dag():
     return DAG(
         "testdag",
         start_date=DEFAULT_DATE,
+        schedule="0 0 * * *",
         user_defined_filters={"hello": lambda name: f"Hello {name}"},
         user_defined_macros={"fullname": lambda fname, lname: f"{fname} {lname}"},
     )
@@ -136,12 +141,14 @@ def reset_db(dag, task1, task2, task3, task4, task_secret):
 @pytest.fixture
 def create_dag_run(dag, task1, task2, task3, task4, task_secret):
     def _create_dag_run(*, execution_date, session):
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag_run = dag.create_dagrun(
             state=DagRunState.RUNNING,
             execution_date=execution_date,
             data_interval=(execution_date, execution_date),
             run_type=DagRunType.SCHEDULED,
             session=session,
+            **triggered_by_kwargs,
         )
         ti1 = dag_run.get_task_instance(task1.task_id, session=session)
         ti1.state = TaskInstanceState.SUCCESS
@@ -330,12 +337,14 @@ def test_rendered_task_detail_env_secret(patch_app, admin_client, request, env, 
     url = f"task?task_id=task1&dag_id=testdag&execution_date={date}"
 
     with create_session() as session:
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag.create_dagrun(
             state=DagRunState.RUNNING,
             execution_date=DEFAULT_DATE,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
             run_type=DagRunType.SCHEDULED,
             session=session,
+            **triggered_by_kwargs,
         )
 
     resp = admin_client.get(url, follow_redirects=True)

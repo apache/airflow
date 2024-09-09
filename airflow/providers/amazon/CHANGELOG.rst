@@ -26,6 +26,45 @@
 Changelog
 ---------
 
+8.28.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+.. warning:: When deferrable mode was introduced for ``RedshiftDataOperator``, in version 8.17.0, tasks configured with
+  ``deferrable=True`` and ``wait_for_completion=True`` would not enter the deferred state. Instead, the task would occupy
+  an executor slot until the statement was completed. A workaround may have been to set ``wait_for_completion=False``.
+  In this version, tasks set up with ``wait_for_completion=False`` will not wait anymore, regardless of the value of
+  ``deferrable``.
+
+Features
+~~~~~~~~
+
+* ``Add incremental export and cross account export functionality in 'DynamoDBToS3Operator' (#41304)``
+* ``EKS Overrides for AWS Batch submit_job (#40718)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'AwsTaskLogFetcher' missing logs (#41515)``
+* ``Fix the Exception name and unpin dependency in 'RdsHook' (#41256)``
+* ``Fix RedshiftDataOperator not running in deferred mode as expected (#41206)``
+
+Misc
+~~~~
+
+* ``Partial fix for example_dynamodb_to_s3.py (#41517)``
+* ``Remove deprecated code is AWS provider (#41407)``
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+* ``Limit moto temporarily - 5.0.12 is breaking our tests (#41244)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``typo (#41381)``
+
 8.27.0
 ......
 
@@ -42,6 +81,8 @@ Bug Fixes
 * ``Make EMR Container Trigger max attempts retries match the Operator (#41008)``
 * ``Fix 'RdsStopDbOperator' operator in deferrable mode (#41059)``
 * ``Fix 'RedshiftCreateClusterOperator' to always specify 'PubliclyAccessible' (#40872)``
+* ``Fix Redshift cluster operators and sensors using deferrable mode (#41191)``
+* ``Fix 'EmrServerlessStartJobOperator' with deferrable mode (#41103)``
 
 Misc
 ~~~~
@@ -51,10 +92,11 @@ Misc
 * ``[AIP-62] Translate AIP-60 URI to OpenLineage (#40173)``
 * ``Move AWS Managed Service for Apache Flink sensor states to Hook (#40896)``
 * ``Replace usages of task context logger with the log table (#40867)``
-
+* ``Deprecate 'SageMakerTrainingPrintLogTrigger' (#41158)``
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare Providers docs ad hoc release (#41074)``
 
 8.26.0
 ......

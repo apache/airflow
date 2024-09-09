@@ -34,7 +34,7 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 @pytest.mark.db_test
 class TestGCSTaskHandler:
     @pytest.fixture(autouse=True)
-    def task_instance(self, create_task_instance):
+    def task_instance(self, create_task_instance, session):
         self.ti = ti = create_task_instance(
             dag_id="dag_for_testing_gcs_task_handler",
             task_id="task_for_testing_gcs_task_handler",
@@ -43,6 +43,8 @@ class TestGCSTaskHandler:
         )
         ti.try_number = 1
         ti.raw = False
+        session.add(ti)
+        session.commit()
         yield
         clear_db_runs()
         clear_db_dags()
@@ -91,13 +93,15 @@ class TestGCSTaskHandler:
     )
     @mock.patch("google.cloud.storage.Client")
     @mock.patch("google.cloud.storage.Blob")
-    def test_should_read_logs_from_remote(self, mock_blob, mock_client, mock_creds):
+    def test_should_read_logs_from_remote(self, mock_blob, mock_client, mock_creds, session):
         mock_obj = MagicMock()
         mock_obj.name = "remote/log/location/1.log"
         mock_client.return_value.list_blobs.return_value = [mock_obj]
         mock_blob.from_string.return_value.download_as_bytes.return_value = b"CONTENT"
         ti = copy.copy(self.ti)
         ti.state = TaskInstanceState.SUCCESS
+        session.add(ti)
+        session.commit()
         logs, metadata = self.gcs_task_handler._read(ti, self.ti.try_number)
         mock_blob.from_string.assert_called_once_with(
             "gs://bucket/remote/log/location/1.log", mock_client.return_value
@@ -279,3 +283,12 @@ class TestGCSTaskHandler:
 
         handler.close()
         assert os.path.exists(handler.handler.baseFilename) == expected_existence_of_local_copy
+
+    @pytest.fixture(autouse=True)
+    def test_filename_template_for_backward_compatibility(self, local_log_location):
+        # filename_template arg support for running the latest provider on airflow 2
+        GCSTaskHandler(
+            base_log_folder=local_log_location,
+            gcs_log_folder="gs://bucket/remote/log/location",
+            filename_template=None,
+        )

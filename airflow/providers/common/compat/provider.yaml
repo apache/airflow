@@ -22,14 +22,15 @@ description: |
   ``Common Compatibility Provider - providing compatibility code for previous Airflow versions.``
 
 state: ready
-source-date-epoch: 1716287191
+source-date-epoch: 1723970013
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.2.0
   - 1.1.0
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.7.0
+  - apache-airflow>=2.8.0
 
 integrations:
   - integration-name: Common Compat
