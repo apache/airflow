@@ -61,6 +61,13 @@ const theme = extendTheme({
   config: {
     useSystemColorMode: true,
   },
+  styles: {
+    global: {
+      "*, *::before, &::after": {
+        borderColor: "gray.200",
+      },
+    },
+  },
   components: {
     Tooltip: {
       baseStyle: {
