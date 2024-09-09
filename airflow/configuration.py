@@ -382,17 +382,6 @@ class AirflowConfigParser(ConfigParser):
         ("fab", "auth_rate_limit"): ("webserver", "auth_rate_limit", "2.9.0"),
     }
 
-    # A mapping of new configurations to a list of old configurations for when one configuration
-    # deprecates more than one other deprecation. The deprecation logic for these configurations
-    # is defined in SchedulerJobRunner.
-    many_to_one_deprecated_options: dict[tuple[str, str], list[tuple[str, str, str]]] = {
-        ("scheduler", "task_queued_timeout"): [
-            ("celery", "stalled_task_timeout", "2.6.0"),
-            ("celery", "task_adoption_timeout", "2.6.0"),
-            ("kubernetes_executor", "worker_pods_pending_timeout", "2.6.0"),
-        ]
-    }
-
     # A mapping of new section -> (old section, since_version).
     deprecated_sections: dict[str, tuple[str, str]] = {"kubernetes_executor": ("kubernetes", "2.5.0")}
 
