@@ -146,7 +146,7 @@ class TestSqlAlchemyUtils:
             returned_value = with_row_locks(query=query, session=session, nowait=True)
 
         if expected_use_row_level_lock:
-            query.with_for_update.assert_called_once_with(nowait=True)
+            query.with_for_update.assert_called_once_with(nowait=True, key_share=True)
         else:
             assert returned_value == query
             query.with_for_update.assert_not_called()
