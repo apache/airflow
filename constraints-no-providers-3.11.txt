@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-04T03:24:50.016637
+# This constraints file was automatically generated on 2024-09-09T15:42:42.175977
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -30,7 +30,7 @@ PyYAML==6.0.2
 Pygments==2.18.0
 SQLAlchemy-JSONField==1.0.2
 SQLAlchemy-Utils==0.41.2
-SQLAlchemy==1.4.53
+SQLAlchemy==1.4.54
 WTForms==3.1.2
 Werkzeug==2.2.3
 aiobotocore==2.14.0
@@ -53,7 +53,7 @@ blinker==1.8.2
 botocore==1.35.7
 cachelib==0.9.0
 certifi==2024.8.30
-cffi==1.17.0
+cffi==1.17.1
 cgroupspy==0.2.3
 charset-normalizer==3.3.2
 click==8.1.7
@@ -73,10 +73,10 @@ docopt==0.6.2
 docutils==0.21.2
 email_validator==2.2.0
 eventlet==0.36.1
-fastavro==1.9.5
-filelock==3.15.4
+fastavro==1.9.7
+filelock==3.16.0
 frozenlist==1.4.1
-fsspec==2024.6.1
+fsspec==2024.9.0
 gevent==24.2.1
 google-re2==1.1.20240702
 googleapis-common-protos==1.65.0
@@ -112,7 +112,7 @@ marshmallow==3.22.0
 mdit-py-plugins==0.4.1
 mdurl==0.1.2
 methodtools==0.4.7
-more-itertools==10.4.0
+more-itertools==10.5.0
 multidict==6.0.5
 numpy==1.26.4
 opentelemetry-api==1.27.0
@@ -129,7 +129,7 @@ packaging==24.1
 pandas==2.1.4
 pathspec==0.12.1
 pendulum==3.0.0
-platformdirs==4.2.2
+platformdirs==4.3.2
 pluggy==1.5.0
 plyvel==1.5.1
 prison==0.2.1
@@ -140,8 +140,8 @@ pure-sasl==0.6.2
 pyasn1==0.6.0
 pyasn1_modules==0.4.0
 pycparser==2.22
-pydantic==2.8.2
-pydantic_core==2.20.1
+pydantic==2.9.1
+pydantic_core==2.23.3
 pykerberos==1.2.4
 pyspnego==0.11.1
 python-daemon==3.0.1
@@ -159,8 +159,8 @@ rfc3339-validator==0.1.4
 rich-argparse==1.5.2
 rich==13.8.0
 rpds-py==0.20.0
-s3fs==2024.6.1
-sentry-sdk==2.13.0
+s3fs==2024.9.0
+sentry-sdk==2.14.0
 setproctitle==1.3.3
 six==1.16.0
 sniffio==1.3.1
@@ -177,15 +177,15 @@ typing_extensions==4.12.2
 tzdata==2024.1
 uc-micro-py==1.0.3
 unicodecsv==0.14.1
-universal_pathlib==0.2.3
+universal_pathlib==0.2.5
 urllib3==2.2.2
 uv==0.4.1
 vine==5.1.0
-virtualenv==20.26.3
+virtualenv==20.26.4
 wirerope==0.4.7
 wrapt==1.16.0
 xmlsec==1.3.14
-yarl==1.9.7
+yarl==1.11.0
 zipp==3.20.1
 zope.event==5.0
 zope.interface==7.0.3
