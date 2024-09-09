@@ -21,7 +21,7 @@ import warnings
 from collections import namedtuple
 from contextlib import closing
 from copy import copy
-from datetime import timedelta, datetime
+from datetime import timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -192,11 +192,11 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         self,
         sql: str | Iterable[str],
         autocommit: bool = ...,
+        execution_timeout: timedelta | None = ...,
         parameters: Iterable | Mapping[str, Any] | None = ...,
         handler: None = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-        execution_timeout: timedelta | None = ...,
     ) -> None: ...
 
     @overload
@@ -204,11 +204,11 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         self,
         sql: str | Iterable[str],
         autocommit: bool = ...,
+        execution_timeout: timedelta | None = ...,
         parameters: Iterable | Mapping[str, Any] | None = ...,
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-        execution_timeout: timedelta | None = ...,
     ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None: ...
 
     def run(
@@ -259,21 +259,19 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         conn = None
         results = []
         for sql_statement in sql_list:
-
             # when using AAD tokens, it could expire if previous query run longer than token lifetime
             conn = self.get_conn()
             with closing(conn.cursor()) as cur:
                 self.set_autocommit(conn, autocommit)
 
                 with closing(conn.cursor()) as cur:
-
                     t = create_timeout_thread(cur, execution_timeout)
 
-                    #todo; adjust this to make testing easier
+                    # todo; adjust this to make testing easier
                     try:
                         self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
                     except Exception as e:
-                        if t.is_alive():
+                        if t is None or t.is_alive():
                             raise AirflowException(f"Error running statement: {sql_statement}. {str(e)}")
                         else:
                             raise AirflowException(
