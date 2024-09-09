@@ -17,30 +17,17 @@
  * under the License.
  */
 
-import React, { Fragment } from "react";
-
 import {
-  useReactTable,
-  getCoreRowModel,
-  getExpandedRowModel,
   ColumnDef,
-  flexRender,
   Row,
+  OnChangeFn,
+  PaginationState,
 } from "@tanstack/react-table";
 import { MdExpandMore } from "react-icons/md";
-import {
-  Box,
-  Code,
-  Table as ChakraTable,
-  Thead,
-  Td,
-  Th,
-  Tr,
-  Tbody,
-  TableContainer,
-} from "@chakra-ui/react";
+import { Box, Code } from "@chakra-ui/react";
 
 import { DAG } from "openapi/requests/types.gen";
+import { DataTable } from "src/components/DataTable.tsx";
 
 const columns: ColumnDef<DAG>[] = [
   {
@@ -82,84 +69,6 @@ const columns: ColumnDef<DAG>[] = [
   },
 ];
 
-type TableProps<TData> = {
-  data: TData[];
-  columns: ColumnDef<TData>[];
-  renderSubComponent: (props: { row: Row<TData> }) => React.ReactElement;
-  getRowCanExpand: (row: Row<TData>) => boolean;
-};
-
-const Table = ({
-  data,
-  columns,
-  renderSubComponent,
-  getRowCanExpand,
-}: TableProps<DAG>) => {
-  const table = useReactTable<DAG>({
-    data,
-    columns,
-    getRowCanExpand,
-    getCoreRowModel: getCoreRowModel(),
-    getExpandedRowModel: getExpandedRowModel(),
-  });
-
-  return (
-    <TableContainer>
-      <ChakraTable variant="striped">
-        <Thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <Tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => {
-                return (
-                  <Th key={header.id} colSpan={header.colSpan}>
-                    {header.isPlaceholder ? null : (
-                      <div>
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                      </div>
-                    )}
-                  </Th>
-                );
-              })}
-            </Tr>
-          ))}
-        </Thead>
-        <Tbody>
-          {table.getRowModel().rows.map((row) => {
-            return (
-              <Fragment key={row.id}>
-                <Tr>
-                  {/* first row is a normal row */}
-                  {row.getVisibleCells().map((cell) => {
-                    return (
-                      <Td key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </Td>
-                    );
-                  })}
-                </Tr>
-                {row.getIsExpanded() && (
-                  <Tr>
-                    {/* 2nd row is a custom 1 cell row */}
-                    <Td colSpan={row.getVisibleCells().length}>
-                      {renderSubComponent({ row })}
-                    </Td>
-                  </Tr>
-                )}
-              </Fragment>
-            );
-          })}
-        </Tbody>
-      </ChakraTable>
-    </TableContainer>
-  );
-};
-
 const renderSubComponent = ({ row }: { row: Row<DAG> }) => {
   return (
     <pre style={{ fontSize: "10px" }}>
@@ -168,13 +77,26 @@ const renderSubComponent = ({ row }: { row: Row<DAG> }) => {
   );
 };
 
-export const DagsList = ({ data }: { data: DAG[] }) => {
+export const DagsList = ({
+  data,
+  total,
+  pagination,
+  setPagination,
+}: {
+  data: DAG[];
+  total: number | undefined;
+  pagination: PaginationState;
+  setPagination: OnChangeFn<PaginationState>;
+}) => {
   return (
-    <Table
+    <DataTable
       data={data}
+      total={total}
       columns={columns}
       getRowCanExpand={() => true}
       renderSubComponent={renderSubComponent}
+      pagination={pagination}
+      setPagination={setPagination}
     />
   );
 };

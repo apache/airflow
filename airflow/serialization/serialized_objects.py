@@ -1269,10 +1269,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
 
         for k, v in encoded_op.items():
-            # Todo: TODO: Remove in Airflow 3.0 when dummy operator is removed
-            if k == "_is_dummy":
-                k = "_is_empty"
-
             if k in ("_outlets", "_inlets"):
                 # `_outlets` -> `outlets`
                 k = k[1:]
@@ -1649,8 +1645,6 @@ class SerializedDAG(DAG, BaseSerialization):
                     if obj.get(Encoding.TYPE) == DAT.OP:
                         deser = SerializedBaseOperator.deserialize_operator(obj[Encoding.VAR])
                         tasks[deser.task_id] = deser
-                    else:  # todo: remove in Airflow 3.0 (backcompat for pre-2.10)
-                        tasks[obj["task_id"]] = SerializedBaseOperator.deserialize_operator(obj)
                 k = "task_dict"
                 v = tasks
             elif k == "timezone":

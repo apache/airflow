@@ -23,7 +23,6 @@ import os
 import signal
 import sys
 import time
-import warnings
 from collections import Counter, defaultdict, deque
 from dataclasses import dataclass
 from datetime import timedelta
@@ -178,45 +177,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self._zombie_threshold_secs = conf.getint("scheduler", "scheduler_zombie_task_threshold")
         self._standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         self._dag_stale_not_seen_duration = conf.getint("scheduler", "dag_stale_not_seen_duration")
-
-        # Since the functionality for stalled_task_timeout, task_adoption_timeout, and
-        # worker_pods_pending_timeout are now handled by a single config (task_queued_timeout),
-        # we can't deprecate them as we normally would. So, we'll read each config and take
-        # the max value in order to ensure we're not undercutting a legitimate
-        # use of any of these configs.
-        stalled_task_timeout = conf.getfloat("celery", "stalled_task_timeout", fallback=0)
-        if stalled_task_timeout:
-            # TODO: Remove in Airflow 3.0
-            warnings.warn(
-                "The '[celery] stalled_task_timeout' config option is deprecated. "
-                "Please update your config to use '[scheduler] task_queued_timeout' instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        task_adoption_timeout = conf.getfloat("celery", "task_adoption_timeout", fallback=0)
-        if task_adoption_timeout:
-            # TODO: Remove in Airflow 3.0
-            warnings.warn(
-                "The '[celery] task_adoption_timeout' config option is deprecated. "
-                "Please update your config to use '[scheduler] task_queued_timeout' instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        worker_pods_pending_timeout = conf.getfloat(
-            "kubernetes_executor", "worker_pods_pending_timeout", fallback=0
-        )
-        if worker_pods_pending_timeout:
-            # TODO: Remove in Airflow 3.0
-            warnings.warn(
-                "The '[kubernetes_executor] worker_pods_pending_timeout' config option is deprecated. "
-                "Please update your config to use '[scheduler] task_queued_timeout' instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
-        self._task_queued_timeout = max(
-            stalled_task_timeout, task_adoption_timeout, worker_pods_pending_timeout, task_queued_timeout
-        )
+        self._task_queued_timeout = conf.getfloat("scheduler", "task_queued_timeout")
 
         self.do_pickle = do_pickle
 

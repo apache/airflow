@@ -21,6 +21,7 @@ import json
 import os
 import re
 import sys
+from collections import defaultdict
 from enum import Enum
 from functools import cached_property, lru_cache
 from pathlib import Path
@@ -79,7 +80,6 @@ NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 USE_SELF_HOSTED_RUNNERS_LABEL = "use self-hosted runners"
-
 
 ALL_CI_SELECTIVE_TEST_TYPES = (
     "API Always BranchExternalPython BranchPythonVenv "
@@ -1269,6 +1269,18 @@ class SelectiveChecks:
                 if check["python-version"] in self.python_versions
             ]
         )
+
+    @cached_property
+    def excluded_providers_as_string(self) -> str:
+        providers_to_exclude = defaultdict(list)
+        for provider, provider_info in DEPENDENCIES.items():
+            if "excluded-python-versions" in provider_info:
+                for python_version in provider_info["excluded-python-versions"]:
+                    providers_to_exclude[python_version].append(provider)
+        sorted_providers_to_exclude = dict(
+            sorted(providers_to_exclude.items(), key=lambda item: int(item[0].split(".")[1]))
+        )  # ^ sort by Python minor version
+        return json.dumps(sorted_providers_to_exclude)
 
     @cached_property
     def testable_integrations(self) -> list[str]:

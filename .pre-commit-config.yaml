@@ -135,7 +135,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all YAML files except Helm templates
-        exclude: ^\.github/.*$|^.*/.*_vendor/|^chart/templates/.*|.*/reproducible_build.yaml$
+        exclude: ^\.github/.*$|^.*/.*_vendor/|^chart/templates/.*|.*/reproducible_build.yaml$|^airflow/api_ui/openapi/v1-generated.yaml$
         types: [yaml]
         files: \.ya?ml$
         args:
@@ -218,6 +218,13 @@ repos:
         files: ^airflow/models/taskinstance.py$|^airflow/models/taskinstancehistory.py$
         pass_filenames: false
         require_serial: true
+      - id: check-deferrable-default
+        name: Check and fix default value of default_deferrable
+        language: python
+        entry: ./scripts/ci/pre_commit/check_deferrable_default.py
+        pass_filenames: false
+        additional_dependencies: ["libcst>=1.1.0"]
+        files: ^airflow/.*/sensors/.*\.py$|^airflow/.*/operators/.*\.py$
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.18.0
     hooks:
@@ -1165,12 +1172,6 @@ repos:
         pass_filenames: true
         files: \.py$
         exclude: ^airflow/providers|^dev/.*\.py$|^scripts/.*\.py$|^tests/|^\w+_tests/|^docs/.*\.py$|^airflow/utils/helpers.py$|^hatch_build.py$
-      - id: check-deferrable-default-value
-        name: Check default value of deferrable attribute
-        language: python
-        entry: ./scripts/ci/pre_commit/check_deferrable_default.py
-        pass_filenames: false
-        files: ^airflow/.*/sensors/.*\.py$|^airflow/.*/operators/.*\.py$
       - id: check-provider-docs-valid
         name: Validate provider doc files
         entry: ./scripts/ci/pre_commit/check_provider_docs.py
@@ -1327,6 +1328,13 @@ repos:
         entry: ./scripts/ci/pre_commit/migration_reference.py
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
+        additional_dependencies: ['rich>=12.4.4']
+      - id: generate-openapi-spec
+        name: Generate the UI API OPENAPI spec
+        language: python
+        entry: ./scripts/ci/pre_commit/update_ui_api_spec.py
+        pass_filenames: false
+        files: ^airflow/api_ui/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
       - id: update-er-diagram
         name: Update ER diagram
