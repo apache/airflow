@@ -80,7 +80,7 @@ automatically loaded in Webserver). To load them at the
 start of each Airflow process, set ``[core] lazy_load_plugins = False`` in ``airflow.cfg``.
 
 This means that if you make any changes to plugins and you want the webserver or scheduler to use that new
-code you will need to restart those processes. However, it will not be reflected in new running tasks after the scheduler boots.
+code you will need to restart those processes. However, it will not be reflected in new running tasks until after the scheduler boots.
 
 By default, task execution uses forking. This avoids the slowdown associated with creating a new Python interpreter
 and re-parsing all of Airflow's code and startup routines. This approach offers significant benefits, especially for shorter tasks.
