@@ -312,10 +312,9 @@ def _run_raw_task(
         except (AirflowTaskTimeout, AirflowException, AirflowTaskTerminated) as e:
             if not test_mode:
                 ti.refresh_from_db(lock_for_update=True, session=session)
-            # for case when task is marked as success/failed externally
-            # or dagrun timed out and task is marked as skipped
-            # current behavior doesn't hit the callbacks
-            if ti.state in State.finished:
+            # for case when task is marked as success/failed externally (and is cleared shortly afterwards)
+            # or dagrun timed out and task is marked as skipped current behavior doesn't hit the callbacks
+            if ti.state in State.finished or ti.state is None:
                 ti.clear_next_method_args()
                 TaskInstance.save_to_db(ti=ti, session=session)
                 return None
