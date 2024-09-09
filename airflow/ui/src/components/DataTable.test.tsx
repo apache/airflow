@@ -21,8 +21,9 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { DataTable } from "./DataTable.tsx";
 import { ColumnDef, PaginationState } from "@tanstack/react-table";
+import "@testing-library/jest-dom";
 
-const columns: ColumnDef<any>[] = [
+const columns: ColumnDef<{ name: string }>[] = [
   {
     accessorKey: "name",
     header: "Name",
