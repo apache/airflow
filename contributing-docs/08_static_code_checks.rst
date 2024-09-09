@@ -160,7 +160,7 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-decorated-operator-implements-custom-name           | Check @task decorator implements custom_operator_name        |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
-| check-deferrable-default-value                            | Check default value of deferrable attribute                  |         |
+| check-deferrable-default                                  | Check and fix default value of default_deferrable            |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-docstring-param-types                               | Check that docstrings do not specify param types             |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -247,6 +247,10 @@ require Breeze Docker image to be built locally.
 | check-xml                                                 | Check XML files with xmllint                                 |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | codespell                                                 | Run codespell to check for common misspellings in files      |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| compile-ui-assets                                         | Compile ui assets (manual)                                   |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| compile-ui-assets-dev                                     | Compile ui assets in dev mode (manual)                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | compile-www-assets                                        | Compile www assets (manual)                                  |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
@@ -338,6 +342,8 @@ require Breeze Docker image to be built locally.
 | shellcheck                                                | Check Shell scripts syntax correctness                       |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | trailing-whitespace                                       | Remove trailing whitespace at end of line                    |         |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| ts-compile-format-lint-ui                                 | TS types generation / ESLint / Prettier new UI files         |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | ts-compile-format-lint-www                                | TS types generation / ESLint / Prettier against UI files     |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+

@@ -57,8 +57,14 @@ const ExtraLinks = ({
     if (!url) {
       return true;
     }
-    const urlRegex = /^(https?:)/i;
-    return urlRegex.test(url);
+    const path = new URL(url, "http://localhost");
+    // Allow Absolute/Relative URL and prevent javascript:() from executing when passed as path.
+    // Example - `javascript:alert("Hi");`. Protocol for absolute and relative urls will either be `http:`/`https:`.
+    // Where as for javascript it will be `javascript:`.
+    if (path.protocol === "http:" || path.protocol === "https:") {
+      return true; // Absolute/Relative URLs are allowed
+    }
+    return false;
   };
 
   return (

@@ -1,0 +1,5 @@
+Removed a set of deprecations in from ``airflow.models.param``.
+
+- Removed deprecated direct access to DagParam as module. Please import from ``airflow.models.param``.
+- Ensure all param values are JSON serialiazable and raise a ``ParamValidationError`` if not.
+- Ensure parsed date and time values are RFC3339 compliant.

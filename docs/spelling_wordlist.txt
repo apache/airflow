@@ -250,8 +250,8 @@ classpaths
 cleartext
 cli
 clientId
-Cloudant
 cloudant
+CloudantV
 cloudbuild
 CloudBuildClient
 cloudml
@@ -668,6 +668,8 @@ gcpcloudsql
 GCS
 gcs
 gdbm
+Gelf
+gelf
 generateUploadUrl
 Gentner
 geq
@@ -773,6 +775,7 @@ hyperparameter
 hyperparameters
 IaC
 iam
+ibmcloudant
 idempotence
 idempotency
 IdP

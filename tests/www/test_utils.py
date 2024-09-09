@@ -45,6 +45,10 @@ from airflow.www.utils import (
     wrapped_markdown,
 )
 from airflow.www.widgets import AirflowDateTimePickerROWidget, BS3TextAreaROWidget, BS3TextFieldROWidget
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 
 class TestUtils:
@@ -358,36 +362,11 @@ class TestAttrRenderer:
         assert formatter(dagrun) == expected_markup
 
 
-@pytest.mark.filterwarnings("ignore::DeprecationWarning")
-def test_get_sensitive_variables_fields():
-    with pytest.warns(DeprecationWarning) as warning:
-        result = utils.get_sensitive_variables_fields()
-
-        # assert deprecation warning
-        assert len(warning) == 1
-        assert "This function is deprecated." in str(warning[-1].message)
-
-    from airflow.utils.log.secrets_masker import get_sensitive_variables_fields
-
-    expected_result = get_sensitive_variables_fields()
-    assert result == expected_result
-
-
-@pytest.mark.filterwarnings("ignore::DeprecationWarning")
-def test_should_hide_value_for_key():
-    key_name = "key"
-
-    with pytest.warns(DeprecationWarning) as warning:
-        result = utils.should_hide_value_for_key(key_name)
-
-        # assert deprecation warning
-        assert len(warning) == 1
-        assert "This function is deprecated." in str(warning[-1].message)
-
-    from airflow.utils.log.secrets_masker import should_hide_value_for_key
-
-    expected_result = should_hide_value_for_key(key_name)
-    assert result == expected_result
+def create_dag_run_for_markdown():
+    params = dict(run_id="run_id_1", conf={})
+    if AIRFLOW_V_3_0_PLUS:
+        params.update(triggered_by=DagRunTriggeredByType.TEST)
+    return DagRun(**params)
 
 
 class TestWrappedMarkdown:
@@ -522,7 +501,7 @@ class TestWrappedMarkdown:
         [
             [None, (None, None)],
             [
-                DagRun(run_id="run_id_1", conf={}),
+                create_dag_run_for_markdown(),
                 (
                     {
                         "conf": None,
@@ -539,6 +518,7 @@ class TestWrappedMarkdown:
                         "run_type": None,
                         "start_date": None,
                         "state": None,
+                        "triggered_by": "test",
                     },
                     None,
                 ),
@@ -641,10 +621,15 @@ def test_dag_run_custom_sqla_interface_delete_no_collateral_damage(dag_maker, se
     interface = DagRunCustomSQLAInterface(obj=DagRun, session=session)
     dag_ids = (f"test_dag_{x}" for x in range(1, 4))
     dates = (pendulum.datetime(2023, 1, x) for x in range(1, 4))
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     for dag_id, date in itertools.product(dag_ids, dates):
         with dag_maker(dag_id=dag_id) as dag:
             dag.create_dagrun(
-                execution_date=date, state="running", run_type="scheduled", data_interval=(date, date)
+                execution_date=date,
+                state="running",
+                run_type="scheduled",
+                data_interval=(date, date),
+                **triggered_by_kwargs,
             )
     dag_runs = session.query(DagRun).all()
     assert len(dag_runs) == 9

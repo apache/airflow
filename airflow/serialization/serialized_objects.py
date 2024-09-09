@@ -49,7 +49,7 @@ from airflow.jobs.job import Job
 from airflow.models import Trigger
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
-from airflow.models.dag import DAG, DagModel, create_timetable
+from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY, create_expand_input, get_map_type_key
 from airflow.models.mappedoperator import MappedOperator
@@ -96,6 +96,8 @@ from airflow.utils.types import NOTSET, ArgNotSet, AttributeRemoved
 if TYPE_CHECKING:
     from inspect import Parameter
 
+    from pydantic import BaseModel
+
     from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.expandinput import ExpandInput
     from airflow.models.operator import Operator
@@ -103,7 +105,6 @@ if TYPE_CHECKING:
     from airflow.serialization.json_schema import Validator
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.timetables.base import Timetable
-    from airflow.utils.pydantic import BaseModel
 
     HAS_KUBERNETES: bool
     try:
@@ -364,8 +365,8 @@ def encode_start_trigger_args(var: StartTriggerArgs) -> dict[str, Any]:
 
     :meta private:
     """
-    serialize_kwargs = (
-        lambda key: BaseSerialization.serialize(getattr(var, key)) if getattr(var, key) is not None else None
+    serialize_kwargs = lambda key: (
+        BaseSerialization.serialize(getattr(var, key)) if getattr(var, key) is not None else None
     )
     return {
         "__type": "START_TRIGGER_ARGS",
@@ -1268,10 +1269,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
 
         for k, v in encoded_op.items():
-            # Todo: TODO: Remove in Airflow 3.0 when dummy operator is removed
-            if k == "_is_dummy":
-                k = "_is_empty"
-
             if k in ("_outlets", "_inlets"):
                 # `_outlets` -> `outlets`
                 k = k[1:]
@@ -1579,7 +1576,7 @@ class SerializedDAG(DAG, BaseSerialization):
     not pickle-able. SerializedDAG works for all DAGs.
     """
 
-    _decorated_fields = {"schedule_interval", "default_args", "_access_control"}
+    _decorated_fields = {"default_args", "_access_control"}
 
     @staticmethod
     def __get_constructor_defaults():
@@ -1606,16 +1603,7 @@ class SerializedDAG(DAG, BaseSerialization):
         """Serialize a DAG into a JSON object."""
         try:
             serialized_dag = cls.serialize_to_json(dag, cls._decorated_fields)
-
             serialized_dag["_processor_dags_folder"] = DAGS_FOLDER
-
-            # If schedule_interval is backed by timetable, serialize only
-            # timetable; vice versa for a timetable backed by schedule_interval.
-            if dag.timetable.summary == dag.schedule_interval:
-                del serialized_dag["schedule_interval"]
-            else:
-                del serialized_dag["timetable"]
-
             serialized_dag["tasks"] = [cls.serialize(task) for _, task in dag.task_dict.items()]
 
             dag_deps = [
@@ -1657,8 +1645,6 @@ class SerializedDAG(DAG, BaseSerialization):
                     if obj.get(Encoding.TYPE) == DAT.OP:
                         deser = SerializedBaseOperator.deserialize_operator(obj[Encoding.VAR])
                         tasks[deser.task_id] = deser
-                    else:  # todo: remove in Airflow 3.0 (backcompat for pre-2.10)
-                        tasks[obj["task_id"]] = SerializedBaseOperator.deserialize_operator(obj)
                 k = "task_dict"
                 v = tasks
             elif k == "timezone":
@@ -1681,14 +1667,6 @@ class SerializedDAG(DAG, BaseSerialization):
             # else use v as it is
 
             setattr(dag, k, v)
-
-        # A DAG is always serialized with only one of schedule_interval and
-        # timetable. This back-populates the other to ensure the two attributes
-        # line up correctly on the DAG instance.
-        if "timetable" in encoded_dag:
-            dag.schedule_interval = dag.timetable.summary
-        else:
-            dag.timetable = create_timetable(dag.schedule_interval, dag.timezone)
 
         # Set _task_group
         if "_task_group" in encoded_dag:
@@ -1839,12 +1817,7 @@ def _has_kubernetes() -> bool:
     try:
         from kubernetes.client import models as k8s
 
-        try:
-            from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-        except ImportError:
-            from airflow.kubernetes.pre_7_4_0_compatibility.pod_generator import (  # type: ignore[assignment]
-                PodGenerator,
-            )
+        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 
         globals()["k8s"] = k8s
         globals()["PodGenerator"] = PodGenerator

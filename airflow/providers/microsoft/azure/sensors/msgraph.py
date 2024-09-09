@@ -82,7 +82,7 @@ class MSGraphSensor(BaseSensorOperator):
         data: dict[str, Any] | str | BytesIO | None = None,
         conn_id: str = KiotaRequestAdapterHook.default_conn_name,
         proxies: dict | None = None,
-        api_version: APIVersion | None = None,
+        api_version: APIVersion | str | None = None,
         event_processor: Callable[[Context, Any], bool] = lambda context, e: e.get("status") == "Succeeded",
         result_processor: Callable[[Context, Any], Any] = lambda context, result: result,
         serializer: type[ResponseSerializer] = ResponseSerializer,
