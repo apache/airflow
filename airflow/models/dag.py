@@ -2301,6 +2301,7 @@ class DAG(LoggingMixin):
         end_date=None,
         mark_success=False,
         local=False,
+        executor=None,
         donot_pickle=airflow_conf.getboolean("core", "donot_pickle"),
         ignore_task_deps=False,
         ignore_first_depends_on_past=True,
