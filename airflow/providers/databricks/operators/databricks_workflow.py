@@ -33,7 +33,6 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
     WorkflowJobRunLink,
 )
 from airflow.utils.task_group import TaskGroup
-from tests.providers.google.cloud.transfers.test_gcs_to_bigquery import job_id
 
 if TYPE_CHECKING:
     from types import TracebackType
@@ -53,7 +52,7 @@ class WorkflowRunMetadata:
     """
 
     conn_id: str
-    job_id: str
+    job_id: int
     run_id: int
 
 
@@ -227,19 +226,18 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
         }
 
     def on_kill(self) -> None:
-
         if self.workflow_run_metadata:
-
             run_id = self.workflow_run_metadata.run_id
             job_id = self.workflow_run_metadata.job_id
 
             self._hook.cancel_run(run_id)
             self.log.info(
-                f"Run: {run_id} of job_id: {job_id} was requested to be cancelled."
+                "Run: %(run_id)s of job_id: %(job_id)s was requested to be cancelled.",
+                {"run_id": run_id, "job_id": job_id},
             )
         else:
             self.log.error(
-                f"""
+                """
                 Error: Workflow Run metadata is not populated, so the run was not canceled. This could be due
                 to the workflow not being started or an error in the workflow creation process.
                 """
