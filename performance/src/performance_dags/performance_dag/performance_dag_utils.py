@@ -15,14 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """
 Module containing functions used for validation of performance dag configuration
 and collecting information about it's resulting DAGs' arrangement.
-
 """
-
-
 from __future__ import annotations
 
 import json
