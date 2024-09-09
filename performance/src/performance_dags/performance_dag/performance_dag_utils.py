@@ -31,7 +31,7 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from shutil import copyfile
-from typing import Callable, Dict, List, Tuple, Union
+from typing import Callable
 
 import airflow
 
@@ -104,7 +104,7 @@ def validate_performance_dag_conf(performance_dag_conf: dict[str, str]) -> None:
         ValueError: if any value in performance_dag_conf is not a string
     """
 
-    if not isinstance(performance_dag_conf, Dict):
+    if not isinstance(performance_dag_conf, dict):
         raise TypeError(
             f"performance_dag configuration must be a dictionary containing at least following keys: "
             f"{MANDATORY_performance_DAG_VARIABLES}."
@@ -348,7 +348,7 @@ def check_non_negative_float_convertibility(env_name: str, env_value: str) -> No
         )
 
 
-def check_non_negative(value: Union[int, float]) -> None:
+def check_non_negative(value: int | float) -> None:
     """Check if provided value is not negative and raises ValueError otherwise."""
     if value < 0:
         raise ValueError
@@ -431,7 +431,7 @@ def check_valid_json(env_name: str, env_value: str) -> None:
 @contextmanager
 def generate_copies_of_performance_dag(
     performance_dag_path: str, performance_dag_conf: dict[str, str]
-) -> tuple[str, List[str]]:
+) -> tuple[str, list[str]]:
     """Create context manager that creates copies of DAG.
 
     Contextmanager that creates copies of performance DAG inside temporary directory using the
@@ -661,3 +661,58 @@ def add_performance_dag_configuration_type(
 
     # move the type key to the beginning of dict
     performance_dag_columns.move_to_end("performance_dag_configuration_type", last=False)
+
+
+def parse_time_delta(time_str):
+    # type: (str) -> datetime.timedelta
+    """
+    Parse a time string e.g. (2h13m) into a timedelta object.
+
+    :param time_str: A string identifying a duration.  (eg. 2h13m)
+    :return datetime.timedelta: A datetime.timedelta object or "@once"
+    """
+    parts = RE_TIME_DELTA.match(time_str)
+
+    if parts is None:
+        raise ValueError(
+            f"Could not parse any time information from '{time_str}'. "
+            "Examples of valid strings: '8h', '2d8h5m20s', '2m4s'"
+        )
+
+    time_params = {name: float(param) for name, param in parts.groupdict().items() if param}
+    return timedelta(**time_params)  # type: ignore
+
+
+def parse_start_date(date, start_ago):
+    """
+    Parse date or relative distance to current time.
+
+    Returns the start date for the performance DAGs and string to be used as part of their ids.
+
+    :return Tuple[datetime.datetime, str]: A tuple of datetime.datetime object to be used
+        as a start_date and a string that should be used as part of the dag_id.
+    """
+    if date:
+        start_date = datetime.strptime(date, "%Y-%m-%d %H:%M:%S.%f")
+        dag_id_component = str(int(start_date.timestamp()))
+    else:
+        start_date = datetime.now() - parse_time_delta(start_ago)
+        dag_id_component = start_ago
+    return start_date, dag_id_component
+
+
+def parse_schedule_interval(time_str):
+    # type: (str) -> datetime.timedelta
+    """
+    Parse a schedule interval string e.g. (2h13m) or "@once".
+
+    :param time_str: A string identifying a schedule interval.  (eg. 2h13m, None, @once)
+    :return datetime.timedelta: A datetime.timedelta object or "@once" or None
+    """
+    if time_str == "None":
+        return None
+
+    if time_str == "@once":
+        return "@once"
+
+    return parse_time_delta(time_str)

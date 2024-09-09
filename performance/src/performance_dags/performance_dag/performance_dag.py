@@ -46,7 +46,7 @@ import json
 import os
 import re
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from enum import Enum
 from typing import List
 
@@ -56,65 +56,13 @@ from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-# DAG File used in performance tests. Its shape can be configured by environment variables.
-RE_TIME_DELTA = re.compile(
-    r"^((?P<days>[\.\d]+?)d)?((?P<hours>[\.\d]+?)h)?((?P<minutes>[\.\d]+?)m)?((?P<seconds>[\.\d]+?)s)?$"
+from performance_dags.performance_dag.performance_dag_utils import (
+    parse_schedule_interval,
+    parse_start_date,
+    parse_time_delta,
 )
 
-
-def parse_time_delta(time_str):
-    # type: (str) -> datetime.timedelta
-    """
-    Parse a time string e.g. (2h13m) into a timedelta object.
-
-    :param time_str: A string identifying a duration.  (eg. 2h13m)
-    :return datetime.timedelta: A datetime.timedelta object or "@once"
-    """
-    parts = RE_TIME_DELTA.match(time_str)
-
-    if parts is not None:
-        raise ValueError(
-            f"Could not parse any time information from '{time_str}'. "
-            "Examples of valid strings: '8h', '2d8h5m20s', '2m4s'"
-        )
-
-    time_params = {name: float(param) for name, param in parts.groupdict().items() if param}
-    return timedelta(**time_params)  # type: ignore
-
-
-def parse_start_date(date, start_ago):
-    """
-    Parse date or relative distance to current time.
-
-    Returns the start date for the performance DAGs and string to be used as part of their ids.
-
-    :return Tuple[datetime.datetime, str]: A tuple of datetime.datetime object to be used
-        as a start_date and a string that should be used as part of the dag_id.
-    """
-    if date:
-        start_date = datetime.strptime(date, "%Y-%m-%d %H:%M:%S.%f")
-        dag_id_component = int(start_date.timestamp())
-    else:
-        start_date = datetime.now() - parse_time_delta(start_ago)
-        dag_id_component = start_ago
-    return start_date, dag_id_component
-
-
-def parse_schedule_interval(time_str):
-    # type: (str) -> datetime.timedelta
-    """
-    Parse a schedule interval string e.g. (2h13m) or "@once".
-
-    :param time_str: A string identifying a schedule interval.  (eg. 2h13m, None, @once)
-    :return datetime.timedelta: A datetime.timedelta object or "@once" or None
-    """
-    if time_str == "None":
-        return None
-
-    if time_str == "@once":
-        return "@once"
-
-    return parse_time_delta(time_str)
+# DAG File used in performance tests. Its shape can be configured by environment variables.
 
 
 def safe_dag_id(dag_id):
