@@ -46,9 +46,7 @@ import json
 import os
 import re
 import time
-from datetime import datetime
 from enum import Enum
-from typing import List
 
 from airflow import DAG
 from airflow.models.baseoperator import BaseOperator, chain
@@ -59,7 +57,6 @@ from airflow.utils.trigger_rule import TriggerRule
 from performance_dags.performance_dag.performance_dag_utils import (
     parse_schedule_interval,
     parse_start_date,
-    parse_time_delta,
 )
 
 # DAG File used in performance tests. Its shape can be configured by environment variables.
@@ -72,7 +69,7 @@ def safe_dag_id(dag_id):
 
 
 def get_task_list(dag_object, operator_type_str, task_count, trigger_rule, sleep_time, operator_extra_kwargs):
-    # type: (DAG, str, int, float, int, dict) -> List[BaseOperator]
+    # type: (DAG, str, int, float, int, dict) -> list[BaseOperator]
     """
     Return list of tasks of test dag.
 
@@ -84,7 +81,7 @@ def get_task_list(dag_object, operator_type_str, task_count, trigger_rule, sleep
     :param sleep_time: A non-negative float value specifying the time of sleep occurring
     when each task is executed
     :param operator_extra_kwargs: A dictionary with extra kwargs for operator
-    :return List[BaseOperator]: a list of tasks
+    :return list[BaseOperator]: a list of tasks
     """
     if operator_type_str == "bash":
         task_list = [
