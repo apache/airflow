@@ -510,6 +510,73 @@ def test_batch_data_retry(weaviate_hook):
     )
 
 
+@pytest.mark.parametrize(
+    argnames=["data", "expected_length"],
+    argvalues=[
+        (
+            [
+                {
+                    "collection_name": "TestCollection1",
+                    "from_property": "property1",
+                    "from_uuid": 1234455,
+                    "to_uuid": 1245555,
+                },
+                {
+                    "collection_name": "TestCollection2",
+                    "from_property": "property2",
+                    "from_uuid": 1234457,
+                    "to_uuid": 1344444,
+                },
+            ],
+            2,
+        ),
+        (
+            pd.DataFrame.from_dict(
+                {
+                    "collection_name": ["TestCollection1", "TestCollection2"],
+                    "from_property": ["property1", "property2"],
+                    "from_uuid": [1234455, 1234457],
+                    "to_uuid": [1245555, 1344444],
+                }
+            ),
+            2,
+        ),
+    ],
+)
+def test_batch_create_links(data, expected_length, weaviate_hook):
+    """
+    Test the batch_create_links method of WeaviateHook.
+    """
+    mock_client = MagicMock()
+    weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+
+    weaviate_hook.batch_create_links(data)
+    mock_batch_context = mock_client.batch.fixed_size.return_value.__enter__.return_value
+    assert mock_batch_context.add_reference.call_count == expected_length
+
+
+@pytest.mark.parametrize(
+    argnames=["data", "expected_length"],
+    argvalues=[
+        (
+            [
+                {"from_property": "property1", "from_uuid": 1239900, "to_uuid": 124666},
+                {"from_property": "property2", "from_uuid": 1239901, "to_uuid": 134444},
+            ],  # Test for no collection_name given in the dict
+            2,
+        )
+    ],
+)
+def test_batch_create_links_collection_name_given_as_kwarg(data, expected_length, weaviate_hook):
+    mock_client = MagicMock()
+    weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+
+    collection_name = "TestCollection"
+    weaviate_hook.batch_create_links(data, collection_name=collection_name)
+    mock_batch_context = mock_client.batch.fixed_size.return_value.__enter__.return_value
+    assert mock_batch_context.add_reference.call_count == expected_length
+
+
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_conn")
 def test_delete_collections(get_conn, weaviate_hook):
     collection_names = ["collection_a", "collection_b"]
