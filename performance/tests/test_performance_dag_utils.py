@@ -17,10 +17,9 @@
 # under the License.
 # Note: Any AirflowException raised is expected to cause the TaskInstance
 #       to be marked in an ERROR state
-
+from __future__ import annotations
 
 from datetime import timedelta, datetime
-import time
 
 from performance_dags.performance_dag.performance_dag_utils import parse_start_date, parse_time_delta
 
