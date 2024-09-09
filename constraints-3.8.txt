@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-06T19:45:52.359154
+# This constraints file was automatically generated on 2024-09-09T02:12:47.119664
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -307,7 +307,7 @@ fastapi==0.114.0
 fastavro==1.9.7
 fasteners==0.19
 fastjsonschema==2.20.0
-filelock==3.15.4
+filelock==3.16.0
 flower==2.0.1
 frozenlist==1.4.1
 fsspec==2024.9.0
@@ -466,10 +466,10 @@ microsoft-kiota-http==1.3.3
 mmh3==4.1.0
 mongomock==4.1.2
 more-itertools==10.5.0
-moto==5.0.13
+moto==5.0.14
 mpmath==1.3.0
 msal-extensions==1.2.0
-msal==1.30.0
+msal==1.31.0
 msgraph-core==1.1.3
 msrest==0.7.1
 msrestazure==0.6.4.post1
@@ -534,11 +534,11 @@ pinecone-client==5.0.1
 pinecone-plugin-inference==1.0.3
 pinecone-plugin-interface==0.0.7
 pinotdb==5.6.0
-pipdeptree==2.23.1
+pipdeptree==2.23.3
 pipx==1.7.1
 pkginfo==1.10.0
 pkgutil_resolve_name==1.3.10
-platformdirs==4.2.2
+platformdirs==4.3.2
 pluggy==1.5.0
 ply==3.11
 plyvel==1.5.1
@@ -556,7 +556,7 @@ psycopg2-binary==2.9.9
 ptyprocess==0.7.0
 pure-sasl==0.6.2
 pure_eval==0.2.3
-py-partiql-parser==0.5.5
+py-partiql-parser==0.5.6
 py4j==0.10.9.7
 pyOpenSSL==24.2.1
 pyarrow-hotfix==0.6
@@ -681,7 +681,7 @@ sqlparse==0.5.1
 sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
-starlette==0.38.4
+starlette==0.38.5
 statsd==4.0.1
 std-uritemplate==1.0.6
 strictyaml==1.7.3
@@ -716,16 +716,16 @@ types-aiofiles==24.1.0.20240626
 types-certifi==2021.10.8.3
 types-cffi==1.16.0.20240331
 types-croniter==3.0.3.20240731
-types-docutils==0.21.0.20240724
+types-docutils==0.21.0.20240907
 types-paramiko==3.4.0.20240423
-types-protobuf==5.27.0.20240626
+types-protobuf==5.27.0.20240907
 types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20240906
 types-python-slugify==8.0.2.20240310
 types-pytz==2024.1.0.20240417
 types-redis==4.6.0.20240903
 types-requests==2.31.0.6
-types-setuptools==74.1.0.20240906
+types-setuptools==74.1.0.20240907
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
 types-toml==0.10.8.20240310
@@ -736,7 +736,7 @@ tzdata==2024.1
 tzlocal==5.2
 uc-micro-py==1.0.3
 unicodecsv==0.14.1
-universal_pathlib==0.2.3
+universal_pathlib==0.2.5
 uritemplate==4.1.1
 urllib3==1.26.20
 userpath==1.9.2
@@ -746,7 +746,7 @@ uvloop==0.20.0
 validators==0.33.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==20.26.3
+virtualenv==20.26.4
 watchfiles==0.24.0
 watchtower==3.3.1
 wcwidth==0.2.13
@@ -760,10 +760,10 @@ xmltodict==0.13.0
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.316.0
-yarl==1.9.11
+yarl==1.11.0
 ydb==3.16.1
 zeep==4.2.1
-zenpy==2.0.50
+zenpy==2.0.51
 zipp==3.20.1
 zope.event==5.0
 zope.interface==7.0.3
