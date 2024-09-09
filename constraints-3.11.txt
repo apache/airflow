@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-09T02:12:58.263773
+# This constraints file was automatically generated on 2024-09-09T19:50:07.134373
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -288,7 +288,7 @@ docker==7.1.0
 docopt==0.6.2
 docstring_parser==0.16
 docutils==0.16
-duckdb==1.0.0
+duckdb==1.1.0
 elastic-transport==8.15.0
 elasticsearch==8.15.0
 email_validator==2.2.0
@@ -404,7 +404,7 @@ ijson==3.3.0
 imagesize==1.4.1
 immutabledict==4.2.0
 importlib-metadata==6.11.0
-importlib_resources==6.4.4
+importlib_resources==6.4.5
 impyla==0.19.0
 incremental==24.7.2
 inflection==0.5.1
@@ -563,13 +563,13 @@ pyasn1_modules==0.4.0
 pycountry==24.6.1
 pycparser==2.22
 pycryptodome==3.20.0
-pydantic==2.9.0
-pydantic_core==2.23.2
+pydantic==2.9.1
+pydantic_core==2.23.3
 pydata-google-auth==1.8.2
 pydot==1.4.2
 pydruid==0.6.9
 pyenchant==3.2.2
-pyexasol==0.26.0
+pyexasol==0.27.0
 pygraphviz==1.13
 pyiceberg==0.7.1
 pyjsparser==2.7.1
@@ -637,7 +637,7 @@ scrapbook==0.5.0
 semver==3.0.2
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==2.13.0
+sentry-sdk==2.14.0
 setproctitle==1.3.3
 shapely==2.0.6
 shellingham==1.5.4
@@ -758,7 +758,7 @@ yandexcloud==0.316.0
 yarl==1.11.0
 ydb==3.16.1
 zeep==4.2.1
-zenpy==2.0.51
+zenpy==2.0.52
 zipp==3.20.1
 zope.event==5.0
 zope.interface==7.0.3
