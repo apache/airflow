@@ -19,11 +19,10 @@
 from __future__ import annotations
 
 import threading
-import time
 from collections import namedtuple
 from datetime import timedelta
 from unittest import mock
-from unittest.mock import patch, PropertyMock
+from unittest.mock import PropertyMock, patch
 
 import pytest
 from databricks.sql.types import Row
@@ -33,7 +32,6 @@ from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook, create_timeout_thread
 from airflow.utils.session import provide_session
-from airflow.utils.timezone import datetime
 
 pytestmark = pytest.mark.db_test
 
@@ -58,6 +56,7 @@ def create_connection(session):
 @pytest.fixture
 def databricks_hook():
     return DatabricksSqlHook(sql_endpoint_name="Test", return_tuple=True)
+
 
 @pytest.fixture
 def mock_get_conn():
@@ -99,13 +98,16 @@ def mock_get_requests():
     # Stop the patcher after the test
     mock_patch.stop()
 
+
 @pytest.fixture
 def mock_timer():
     with patch("threading.Timer") as mock_timer:
         yield mock_timer
 
+
 def get_cursor_descriptions(fields: list[str]) -> list[tuple[str]]:
     return [(field,) for field in fields]
+
 
 # Serializable Row object similar to the one returned by the Hook
 SerializableRow = namedtuple("Row", ["id", "value"])  # type: ignore[name-match]
@@ -306,42 +308,41 @@ def test_query(
     mock_get_conn,
     mock_get_requests,
 ):
+    connections = []
+    cursors = []
+    for index in range(len(cursor_descriptions)):
+        conn = mock.MagicMock()
+        cur = mock.MagicMock(
+            rowcount=len(cursor_results[index]),
+            description=get_cursor_descriptions(cursor_descriptions[index]),
+        )
+        cur.fetchall.return_value = cursor_results[index]
+        conn.cursor.return_value = cur
+        cursors.append(cur)
+        connections.append(conn)
+    mock_get_conn.side_effect = connections
 
-        connections = []
-        cursors = []
-        for index in range(len(cursor_descriptions)):
-            conn = mock.MagicMock()
-            cur = mock.MagicMock(
-                rowcount=len(cursor_results[index]),
-                description=get_cursor_descriptions(cursor_descriptions[index]),
-            )
-            cur.fetchall.return_value = cursor_results[index]
-            conn.cursor.return_value = cur
-            cursors.append(cur)
-            connections.append(conn)
-        mock_get_conn.side_effect = connections
-
-        if not return_tuple:
-            with pytest.warns(
-                AirflowProviderDeprecationWarning,
-                match="""Returning a raw `databricks.sql.Row` object is deprecated. A namedtuple will be
+    if not return_tuple:
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match="""Returning a raw `databricks.sql.Row` object is deprecated. A namedtuple will be
                 returned instead in a future release of the databricks provider. Set `return_tuple=True` to
                 enable this behavior.""",
-            ):
-                databricks_hook = DatabricksSqlHook(sql_endpoint_name="Test", return_tuple=return_tuple)
-        else:
+        ):
             databricks_hook = DatabricksSqlHook(sql_endpoint_name="Test", return_tuple=return_tuple)
-        results = databricks_hook.run(
-            sql=sql, handler=fetch_all_handler, return_last=return_last, split_statements=split_statements
-        )
+    else:
+        databricks_hook = DatabricksSqlHook(sql_endpoint_name="Test", return_tuple=return_tuple)
+    results = databricks_hook.run(
+        sql=sql, handler=fetch_all_handler, return_last=return_last, split_statements=split_statements
+    )
 
-        assert databricks_hook.descriptions == hook_descriptions
-        assert databricks_hook.last_description == hook_descriptions[-1]
-        assert results == hook_results
+    assert databricks_hook.descriptions == hook_descriptions
+    assert databricks_hook.last_description == hook_descriptions[-1]
+    assert results == hook_results
 
-        for index, cur in enumerate(cursors):
-            cur.execute.assert_has_calls([mock.call(cursor_calls[index])])
-        cur.close.assert_called()
+    for index, cur in enumerate(cursors):
+        cur.execute.assert_has_calls([mock.call(cursor_calls[index])])
+    cur.close.assert_called()
 
 
 @pytest.mark.parametrize(
@@ -382,14 +383,18 @@ def test_execution_timeout_exceeded(
     mock_get_requests,
     sql="select * from test.test",
     execution_timeout=timedelta(microseconds=0),
-    cursor_descriptions=["id", "value"],
-    cursor_results=[Row(id=1, value=2), Row(id=11, value=12)],
+    cursor_descriptions=(
+        "id",
+        "value",
+    ),
+    cursor_results=(
+        Row(id=1, value=2),
+        Row(id=11, value=12),
+    ),
 ):
     with patch(
-        'airflow.providers.databricks.hooks.databricks_sql.create_timeout_thread'
-    ) as mock_create_timeout_thread, patch.object(
-        DatabricksSqlHook, '_run_command'
-    ) as mock_run_command:
+        "airflow.providers.databricks.hooks.databricks_sql.create_timeout_thread"
+    ) as mock_create_timeout_thread, patch.object(DatabricksSqlHook, "_run_command") as mock_run_command:
         conn = mock.MagicMock()
         cur = mock.MagicMock(
             rowcount=len(cursor_results),
@@ -397,11 +402,9 @@ def test_execution_timeout_exceeded(
         )
 
         # Simulate a timeout
-        mock_create_timeout_thread.return_value = threading.Timer(
-            cur, execution_timeout
-        )
+        mock_create_timeout_thread.return_value = threading.Timer(cur, execution_timeout)
 
-        mock_run_command.side_effect = Exception('Mocked exception')
+        mock_run_command.side_effect = Exception("Mocked exception")
 
         cur.fetchall.return_value = cursor_results
         conn.cursor.return_value = cur
@@ -421,28 +424,34 @@ def test_create_timeout_thread(
     mock_get_conn,
     mock_get_requests,
     mock_timer,
-    cursor_descriptions=["id", "value"],
+    cursor_descriptions=(
+        "id",
+        "value",
+    ),
 ):
-        cur = mock.MagicMock(
-            rowcount=1,
-            description=get_cursor_descriptions(cursor_descriptions),
-        )
-        timeout = timedelta(seconds=1)
-        thread = create_timeout_thread(cur=cur, execution_timeout=timeout)
-        mock_timer.assert_called_once_with(timeout.total_seconds(), cur.connection.cancel)
-        assert thread is not None
+    cur = mock.MagicMock(
+        rowcount=1,
+        description=get_cursor_descriptions(cursor_descriptions),
+    )
+    timeout = timedelta(seconds=1)
+    thread = create_timeout_thread(cur=cur, execution_timeout=timeout)
+    mock_timer.assert_called_once_with(timeout.total_seconds(), cur.connection.cancel)
+    assert thread is not None
 
 
 def test_create_timeout_thread_no_timeout(
     mock_get_conn,
     mock_get_requests,
     mock_timer,
-    cursor_descriptions=["id", "value"],
+    cursor_descriptions=(
+        "id",
+        "value",
+    ),
 ):
-        cur = mock.MagicMock(
-            rowcount=1,
-            description=get_cursor_descriptions(cursor_descriptions),
-        )
-        thread = create_timeout_thread(cur=cur, execution_timeout=None)
-        mock_timer.assert_not_called()
-        assert thread is None
+    cur = mock.MagicMock(
+        rowcount=1,
+        description=get_cursor_descriptions(cursor_descriptions),
+    )
+    thread = create_timeout_thread(cur=cur, execution_timeout=None)
+    mock_timer.assert_not_called()
+    assert thread is None

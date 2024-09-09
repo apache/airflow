@@ -28,9 +28,9 @@ from airflow.operators.empty import EmptyOperator
 from airflow.providers.databricks.hooks.databricks import RunLifeCycleState
 from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowTaskGroup,
+    WorkflowRunMetadata,
     _CreateDatabricksWorkflowOperator,
     _flatten_node,
-    WorkflowRunMetadata,
 )
 from airflow.utils import timezone
 
@@ -58,6 +58,7 @@ def mock_task_group():
     mock_group = MagicMock(spec=DatabricksWorkflowTaskGroup)
     mock_group.group_id = "test_group"
     return mock_group
+
 
 @pytest.fixture
 def mock_workflow_run_metadata():
