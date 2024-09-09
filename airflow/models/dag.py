@@ -2301,7 +2301,6 @@ class DAG(LoggingMixin):
         end_date=None,
         mark_success=False,
         local=False,
-        executor=None,
         donot_pickle=airflow_conf.getboolean("core", "donot_pickle"),
         ignore_task_deps=False,
         ignore_first_depends_on_past=True,
@@ -2322,7 +2321,6 @@ class DAG(LoggingMixin):
         :param end_date: the end date of the range to run
         :param mark_success: True to mark jobs as succeeded without running them
         :param local: True to run the tasks using the LocalExecutor
-        :param executor: The executor instance to run the tasks
         :param donot_pickle: True to avoid pickling DAG object and send to workers
         :param ignore_task_deps: True to skip upstream tasks
         :param ignore_first_depends_on_past: True to ignore depends_on_past
