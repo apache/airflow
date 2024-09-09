@@ -18,6 +18,8 @@
 # Note: Any AirflowException raised is expected to cause the TaskInstance
 #       to be marked in an ERROR state
 
+from __future__ import annotations
+
 import json
 import os
 import re
@@ -90,7 +92,7 @@ def airflow_config():
     # Please note that when AIRFLOW__CORE__UNIT_TEST_MODE is set to True, certain features of Airflow may behave differently. For example, the Airflow scheduler may not start new tasks, and certain operators may not perform their actual function but instead return dummy data.
     conf.set("core", "unit_test_mode", "True")
     conf.set("lineage", "backend", "")
-    yield conf
+    return conf
 
 
 def get_dags(dag_count=1, task_count=10, operator_type="bash", dag_shape="no_structure"):
