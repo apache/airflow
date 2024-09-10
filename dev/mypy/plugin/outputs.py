@@ -111,9 +111,7 @@ class OperatorOutputPlugin(Plugin):
             context.default_signature.unpack_kwargs,
         )
 
-    def get_method_signature_hook(
-        self, fullname: str
-    ) -> Callable[[MethodSigContext], FunctionLike] | None:
+    def get_method_signature_hook(self, fullname: str) -> Callable[[MethodSigContext], FunctionLike] | None:
         if fullname not in TASK_CALL_FUNCTIONS:
             return None
         return self._treat_as_no_kwargs
