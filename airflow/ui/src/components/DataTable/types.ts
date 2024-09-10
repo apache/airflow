@@ -17,6 +17,9 @@
  * under the License.
  */
 
-import { DataTable } from "./DataTable";
+import { PaginationState, SortingState } from "@tanstack/react-table";
 
-export { DataTable };
+export interface TableState {
+  pagination: PaginationState;
+  sorting: SortingState;
+}

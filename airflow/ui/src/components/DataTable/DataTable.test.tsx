@@ -34,7 +34,7 @@ const columns: ColumnDef<{ name: string }>[] = [
 const data = [{ name: "John Doe" }, { name: "Jane Doe" }];
 
 const pagination: PaginationState = { pageIndex: 0, pageSize: 1 };
-const setPagination = vi.fn();
+const onStateChange = vi.fn();
 
 describe("DataTable", () => {
   it("renders table with data", () => {
@@ -43,8 +43,8 @@ describe("DataTable", () => {
         data={data}
         total={2}
         columns={columns}
-        pagination={pagination}
-        setPagination={setPagination}
+        initialState={{ pagination, sorting: [] }}
+        onStateChange={onStateChange}
       />
     );
 
@@ -58,8 +58,8 @@ describe("DataTable", () => {
         data={data}
         total={2}
         columns={columns}
-        pagination={pagination}
-        setPagination={setPagination}
+        initialState={{ pagination, sorting: [] }}
+        onStateChange={onStateChange}
       />
     );
 
@@ -73,8 +73,11 @@ describe("DataTable", () => {
         data={data}
         total={2}
         columns={columns}
-        pagination={{ pageIndex: 1, pageSize: 10 }}
-        setPagination={setPagination}
+        initialState={{
+          pagination: { pageIndex: 1, pageSize: 10 },
+          sorting: [],
+        }}
+        onStateChange={onStateChange}
       />
     );
 

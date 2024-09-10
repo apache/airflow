@@ -22,6 +22,7 @@ import { ChakraProvider } from "@chakra-ui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { App } from "src/app.tsx";
 import axios, { AxiosResponse } from "axios";
+import { BrowserRouter } from "react-router-dom";
 import theme from "./theme";
 
 const queryClient = new QueryClient({
@@ -60,7 +61,9 @@ const root = createRoot(document.getElementById("root")!);
 root.render(
   <ChakraProvider theme={theme}>
     <QueryClientProvider client={queryClient}>
-      <App />
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
     </QueryClientProvider>
   </ChakraProvider>
 );
