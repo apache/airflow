@@ -176,7 +176,7 @@ export const DataTable = <TData,>({
   return (
     <TableContainer overflowY="auto" maxH="calc(100vh - 10rem)">
       <ChakraTable colorScheme="blue">
-        <Thead position="sticky" top={0} bg={theadBg}>
+        <Thead position="sticky" top={0} bg={theadBg} zIndex={1}>
           {table.getHeaderGroups().map((headerGroup) => (
             <Tr key={headerGroup.id}>
               {headerGroup.headers.map(
