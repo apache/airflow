@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-10T19:34:19.109526
+# This constraints file was automatically generated on 2024-09-10T22:49:20.149821
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -69,7 +69,7 @@ WTForms==3.1.2
 Werkzeug==2.2.3
 adal==1.2.7
 adlfs==2024.7.0
-aiobotocore==2.14.0
+aiobotocore==2.15.0
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.0
 aiohttp==3.10.5
@@ -237,8 +237,8 @@ billiard==4.2.0
 bitarray==2.9.2
 black==24.8.0
 blinker==1.8.2
-boto3==1.35.7
-botocore==1.35.7
+boto3==1.35.16
+botocore==1.35.16
 cachelib==0.9.0
 cachetools==5.5.0
 cassandra-driver==3.29.2
@@ -318,7 +318,7 @@ gitdb==4.0.11
 google-ads==25.0.0
 google-analytics-admin==0.23.0
 google-api-core==2.19.2
-google-api-python-client==2.144.0
+google-api-python-client==2.145.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.34.0
@@ -470,7 +470,7 @@ multidict==6.1.0
 mypy-boto3-appflow==1.35.0
 mypy-boto3-rds==1.35.0
 mypy-boto3-redshift-data==1.35.10
-mypy-boto3-s3==1.35.2
+mypy-boto3-s3==1.35.16
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.0.0
