@@ -44,7 +44,7 @@ from __future__ import annotations
 import enum
 import json
 import os
-import re
+import re2 as re
 import time
 from enum import Enum
 
