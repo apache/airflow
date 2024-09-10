@@ -1101,7 +1101,9 @@ class DagFileProcessorManager(LoggingMixin):
     def get_dag_directory(self) -> str:
         """Return the dag_director as a string."""
         if isinstance(self._dag_directory, Path):
-            return str(self._dag_directory.resolve())
+            # we save dag.fileloc without resolving the symlink in the db, we should be consistent in saving
+            # the dag.processor_subdir.
+            return os.path.abspath(os.path.expanduser(self._dag_directory))
         else:
             return str(self._dag_directory)
 
