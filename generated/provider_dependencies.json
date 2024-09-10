@@ -1014,6 +1014,7 @@
       "pandas>=1.5.3,<2.2;python_version<\"3.9\"",
       "pandas>=2.1.2,<2.2;python_version>=\"3.9\"",
       "papermill[all]>=2.6.0",
+      "python3-saml>=1.16.0",
       "scrapbook[all]"
     ],
     "devel-deps": [],
