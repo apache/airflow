@@ -327,18 +327,6 @@ class AirflowConfigParser(ConfigParser):
     # DeprecationWarning will be issued and the old option will be used instead
     deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {
         ("celery", "worker_precheck"): ("core", "worker_precheck", "2.0.0"),
-        ("metrics", "metrics_allow_list"): ("metrics", "statsd_allow_list", "2.6.0"),
-        ("metrics", "metrics_block_list"): ("metrics", "statsd_block_list", "2.6.0"),
-        ("metrics", "statsd_on"): ("scheduler", "statsd_on", "2.0.0"),
-        ("metrics", "statsd_host"): ("scheduler", "statsd_host", "2.0.0"),
-        ("metrics", "statsd_port"): ("scheduler", "statsd_port", "2.0.0"),
-        ("metrics", "statsd_prefix"): ("scheduler", "statsd_prefix", "2.0.0"),
-        ("metrics", "statsd_allow_list"): ("scheduler", "statsd_allow_list", "2.0.0"),
-        ("metrics", "stat_name_handler"): ("scheduler", "stat_name_handler", "2.0.0"),
-        ("metrics", "statsd_datadog_enabled"): ("scheduler", "statsd_datadog_enabled", "2.0.0"),
-        ("metrics", "statsd_datadog_tags"): ("scheduler", "statsd_datadog_tags", "2.0.0"),
-        ("metrics", "statsd_datadog_metrics_tags"): ("scheduler", "statsd_datadog_metrics_tags", "2.6.0"),
-        ("metrics", "statsd_custom_client_path"): ("scheduler", "statsd_custom_client_path", "2.0.0"),
         ("scheduler", "parsing_processes"): ("scheduler", "max_threads", "1.10.14"),
         ("operators", "default_queue"): ("celery", "default_queue", "2.1.0"),
         ("core", "hide_sensitive_var_conn_fields"): ("admin", "hide_sensitive_variable_fields", "2.1.0"),
@@ -368,17 +356,6 @@ class AirflowConfigParser(ConfigParser):
         ("fab", "update_fab_perms"): ("webserver", "update_fab_perms", "2.9.0"),
         ("fab", "auth_rate_limited"): ("webserver", "auth_rate_limited", "2.9.0"),
         ("fab", "auth_rate_limit"): ("webserver", "auth_rate_limit", "2.9.0"),
-    }
-
-    # A mapping of new configurations to a list of old configurations for when one configuration
-    # deprecates more than one other deprecation. The deprecation logic for these configurations
-    # is defined in SchedulerJobRunner.
-    many_to_one_deprecated_options: dict[tuple[str, str], list[tuple[str, str, str]]] = {
-        ("scheduler", "task_queued_timeout"): [
-            ("celery", "stalled_task_timeout", "2.6.0"),
-            ("celery", "task_adoption_timeout", "2.6.0"),
-            ("kubernetes_executor", "worker_pods_pending_timeout", "2.6.0"),
-        ]
     }
 
     # A mapping of new section -> (old section, since_version).
