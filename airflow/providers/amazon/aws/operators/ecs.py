@@ -373,10 +373,10 @@ class EcsRunTaskOperator(EcsBaseOperator):
         When capacity_provider_strategy is specified, the launch_type parameter is omitted.
         If no capacity_provider_strategy or launch_type is specified,
         the default capacity provider strategy for the cluster is used.
-    :param volume_configurations: the volume configurations to use when using capacity provider. The name of the volume must match 
+    :param volume_configurations: the volume configurations to use when using capacity provider. The name of the volume must match
                                   the name from the task definition.
                                   You can configure the settings like size, volumeType, IOPS, throughput and others mentioned in
-                                  (https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_TaskManagedEBSVolumeConfiguration.html) 
+                                  (https://docs.aws.amazon.com/AmazonECS/latest/APIReference/API_TaskManagedEBSVolumeConfiguration.html)
     :param group: the name of the task group associated with the task
     :param placement_constraints: an array of placement constraint objects to use for
         the task
