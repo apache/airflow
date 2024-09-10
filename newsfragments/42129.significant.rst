@@ -1,4 +1,4 @@
-Removed deprecated database configuration.
+Removed deprecated configuration.
 
       * Removed deprecated configuration ``worker_precheck`` from ``core``. Please use ``worker_precheck`` from ``celery`` instead.
       * Removed deprecated configuration ``max_threads`` from ``scheduler``. Please use ``parsing_processes`` from ``scheduler`` instead.
