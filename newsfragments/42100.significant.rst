@@ -1,4 +1,4 @@
-Removed deprecated metrics configuration.
+Removed deprecated logging configuration.
 
     * Removed deprecated configuration ``interleave_timestamp_parser`` from ``core``. Please use ``interleave_timestamp_parser`` from ``logging`` instead.
     * Removed deprecated configuration ``base_log_folder`` from ``core``. Please use ``base_log_folder`` from ``logging`` instead.
