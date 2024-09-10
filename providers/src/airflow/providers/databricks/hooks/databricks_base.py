@@ -456,7 +456,6 @@ class BaseDatabricksHook(BaseHook):
 
         self.log.info("Existing AAD token is expired, or going to expire soon. Refreshing...")
         try:
-            # from azure.identity import DefaultAzureCredential
             from azure.identity.aio import (
                 DefaultAzureCredential as AsyncDefaultAzureCredential,
             )
