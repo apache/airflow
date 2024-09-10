@@ -54,6 +54,7 @@ from tests.providers.amazon.aws.utils.eks_test_utils import convert_keys
 from tests.providers.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 CLUSTER_NAME = "cluster1"
+NAMESPACE = "namespace1"
 NODEGROUP_NAME = "nodegroup1"
 FARGATE_PROFILE_NAME = "fargate_profile1"
 DESCRIBE_CLUSTER_RESULT = f'{{"cluster": "{CLUSTER_NAME}"}}'
@@ -767,3 +768,31 @@ class TestEksPodOperator:
                 )
             for expected_attr in expected_attributes:
                 assert op.__getattribute__(expected_attr) == expected_attributes[expected_attr]
+
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute")
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.generate_config_file")
+    @mock.patch("airflow.providers.amazon.aws.hooks.eks.EksHook.__init__", return_value=None)
+    def test_execute_deferrable(
+        self, mock_eks_hook, mock_generate_config_file, mock_k8s_pod_operator_execute
+    ):
+        ti_context = mock.MagicMock(name="ti_context")
+
+        op = EksPodOperator(
+            task_id="run_pod",
+            pod_name="run_pod",
+            cluster_name=CLUSTER_NAME,
+            image="amazon/aws-cli:latest",
+            cmds=["sh", "-c", "ls"],
+            labels={"demo": "hello_world"},
+            get_logs=True,
+            on_finish_action="delete_pod",
+            deferrable=True,
+        )
+
+        op_return_value = op.execute(ti_context)
+        mock_k8s_pod_operator_execute.assert_called_once_with(ti_context)
+        mock_eks_hook.assert_called_once_with(aws_conn_id="aws_default", region_name=None)
+        mock_generate_config_file.assert_called_once_with(
+            eks_cluster_name=CLUSTER_NAME, pod_namespace="default"
+        )
+        assert mock_k8s_pod_operator_execute.return_value == op_return_value
