@@ -465,8 +465,8 @@ class BaseDatabricksHook(BaseHook):
                     # This only works in an AKS Cluster given the following environment variables:
                     # AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_FEDERATED_TOKEN_FILE
                     #
-                    # While there is a WorkloadIdentityCredential class, the below class is advised by microsoft examples
-                    # https://learn.microsoft.com/nl-nl/azure/aks/workload-identity-overview
+                    # While there is a WorkloadIdentityCredential class, the below class is advised by Microsoft
+                    # https://learn.microsoft.com/en-us/azure/aks/workload-identity-overview
                     token = await AsyncDefaultAzureCredential().get_token(f"{resource}/.default")
 
                     jsn = {
