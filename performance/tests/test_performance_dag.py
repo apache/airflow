@@ -22,10 +22,9 @@ from __future__ import annotations
 
 import json
 import os
-import re
 
 import pytest
-
+import re2 as re
 from airflow.configuration import conf
 from airflow.models import DagBag
 from airflow.utils.trigger_rule import TriggerRule

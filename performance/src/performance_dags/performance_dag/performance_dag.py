@@ -44,20 +44,20 @@ from __future__ import annotations
 import enum
 import json
 import os
-import re2 as re
 import time
 from enum import Enum
 
-from performance_dags.performance_dag.performance_dag_utils import (
-    parse_schedule_interval,
-    parse_start_date,
-)
-
+import re2 as re
 from airflow import DAG
 from airflow.models.baseoperator import chain
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
+
+from performance_dags.performance_dag.performance_dag_utils import (
+    parse_schedule_interval,
+    parse_start_date,
+)
 
 # DAG File used in performance tests. Its shape can be configured by environment variables.
 

@@ -21,7 +21,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re2 as re
 import tempfile
 from collections import OrderedDict
 from contextlib import contextmanager
@@ -30,6 +29,7 @@ from shutil import copyfile
 from typing import Callable
 
 import airflow
+import re2 as re
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
