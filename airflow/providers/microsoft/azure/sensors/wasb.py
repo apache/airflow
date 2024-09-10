@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, Sequence
 from deprecated import deprecated
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.providers.microsoft.azure.triggers.wasb import WasbBlobSensorTrigger, WasbPrefixSensorTrigger
 from airflow.sensors.base import BaseSensorOperator
@@ -104,9 +104,6 @@ class WasbBlobSensor(BaseSensorOperator):
         """
         if event:
             if event["status"] == "error":
-                # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-                if self.soft_fail:
-                    raise AirflowSkipException(event["message"])
                 raise AirflowException(event["message"])
             self.log.info(event["message"])
         else:
@@ -216,9 +213,6 @@ class WasbPrefixSensor(BaseSensorOperator):
         """
         if event:
             if event["status"] == "error":
-                # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-                if self.soft_fail:
-                    raise AirflowSkipException(event["message"])
                 raise AirflowException(event["message"])
             self.log.info(event["message"])
         else:

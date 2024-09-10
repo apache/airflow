@@ -22,9 +22,10 @@ description: |
   `OpenLineage <https://openlineage.io/>`__
 
 state: ready
-source-date-epoch: 1722664661
+source-date-epoch: 1723970474
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.11.0
   - 1.10.0
   - 1.9.1
   - 1.9.0
@@ -47,9 +48,10 @@ versions:
 dependencies:
   - apache-airflow>=2.8.0
   - apache-airflow-providers-common-sql>=1.6.0
+  - apache-airflow-providers-common-compat>=1.2.0
   - attrs>=22.2
-  - openlineage-integration-common>=1.16.0
-  - openlineage-python>=1.16.0
+  - openlineage-integration-common>=1.22.0
+  - openlineage-python>=1.22.0
 
 integrations:
   - integration-name: OpenLineage

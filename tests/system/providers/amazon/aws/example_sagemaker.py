@@ -21,6 +21,7 @@ import logging
 import subprocess
 from datetime import datetime
 from tempfile import NamedTemporaryFile
+from textwrap import dedent
 
 import boto3
 
@@ -75,35 +76,33 @@ KNN_IMAGES_BY_REGION = {
 SAMPLE_SIZE = 600
 
 # This script will be the entrypoint for the docker image which will handle preprocessing the raw data
-# NOTE:  The following string must remain dedented as it is being written to a file.
-PREPROCESS_SCRIPT_TEMPLATE = """
-import boto3
-import numpy as np
-import pandas as pd
+PREPROCESS_SCRIPT_TEMPLATE = dedent("""
+    import numpy as np
+    import pandas as pd
 
-def main():
-    # Load the dataset from {input_path}/input.csv, split it into train/test
-    # subsets, and write them to {output_path}/ for the Processing Operator.
+    def main():
+        # Load the dataset from {input_path}/input.csv, split it into train/test
+        # subsets, and write them to {output_path}/ for the Processing Operator.
 
-    data = pd.read_csv('{input_path}/input.csv')
+        data = pd.read_csv('{input_path}/input.csv')
 
-    # Split into test and train data
-    data_train, data_test = np.split(
-        data.sample(frac=1, random_state=np.random.RandomState()), [int(0.7 * len(data))]
-    )
+        # Split into test and train data
+        data_train, data_test = np.split(
+            data.sample(frac=1, random_state=np.random.RandomState()), [int(0.7 * len(data))]
+        )
 
-    # Remove the "answers" from the test set
-    data_test.drop(['class'], axis=1, inplace=True)
+        # Remove the "answers" from the test set
+        data_test.drop(['class'], axis=1, inplace=True)
 
-    # Write the splits to disk
-    data_train.to_csv('{output_path}/train.csv', index=False, header=False)
-    data_test.to_csv('{output_path}/test.csv', index=False, header=False)
+        # Write the splits to disk
+        data_train.to_csv('{output_path}/train.csv', index=False, header=False)
+        data_test.to_csv('{output_path}/test.csv', index=False, header=False)
 
-    print('Preprocessing Done.')
+        print('Preprocessing Done.')
 
-if __name__ == "__main__":
-    main()
-"""
+    if __name__ == "__main__":
+        main()
+""")
 
 
 def _create_ecr_repository(repo_name):
@@ -141,8 +140,6 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
             f"""
             FROM public.ecr.aws/amazonlinux/amazonlinux
             COPY {preprocessing_script.name.split('/')[2]} /preprocessing.py
-            ADD credentials /credentials
-            ENV AWS_SHARED_CREDENTIALS_FILE=/credentials
             RUN yum install python3 pip -y
             RUN pip3 install boto3 pandas requests
             CMD [ "python3", "/preprocessing.py"]
@@ -151,13 +148,12 @@ def _build_and_upload_docker_image(preprocess_script, repository_uri):
         dockerfile.flush()
 
         ecr_region = repository_uri.split(".")[3]
+
         docker_build_and_push_commands = f"""
-            cp /root/.aws/credentials /tmp/credentials &&
             # login to public ecr repo containing amazonlinux image (public login is always on us east 1)
             aws ecr-public get-login-password --region us-east-1 |
             docker login --username AWS --password-stdin public.ecr.aws &&
             docker build --platform=linux/amd64 -f {dockerfile.name} -t {repository_uri} /tmp &&
-            rm /tmp/credentials &&
 
             # login again, this time to the private repo we created to hold that specific image
             aws ecr get-login-password --region {ecr_region} |

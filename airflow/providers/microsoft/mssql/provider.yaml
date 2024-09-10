@@ -22,9 +22,10 @@ description: |
     `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/sql-server/>`__
 
 state: ready
-source-date-epoch: 1722664157
+source-date-epoch: 1723970390
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 3.9.0
   - 3.8.0
   - 3.7.2
   - 3.7.1
@@ -54,7 +55,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.8.0
-  - apache-airflow-providers-common-sql>=1.14.1
+  - apache-airflow-providers-common-sql>=1.17.0
   - pymssql>=2.3.0
   # The methodtools dependency can be removed with min airflow version >=2.9.1
   # as it was added in https://github.com/apache/airflow/pull/37757

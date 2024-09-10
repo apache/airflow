@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.10.0"
+defaultAirflowTag: "2.10.1"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.10.0"
+airflowVersion: "2.10.1"
 
 # Images
 images:
@@ -105,7 +105,7 @@ images:
     pullPolicy: IfNotPresent
   statsd:
     repository: quay.io/prometheus/statsd-exporter
-    tag: v0.26.1
+    tag: v0.27.1
     pullPolicy: IfNotPresent
   redis:
     repository: redis
@@ -1623,6 +1623,15 @@ triggerer:
   tolerations: []
   topologySpreadConstraints: []
 
+  #  hostAliases for the triggerer pod
+  hostAliases: []
+  #  - ip: "127.0.0.1"
+  #    hostnames:
+  #      - "foo.local"
+  #  - ip: "10.1.2.3"
+  #    hostnames:
+  #      - "foo.remote"
+
   priorityClassName: ~
 
   # annotations for the triggerer deployment
@@ -2294,6 +2303,8 @@ redis:
     storageClassName:
     # Annotations to add to redis volumes
     annotations: {}
+    # the name of an existing PVC to use
+    existingClaim:
 
   # Configuration for empty dir volume (if redis.persistence.enabled == false)
   # emptyDirConfig:

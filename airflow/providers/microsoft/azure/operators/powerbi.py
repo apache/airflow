@@ -76,7 +76,7 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         conn_id: str = PowerBIHook.default_conn_name,
         timeout: float = 60 * 60 * 24 * 7,
         proxies: dict | None = None,
-        api_version: APIVersion | None = None,
+        api_version: APIVersion | str | None = None,
         check_interval: int = 60,
         **kwargs,
     ) -> None:
@@ -89,6 +89,14 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
         self.timeout = timeout
         self.check_interval = check_interval
 
+    @property
+    def proxies(self) -> dict | None:
+        return self.hook.proxies
+
+    @property
+    def api_version(self) -> str | None:
+        return self.hook.api_version
+
     def execute(self, context: Context):
         """Refresh the Power BI Dataset."""
         if self.wait_for_termination:
@@ -98,6 +106,8 @@ class PowerBIDatasetRefreshOperator(BaseOperator):
                     group_id=self.group_id,
                     dataset_id=self.dataset_id,
                     timeout=self.timeout,
+                    proxies=self.proxies,
+                    api_version=self.api_version,
                     check_interval=self.check_interval,
                     wait_for_termination=self.wait_for_termination,
                 ),

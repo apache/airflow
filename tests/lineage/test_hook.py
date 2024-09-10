@@ -98,16 +98,77 @@ class TestHookLineageCollector:
         def create_dataset(arg1, arg2="default", extra=None):
             return Dataset(uri=f"myscheme://{arg1}/{arg2}", extra=extra)
 
-        mock_providers_manager.return_value.dataset_factories = {"myscheme": create_dataset}
+        test_scheme = "myscheme"
+        mock_providers_manager.return_value.dataset_factories = {test_scheme: create_dataset}
+
+        test_uri = "urischeme://value_a/value_b"
+        test_kwargs = {"arg1": "value_1"}
+        test_kwargs_uri = "myscheme://value_1/default"
+        test_extra = {"key": "value"}
+
+        # test uri arg - should take precedence over the keyword args + scheme
         assert self.collector.create_dataset(
-            scheme="myscheme", uri=None, dataset_kwargs={"arg1": "value_1"}, dataset_extra=None
-        ) == Dataset("myscheme://value_1/default")
+            scheme=test_scheme, uri=test_uri, dataset_kwargs=test_kwargs, dataset_extra=None
+        ) == Dataset(test_uri)
         assert self.collector.create_dataset(
-            scheme="myscheme",
+            scheme=test_scheme, uri=test_uri, dataset_kwargs=test_kwargs, dataset_extra={}
+        ) == Dataset(test_uri)
+        assert self.collector.create_dataset(
+            scheme=test_scheme, uri=test_uri, dataset_kwargs=test_kwargs, dataset_extra=test_extra
+        ) == Dataset(test_uri, extra=test_extra)
+
+        # test keyword args
+        assert self.collector.create_dataset(
+            scheme=test_scheme, uri=None, dataset_kwargs=test_kwargs, dataset_extra=None
+        ) == Dataset(test_kwargs_uri)
+        assert self.collector.create_dataset(
+            scheme=test_scheme, uri=None, dataset_kwargs=test_kwargs, dataset_extra={}
+        ) == Dataset(test_kwargs_uri)
+        assert self.collector.create_dataset(
+            scheme=test_scheme,
             uri=None,
-            dataset_kwargs={"arg1": "value_1", "arg2": "value_2"},
-            dataset_extra={"key": "value"},
-        ) == Dataset("myscheme://value_1/value_2", extra={"key": "value"})
+            dataset_kwargs={**test_kwargs, "arg2": "value_2"},
+            dataset_extra=test_extra,
+        ) == Dataset("myscheme://value_1/value_2", extra=test_extra)
+
+        # missing both uri and scheme
+        assert (
+            self.collector.create_dataset(
+                scheme=None, uri=None, dataset_kwargs=test_kwargs, dataset_extra=None
+            )
+            is None
+        )
+
+    @patch("airflow.lineage.hook.ProvidersManager")
+    def test_create_dataset_no_factory(self, mock_providers_manager):
+        test_scheme = "myscheme"
+        mock_providers_manager.return_value.dataset_factories = {}
+
+        test_kwargs = {"arg1": "value_1"}
+
+        assert (
+            self.collector.create_dataset(
+                scheme=test_scheme, uri=None, dataset_kwargs=test_kwargs, dataset_extra=None
+            )
+            is None
+        )
+
+    @patch("airflow.lineage.hook.ProvidersManager")
+    def test_create_dataset_factory_exception(self, mock_providers_manager):
+        def create_dataset(extra=None, **kwargs):
+            raise RuntimeError("Factory error")
+
+        test_scheme = "myscheme"
+        mock_providers_manager.return_value.dataset_factories = {test_scheme: create_dataset}
+
+        test_kwargs = {"arg1": "value_1"}
+
+        assert (
+            self.collector.create_dataset(
+                scheme=test_scheme, uri=None, dataset_kwargs=test_kwargs, dataset_extra=None
+            )
+            is None
+        )
 
     def test_collected_datasets(self):
         context_input = MagicMock()

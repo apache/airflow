@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.10.0",
+            "default": "2.10.1",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.10.0",
+            "default": "2.10.1",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -671,7 +671,7 @@
                         "tag": {
                             "description": "The StatsD image tag.",
                             "type": "string",
-                            "default": "v0.26.1"
+                            "default": "v0.27.1"
                         },
                         "pullPolicy": {
                             "description": "The StatsD image pull policy.",
@@ -2805,6 +2805,28 @@
                     "description": "Enable triggerer",
                     "type": "boolean",
                     "default": true
+                },
+                "hostAliases": {
+                    "description": "HostAliases for the triggerer pod.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "examples": [
+                        {
+                            "ip": "127.0.0.1",
+                            "hostnames": [
+                                "foo.local"
+                            ]
+                        },
+                        {
+                            "ip": "10.1.2.3",
+                            "hostnames": [
+                                "foo.remote"
+                            ]
+                        }
+                    ]
                 },
                 "livenessProbe": {
                     "description": "Liveness probe configuration for triggerer.",
@@ -7451,6 +7473,14 @@
                             "additionalProperties": {
                                 "type": "string"
                             }
+                        },
+                        "existingClaim": {
+                            "description": "The name of an existing PVC to use.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
                         }
                     }
                 },

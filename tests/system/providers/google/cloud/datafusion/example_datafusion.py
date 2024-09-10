@@ -46,9 +46,9 @@ from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 # [START howto_data_fusion_env_variables]
 SERVICE_ACCOUNT = os.environ.get("GCP_DATAFUSION_SERVICE_ACCOUNT")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 LOCATION = "europe-north1"
-DAG_ID = "example_datafusion"
+DAG_ID = "datafusion"
 INSTANCE_NAME = f"df-{ENV_ID}".replace("_", "-")
 INSTANCE = {
     "type": "BASIC",
@@ -170,7 +170,7 @@ CloudDataFusionCreatePipelineOperator.template_fields = (
 with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
-    schedule=None,
+    schedule="@once",
     catchup=False,
     tags=["example", "datafusion"],
 ) as dag:
@@ -245,6 +245,7 @@ with DAG(
         location=LOCATION,
         pipeline_name=PIPELINE_NAME,
         instance_name=INSTANCE_NAME,
+        pipeline_timeout=1000,
         task_id="start_pipeline",
     )
     # [END howto_cloud_data_fusion_start_pipeline]
