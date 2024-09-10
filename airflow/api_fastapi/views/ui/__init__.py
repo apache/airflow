@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-services:
-  airflow:
-    ports:
-      - "${SSH_PORT}:22"
-      - "${WEBSERVER_HOST_PORT}:8080"
-      - "${FASTAPI_API_HOST_PORT}:9091"
-      - "${FLOWER_HOST_PORT}:5555"
+from __future__ import annotations
+
+from fastapi import APIRouter
+
+from airflow.api_fastapi.views.ui.datasets import dataset_router
+
+ui_router = APIRouter(prefix="/ui")
+
+ui_router.include_router(dataset_router)
