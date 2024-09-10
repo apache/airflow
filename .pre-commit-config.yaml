@@ -351,7 +351,7 @@ repos:
         args: [--fix]
         require_serial: true
         additional_dependencies: ["ruff==0.5.5"]
-        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
+        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^performance/tests/test_.*.py
       - id: ruff-format
         name: Run 'ruff format' for extremely fast Python formatting
         description: "Run 'ruff format' for extremely fast Python formatting"
