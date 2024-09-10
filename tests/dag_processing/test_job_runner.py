@@ -26,6 +26,7 @@ import pathlib
 import random
 import socket
 import sys
+import tempfile
 import textwrap
 import threading
 import time
@@ -62,7 +63,13 @@ from tests.core.test_logging_config import SETTINGS_FILE_VALID, settings_context
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.compat import ParseImportError
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_callbacks, clear_db_dags, clear_db_runs, clear_db_serialized_dags
+from tests.test_utils.db import (
+    clear_db_callbacks,
+    clear_db_dags,
+    clear_db_import_errors,
+    clear_db_runs,
+    clear_db_serialized_dags,
+)
 
 pytestmark = pytest.mark.db_test
 
@@ -148,6 +155,12 @@ class TestDagProcessorJobRunner:
                     return results
             raise RuntimeError("Shouldn't get here - nothing to read, but manager not finished!")
 
+    @pytest.fixture
+    def clear_parse_import_errors(self):
+        clear_db_import_errors()
+
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
+    @pytest.mark.usefixtures("clear_parse_import_errors")
     @conf_vars({("core", "load_examples"): "False"})
     def test_remove_file_clears_import_error(self, tmp_path):
         path_to_parse = tmp_path / "temp_dag.py"
@@ -576,13 +589,12 @@ class TestDagProcessorJobRunner:
                 > (freezed_base_time - manager.processor.get_last_finish_time("file_1.py")).total_seconds()
             )
 
-    @mock.patch("sqlalchemy.orm.session.Session.delete")
     @mock.patch("zipfile.is_zipfile", return_value=True)
     @mock.patch("airflow.utils.file.might_contain_dag", return_value=True)
     @mock.patch("airflow.utils.file.find_path_from_directory", return_value=True)
     @mock.patch("airflow.utils.file.os.path.isfile", return_value=True)
     def test_file_paths_in_queue_sorted_by_priority(
-        self, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile, session_delete
+        self, mock_isfile, mock_find_path, mock_might_contain_dag, mock_zipfile
     ):
         from airflow.models.dagbag import DagPriorityParsingRequest
 
@@ -614,8 +626,11 @@ class TestDagProcessorJobRunner:
         assert manager.processor._file_path_queue == deque(
             ["file_1.py", "file_2.py", "file_3.py", "file_4.py"]
         )
-        assert session_delete.call_args[0][0].fileloc == parsing_request.fileloc
+        with create_session() as session2:
+            parsing_request_after = session2.query(DagPriorityParsingRequest).get(parsing_request.id)
+        assert parsing_request_after is None
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_scan_stale_dags(self):
         """
         Ensure that DAGs are marked inactive when the file is parsed but the
@@ -624,7 +639,7 @@ class TestDagProcessorJobRunner:
         manager = DagProcessorJobRunner(
             job=Job(),
             processor=DagFileProcessorManager(
-                dag_directory="directory",
+                dag_directory=str(TEST_DAG_FOLDER),
                 max_runs=1,
                 processor_timeout=timedelta(minutes=10),
                 signal_conn=MagicMock(),
@@ -686,6 +701,7 @@ class TestDagProcessorJobRunner:
             )
             assert serialized_dag_count == 0
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @conf_vars(
         {
             ("core", "load_examples"): "False",
@@ -697,11 +713,11 @@ class TestDagProcessorJobRunner:
         """
         Ensure only dags from current dag_directory are updated
         """
-        dag_directory = "directory"
+        dag_directory = str(TEST_DAG_FOLDER)
         manager = DagProcessorJobRunner(
             job=Job(),
             processor=DagFileProcessorManager(
-                dag_directory=dag_directory,
+                dag_directory=TEST_DAG_FOLDER,
                 max_runs=1,
                 processor_timeout=timedelta(minutes=10),
                 signal_conn=MagicMock(),
@@ -725,7 +741,7 @@ class TestDagProcessorJobRunner:
             # Add stale DAG to the DB
             other_dag = other_dagbag.get_dag("test_start_date_scheduling")
             other_dag.last_parsed_time = timezone.utcnow()
-            other_dag.sync_to_db(processor_subdir="other")
+            other_dag.sync_to_db(processor_subdir="/other")
 
             # Add DAG to the file_parsing_stats
             stat = DagFileStat(
@@ -746,6 +762,68 @@ class TestDagProcessorJobRunner:
 
             active_dag_count = session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
             assert active_dag_count == 1
+
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
+    def test_scan_stale_dags_when_dag_folder_change(self):
+        """
+        Ensure dags from old dag_folder is marked as stale when dag processor
+         is running as part of scheduler.
+        """
+
+        def get_dag_string(filename) -> str:
+            return open(TEST_DAG_FOLDER / filename).read()
+
+        def add_dag_to_db(file_path, dag_id, processor_subdir):
+            dagbag = DagBag(file_path, read_dags_from_db=False)
+            dag = dagbag.get_dag(dag_id)
+            dag.fileloc = file_path
+            dag.last_parsed_time = timezone.utcnow()
+            dag.sync_to_db(processor_subdir=processor_subdir)
+
+        def create_dag_folder(dag_id):
+            dag_home = tempfile.mkdtemp(dir=tmpdir)
+            dag_file = tempfile.NamedTemporaryFile(dir=dag_home, suffix=".py")
+            dag_file.write(get_dag_string(dag_id).encode())
+            dag_file.flush()
+            return dag_home, dag_file
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            old_dag_home, old_dag_file = create_dag_folder("test_example_bash_operator.py")
+            new_dag_home, new_dag_file = create_dag_folder("test_scheduler_dags.py")
+            example_dag_home, example_dag_file = create_dag_folder("test_dag_warnings.py")
+
+            with mock.patch("airflow.dag_processing.manager.example_dag_folder", example_dag_home):
+                manager = DagProcessorJobRunner(
+                    job=Job(),
+                    processor=DagFileProcessorManager(
+                        dag_directory=new_dag_home,
+                        max_runs=1,
+                        processor_timeout=timedelta(minutes=10),
+                        signal_conn=MagicMock(),
+                        dag_ids=[],
+                        pickle_dags=False,
+                        async_mode=True,
+                    ),
+                )
+
+                with create_session() as session:
+                    add_dag_to_db(old_dag_file.name, "test_example_bash_operator", old_dag_home)
+                    add_dag_to_db(new_dag_file.name, "test_start_date_scheduling", new_dag_home)
+                    add_dag_to_db(example_dag_file.name, "test_dag_warnings", example_dag_home)
+
+                    manager.processor._file_paths = [new_dag_file, example_dag_file]
+
+                    active_dag_count = (
+                        session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
+                    )
+                    assert active_dag_count == 3
+
+                    manager.processor._scan_stale_dags()
+
+                    active_dag_count = (
+                        session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
+                    )
+                    assert active_dag_count == 2
 
     @mock.patch(
         "airflow.dag_processing.processor.DagFileProcessorProcess.waitable_handle", new_callable=PropertyMock
@@ -814,6 +892,7 @@ class TestDagProcessorJobRunner:
         mock_dag_file_processor.kill.assert_not_called()
 
     @conf_vars({("core", "load_examples"): "False"})
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.execution_timeout(10)
     def test_dag_with_system_exit(self):
         """
@@ -856,6 +935,7 @@ class TestDagProcessorJobRunner:
         with create_session() as session:
             assert session.get(DagModel, dag_id) is not None
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @conf_vars({("core", "load_examples"): "False"})
     def test_import_error_with_dag_directory(self, tmp_path):
         TEMP_DAG_FILENAME = "temp_dag.py"
@@ -1039,6 +1119,7 @@ class TestDagProcessorJobRunner:
             any_order=True,
         )
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_refresh_dags_dir_doesnt_delete_zipped_dags(self, tmp_path):
         """Test DagProcessorJobRunner._refresh_dag_dir method"""
         manager = DagProcessorJobRunner(
@@ -1068,6 +1149,7 @@ class TestDagProcessorJobRunner:
         # assert dag still active
         assert dag.get_is_active()
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_refresh_dags_dir_deactivates_deleted_zipped_dags(self, tmp_path):
         """Test DagProcessorJobRunner._refresh_dag_dir method"""
         manager = DagProcessorJobRunner(
@@ -1101,6 +1183,7 @@ class TestDagProcessorJobRunner:
         # assert dag deactivated
         assert not dag.get_is_active()
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_refresh_dags_dir_does_not_interfer_with_dags_outside_its_subdir(self, tmp_path):
         """Test DagProcessorJobRunner._refresh_dag_dir should not update dags outside its processor_subdir"""
 
@@ -1470,6 +1553,7 @@ class TestDagFileProcessorAgent:
 
             assert not os.path.isfile(log_file_loc)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @conf_vars({("core", "load_examples"): "False"})
     def test_parse_once(self):
         clear_db_serialized_dags()

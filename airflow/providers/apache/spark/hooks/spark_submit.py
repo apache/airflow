@@ -199,6 +199,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._submit_sp: Any | None = None
         self._yarn_application_id: str | None = None
         self._kubernetes_driver_pod: str | None = None
+        self._kubernetes_application_id: str | None = None
         self.spark_binary = spark_binary
         self._properties_file = properties_file
         self._yarn_queue = yarn_queue
@@ -546,15 +547,20 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 match = re.search("application[0-9_]+", line)
                 if match:
                     self._yarn_application_id = match.group(0)
-                    self.log.info("Identified spark driver id: %s", self._yarn_application_id)
+                    self.log.info("Identified spark application id: %s", self._yarn_application_id)
 
             # If we run Kubernetes cluster mode, we want to extract the driver pod id
             # from the logs so we can kill the application when we stop it unexpectedly
             elif self._is_kubernetes:
-                match = re.search(r"\s*pod name: ((.+?)-([a-z0-9]+)-driver)", line)
-                if match:
-                    self._kubernetes_driver_pod = match.group(1)
+                match_driver_pod = re.search(r"\s*pod name: ((.+?)-([a-z0-9]+)-driver$)", line)
+                if match_driver_pod:
+                    self._kubernetes_driver_pod = match_driver_pod.group(1)
                     self.log.info("Identified spark driver pod: %s", self._kubernetes_driver_pod)
+
+                match_application_id = re.search(r"\s*spark-app-selector -> (spark-([a-z0-9]+)), ", line)
+                if match_application_id:
+                    self._kubernetes_application_id = match_application_id.group(1)
+                    self.log.info("Identified spark application id: %s", self._kubernetes_application_id)
 
                 # Store the Spark Exit code
                 match_exit_code = re.search(r"\s*[eE]xit code: (\d+)", line)

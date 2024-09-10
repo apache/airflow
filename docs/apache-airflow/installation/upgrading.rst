@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-Upgrading Airflow™ to a newer version
+Upgrading Airflow® to a newer version
 -------------------------------------
 
 Why you need to upgrade
@@ -57,7 +57,7 @@ when you choose to upgrade airflow via their UI.
 How to upgrade
 ==============
 
-Reinstall Apache Airflow™, specifying the desired new version.
+Reinstall Apache Airflow®, specifying the desired new version.
 
 To upgrade a bootstrapped local instance, you can set the ``AIRFLOW_VERSION`` environment variable to the
 intended version prior to rerunning the installation command. Upgrade incrementally by patch version: e.g.,

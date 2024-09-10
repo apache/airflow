@@ -24,31 +24,30 @@ from unittest import mock
 from unittest.mock import ANY, MagicMock, call, patch
 
 import pytest
-from openlineage.client.facet import (
-    DocumentationJobFacet,
-    ErrorMessageRunFacet,
-    ExternalQueryRunFacet,
-    JobTypeJobFacet,
-    NominalTimeRunFacet,
-    OwnershipJobFacet,
-    OwnershipJobFacetOwners,
-    ParentRunFacet,
-    ProcessingEngineRunFacet,
-    SqlJobFacet,
+from openlineage.client.event_v2 import Dataset, Job, Run, RunEvent, RunState
+from openlineage.client.facet_v2 import (
+    documentation_job,
+    error_message_run,
+    external_query_run,
+    job_type_job,
+    nominal_time_run,
+    ownership_job,
+    parent_run,
+    processing_engine_run,
+    sql_job,
 )
-from openlineage.client.run import Dataset, Job, Run, RunEvent, RunState
 
 from airflow import DAG
 from airflow.models.dagrun import DagRun, DagRunState
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.openlineage.conf import (
-    namespace,
-)
+from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.plugins.adapter import _PRODUCER, OpenLineageAdapter
 from airflow.providers.openlineage.plugins.facets import (
+    AirflowDagRunFacet,
+    AirflowDebugRunFacet,
     AirflowStateRunFacet,
 )
 from airflow.providers.openlineage.utils.utils import get_airflow_job_facet
@@ -165,11 +164,11 @@ def test_emit_start_event(mock_stats_incr, mock_stats_timer):
                 run=Run(
                     runId=run_id,
                     facets={
-                        "nominalTime": NominalTimeRunFacet(
+                        "nominalTime": nominal_time_run.NominalTimeRunFacet(
                             nominalStartTime="2022-01-01T00:00:00",
                             nominalEndTime="2022-01-01T00:00:00",
                         ),
-                        "processing_engine": ProcessingEngineRunFacet(
+                        "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
                             version=ANY, name="Airflow", openlineageAdapterVersion=ANY
                         ),
                     },
@@ -178,8 +177,8 @@ def test_emit_start_event(mock_stats_incr, mock_stats_timer):
                     namespace=namespace(),
                     name="job",
                     facets={
-                        "documentation": DocumentationJobFacet(description="description"),
-                        "jobType": JobTypeJobFacet(
+                        "documentation": documentation_job.DocumentationJobFacet(description="description"),
+                        "jobType": job_type_job.JobTypeJobFacet(
                             processingType="BATCH", integration="AIRFLOW", jobType="TASK"
                         ),
                     },
@@ -203,6 +202,7 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
     adapter = OpenLineageAdapter(client)
 
     run_id = str(uuid.uuid4())
+    parent_run_id = str(uuid.uuid4())
     event_time = datetime.datetime.now().isoformat()
     adapter.start_task(
         run_id=run_id,
@@ -210,7 +210,7 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
         job_description="description",
         event_time=event_time,
         parent_job_name="parent_job_name",
-        parent_run_id="parent_run_id",
+        parent_run_id=parent_run_id,
         code_location=None,
         nominal_start_time=datetime.datetime(2022, 1, 1).isoformat(),
         nominal_end_time=datetime.datetime(2022, 1, 1).isoformat(),
@@ -218,10 +218,16 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
         task=OperatorLineage(
             inputs=[Dataset(namespace="bigquery", name="a.b.c"), Dataset(namespace="bigquery", name="x.y.z")],
             outputs=[Dataset(namespace="gs://bucket", name="exported_folder")],
-            job_facets={"sql": SqlJobFacet(query="SELECT 1;")},
-            run_facets={"externalQuery1": ExternalQueryRunFacet(externalQueryId="123", source="source")},
+            job_facets={"sql": sql_job.SQLJobFacet(query="SELECT 1;")},
+            run_facets={
+                "externalQuery1": external_query_run.ExternalQueryRunFacet(
+                    externalQueryId="123", source="source"
+                )
+            },
         ),
-        run_facets={"externalQuery2": ExternalQueryRunFacet(externalQueryId="999", source="source")},
+        run_facets={
+            "externalQuery2": external_query_run.ExternalQueryRunFacet(externalQueryId="999", source="source")
+        },
     )
 
     assert (
@@ -232,38 +238,38 @@ def test_emit_start_event_with_additional_information(mock_stats_incr, mock_stat
                 run=Run(
                     runId=run_id,
                     facets={
-                        "nominalTime": NominalTimeRunFacet(
+                        "nominalTime": nominal_time_run.NominalTimeRunFacet(
                             nominalStartTime="2022-01-01T00:00:00",
                             nominalEndTime="2022-01-01T00:00:00",
                         ),
-                        "processing_engine": ProcessingEngineRunFacet(
+                        "processing_engine": processing_engine_run.ProcessingEngineRunFacet(
                             version=ANY, name="Airflow", openlineageAdapterVersion=ANY
                         ),
-                        "parent": ParentRunFacet(
-                            run={"runId": "parent_run_id"},
-                            job={"namespace": namespace(), "name": "parent_job_name"},
+                        "parent": parent_run.ParentRunFacet(
+                            run=parent_run.Run(runId=parent_run_id),
+                            job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
                         ),
-                        "parentRun": ParentRunFacet(
-                            run={"runId": "parent_run_id"},
-                            job={"namespace": namespace(), "name": "parent_job_name"},
+                        "externalQuery1": external_query_run.ExternalQueryRunFacet(
+                            externalQueryId="123", source="source"
                         ),
-                        "externalQuery1": ExternalQueryRunFacet(externalQueryId="123", source="source"),
-                        "externalQuery2": ExternalQueryRunFacet(externalQueryId="999", source="source"),
+                        "externalQuery2": external_query_run.ExternalQueryRunFacet(
+                            externalQueryId="999", source="source"
+                        ),
                     },
                 ),
                 job=Job(
                     namespace=namespace(),
                     name="job",
                     facets={
-                        "documentation": DocumentationJobFacet(description="description"),
-                        "ownership": OwnershipJobFacet(
+                        "documentation": documentation_job.DocumentationJobFacet(description="description"),
+                        "ownership": ownership_job.OwnershipJobFacet(
                             owners=[
-                                OwnershipJobFacetOwners(name="owner1", type=None),
-                                OwnershipJobFacetOwners(name="owner2", type=None),
+                                ownership_job.Owner(name="owner1", type=None),
+                                ownership_job.Owner(name="owner2", type=None),
                             ]
                         ),
-                        "sql": SqlJobFacet(query="SELECT 1;"),
-                        "jobType": JobTypeJobFacet(
+                        "sql": sql_job.SQLJobFacet(query="SELECT 1;"),
+                        "jobType": job_type_job.JobTypeJobFacet(
                             processingType="BATCH", integration="AIRFLOW", jobType="TASK"
                         ),
                     },
@@ -310,7 +316,7 @@ def test_emit_complete_event(mock_stats_incr, mock_stats_timer):
                     namespace=namespace(),
                     name="job",
                     facets={
-                        "jobType": JobTypeJobFacet(
+                        "jobType": job_type_job.JobTypeJobFacet(
                             processingType="BATCH", integration="AIRFLOW", jobType="TASK"
                         )
                     },
@@ -334,19 +340,27 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
     adapter = OpenLineageAdapter(client)
 
     run_id = str(uuid.uuid4())
+    parent_run_id = str(uuid.uuid4())
     event_time = datetime.datetime.now().isoformat()
     adapter.complete_task(
         run_id=run_id,
         end_time=event_time,
         parent_job_name="parent_job_name",
-        parent_run_id="parent_run_id",
+        parent_run_id=parent_run_id,
         job_name="job",
         task=OperatorLineage(
             inputs=[Dataset(namespace="bigquery", name="a.b.c"), Dataset(namespace="bigquery", name="x.y.z")],
             outputs=[Dataset(namespace="gs://bucket", name="exported_folder")],
-            job_facets={"sql": SqlJobFacet(query="SELECT 1;")},
-            run_facets={"externalQuery": ExternalQueryRunFacet(externalQueryId="123", source="source")},
+            job_facets={"sql": sql_job.SQLJobFacet(query="SELECT 1;")},
+            run_facets={
+                "externalQuery": external_query_run.ExternalQueryRunFacet(
+                    externalQueryId="123", source="source"
+                )
+            },
         ),
+        run_facets={
+            "externalQuery2": external_query_run.ExternalQueryRunFacet(externalQueryId="999", source="source")
+        },
     )
 
     assert (
@@ -357,23 +371,24 @@ def test_emit_complete_event_with_additional_information(mock_stats_incr, mock_s
                 run=Run(
                     runId=run_id,
                     facets={
-                        "parent": ParentRunFacet(
-                            run={"runId": "parent_run_id"},
-                            job={"namespace": namespace(), "name": "parent_job_name"},
+                        "parent": parent_run.ParentRunFacet(
+                            run=parent_run.Run(runId=parent_run_id),
+                            job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
                         ),
-                        "parentRun": ParentRunFacet(
-                            run={"runId": "parent_run_id"},
-                            job={"namespace": namespace(), "name": "parent_job_name"},
+                        "externalQuery": external_query_run.ExternalQueryRunFacet(
+                            externalQueryId="123", source="source"
                         ),
-                        "externalQuery": ExternalQueryRunFacet(externalQueryId="123", source="source"),
+                        "externalQuery2": external_query_run.ExternalQueryRunFacet(
+                            externalQueryId="999", source="source"
+                        ),
                     },
                 ),
                 job=Job(
                     namespace="default",
                     name="job",
                     facets={
-                        "sql": SqlJobFacet(query="SELECT 1;"),
-                        "jobType": JobTypeJobFacet(
+                        "sql": sql_job.SQLJobFacet(query="SELECT 1;"),
+                        "jobType": job_type_job.JobTypeJobFacet(
                             processingType="BATCH", integration="AIRFLOW", jobType="TASK"
                         ),
                     },
@@ -420,7 +435,7 @@ def test_emit_failed_event(mock_stats_incr, mock_stats_timer):
                     namespace=namespace(),
                     name="job",
                     facets={
-                        "jobType": JobTypeJobFacet(
+                        "jobType": job_type_job.JobTypeJobFacet(
                             processingType="BATCH", integration="AIRFLOW", jobType="TASK"
                         )
                     },
@@ -444,81 +459,93 @@ def test_emit_failed_event_with_additional_information(mock_stats_incr, mock_sta
     adapter = OpenLineageAdapter(client)
 
     run_id = str(uuid.uuid4())
+    parent_run_id = str(uuid.uuid4())
     event_time = datetime.datetime.now().isoformat()
     adapter.fail_task(
         run_id=run_id,
         end_time=event_time,
         parent_job_name="parent_job_name",
-        parent_run_id="parent_run_id",
+        parent_run_id=parent_run_id,
         job_name="job",
         task=OperatorLineage(
             inputs=[Dataset(namespace="bigquery", name="a.b.c"), Dataset(namespace="bigquery", name="x.y.z")],
             outputs=[Dataset(namespace="gs://bucket", name="exported_folder")],
-            run_facets={"externalQuery": ExternalQueryRunFacet(externalQueryId="123", source="source")},
-            job_facets={"sql": SqlJobFacet(query="SELECT 1;")},
+            run_facets={
+                "externalQuery": external_query_run.ExternalQueryRunFacet(
+                    externalQueryId="123", source="source"
+                )
+            },
+            job_facets={"sql": sql_job.SQLJobFacet(query="SELECT 1;")},
         ),
+        run_facets={
+            "externalQuery2": external_query_run.ExternalQueryRunFacet(externalQueryId="999", source="source")
+        },
         error=ValueError("Error message"),
     )
 
-    assert (
-        call(
-            RunEvent(
-                eventType=RunState.FAIL,
-                eventTime=event_time,
-                run=Run(
-                    runId=run_id,
-                    facets={
-                        "parent": ParentRunFacet(
-                            run={"runId": "parent_run_id"},
-                            job={"namespace": namespace(), "name": "parent_job_name"},
-                        ),
-                        "parentRun": ParentRunFacet(
-                            run={"runId": "parent_run_id"},
-                            job={"namespace": namespace(), "name": "parent_job_name"},
-                        ),
-                        "externalQuery": ExternalQueryRunFacet(externalQueryId="123", source="source"),
-                        "errorMessage": ErrorMessageRunFacet(
-                            message="Error message", programmingLanguage="python", stackTrace=None
-                        ),
-                    },
-                ),
-                job=Job(
-                    namespace="default",
-                    name="job",
-                    facets={
-                        "sql": SqlJobFacet(query="SELECT 1;"),
-                        "jobType": JobTypeJobFacet(
-                            processingType="BATCH", integration="AIRFLOW", jobType="TASK"
-                        ),
-                    },
-                ),
-                producer=_PRODUCER,
-                inputs=[
-                    Dataset(namespace="bigquery", name="a.b.c"),
-                    Dataset(namespace="bigquery", name="x.y.z"),
-                ],
-                outputs=[Dataset(namespace="gs://bucket", name="exported_folder")],
-            )
+    assert client.emit.mock_calls[0] == call(
+        RunEvent(
+            eventType=RunState.FAIL,
+            eventTime=event_time,
+            run=Run(
+                runId=run_id,
+                facets={
+                    "parent": parent_run.ParentRunFacet(
+                        run=parent_run.Run(runId=parent_run_id),
+                        job=parent_run.Job(namespace=namespace(), name="parent_job_name"),
+                    ),
+                    "errorMessage": error_message_run.ErrorMessageRunFacet(
+                        message="Error message", programmingLanguage="python", stackTrace=None
+                    ),
+                    "externalQuery": external_query_run.ExternalQueryRunFacet(
+                        externalQueryId="123", source="source"
+                    ),
+                    "externalQuery2": external_query_run.ExternalQueryRunFacet(
+                        externalQueryId="999", source="source"
+                    ),
+                },
+            ),
+            job=Job(
+                namespace="default",
+                name="job",
+                facets={
+                    "sql": sql_job.SQLJobFacet(query="SELECT 1;"),
+                    "jobType": job_type_job.JobTypeJobFacet(
+                        processingType="BATCH", integration="AIRFLOW", jobType="TASK"
+                    ),
+                },
+            ),
+            producer=_PRODUCER,
+            inputs=[
+                Dataset(namespace="bigquery", name="a.b.c"),
+                Dataset(namespace="bigquery", name="x.y.z"),
+            ],
+            outputs=[Dataset(namespace="gs://bucket", name="exported_folder")],
         )
-        in client.emit.mock_calls
     )
 
     mock_stats_incr.assert_not_called()
     mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
+@mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
 @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
-def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_static_uuid):
+def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_static_uuid, mock_debug_mode):
     random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
-    event_time = datetime.datetime.now()
+    event_time = datetime.datetime.fromisoformat("2021-01-01T00:00:00+00:00")
     dag_id = "dag_id"
     run_id = str(uuid.uuid4())
 
-    with DAG(dag_id=dag_id, description="dag desc", start_date=datetime.datetime(2024, 6, 1)) as dag:
+    with DAG(
+        dag_id=dag_id,
+        schedule=datetime.timedelta(days=1),
+        start_date=datetime.datetime(2024, 6, 1),
+        description="dag desc",
+    ) as dag:
         tg = TaskGroup(group_id="tg1")
         tg2 = TaskGroup(group_id="tg2", parent_group=tg)
         task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")  # noqa: F841
@@ -530,68 +557,114 @@ def test_emit_dag_started_event(mock_stats_incr, mock_stats_timer, generate_stat
         run_id=run_id,
         start_date=event_time,
         execution_date=event_time,
+        data_interval=(event_time, event_time),
     )
     dag_run.dag = dag
     generate_static_uuid.return_value = random_uuid
 
     job_facets = {**get_airflow_job_facet(dag_run)}
 
+    expected_dag_info = {
+        "timetable": {"delta": 86400.0},
+        "dag_id": dag_id,
+        "description": "dag desc",
+        "owner": "airflow",
+        "start_date": "2024-06-01T00:00:00+00:00",
+        "tags": "[]",
+        "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+    }
+    if hasattr(dag, "schedule_interval"):  # Airflow 2 compat.
+        expected_dag_info["schedule_interval"] = "86400.0 seconds"
+    else:  # Airflow 3 and up.
+        expected_dag_info["timetable_summary"] = "1 day, 0:00:00"
+
+    dag_run_facet = AirflowDagRunFacet(
+        dag=expected_dag_info,
+        dagRun={
+            "conf": {},
+            "dag_id": "dag_id",
+            "data_interval_start": event_time.isoformat(),
+            "data_interval_end": event_time.isoformat(),
+            "external_trigger": None,
+            "run_id": run_id,
+            "run_type": None,
+            "start_date": event_time.isoformat(),
+        },
+    )
+
     adapter.dag_started(
-        dag_run=dag_run,
-        msg="",
+        dag_id=dag_id,
+        start_date=event_time,
+        logical_date=event_time,
         nominal_start_time=event_time.isoformat(),
         nominal_end_time=event_time.isoformat(),
+        owners=["airflow"],
+        description=dag.description,
+        run_facets={"airflowDagRun": dag_run_facet},
         job_facets=job_facets,
     )
 
     assert len(client.emit.mock_calls) == 1
-    assert (
-        call(
-            RunEvent(
-                eventType=RunState.START,
-                eventTime=event_time.isoformat(),
-                run=Run(
-                    runId=random_uuid,
-                    facets={
-                        "nominalTime": NominalTimeRunFacet(
-                            nominalStartTime=event_time.isoformat(),
-                            nominalEndTime=event_time.isoformat(),
-                        )
-                    },
-                ),
-                job=Job(
-                    namespace=namespace(),
-                    name="dag_id",
-                    facets={
-                        "documentation": DocumentationJobFacet(description="dag desc"),
-                        "ownership": OwnershipJobFacet(
-                            owners=[
-                                OwnershipJobFacetOwners(name="airflow", type=None),
-                            ]
-                        ),
-                        **job_facets,
-                        "jobType": JobTypeJobFacet(
-                            processingType="BATCH", integration="AIRFLOW", jobType="DAG"
-                        ),
-                    },
-                ),
-                producer=_PRODUCER,
-                inputs=[],
-                outputs=[],
-            )
+    client.emit.assert_called_once_with(
+        RunEvent(
+            eventType=RunState.START,
+            eventTime=event_time.isoformat(),
+            run=Run(
+                runId=random_uuid,
+                facets={
+                    "nominalTime": nominal_time_run.NominalTimeRunFacet(
+                        nominalStartTime=event_time.isoformat(),
+                        nominalEndTime=event_time.isoformat(),
+                    ),
+                    "airflowDagRun": AirflowDagRunFacet(
+                        dag=expected_dag_info,
+                        dagRun={
+                            "conf": {},
+                            "dag_id": "dag_id",
+                            "data_interval_start": event_time.isoformat(),
+                            "data_interval_end": event_time.isoformat(),
+                            "external_trigger": None,
+                            "run_id": run_id,
+                            "run_type": None,
+                            "start_date": event_time.isoformat(),
+                        },
+                    ),
+                    "debug": AirflowDebugRunFacet(packages=ANY),
+                },
+            ),
+            job=Job(
+                namespace=namespace(),
+                name="dag_id",
+                facets={
+                    "documentation": documentation_job.DocumentationJobFacet(description="dag desc"),
+                    "ownership": ownership_job.OwnershipJobFacet(
+                        owners=[
+                            ownership_job.Owner(name="airflow", type=None),
+                        ]
+                    ),
+                    **job_facets,
+                    "jobType": job_type_job.JobTypeJobFacet(
+                        processingType="BATCH", integration="AIRFLOW", jobType="DAG"
+                    ),
+                },
+            ),
+            producer=_PRODUCER,
+            inputs=[],
+            outputs=[],
         )
-        in client.emit.mock_calls
     )
-
     mock_stats_incr.assert_not_called()
     mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
-@mock.patch.object(DagRun, "get_task_instances")
+@mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
+@mock.patch.object(DagRun, "fetch_task_instances")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
-def test_emit_dag_complete_event(mock_stats_incr, mock_stats_timer, generate_static_uuid, mocked_get_tasks):
+def test_emit_dag_complete_event(
+    mock_stats_incr, mock_stats_timer, generate_static_uuid, mocked_fetch_tis, mock_debug_mode
+):
     random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -599,7 +672,7 @@ def test_emit_dag_complete_event(mock_stats_incr, mock_stats_timer, generate_sta
     dag_id = "dag_id"
     run_id = str(uuid.uuid4())
 
-    with DAG(dag_id=dag_id, start_date=datetime.datetime(2024, 6, 1)):
+    with DAG(dag_id=dag_id, schedule=None, start_date=datetime.datetime(2024, 6, 1)):
         task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
         task_1 = BashOperator(task_id="task_1", bash_command="exit 0;")
         task_2 = EmptyOperator(
@@ -614,7 +687,7 @@ def test_emit_dag_complete_event(mock_stats_incr, mock_stats_timer, generate_sta
     )
     dag_run._state = DagRunState.SUCCESS
     dag_run.end_date = event_time
-    mocked_get_tasks.return_value = [
+    mocked_fetch_tis.return_value = [
         TaskInstance(task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS),
         TaskInstance(task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED),
         TaskInstance(task=task_2, run_id=run_id, state=TaskInstanceState.FAILED),
@@ -622,54 +695,59 @@ def test_emit_dag_complete_event(mock_stats_incr, mock_stats_timer, generate_sta
     generate_static_uuid.return_value = random_uuid
 
     adapter.dag_success(
-        dag_run=dag_run,
-        msg="",
+        dag_id=dag_id,
+        run_id=run_id,
+        end_date=event_time,
+        logical_date=event_time,
+        dag_run_state=DagRunState.SUCCESS,
+        task_ids=["task_0", "task_1", "task_2.test"],
     )
 
-    assert (
-        call(
-            RunEvent(
-                eventType=RunState.COMPLETE,
-                eventTime=event_time.isoformat(),
-                run=Run(
-                    runId=random_uuid,
-                    facets={
-                        "airflowState": AirflowStateRunFacet(
-                            dagRunState=DagRunState.SUCCESS,
-                            tasksState={
-                                task_0.task_id: TaskInstanceState.SUCCESS,
-                                task_1.task_id: TaskInstanceState.SKIPPED,
-                                task_2.task_id: TaskInstanceState.FAILED,
-                            },
-                        )
-                    },
-                ),
-                job=Job(
-                    namespace=namespace(),
-                    name=dag_id,
-                    facets={
-                        "jobType": JobTypeJobFacet(
-                            processingType="BATCH", integration="AIRFLOW", jobType="DAG"
-                        )
-                    },
-                ),
-                producer=_PRODUCER,
-                inputs=[],
-                outputs=[],
-            )
+    client.emit.assert_called_once_with(
+        RunEvent(
+            eventType=RunState.COMPLETE,
+            eventTime=event_time.isoformat(),
+            run=Run(
+                runId=random_uuid,
+                facets={
+                    "airflowState": AirflowStateRunFacet(
+                        dagRunState=DagRunState.SUCCESS,
+                        tasksState={
+                            task_0.task_id: TaskInstanceState.SUCCESS,
+                            task_1.task_id: TaskInstanceState.SKIPPED,
+                            task_2.task_id: TaskInstanceState.FAILED,
+                        },
+                    ),
+                    "debug": AirflowDebugRunFacet(packages=ANY),
+                },
+            ),
+            job=Job(
+                namespace=namespace(),
+                name=dag_id,
+                facets={
+                    "jobType": job_type_job.JobTypeJobFacet(
+                        processingType="BATCH", integration="AIRFLOW", jobType="DAG"
+                    )
+                },
+            ),
+            producer=_PRODUCER,
+            inputs=[],
+            outputs=[],
         )
-        in client.emit.mock_calls
     )
 
     mock_stats_incr.assert_not_called()
     mock_stats_timer.assert_called_with("ol.emit.attempts")
 
 
-@mock.patch.object(DagRun, "get_task_instances")
+@mock.patch("airflow.providers.openlineage.conf.debug_mode", return_value=True)
+@mock.patch.object(DagRun, "fetch_task_instances")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.generate_static_uuid")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.timer")
 @mock.patch("airflow.providers.openlineage.plugins.adapter.Stats.incr")
-def test_emit_dag_failed_event(mock_stats_incr, mock_stats_timer, generate_static_uuid, mocked_get_tasks):
+def test_emit_dag_failed_event(
+    mock_stats_incr, mock_stats_timer, generate_static_uuid, mocked_fetch_tis, mock_debug_mode
+):
     random_uuid = "9d3b14f7-de91-40b6-aeef-e887e2c7673e"
     client = MagicMock()
     adapter = OpenLineageAdapter(client)
@@ -677,7 +755,7 @@ def test_emit_dag_failed_event(mock_stats_incr, mock_stats_timer, generate_stati
     dag_id = "dag_id"
     run_id = str(uuid.uuid4())
 
-    with DAG(dag_id=dag_id, start_date=datetime.datetime(2024, 6, 1)):
+    with DAG(dag_id=dag_id, schedule=None, start_date=datetime.datetime(2024, 6, 1)):
         task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
         task_1 = BashOperator(task_id="task_1", bash_command="exit 0;")
         task_2 = EmptyOperator(task_id="task_2.test")
@@ -688,9 +766,9 @@ def test_emit_dag_failed_event(mock_stats_incr, mock_stats_timer, generate_stati
         start_date=event_time,
         execution_date=event_time,
     )
-    dag_run._state = DagRunState.SUCCESS
+    dag_run._state = DagRunState.FAILED
     dag_run.end_date = event_time
-    mocked_get_tasks.return_value = [
+    mocked_fetch_tis.return_value = [
         TaskInstance(task=task_0, run_id=run_id, state=TaskInstanceState.SUCCESS),
         TaskInstance(task=task_1, run_id=run_id, state=TaskInstanceState.SKIPPED),
         TaskInstance(task=task_2, run_id=run_id, state=TaskInstanceState.FAILED),
@@ -698,46 +776,49 @@ def test_emit_dag_failed_event(mock_stats_incr, mock_stats_timer, generate_stati
     generate_static_uuid.return_value = random_uuid
 
     adapter.dag_failed(
-        dag_run=dag_run,
+        dag_id=dag_id,
+        run_id=run_id,
+        end_date=event_time,
+        logical_date=event_time,
+        dag_run_state=DagRunState.FAILED,
+        task_ids=["task_0", "task_1", "task_2.test"],
         msg="error msg",
     )
 
-    assert (
-        call(
-            RunEvent(
-                eventType=RunState.FAIL,
-                eventTime=event_time.isoformat(),
-                run=Run(
-                    runId=random_uuid,
-                    facets={
-                        "errorMessage": ErrorMessageRunFacet(
-                            message="error msg", programmingLanguage="python"
-                        ),
-                        "airflowState": AirflowStateRunFacet(
-                            dagRunState=DagRunState.SUCCESS,
-                            tasksState={
-                                task_0.task_id: TaskInstanceState.SUCCESS,
-                                task_1.task_id: TaskInstanceState.SKIPPED,
-                                task_2.task_id: TaskInstanceState.FAILED,
-                            },
-                        ),
-                    },
-                ),
-                job=Job(
-                    namespace=namespace(),
-                    name=dag_id,
-                    facets={
-                        "jobType": JobTypeJobFacet(
-                            processingType="BATCH", integration="AIRFLOW", jobType="DAG"
-                        )
-                    },
-                ),
-                producer=_PRODUCER,
-                inputs=[],
-                outputs=[],
-            )
+    client.emit.assert_called_once_with(
+        RunEvent(
+            eventType=RunState.FAIL,
+            eventTime=event_time.isoformat(),
+            run=Run(
+                runId=random_uuid,
+                facets={
+                    "errorMessage": error_message_run.ErrorMessageRunFacet(
+                        message="error msg", programmingLanguage="python"
+                    ),
+                    "airflowState": AirflowStateRunFacet(
+                        dagRunState=DagRunState.FAILED,
+                        tasksState={
+                            task_0.task_id: TaskInstanceState.SUCCESS,
+                            task_1.task_id: TaskInstanceState.SKIPPED,
+                            task_2.task_id: TaskInstanceState.FAILED,
+                        },
+                    ),
+                    "debug": AirflowDebugRunFacet(packages=ANY),
+                },
+            ),
+            job=Job(
+                namespace=namespace(),
+                name=dag_id,
+                facets={
+                    "jobType": job_type_job.JobTypeJobFacet(
+                        processingType="BATCH", integration="AIRFLOW", jobType="DAG"
+                    )
+                },
+            ),
+            producer=_PRODUCER,
+            inputs=[],
+            outputs=[],
         )
-        in client.emit.mock_calls
     )
 
     mock_stats_incr.assert_not_called()
@@ -762,10 +843,10 @@ def test_openlineage_adapter_stats_emit_failed(
 
 def test_build_dag_run_id_is_valid_uuid():
     dag_id = "test_dag"
-    execution_date = datetime.datetime.now()
+    logical_date = datetime.datetime.now()
     result = OpenLineageAdapter.build_dag_run_id(
         dag_id=dag_id,
-        execution_date=execution_date,
+        logical_date=logical_date,
     )
     uuid_result = uuid.UUID(result)
     assert uuid_result
@@ -775,11 +856,11 @@ def test_build_dag_run_id_is_valid_uuid():
 def test_build_dag_run_id_same_input_give_same_result():
     result1 = OpenLineageAdapter.build_dag_run_id(
         dag_id="dag1",
-        execution_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+        logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
     )
     result2 = OpenLineageAdapter.build_dag_run_id(
         dag_id="dag1",
-        execution_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
+        logical_date=datetime.datetime(2024, 1, 1, 1, 1, 1),
     )
     assert result1 == result2
 
@@ -787,11 +868,11 @@ def test_build_dag_run_id_same_input_give_same_result():
 def test_build_dag_run_id_different_inputs_give_different_results():
     result1 = OpenLineageAdapter.build_dag_run_id(
         dag_id="dag1",
-        execution_date=datetime.datetime.now(),
+        logical_date=datetime.datetime.now(),
     )
     result2 = OpenLineageAdapter.build_dag_run_id(
         dag_id="dag2",
-        execution_date=datetime.datetime.now(),
+        logical_date=datetime.datetime.now(),
     )
     assert result1 != result2
 

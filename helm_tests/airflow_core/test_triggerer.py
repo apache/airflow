@@ -638,6 +638,19 @@ class TestTriggerer:
         assert "annotations" in jmespath.search("metadata", docs[0])
         assert jmespath.search("metadata.annotations", docs[0])["test_annotation"] == "test_annotation_value"
 
+    def test_triggerer_pod_hostaliases(self):
+        docs = render_chart(
+            values={
+                "triggerer": {
+                    "hostAliases": [{"ip": "127.0.0.1", "hostnames": ["foo.local"]}],
+                },
+            },
+            show_only=["templates/triggerer/triggerer-deployment.yaml"],
+        )
+
+        assert "127.0.0.1" == jmespath.search("spec.template.spec.hostAliases[0].ip", docs[0])
+        assert "foo.local" == jmespath.search("spec.template.spec.hostAliases[0].hostnames[0]", docs[0])
+
     def test_triggerer_template_storage_class_name(self):
         docs = render_chart(
             values={"triggerer": {"persistence": {"storageClassName": "{{ .Release.Name }}-storage-class"}}},
@@ -774,6 +787,20 @@ class TestTriggererKedaAutoScaler:
             show_only=["templates/triggerer/triggerer-kedaautoscaler.yaml"],
         )
         assert expected_query == jmespath.search("spec.triggers[0].metadata.query", docs[0])
+
+    def test_mysql_db_backend_keda_default_value(self):
+        docs = render_chart(
+            values={
+                "data": {"metadataConnection": {"protocol": "mysql"}},
+                "triggerer": {
+                    "enabled": True,
+                    "keda": {"enabled": True},
+                },
+            },
+            show_only=["templates/triggerer/triggerer-kedaautoscaler.yaml"],
+        )
+
+        assert jmespath.search("spec.triggerers[0].metadata.keda.usePgBouncer", docs[0]) is None
 
     def test_mysql_db_backend_keda(self):
         docs = render_chart(

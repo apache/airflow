@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -31,8 +32,8 @@ POSSIBLE_TEST_FOLDERS = [
     "always",
     "api",
     "api_connexion",
-    "api_experimental",
     "api_internal",
+    "api_ui",
     "auth",
     "callbacks",
     "charts",

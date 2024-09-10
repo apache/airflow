@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable, Sequence
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataform import DataformHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -96,13 +96,10 @@ class DataformWorkflowInvocationStateSensor(BaseSensorOperator):
         workflow_status = workflow_invocation.state
         if workflow_status is not None:
             if self.failure_statuses and workflow_status in self.failure_statuses:
-                # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
                 message = (
                     f"Workflow Invocation with id '{self.workflow_invocation_id}' "
                     f"state is: {workflow_status}. Terminating sensor..."
                 )
-                if self.soft_fail:
-                    raise AirflowSkipException(message)
                 raise AirflowException(message)
 
         return workflow_status in self.expected_statuses

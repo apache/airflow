@@ -25,10 +25,10 @@ from airflow.providers.fab.auth_manager.models import Role, User
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from airflow.www.security import EXISTING_ROLES
+from airflow.www.security_manager import EXISTING_ROLES
 from tests.test_utils.api_connexion_utils import create_role, create_user, delete_role, delete_user
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 DEFAULT_TIME = "2020-06-11T18:00:00+00:00"
 

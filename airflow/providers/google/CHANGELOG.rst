@@ -27,6 +27,59 @@
 Changelog
 ---------
 
+10.22.0
+.......
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add 'CloudRunServiceHook' and 'CloudRunCreateServiceOperator' (#40008)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/google): add missing sync_hook_class to CloudDataTransferServiceAsyncHook (#41417)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+* ``Refactor 'DataprocCreateBatchOperator' (#41527)``
+* ``Upgrade package gcloud-aio-auth>=5.2.0 (#41262)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+10.21.1
+.......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix unnecessary imports for CloudSQL hook (#41009)``
+* ``Move sensitive information to the secret manager for the system test google_analytics_admin (#40951)``
+* ``Fix Custom Training Job operators to accept results without managed model (#40685)``
+* ``Fix behavior for reattach_state parameter in BigQueryInsertJobOperator (#40664)``
+* ``Fix CloudSQLDatabaseHook temp file handling (#41092)``
+
+Misc
+~~~~
+
+* ``Refactor dataproc system tests (#40720)``
+* ``openlineage: migrate OpenLineage provider to V2 facets. (#39530)``
+* ``Resolve CloudSQLDatabaseHook deprecation warning (#40834)``
+* ``Fix BeamRunJavaPipelineOperator fails without job_name set (#40645)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare Providers docs ad hoc release (#41074)``
+
 10.21.0
 .......
 
@@ -35,6 +88,29 @@ Changelog
   The change  ``Fix 'GCSToGCSOperator' behavior difference for moving single object (#40162)`` has
   been reverted as it turned out to break too much existing workflows. The behavior of the
   ``GCSToGCSOperator`` has been restored to the previous behavior.
+
+Features
+~~~~~~~~
+
+* ``Update Google Cloud Generative Model Hooks/Operators to bring parity with Vertex AI API (#40484)``
+* ``DataflowStartFlexTemplateOperator. Check for Dataflow job type each check cycle. (#40584)``
+* ``Added chunk_size parameter to LocalFilesystemToGCSOperator (#40379)``
+* ``Add support for query parameters to BigQueryCheckOperator (#40558)``
+* ``Add link button to dataproc job in DataprocCreateBatchOperator (#40643)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Revert "Fix 'GCSToGCSOperator' behavior difference for moving single object (#40162)" (#40577)``
+* ``fix BigQueryInsertJobOperator's return value and openlineage extraction in deferrable mode (#40457)``
+* ``fix OpenLineage extraction for GCP deferrable operators (#40521)``
+* ``fix respect project_id in CloudBatchSubmitJobOperator (#40560)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Resolve google deprecations in tests (#40629)``
+   * ``Resolve google vertex ai deprecations in tests (#40506)``
+   * ``Add notes about reverting the change in GCSToGCSOperator (#40579)``
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
 
 10.20.0
 .......

@@ -19,16 +19,13 @@
 
 from __future__ import annotations
 
-from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pymssql
+from methodtools import lru_cache
 from pymssql import Connection as PymssqlConnection
 
-from airflow.providers.common.sql.hooks.sql import DbApiHook
-
-if TYPE_CHECKING:
-    from airflow.models import Connection
+from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
 
 
 class MsSqlHook(DbApiHook):
@@ -58,24 +55,6 @@ class MsSqlHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self._sqlalchemy_scheme = sqlalchemy_scheme
 
-    @cached_property
-    def connection(self) -> Connection:
-        """
-        Get the airflow connection object.
-
-        :return: The connection object.
-        """
-        return self.get_connection(getattr(self, self.conn_name_attr))
-
-    @property
-    def connection_extra_lower(self) -> dict:
-        """
-        ``connection.extra_dejson`` but where keys are converted to lower case.
-
-        This is used internally for case-insensitive access of mssql params.
-        """
-        return {k.lower(): v for k, v in self.connection.extra_dejson.items()}
-
     @property
     def sqlalchemy_scheme(self) -> str:
         """Sqlalchemy scheme either from constructor, connection extras or default."""
@@ -104,6 +83,56 @@ class MsSqlHook(DbApiHook):
         """Sqlalchemy connection object."""
         engine = self.get_sqlalchemy_engine(engine_kwargs=engine_kwargs)
         return engine.connect(**(connect_kwargs or {}))
+
+    @lru_cache(maxsize=None)
+    def get_primary_keys(self, table: str) -> list[str]:
+        primary_keys = self.run(
+            f"""
+            SELECT c.name
+            FROM sys.columns c
+            WHERE c.object_id =  OBJECT_ID('{table}')
+                AND EXISTS (SELECT 1 FROM sys.index_columns ic
+                    INNER JOIN sys.indexes i ON ic.object_id = i.object_id AND ic.index_id = i.index_id
+                    WHERE i.is_primary_key = 1
+                    AND ic.object_id = c.object_id
+                    AND ic.column_id = c.column_id);
+            """,
+            handler=fetch_all_handler,
+        )
+        return [pk[0] for pk in primary_keys]  # type: ignore
+
+    def _generate_insert_sql(self, table, values, target_fields, replace, **kwargs) -> str:
+        """
+        Generate the INSERT SQL statement.
+
+        The MERGE INTO variant is specific to MSSQL syntax
+
+        :param table: Name of the target table
+        :param values: The row to insert into the table
+        :param target_fields: The names of the columns to fill in the table
+        :param replace: Whether to replace/merge into instead of insert
+        :return: The generated INSERT or MERGE INTO SQL statement
+        """
+        if not replace:
+            return super()._generate_insert_sql(table, values, target_fields, replace, **kwargs)  # type: ignore
+
+        primary_keys = self.get_primary_keys(table)
+        columns = [
+            target_field
+            for target_field in target_fields
+            if target_field in set(target_fields).difference(set(primary_keys))
+        ]
+
+        self.log.debug("primary_keys: %s", primary_keys)
+        self.log.info("columns: %s", columns)
+
+        return f"""MERGE INTO {table} AS target
+        USING (SELECT {', '.join(map(lambda column: f'{self.placeholder} AS {column}', target_fields))}) AS source
+        ON {' AND '.join(map(lambda column: f'target.{column} = source.{column}', primary_keys))}
+        WHEN MATCHED THEN
+            UPDATE SET {', '.join(map(lambda column: f'target.{column} = source.{column}', columns))}
+        WHEN NOT MATCHED THEN
+            INSERT ({', '.join(target_fields)}) VALUES ({', '.join(map(lambda column: f'source.{column}', target_fields))});"""
 
     def get_conn(self) -> PymssqlConnection:
         """Return ``pymssql`` connection object."""

@@ -184,6 +184,14 @@ If release name contains chart name it will be used as a full name.
   {{- end }}
 {{- end }}
 
+{{/* User defined gitSync container environment from */}}
+{{- define "custom_git_sync_environment_from" }}
+  {{- $Global := . }}
+  {{- with .Values.dags.gitSync.envFrom }}
+    {{- tpl . $Global | nindent 2 }}
+  {{- end }}
+{{- end }}
+
 {{/*  Git ssh key volume */}}
 {{- define "git_sync_ssh_key_volume" }}
 - name: git-sync-ssh-key
@@ -198,6 +206,7 @@ If release name contains chart name it will be used as a full name.
   image: {{ template "git_sync_image" . }}
   imagePullPolicy: {{ .Values.images.gitSync.pullPolicy }}
   securityContext: {{- include "localContainerSecurityContext" .Values.dags.gitSync | nindent 4 }}
+  envFrom: {{- include "custom_git_sync_environment_from" . | default "\n  []" | indent 2 }}
   env:
     {{- if or .Values.dags.gitSync.sshKeySecret .Values.dags.gitSync.sshKey }}
     - name: GIT_SSH_KEY_FILE

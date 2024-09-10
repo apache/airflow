@@ -36,6 +36,7 @@ from airflow.providers.amazon.aws.auth_manager.cli.definition import (
 from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
     AwsSecurityManagerOverride,
 )
+from airflow.providers.amazon.aws.auth_manager.views.auth import AwsAuthManagerAuthenticationViews
 
 try:
     from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
@@ -81,6 +82,16 @@ class AwsAuthManager(BaseAuthManager):
     """
 
     def __init__(self, appbuilder: AirflowAppBuilder) -> None:
+        from packaging.version import Version
+
+        from airflow.version import version
+
+        # TODO: remove this if block when min_airflow_version is set to higher than 2.9.0
+        if Version(version) < Version("2.9"):
+            raise AirflowOptionalProviderFeatureException(
+                "``AwsAuthManager`` is compatible with Airflow versions >= 2.9."
+            )
+
         super().__init__(appbuilder)
         self._check_avp_schema_version()
 
@@ -412,6 +423,9 @@ class AwsAuthManager(BaseAuthManager):
                 subcommands=AWS_AUTH_MANAGER_COMMANDS,
             ),
         ]
+
+    def register_views(self) -> None:
+        self.appbuilder.add_view_no_menu(AwsAuthManagerAuthenticationViews())
 
     @staticmethod
     def _get_menu_item_request(resource_name: str) -> IsAuthorizedRequest:

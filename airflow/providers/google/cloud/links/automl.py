@@ -21,10 +21,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from deprecated import deprecated
-
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
+from airflow.providers.google.common.deprecated import deprecated
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -48,10 +47,8 @@ AUTOML_MODEL_PREDICT_LINK = (
 
 
 @deprecated(
-    reason=(
-        "Class `AutoMLDatasetLink` has been deprecated and will be removed after 31.12.2024. "
-        "Please use `TranslationLegacyDatasetLink` from `airflow/providers/google/cloud/links/translate.py` instead."
-    ),
+    planned_removal_date="December 31, 2024",
+    use_instead="TranslationLegacyDatasetLink class from airflow/providers/google/cloud/links/translate.py",
     category=AirflowProviderDeprecationWarning,
 )
 class AutoMLDatasetLink(BaseGoogleLink):
@@ -76,10 +73,8 @@ class AutoMLDatasetLink(BaseGoogleLink):
 
 
 @deprecated(
-    reason=(
-        "Class `AutoMLDatasetListLink` has been deprecated and will be removed after 31.12.2024. "
-        "Please use `TranslationDatasetListLink` from `airflow/providers/google/cloud/links/translate.py` instead."
-    ),
+    planned_removal_date="December 31, 2024",
+    use_instead="TranslationDatasetListLink class from airflow/providers/google/cloud/links/translate.py",
     category=AirflowProviderDeprecationWarning,
 )
 class AutoMLDatasetListLink(BaseGoogleLink):
@@ -105,10 +100,8 @@ class AutoMLDatasetListLink(BaseGoogleLink):
 
 
 @deprecated(
-    reason=(
-        "Class `AutoMLModelLink` has been deprecated and will be removed after 31.12.2024. "
-        "Please use `TranslationLegacyModelLink` from `airflow/providers/google/cloud/links/translate.py` instead."
-    ),
+    planned_removal_date="December 31, 2024",
+    use_instead="TranslationLegacyModelLink class from airflow/providers/google/cloud/links/translate.py",
     category=AirflowProviderDeprecationWarning,
 )
 class AutoMLModelLink(BaseGoogleLink):
@@ -139,10 +132,9 @@ class AutoMLModelLink(BaseGoogleLink):
 
 
 @deprecated(
-    reason=(
-        "Class `AutoMLModelTrainLink` has been deprecated and will be removed after 31.12.2024. "
-        "Please use `TranslationLegacyModelTrainLink` from `airflow/providers/google/cloud/links/translate.py` instead."
-    ),
+    planned_removal_date="December 31, 2024",
+    use_instead="TranslationLegacyModelTrainLink class from "
+    "airflow/providers/google/cloud/links/translate.py",
     category=AirflowProviderDeprecationWarning,
 )
 class AutoMLModelTrainLink(BaseGoogleLink):
@@ -170,10 +162,9 @@ class AutoMLModelTrainLink(BaseGoogleLink):
 
 
 @deprecated(
-    reason=(
-        "Class `AutoMLModelPredictLink` has been deprecated and will be removed after 31.12.2024. "
-        "Please use `TranslationLegacyModelPredictLink` from `airflow/providers/google/cloud/links/translate.py` instead."
-    ),
+    planned_removal_date="December 31, 2024",
+    use_instead="TranslationLegacyModelPredictLink class from "
+    "airflow/providers/google/cloud/links/translate.py",
     category=AirflowProviderDeprecationWarning,
 )
 class AutoMLModelPredictLink(BaseGoogleLink):

@@ -78,9 +78,9 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 #
 # START CORE EXTRAS HERE
 #
-# aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, deprecated-api, github-
-# enterprise, google-auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, pydantic,
-# rabbitmq, s3fs, saml, sentry, statsd, uv, virtualenv
+# aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, github-enterprise, google-
+# auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, saml, sentry,
+# statsd, uv, virtualenv
 #
 # END CORE EXTRAS HERE
 #
@@ -139,8 +139,8 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 # hashicorp, http, imap, influxdb, jdbc, jenkins, microsoft.azure, microsoft.mssql, microsoft.psrp,
 # microsoft.winrm, mongo, mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie,
 # oracle, pagerduty, papermill, pgvector, pinecone, postgres, presto, qdrant, redis, salesforce,
-# samba, segment, sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, tableau, tabular,
-# telegram, teradata, trino, vertica, weaviate, yandex, ydb, zendesk
+# samba, segment, sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, tableau, telegram,
+# teradata, trino, vertica, weaviate, yandex, ydb, zendesk
 #
 # END PROVIDER EXTRAS HERE
 
@@ -298,12 +298,12 @@ extend-select = [
     "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
 ]
 ignore = [
-    "D100", # TODO: Missing docstring in public module
+    "D100", # Unwanted; Docstring at the top of every file.
     "D102", # TODO: Missing docstring in public method
     "D103", # TODO: Missing docstring in public function
-    "D104", # TODO: Missing docstring in public package
-    "D105", # Do not want.  See https://lists.apache.org/thread/8jbg1dd2lr2cfydtqbjxsd6pb6q2wkc3
-    "D107", # TODO: Missing docstring in __init__
+    "D104", # Unwanted; Docstring at the top of every `__init__.py` file.
+    "D105", # Unwanted; See https://lists.apache.org/thread/8jbg1dd2lr2cfydtqbjxsd6pb6q2wkc3
+    "D107", # Unwanted; Docstring in every constructor is unnecessary if the class has a docstring.
     "D203",
     "D212", # Conflicts with D213.  Both can not be enabled.
     "D214",
@@ -386,6 +386,8 @@ combine-as-imports = true
 "airflow/api/auth/backend/kerberos_auth.py" = ["E402"]
 "airflow/security/kerberos.py" = ["E402"]
 "airflow/security/utils.py" = ["E402"]
+"tests/providers/amazon/aws/auth_manager/security_manager/test_aws_security_manager_override.py" = ["E402"]
+"tests/system/providers/amazon/aws/tests/test_aws_auth_manager.py" = ["E402"]
 "tests/providers/common/io/xcom/test_backend.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/__init__.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/utilities/__init__.py" = ["E402"]
@@ -406,9 +408,14 @@ combine-as-imports = true
 "tests/providers/google/cloud/triggers/test_vertex_ai.py" = ["E402"]
 "tests/providers/openai/hooks/test_openai.py" = ["E402"]
 "tests/providers/openai/operators/test_openai.py" = ["E402"]
+"tests/providers/openai/triggers/test_openai.py" = ["E402"]
+"tests/providers/opensearch/conftest.py" = ["E402"]
+"tests/providers/opensearch/hooks/test_opensearch.py" = ["E402"]
+"tests/providers/opensearch/operators/test_opensearch.py" = ["E402"]
 "tests/providers/qdrant/hooks/test_qdrant.py" = ["E402"]
 "tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
 "tests/providers/snowflake/operators/test_snowflake_sql.py" = ["E402"]
+"tests/providers/yandex/*/*.py" = ["E402"]
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
 "helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]

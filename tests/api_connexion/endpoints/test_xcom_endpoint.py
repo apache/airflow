@@ -35,7 +35,7 @@ from tests.test_utils.api_connexion_utils import assert_401, create_user, delete
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class CustomXCom(BaseXCom):
@@ -122,14 +122,14 @@ class TestXComEndpoint:
 
 
 class TestGetXComEntry(TestXComEndpoint):
-    def test_should_respond_200(self):
+    def test_should_respond_200_stringify(self):
         dag_id = "test-dag-id"
         task_id = "test-task-id"
         execution_date = "2005-04-02T00:00:00+00:00"
         xcom_key = "test-xcom-key"
         execution_date_parsed = parse_execution_date(execution_date)
         run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
-        self._create_xcom_entry(dag_id, run_id, execution_date_parsed, task_id, xcom_key)
+        self._create_xcom_entry(dag_id, run_id, execution_date_parsed, task_id, xcom_key, {"key": "value"})
         response = self.client.get(
             f"/api/v1/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
             environ_overrides={"REMOTE_USER": "test"},
@@ -145,7 +145,33 @@ class TestGetXComEntry(TestXComEndpoint):
             "task_id": task_id,
             "map_index": -1,
             "timestamp": "TIMESTAMP",
-            "value": "TEST_VALUE",
+            "value": "{'key': 'value'}",
+        }
+
+    def test_should_respond_200_native(self):
+        dag_id = "test-dag-id"
+        task_id = "test-task-id"
+        execution_date = "2005-04-02T00:00:00+00:00"
+        xcom_key = "test-xcom-key"
+        execution_date_parsed = parse_execution_date(execution_date)
+        run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
+        self._create_xcom_entry(dag_id, run_id, execution_date_parsed, task_id, xcom_key, {"key": "value"})
+        response = self.client.get(
+            f"/api/v1/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}?stringify=false",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert 200 == response.status_code
+
+        current_data = response.json
+        current_data["timestamp"] = "TIMESTAMP"
+        assert current_data == {
+            "dag_id": dag_id,
+            "execution_date": execution_date,
+            "key": xcom_key,
+            "task_id": task_id,
+            "map_index": -1,
+            "timestamp": "TIMESTAMP",
+            "value": {"key": "value"},
         }
 
     def test_should_raise_404_for_non_existent_xcom(self):
@@ -192,7 +218,9 @@ class TestGetXComEntry(TestXComEndpoint):
         )
         assert response.status_code == 403
 
-    def _create_xcom_entry(self, dag_id, run_id, execution_date, task_id, xcom_key, *, backend=XCom):
+    def _create_xcom_entry(
+        self, dag_id, run_id, execution_date, task_id, xcom_key, xcom_value="TEST_VALUE", *, backend=XCom
+    ):
         with create_session() as session:
             dagrun = DagRun(
                 dag_id=dag_id,
@@ -207,7 +235,7 @@ class TestGetXComEntry(TestXComEndpoint):
             session.add(ti)
         backend.set(
             key=xcom_key,
-            value="TEST_VALUE",
+            value=xcom_value,
             run_id=run_id,
             task_id=task_id,
             dag_id=dag_id,

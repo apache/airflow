@@ -163,8 +163,8 @@ Re-run Tasks
 ------------
 Some of the tasks can fail during the scheduled run. Once you have fixed
 the errors after going through the logs, you can re-run the tasks by clearing them for the
-scheduled date. Clearing a task instance doesn't delete the task instance record.
-Instead, it updates ``max_tries`` to ``0`` and sets the current task instance state to ``None``, which causes the task to re-run.
+scheduled date. Clearing a task instance creates a record of the task instance.
+The ``try_number`` of the current task instance is incremented, the ``max_tries`` set to ``0`` and the state set to ``None``, which causes the task to re-run.
 
 Click on the failed task in the Tree or Graph views and then click on **Clear**.
 The executor will re-run it.
@@ -193,6 +193,23 @@ For more options, you can check the help of the `clear command <../cli-and-env-v
 .. code-block:: bash
 
     airflow tasks clear --help
+
+Task Instance History
+---------------------
+When a task instance retries or is cleared, the task instance history is preserved. You can see this history by clicking on the task instance in the Grid view.
+
+.. image:: ../img/task_instance_history.png
+
+.. note::
+    The try selector shown above is only available for tasks that have been retried or cleared.
+
+The history shows the value of the task instance attributes at the end of the particular run. On the log page, you can also see the logs for each of the task instance tries.
+This can be useful for debugging.
+
+.. image:: ../img/task_instance_history_log.png
+
+.. note::
+    Related task instance objects like the XComs, rendered template fields, etc., are not preserved in the history. Only the task instance attributes, including the logs, are preserved.
 
 External Triggers
 '''''''''''''''''

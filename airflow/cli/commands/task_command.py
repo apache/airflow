@@ -70,6 +70,7 @@ from airflow.utils.providers_configuration_loader import providers_configuration
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.task_instance_session import set_current_task_instance_session
+from airflow.utils.types import DagRunTriggeredByType
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -143,6 +144,7 @@ def _get_dag_run(
             run_id=exec_date_or_run_id,
             execution_date=dag_run_execution_date,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_execution_date),
+            triggered_by=DagRunTriggeredByType.CLI,
         )
         return dag_run, True
     elif create_if_necessary == "db":
@@ -152,6 +154,7 @@ def _get_dag_run(
             run_id=_generate_temporary_run_id(),
             data_interval=dag.timetable.infer_manual_data_interval(run_after=dag_run_execution_date),
             session=session,
+            triggered_by=DagRunTriggeredByType.CLI,
         )
         return dag_run, True
     raise ValueError(f"unknown create_if_necessary value: {create_if_necessary!r}")
@@ -278,7 +281,10 @@ def _run_task_by_executor(args, dag: DAG, ti: TaskInstance) -> None:
             print("Could not pickle the DAG")
             print(e)
             raise e
-    executor = ExecutorLoader.get_default_executor()
+    if ti.executor:
+        executor = ExecutorLoader.load_executor(ti.executor)
+    else:
+        executor = ExecutorLoader.get_default_executor()
     executor.job_id = None
     executor.start()
     print("Sending to executor.")
@@ -327,7 +333,6 @@ def _run_task_by_local_task_job(args, ti: TaskInstance | TaskInstancePydantic) -
 
 RAW_TASK_UNSUPPORTED_OPTION = [
     "ignore_all_dependencies",
-    "ignore_depends_on_past",
     "ignore_dependencies",
     "force",
 ]
@@ -463,13 +468,14 @@ def task_run(args, dag: DAG | None = None) -> TaskReturnCode | None:
 
     log.info("Running %s on host %s", ti, hostname)
 
-    # IMPORTANT, have to re-configure ORM with the NullPool, otherwise, each "run" command may leave
-    # behind multiple open sleeping connections while heartbeating, which could
-    # easily exceed the database connection limit when
-    # processing hundreds of simultaneous tasks.
-    # this should be last thing before running, to reduce likelihood of an open session
-    # which can cause trouble if running process in a fork.
-    settings.reconfigure_orm(disable_connection_pool=True)
+    if not InternalApiConfig.get_use_internal_api():
+        # IMPORTANT, have to re-configure ORM with the NullPool, otherwise, each "run" command may leave
+        # behind multiple open sleeping connections while heartbeating, which could
+        # easily exceed the database connection limit when
+        # processing hundreds of simultaneous tasks.
+        # this should be last thing before running, to reduce likelihood of an open session
+        # which can cause trouble if running process in a fork.
+        settings.reconfigure_orm(disable_connection_pool=True)
     task_return_code = None
     try:
         if args.interactive:
@@ -544,11 +550,8 @@ def task_state(args) -> None:
 def task_list(args, dag: DAG | None = None) -> None:
     """List the tasks within a DAG at the command line."""
     dag = dag or get_dag(args.subdir, args.dag_id)
-    if args.tree:
-        dag.tree_view()
-    else:
-        tasks = sorted(t.task_id for t in dag.tasks)
-        print("\n".join(tasks))
+    tasks = sorted(t.task_id for t in dag.tasks)
+    print("\n".join(tasks))
 
 
 class _SupportedDebugger(Protocol):
@@ -760,8 +763,6 @@ def task_clear(args) -> None:
         only_failed=args.only_failed,
         only_running=args.only_running,
         confirm_prompt=not args.yes,
-        include_subdags=not args.exclude_subdags,
-        include_parentdag=not args.exclude_parentdag,
     )
 
 

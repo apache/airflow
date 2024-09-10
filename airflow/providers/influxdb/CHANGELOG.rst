@@ -28,6 +28,39 @@
 Changelog
 ---------
 
+2.7.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``add timeout to InfluxDBHook (#40439)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix failure of "Add connection" in the connection page (#40469)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+  * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
 2.5.1
 .....
 

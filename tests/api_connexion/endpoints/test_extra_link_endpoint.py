@@ -32,12 +32,15 @@ from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import create_user, delete_user
-from tests.test_utils.compat import BaseOperatorLink
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS, BaseOperatorLink
 from tests.test_utils.db import clear_db_runs, clear_db_xcom
 from tests.test_utils.mock_operators import CustomOperator
 from tests.test_utils.mock_plugins import mock_plugin_manager
 
-pytestmark = pytest.mark.db_test
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
+
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.fixture(scope="module")
@@ -78,6 +81,7 @@ class TestGetExtraLinks:
         self.app.dag_bag.dags = {self.dag.dag_id: self.dag}  # type: ignore
         self.app.dag_bag.sync_to_db()  # type: ignore
 
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         self.dag.create_dagrun(
             run_id="TEST_DAG_RUN_ID",
             execution_date=self.default_time,
@@ -85,6 +89,7 @@ class TestGetExtraLinks:
             state=DagRunState.SUCCESS,
             session=session,
             data_interval=DataInterval(timezone.datetime(2020, 1, 1), timezone.datetime(2020, 1, 2)),
+            **triggered_by_kwargs,
         )
         session.flush()
 
@@ -95,7 +100,7 @@ class TestGetExtraLinks:
         clear_db_xcom()
 
     def _create_dag(self):
-        with DAG(dag_id="TEST_DAG_ID", default_args={"start_date": self.default_time}) as dag:
+        with DAG(dag_id="TEST_DAG_ID", schedule=None, default_args={"start_date": self.default_time}) as dag:
             CustomOperator(task_id="TEST_SINGLE_LINK", bash_command="TEST_LINK_VALUE")
             CustomOperator(
                 task_id="TEST_MULTIPLE_LINK", bash_command=["TEST_LINK_VALUE_1", "TEST_LINK_VALUE_2"]

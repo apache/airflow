@@ -22,9 +22,12 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1718602112
+source-date-epoch: 1723968989
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 8.28.0
+  - 8.27.0
+  - 8.26.0
   - 8.25.0
   - 8.24.0
   - 8.23.0
@@ -87,7 +90,8 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.7.0
+  - apache-airflow>=2.8.0
+  - apache-airflow-providers-common-compat>=1.1.0
   - apache-airflow-providers-common-sql>=1.3.1
   - apache-airflow-providers-http
   # We should update minimum version of boto3 and here regularly to avoid `pip` backtracking with the number
@@ -97,7 +101,7 @@ dependencies:
   - botocore>=1.34.90
   - inflection>=0.5.1
   # Allow a wider range of watchtower versions for flexibility among users
-  - watchtower>=3.0.0,<4
+  - watchtower>=3.0.0,!=3.3.0,<4
   - jsonpath_ng>=1.5.3
   - redshift_connector>=2.0.918
   - sqlalchemy_redshift>=0.8.6
@@ -246,6 +250,12 @@ integrations:
   - integration-name: Amazon Kinesis Data Firehose
     external-doc-url: https://aws.amazon.com/kinesis/data-firehose/
     logo: /integration-logos/aws/Amazon-Kinesis-Data-Firehose_light-bg@4x.png
+    tags: [aws]
+  - integration-name: Amazon Managed Service for Apache Flink
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/kinesis_analytics.rst
+    external-doc-url: https://aws.amazon.com/managed-service-apache-flink/
+    logo: /integration-logos/aws/Amazon-Kinesis-Analytics_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon OpenSearch Serverless
     how-to-guide:
@@ -434,6 +444,9 @@ operators:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.operators.lambda_function
+  - integration-name: Amazon Managed Service for Apache Flink
+    python-modules:
+      - airflow.providers.amazon.aws.operators.kinesis_analytics
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.operators.s3
@@ -520,6 +533,9 @@ sensors:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.sensors.lambda_function
+  - integration-name: Amazon Managed Service for Apache Flink
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.kinesis_analytics
   - integration-name: Amazon OpenSearch Serverless
     python-modules:
       - airflow.providers.amazon.aws.sensors.opensearch_serverless
@@ -547,7 +563,9 @@ sensors:
 
 dataset-uris:
   - schemes: [s3]
-    handler: null
+    handler: airflow.providers.amazon.aws.datasets.s3.sanitize_uri
+    to_openlineage_converter: airflow.providers.amazon.aws.datasets.s3.convert_dataset_to_openlineage
+    factory: airflow.providers.amazon.aws.datasets.s3.create_dataset
 
 filesystems:
   - airflow.providers.amazon.aws.fs.s3
@@ -623,6 +641,9 @@ hooks:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.hooks.lambda_function
+  - integration-name: Amazon Managed Service for Apache Flink
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.kinesis_analytics
   - integration-name: Amazon CloudWatch Logs
     python-modules:
       - airflow.providers.amazon.aws.hooks.logs
@@ -702,6 +723,9 @@ triggers:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.triggers.lambda_function
+  - integration-name: Amazon Managed Service for Apache Flink
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.kinesis_analytics
   - integration-name: Amazon OpenSearch Serverless
     python-modules:
       - airflow.providers.amazon.aws.triggers.opensearch_serverless

@@ -50,7 +50,7 @@ from airflow.utils.db_cleanup import (
 from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, drop_tables_with_prefix
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.fixture(autouse=True)
@@ -297,10 +297,6 @@ class TestDBCleanup:
             assert len(session.query(model).all()) == 5
             assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
 
-    @pytest.mark.filterwarnings(
-        # This test case might import some deprecated modules, ignore it
-        "ignore:This module is deprecated.*:airflow.exceptions.RemovedInAirflow3Warning"
-    )
     def test_no_models_missing(self):
         """
         1. Verify that for all tables in `airflow.models`, we either have them enabled in db cleanup,
@@ -327,6 +323,7 @@ class TestDBCleanup:
             "ab_user",
             "variable",  # leave alone
             "dataset",  # not good way to know if "stale"
+            "dataset_alias",  # not good way to know if "stale"
             "task_map",  # keys to TI, so no need
             "serialized_dag",  # handled through FK to Dag
             "log_template",  # not a significant source of data; age not indicative of staleness
@@ -338,6 +335,7 @@ class TestDBCleanup:
             "connection",  # leave alone
             "slot_pool",  # leave alone
             "dag_schedule_dataset_reference",  # leave alone for now
+            "dag_schedule_dataset_alias_reference",  # leave alone for now
             "task_outlet_dataset_reference",  # leave alone for now
             "dataset_dag_run_queue",  # self-managed
             "dataset_event_dag_run",  # foreign keys

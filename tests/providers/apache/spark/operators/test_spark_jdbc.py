@@ -60,7 +60,7 @@ class TestSparkJDBCOperator:
 
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     def test_execute(self):
         # Given / When
@@ -132,7 +132,9 @@ class TestSparkJDBCOperator:
         assert expected_dict["use_krb5ccache"] == operator._use_krb5ccache
 
     @pytest.mark.db_test
-    def test_templating_with_create_task_instance_of_operator(self, create_task_instance_of_operator):
+    def test_templating_with_create_task_instance_of_operator(
+        self, create_task_instance_of_operator, session
+    ):
         ti = create_task_instance_of_operator(
             SparkJDBCOperator,
             # Templated fields
@@ -156,6 +158,8 @@ class TestSparkJDBCOperator:
             task_id="test_template_body_templating_task",
             execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: SparkJDBCOperator = ti.task
         assert task.application == "application"

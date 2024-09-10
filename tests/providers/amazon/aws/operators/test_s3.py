@@ -28,12 +28,6 @@ from unittest import mock
 import boto3
 import pytest
 from moto import mock_aws
-from openlineage.client.facet import (
-    LifecycleStateChange,
-    LifecycleStateChangeDatasetFacet,
-    LifecycleStateChangeDatasetFacetPreviousIdentifier,
-)
-from openlineage.client.run import Dataset
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -49,6 +43,12 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3ListOperator,
     S3ListPrefixesOperator,
     S3PutBucketTaggingOperator,
+)
+from airflow.providers.common.compat.openlineage.facet import (
+    Dataset,
+    LifecycleStateChange,
+    LifecycleStateChangeDatasetFacet,
+    PreviousIdentifier,
 )
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils.timezone import datetime, utcnow
@@ -284,6 +284,8 @@ class TestS3FileTransformOperator:
     def test_execute_with_select_expression(self, mock_select_key):
         input_path, output_path = self.s3_paths()
         select_expression = "SELECT * FROM s3object s"
+        input_serialization = None
+        output_serialization = None
 
         op = S3FileTransformOperator(
             source_s3_key=input_path,
@@ -294,7 +296,45 @@ class TestS3FileTransformOperator:
         )
         op.execute(None)
 
-        mock_select_key.assert_called_once_with(key=input_path, expression=select_expression)
+        mock_select_key.assert_called_once_with(
+            key=input_path,
+            expression=select_expression,
+            input_serialization=input_serialization,
+            output_serialization=output_serialization,
+        )
+
+        conn = boto3.client("s3")
+        result = conn.get_object(Bucket=self.bucket, Key=self.output_key)
+        assert self.content == result["Body"].read()
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook.select_key", return_value="input")
+    @mock_aws
+    def test_execute_with_select_expression_and_serialization_config(self, mock_select_key):
+        input_path, output_path = self.s3_paths()
+        select_expression = "SELECT * FROM s3object s"
+        select_expr_serialization_config = {
+            "input_serialization": {"CSV": {}},
+            "output_serialization": {"CSV": {}},
+        }
+
+        op = S3FileTransformOperator(
+            source_s3_key=input_path,
+            dest_s3_key=output_path,
+            select_expression=select_expression,
+            select_expr_serialization_config=select_expr_serialization_config,
+            replace=True,
+            task_id="task_id",
+        )
+        op.execute(None)
+
+        input_serialization = select_expr_serialization_config.get("input_serialization")
+        output_serialization = select_expr_serialization_config.get("output_serialization")
+        mock_select_key.assert_called_once_with(
+            key=input_path,
+            expression=select_expression,
+            input_serialization=input_serialization,
+            output_serialization=output_serialization,
+        )
 
         conn = boto3.client("s3")
         result = conn.get_object(Bucket=self.bucket, Key=self.output_key)
@@ -733,7 +773,7 @@ class TestS3DeleteObjectsOperator:
             facets={
                 "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
                     lifecycleStateChange=LifecycleStateChange.DROP.value,
-                    previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
+                    previousIdentifier=PreviousIdentifier(
                         namespace=f"s3://{bucket}",
                         name="path/data.txt",
                     ),
@@ -759,7 +799,7 @@ class TestS3DeleteObjectsOperator:
                 facets={
                     "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
                         lifecycleStateChange=LifecycleStateChange.DROP.value,
-                        previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
+                        previousIdentifier=PreviousIdentifier(
                             namespace=f"s3://{bucket}",
                             name="path/data1.txt",
                         ),
@@ -772,7 +812,7 @@ class TestS3DeleteObjectsOperator:
                 facets={
                     "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
                         lifecycleStateChange=LifecycleStateChange.DROP.value,
-                        previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
+                        previousIdentifier=PreviousIdentifier(
                             namespace=f"s3://{bucket}",
                             name="path/data2.txt",
                         ),

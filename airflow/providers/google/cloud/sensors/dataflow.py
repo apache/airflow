@@ -23,7 +23,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataflow import (
     DEFAULT_DATAFLOW_LOCATION,
     DataflowHook,
@@ -117,10 +117,7 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         if job_status in self.expected_statuses:
             return True
         elif job_status in DataflowJobStatus.TERMINAL_STATES:
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
 
         return False
@@ -154,9 +151,6 @@ class DataflowJobStatusSensor(BaseSensorOperator):
         if event["status"] == "success":
             self.log.info(event["message"])
             return True
-        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-        if self.soft_fail:
-            raise AirflowSkipException(f"Sensor failed with the following message: {event['message']}.")
         raise AirflowException(f"Sensor failed with the following message: {event['message']}")
 
     @cached_property
@@ -235,10 +229,7 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
             )
             job_status = job["currentState"]
             if job_status in DataflowJobStatus.TERMINAL_STATES:
-                # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
                 message = f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
-                if self.soft_fail:
-                    raise AirflowSkipException(message)
                 raise AirflowException(message)
 
         result = self.hook.fetch_job_metrics_by_id(
@@ -279,9 +270,6 @@ class DataflowJobMetricsSensor(BaseSensorOperator):
         if event["status"] == "success":
             self.log.info(event["message"])
             return event["result"] if self.callback is None else self.callback(event["result"])
-        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-        if self.soft_fail:
-            raise AirflowSkipException(f"Sensor failed with the following message: {event['message']}.")
         raise AirflowException(f"Sensor failed with the following message: {event['message']}")
 
     @cached_property
@@ -362,10 +350,7 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
             )
             job_status = job["currentState"]
             if job_status in DataflowJobStatus.TERMINAL_STATES:
-                # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
                 message = f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
-                if self.soft_fail:
-                    raise AirflowSkipException(message)
                 raise AirflowException(message)
 
         result = self.hook.fetch_job_messages_by_id(
@@ -407,9 +392,6 @@ class DataflowJobMessagesSensor(BaseSensorOperator):
         if event["status"] == "success":
             self.log.info(event["message"])
             return event["result"] if self.callback is None else self.callback(event["result"])
-        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-        if self.soft_fail:
-            raise AirflowSkipException(f"Sensor failed with the following message: {event['message']}.")
         raise AirflowException(f"Sensor failed with the following message: {event['message']}")
 
     @cached_property
@@ -490,10 +472,7 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
             )
             job_status = job["currentState"]
             if job_status in DataflowJobStatus.TERMINAL_STATES:
-                # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
                 message = f"Job with id '{self.job_id}' is already in terminal state: {job_status}"
-                if self.soft_fail:
-                    raise AirflowSkipException(message)
                 raise AirflowException(message)
 
         result = self.hook.fetch_job_autoscaling_events_by_id(
@@ -534,9 +513,6 @@ class DataflowJobAutoScalingEventsSensor(BaseSensorOperator):
         if event["status"] == "success":
             self.log.info(event["message"])
             return event["result"] if self.callback is None else self.callback(event["result"])
-        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-        if self.soft_fail:
-            raise AirflowSkipException(f"Sensor failed with the following message: {event['message']}.")
         raise AirflowException(f"Sensor failed with the following message: {event['message']}")
 
     @cached_property

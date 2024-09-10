@@ -18,9 +18,10 @@
 from __future__ import annotations
 
 import datetime
-from typing import TYPE_CHECKING, NoReturn
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from airflow.sensors.base import BaseSensorOperator
+from airflow.triggers.base import StartTriggerArgs
 from airflow.triggers.temporal import DateTimeTrigger
 from airflow.utils import timezone
 
@@ -56,14 +57,37 @@ class TimeSensorAsync(BaseSensorOperator):
     This frees up a worker slot while it is waiting.
 
     :param target_time: time after which the job succeeds
+    :param start_from_trigger: Start the task directly from the triggerer without going into the worker.
+    :param end_from_trigger: End the task directly from the triggerer without going into the worker.
+    :param trigger_kwargs: The keyword arguments passed to the trigger when start_from_trigger is set to True
+        during dynamic task mapping. This argument is not used in standard usage.
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/operator:TimeSensorAsync`
     """
 
-    def __init__(self, *, target_time: datetime.time, **kwargs) -> None:
+    start_trigger_args = StartTriggerArgs(
+        trigger_cls="airflow.triggers.temporal.DateTimeTrigger",
+        trigger_kwargs={"moment": "", "end_from_trigger": False},
+        next_method="execute_complete",
+        next_kwargs=None,
+        timeout=None,
+    )
+    start_from_trigger = False
+
+    def __init__(
+        self,
+        *,
+        target_time: datetime.time,
+        start_from_trigger: bool = False,
+        trigger_kwargs: dict[str, Any] | None = None,
+        end_from_trigger: bool = False,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
+        self.start_from_trigger = start_from_trigger
+        self.end_from_trigger = end_from_trigger
         self.target_time = target_time
 
         aware_time = timezone.coerce_datetime(
@@ -71,14 +95,17 @@ class TimeSensorAsync(BaseSensorOperator):
         )
 
         self.target_datetime = timezone.convert_to_utc(aware_time)
+        if self.start_from_trigger:
+            self.start_trigger_args.trigger_kwargs = dict(
+                moment=self.target_datetime, end_from_trigger=self.end_from_trigger
+            )
 
     def execute(self, context: Context) -> NoReturn:
-        trigger = DateTimeTrigger(moment=self.target_datetime)
         self.defer(
-            trigger=trigger,
+            trigger=DateTimeTrigger(moment=self.target_datetime, end_from_trigger=self.end_from_trigger),
             method_name="execute_complete",
         )
 
-    def execute_complete(self, context, event=None) -> None:
-        """Execute when the trigger fires - returns immediately."""
+    def execute_complete(self, context: Context, event: Any = None) -> None:
+        """Handle the event when the trigger fires and return immediately."""
         return None

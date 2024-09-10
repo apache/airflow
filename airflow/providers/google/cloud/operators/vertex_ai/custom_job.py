@@ -23,7 +23,6 @@ import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from deprecated import deprecated
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform.models import Model
@@ -44,6 +43,7 @@ from airflow.providers.google.cloud.triggers.vertex_ai import (
     CustomPythonPackageTrainingJobTrigger,
     CustomTrainingJobTrigger,
 )
+from airflow.providers.google.common.deprecated import deprecated
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -179,6 +179,40 @@ class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):
             AirflowProviderDeprecationWarning,
             stacklevel=2,
         )
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> dict[str, Any] | None:
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+        training_pipeline = event["job"]
+        custom_job_id = self.hook.extract_custom_job_id_from_training_pipeline(training_pipeline)
+        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
+        try:
+            model = training_pipeline["model_to_upload"]
+            model_id = self.hook.extract_model_id(model)
+            self.xcom_push(context, key="model_id", value=model_id)
+            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+            return model
+        except KeyError:
+            self.log.warning(
+                "It is impossible to get the Model. "
+                "The Training Pipeline did not produce a Managed Model because it was not "
+                "configured to upload a Model. Please ensure that the 'model_serving_container_image_uri' "
+                "and 'model_display_name' parameters are passed in when creating a Training Pipeline, "
+                "and check that your training script saves the model to os.environ['AIP_MODEL_DIR']."
+            )
+            return None
+
+    @cached_property
+    def hook(self) -> CustomJobHook:
+        return CustomJobHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    def on_kill(self) -> None:
+        """Act as a callback called when the operator is killed; cancel any running job."""
+        if self.hook:
+            self.hook.cancel_job()
 
 
 class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
@@ -565,23 +599,6 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
-    def on_kill(self) -> None:
-        """Act as a callback called when the operator is killed; cancel any running job."""
-        if self.hook:
-            self.hook.cancel_job()
-
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> dict[str, Any] | None:
-        if event["status"] == "error":
-            raise AirflowException(event["message"])
-        result = event["job"]
-        model_id = self.hook.extract_model_id_from_training_pipeline(result)
-        custom_job_id = self.hook.extract_custom_job_id_from_training_pipeline(result)
-        self.xcom_push(context, key="model_id", value=model_id)
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
-        # push custom_job_id to xcom so it could be pulled by other tasks
-        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
-        return result
-
     def invoke_defer(self, context: Context) -> None:
         custom_container_training_job_obj: CustomContainerTrainingJob = self.hook.submit_custom_container_training_job(
             project_id=self.project_id,
@@ -649,13 +666,6 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
                 impersonation_chain=self.impersonation_chain,
             ),
             method_name="execute_complete",
-        )
-
-    @cached_property
-    def hook(self) -> CustomJobHook:
-        return CustomJobHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
         )
 
 
@@ -1042,23 +1052,6 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
-    def on_kill(self) -> None:
-        """Cancel any running job. Callback called when the operator is killed."""
-        if self.hook:
-            self.hook.cancel_job()
-
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> dict[str, Any] | None:
-        if event["status"] == "error":
-            raise AirflowException(event["message"])
-        result = event["job"]
-        model_id = self.hook.extract_model_id_from_training_pipeline(result)
-        custom_job_id = self.hook.extract_custom_job_id_from_training_pipeline(result)
-        self.xcom_push(context, key="model_id", value=model_id)
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
-        # push custom_job_id to xcom so it could be pulled by other tasks
-        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
-        return result
-
     def invoke_defer(self, context: Context) -> None:
         custom_python_training_job_obj: CustomPythonPackageTrainingJob = self.hook.submit_custom_python_package_training_job(
             project_id=self.project_id,
@@ -1127,13 +1120,6 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
                 impersonation_chain=self.impersonation_chain,
             ),
             method_name="execute_complete",
-        )
-
-    @cached_property
-    def hook(self) -> CustomJobHook:
-        return CustomJobHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
         )
 
 
@@ -1525,23 +1511,6 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
-    def on_kill(self) -> None:
-        """Cancel any running job. Callback called when the operator is killed."""
-        if self.hook:
-            self.hook.cancel_job()
-
-    def execute_complete(self, context: Context, event: dict[str, Any]) -> dict[str, Any] | None:
-        if event["status"] == "error":
-            raise AirflowException(event["message"])
-        result = event["job"]
-        model_id = self.hook.extract_model_id_from_training_pipeline(result)
-        custom_job_id = self.hook.extract_custom_job_id_from_training_pipeline(result)
-        self.xcom_push(context, key="model_id", value=model_id)
-        VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
-        # push custom_job_id to xcom so it could be pulled by other tasks
-        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
-        return result
-
     def invoke_defer(self, context: Context) -> None:
         custom_training_job_obj: CustomTrainingJob = self.hook.submit_custom_training_job(
             project_id=self.project_id,
@@ -1612,13 +1581,6 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             method_name="execute_complete",
         )
 
-    @cached_property
-    def hook(self) -> CustomJobHook:
-        return CustomJobHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-
 
 class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
     """
@@ -1671,8 +1633,8 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
 
     @property
     @deprecated(
-        reason="`training_pipeline` is deprecated and will be removed in the future. "
-        "Please use `training_pipeline_id` instead.",
+        planned_removal_date="March 01, 2025",
+        use_instead="training_pipeline_id",
         category=AirflowProviderDeprecationWarning,
     )
     def training_pipeline(self):
@@ -1681,8 +1643,8 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
 
     @property
     @deprecated(
-        reason="`custom_job` is deprecated and will be removed in the future. "
-        "Please use `custom_job_id` instead.",
+        planned_removal_date="March 01, 2025",
+        use_instead="custom_job_id",
         category=AirflowProviderDeprecationWarning,
     )
     def custom_job(self):

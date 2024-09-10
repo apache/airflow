@@ -27,11 +27,14 @@ from click import IntRange
 from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.common_options import (
     option_backend,
+    option_clean_airflow_installation,
+    option_database_isolation,
     option_db_reset,
     option_debug_resources,
     option_downgrade_pendulum,
     option_downgrade_sqlalchemy,
     option_dry_run,
+    option_excluded_providers,
     option_force_lowest_dependencies,
     option_forward_credentials,
     option_github_repository,
@@ -42,9 +45,9 @@ from airflow_breeze.commands.common_options import (
     option_keep_env_variables,
     option_mount_sources,
     option_mysql_version,
+    option_no_db_cleanup,
     option_parallelism,
     option_postgres_version,
-    option_pydantic,
     option_python,
     option_run_db_tests_only,
     option_run_in_parallel,
@@ -203,6 +206,7 @@ def _run_test(
             parallel_test_types_list=shell_params.parallel_test_types_list,
             helm_test_package=None,
             keep_env_variables=shell_params.keep_env_variables,
+            no_db_cleanup=shell_params.no_db_cleanup,
         )
     )
     run_cmd.extend(list(extra_pytest_args))
@@ -502,12 +506,15 @@ option_force_sa_warnings = click.option(
 @option_airflow_constraints_reference
 @option_backend
 @option_collect_only
+@option_clean_airflow_installation
+@option_database_isolation
 @option_db_reset
 @option_debug_resources
 @option_downgrade_pendulum
 @option_downgrade_sqlalchemy
 @option_dry_run
 @option_enable_coverage
+@option_excluded_providers
 @option_excluded_parallel_test_types
 @option_force_sa_warnings
 @option_force_lowest_dependencies
@@ -520,13 +527,13 @@ option_force_sa_warnings = click.option(
 @option_keep_env_variables
 @option_mount_sources
 @option_mysql_version
+@option_no_db_cleanup
 @option_package_format
 @option_parallel_test_types
 @option_parallelism
 @option_postgres_version
 @option_providers_constraints_location
 @option_providers_skip_constraints
-@option_pydantic
 @option_python
 @option_remove_arm_packages
 @option_run_db_tests_only
@@ -561,12 +568,15 @@ def command_for_tests(**kwargs):
 @option_airflow_constraints_reference
 @option_backend
 @option_collect_only
+@option_clean_airflow_installation
+@option_database_isolation
 @option_debug_resources
 @option_downgrade_pendulum
 @option_downgrade_sqlalchemy
 @option_dry_run
 @option_enable_coverage
 @option_excluded_parallel_test_types
+@option_excluded_providers
 @option_forward_credentials
 @option_force_lowest_dependencies
 @option_github_repository
@@ -576,13 +586,13 @@ def command_for_tests(**kwargs):
 @option_keep_env_variables
 @option_mount_sources
 @option_mysql_version
+@option_no_db_cleanup
 @option_package_format
 @option_parallel_test_types
 @option_parallelism
 @option_postgres_version
 @option_providers_constraints_location
 @option_providers_skip_constraints
-@option_pydantic
 @option_python
 @option_remove_arm_packages
 @option_skip_cleanup
@@ -621,12 +631,14 @@ def command_for_db_tests(**kwargs):
 )
 @option_airflow_constraints_reference
 @option_collect_only
+@option_clean_airflow_installation
 @option_debug_resources
 @option_downgrade_sqlalchemy
 @option_downgrade_pendulum
 @option_dry_run
 @option_enable_coverage
 @option_excluded_parallel_test_types
+@option_excluded_providers
 @option_forward_credentials
 @option_force_lowest_dependencies
 @option_github_repository
@@ -635,12 +647,12 @@ def command_for_db_tests(**kwargs):
 @option_install_airflow_with_constraints
 @option_keep_env_variables
 @option_mount_sources
+@option_no_db_cleanup
 @option_package_format
 @option_parallel_test_types
 @option_parallelism
 @option_providers_constraints_location
 @option_providers_skip_constraints
-@option_pydantic
 @option_python
 @option_remove_arm_packages
 @option_skip_cleanup
@@ -655,15 +667,16 @@ def command_for_db_tests(**kwargs):
 @option_verbose
 def command_for_non_db_tests(**kwargs):
     _run_test_command(
-        integration=(),
-        run_in_parallel=False,
-        use_xdist=True,
-        skip_db_tests=True,
-        run_db_tests_only=False,
-        test_type="Default",
-        db_reset=False,
         backend="none",
+        database_isolation=False,
+        db_reset=False,
         extra_pytest_args=(),
+        integration=(),
+        run_db_tests_only=False,
+        run_in_parallel=False,
+        skip_db_tests=True,
+        test_type="Default",
+        use_xdist=True,
         **kwargs,
     )
 
@@ -673,12 +686,15 @@ def _run_test_command(
     airflow_constraints_reference: str,
     backend: str,
     collect_only: bool,
+    clean_airflow_installation: bool,
     db_reset: bool,
+    database_isolation: bool,
     debug_resources: bool,
     downgrade_sqlalchemy: bool,
     downgrade_pendulum: bool,
     enable_coverage: bool,
     excluded_parallel_test_types: str,
+    excluded_providers: str,
     extra_pytest_args: tuple,
     force_sa_warnings: bool,
     forward_credentials: bool,
@@ -690,12 +706,12 @@ def _run_test_command(
     integration: tuple[str, ...],
     keep_env_variables: bool,
     mount_sources: str,
+    no_db_cleanup: bool,
     parallel_test_types: str,
     parallelism: int,
     package_format: str,
     providers_constraints_location: str,
     providers_skip_constraints: bool,
-    pydantic: str,
     python: str,
     remove_arm_packages: bool,
     run_db_tests_only: bool,
@@ -729,9 +745,12 @@ def _run_test_command(
         airflow_constraints_reference=airflow_constraints_reference,
         backend=backend,
         collect_only=collect_only,
+        clean_airflow_installation=clean_airflow_installation,
+        database_isolation=database_isolation,
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         downgrade_pendulum=downgrade_pendulum,
         enable_coverage=enable_coverage,
+        excluded_providers=excluded_providers,
         force_sa_warnings=force_sa_warnings,
         force_lowest_dependencies=force_lowest_dependencies,
         forward_credentials=forward_credentials,
@@ -743,13 +762,13 @@ def _run_test_command(
         keep_env_variables=keep_env_variables,
         mount_sources=mount_sources,
         mysql_version=mysql_version,
+        no_db_cleanup=no_db_cleanup,
         package_format=package_format,
         parallel_test_types_list=test_list,
         parallelism=parallelism,
         postgres_version=postgres_version,
         providers_constraints_location=providers_constraints_location,
         providers_skip_constraints=providers_skip_constraints,
-        pydantic=pydantic,
         python=python,
         remove_arm_packages=remove_arm_packages,
         run_db_tests_only=run_db_tests_only,
@@ -767,11 +786,6 @@ def _run_test_command(
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     perform_environment_checks()
-    if pydantic != "v2":
-        # Avoid edge cases when there are no available tests, e.g. No-Pydantic for Weaviate provider.
-        # https://docs.pytest.org/en/stable/reference/exit-codes.html
-        # https://github.com/apache/airflow/pull/38402#issuecomment-2014938950
-        extra_pytest_args = (*extra_pytest_args, "--suppress-no-test-exit-code")
     if skip_providers:
         ignored_path_list = [
             f"--ignore=tests/providers/{provider_id.replace('.','/')}"
@@ -954,6 +968,7 @@ def helm_tests(
         python_version=shell_params.python,
         helm_test_package=helm_test_package,
         keep_env_variables=False,
+        no_db_cleanup=False,
     )
     cmd = ["docker", "compose", "run", "--service-ports", "--rm", "airflow", *pytest_args, *extra_pytest_args]
     result = run_command(cmd, check=False, env=env, output_outside_the_group=True)

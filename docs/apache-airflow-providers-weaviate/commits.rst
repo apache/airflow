@@ -35,14 +35,32 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-1.4.2
+2.1.0
 .....
 
-Latest change: 2024-06-19
+Latest change: 2024-08-12
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+=================================================================================================  ===========  =======================================================================
+
+2.0.0
+.....
+
+Latest change: 2024-07-12
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`c09fcdf1d0 <https://github.com/apache/airflow/commit/c09fcdf1d0e69497cf1b628df9ba3349eb688256>`_  2024-07-12   ``Prepare Providers docs RC2 1st wave July 2024 (#40750)``
+`728ee2ea08 <https://github.com/apache/airflow/commit/728ee2ea08c33d0c65d123dcf3d49e62434e73c7>`_  2024-07-09   ``fix two typos (#40670)``
+`7061fdd498 <https://github.com/apache/airflow/commit/7061fdd49808c0214ae302acc2d98ed23c4f92be>`_  2024-07-09   ``Fix weaviate changelog to bring back 1.4.2 (#40663)``
+`09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``
+`a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+`dcaf82a155 <https://github.com/apache/airflow/commit/dcaf82a155337e36d133ff673bafc5cf50303034>`_  2024-06-26   ``Upgrade to weaviate-client to v4 (#40194)``
+`6e5ae26382 <https://github.com/apache/airflow/commit/6e5ae26382b328e88907e8301d4b2352ef8524c5>`_  2024-06-22   ``Prepare docs 2nd wave June 2024 (#40273)``
 `d048122eb1 <https://github.com/apache/airflow/commit/d048122eb1899a5d5d16ad67b876d7e7c6982e66>`_  2024-06-19   ``Fix mypy problems in new waeviate client (#40330)``
 `81c331e29a <https://github.com/apache/airflow/commit/81c331e29a0e112380b634966c69342fa69bdd55>`_  2024-06-17   ``Update pandas minimum requirement for Python 3.12 (#40272)``
 `35871f8bb5 <https://github.com/apache/airflow/commit/35871f8bb537390fc435a4b83e53da452494725f>`_  2024-06-15   ``Add dependency to httpx >= 0.25.0 everywhere (#40256)``

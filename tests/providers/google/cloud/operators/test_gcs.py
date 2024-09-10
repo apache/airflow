@@ -21,14 +21,15 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
+import pendulum
 import pytest
-from openlineage.client.facet import (
+
+from airflow.providers.common.compat.openlineage.facet import (
+    Dataset,
     LifecycleStateChange,
     LifecycleStateChangeDatasetFacet,
-    LifecycleStateChangeDatasetFacetPreviousIdentifier,
+    PreviousIdentifier,
 )
-from openlineage.client.run import Dataset
-
 from airflow.providers.google.cloud.operators.gcs import (
     GCSBucketCreateAclEntryOperator,
     GCSCreateBucketOperator,
@@ -40,6 +41,7 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSSynchronizeBucketsOperator,
     GCSTimeSpanFileTransformOperator,
 )
+from airflow.timetables.base import DagRunInfo, DataInterval
 
 TASK_ID = "test-gcs-operator"
 TEST_BUCKET = "test-bucket"
@@ -208,7 +210,7 @@ class TestGCSDeleteObjectsOperator:
                 facets={
                     "lifecycleStateChange": LifecycleStateChangeDatasetFacet(
                         lifecycleStateChange=LifecycleStateChange.DROP.value,
-                        previousIdentifier=LifecycleStateChangeDatasetFacetPreviousIdentifier(
+                        previousIdentifier=PreviousIdentifier(
                             namespace=bucket_url,
                             name=name,
                         ),
@@ -224,7 +226,8 @@ class TestGCSDeleteObjectsOperator:
         lineage = operator.get_openlineage_facets_on_start()
         assert len(lineage.inputs) == len(inputs)
         assert len(lineage.outputs) == 0
-        assert sorted(lineage.inputs) == sorted(expected_inputs)
+        assert all(element in lineage.inputs for element in expected_inputs)
+        assert all(element in expected_inputs for element in lineage.inputs)
 
 
 class TestGoogleCloudStorageListOperator:
@@ -394,7 +397,15 @@ class TestGCSTimeSpanFileTransformOperator:
         timespan_start = datetime(2015, 2, 1, 15, 16, 17, 345, tzinfo=timezone.utc)
         timespan_end = timespan_start + timedelta(hours=1)
         mock_dag = mock.Mock()
-        mock_dag.following_schedule = lambda x: x + timedelta(hours=1)
+        mock_dag.next_dagrun_info.side_effect = [
+            DagRunInfo(
+                run_after=pendulum.instance(timespan_start),
+                data_interval=DataInterval(
+                    start=pendulum.instance(timespan_start),
+                    end=pendulum.instance(timespan_end),
+                ),
+            ),
+        ]
         mock_ti = mock.Mock()
         context = dict(
             execution_date=timespan_start,
@@ -574,7 +585,15 @@ class TestGCSTimeSpanFileTransformOperator:
 
         timespan_start = datetime(2015, 2, 1, 15, 16, 17, 345, tzinfo=timezone.utc)
         mock_dag = mock.Mock()
-        mock_dag.following_schedule = lambda x: x + timedelta(hours=1)
+        mock_dag.next_dagrun_info.side_effect = [
+            DagRunInfo(
+                run_after=pendulum.instance(timespan_start),
+                data_interval=DataInterval(
+                    start=pendulum.instance(timespan_start),
+                    end=None,
+                ),
+            ),
+        ]
         context = dict(
             execution_date=timespan_start,
             dag=mock_dag,
@@ -619,8 +638,10 @@ class TestGCSTimeSpanFileTransformOperator:
         lineage = op.get_openlineage_facets_on_complete(None)
         assert len(lineage.inputs) == len(inputs)
         assert len(lineage.outputs) == len(outputs)
-        assert sorted(lineage.inputs) == sorted(inputs)
-        assert sorted(lineage.outputs) == sorted(outputs)
+        assert all(element in lineage.inputs for element in inputs)
+        assert all(element in inputs for element in lineage.inputs)
+        assert all(element in lineage.outputs for element in outputs)
+        assert all(element in outputs for element in lineage.outputs)
 
 
 class TestGCSDeleteBucketOperator:

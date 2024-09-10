@@ -30,6 +30,7 @@ from airflow.api_connexion.exceptions import BadRequest, NotFound, PermissionDen
 from airflow.api_connexion.parameters import format_datetime, format_parameters
 from airflow.api_connexion.schemas.task_instance_schema import (
     TaskInstanceCollection,
+    TaskInstanceHistoryCollection,
     TaskInstanceReferenceCollection,
     clear_task_instance_form,
     set_single_task_instance_state_form,
@@ -38,6 +39,8 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_dependencies_collection_schema,
     task_instance_batch_form,
     task_instance_collection_schema,
+    task_instance_history_collection_schema,
+    task_instance_history_schema,
     task_instance_reference_collection_schema,
     task_instance_reference_schema,
     task_instance_schema,
@@ -48,6 +51,7 @@ from airflow.exceptions import TaskNotFound
 from airflow.models import SlaMiss
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
+from airflow.models.taskinstancehistory import TaskInstanceHistory as TIH
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -58,6 +62,7 @@ from airflow.www.extensions.init_auth_manager import get_auth_manager
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
     from sqlalchemy.sql import ClauseElement, Select
+    from sqlalchemy.sql.expression import ColumnOperators
 
     from airflow.api_connexion.types import APIResponse
     from airflow.auth.managers.models.batch_apis import IsAuthorizedDagRequest
@@ -241,28 +246,11 @@ def get_mapped_task_instances(
         .options(joinedload(TI.rendered_task_instance_fields))
     )
 
-    if order_by is None:
-        entry_query = entry_query.order_by(TI.map_index.asc())
-    elif order_by == "state":
-        entry_query = entry_query.order_by(TI.state.asc(), TI.map_index.asc())
-    elif order_by == "-state":
-        entry_query = entry_query.order_by(TI.state.desc(), TI.map_index.asc())
-    elif order_by == "duration":
-        entry_query = entry_query.order_by(TI.duration.asc(), TI.map_index.asc())
-    elif order_by == "-duration":
-        entry_query = entry_query.order_by(TI.duration.desc(), TI.map_index.asc())
-    elif order_by == "start_date":
-        entry_query = entry_query.order_by(TI.start_date.asc(), TI.map_index.asc())
-    elif order_by == "-start_date":
-        entry_query = entry_query.order_by(TI.start_date.desc(), TI.map_index.asc())
-    elif order_by == "end_date":
-        entry_query = entry_query.order_by(TI.end_date.asc(), TI.map_index.asc())
-    elif order_by == "-end_date":
-        entry_query = entry_query.order_by(TI.end_date.desc(), TI.map_index.asc())
-    elif order_by == "-map_index":
-        entry_query = entry_query.order_by(TI.map_index.desc())
-    else:
-        raise BadRequest(detail=f"Ordering with '{order_by}' is not supported")
+    try:
+        order_by_params = _get_order_by_params(order_by)
+        entry_query = entry_query.order_by(*order_by_params)
+    except _UnsupportedOrderBy as e:
+        raise BadRequest(detail=f"Ordering with {e.order_by!r} is not supported")
 
     # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
     task_instances = session.execute(entry_query.offset(offset).limit(limit)).all()
@@ -291,6 +279,39 @@ def _apply_range_filter(query: Select, key: ClauseElement, value_range: tuple[T,
     if lte_value is not None:
         query = query.where(key <= lte_value)
     return query
+
+
+class _UnsupportedOrderBy(ValueError):
+    def __init__(self, order_by: str) -> None:
+        super().__init__(order_by)
+        self.order_by = order_by
+
+
+def _get_order_by_params(order_by: str | None = None) -> tuple[ColumnOperators, ...]:
+    """Return a tuple with the order by params to be used in the query."""
+    if order_by is None:
+        return (TI.map_index.asc(),)
+    if order_by == "state":
+        return (TI.state.asc(), TI.map_index.asc())
+    if order_by == "-state":
+        return (TI.state.desc(), TI.map_index.asc())
+    if order_by == "duration":
+        return (TI.duration.asc(), TI.map_index.asc())
+    if order_by == "-duration":
+        return (TI.duration.desc(), TI.map_index.asc())
+    if order_by == "start_date":
+        return (TI.start_date.asc(), TI.map_index.asc())
+    if order_by == "-start_date":
+        return (TI.start_date.desc(), TI.map_index.asc())
+    if order_by == "end_date":
+        return (TI.end_date.asc(), TI.map_index.asc())
+    if order_by == "-end_date":
+        return (TI.end_date.desc(), TI.map_index.asc())
+    if order_by == "map_index":
+        return (TI.map_index.asc(),)
+    if order_by == "-map_index":
+        return (TI.map_index.desc(),)
+    raise _UnsupportedOrderBy(order_by)
 
 
 @format_parameters(
@@ -327,6 +348,7 @@ def get_task_instances(
     queue: list[str] | None = None,
     executor: list[str] | None = None,
     offset: int | None = None,
+    order_by: str | None = None,
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get list of task instances."""
@@ -374,11 +396,16 @@ def get_task_instances(
         )
         .add_columns(SlaMiss)
         .options(joinedload(TI.rendered_task_instance_fields))
-        .offset(offset)
-        .limit(limit)
     )
+
+    try:
+        order_by_params = _get_order_by_params(order_by)
+        entry_query = entry_query.order_by(*order_by_params)
+    except _UnsupportedOrderBy as e:
+        raise BadRequest(detail=f"Ordering with {e.order_by!r} is not supported")
+
     # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
-    task_instances = session.execute(entry_query).all()
+    task_instances = session.execute(entry_query.offset(offset).limit(limit)).all()
     return task_instance_collection_schema.dump(
         TaskInstanceCollection(task_instances=task_instances, total_entries=total_entries)
     )
@@ -449,6 +476,13 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     ti_query = base_query.options(
         joinedload(TI.rendered_task_instance_fields), joinedload(TI.task_instance_note)
     )
+
+    try:
+        order_by_params = _get_order_by_params(data["order_by"])
+        ti_query = ti_query.order_by(*order_by_params)
+    except _UnsupportedOrderBy as e:
+        raise BadRequest(detail=f"Ordering with {e.order_by!r} is not supported")
+
     # using execute because we want the SlaMiss entity. Scalars don't return None for missing entities
     task_instances = session.execute(ti_query).all()
 
@@ -753,4 +787,109 @@ def get_mapped_task_instance_dependencies(
     """Get dependencies blocking mapped task instance from getting scheduled."""
     return get_task_instance_dependencies(
         dag_id=dag_id, dag_run_id=dag_run_id, task_id=task_id, map_index=map_index
+    )
+
+
+@security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
+@provide_session
+def get_task_instance_try_details(
+    *,
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    task_try_number: int,
+    map_index: int = -1,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
+    """Get details of a task instance try."""
+
+    def _query(orm_object):
+        query = select(orm_object).where(
+            orm_object.dag_id == dag_id,
+            orm_object.run_id == dag_run_id,
+            orm_object.task_id == task_id,
+            orm_object.try_number == task_try_number,
+            orm_object.map_index == map_index,
+        )
+        try:
+            result = session.execute(query).one_or_none()
+        except MultipleResultsFound:
+            raise NotFound(
+                "Task instance not found",
+                detail="Task instance is mapped, add the map_index value to the URL",
+            )
+        return result
+
+    result = _query(TI) or _query(TIH)
+    if result is None:
+        error_message = f"Task Instance not found for dag_id={dag_id}, run_id={dag_run_id}, task_id={task_id}, map_index={map_index}, try_number={task_try_number}."
+        raise NotFound("Task instance not found", detail=error_message)
+    return task_instance_history_schema.dump(result[0])
+
+
+@provide_session
+def get_mapped_task_instance_try_details(
+    *,
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    task_try_number: int,
+    map_index: int,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
+    """Get details of a mapped task instance try."""
+    return get_task_instance_try_details(
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
+        task_try_number=task_try_number,
+        map_index=map_index,
+        session=session,
+    )
+
+
+@security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
+@provide_session
+def get_task_instance_tries(
+    *,
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    map_index: int = -1,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
+    """Get list of task instances history."""
+
+    def _query(orm_object):
+        query = select(orm_object).where(
+            orm_object.dag_id == dag_id,
+            orm_object.run_id == dag_run_id,
+            orm_object.task_id == task_id,
+            orm_object.map_index == map_index,
+        )
+        return query
+
+    task_instances = session.scalars(_query(TIH)).all() + session.scalars(_query(TI)).all()
+    return task_instance_history_collection_schema.dump(
+        TaskInstanceHistoryCollection(task_instances=task_instances, total_entries=len(task_instances))
+    )
+
+
+@security.requires_access_dag("GET", DagAccessEntity.TASK_INSTANCE)
+@provide_session
+def get_mapped_task_instance_tries(
+    *,
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    map_index: int,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
+    """Get list of mapped task instances history."""
+    return get_task_instance_tries(
+        dag_id=dag_id,
+        dag_run_id=dag_run_id,
+        task_id=task_id,
+        map_index=map_index,
+        session=session,
     )

@@ -40,6 +40,10 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.operators.test_python import BasePythonTest
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -207,12 +211,13 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         assert identity_notyping_with_decorator_call(5).operator.multiple_outputs is False
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_manual_multiple_outputs_false_with_typings(self):
         @task_decorator(multiple_outputs=False)
         def identity2(x: int, y: int) -> Tuple[int, int]:
             return x, y
 
-        with self.dag:
+        with self.dag_non_serialized:
             res = identity2(8, 4)
 
         dr = self.create_dag_run()
@@ -225,12 +230,13 @@ class TestAirflowTaskDecorator(BasePythonTest):
         assert ti.xcom_pull(key="return_value_0") is None
         assert ti.xcom_pull(key="return_value_1") is None
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_multiple_outputs_ignore_typing(self):
         @task_decorator
         def identity_tuple(x: int, y: int) -> Tuple[int, int]:
             return x, y
 
-        with self.dag:
+        with self.dag_non_serialized:
             ident = identity_tuple(35, 36)
 
         dr = self.create_dag_run()
@@ -284,7 +290,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         def add_number(num: int):
             return {2: num}
 
-        with self.dag:
+        with self.dag_non_serialized:
             ret = add_number(2)
 
         self.create_dag_run()
@@ -296,19 +302,20 @@ class TestAirflowTaskDecorator(BasePythonTest):
         def add_number(num: int):
             return num
 
-        with self.dag:
+        with self.dag_non_serialized:
             ret = add_number(2)
 
         self.create_dag_run()
         with pytest.raises(AirflowException):
             ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_multiple_outputs_empty_dict(self):
         @task_decorator(multiple_outputs=True)
         def empty_dict():
             return {}
 
-        with self.dag:
+        with self.dag_non_serialized:
             ret = empty_dict()
 
         dr = self.create_dag_run()
@@ -316,12 +323,13 @@ class TestAirflowTaskDecorator(BasePythonTest):
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == {}
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_multiple_outputs_return_none(self):
         @task_decorator(multiple_outputs=True)
         def test_func():
             return
 
-        with self.dag:
+        with self.dag_non_serialized:
             ret = test_func()
 
         dr = self.create_dag_run()
@@ -329,6 +337,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() is None
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_python_callable_arguments_are_templatized(self):
         """Test @task op_args are templatized"""
 
@@ -341,7 +350,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         Named = namedtuple("Named", ["var1", "var2"])
         named_tuple = Named("{{ ds }}", "unchanged")
 
-        with self.dag:
+        with self.dag_non_serialized:
             ret = arg_task(4, date(2019, 1, 1), "dag {{dag.dag_id}} ran on {{ds}}.", named_tuple)
 
         dr = self.create_dag_run()
@@ -353,6 +362,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         assert rendered_op_args[2] == f"dag {self.dag_id} ran on {self.ds_templated}."
         assert rendered_op_args[3] == Named(self.ds_templated, "unchanged")
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_python_callable_keyword_arguments_are_templatized(self):
         """Test PythonOperator op_kwargs are templatized"""
 
@@ -360,7 +370,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         def kwargs_task(an_int, a_date, a_templated_string):
             raise RuntimeError("Should not executed")
 
-        with self.dag:
+        with self.dag_non_serialized:
             ret = kwargs_task(
                 an_int=4, a_date=date(2019, 1, 1), a_templated_string="dag {{dag.dag_id}} ran on {{ds}}."
             )
@@ -379,9 +389,9 @@ class TestAirflowTaskDecorator(BasePythonTest):
         def do_run():
             return 4
 
-        with self.dag:
+        with self.dag_non_serialized:
             do_run()
-            assert ["some_name"] == self.dag.task_ids
+            assert ["some_name"] == self.dag_non_serialized.task_ids
 
     def test_multiple_calls(self):
         """Test calling task multiple times in a DAG"""
@@ -390,12 +400,12 @@ class TestAirflowTaskDecorator(BasePythonTest):
         def do_run():
             return 4
 
-        with self.dag:
+        with self.dag_non_serialized:
             do_run()
-            assert ["do_run"] == self.dag.task_ids
+            assert ["do_run"] == self.dag_non_serialized.task_ids
             do_run_1 = do_run()
             do_run_2 = do_run()
-            assert ["do_run", "do_run__1", "do_run__2"] == self.dag.task_ids
+            assert ["do_run", "do_run__1", "do_run__2"] == self.dag_non_serialized.task_ids
 
         assert do_run_1.operator.task_id == "do_run__1"
         assert do_run_2.operator.task_id == "do_run__2"
@@ -408,14 +418,14 @@ class TestAirflowTaskDecorator(BasePythonTest):
             return 4
 
         group_id = "KnightsOfNii"
-        with self.dag:
+        with self.dag_non_serialized:
             with TaskGroup(group_id=group_id):
                 do_run()
-                assert [f"{group_id}.do_run"] == self.dag.task_ids
+                assert [f"{group_id}.do_run"] == self.dag_non_serialized.task_ids
                 do_run()
-                assert [f"{group_id}.do_run", f"{group_id}.do_run__1"] == self.dag.task_ids
+                assert [f"{group_id}.do_run", f"{group_id}.do_run__1"] == self.dag_non_serialized.task_ids
 
-        assert len(self.dag.task_ids) == 2
+        assert len(self.dag_non_serialized.task_ids) == 2
 
     def test_call_20(self):
         """Test calling decorated function 21 times in a DAG"""
@@ -424,13 +434,14 @@ class TestAirflowTaskDecorator(BasePythonTest):
         def __do_run():
             return 4
 
-        with self.dag:
+        with self.dag_non_serialized:
             __do_run()
             for _ in range(20):
                 __do_run()
 
-        assert self.dag.task_ids[-1] == "__do_run__20"
+        assert self.dag_non_serialized.task_ids[-1] == "__do_run__20"
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_multiple_outputs(self):
         """Tests pushing multiple outputs as a dictionary"""
 
@@ -439,15 +450,19 @@ class TestAirflowTaskDecorator(BasePythonTest):
             return {"number": number + 1, "43": 43}
 
         test_number = 10
-        with self.dag:
+        with self.dag_non_serialized:
             ret = return_dict(test_number)
 
-        dr = self.dag.create_dagrun(
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        dr = self.dag_non_serialized.create_dagrun(
             run_id=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
-            data_interval=self.dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
+            data_interval=self.dag_non_serialized.timetable.infer_manual_data_interval(
+                run_after=DEFAULT_DATE
+            ),
+            **triggered_by_kwargs,
         )
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -464,8 +479,8 @@ class TestAirflowTaskDecorator(BasePythonTest):
         def do_run():
             return 4
 
-        self.dag.default_args["owner"] = "airflow"
-        with self.dag:
+        self.dag_non_serialized.default_args["owner"] = "airflow"
+        with self.dag_non_serialized:
             ret = do_run()
         assert ret.operator.owner == "airflow"
 
@@ -474,17 +489,18 @@ class TestAirflowTaskDecorator(BasePythonTest):
             return unknown
 
         with pytest.raises(TypeError):
-            with self.dag:
+            with self.dag_non_serialized:
                 test_apply_default_raise()
 
         @task_decorator
         def test_apply_default(owner):
             return owner
 
-        with self.dag:
+        with self.dag_non_serialized:
             ret = test_apply_default()
         assert "owner" in ret.operator.op_kwargs
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_xcom_arg(self):
         """Tests that returned key in XComArg is returned correctly"""
 
@@ -498,16 +514,20 @@ class TestAirflowTaskDecorator(BasePythonTest):
 
         test_number = 10
 
-        with self.dag:
+        with self.dag_non_serialized:
             bigger_number = add_2(test_number)
             ret = add_num(bigger_number, XComArg(bigger_number.operator))
 
-        dr = self.dag.create_dagrun(
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        dr = self.dag_non_serialized.create_dagrun(
             run_id=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
-            data_interval=self.dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
+            data_interval=self.dag_non_serialized.timetable.infer_manual_data_interval(
+                run_after=DEFAULT_DATE
+            ),
+            **triggered_by_kwargs,
         )
 
         bigger_number.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -519,7 +539,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
     def test_dag_task(self):
         """Tests dag.task property to generate task"""
 
-        @self.dag.task
+        @self.dag_non_serialized.task
         def add_2(number: int):
             return number + 2
 
@@ -527,12 +547,12 @@ class TestAirflowTaskDecorator(BasePythonTest):
         res = add_2(test_number)
         add_2(res)
 
-        assert "add_2" in self.dag.task_ids
+        assert "add_2" in self.dag_non_serialized.task_ids
 
     def test_dag_task_multiple_outputs(self):
         """Tests dag.task property to generate task with multiple outputs"""
 
-        @self.dag.task(multiple_outputs=True)
+        @self.dag_non_serialized.task(multiple_outputs=True)
         def add_2(number: int):
             return {"1": number + 2, "2": 42}
 
@@ -540,7 +560,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
         add_2(test_number)
         add_2(test_number)
 
-        assert "add_2" in self.dag.task_ids
+        assert "add_2" in self.dag_non_serialized.task_ids
 
     @pytest.mark.parametrize(
         argnames=["op_doc_attr", "op_doc_value", "expected_doc_md"],
@@ -564,7 +584,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
             return number + 2
 
         test_number = 10
-        with self.dag:
+        with self.dag_non_serialized:
             ret = add_2(test_number)
 
         assert ret.operator.doc_md == expected_doc_md
@@ -579,12 +599,17 @@ class TestAirflowTaskDecorator(BasePythonTest):
             """
             print("Hello world")
 
-        with self.dag:
+        with self.dag_non_serialized:
             for i in range(3):
                 hello.override(task_id=f"my_task_id_{i * 2}")()
             hello()  # This task would have hello_task as the task_id
 
-        assert self.dag.task_ids == ["my_task_id_0", "my_task_id_2", "my_task_id_4", "hello_task"]
+        assert self.dag_non_serialized.task_ids == [
+            "my_task_id_0",
+            "my_task_id_2",
+            "my_task_id_4",
+            "hello_task",
+        ]
 
     def test_user_provided_pool_and_priority_weight_works(self):
         """Tests that when looping that user provided pool, priority_weight etc is used"""
@@ -596,16 +621,17 @@ class TestAirflowTaskDecorator(BasePythonTest):
             """
             print("Hello world")
 
-        with self.dag:
+        with self.dag_non_serialized:
             for i in range(3):
                 hello.override(pool="my_pool", priority_weight=i)()
 
         weights = []
-        for task in self.dag.tasks:
+        for task in self.dag_non_serialized.tasks:
             assert task.pool == "my_pool"
             weights.append(task.priority_weight)
         assert weights == [0, 1, 2]
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_python_callable_args_work_as_well_as_baseoperator_args(self):
         """Tests that when looping that user provided pool, priority_weight etc is used"""
 
@@ -617,7 +643,7 @@ class TestAirflowTaskDecorator(BasePythonTest):
             print("Hello world", x, y)
             return x, y
 
-        with self.dag:
+        with self.dag_non_serialized:
             output = hello.override(task_id="mytask")(x=2, y=3)
             output2 = hello.override()(2, 3)  # nothing overridden but should work
 
@@ -668,7 +694,7 @@ def test_mapped_decorator():
     def print_everything(**kwargs) -> None:
         print(kwargs)
 
-    with DAG("test_mapped_decorator", start_date=DEFAULT_DATE):
+    with DAG("test_mapped_decorator", schedule=None, start_date=DEFAULT_DATE):
         t0 = print_info.expand(m1=["a", "b"], m2={"foo": "bar"})
         t1 = print_info.partial(m1="hi").expand(m2=[1, 2, 3])
         t2 = print_everything.partial(whatever="123").expand(any_key=[1, 2], works=t1)
@@ -704,7 +730,7 @@ def test_partial_mapped_decorator() -> None:
 
     literal = [1, 2, 3]
 
-    with DAG("test_dag", start_date=DEFAULT_DATE) as dag:
+    with DAG("test_dag", schedule=None, start_date=DEFAULT_DATE) as dag:
         quadrupled = product.partial(multiple=3).expand(number=literal)
         doubled = product.partial(multiple=2).expand(number=literal)
         trippled = product.partial(multiple=3).expand(number=literal)
@@ -731,6 +757,7 @@ def test_partial_mapped_decorator() -> None:
     assert doubled.operator is not trippled.operator
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
     with dag_maker(session=session):
 
@@ -758,6 +785,7 @@ def test_mapped_decorator_unmap_merge_op_kwargs(dag_maker, session):
     assert set(unmapped.op_kwargs) == {"arg1", "arg2"}
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_mapped_decorator_converts_partial_kwargs(dag_maker, session):
     with dag_maker(session=session):
 
@@ -788,6 +816,7 @@ def test_mapped_decorator_converts_partial_kwargs(dag_maker, session):
         assert unmapped.retry_delay == timedelta(seconds=30)
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_mapped_render_template_fields(dag_maker, session):
     @task_decorator
     def fn(arg1, arg2): ...
@@ -842,6 +871,23 @@ def test_task_decorator_has_wrapped_attr():
     assert decorated_test_func.__wrapped__ is org_test_func, "__wrapped__ attr is not the original function"
 
 
+def test_task_decorator_has_doc_attr():
+    """
+    Test @task original underlying function docstring
+    through the __doc__ attribute.
+    """
+
+    def org_test_func():
+        """Docstring"""
+
+    decorated_test_func = task_decorator(org_test_func)
+    assert hasattr(decorated_test_func, "__doc__"), "decorated function should have __doc__ attribute"
+    assert (
+        decorated_test_func.__doc__ == org_test_func.__doc__
+    ), "__doc__ attr should be the original docstring"
+
+
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_upstream_exception_produces_none_xcom(dag_maker, session):
     from airflow.exceptions import AirflowSkipException
     from airflow.utils.trigger_rule import TriggerRule
@@ -878,6 +924,7 @@ def test_upstream_exception_produces_none_xcom(dag_maker, session):
     assert result == "'example' None"
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @pytest.mark.parametrize("multiple_outputs", [True, False])
 def test_multiple_outputs_produces_none_xcom_when_task_is_skipped(dag_maker, session, multiple_outputs):
     from airflow.exceptions import AirflowSkipException
@@ -935,6 +982,7 @@ def test_no_warnings(reset_logging_config, caplog):
     assert caplog.messages == []
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 def test_task_decorator_dataset(dag_maker, session):
     from airflow.datasets import Dataset
 
@@ -976,50 +1024,52 @@ def test_task_decorator_dataset(dag_maker, session):
 
 
 def test_teardown_trigger_rule_selective_application(dag_maker, session):
-    with dag_maker(session=session) as dag:
+    with dag_maker(session=session, serialized=True) as created_dag:
+        dag = created_dag
 
-        @dag.task
-        def my_work():
-            return "abc"
+    @dag.task
+    def my_work():
+        return "abc"
 
-        @setup
-        @dag.task
-        def my_setup():
-            return "abc"
+    @setup
+    @dag.task
+    def my_setup():
+        return "abc"
 
-        @teardown
-        @dag.task
-        def my_teardown():
-            return "abc"
+    @teardown
+    @dag.task
+    def my_teardown():
+        return "abc"
 
-        work_task = my_work()
-        setup_task = my_setup()
-        teardown_task = my_teardown()
+    work_task = my_work()
+    setup_task = my_setup()
+    teardown_task = my_teardown()
     assert work_task.operator.trigger_rule == TriggerRule.ALL_SUCCESS
     assert setup_task.operator.trigger_rule == TriggerRule.ALL_SUCCESS
     assert teardown_task.operator.trigger_rule == TriggerRule.ALL_DONE_SETUP_SUCCESS
 
 
 def test_teardown_trigger_rule_override_behavior(dag_maker, session):
-    with dag_maker(session=session) as dag:
+    with dag_maker(session=session, serialized=True) as created_dag:
+        dag = created_dag
 
-        @dag.task(trigger_rule=TriggerRule.ONE_SUCCESS)
-        def my_work():
-            return "abc"
+    @dag.task(trigger_rule=TriggerRule.ONE_SUCCESS)
+    def my_work():
+        return "abc"
 
-        @setup
-        @dag.task(trigger_rule=TriggerRule.ONE_SUCCESS)
-        def my_setup():
-            return "abc"
+    @setup
+    @dag.task(trigger_rule=TriggerRule.ONE_SUCCESS)
+    def my_setup():
+        return "abc"
 
-        @teardown
-        @dag.task(trigger_rule=TriggerRule.ONE_SUCCESS)
-        def my_teardown():
-            return "abc"
+    @teardown
+    @dag.task(trigger_rule=TriggerRule.ONE_SUCCESS)
+    def my_teardown():
+        return "abc"
 
-        work_task = my_work()
-        setup_task = my_setup()
-        with pytest.raises(Exception, match="Trigger rule not configurable for teardown tasks."):
-            my_teardown()
+    work_task = my_work()
+    setup_task = my_setup()
+    with pytest.raises(Exception, match="Trigger rule not configurable for teardown tasks."):
+        my_teardown()
     assert work_task.operator.trigger_rule == TriggerRule.ONE_SUCCESS
     assert setup_task.operator.trigger_rule == TriggerRule.ONE_SUCCESS

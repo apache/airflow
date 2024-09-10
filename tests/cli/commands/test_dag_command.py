@@ -35,7 +35,7 @@ from airflow.api_connexion.schemas.dag_schema import DAGSchema, dag_schema
 from airflow.cli import cli_parser
 from airflow.cli.commands import dag_command
 from airflow.decorators import task
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import _run_inline_trigger
@@ -58,7 +58,7 @@ else:
 
 # TODO: Check if tests needs side effects - locally there's missing DAG
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestCliDags:
@@ -247,24 +247,6 @@ class TestCliDags:
         assert f"Dry run of DAG example_branch_operator on {DEFAULT_DATE_REPR}\n" in output
         assert "Task run_this_first located in DAG example_branch_operator\n" in output
 
-    @mock.patch("airflow.cli.commands.dag_command._run_dag_backfill")
-    def test_backfill_treat_dag_as_regex_deprecation(self, _):
-        run_date = DEFAULT_DATE + timedelta(days=1)
-        cli_args = self.parser.parse_args(
-            [
-                "dags",
-                "backfill",
-                "example_bash_operator",
-                "--treat-dag-as-regex",
-                "--start-date",
-                run_date.isoformat(),
-            ]
-        )
-
-        with pytest.warns(DeprecationWarning, match="--treat-dag-as-regex is deprecated"):
-            dag_command.dag_backfill(cli_args)
-        assert cli_args.treat_dag_id_as_regex == cli_args.treat_dag_as_regex
-
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
     def test_backfill_fails_without_loading_dags(self, mock_get_dag):
         cli_args = self.parser.parse_args(["dags", "backfill", "example_bash_operator"])
@@ -331,15 +313,8 @@ class TestCliDags:
         assert "OUT" in out
         assert "ERR" in out
 
-    @pytest.mark.parametrize(
-        "cli_arg",
-        [
-            pytest.param("-I", id="short"),
-            pytest.param("--ignore-first-depends-on-past", id="full"),
-        ],
-    )
     @mock.patch("airflow.cli.commands.dag_command.DAG.run")
-    def test_cli_backfill_deprecated_ignore_first_depends_on_past(self, mock_run, cli_arg: str):
+    def test_cli_backfill_ignore_first_depends_on_past(self, mock_run):
         """
         Test that CLI respects -I argument
 
@@ -355,12 +330,10 @@ class TestCliDags:
             "--local",
             "--start-date",
             run_date.isoformat(),
-            cli_arg,
         ]
         dag = self.dagbag.get_dag(dag_id)
 
-        with pytest.warns(RemovedInAirflow3Warning, match="ignore-first-depends-on-past is deprecated"):
-            dag_command.dag_backfill(self.parser.parse_args(args), dag=dag)
+        dag_command.dag_backfill(self.parser.parse_args(args), dag=dag)
 
         mock_run.assert_called_once_with(
             start_date=run_date,
@@ -425,10 +398,9 @@ class TestCliDags:
             disable_retry=False,
         )
 
-    @mock.patch("workday.AfterWorkdayTimetable.get_next_workday")
     @mock.patch("airflow.models.taskinstance.TaskInstance.dry_run")
     @mock.patch("airflow.cli.commands.dag_command.DagRun")
-    def test_backfill_with_custom_timetable(self, mock_dagrun, mock_dry_run, mock_get_next_workday):
+    def test_backfill_with_custom_timetable(self, mock_dagrun, mock_dry_run):
         """
         when calling `dags backfill` on dag with custom timetable, the DagRun object should be created with
          data_intervals.
@@ -441,8 +413,6 @@ class TestCliDags:
             start_date + timedelta(days=1),
             start_date + timedelta(days=2),
         ]
-        mock_get_next_workday.side_effect = workdays
-
         cli_args = self.parser.parse_args(
             [
                 "dags",
@@ -455,7 +425,10 @@ class TestCliDags:
                 "--dry-run",
             ]
         )
-        dag_command.dag_backfill(cli_args)
+        from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
+
+        with mock.patch.object(AfterWorkdayTimetable, "get_next_workday", side_effect=workdays):
+            dag_command.dag_backfill(cli_args)
         assert "data_interval" in mock_dagrun.call_args.kwargs
 
     def test_next_execution(self, tmp_path):
@@ -979,9 +952,8 @@ class TestCliDags:
         mock_render_dag.assert_has_calls([mock.call(mock_get_dag.return_value, tis=[])])
         assert "SOURCE" in output
 
-    @mock.patch("workday.AfterWorkdayTimetable", side_effect=lambda: mock.MagicMock(active_runs_limit=None))
     @mock.patch("airflow.models.dag._get_or_create_dagrun")
-    def test_dag_test_with_custom_timetable(self, mock__get_or_create_dagrun, _):
+    def test_dag_test_with_custom_timetable(self, mock__get_or_create_dagrun):
         """
         when calling `dags test` on dag with custom timetable, the DagRun object should be created with
          data_intervals.
@@ -989,7 +961,10 @@ class TestCliDags:
         cli_args = self.parser.parse_args(
             ["dags", "test", "example_workday_timetable", DEFAULT_DATE.isoformat()]
         )
-        dag_command.dag_test(cli_args)
+        from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
+
+        with mock.patch.object(AfterWorkdayTimetable, "get_next_workday", side_effect=[DEFAULT_DATE]):
+            dag_command.dag_test(cli_args)
         assert "data_interval" in mock__get_or_create_dagrun.call_args.kwargs
 
     @mock.patch("airflow.models.dag._get_or_create_dagrun")

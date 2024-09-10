@@ -250,8 +250,8 @@ classpaths
 cleartext
 cli
 clientId
-Cloudant
 cloudant
+CloudantV
 cloudbuild
 CloudBuildClient
 cloudml
@@ -668,6 +668,8 @@ gcpcloudsql
 GCS
 gcs
 gdbm
+Gelf
+gelf
 generateUploadUrl
 Gentner
 geq
@@ -773,6 +775,7 @@ hyperparameter
 hyperparameters
 IaC
 iam
+ibmcloudant
 idempotence
 idempotency
 IdP
@@ -878,6 +881,7 @@ Json
 json
 jsonl
 jthomas
+juli
 Jupyter
 jupyter
 jupytercmd
@@ -905,6 +909,7 @@ KiB
 Kibana
 killMode
 Kinesis
+kinesis
 kinit
 kms
 knn
@@ -1449,6 +1454,7 @@ serializer
 serializers
 serverless
 ServiceAccount
+sessionmaker
 setattr
 setdefault
 setMachineType

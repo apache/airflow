@@ -48,7 +48,7 @@ from airflow_breeze.utils.publish_docs_helpers import (
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.versions import get_version_tag, strip_leading_zeros_from_version
 
-MIN_AIRFLOW_VERSION = "2.7.0"
+MIN_AIRFLOW_VERSION = "2.8.0"
 HTTPS_REMOTE = "apache-https-for-providers"
 
 LONG_PROVIDERS_PREFIX = "apache-airflow-providers-"
@@ -145,6 +145,11 @@ def refresh_provider_metadata_from_yaml_file(provider_yaml_path: Path):
 def refresh_provider_metadata_with_provider_id(provider_id: str):
     provider_yaml_path = get_source_package_path(provider_id) / "provider.yaml"
     refresh_provider_metadata_from_yaml_file(provider_yaml_path)
+
+
+def clear_cache_for_provider_metadata(provider_id: str):
+    get_provider_packages_metadata.cache_clear()
+    refresh_provider_metadata_with_provider_id(provider_id)
 
 
 @lru_cache(maxsize=1)

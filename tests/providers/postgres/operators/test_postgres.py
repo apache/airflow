@@ -35,7 +35,7 @@ POSTGRES_DEFAULT = "postgres_default"
 class TestPostgres:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG(TEST_DAG_ID, default_args=args)
+        dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
         self.dag = dag
 
     def teardown_method(self):
@@ -136,7 +136,7 @@ class TestPostgresOpenLineage:
 
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG(TEST_DAG_ID, default_args=args)
+        dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
         self.dag = dag
 
         with PostgresHook().get_conn() as conn:
@@ -221,7 +221,10 @@ def test_parameters_are_templatized(create_task_instance_of_operator):
         task_id="test-task",
     )
     task: SQLExecuteQueryOperator = ti.render_templates(
-        {"param": {"conn_id": "pg", "table": "foo", "bar": "egg"}}
+        {
+            "param": {"conn_id": "pg", "table": "foo", "bar": "egg"},
+            "ti": ti,
+        }
     )
     assert task.conn_id == "pg"
     assert task.sql == "SELECT * FROM foo WHERE spam = %(spam)s;"
