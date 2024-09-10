@@ -432,6 +432,8 @@ def task_instance_link(attr):
     task_id = attr.get("task_id")
     run_id = attr.get("run_id")
     map_index = attr.get("map_index", None)
+    execution_date = attr.get("execution_date") or attr.get("dag_run.execution_date")
+
     if map_index == -1:
         map_index = None
 
@@ -441,6 +443,7 @@ def task_instance_link(attr):
         task_id=task_id,
         dag_run_id=run_id,
         map_index=map_index,
+        execution_date=execution_date,
         tab="graph",
     )
     url_root = url_for(
@@ -450,6 +453,7 @@ def task_instance_link(attr):
         root=task_id,
         dag_run_id=run_id,
         map_index=map_index,
+        execution_date=execution_date,
         tab="graph",
     )
     return Markup(
@@ -529,10 +533,10 @@ def json_f(attr_name):
 def dag_link(attr):
     """Generate a URL to the Graph view for a Dag."""
     dag_id = attr.get("dag_id")
-    execution_date = attr.get("execution_date")
+    execution_date = attr.get("execution_date") or attr.get("dag_run.execution_date")
     if not dag_id:
         return Markup("None")
-    url = url_for("Airflow.graph", dag_id=dag_id, execution_date=execution_date)
+    url = url_for("Airflow.grid", dag_id=dag_id, execution_date=execution_date)
     return Markup('<a href="{}">{}</a>').format(url, dag_id)
 
 
@@ -540,10 +544,15 @@ def dag_run_link(attr):
     """Generate a URL to the Graph view for a DagRun."""
     dag_id = attr.get("dag_id")
     run_id = attr.get("run_id")
+    execution_date = attr.get("execution_date") or attr.get("dag_run.execution_date")
+
+    if not dag_id:
+        return Markup("None")
 
     url = url_for(
         "Airflow.grid",
         dag_id=dag_id,
+        execution_date=execution_date,
         dag_run_id=run_id,
         tab="graph",
     )
