@@ -21,7 +21,10 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-from performance_dags.performance_dag.performance_dag_utils import parse_start_date, parse_time_delta
+from performance_dags.performance_dag.performance_dag_utils import (
+    parse_start_date,
+    parse_time_delta,
+)
 
 
 def test_parse_time_delta():

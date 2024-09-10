@@ -19,6 +19,7 @@
 Module containing functions used for validation of performance dag configuration
 and collecting information about it's resulting DAGs' arrangement.
 """
+
 from __future__ import annotations
 
 import json
@@ -80,7 +81,6 @@ def add_perf_start_date_env_to_conf(performance_dag_conf: dict[str, str]) -> Non
 
     :param performance_dag_conf: dict with environment variables as keys and their values as values
     """
-
     if "PERF_START_DATE" not in performance_dag_conf:
         start_ago = get_performance_dag_environment_variable(performance_dag_conf, "PERF_START_AGO")
 
@@ -102,7 +102,6 @@ def validate_performance_dag_conf(performance_dag_conf: dict[str, str]) -> None:
         KeyError: if performance_dag_conf does not contain mandatory environment variables
         ValueError: if any value in performance_dag_conf is not a string
     """
-
     if not isinstance(performance_dag_conf, dict):
         raise TypeError(
             f"performance_dag configuration must be a dictionary containing at least following keys: "
@@ -189,7 +188,6 @@ def check_datetime_convertibility(env_name: str, env_value: str) -> None:
     :param env_name: name of the environment variable which is being checked.
     :param env_value: value of the variable.
     """
-
     try:
         datetime.strptime(env_value, "%Y-%m-%d %H:%M:%S.%f")
     except Exception:
@@ -243,7 +241,6 @@ def check_and_parse_time_delta(env_name: str, env_value: str) -> timedelta:
 
     :raises: ValueError: if env_value could not be parsed
     """
-
     parts = RE_TIME_DELTA.match(env_value)
 
     if parts is None:
@@ -269,7 +266,6 @@ def check_schedule_interval(env_name: str, env_value: str) -> None:
     :raises: ValueError: if env_value is neither a parsable time expression
         nor one of allowed non-parsable values
     """
-
     try:
         check_and_parse_time_delta(env_name, env_value)
         return
@@ -364,7 +360,6 @@ def check_max_runs_and_schedule_interval_compatibility(
         if max_runs, schedule_interval and start_ago form a combination which causes end_date
             to be in the future
     """
-
     schedule_interval = get_performance_dag_environment_variable(
         performance_dag_conf, "PERF_SCHEDULE_INTERVAL"
     )
@@ -414,7 +409,6 @@ def check_valid_json(env_name: str, env_value: str) -> None:
     :param env_name: name of the environment variable which is being checked.
     :param env_value: value of the variable.
     """
-
     try:
         json.loads(env_value)
     except json.decoder.JSONDecodeError:
@@ -438,7 +432,6 @@ def generate_copies_of_performance_dag(
         and a list with paths to copies of performance DAG
     :type: Tuple[str, List[str]]
     """
-
     dag_files_count = int(
         get_performance_dag_environment_variable(performance_dag_conf, "PERF_DAG_FILES_COUNT")
     )
@@ -469,7 +462,6 @@ def get_dag_prefix(performance_dag_conf: dict[str, str]) -> str:
     :return: final form of prefix after substituting inappropriate characters
     :rtype: str
     """
-
     dag_prefix = get_performance_dag_environment_variable(performance_dag_conf, "PERF_DAG_PREFIX")
 
     safe_dag_prefix = safe_dag_id(dag_prefix)
@@ -486,7 +478,6 @@ def get_dags_count(performance_dag_conf: dict[str, str]) -> int:
     :return: number of test DAGs
     :rtype: int
     """
-
     dag_files_count = int(
         get_performance_dag_environment_variable(performance_dag_conf, "PERF_DAG_FILES_COUNT")
     )
@@ -532,7 +523,6 @@ def prepare_performance_dag_columns(
         in order in which they should appear in the results dataframe
     :rtype: OrderedDict
     """
-
     max_runs = get_performance_dag_environment_variable(performance_dag_conf, "PERF_MAX_RUNS")
 
     # TODO: if PERF_MAX_RUNS is missing from configuration, then PERF_SCHEDULE_INTERVAL must
@@ -635,7 +625,6 @@ def add_performance_dag_configuration_type(
 
     :param performance_dag_columns: a dict with columns containing performance dag configuration
     """
-
     performance_dag_configuration_type = "__".join(
         [
             f"{performance_dag_columns['PERF_SHAPE']}",

@@ -68,7 +68,14 @@ def safe_dag_id(dag_id):
     return re.sub("[^0-9a-zA-Z_]+", "_", dag_id)
 
 
-def get_task_list(dag_object, operator_type_str, task_count, trigger_rule, sleep_time, operator_extra_kwargs):
+def get_task_list(
+    dag_object,
+    operator_type_str,
+    task_count,
+    trigger_rule,
+    sleep_time,
+    operator_extra_kwargs,
+):
     # type: (DAG, str, int, float, int, dict) -> list[BaseOperator]
     """
     Return list of tasks of test dag.
@@ -151,7 +158,9 @@ def chain_as_grid(*tasks):
      t9
     """
     if len(tasks) > 100 * 99 / 2:
-        raise ValueError("Cannot generate grid DAGs with lateral size larger than 100 tasks.")
+        raise ValueError(
+            "Cannot generate grid DAGs with lateral size larger than 100 tasks."
+        )
     grid_size = min([n for n in range(100) if n * (n + 1) / 2 >= len(tasks)])
 
     def index(i, j):
@@ -240,7 +249,12 @@ for dag_no in range(1, DAG_COUNT + 1):
     )
 
     performance_dag_tasks = get_task_list(
-        dag, OPERATOR_TYPE, TASKS_COUNT, TASKS_TRIGGER_RULE, SLEEP_TIME, OPERATOR_EXTRA_KWARGS
+        dag,
+        OPERATOR_TYPE,
+        TASKS_COUNT,
+        TASKS_TRIGGER_RULE,
+        SLEEP_TIME,
+        OPERATOR_EXTRA_KWARGS,
     )
 
     shape_function_map = {
