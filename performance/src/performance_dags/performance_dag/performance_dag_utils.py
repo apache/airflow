@@ -309,7 +309,6 @@ def get_check_allowed_values_function(
 
         :raises: ValueError: if env_value is not within a specified set of values
         """
-
         if env_value not in values:
             raise ValueError(
                 f"{env_name} value must be one of the following: {values}. Received: '{env_value}'."
