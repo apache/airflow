@@ -1,0 +1,13 @@
+timestamp,project_id,location,cluster_name,namespace_name,pod_name,container_name,non_existing_label_1,container_metric_2,container_metric_1
+1,project_id,location,cluster_name,namespace_A,pod_2_A,container_2_A,non_existing_1,0,1200
+1,project_id,location,cluster_name,namespace_A,pod_1_A,container_1_A,non_existing_1,100,1300
+1,project_id,location,cluster_name,namespace_B,pod_1_B,container_1_B,non_existing_1,200,1400
+2,project_id,location,cluster_name,namespace_A,pod_2_A,container_2_A,non_existing_1,300,1500
+2,project_id,location,cluster_name,namespace_A,pod_1_A,container_1_A,non_existing_1,400,1600
+2,project_id,location,cluster_name,namespace_B,pod_1_B,container_1_B,non_existing_1,500,1700
+5,project_id,location,cluster_name,namespace_A,pod_2_A,container_2_A,non_existing_1,600,1800
+5,project_id,location,cluster_name,namespace_A,pod_1_A,container_1_A,non_existing_1,700,1900
+5,project_id,location,cluster_name,namespace_B,pod_1_B,container_1_B,non_existing_1,800,2000
+6,project_id,location,cluster_name,namespace_A,pod_2_A,container_2_A,non_existing_1,900,2100
+6,project_id,location,cluster_name,namespace_A,pod_1_A,container_1_A,non_existing_1,1000,2200
+6,project_id,location,cluster_name,namespace_B,pod_1_B,container_1_B,non_existing_1,1100,2300

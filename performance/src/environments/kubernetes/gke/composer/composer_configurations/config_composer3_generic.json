@@ -1,0 +1,24 @@
+{
+  "environment_type": "COMPOSER",
+  "api_version": "{{api_version}}",
+  "api_endpoint": "{{api_endpoint}}",
+  "force_routing": {{force_routing}},
+  "config_body": {
+    "config": {
+      "softwareConfig": {
+        "imageVersion": "composer-{{composer_version}}-airflow-{{airflow_version}}",
+        "airflowConfigOverrides": {{airflow_config_overrides}},
+        "cloudDataLineageIntegration": {{cloud_data_lineage_integration}}
+      },
+      "nodeConfig": {
+        "tags": [],
+        "network": "projects/{{project_id}}/global/networks/{{network_id}}",
+        "subnetwork": "projects/{{project_id}}/regions/{{location_id}}/subnetworks/{{subnetwork_id}}"
+      },
+      "privateEnvironmentConfig": {
+        "enablePrivateEnvironment": {{enable_private_environment}}
+      }
+    },
+    "name": "projects/{{project_id}}/locations/{{location_id}}/environments/{{environment_id}}"
+  }
+}

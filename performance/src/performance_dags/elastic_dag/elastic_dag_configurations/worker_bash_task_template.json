@@ -1,0 +1,10 @@
+{
+  "PERF_DAG_PREFIX": "worker_workflow",
+  "PERF_DAGS_COUNT": "200",
+  "PERF_TASKS_COUNT": "1",
+  "PERF_START_AGO": "1d",
+  "PERF_SCHEDULE_INTERVAL": "@once",
+  "PERF_SHAPE": "no_structure",
+  "PERF_SLEEP_TIME": "0",
+  "PERF_OPERATOR_TYPE": "bash"
+}

@@ -1,0 +1,5 @@
+timestamp,project_id,location,cluster_name,cluster_metric_2,cluster_metric_1
+1,project_id,location,cluster_name,0,4
+2,project_id,location,cluster_name,1,5
+3,project_id,location,cluster_name,2,6
+4,project_id,location,cluster_name,3,7
