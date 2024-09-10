@@ -20,6 +20,7 @@
 import { PropsWithChildren } from "react";
 import { ChakraProvider } from "@chakra-ui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router-dom";
 
 export const Wrapper = ({ children }: PropsWithChildren) => {
   const queryClient = new QueryClient({
@@ -32,11 +33,17 @@ export const Wrapper = ({ children }: PropsWithChildren) => {
 
   return (
     <ChakraProvider>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>{children}</MemoryRouter>
+      </QueryClientProvider>
     </ChakraProvider>
   );
 };
 
 export const ChakraWrapper = ({ children }: PropsWithChildren) => (
   <ChakraProvider>{children}</ChakraProvider>
+);
+
+export const RouterWrapper = ({ children }: PropsWithChildren) => (
+  <MemoryRouter>{children}</MemoryRouter>
 );

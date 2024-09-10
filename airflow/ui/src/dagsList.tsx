@@ -17,8 +17,8 @@
  * under the License.
  */
 
-import { useState } from "react";
-import { ColumnDef, PaginationState } from "@tanstack/react-table";
+import { ColumnDef } from "@tanstack/react-table";
+import { useSearchParams } from "react-router-dom";
 import {
   Badge,
   Button,
@@ -34,7 +34,6 @@ import {
   InputRightElement,
   Select,
   Spinner,
-  Text,
   VStack,
 } from "@chakra-ui/react";
 import { Select as ReactSelect } from "chakra-react-select";
@@ -44,6 +43,7 @@ import { DAG } from "openapi/requests/types.gen";
 import { useDagServiceGetDags } from "openapi/queries";
 import { DataTable } from "./components/DataTable";
 import { pluralize } from "./utils/pluralize";
+import { useTableURLState } from "./components/DataTable/useTableUrlState";
 
 const SearchBar = ({
   groupProps,
@@ -76,12 +76,14 @@ const SearchBar = ({
 
 const columns: ColumnDef<DAG>[] = [
   {
-    accessorKey: "dag_display_name",
+    accessorKey: "dag_id",
     header: "DAG",
+    cell: ({ row }) => row.original.dag_display_name,
   },
   {
     accessorKey: "is_paused",
     header: () => "Is Paused",
+    enableSorting: false,
   },
   {
     accessorKey: "timetable_description",
@@ -90,19 +92,12 @@ const columns: ColumnDef<DAG>[] = [
       info.getValue() !== "Never, external triggers only"
         ? info.getValue()
         : undefined,
+    enableSorting: false,
   },
   {
     accessorKey: "next_dagrun",
     header: "Next DAG Run",
-  },
-  {
-    accessorKey: "owner",
-    header: () => "Owner",
-    cell: ({ row }) => (
-      <HStack>
-        {row.original.owners?.map((owner) => <Text key={owner}>{owner}</Text>)}
-      </HStack>
-    ),
+    enableSorting: false,
   },
   {
     accessorKey: "tags",
@@ -114,6 +109,7 @@ const columns: ColumnDef<DAG>[] = [
         ))}
       </HStack>
     ),
+    enableSorting: false,
   },
 ];
 
@@ -129,15 +125,20 @@ const QuickFilterButton = ({ children, ...rest }: ButtonProps) => (
   </Button>
 );
 
+const PAUSED_PARAM = "paused";
+
 export const DagsList = () => {
-  // TODO: Change this to be taken from airflow.cfg
-  const pageSize = 50;
-  const [pagination, setPagination] = useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: pageSize,
-  });
-  const [showPaused, setShowPaused] = useState(true);
-  const [orderBy, setOrderBy] = useState<string | undefined>();
+  const cardView = false;
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const showPaused = searchParams.get(PAUSED_PARAM) === "true";
+
+  const { tableURLState, setTableURLState } = useTableURLState();
+  const { sorting, pagination } = tableURLState;
+
+  // TODO: update API to accept multiple orderBy params
+  const sort = sorting[0];
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
 
   const { data, isLoading } = useDagServiceGetDags({
     limit: pagination.pageSize,
@@ -168,44 +169,56 @@ export const DagsList = () => {
                 <Checkbox
                   isChecked={showPaused}
                   onChange={() => {
-                    setShowPaused(!showPaused);
-                    setPagination({
-                      ...pagination,
-                      pageIndex: 0,
+                    if (showPaused) searchParams.delete(PAUSED_PARAM);
+                    else searchParams.set(PAUSED_PARAM, "true");
+                    setSearchParams(searchParams);
+                    setTableURLState({
+                      sorting,
+                      pagination: { ...pagination, pageIndex: 0 },
                     });
                   }}
                 >
                   Show Paused DAGs
                 </Checkbox>
               </HStack>
-              <HStack>
-                <ReactSelect placeholder="Filter by tag" isDisabled />
-                <ReactSelect placeholder="Filter by owner" isDisabled />
-              </HStack>
+              <ReactSelect placeholder="Filter by tag" isDisabled />
             </HStack>
             <HStack justifyContent="space-between">
               <Heading size="md">
                 {pluralize("DAG", data.total_entries)}
               </Heading>
-              <Select
-                placeholder="Sort by…"
-                width="200px"
-                variant="outline"
-                value={orderBy}
-                onChange={(e) => setOrderBy(e.target.value || undefined)}
-              >
-                <option value="dag_id">Sort by DAG ID (A-Z)</option>
-                <option value="-dag_id">Sort by DAG ID (Z-A)</option>
-              </Select>
+              {cardView && (
+                <Select
+                  placeholder="Sort by…"
+                  width="200px"
+                  variant="flushed"
+                  value={orderBy}
+                  onChange={(e) => {
+                    setTableURLState({
+                      sorting: e.target.value
+                        ? [
+                            {
+                              id: e.target.value.replace("-", ""),
+                              desc: e.target.value.startsWith("-"),
+                            },
+                          ]
+                        : [],
+                      pagination,
+                    });
+                  }}
+                >
+                  <option value="dag_id">Sort by DAG ID (A-Z)</option>
+                  <option value="-dag_id">Sort by DAG ID (Z-A)</option>
+                </Select>
+              )}
             </HStack>
           </VStack>
           <DataTable
             data={data.dags}
             total={data.total_entries}
             columns={columns}
-            getRowCanExpand={() => true}
-            pagination={pagination}
-            setPagination={setPagination}
+            initialState={tableURLState}
+            onStateChange={setTableURLState}
           />
         </>
       )}
