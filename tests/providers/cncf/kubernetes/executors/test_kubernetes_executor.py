@@ -1227,8 +1227,8 @@ class TestKubernetesExecutor:
         self, raw_multi_namespace_mode, raw_value_namespace_list, expected_value_in_kube_config
     ):
         config = {
-            ("kubernetes", "multi_namespace_mode"): raw_multi_namespace_mode,
-            ("kubernetes", "multi_namespace_mode_namespace_list"): raw_value_namespace_list,
+            ("kubernetes_executor", "multi_namespace_mode"): raw_multi_namespace_mode,
+            ("kubernetes_executor", "multi_namespace_mode_namespace_list"): raw_value_namespace_list,
         }
         with conf_vars(config):
             executor = KubernetesExecutor()
@@ -1504,7 +1504,7 @@ class TestKubernetesExecutor:
         }
         get_logs_task_metadata.cache_clear()
         try:
-            with conf_vars({("kubernetes", "logs_task_metadata"): "True"}):
+            with conf_vars({("kubernetes_executor", "logs_task_metadata"): "True"}):
                 expected_annotations = {
                     "dag_id": "dag",
                     "run_id": "run_id",
