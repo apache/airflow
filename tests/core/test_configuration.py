@@ -53,6 +53,9 @@ from tests.utils.test_config import (
 
 HOME_DIR = os.path.expanduser("~")
 
+# The conf has been updated with sql_alchemy_conn to test the functionality of deprecated options support.
+conf.deprecated_options[("database", "sql_alchemy_conn")] = ("core", "sql_alchemy_conn", "2.3.0")
+
 
 @pytest.fixture(scope="module", autouse=True)
 def restore_env():
