@@ -22,8 +22,6 @@ from unittest.mock import Mock, patch
 import boto3
 import pytest
 
-pytest.importorskip("onelogin")
-
 from airflow.www import app as application
 from tests.system.providers.amazon.aws.utils import set_env_id
 from tests.test_utils.config import conf_vars
