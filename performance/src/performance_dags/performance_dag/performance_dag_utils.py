@@ -28,8 +28,9 @@ from datetime import datetime, timedelta
 from shutil import copyfile
 from typing import Callable
 
-import airflow
 import re2 as re
+
+import airflow
 
 log = logging.getLogger(__name__)
 log.setLevel(logging.INFO)
