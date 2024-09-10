@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-09T15:42:31.238522
+# This constraints file was automatically generated on 2024-09-10T19:26:42.053949
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -127,7 +127,7 @@ boto3==1.35.7
 botocore==1.35.7
 cachelib==0.9.0
 cachetools==5.5.0
-cassandra-driver==3.29.1
+cassandra-driver==3.29.2
 cattrs==24.1.0
 celery==5.4.0
 certifi==2024.8.30
@@ -176,7 +176,7 @@ docstring_parser==0.16
 docutils==0.16
 duckdb==1.1.0
 elastic-transport==8.15.0
-elasticsearch==8.15.0
+elasticsearch==8.15.1
 email_validator==2.2.0
 entrypoints==0.4
 eralchemy2==1.4.1
@@ -233,7 +233,7 @@ google-cloud-memcache==1.9.5
 google-cloud-monitoring==2.22.2
 google-cloud-orchestration-airflow==1.13.1
 google-cloud-os-login==2.14.6
-google-cloud-pubsub==2.23.0
+google-cloud-pubsub==2.23.1
 google-cloud-redis==2.15.5
 google-cloud-resource-manager==1.12.5
 google-cloud-run==0.10.8
@@ -254,7 +254,7 @@ google-resumable-media==2.7.2
 googleapis-common-protos==1.65.0
 graphql-core==3.2.4
 graphviz==0.20.3
-greenlet==3.0.3
+greenlet==3.1.0
 grpc-google-iam-v1==0.13.1
 grpc-interceptor==0.15.4
 grpcio-gcp==0.2.2
@@ -284,7 +284,7 @@ idna==3.8
 ijson==3.3.0
 imagesize==1.4.1
 importlib-metadata==6.11.0
-importlib_resources==6.4.4
+importlib_resources==6.4.5
 impyla==0.19.0
 incremental==24.7.2
 inflection==0.5.1
@@ -333,7 +333,7 @@ marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.28.2
 marshmallow==3.22.0
 matplotlib-inline==0.1.7
-mdit-py-plugins==0.4.1
+mdit-py-plugins==0.4.2
 mdurl==0.1.2
 mergedeep==1.3.4
 methodtools==0.4.7
@@ -351,7 +351,7 @@ msgraph-core==1.1.3
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
-multidict==6.0.5
+multidict==6.1.0
 mypy-boto3-appflow==1.35.0
 mypy-boto3-rds==1.35.0
 mypy-boto3-redshift-data==1.35.10
@@ -370,7 +370,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.44.0
+openai==1.44.1
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.22.0
@@ -394,7 +394,7 @@ orjson==3.10.7
 oss2==2.19.0
 packaging==24.1
 pandas-gbq==0.23.1
-pandas-stubs==2.2.2.240807
+pandas-stubs==2.2.2.240909
 pandas==2.1.4
 papermill==2.6.0
 paramiko==3.4.1
@@ -405,7 +405,7 @@ pbr==6.1.0
 pdpyras==5.2.0
 pendulum==3.0.0
 pexpect==4.9.0
-pgvector==0.3.2
+pgvector==0.3.3
 pinecone-client==5.0.1
 pinecone-plugin-inference==1.0.3
 pinecone-plugin-interface==0.0.7
@@ -468,7 +468,7 @@ pytest-mock==3.14.0
 pytest-rerunfailures==14.0
 pytest-timeouts==1.2.1
 pytest-xdist==3.6.1
-pytest==8.3.2
+pytest==8.3.3
 python-arango==8.1.0
 python-daemon==3.0.1
 python-dateutil==2.9.0.post0
@@ -503,7 +503,7 @@ rfc3339-validator==0.1.4
 rfc3986==2.0.0
 rich-argparse==1.5.2
 rich-click==1.8.3
-rich==13.8.0
+rich==13.8.1
 rpds-py==0.20.0
 rsa==4.9
 ruff==0.5.5
@@ -616,7 +616,7 @@ vine==5.1.0
 virtualenv==20.26.4
 watchtower==3.3.1
 wcwidth==0.2.13
-weaviate-client==4.7.1
+weaviate-client==4.8.0
 websocket-client==1.8.0
 wirerope==0.4.7
 wrapt==1.16.0
@@ -625,10 +625,10 @@ xmltodict==0.13.0
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.316.0
-yarl==1.11.0
-ydb==3.16.1
+yarl==1.11.1
+ydb==3.17.0
 zeep==4.2.1
-zenpy==2.0.51
+zenpy==2.0.52
 zipp==3.20.1
 zope.event==5.0
 zope.interface==7.0.3
