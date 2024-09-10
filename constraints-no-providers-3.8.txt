@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-09T19:42:48.188923
+# This constraints file was automatically generated on 2024-09-10T19:39:18.851590
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -86,7 +86,7 @@ gevent==24.2.1
 google-re2==1.1.20240702
 googleapis-common-protos==1.65.0
 graphviz==0.20.3
-greenlet==3.0.3
+greenlet==3.1.0
 grpcio==1.66.1
 gssapi==1.8.3
 gunicorn==23.0.0
@@ -99,7 +99,6 @@ idna==3.8
 importlib_metadata==8.4.0
 importlib_resources==6.4.5
 inflection==0.5.1
-isodate==0.6.1
 itsdangerous==2.2.0
 jmespath==1.0.1
 jsonschema-specifications==2023.12.1
@@ -111,16 +110,15 @@ ldap3==2.9.1
 limits==3.13.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
-lxml==5.3.0
 markdown-it-py==3.0.0
 marshmallow-oneofschema==3.1.1
 marshmallow-sqlalchemy==0.28.2
 marshmallow==3.22.0
-mdit-py-plugins==0.4.1
+mdit-py-plugins==0.4.2
 mdurl==0.1.2
 methodtools==0.4.7
 more-itertools==10.5.0
-multidict==6.0.5
+multidict==6.1.0
 numpy==1.24.4
 opentelemetry-api==1.27.0
 opentelemetry-exporter-otlp-proto-common==1.27.0
@@ -159,7 +157,6 @@ python-ldap==3.4.4
 python-multipart==0.0.9
 python-nvd3==0.16.0
 python-slugify==8.0.4
-python3-saml==1.16.0
 pytz==2024.1
 referencing==0.35.1
 requests-kerberos==0.15.0
@@ -167,7 +164,7 @@ requests-toolbelt==1.0.0
 requests==2.32.3
 rfc3339-validator==0.1.4
 rich-argparse==1.5.2
-rich==13.8.0
+rich==13.8.1
 rpds-py==0.20.0
 s3fs==2024.9.0
 sentry-sdk==2.14.0
@@ -201,8 +198,7 @@ watchfiles==0.24.0
 websockets==13.0.1
 wirerope==0.4.7
 wrapt==1.16.0
-xmlsec==1.3.14
-yarl==1.11.0
+yarl==1.11.1
 zipp==3.20.1
 zope.event==5.0
 zope.interface==7.0.3
