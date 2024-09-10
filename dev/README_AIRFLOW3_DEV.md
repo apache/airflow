@@ -44,10 +44,11 @@
 
 The main branch is for development of Airflow 3.
 Airflow 2.10.x releases will be cut from `v2-10-stable` branch.
+Airflow 2.11.x releases will be cut from `v2-11-stable` branch.
 
 # Contributors
 
-The following section explains which branches you should target your PR to
+The following section explains to which branches you should target your PR.
 
 ## Developing for providers and Helm chart
 
@@ -57,25 +58,25 @@ Avoid mixing core changes into the same PR
 
 ## Developing for Airflow 3 and 2.10.x / 2.11.x
 
-If the PR is relevant for both Airflow 3 and 2 it should target `main` branch.
+If the PR is relevant for both Airflow 3 and 2, it should target `main` branch.
 
 Note: The mental model of Airflow 2.11 is bridge release for Airflow 3.
 As a result, Airflow 2.11 is not planned to introduce new features other than ones relevant as bridge release for Airflow 3.
 That said, we recognize that there may be exceptions.
-If you believe a specific feature is must have for Airflow 2.11 you need to raise this as discussion thread in the mailing list.
+If you believe a specific feature is a must-have for Airflow 2.11, you will need to raise this as discussion thread on the mailing list.
 Points to address to make your case:
 
-1. You must clarify what is the urgency (why it can't wait for Airflow 3)
-2. You need be willing to deliver the feature for both main branch and Airflow 2.11 branch
+1. You must clarify what is the urgency (i.e., why it can't wait for Airflow 3).
+2. You need be willing to deliver the feature for both main branch and Airflow 2.11 branch.
 3. You must be willing to provide support future bug fixes as needed.
 
 Points to consider on how PMC members evaluate the request of exception:
 
-1. Feature impact. Is it really urgent? How many are affected?
-2. Are there any workarounds?
-3. Scope of change. Both in code lines / number of files and components changed.
-4. Is the feature at the heart of Airflow (scheduler, dag parser) or peripheral.
-5. Identity of the requester. Is the request from/supported by a member of the community?
+1. Feature impact - Is it really urgent? How many are affected?
+2. Workarounds - Are there any ?
+3. Scope of change - Both in code lines / number of files and components changed.
+4. Centrality - Is the feature at the heart of Airflow (scheduler, dag parser) or peripheral.
+5. Identity of the requester - Is the request from/supported by a member of the community?
 6. Similar previous cases approved.
 7. Other considerations that may raise by PMC members depending on the case.
 
@@ -94,37 +95,36 @@ PR should never target `v2-10-stable` unless specifically instructed by release 
 Version 2.11 is planned to be cut from `v2-10-stable` branch.
 The version will contain features relevant as bridge release for Airflow 3.
 We will not backport otherwise features from main branch to 2.11
-Note that 2.11 policy may change as 2.11 become closer
+Note that 2.11 policy may change as 2.11 becomes closer.
 
 # Committers / PMCs
 
-The following section explains the protocol for merging PRs.
+The following sections explains the protocol for merging PRs.
 
 ## Merging PRs for providers and Helm chart
 
-Make sure PR target `main` branch.
-Avoid merging PRs that involves providers + core / helm chart + core
-Core part should be extracted to separated PR.
+Make sure PR targets `main` branch.
+Avoid merging PRs that involve providers + core / helm chart + core
+Core part should be extracted to a  separated PR.
 Exclusions should be pre-approved specifically with a comment by release manager.
 Do not treat PR approval (Green V) as exclusion approval.
 
 ## Merging PR for Airflow 3 and 2.10.x / 2.11.x
 
-The committer who merge the PR is responsible for back-porting the PR to `v2-10-test`.
-This means start a new PR where the original commit from main is cherry-picked and conflicts resolved.
-If cherry-pick is too complex then ask the PR author / start your own PR against `v2-10-test` directly with the change.
+The committer who merges the PR is responsible for backporting the PR to `v2-10-test`.
+It means that they should create a new PR where the original commit from main is cherry-picked and take care for resolving conflicts.
+If the cherry-pick is too complex, then ask the PR author / start your own PR against `v2-10-test` directly with the change.
 Note: tracking that the PRs merged as expected is the responsibility of committer who merged the PR.
 
 Committer may also request from PR author to raise 2 PRs one against `main` branch and one against `v2-10-test` prior to accepting the code change.
 
-Mistakes happen and such backport PR work might fall through cracks, so PRs that the committer thinks should be back-ported, should get 2.10.x milestone set.
+Mistakes happen, and such backport PR work might fall through cracks. Therefore, if the committer thinks that certain PRs should be backported, they should set 2.10.x milestone for them.
 
 This way release manager can verify (as usual) if all the "expected" PRs have been backported and cherry-pick remaining PRS.
 
 ## Merging PRs 2.10.x
 
-Suggested change
-Make sure PR target `v2-10-test` branch and merge it when ready.
+Make sure PR targets `v2-10-test` branch and merge it when ready.
 Make sure your PRs target the `v2-10-test` branch, and it can be merged when ready.
 All regular protocols of merging considerations are applied.
 
@@ -135,7 +135,7 @@ Make sure PR target `main` branch.
 ### PRs that involve breaking changes
 
 Make sure it has newsfragment, please allow time for community members to review.
-Our goal is to avoid breaking changes if we can so we should allow time to review, don't rush to merge.
+Our goal is to avoid breaking changes whenever possible. Therefore, we should allow time for community members to review PRs that contain such changes - please avoid rushing to merge them. In addition, ensure that these PRs include a newsfragment.
 
 ## Merging PRs for Airflow 2.11
 
@@ -145,12 +145,16 @@ TBD
 
 ## Set 2.10.x milestone
 
-TBD
+Milestone will be added only to the original PR.
+
+1. PR targeting `v2-10-test` directly - mlinestone will be on that PR.
+2. PR targeting `main` with backport PR targeting `v2-10-test`. Milestone will be added only on the PR targeting `v2-10-main`.
 
 ## Set 2.11 milestone
 
 TBD
+For now, similar procedure as 2.10.x
 
 ## Set 3 milestone
 
-TBD
+Set for any feature that targets Airflow 3 only.
