@@ -388,6 +388,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.bigquery.BigQueryPatchDatasetOperator",
         "airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryExecuteQueryOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator",
         "airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceAsyncSensor",
         "airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistencePartitionAsyncSensor",
         "airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerEnvironmentSensor",
