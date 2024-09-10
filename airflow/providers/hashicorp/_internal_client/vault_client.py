@@ -341,6 +341,7 @@ class _VaultClient(LoggingMixin):
                     "access_key": credentials["Credentials"]["AccessKeyId"],
                     "secret_key": credentials["Credentials"]["SecretAccessKey"],
                     "session_token": credentials["Credentials"]["SessionToken"],
+                    "role": self.role_id,
                 }
             else:
                 session = boto3.Session()

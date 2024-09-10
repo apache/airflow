@@ -385,7 +385,7 @@ class VaultHook(BaseHook):
                 description="Must be 1 or 2.",
                 default=DEFAULT_KV_ENGINE_VERSION,
             ),
-            "role_id": StringField(lazy_gettext("Role ID (deprecated)"), widget=BS3TextFieldWidget()),
+            "role_id": StringField(lazy_gettext("Role ID"), widget=BS3TextFieldWidget()),
             "kubernetes_role": StringField(lazy_gettext("Kubernetes role"), widget=BS3TextFieldWidget()),
             "kubernetes_jwt_path": StringField(
                 lazy_gettext("Kubernetes jwt path"), widget=BS3TextFieldWidget()
