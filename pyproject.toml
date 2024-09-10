@@ -79,8 +79,8 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 # START CORE EXTRAS HERE
 #
 # aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, github-enterprise, google-
-# auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, saml, sentry,
-# statsd, uv, virtualenv
+# auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, sentry, statsd, uv,
+# virtualenv
 #
 # END CORE EXTRAS HERE
 #
@@ -387,7 +387,6 @@ combine-as-imports = true
 "airflow/security/kerberos.py" = ["E402"]
 "airflow/security/utils.py" = ["E402"]
 "tests/providers/amazon/aws/auth_manager/security_manager/test_aws_security_manager_override.py" = ["E402"]
-"tests/system/providers/amazon/aws/tests/test_aws_auth_manager.py" = ["E402"]
 "tests/providers/common/io/xcom/test_backend.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/__init__.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/utilities/__init__.py" = ["E402"]

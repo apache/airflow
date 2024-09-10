@@ -51,7 +51,6 @@ class TestAwsSecurityManagerOverride:
         "airflow.providers.amazon.aws.auth_manager.views.auth.conf.get_mandatory_value", return_value="test"
     )
     def test_register_views(self, mock_get_mandatory_value, override, appbuilder):
-        pytest.importorskip("onelogin")
         from airflow.providers.amazon.aws.auth_manager.views.auth import AwsAuthManagerAuthenticationViews
 
         with patch.object(AwsAuthManagerAuthenticationViews, "idp_data"):

@@ -184,7 +184,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("airflow/api_ui/file.py",),
+                ("airflow/api_fastapi/file.py",),
                 {
                     "all-python-versions": "['3.8']",
                     "all-python-versions-list-as-string": "3.8",

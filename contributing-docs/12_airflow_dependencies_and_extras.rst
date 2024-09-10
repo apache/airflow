@@ -165,8 +165,8 @@ Those extras are available as regular core airflow extras - they install optiona
   .. START CORE EXTRAS HERE
 
 aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, github-enterprise, google-
-auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, saml, sentry,
-statsd, uv, virtualenv
+auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, sentry, statsd, uv,
+virtualenv
 
   .. END CORE EXTRAS HERE
 

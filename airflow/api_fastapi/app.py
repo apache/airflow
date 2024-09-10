@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import APIRouter, FastAPI
+from fastapi import FastAPI
 
 from airflow.www.extensions.init_dagbag import get_dag_bag
 
@@ -34,9 +34,9 @@ def init_dag_bag(app: FastAPI) -> None:
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        description="Internal Rest API for the UI frontend. It is subject to breaking change "
-        "depending on the need of the frontend. Users should not rely on this API but use the "
-        "public API instead."
+        description="Airflow API. All endpoints located under ``/public`` can be used safely, are stable and backward compatible. "
+        "Endpoints located under ``/ui`` are dedicated to the UI and are subject to breaking change "
+        "depending on the need of the frontend. Users should not rely on those but use the public ones instead."
     )
 
     init_dag_bag(app)
@@ -48,16 +48,14 @@ def create_app() -> FastAPI:
 
 def init_views(app) -> None:
     """Init views by registering the different routers."""
-    from airflow.api_ui.views.datasets import dataset_router
+    from airflow.api_fastapi.views.public import public_router
+    from airflow.api_fastapi.views.ui import ui_router
 
-    root_router = APIRouter(prefix="/ui")
-
-    root_router.include_router(dataset_router)
-
-    app.include_router(root_router)
+    app.include_router(ui_router)
+    app.include_router(public_router)
 
 
-def cached_app(config=None, testing=False):
+def cached_app(config=None, testing=False) -> FastAPI:
     """Return cached instance of Airflow UI app."""
     global app
     if not app:
@@ -65,7 +63,7 @@ def cached_app(config=None, testing=False):
     return app
 
 
-def purge_cached_app():
+def purge_cached_app() -> None:
     """Remove the cached version of the app in global state."""
     global app
     app = None
