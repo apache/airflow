@@ -87,8 +87,6 @@ def airflow_config():
     Returns:
         AirflowConfigParser: The Airflow configuration object.
     """
-    # This will set the AIRFLOW__CORE__UNIT_TEST_MODE environment variable to True for the current session. Please note that this change will only affect the current session and will not persist across sessions. If you want to set this environment variable permanently, you can do so by adding the above line to your .bashrc or .bash_profile file (or the equivalent file for your shell).
-    # Please note that when AIRFLOW__CORE__UNIT_TEST_MODE is set to True, certain features of Airflow may behave differently. For example, the Airflow scheduler may not start new tasks, and certain operators may not perform their actual function but instead return dummy data.
     conf.set("lineage", "backend", "")
     return conf
 
