@@ -17,8 +17,6 @@
  * under the License.
  */
 
-"use client";
-
 import {
   ColumnDef,
   Table as TanStackTable,
@@ -41,6 +39,7 @@ import {
   Th,
   Thead,
   Tr,
+  useColorModeValue,
 } from "@chakra-ui/react";
 import React, { Fragment } from "react";
 
@@ -143,10 +142,12 @@ export function DataTable<TData>({
     },
   });
 
+  const theadBg = useColorModeValue("white", "gray.800");
+
   return (
-    <TableContainer>
-      <ChakraTable variant="striped">
-        <Thead>
+    <TableContainer overflowY="auto" maxH="calc(100vh - 10rem)">
+      <ChakraTable colorScheme="blue">
+        <Thead position="sticky" top={0} bg={theadBg}>
           {table.getHeaderGroups().map((headerGroup) => (
             <Tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => {
