@@ -54,7 +54,7 @@ from performance_dags.performance_dag.performance_dag_utils import (
 )
 
 from airflow import DAG
-from airflow.models.baseoperator import BaseOperator, chain
+from airflow.models.baseoperator import chain
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.trigger_rule import TriggerRule
