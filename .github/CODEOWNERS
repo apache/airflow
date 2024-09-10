@@ -30,7 +30,7 @@
 /airflow/www/ @ryanahamilton @ashb @bbovenzi @pierrejeambrun
 
 # UI
-/airflow/ui/ @bbovenzi @pierrejeambrun
+/airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton
 
 # Security/Permissions
 /airflow/api_connexion/security.py @jhtimmins
