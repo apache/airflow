@@ -208,6 +208,7 @@ class ModelServiceHook(GoogleBaseHook):
         project_id: str,
         region: str,
         model: Model | dict,
+        parent_model: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -218,6 +219,7 @@ class ModelServiceHook(GoogleBaseHook):
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
         :param model:  Required. The Model to create.
+        :param parent_model: The name of the parent model to create a new version under.
         :param retry: Designation of what errors, if any, should be retried.
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
@@ -225,11 +227,16 @@ class ModelServiceHook(GoogleBaseHook):
         client = self.get_model_service_client(region)
         parent = client.common_location_path(project_id, region)
 
+        request = {
+            "parent": parent,
+            "model": model,
+        }
+
+        if parent_model:
+            request["parent_model"] = parent_model
+
         result = client.upload_model(
-            request={
-                "parent": parent,
-                "model": model,
-            },
+            request=request,
             retry=retry,
             timeout=timeout,
             metadata=metadata,

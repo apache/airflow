@@ -17,19 +17,4 @@
  * under the License.
  */
 
-import { Box } from "@chakra-ui/react";
-import { DagsList } from "src/dagsList";
-import { Nav } from "src/nav";
-
-export const App = () => {
-  return (
-    <div>
-      <Nav />
-      <Box p={3} ml={24}>
-        <DagsList />
-      </Box>
-    </div>
-  );
-};
-
-export const AppSimple = () => <div>Something</div>;
+export * from "./DataTable";

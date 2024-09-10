@@ -134,7 +134,7 @@ def test_serialization(dataset_timetable: DatasetOrTimeSchedule, monkeypatch: An
         "timetable": "mock_serialized_timetable",
         "dataset_condition": {
             "__type": "dataset_all",
-            "objects": [{"__type": "dataset", "uri": "test_dataset", "extra": None}],
+            "objects": [{"__type": "dataset", "uri": "test_dataset", "extra": {}}],
         },
     }
 

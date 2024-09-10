@@ -126,14 +126,14 @@ By adding `--python <PYTHON_MAJOR_MINOR_VERSION>` parameter you can
 build the image version for the chosen Python version.
 
 The images are built with default extras - different extras for CI and
-production image and you can change the extras via the `--extras`
+production image and you can change the extras via the `--airflow-extras`
 parameters and add new ones with `--additional-airflow-extras`.
 
 For example if you want to build Python 3.8 version of production image
 with "all" extras installed you should run this command:
 
 ``` bash
-breeze prod-image build --python 3.8 --extras "all"
+breeze prod-image build --python 3.8 --airflow-extras "all"
 ```
 
 If you just want to add new extras you can add them like that:

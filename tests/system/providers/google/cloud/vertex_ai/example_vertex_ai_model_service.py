@@ -231,6 +231,13 @@ with DAG(
         model=MODEL_OBJ,
     )
     # [END how_to_cloud_vertex_ai_upload_model_operator]
+    upload_model_with_parent_model = UploadModelOperator(
+        task_id="upload_model_with_parent_model",
+        region=REGION,
+        project_id=PROJECT_ID,
+        model=MODEL_OBJ,
+        parent_model=MODEL_DISPLAY_NAME,
+    )
 
     # [START how_to_cloud_vertex_ai_export_model_operator]
     export_model = ExportModelOperator(
@@ -251,6 +258,13 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END how_to_cloud_vertex_ai_delete_model_operator]
+    delete_model_with_parent_model = DeleteModelOperator(
+        task_id="delete_model_with_parent_model",
+        project_id=PROJECT_ID,
+        region=REGION,
+        model_id=upload_model_with_parent_model.output["model_id"],
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
 
     # [START how_to_cloud_vertex_ai_list_models_operator]
     list_models = ListModelsOperator(
@@ -317,8 +331,10 @@ with DAG(
         >> set_default_version
         >> add_version_alias
         >> upload_model
+        >> upload_model_with_parent_model
         >> export_model
         >> delete_model
+        >> delete_model_with_parent_model
         >> list_models
         # TEST TEARDOWN
         >> delete_version_alias

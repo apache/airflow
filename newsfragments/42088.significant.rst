@@ -1,0 +1,14 @@
+Removed deprecated metrics configuration.
+
+   * Removed deprecated configuration ``statsd_allow_list`` from ``metrics``. Please use ``metrics_allow_list`` from ``metrics`` instead.
+   * Removed deprecated configuration ``statsd_block_list`` from ``metrics``. Please use ``metrics_block_list`` from ``metrics`` instead.
+   * Removed deprecated configuration ``statsd_on`` from ``scheduler``. Please use ``statsd_on`` from ``metrics`` instead.
+   * Removed deprecated configuration ``statsd_host`` from ``scheduler``. Please use ``statsd_host`` from ``metrics`` instead.
+   * Removed deprecated configuration ``statsd_port`` from ``scheduler``. Please use ``statsd_port`` from ``metrics`` instead.
+   * Removed deprecated configuration ``statsd_prefix`` from ``scheduler``. Please use ``statsd_prefix`` from ``metrics`` instead.
+   * Removed deprecated configuration ``statsd_allow_list`` from ``scheduler``. Please use ``statsd_allow_list`` from ``metrics`` instead.
+   * Removed deprecated configuration ``stat_name_handler`` from ``scheduler``. Please use ``stat_name_handler`` from ``metrics`` instead.
+   * Removed deprecated configuration ``statsd_datadog_enabled`` from ``scheduler``. Please use ``statsd_datadog_enabled`` from ``metrics`` instead.
+   * Removed deprecated configuration ``statsd_datadog_tags`` from ``scheduler``. Please use ``statsd_datadog_tags`` from ``metrics`` instead.
+   * Removed deprecated configuration ``statsd_datadog_metrics_tags`` from ``scheduler``. Please use ``statsd_datadog_metrics_tags`` from ``metrics`` instead.
+   * Removed deprecated configuration ``statsd_custom_client_path`` from ``scheduler``. Please use ``statsd_custom_client_path`` from ``metrics`` instead.

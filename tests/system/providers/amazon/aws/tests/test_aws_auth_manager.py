@@ -22,12 +22,12 @@ from unittest.mock import Mock, patch
 import boto3
 import pytest
 
+pytest.importorskip("onelogin")
+
 from airflow.www import app as application
 from tests.system.providers.amazon.aws.utils import set_env_id
 from tests.test_utils.config import conf_vars
 from tests.test_utils.www import check_content_in_response
-
-pytest.importorskip("onelogin")
 
 SAML_METADATA_URL = "/saml/metadata"
 SAML_METADATA_PARSED = {

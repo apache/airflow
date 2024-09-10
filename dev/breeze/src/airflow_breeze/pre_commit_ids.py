@@ -101,6 +101,7 @@ PRE_COMMIT_LIST = [
     "fix-encoding-pragma",
     "flynt",
     "generate-airflow-diagrams",
+    "generate-openapi-spec",
     "generate-pypi-readme",
     "identity",
     "insert-license",
