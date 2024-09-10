@@ -127,6 +127,12 @@
         {%- if form_details.schema.minimum %} min="{{ form_details.schema.minimum }}"{% endif %}
         {%- if form_details.schema.maximum %} max="{{ form_details.schema.maximum }}"{% endif %}
         {%- if form_details.schema.type and not "null" in form_details.schema.type %} required=""{% endif %} />
+    {% elif form_details.schema and "string" in form_details.schema.type and "format" in form_details.schema and form_details.schema.format == "multiline" %}
+      <textarea class="form-control" name="element_{{ form_key }}" id="element_{{ form_key }}" rows="6"
+        {%- if not "null" in form_details.schema.type %} required=""{% endif -%}
+        {%- if form_details.schema and form_details.schema.minLength %} minlength="{{ form_details.schema.minLength }}"{% endif %}
+        {%- if form_details.schema and form_details.schema.maxLength %} maxlength="{{ form_details.schema.maxLength }}"{% endif %}
+      >{% if form_details.value %}{{- form_details.value -}}{% endif %}</textarea>
     {% else %}
       <input class="form-control" name="element_{{ form_key }}" id="element_{{ form_key }}"
         type="{% if "examples" in form_details.schema and form_details.schema.examples %}search{% else %}text{% endif %}"

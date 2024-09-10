@@ -18,6 +18,44 @@
  */
 
 import { extendTheme } from "@chakra-ui/react";
+import { tableAnatomy } from "@chakra-ui/anatomy";
+import { createMultiStyleConfigHelpers } from "@chakra-ui/react";
+
+const { definePartsStyle, defineMultiStyleConfig } =
+  createMultiStyleConfigHelpers(tableAnatomy.keys);
+
+const baseStyle = definePartsStyle((props) => {
+  const { colorScheme: c, colorMode } = props;
+  return {
+    thead: {
+      tr: {
+        th: {
+          borderBottomWidth: 0,
+        },
+      },
+    },
+    tbody: {
+      tr: {
+        "&:nth-of-type(odd)": {
+          "th, td": {
+            borderBottomWidth: "0px",
+            borderColor: colorMode === "light" ? `${c}.50` : `gray.900`,
+          },
+          td: {
+            background: colorMode === "light" ? `${c}.50` : `gray.900`,
+          },
+        },
+        "&:nth-of-type(even)": {
+          "th, td": {
+            borderBottomWidth: "0px",
+          },
+        },
+      },
+    },
+  };
+});
+
+export const tableTheme = defineMultiStyleConfig({ baseStyle });
 
 const theme = extendTheme({
   config: {
@@ -36,6 +74,7 @@ const theme = extendTheme({
         fontSize: "md",
       },
     },
+    Table: tableTheme,
   },
 });
 

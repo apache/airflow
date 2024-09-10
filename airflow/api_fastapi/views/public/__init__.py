@@ -14,14 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-import pytest
-from fastapi.testclient import TestClient
+from fastapi import APIRouter
 
-from airflow.api_ui.app import create_app
-
-
-@pytest.fixture
-def test_client():
-    return TestClient(create_app())
+public_router = APIRouter(prefix="/public")

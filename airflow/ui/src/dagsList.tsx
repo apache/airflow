@@ -17,259 +17,211 @@
  * under the License.
  */
 
-import React, { Fragment } from "react";
-
+import { ColumnDef } from "@tanstack/react-table";
+import { useSearchParams } from "react-router-dom";
 import {
-  useReactTable,
-  getCoreRowModel,
-  getExpandedRowModel,
-  getPaginationRowModel,
-  ColumnDef,
-  flexRender,
-  Row,
-  OnChangeFn,
-  PaginationState,
-  Table as TanStackTable,
-} from "@tanstack/react-table";
-import { MdExpandMore } from "react-icons/md";
-import {
-  Box,
-  Code,
-  Table as ChakraTable,
-  Thead,
+  Badge,
   Button,
-  Td,
-  Th,
-  Tr,
-  Tbody,
-  TableContainer,
+  ButtonProps,
+  Checkbox,
+  Heading,
+  HStack,
+  Input,
+  InputGroup,
+  InputGroupProps,
+  InputLeftElement,
+  InputProps,
+  InputRightElement,
+  Select,
+  Spinner,
+  VStack,
 } from "@chakra-ui/react";
+import { Select as ReactSelect } from "chakra-react-select";
+import { FiSearch } from "react-icons/fi";
 
 import { DAG } from "openapi/requests/types.gen";
+import { useDagServiceGetDags } from "openapi/queries";
+import { DataTable } from "./components/DataTable";
+import { pluralize } from "./utils/pluralize";
+import { useTableURLState } from "./components/DataTable/useTableUrlState";
+
+const SearchBar = ({
+  groupProps,
+  inputProps,
+  buttonProps,
+}: {
+  groupProps?: InputGroupProps;
+  inputProps?: InputProps;
+  buttonProps?: ButtonProps;
+}) => (
+  <InputGroup {...groupProps}>
+    <InputLeftElement pointerEvents="none">
+      <FiSearch />
+    </InputLeftElement>
+    <Input placeholder="Search DAGs" pr={150} {...inputProps} />
+    <InputRightElement width={150}>
+      <Button
+        variant="ghost"
+        colorScheme="blue"
+        width={140}
+        height="1.75rem"
+        fontWeight="normal"
+        {...buttonProps}
+      >
+        Advanced Search
+      </Button>
+    </InputRightElement>
+  </InputGroup>
+);
 
 const columns: ColumnDef<DAG>[] = [
   {
-    id: "expander",
-    header: () => null,
-    cell: ({ row }) => {
-      return row.getCanExpand() ? (
-        <button
-          {...{
-            onClick: row.getToggleExpandedHandler(),
-            style: { cursor: "pointer" },
-          }}
-        >
-          <Box
-            transform={row.getIsExpanded() ? "rotate(-180deg)" : "none"}
-            transition="transform 0.2s"
-          >
-            <MdExpandMore />
-          </Box>
-        </button>
-      ) : null;
-    },
-  },
-  {
-    accessorKey: "dag_display_name",
+    accessorKey: "dag_id",
     header: "DAG",
+    cell: ({ row }) => row.original.dag_display_name,
   },
   {
     accessorKey: "is_paused",
     header: () => "Is Paused",
+    enableSorting: false,
   },
   {
     accessorKey: "timetable_description",
-    header: () => "Timetable",
+    header: () => "Schedule",
+    cell: (info) =>
+      info.getValue() !== "Never, external triggers only"
+        ? info.getValue()
+        : undefined,
+    enableSorting: false,
   },
   {
-    accessorKey: "description",
-    header: () => "Description",
+    accessorKey: "next_dagrun",
+    header: "Next DAG Run",
+    enableSorting: false,
+  },
+  {
+    accessorKey: "tags",
+    header: () => "Tags",
+    cell: ({ row }) => (
+      <HStack>
+        {row.original.tags?.map((tag) => (
+          <Badge key={tag.name}>{tag.name}</Badge>
+        ))}
+      </HStack>
+    ),
+    enableSorting: false,
   },
 ];
 
-type TableProps<TData> = {
-  data: TData[];
-  total: number | undefined;
-  columns: ColumnDef<TData>[];
-  renderSubComponent: (props: { row: Row<TData> }) => React.ReactElement;
-  getRowCanExpand: (row: Row<TData>) => boolean;
-  pagination: PaginationState;
-  setPagination: OnChangeFn<PaginationState>;
-};
+const QuickFilterButton = ({ children, ...rest }: ButtonProps) => (
+  <Button
+    borderRadius={20}
+    fontWeight="normal"
+    colorScheme="blue"
+    variant="outline"
+    {...rest}
+  >
+    {children}
+  </Button>
+);
 
-type PaginatorProps<TData> = {
-  table: TanStackTable<TData>;
-};
+const PAUSED_PARAM = "paused";
 
-const TablePaginator = ({ table }: PaginatorProps<DAG>) => {
-  const pageInterval = 3;
-  const currentPageNumber = table.getState().pagination.pageIndex + 1;
-  const startPageNumber = Math.max(1, currentPageNumber - pageInterval);
-  const endPageNumber = Math.min(
-    table.getPageCount(),
-    startPageNumber + pageInterval * 2
-  );
-  const pageNumbers = [];
+export const DagsList = () => {
+  const cardView = false;
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  for (let index = startPageNumber; index <= endPageNumber; index++) {
-    pageNumbers.push(
-      <Button
-        borderRadius={0}
-        key={index}
-        isDisabled={index === currentPageNumber}
-        onClick={() => table.setPageIndex(index - 1)}
-      >
-        {index}
-      </Button>
-    );
-  }
+  const showPaused = searchParams.get(PAUSED_PARAM) === "true";
 
-  return (
-    <Box mt={2} mb={2}>
-      <Button
-        borderRadius={0}
-        onClick={() => table.firstPage()}
-        isDisabled={!table.getCanPreviousPage()}
-      >
-        {"<<"}
-      </Button>
+  const { tableURLState, setTableURLState } = useTableURLState();
+  const { sorting, pagination } = tableURLState;
 
-      <Button
-        borderRadius={0}
-        onClick={() => table.previousPage()}
-        isDisabled={!table.getCanPreviousPage()}
-      >
-        {"<"}
-      </Button>
-      {pageNumbers}
-      <Button
-        borderRadius={0}
-        onClick={() => table.nextPage()}
-        isDisabled={!table.getCanNextPage()}
-      >
-        {">"}
-      </Button>
-      <Button
-        borderRadius={0}
-        onClick={() => table.lastPage()}
-        isDisabled={!table.getCanNextPage()}
-      >
-        {">>"}
-      </Button>
-    </Box>
-  );
-};
+  // TODO: update API to accept multiple orderBy params
+  const sort = sorting[0];
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
 
-const Table = ({
-  data,
-  total,
-  columns,
-  renderSubComponent,
-  getRowCanExpand,
-  pagination,
-  setPagination,
-}: TableProps<DAG>) => {
-  const table = useReactTable<DAG>({
-    data,
-    columns,
-    getRowCanExpand,
-    getCoreRowModel: getCoreRowModel(),
-    getExpandedRowModel: getExpandedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    onPaginationChange: setPagination,
-    rowCount: total ?? 0,
-    manualPagination: true,
-    state: {
-      pagination,
-    },
+  const { data, isLoading } = useDagServiceGetDags({
+    limit: pagination.pageSize,
+    offset: pagination.pageIndex * pagination.pageSize,
+    onlyActive: true,
+    paused: showPaused,
+    orderBy,
   });
 
   return (
-    <TableContainer>
-      <ChakraTable variant="striped">
-        <Thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <Tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => {
-                return (
-                  <Th key={header.id} colSpan={header.colSpan}>
-                    {header.isPlaceholder ? null : (
-                      <div>
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                      </div>
-                    )}
-                  </Th>
-                );
-              })}
-            </Tr>
-          ))}
-        </Thead>
-        <Tbody>
-          {table.getRowModel().rows.map((row) => {
-            return (
-              <Fragment key={row.id}>
-                <Tr>
-                  {/* first row is a normal row */}
-                  {row.getVisibleCells().map((cell) => {
-                    return (
-                      <Td key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </Td>
-                    );
-                  })}
-                </Tr>
-                {row.getIsExpanded() && (
-                  <Tr>
-                    {/* 2nd row is a custom 1 cell row */}
-                    <Td colSpan={row.getVisibleCells().length}>
-                      {renderSubComponent({ row })}
-                    </Td>
-                  </Tr>
-                )}
-              </Fragment>
-            );
-          })}
-        </Tbody>
-      </ChakraTable>
-      <TablePaginator table={table} />
-    </TableContainer>
-  );
-};
-
-const renderSubComponent = ({ row }: { row: Row<DAG> }) => {
-  return (
-    <pre style={{ fontSize: "10px" }}>
-      <Code>{JSON.stringify(row.original, null, 2)}</Code>
-    </pre>
-  );
-};
-
-export const DagsList = ({
-  data,
-  total,
-  pagination,
-  setPagination,
-}: {
-  data: DAG[];
-  total: number | undefined;
-  pagination: PaginationState;
-  setPagination: OnChangeFn<PaginationState>;
-}) => {
-  return (
-    <Table
-      data={data}
-      total={total}
-      columns={columns}
-      getRowCanExpand={() => true}
-      renderSubComponent={renderSubComponent}
-      pagination={pagination}
-      setPagination={setPagination}
-    />
+    <>
+      {isLoading && <Spinner />}
+      {!isLoading && !!data?.dags && (
+        <>
+          <VStack alignItems="none">
+            <SearchBar
+              inputProps={{ isDisabled: true }}
+              buttonProps={{ isDisabled: true }}
+            />
+            <HStack justifyContent="space-between">
+              <HStack>
+                <HStack>
+                  <QuickFilterButton isActive>All</QuickFilterButton>
+                  <QuickFilterButton isDisabled>Failed</QuickFilterButton>
+                  <QuickFilterButton isDisabled>Running</QuickFilterButton>
+                  <QuickFilterButton isDisabled>Successful</QuickFilterButton>
+                </HStack>
+                <Checkbox
+                  isChecked={showPaused}
+                  onChange={() => {
+                    if (showPaused) searchParams.delete(PAUSED_PARAM);
+                    else searchParams.set(PAUSED_PARAM, "true");
+                    setSearchParams(searchParams);
+                    setTableURLState({
+                      sorting,
+                      pagination: { ...pagination, pageIndex: 0 },
+                    });
+                  }}
+                >
+                  Show Paused DAGs
+                </Checkbox>
+              </HStack>
+              <ReactSelect placeholder="Filter by tag" isDisabled />
+            </HStack>
+            <HStack justifyContent="space-between">
+              <Heading size="md">
+                {pluralize("DAG", data.total_entries)}
+              </Heading>
+              {cardView && (
+                <Select
+                  placeholder="Sort by…"
+                  width="200px"
+                  variant="flushed"
+                  value={orderBy}
+                  onChange={(e) => {
+                    setTableURLState({
+                      sorting: e.target.value
+                        ? [
+                            {
+                              id: e.target.value.replace("-", ""),
+                              desc: e.target.value.startsWith("-"),
+                            },
+                          ]
+                        : [],
+                      pagination,
+                    });
+                  }}
+                >
+                  <option value="dag_id">Sort by DAG ID (A-Z)</option>
+                  <option value="-dag_id">Sort by DAG ID (Z-A)</option>
+                </Select>
+              )}
+            </HStack>
+          </VStack>
+          <DataTable
+            data={data.dags}
+            total={data.total_entries}
+            columns={columns}
+            initialState={tableURLState}
+            onStateChange={setTableURLState}
+          />
+        </>
+      )}
+    </>
   );
 };
