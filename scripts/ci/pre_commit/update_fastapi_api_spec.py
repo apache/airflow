@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -18,16 +17,23 @@
 # under the License.
 from __future__ import annotations
 
-import setproctitle
+import sys
+from pathlib import Path
 
-from airflow import settings
+sys.path.insert(0, str(Path(__file__).parent.resolve()))
+from common_precommit_utils import console, initialize_breeze_precommit, run_command_via_breeze_shell
 
+initialize_breeze_precommit(__name__, __file__)
 
-def post_worker_init(_):
-    """
-    Set process title.
+cmd_result = run_command_via_breeze_shell(
+    ["python3", "/opt/airflow/scripts/in_container/run_update_fastapi_api_spec.py"],
+    backend="postgres",
+    skip_environment_initialization=False,
+)
 
-    This is used by airflow.cli.commands.ui_api_command to track the status of the worker.
-    """
-    old_title = setproctitle.getproctitle()
-    setproctitle.setproctitle(settings.GUNICORN_WORKER_READY_PREFIX + old_title)
+if cmd_result.returncode != 0:
+    console.print(
+        "[warning]\nIf you see strange stacktraces above, "
+        "run `breeze ci-image build --python 3.8` and try again."
+    )
+sys.exit(cmd_result.returncode)

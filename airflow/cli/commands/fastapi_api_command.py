@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""UI API command."""
+"""FastAPI API command."""
 
 from __future__ import annotations
 
@@ -52,8 +52,8 @@ AirflowUvicornWorker.CONFIG_KWARGS = {"loop": "asyncio", "http": "auto"}
 
 @cli_utils.action_cli
 @providers_configuration_loaded
-def ui_api(args):
-    """Start Airflow UI API."""
+def fastapi_api(args):
+    """Start Airflow FastAPI API."""
     print(settings.HEADER)
 
     access_logfile = args.access_logfile or "-"
@@ -62,18 +62,18 @@ def ui_api(args):
     num_workers = args.workers
     worker_timeout = args.worker_timeout
 
-    worker_class = "airflow.cli.commands.ui_api_command.AirflowUvicornWorker"
+    worker_class = "airflow.cli.commands.fastapi_api_command.AirflowUvicornWorker"
 
-    from airflow.api_ui.app import create_app
+    from airflow.api_fastapi.app import create_app
 
     if args.debug:
-        print(f"Starting the UI API server on port {args.port} and host {args.hostname} debug.")
+        print(f"Starting the FastAPI API server on port {args.port} and host {args.hostname} debug.")
         log.warning("Running in dev mode, ignoring gunicorn args")
 
         run_args = [
             "fastapi",
             "dev",
-            "airflow/api_ui/main.py",
+            "airflow/api_fastapi/main.py",
             "--port",
             str(args.port),
             "--host",
@@ -99,7 +99,7 @@ def ui_api(args):
             )
         )
 
-        pid_file, _, _, _ = setup_locations("ui-api", pid=args.pid)
+        pid_file, _, _, _ = setup_locations("fastapi-api", pid=args.pid)
         run_args = [
             sys.executable,
             "-m",
@@ -113,7 +113,7 @@ def ui_api(args):
             "--bind",
             args.hostname + ":" + str(args.port),
             "--name",
-            "airflow-ui-api",
+            "airflow-fastapi-api",
             "--pid",
             pid_file,
             "--access-logfile",
@@ -121,7 +121,7 @@ def ui_api(args):
             "--error-logfile",
             str(error_logfile),
             "--config",
-            "python:airflow.api_ui.gunicorn_config",
+            "python:airflow.api_fastapi.gunicorn_config",
         ]
 
         if args.access_logformat and args.access_logformat.strip():
@@ -130,7 +130,7 @@ def ui_api(args):
         if args.daemon:
             run_args += ["--daemon"]
 
-        run_args += ["airflow.api_ui.app:cached_app()"]
+        run_args += ["airflow.api_fastapi.app:cached_app()"]
 
         # To prevent different workers creating the web app and
         # all writing to the database at the same time, we use the --preload option.
@@ -194,7 +194,7 @@ def ui_api(args):
         monitor_pid_file = str(pid_file_path.with_name(f"{pid_file_path.stem}-monitor{pid_file_path.suffix}"))
         run_command_with_daemon_option(
             args=args,
-            process_name="ui-api",
+            process_name="fastapi-api",
             callback=lambda: start_and_monitor_gunicorn(args),
             should_setup_logging=True,
             pid_file=monitor_pid_file,

@@ -600,6 +600,7 @@ falsy
 faq
 Fargate
 fargate
+fastapi
 fbee
 fc
 fd

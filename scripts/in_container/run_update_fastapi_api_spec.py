@@ -16,12 +16,31 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
-from fastapi.testclient import TestClient
+import yaml
+from fastapi.openapi.utils import get_openapi
 
-from airflow.api_ui.app import create_app
+from airflow.api_fastapi.app import create_app
+
+app = create_app()
+
+OPENAPI_SPEC_FILE = "airflow/api_fastapi/openapi/v1-generated.yaml"
 
 
-@pytest.fixture
-def test_client():
-    return TestClient(create_app())
+# The persisted openapi spec will list all endpoints (public and ui), this
+# is used for code generation.
+for route in app.routes:
+    route.__setattr__("include_in_schema", True)
+
+with open(OPENAPI_SPEC_FILE, "w+") as f:
+    yaml.dump(
+        get_openapi(
+            title=app.title,
+            version=app.version,
+            openapi_version=app.openapi_version,
+            description=app.description,
+            routes=app.routes,
+        ),
+        f,
+        default_flow_style=False,
+        sort_keys=False,
+    )

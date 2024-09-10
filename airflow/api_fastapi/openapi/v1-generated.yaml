@@ -1,9 +1,10 @@
 openapi: 3.1.0
 info:
   title: FastAPI
-  description: Internal Rest API for the UI frontend. It is subject to breaking change
-    depending on the need of the frontend. Users should not rely on this API but use
-    the public API instead.
+  description: Airflow API. All endpoints located under ``/public`` can be used safely,
+    are stable and backward compatible. Endpoints located under ``/ui`` are dedicated
+    to the UI and are subject to breaking change depending on the need of the frontend.
+    Users should not rely on those but use the public ones instead.
   version: 0.1.0
 paths:
   /ui/next_run_datasets/{dag_id}:

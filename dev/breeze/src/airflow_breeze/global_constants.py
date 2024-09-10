@@ -253,7 +253,7 @@ REDIS_HOST_PORT = "26379"
 SSH_PORT = "12322"
 WEBSERVER_HOST_PORT = "28080"
 VITE_DEV_PORT = "5173"
-UI_API_HOST_PORT = "29091"
+FASTAPI_API_HOST_PORT = "29091"
 
 CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"

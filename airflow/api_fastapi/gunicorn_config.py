@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,25 +18,16 @@
 # under the License.
 from __future__ import annotations
 
-import yaml
-from fastapi.openapi.utils import get_openapi
+import setproctitle
 
-from airflow.api_ui.app import cached_app
+from airflow import settings
 
-app = cached_app()
 
-OPENAPI_SPEC_FILE = "airflow/api_ui/openapi/v1-generated.yaml"
+def post_worker_init(_):
+    """
+    Set process title.
 
-with open(OPENAPI_SPEC_FILE, "w+") as f:
-    yaml.dump(
-        get_openapi(
-            title=app.title,
-            version=app.version,
-            openapi_version=app.openapi_version,
-            description=app.description,
-            routes=app.routes,
-        ),
-        f,
-        default_flow_style=False,
-        sort_keys=False,
-    )
+    This is used by airflow.cli.commands.fastapi_api_command to track the status of the worker.
+    """
+    old_title = setproctitle.getproctitle()
+    setproctitle.setproctitle(settings.GUNICORN_WORKER_READY_PREFIX + old_title)

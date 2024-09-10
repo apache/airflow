@@ -14,11 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
----
-services:
-  airflow:
-    ports:
-      - "${SSH_PORT}:22"
-      - "${WEBSERVER_HOST_PORT}:8080"
-      - "${FASTAPI_API_HOST_PORT}:9091"
-      - "${FLOWER_HOST_PORT}:5555"
+from __future__ import annotations
+
+import pytest
+from fastapi.testclient import TestClient
+
+from airflow.api_fastapi.app import create_app
+
+
+@pytest.fixture
+def test_client():
+    return TestClient(create_app())

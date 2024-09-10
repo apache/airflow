@@ -133,7 +133,7 @@ def get_excluded_provider_args(python_version: str) -> list[str]:
 
 TEST_TYPE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "Always": ["tests/always"],
-    "API": ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_ui"],
+    "API": ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_fastapi"],
     "BranchPythonVenv": [
         "tests/operators/test_python.py::TestBranchPythonVirtualenvOperator",
     ],
