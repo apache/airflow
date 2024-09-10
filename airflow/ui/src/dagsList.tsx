@@ -44,6 +44,7 @@ import { useDagServiceGetDags } from "openapi/queries";
 import { DataTable } from "./components/DataTable";
 import { pluralize } from "./utils/pluralize";
 import { useTableURLState } from "./components/DataTable/useTableUrlState";
+import { PauseToggle } from "./components/PauseToggle";
 
 const SearchBar = ({
   groupProps,
@@ -76,22 +77,25 @@ const SearchBar = ({
 
 const columns: ColumnDef<DAG>[] = [
   {
+    accessorKey: "is_paused",
+    header: "",
+    enableSorting: false,
+    cell: ({ row }) => (
+      <PauseToggle
+        dagId={row.original.dag_id!}
+        isPaused={row.original.is_paused!}
+      />
+    ),
+  },
+  {
     accessorKey: "dag_id",
     header: "DAG",
     cell: ({ row }) => row.original.dag_display_name,
   },
   {
-    accessorKey: "is_paused",
-    header: () => "Is Paused",
-    enableSorting: false,
-  },
-  {
-    accessorKey: "timetable_description",
-    header: () => "Schedule",
-    cell: (info) =>
-      info.getValue() !== "Never, external triggers only"
-        ? info.getValue()
-        : undefined,
+    accessorKey: "timetable_summary",
+    header: "Schedule",
+    cell: (info) => (info.getValue() === "None" ? undefined : info.getValue()),
     enableSorting: false,
   },
   {
@@ -101,7 +105,7 @@ const columns: ColumnDef<DAG>[] = [
   },
   {
     accessorKey: "tags",
-    header: () => "Tags",
+    header: "Tags",
     cell: ({ row }) => (
       <HStack>
         {row.original.tags?.map((tag) => (
@@ -144,83 +148,80 @@ export const DagsList = () => {
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     onlyActive: true,
-    paused: showPaused,
+    paused: showPaused === true ? undefined : false, // undefined returns all dags
     orderBy,
   });
 
   return (
     <>
+      <VStack alignItems="none">
+        <SearchBar
+          inputProps={{ isDisabled: true }}
+          buttonProps={{ isDisabled: true }}
+        />
+        <HStack justifyContent="space-between">
+          <HStack>
+            <HStack>
+              <QuickFilterButton isActive>All</QuickFilterButton>
+              <QuickFilterButton isDisabled>Failed</QuickFilterButton>
+              <QuickFilterButton isDisabled>Running</QuickFilterButton>
+              <QuickFilterButton isDisabled>Successful</QuickFilterButton>
+            </HStack>
+            <Checkbox
+              disabled={isLoading}
+              isChecked={showPaused}
+              onChange={() => {
+                if (showPaused) searchParams.delete(PAUSED_PARAM);
+                else searchParams.set(PAUSED_PARAM, "true");
+                setSearchParams(searchParams);
+                setTableURLState({
+                  sorting,
+                  pagination: { ...pagination, pageIndex: 0 },
+                });
+              }}
+            >
+              Show Paused DAGs
+            </Checkbox>
+          </HStack>
+          <ReactSelect placeholder="Filter by tag" isDisabled />
+        </HStack>
+        <HStack justifyContent="space-between">
+          <Heading size="md">{pluralize("DAG", data?.total_entries)}</Heading>
+          {cardView && (
+            <Select
+              placeholder="Sort by…"
+              width="200px"
+              variant="flushed"
+              value={orderBy}
+              onChange={(e) => {
+                setTableURLState({
+                  sorting: e.target.value
+                    ? [
+                        {
+                          id: e.target.value.replace("-", ""),
+                          desc: e.target.value.startsWith("-"),
+                        },
+                      ]
+                    : [],
+                  pagination,
+                });
+              }}
+            >
+              <option value="dag_id">Sort by DAG ID (A-Z)</option>
+              <option value="-dag_id">Sort by DAG ID (Z-A)</option>
+            </Select>
+          )}
+        </HStack>
+      </VStack>
       {isLoading && <Spinner />}
       {!isLoading && !!data?.dags && (
-        <>
-          <VStack alignItems="none">
-            <SearchBar
-              inputProps={{ isDisabled: true }}
-              buttonProps={{ isDisabled: true }}
-            />
-            <HStack justifyContent="space-between">
-              <HStack>
-                <HStack>
-                  <QuickFilterButton isActive>All</QuickFilterButton>
-                  <QuickFilterButton isDisabled>Failed</QuickFilterButton>
-                  <QuickFilterButton isDisabled>Running</QuickFilterButton>
-                  <QuickFilterButton isDisabled>Successful</QuickFilterButton>
-                </HStack>
-                <Checkbox
-                  isChecked={showPaused}
-                  onChange={() => {
-                    if (showPaused) searchParams.delete(PAUSED_PARAM);
-                    else searchParams.set(PAUSED_PARAM, "true");
-                    setSearchParams(searchParams);
-                    setTableURLState({
-                      sorting,
-                      pagination: { ...pagination, pageIndex: 0 },
-                    });
-                  }}
-                >
-                  Show Paused DAGs
-                </Checkbox>
-              </HStack>
-              <ReactSelect placeholder="Filter by tag" isDisabled />
-            </HStack>
-            <HStack justifyContent="space-between">
-              <Heading size="md">
-                {pluralize("DAG", data.total_entries)}
-              </Heading>
-              {cardView && (
-                <Select
-                  placeholder="Sort by…"
-                  width="200px"
-                  variant="flushed"
-                  value={orderBy}
-                  onChange={(e) => {
-                    setTableURLState({
-                      sorting: e.target.value
-                        ? [
-                            {
-                              id: e.target.value.replace("-", ""),
-                              desc: e.target.value.startsWith("-"),
-                            },
-                          ]
-                        : [],
-                      pagination,
-                    });
-                  }}
-                >
-                  <option value="dag_id">Sort by DAG ID (A-Z)</option>
-                  <option value="-dag_id">Sort by DAG ID (Z-A)</option>
-                </Select>
-              )}
-            </HStack>
-          </VStack>
-          <DataTable
-            data={data.dags}
-            total={data.total_entries}
-            columns={columns}
-            initialState={tableURLState}
-            onStateChange={setTableURLState}
-          />
-        </>
+        <DataTable
+          data={data.dags}
+          total={data.total_entries}
+          columns={columns}
+          initialState={tableURLState}
+          onStateChange={setTableURLState}
+        />
       )}
     </>
   );

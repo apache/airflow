@@ -56,9 +56,11 @@ const NavButton = ({ icon, title, ...rest }: NavButtonProps) => (
     variant="ghost"
     borderRadius="none"
     height={16}
+    width={24}
     alignItems="center"
     flexDir="column"
     whiteSpace="wrap"
+    transition="background-color 0.2s ease-in-out"
     {...rest}
   >
     <Box alignSelf="center">{icon}</Box>
@@ -96,7 +98,7 @@ export const Nav = () => {
         <NavButton title="Home" icon={<FiHome size="1.75rem" />} isDisabled />
         <NavButton title="DAGs" icon={<DagIcon height={7} width={7} />} />
         <NavButton
-          title="Datasets"
+          title="Assets"
           icon={<FiDatabase size="1.75rem" />}
           isDisabled
         />
