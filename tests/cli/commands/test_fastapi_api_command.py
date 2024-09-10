@@ -26,7 +26,7 @@ import psutil
 import pytest
 from rich.console import Console
 
-from airflow.cli.commands import ui_api_command
+from airflow.cli.commands import fastapi_api_command
 from tests.cli.commands._common_cli_classes import _CommonCLIGunicornTestClass
 
 console = Console(width=400, color_system="standard")
@@ -34,28 +34,28 @@ console = Console(width=400, color_system="standard")
 
 @pytest.mark.db_test
 class TestCliInternalAPI(_CommonCLIGunicornTestClass):
-    main_process_regexp = r"airflow ui-api"
+    main_process_regexp = r"airflow fastapi-api"
 
     @pytest.mark.execution_timeout(210)
-    def test_cli_ui_api_background(self, tmp_path):
+    def test_cli_fastapi_api_background(self, tmp_path):
         parent_path = tmp_path / "gunicorn"
         parent_path.mkdir()
-        pidfile_ui_api = parent_path / "pidflow-ui-api.pid"
-        pidfile_monitor = parent_path / "pidflow-ui-api-monitor.pid"
-        stdout = parent_path / "airflow-ui-api.out"
-        stderr = parent_path / "airflow-ui-api.err"
-        logfile = parent_path / "airflow-ui-api.log"
+        pidfile_fastapi_api = parent_path / "pidflow-fastapi-api.pid"
+        pidfile_monitor = parent_path / "pidflow-fastapi-api-monitor.pid"
+        stdout = parent_path / "airflow-fastapi-api.out"
+        stderr = parent_path / "airflow-fastapi-api.err"
+        logfile = parent_path / "airflow-fastapi-api.log"
         try:
             # Run internal-api as daemon in background. Note that the wait method is not called.
-            console.print("[magenta]Starting airflow ui-api --daemon")
+            console.print("[magenta]Starting airflow fastapi-api --daemon")
             env = os.environ.copy()
             proc = subprocess.Popen(
                 [
                     "airflow",
-                    "ui-api",
+                    "fastapi-api",
                     "--daemon",
                     "--pid",
-                    os.fspath(pidfile_ui_api),
+                    os.fspath(pidfile_fastapi_api),
                     "--stdout",
                     os.fspath(stdout),
                     "--stderr",
@@ -69,11 +69,11 @@ class TestCliInternalAPI(_CommonCLIGunicornTestClass):
 
             pid_monitor = self._wait_pidfile(pidfile_monitor)
             console.print(f"[blue]Monitor started at {pid_monitor}")
-            pid_ui_api = self._wait_pidfile(pidfile_ui_api)
-            console.print(f"[blue]UI API started at {pid_ui_api}")
-            console.print("[blue]Running airflow ui-api process:")
-            # Assert that the ui-api and gunicorn processes are running (by name rather than pid).
-            assert self._find_process(r"airflow ui-api --daemon", print_found_process=True)
+            pid_fastapi_api = self._wait_pidfile(pidfile_fastapi_api)
+            console.print(f"[blue]FastAPI API started at {pid_fastapi_api}")
+            console.print("[blue]Running airflow fastapi-api process:")
+            # Assert that the fastapi-api and gunicorn processes are running (by name rather than pid).
+            assert self._find_process(r"airflow fastapi-api --daemon", print_found_process=True)
             console.print("[blue]Waiting for gunicorn processes:")
             # wait for gunicorn to start
             for _ in range(30):
@@ -83,16 +83,16 @@ class TestCliInternalAPI(_CommonCLIGunicornTestClass):
                 time.sleep(1)
             console.print("[blue]Running gunicorn processes:")
             assert self._find_all_processes("^gunicorn", print_found_process=True)
-            console.print("[magenta]ui-api process started successfully.")
+            console.print("[magenta]fastapi-api process started successfully.")
             console.print(
                 "[magenta]Terminating monitor process and expect "
-                "ui-api and gunicorn processes to terminate as well"
+                "fastapi-api and gunicorn processes to terminate as well"
             )
             proc = psutil.Process(pid_monitor)
             proc.terminate()
             assert proc.wait(120) in (0, None)
             self._check_processes(ignore_running=False)
-            console.print("[magenta]All ui-api and gunicorn processes are terminated.")
+            console.print("[magenta]All fastapi-api and gunicorn processes are terminated.")
         except Exception:
             console.print("[red]Exception occurred. Dumping all logs.")
             # Dump all logs
@@ -101,18 +101,20 @@ class TestCliInternalAPI(_CommonCLIGunicornTestClass):
                 console.print(file.read_text())
             raise
 
-    def test_cli_ui_api_debug(self, app):
-        with mock.patch("subprocess.Popen") as Popen, mock.patch.object(ui_api_command, "GunicornMonitor"):
+    def test_cli_fastapi_api_debug(self, app):
+        with mock.patch("subprocess.Popen") as Popen, mock.patch.object(
+            fastapi_api_command, "GunicornMonitor"
+        ):
             port = "9092"
             hostname = "somehost"
-            args = self.parser.parse_args(["ui-api", "--port", port, "--hostname", hostname, "--debug"])
-            ui_api_command.ui_api(args)
+            args = self.parser.parse_args(["fastapi-api", "--port", port, "--hostname", hostname, "--debug"])
+            fastapi_api_command.fastapi_api(args)
 
             Popen.assert_called_with(
                 [
                     "fastapi",
                     "dev",
-                    "airflow/api_ui/main.py",
+                    "airflow/api_fastapi/main.py",
                     "--port",
                     port,
                     "--host",
@@ -121,18 +123,20 @@ class TestCliInternalAPI(_CommonCLIGunicornTestClass):
                 close_fds=True,
             )
 
-    def test_cli_ui_api_args(self):
-        with mock.patch("subprocess.Popen") as Popen, mock.patch.object(ui_api_command, "GunicornMonitor"):
+    def test_cli_fastapi_api_args(self):
+        with mock.patch("subprocess.Popen") as Popen, mock.patch.object(
+            fastapi_api_command, "GunicornMonitor"
+        ):
             args = self.parser.parse_args(
                 [
-                    "ui-api",
+                    "fastapi-api",
                     "--access-logformat",
                     "custom_log_format",
                     "--pid",
                     "/tmp/x.pid",
                 ]
             )
-            ui_api_command.ui_api(args)
+            fastapi_api_command.fastapi_api(args)
 
             Popen.assert_called_with(
                 [
@@ -142,13 +146,13 @@ class TestCliInternalAPI(_CommonCLIGunicornTestClass):
                     "--workers",
                     "4",
                     "--worker-class",
-                    "airflow.cli.commands.ui_api_command.AirflowUvicornWorker",
+                    "airflow.cli.commands.fastapi_api_command.AirflowUvicornWorker",
                     "--timeout",
                     "120",
                     "--bind",
                     "0.0.0.0:9091",
                     "--name",
-                    "airflow-ui-api",
+                    "airflow-fastapi-api",
                     "--pid",
                     "/tmp/x.pid",
                     "--access-logfile",
@@ -156,10 +160,10 @@ class TestCliInternalAPI(_CommonCLIGunicornTestClass):
                     "--error-logfile",
                     "-",
                     "--config",
-                    "python:airflow.api_ui.gunicorn_config",
+                    "python:airflow.api_fastapi.gunicorn_config",
                     "--access-logformat",
                     "custom_log_format",
-                    "airflow.api_ui.app:cached_app()",
+                    "airflow.api_fastapi.app:cached_app()",
                     "--preload",
                 ],
                 close_fds=True,
