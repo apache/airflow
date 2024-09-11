@@ -65,9 +65,14 @@ axios.interceptors.request.use((config) => {
   return config;
 });
 
-axios.interceptors.response.use((res: AxiosResponse) =>
-  res.data ? camelcaseKeys(res.data, { deep: true }) : res
-);
+// Do not camelCase xCom entry results
+axios.interceptors.response.use((res: AxiosResponse) => {
+  const stopPaths = [];
+  if (res.config.url?.includes("/xcomEntries/")) {
+    stopPaths.push("value");
+  }
+  return res.data ? camelcaseKeys(res.data, { deep: true, stopPaths }) : res;
+});
 
 axios.defaults.headers.common.Accept = "application/json";
 
