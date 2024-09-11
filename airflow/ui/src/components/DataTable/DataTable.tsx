@@ -25,9 +25,10 @@ import {
   getExpandedRowModel,
   getPaginationRowModel,
   OnChangeFn,
-  PaginationState,
   Row,
   useReactTable,
+  TableState as ReactTableState,
+  Updater,
 } from "@tanstack/react-table";
 import {
   Box,
@@ -41,7 +42,13 @@ import {
   Tr,
   useColorModeValue,
 } from "@chakra-ui/react";
-import React, { Fragment } from "react";
+import React, { Fragment, useCallback, useRef } from "react";
+import {
+  TiArrowSortedDown,
+  TiArrowSortedUp,
+  TiArrowUnsorted,
+} from "react-icons/ti";
+import type { TableState } from "./types";
 
 type DataTableProps<TData> = {
   data: TData[];
@@ -51,8 +58,8 @@ type DataTableProps<TData> = {
     row: Row<TData>;
   }) => React.ReactElement | null;
   getRowCanExpand?: (row: Row<TData>) => boolean;
-  pagination: PaginationState;
-  setPagination: OnChangeFn<PaginationState>;
+  initialState?: TableState;
+  onStateChange?: (state: TableState) => void;
 };
 
 type PaginatorProps<TData> = {
@@ -118,15 +125,36 @@ const TablePaginator = <TData,>({ table }: PaginatorProps<TData>) => {
   );
 };
 
-export function DataTable<TData>({
+export const DataTable = <TData,>({
   data,
   total = 0,
   columns,
   renderSubComponent = () => null,
   getRowCanExpand = () => false,
-  pagination,
-  setPagination,
-}: DataTableProps<TData>) {
+  initialState,
+  onStateChange,
+}: DataTableProps<TData>) => {
+  const ref = useRef<{ tableRef: TanStackTable<TData> | undefined }>({
+    tableRef: undefined,
+  });
+  const handleStateChange = useCallback<OnChangeFn<ReactTableState>>(
+    (updater: Updater<ReactTableState>) => {
+      if (ref.current.tableRef && onStateChange) {
+        const current = ref.current.tableRef.getState();
+        const next = typeof updater === "function" ? updater(current) : updater;
+
+        // Only use the controlled state
+        const nextState = {
+          sorting: next.sorting,
+          pagination: next.pagination,
+        };
+
+        onStateChange(nextState);
+      }
+    },
+    [onStateChange]
+  );
+
   const table = useReactTable({
     data,
     columns,
@@ -134,13 +162,14 @@ export function DataTable<TData>({
     getCoreRowModel: getCoreRowModel(),
     getExpandedRowModel: getExpandedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    onPaginationChange: setPagination,
+    onStateChange: handleStateChange,
     rowCount: total,
     manualPagination: true,
-    state: {
-      pagination,
-    },
+    manualSorting: true,
+    state: initialState,
   });
+
+  ref.current.tableRef = table;
 
   const theadBg = useColorModeValue("white", "gray.800");
 
@@ -150,20 +179,47 @@ export function DataTable<TData>({
         <Thead position="sticky" top={0} bg={theadBg}>
           {table.getHeaderGroups().map((headerGroup) => (
             <Tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => {
-                return (
-                  <Th key={header.id} colSpan={header.colSpan}>
-                    {header.isPlaceholder ? null : (
-                      <div>
-                        {flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                      </div>
-                    )}
-                  </Th>
-                );
-              })}
+              {headerGroup.headers.map(
+                ({ column, id, colSpan, getContext, isPlaceholder }) => {
+                  const sort = column.getIsSorted();
+                  const canSort = column.getCanSort();
+                  return (
+                    <Th
+                      key={id}
+                      colSpan={colSpan}
+                      whiteSpace="nowrap"
+                      cursor={column.getCanSort() ? "pointer" : undefined}
+                      onClick={column.getToggleSortingHandler()}
+                    >
+                      {isPlaceholder ? null : (
+                        <>{flexRender(column.columnDef.header, getContext())}</>
+                      )}
+                      {canSort && !sort && (
+                        <TiArrowUnsorted
+                          aria-label="unsorted"
+                          style={{ display: "inline" }}
+                          size="1em"
+                        />
+                      )}
+                      {canSort &&
+                        sort &&
+                        (sort === "desc" ? (
+                          <TiArrowSortedDown
+                            aria-label="sorted descending"
+                            style={{ display: "inline" }}
+                            size="1em"
+                          />
+                        ) : (
+                          <TiArrowSortedUp
+                            aria-label="sorted ascending"
+                            style={{ display: "inline" }}
+                            size="1em"
+                          />
+                        ))}
+                    </Th>
+                  );
+                }
+              )}
             </Tr>
           ))}
         </Thead>
@@ -200,4 +256,4 @@ export function DataTable<TData>({
       <TablePaginator table={table} />
     </TableContainer>
   );
-}
+};

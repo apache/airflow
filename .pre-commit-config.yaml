@@ -135,7 +135,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all YAML files except Helm templates
-        exclude: ^\.github/.*$|^.*/.*_vendor/|^chart/templates/.*|.*/reproducible_build.yaml$|^airflow/api_ui/openapi/v1-generated.yaml$
+        exclude: ^\.github/.*$|^.*/.*_vendor/|^chart/templates/.*|.*/reproducible_build.yaml$|^airflow/api_fastapi/openapi/v1-generated.yaml$
         types: [yaml]
         files: \.ya?ml$
         args:
@@ -351,7 +351,7 @@ repos:
         args: [--fix]
         require_serial: true
         additional_dependencies: ["ruff==0.5.5"]
-        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
+        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^performance/tests/test_.*.py
       - id: ruff-format
         name: Run 'ruff format' for extremely fast Python formatting
         description: "Run 'ruff format' for extremely fast Python formatting"
@@ -589,7 +589,7 @@ repos:
           ^airflow/api_connexion/openapi/v1.yaml$|
           ^airflow/ui/openapi-gen/|
           ^airflow/cli/commands/internal_api_command.py$|
-          ^airflow/cli/commands/ui_api_command.py$|
+          ^airflow/cli/commands/fastapi_api_command.py$|
           ^airflow/cli/commands/webserver_command.py$|
           ^airflow/config_templates/|
           ^airflow/models/baseoperator.py$|
@@ -1330,11 +1330,11 @@ repos:
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
         additional_dependencies: ['rich>=12.4.4']
       - id: generate-openapi-spec
-        name: Generate the UI API OPENAPI spec
+        name: Generate the FastAPI API spec
         language: python
-        entry: ./scripts/ci/pre_commit/update_ui_api_spec.py
+        entry: ./scripts/ci/pre_commit/update_fastapi_api_spec.py
         pass_filenames: false
-        files: ^airflow/api_ui/.*\.py$
+        files: ^airflow/api_fastapi/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
       - id: update-er-diagram
         name: Update ER diagram

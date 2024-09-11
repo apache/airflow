@@ -708,12 +708,16 @@ def show_traceback(error):
             "airflow/traceback.html",
             python_version=sys.version.split(" ")[0] if is_logged_in else "redacted",
             airflow_version=version if is_logged_in else "redacted",
-            hostname=get_hostname()
-            if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and is_logged_in
-            else "redacted",
-            info=traceback.format_exc()
-            if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and is_logged_in
-            else "Error! Please contact server admin.",
+            hostname=(
+                get_hostname()
+                if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and is_logged_in
+                else "redacted"
+            ),
+            info=(
+                traceback.format_exc()
+                if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and is_logged_in
+                else "Error! Please contact server admin."
+            ),
         ),
         500,
     )
@@ -3439,9 +3443,11 @@ class Airflow(AirflowBaseView):
                         DatasetEvent,
                         and_(
                             DatasetEvent.dataset_id == DatasetModel.id,
-                            DatasetEvent.timestamp >= latest_run.execution_date
-                            if latest_run and latest_run.execution_date
-                            else True,
+                            (
+                                DatasetEvent.timestamp >= latest_run.execution_date
+                                if latest_run and latest_run.execution_date
+                                else True
+                            ),
                         ),
                         isouter=True,
                     )

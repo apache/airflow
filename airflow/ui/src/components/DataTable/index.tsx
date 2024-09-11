@@ -17,4 +17,6 @@
  * under the License.
  */
 
-export * from "./DataTable";
+import { DataTable } from "./DataTable";
+
+export { DataTable };
