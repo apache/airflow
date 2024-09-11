@@ -151,7 +151,7 @@ as "apache" so you can refer to it easily:
 
    ``git checkout my-branch``
 
-5. Commit your code change. 
+5. Commit your code change.
 
    ``git add .``
 
@@ -164,7 +164,7 @@ as "apache" so you can refer to it easily:
    ``git config user.email "someone@someplace.com"``
 
    You can add the ``--global`` flag to avoid setting it for every cloned repo.
-   
+
 6. Rebase:
 
    ``git rebase HASH --onto apache/main``
