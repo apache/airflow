@@ -399,7 +399,9 @@ class TestAthenaOperator:
         assert op.get_openlineage_facets_on_complete(None) == expected_lineage
 
     def test_template_fields(self):
-        template_fields = list(self.athena.template_fields) + list(self.athena.template_fields_renderers.keys())
+        template_fields = list(self.athena.template_fields) + list(
+            self.athena.template_fields_renderers.keys()
+        )
 
         class_fields = self.athena.__dict__
 

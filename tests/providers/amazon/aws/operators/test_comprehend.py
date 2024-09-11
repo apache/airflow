@@ -165,7 +165,8 @@ class TestComprehendStartPiiEntitiesDetectionJobOperator:
 
     def test_template_fields(self):
         template_fields = list(self.operator.template_fields) + list(
-            self.operator.template_fields_renderers.keys())
+            self.operator.template_fields_renderers.keys()
+        )
 
         class_fields = self.operator.__dict__
 
@@ -271,8 +272,9 @@ class TestComprehendCreateDocumentClassifierOperator:
         assert self.operator.defer.call_count == deferrable
 
     def test_template_fields(self):
-
-        template_fields = list(self.operator.template_fields) + list(self.operator.template_fields_renderers.keys())
+        template_fields = list(self.operator.template_fields) + list(
+            self.operator.template_fields_renderers.keys()
+        )
 
         class_fields = self.operator.__dict__
 

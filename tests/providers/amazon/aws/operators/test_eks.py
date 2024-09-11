@@ -461,7 +461,6 @@ class TestEksCreateFargateProfileOperator:
         ), "Trigger is not a EksCreateFargateProfileTrigger"
 
     def test_template_fields(self):
-
         op = EksCreateFargateProfileOperator(task_id=TASK_ID, **self.create_fargate_profile_params)
 
         template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
@@ -616,7 +615,8 @@ class TestEksDeleteClusterOperator:
 
     def test_template_fields(self):
         template_fields = list(self.delete_cluster_operator.template_fields) + list(
-            self.delete_cluster_operator.template_fields_renderers.keys())
+            self.delete_cluster_operator.template_fields_renderers.keys()
+        )
 
         class_fields = self.delete_cluster_operator.__dict__
 
@@ -659,7 +659,8 @@ class TestEksDeleteNodegroupOperator:
 
     def test_template_fields(self):
         template_fields = list(self.delete_nodegroup_operator.template_fields) + list(
-            self.delete_nodegroup_operator.template_fields_renderers.keys())
+            self.delete_nodegroup_operator.template_fields_renderers.keys()
+        )
 
         class_fields = self.delete_nodegroup_operator.__dict__
 
@@ -717,7 +718,8 @@ class TestEksDeleteFargateProfileOperator:
 
     def test_template_fields(self):
         template_fields = list(self.delete_fargate_profile_operator.template_fields) + list(
-            self.delete_fargate_profile_operator.template_fields_renderers.keys())
+            self.delete_fargate_profile_operator.template_fields_renderers.keys()
+        )
 
         class_fields = self.delete_fargate_profile_operator.__dict__
 
@@ -849,8 +851,7 @@ class TestEksPodOperator:
             on_finish_action="delete_pod",
         )
 
-        template_fields = list(op.template_fields) + list(
-            op.template_fields_renderers.keys())
+        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
 
         class_fields = op.__dict__
 

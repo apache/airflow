@@ -365,7 +365,9 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
 
     def test_template_fields(self, mock_get_conn):
         self.set_up_operator()
-        template_fields = list(self.datasync.template_fields) + list(self.datasync.template_fields_renderers.keys())
+        template_fields = list(self.datasync.template_fields) + list(
+            self.datasync.template_fields_renderers.keys()
+        )
 
         class_fields = self.datasync.__dict__
 

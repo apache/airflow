@@ -93,7 +93,9 @@ class TestEC2CreateInstanceOperator(BaseEc2TestClass):
             image_id="test_image_id",
         )
 
-        template_fields = list(ec2_operator.template_fields) + list(ec2_operator.template_fields_renderers.keys())
+        template_fields = list(ec2_operator.template_fields) + list(
+            ec2_operator.template_fields_renderers.keys()
+        )
 
         class_fields = ec2_operator.__dict__
 
@@ -160,7 +162,9 @@ class TestEC2TerminateInstanceOperator(BaseEc2TestClass):
             instance_ids="test_image_id",
         )
 
-        template_fields = list(ec2_operator.template_fields) + list(ec2_operator.template_fields_renderers.keys())
+        template_fields = list(ec2_operator.template_fields) + list(
+            ec2_operator.template_fields_renderers.keys()
+        )
 
         class_fields = ec2_operator.__dict__
 
@@ -183,7 +187,6 @@ class TestEC2StartInstanceOperator(BaseEc2TestClass):
         assert ec2_operator.aws_conn_id == "aws_conn_test"
         assert ec2_operator.region_name == "region-test"
         assert ec2_operator.check_interval == 3
-
 
     @mock_aws
     def test_start_instance(self):
@@ -214,7 +217,8 @@ class TestEC2StartInstanceOperator(BaseEc2TestClass):
         )
 
         template_fields = list(ec2_operator.template_fields) + list(
-            ec2_operator.template_fields_renderers.keys())
+            ec2_operator.template_fields_renderers.keys()
+        )
 
         class_fields = ec2_operator.__dict__
 
@@ -266,7 +270,9 @@ class TestEC2StopInstanceOperator(BaseEc2TestClass):
             check_interval=3,
         )
 
-        template_fields = list(ec2_operator.template_fields) + list(ec2_operator.template_fields_renderers.keys())
+        template_fields = list(ec2_operator.template_fields) + list(
+            ec2_operator.template_fields_renderers.keys()
+        )
 
         class_fields = ec2_operator.__dict__
 
@@ -392,7 +398,9 @@ class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
             instance_ids="i-123abc",
         )
 
-        template_fields = list(ec2_operator.template_fields) + list(ec2_operator.template_fields_renderers.keys())
+        template_fields = list(ec2_operator.template_fields) + list(
+            ec2_operator.template_fields_renderers.keys()
+        )
 
         class_fields = ec2_operator.__dict__
 
@@ -457,7 +465,9 @@ class TestEC2RebootInstanceOperator(BaseEc2TestClass):
             instance_ids="i-123abc",
         )
 
-        template_fields = list(ec2_operator.template_fields) + list(ec2_operator.template_fields_renderers.keys())
+        template_fields = list(ec2_operator.template_fields) + list(
+            ec2_operator.template_fields_renderers.keys()
+        )
 
         class_fields = ec2_operator.__dict__
 
