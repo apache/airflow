@@ -105,6 +105,7 @@ Currently, **officially** using Airflow:
 1. [Braintree](https://www.braintreepayments.com) [[@coopergillan](https://github.com/coopergillan), [@curiousjazz77](https://github.com/curiousjazz77), [@raymondberg](https://github.com/raymondberg)]
 1. [Branch](https://branch.io) [[@sdebarshi](https://github.com/sdebarshi), [@dmitrig01](https://github.com/dmitrig01)]
 1. [Breezeline (formerly Atlantic Broadband)](https://www.breezeline.com/) [[@IanDoarn](https://github.com/IanDoarn), [@willsims14](https://github.com/willsims14)]
+1. [BTIG](https://www.btig.com/) [[@hikaruhk](https://github.com/hikaruhk)]
 1. [BWGI](https://www.bwgi.com.br/) [[@jgmarcel](https://github.com/jgmarcel)]
 1. [Bwtech](https://www.bwtech.com/) [[@wolvery](https://github.com/wolvery)]
 1. [C2FO](https://www.c2fo.com/)
