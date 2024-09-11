@@ -87,6 +87,20 @@ class TestEC2CreateInstanceOperator(BaseEc2TestClass):
         for id in instance_ids:
             assert ec2_hook.get_instance_state(instance_id=id) == "running"
 
+    def test_template_fields(self):
+        ec2_operator = EC2CreateInstanceOperator(
+            task_id="test_create_instance",
+            image_id="test_image_id",
+        )
+
+        template_fields = list(ec2_operator.template_fields) + list(ec2_operator.template_fields_renderers.keys())
+
+        class_fields = ec2_operator.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+
 
 class TestEC2TerminateInstanceOperator(BaseEc2TestClass):
     def test_init(self):
@@ -140,6 +154,20 @@ class TestEC2TerminateInstanceOperator(BaseEc2TestClass):
         for id in instance_ids:
             assert ec2_hook.get_instance_state(instance_id=id) == "terminated"
 
+    def test_template_fields(self):
+        ec2_operator = EC2TerminateInstanceOperator(
+            task_id="test_terminate_instance",
+            instance_ids="test_image_id",
+        )
+
+        template_fields = list(ec2_operator.template_fields) + list(ec2_operator.template_fields_renderers.keys())
+
+        class_fields = ec2_operator.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+
 
 class TestEC2StartInstanceOperator(BaseEc2TestClass):
     def test_init(self):
@@ -155,6 +183,7 @@ class TestEC2StartInstanceOperator(BaseEc2TestClass):
         assert ec2_operator.aws_conn_id == "aws_conn_test"
         assert ec2_operator.region_name == "region-test"
         assert ec2_operator.check_interval == 3
+
 
     @mock_aws
     def test_start_instance(self):
@@ -174,6 +203,24 @@ class TestEC2StartInstanceOperator(BaseEc2TestClass):
         start_test.execute(None)
         # assert instance state is running
         assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "running"
+
+    def test_template_fields(self):
+        ec2_operator = EC2StartInstanceOperator(
+            task_id="task_test",
+            instance_id="i-123abc",
+            aws_conn_id="aws_conn_test",
+            region_name="region-test",
+            check_interval=3,
+        )
+
+        template_fields = list(ec2_operator.template_fields) + list(
+            ec2_operator.template_fields_renderers.keys())
+
+        class_fields = ec2_operator.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
 
 
 class TestEC2StopInstanceOperator(BaseEc2TestClass):
@@ -209,6 +256,23 @@ class TestEC2StopInstanceOperator(BaseEc2TestClass):
         stop_test.execute(None)
         # assert instance state is running
         assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "stopped"
+
+    def test_template_fields(self):
+        ec2_operator = EC2StopInstanceOperator(
+            task_id="task_test",
+            instance_id="i-123abc",
+            aws_conn_id="aws_conn_test",
+            region_name="region-test",
+            check_interval=3,
+        )
+
+        template_fields = list(ec2_operator.template_fields) + list(ec2_operator.template_fields_renderers.keys())
+
+        class_fields = ec2_operator.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
 
 
 class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
@@ -322,6 +386,20 @@ class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
         for id in instance_ids:
             assert ec2_hook.get_instance_state(instance_id=id) == "running"
 
+    def test_template_fields(self):
+        ec2_operator = EC2HibernateInstanceOperator(
+            task_id="task_test",
+            instance_ids="i-123abc",
+        )
+
+        template_fields = list(ec2_operator.template_fields) + list(ec2_operator.template_fields_renderers.keys())
+
+        class_fields = ec2_operator.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+
 
 class TestEC2RebootInstanceOperator(BaseEc2TestClass):
     def test_init(self):
@@ -372,3 +450,17 @@ class TestEC2RebootInstanceOperator(BaseEc2TestClass):
         terminate_instance.execute(None)
         for id in instance_ids:
             assert ec2_hook.get_instance_state(instance_id=id) == "running"
+
+    def test_template_fields(self):
+        ec2_operator = EC2RebootInstanceOperator(
+            task_id="task_test",
+            instance_ids="i-123abc",
+        )
+
+        template_fields = list(ec2_operator.template_fields) + list(ec2_operator.template_fields_renderers.keys())
+
+        class_fields = ec2_operator.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"

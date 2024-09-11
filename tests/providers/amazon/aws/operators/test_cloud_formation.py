@@ -87,6 +87,26 @@ class TestCloudFormationCreateStackOperator:
             StackName=stack_name, TemplateBody=template_body, TimeoutInMinutes=timeout
         )
 
+    def test_template_fields(self):
+        op = CloudFormationCreateStackOperator(
+            task_id="cf_create_stack_init",
+            stack_name="fake-stack",
+            cloudformation_parameters={},
+            # Generic hooks parameters
+            aws_conn_id="fake-conn-id",
+            region_name="eu-west-1",
+            verify=True,
+            botocore_config={"read_timeout": 42},
+        )
+
+        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
+
+        class_fields = op.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+
 
 class TestCloudFormationDeleteStackOperator:
     def test_init(self):
@@ -125,3 +145,22 @@ class TestCloudFormationDeleteStackOperator:
         operator.execute(MagicMock())
 
         mocked_hook_client.delete_stack.assert_any_call(StackName=stack_name)
+
+    def test_template_fields(self):
+        op = CloudFormationDeleteStackOperator(
+            task_id="cf_delete_stack_init",
+            stack_name="fake-stack",
+            # Generic hooks parameters
+            aws_conn_id="fake-conn-id",
+            region_name="us-east-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+
+        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
+
+        class_fields = op.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"

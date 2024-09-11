@@ -793,6 +793,23 @@ class TestEcsCreateClusterOperator(EcsBaseTestCase):
         patch_hook_waiters.assert_not_called()
         assert result is not None
 
+    def test_template_fields(self):
+        op = EcsCreateClusterOperator(
+            task_id="task",
+            cluster_name=CLUSTER_NAME,
+            deferrable=True,
+            waiter_delay=12,
+            waiter_max_attempts=34,
+        )
+
+        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
+
+        class_fields = op.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+
 
 class TestEcsDeleteClusterOperator(EcsBaseTestCase):
     @pytest.mark.parametrize("waiter_delay, waiter_max_attempts", WAITERS_TEST_CASES)
@@ -857,6 +874,23 @@ class TestEcsDeleteClusterOperator(EcsBaseTestCase):
         patch_hook_waiters.assert_not_called()
         assert result is not None
 
+    def test_template_fields(self):
+        op = EcsDeleteClusterOperator(
+            task_id="task",
+            cluster_name=CLUSTER_NAME,
+            deferrable=True,
+            waiter_delay=12,
+            waiter_max_attempts=34,
+        )
+
+        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
+
+        class_fields = op.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+
 
 class TestEcsDeregisterTaskDefinitionOperator(EcsBaseTestCase):
     warn_message = "'wait_for_completion' and waiter related params have no effect"
@@ -912,6 +946,17 @@ class TestEcsDeregisterTaskDefinitionOperator(EcsBaseTestCase):
                 assert not hasattr(ti.task, "wait_for_completion")
                 assert not hasattr(ti.task, "waiter_delay")
                 assert not hasattr(ti.task, "waiter_max_attempts")
+
+    def test_template_fields(self):
+        op = EcsDeregisterTaskDefinitionOperator(task_id="task", task_definition=TASK_DEFINITION_NAME)
+
+        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
+
+        class_fields = op.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
 
 
 class TestEcsRegisterTaskDefinitionOperator(EcsBaseTestCase):
@@ -990,3 +1035,14 @@ class TestEcsRegisterTaskDefinitionOperator(EcsBaseTestCase):
                 assert not hasattr(ti.task, "wait_for_completion")
                 assert not hasattr(ti.task, "waiter_delay")
                 assert not hasattr(ti.task, "waiter_max_attempts")
+
+    def test_template_fields(self):
+        op = EcsRegisterTaskDefinitionOperator(task_id="task", **TASK_DEFINITION_CONFIG)
+
+        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
+
+        class_fields = op.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"

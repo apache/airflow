@@ -121,6 +121,25 @@ class TestDmsCreateTaskOperator:
 
         assert dms_hook.get_task_status(TASK_ARN) == "ready"
 
+    def test_template_fields(self):
+        op = DmsCreateTaskOperator(
+            task_id="create_task",
+            **self.TASK_DATA,
+            # Generic hooks parameters
+            aws_conn_id="fake-conn-id",
+            region_name="ca-west-1",
+            verify=True,
+            botocore_config={"read_timeout": 42},
+        )
+
+        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
+
+        class_fields = op.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+
 
 class TestDmsDeleteTaskOperator:
     TASK_DATA = {
@@ -173,6 +192,25 @@ class TestDmsDeleteTaskOperator:
         mock_delete_replication_task.assert_called_once_with(replication_task_arn=TASK_ARN)
 
         assert dms_hook.get_task_status(TASK_ARN) == "deleting"
+
+    def test_template_fields(self):
+        op = DmsDeleteTaskOperator(
+            task_id="delete_task",
+            replication_task_arn=TASK_ARN,
+            # Generic hooks parameters
+            aws_conn_id="fake-conn-id",
+            region_name="us-east-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+
+        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
+
+        class_fields = op.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
 
 
 class TestDmsDescribeTasksOperator:
@@ -267,6 +305,17 @@ class TestDmsDescribeTasksOperator:
         assert marker is None
         assert response == self.MOCK_RESPONSE
 
+    def test_template_fields(self):
+        op = DmsDescribeTasksOperator(
+            task_id="describe_tasks",
+            describe_tasks_kwargs={"Filters": [self.FILTER]},
+            # Generic hooks parameters
+            aws_conn_id="fake-conn-id",
+            region_name="eu-west-2",
+            verify="/foo/bar/spam.egg",
+            botocore_config={"read_timeout": 42},
+        )
+
 
 class TestDmsStartTaskOperator:
     TASK_DATA = {
@@ -324,6 +373,25 @@ class TestDmsStartTaskOperator:
 
         assert dms_hook.get_task_status(TASK_ARN) == "starting"
 
+    def test_template_fields(self):
+        op = DmsStartTaskOperator(
+            task_id="start_task",
+            replication_task_arn=TASK_ARN,
+            # Generic hooks parameters
+            aws_conn_id="fake-conn-id",
+            region_name="us-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+
+        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
+
+        class_fields = op.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+
 
 class TestDmsStopTaskOperator:
     TASK_DATA = {
@@ -376,3 +444,22 @@ class TestDmsStopTaskOperator:
         mock_stop_replication_task.assert_called_once_with(replication_task_arn=TASK_ARN)
 
         assert dms_hook.get_task_status(TASK_ARN) == "stopping"
+
+    def test_template_fields(self):
+        op = DmsStopTaskOperator(
+            task_id="stop_task",
+            replication_task_arn=TASK_ARN,
+            # Generic hooks parameters
+            aws_conn_id="fake-conn-id",
+            region_name="eu-west-1",
+            verify=True,
+            botocore_config={"read_timeout": 42},
+        )
+
+        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
+
+        class_fields = op.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"

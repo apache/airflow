@@ -397,3 +397,12 @@ class TestAthenaOperator:
             run_facets={"externalQuery": ExternalQueryRunFacet(externalQueryId="12345", source="awsathena")},
         )
         assert op.get_openlineage_facets_on_complete(None) == expected_lineage
+
+    def test_template_fields(self):
+        template_fields = list(self.athena.template_fields) + list(self.athena.template_fields_renderers.keys())
+
+        class_fields = self.athena.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"

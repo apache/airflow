@@ -363,6 +363,16 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
         # ### Check mocks:
         mock_get_conn.assert_called()
 
+    def test_template_fields(self, mock_get_conn):
+        self.set_up_operator()
+        template_fields = list(self.datasync.template_fields) + list(self.datasync.template_fields_renderers.keys())
+
+        class_fields = self.datasync.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+
 
 @mock_aws
 @mock.patch.object(DataSyncHook, "get_conn")

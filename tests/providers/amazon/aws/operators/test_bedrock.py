@@ -176,6 +176,15 @@ class TestBedrockCustomizeModelOperator:
         bedrock_hook.get_waiter.assert_not_called()
         self.operator.defer.assert_not_called()
 
+    def test_template_fields(self):
+        template_fields = list(self.operator.template_fields) + list(self.operator.template_fields_renderers.keys())
+
+        class_fields = self.operator.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+
 
 class TestBedrockCreateProvisionedModelThroughputOperator:
     MODEL_ARN = "testProvisionedModelArn"
@@ -222,7 +231,14 @@ class TestBedrockCreateProvisionedModelThroughputOperator:
         assert bedrock_hook.get_waiter.call_count == wait_for_completion
         assert self.operator.defer.call_count == deferrable
 
+    def test_template_fields(self):
+        template_fields = list(self.operator.template_fields) + list(self.operator.template_fields_renderers.keys())
 
+        class_fields = self.operator.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
 class TestBedrockCreateKnowledgeBaseOperator:
     KNOWLEDGE_BASE_ID = "knowledge_base_id"
 
@@ -288,7 +304,14 @@ class TestBedrockCreateKnowledgeBaseOperator:
 
         assert result == self.KNOWLEDGE_BASE_ID
 
+    def test_template_fields(self):
+        template_fields = list(self.operator.template_fields) + list(self.operator.template_fields_renderers.keys())
 
+        class_fields = self.operator.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
 class TestBedrockCreateDataSourceOperator:
     DATA_SOURCE_ID = "data_source_id"
 
@@ -316,6 +339,15 @@ class TestBedrockCreateDataSourceOperator:
         result = self.operator.execute({})
 
         assert result == self.DATA_SOURCE_ID
+
+    def test_template_fields(self):
+        template_fields = list(self.operator.template_fields) + list(self.operator.template_fields_renderers.keys())
+
+        class_fields = self.operator.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
 
 
 class TestBedrockIngestDataOperator:
@@ -347,6 +379,15 @@ class TestBedrockIngestDataOperator:
         result = self.operator.execute({})
 
         assert result == self.INGESTION_JOB_ID
+
+    def test_template_fields(self):
+        template_fields = list(self.operator.template_fields) + list(self.operator.template_fields_renderers.keys())
+
+        class_fields = self.operator.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
 
 
 class TestBedrockRaGOperator:
@@ -520,3 +561,20 @@ class TestBedrockRaGOperator:
                 **expected_config_without_template,
                 **expected_config_template,
             }
+
+    def test_template_fields(self):
+        op = BedrockRaGOperator(
+            task_id="test_rag",
+            input="some text prompt",
+            source_type="EXTERNAL_SOURCES",
+            model_arn=self.MODEL_ARN,
+            knowledge_base_id=self.KNOWLEDGE_BASE_ID,
+            vector_search_config=self.VECTOR_SEARCH_CONFIG,
+        )
+        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
+
+        class_fields = op.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
