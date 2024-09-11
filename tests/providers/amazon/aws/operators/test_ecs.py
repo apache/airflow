@@ -172,6 +172,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             "overrides",
             "launch_type",
             "capacity_provider_strategy",
+            "volume_configurations",
             "group",
             "placement_constraints",
             "placement_strategy",
