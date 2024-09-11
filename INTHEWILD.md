@@ -148,7 +148,7 @@ Currently, **officially** using Airflow:
 1. [Craig@Work](https://www.craigatwork.com)
 1. [CrazyLabs](https://www.crazylabs.com/) [[@HadarSha](https://github.com/HadarSha), [@gil-tober](https://github.com/gil-tober)]
 1. [Crealytics](https://crealytics.com)
-1. [Credit Karma](https://www.creditkarma.com/) [[@preete-dixit-ck](https://github.com/preete-dixit-ck) & [@harish-gaggar-ck](https://github.com/harish-gaggar-ck) & [@greg-finley-ck](https://github.com/greg-finley-ck)]
+1. [Credit Karma](https://www.creditkarma.com/) [[@preete-dixit-ck](https://github.com/preete-dixit-ck) & [@harish-gaggar-ck](https://github.com/harish-gaggar-ck) & [@greg-finley-ck](https://github.com/greg-finley-ck)] & [@ali-suleiman-ck](https://github.com/ali-suleiman-ck)] 
 1. [Creditas](https://www.creditas.com.br) [[@dcassiano](https://github.com/dcassiano)]
 1. [CreditCards.com](https://www.creditcards.com/) [[@vmAggies](https://github.com/vmAggies) &  [@jay-wallaby](https://github.com/jay-wallaby)]
 1. [CRST - The Transportation Solution, Inc.](https://crst.com)
