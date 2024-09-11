@@ -115,7 +115,7 @@ on:  # yamllint disable-line rule:truthy
         type: number
 jobs:
   tests:
-    timeout-minutes: 120
+    timeout-minutes: 180
     name: "\
       ${{ inputs.test-scope }}:\
       ${{ inputs.test-name }}${{ inputs.test-name-separator }}${{ matrix.backend-version }}:\
