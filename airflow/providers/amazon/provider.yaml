@@ -108,6 +108,7 @@ dependencies:
   - asgiref>=2.3.0
   - PyAthena>=3.0.10
   - jmespath>=0.7.0
+  - python3-saml>=1.16.0
 
 additional-extras:
   - name: pandas
