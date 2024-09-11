@@ -53,6 +53,7 @@ from airflow.cli.cli_config import (
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import KUBERNETES_EXECUTOR
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
     POD_EXECUTOR_DONE_KEY,
@@ -229,6 +230,8 @@ class KubernetesExecutor(BaseExecutor):
         if TYPE_CHECKING:
             assert self.kube_client
         from airflow.models.taskinstance import TaskInstance
+
+        default_executor = str(ExecutorLoader.get_default_executor_name())
 
         hybrid_executor_enabled = hasattr(TaskInstance, "executor")
         default_executor = None

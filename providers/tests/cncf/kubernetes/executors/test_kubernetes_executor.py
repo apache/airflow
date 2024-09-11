@@ -35,6 +35,7 @@ from airflow.executors.executor_constants import (
     KUBERNETES_EXECUTOR,
 )
 from airflow.models.taskinstance import TaskInstance
+from airflow.executors.executor_loader import ExecutorLoader
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.cncf.kubernetes import pod_generator
