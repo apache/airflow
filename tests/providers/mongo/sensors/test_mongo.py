@@ -42,6 +42,7 @@ class TestMongoSensor:
     def test_execute_operator(self, mock_mongo_conn, mock_mongo_find, mock_create_uri):
         mock_mongo_find.return_value = {"test_key": "test"}
         mock_connection = MagicMock(spec=Connection)
+        mock_connection.conn_type = "mongo"
 
         mock_extra_dejson = {"ssl": "false", "srv": "false"}
         mock_connection.extra_dejson = MagicMock(spec=dict)
