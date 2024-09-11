@@ -194,3 +194,13 @@ class TestEmrEksCreateClusterOperator:
         with pytest.raises(AirflowException) as ctx:
             self.emr_container.execute(None)
         assert expected_exception_msg in str(ctx.value)
+
+    def test_template_fields(self):
+
+        template_fields = list(self.emr_container.template_fields) + list(self.emr_container.template_fields_renderers.keys())
+
+        class_fields = self.emr_container.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"

@@ -274,3 +274,19 @@ class TestEmrAddStepsOperator:
             operator.execute(MagicMock())
 
         assert isinstance(exc.value.trigger, EmrAddStepsTrigger), "Trigger is not a EmrAddStepsTrigger"
+
+    def test_template_fields(self):
+        op = EmrAddStepsOperator(
+            task_id="test_task",
+            job_flow_id="j-8989898989",
+            aws_conn_id="aws_default",
+            steps=self._config,
+        )
+
+        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
+
+        class_fields = op.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"

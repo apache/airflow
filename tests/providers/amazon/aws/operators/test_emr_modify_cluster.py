@@ -65,3 +65,13 @@ class TestEmrModifyClusterOperator:
 
         with pytest.raises(AirflowException, match="Modify cluster failed"):
             self.operator.execute(self.mock_context)
+
+    def test_template_fields(self):
+
+        template_fields = list(self.operator.template_fields) + list(self.operator.template_fields_renderers.keys())
+
+        class_fields = self.operator.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"

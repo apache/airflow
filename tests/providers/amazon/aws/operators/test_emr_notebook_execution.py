@@ -303,3 +303,27 @@ class TestStopEmrNotebookExecutionOperator:
             WaiterConfig={"Delay": delay, "MaxAttempts": waiter_max_attempts},
         )
         assert_expected_waiter_type(mock_waiter, "notebook_stopped")
+
+    def test_template_fields(self):
+
+        op = EmrStartNotebookExecutionOperator(
+            task_id="test-id",
+            editor_id=PARAMS["EditorId"],
+            relative_path=PARAMS["RelativePath"],
+            cluster_id=PARAMS["ExecutionEngine"]["Id"],
+            service_role=PARAMS["ServiceRole"],
+            notebook_execution_name=PARAMS["NotebookExecutionName"],
+            notebook_params=PARAMS["NotebookParams"],
+            notebook_instance_security_group_id=PARAMS["NotebookInstanceSecurityGroupId"],
+            master_instance_security_group_id=PARAMS["ExecutionEngine"]["MasterInstanceSecurityGroupId"],
+            tags=PARAMS["Tags"],
+            wait_for_completion=True,
+        )
+
+        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
+
+        class_fields = op.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"

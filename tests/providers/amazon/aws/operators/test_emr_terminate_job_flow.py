@@ -57,3 +57,20 @@ class TestEmrTerminateJobFlowOperator:
         assert isinstance(
             exc.value.trigger, EmrTerminateJobFlowTrigger
         ), "Trigger is not a EmrTerminateJobFlowTrigger"
+
+    def test_template_fields(self):
+
+        operator = EmrTerminateJobFlowOperator(
+            task_id="test_task",
+            job_flow_id="j-8989898989",
+            aws_conn_id="aws_default",
+            deferrable=True,
+        )
+
+        template_fields = list(operator.template_fields) + list(operator.template_fields_renderers.keys())
+
+        class_fields = operator.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
