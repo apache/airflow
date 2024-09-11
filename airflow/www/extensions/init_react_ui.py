@@ -33,6 +33,7 @@ def init_react_ui(app):
     )
 
     @bp.route("/ui")
+    @bp.route("/ui/dags")
     def index():
         return bp.send_static_file("index.html")
 

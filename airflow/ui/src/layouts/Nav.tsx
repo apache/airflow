@@ -30,8 +30,9 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { motion } from "framer-motion";
+import { Link as RouterLink } from "react-router-dom";
 
-import { AirflowPin } from "./assets/AirflowPin";
+import { AirflowPin } from "../assets/AirflowPin";
 import {
   FiBarChart2,
   FiCornerUpLeft,
@@ -42,23 +43,27 @@ import {
   FiSettings,
   FiSun,
 } from "react-icons/fi";
-import { DagIcon } from "./assets/DagIcon";
+import { DagIcon } from "../assets/DagIcon";
 import { ReactElement } from "react";
 
 type NavButtonProps = {
   title?: string;
   icon: ReactElement;
   href?: string;
+  to?: string;
 } & ButtonProps;
 
-const NavButton = ({ icon, title, ...rest }: NavButtonProps) => (
+const NavButton = ({ icon, title, to, ...rest }: NavButtonProps) => (
   <Button
+    as={RouterLink}
+    to={to}
     variant="ghost"
     borderRadius="none"
     height={16}
     alignItems="center"
     flexDir="column"
     whiteSpace="wrap"
+    width={24}
     {...rest}
   >
     <Box alignSelf="center">{icon}</Box>
@@ -94,7 +99,11 @@ export const Nav = () => {
           <Icon as={AirflowPin} height="35px" width="35px" />
         </Box>
         <NavButton title="Home" icon={<FiHome size="1.75rem" />} isDisabled />
-        <NavButton title="DAGs" icon={<DagIcon height={7} width={7} />} />
+        <NavButton
+          title="DAGs"
+          to="dags"
+          icon={<DagIcon height={7} width={7} />}
+        />
         <NavButton
           title="Datasets"
           icon={<FiDatabase size="1.75rem" />}

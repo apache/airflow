@@ -17,16 +17,18 @@
  * under the License.
  */
 
-import { DagsList } from "src/pages/DagsList";
-import { Navigate, Route, Routes } from "react-router-dom";
-import { BaseLayout } from "./layouts/BaseLayout";
+import { Box, Flex } from "@chakra-ui/react";
+import { Outlet } from "react-router-dom";
 
-// Note: When changing routes, make sure to update init_react_ui.py too
-export const App = () => (
-  <Routes>
-    <Route path="/" element={<BaseLayout />}>
-      <Route index element={<Navigate to="dags" />} />
-      <Route path="dags" element={<DagsList />} />
-    </Route>
-  </Routes>
-);
+import { Nav } from "./Nav";
+
+export const BaseLayout = () => {
+  return (
+    <Flex height="100vh" width="100vw">
+      <Nav />
+      <Box p={3} ml={24}>
+        <Outlet />
+      </Box>
+    </Flex>
+  );
+};
