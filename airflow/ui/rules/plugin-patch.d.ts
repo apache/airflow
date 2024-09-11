@@ -17,29 +17,33 @@
  * under the License.
  */
 
-/**
- * @import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
- */
-import { coreRules } from "./rules/core.js";
-import { perfectionistRules } from "./rules/perfectionist.js";
-import { prettierRules } from "./rules/prettier.js";
-import { reactRules } from "./rules/react.js";
-import { stylisticRules } from "./rules/stylistic.js";
-import { typescriptRules } from "./rules/typescript.js";
-import { unicornRules } from "./rules/unicorn.js";
+declare module "eslint-plugin-local-patch" {
+  import type { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
 
-/**
- * ESLint configuration.
- * @see [ESLint configuration](https://eslint.org/docs/latest/use/configure/)
- */
-export default /** @type {const} @satisfies {ReadonlyArray<FlatConfig.Config>} */ ([
-  // Base rules
-  coreRules,
-  typescriptRules,
-  // Da rest
-  perfectionistRules,
-  prettierRules,
-  reactRules,
-  stylisticRules,
-  unicornRules,
-]);
+  /**
+   * @deprecated This type was patched because it's currently broken.
+   */
+  const plugin: FlatConfig.Plugin;
+
+  export default plugin;
+}
+
+declare module "@stylistic/eslint-plugin" {
+  export { default } from "eslint-plugin-local-patch";
+}
+
+declare module "eslint-plugin-jsx-a11y" {
+  export { default } from "eslint-plugin-local-patch";
+}
+
+declare module "eslint-plugin-react" {
+  export { default } from "eslint-plugin-local-patch";
+}
+
+declare module "eslint-plugin-react-hooks" {
+  export { default } from "eslint-plugin-local-patch";
+}
+
+declare module "eslint-plugin-react-refresh" {
+  export { default } from "eslint-plugin-local-patch";
+}

@@ -20,26 +20,20 @@
 /**
  * @import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
  */
-import { coreRules } from "./rules/core.js";
-import { perfectionistRules } from "./rules/perfectionist.js";
-import { prettierRules } from "./rules/prettier.js";
-import { reactRules } from "./rules/react.js";
-import { stylisticRules } from "./rules/stylistic.js";
-import { typescriptRules } from "./rules/typescript.js";
-import { unicornRules } from "./rules/unicorn.js";
+import prettier from "eslint-plugin-prettier";
+import { off } from "./off.js";
 
 /**
- * ESLint configuration.
- * @see [ESLint configuration](https://eslint.org/docs/latest/use/configure/)
+ * ESLint TypeScript namespace.
  */
-export default /** @type {const} @satisfies {ReadonlyArray<FlatConfig.Config>} */ ([
-  // Base rules
-  coreRules,
-  typescriptRules,
-  // Da rest
-  perfectionistRules,
-  prettierRules,
-  reactRules,
-  stylisticRules,
-  unicornRules,
-]);
+export const prettierNamespace = "prettier";
+
+/**
+ * ESLint Prettier rules.
+ * @see [eslint-plugin-prettier](https://github.com/prettier/eslint-plugin-prettier)
+ */
+export const prettierRules =
+  /** @type {const} @satisfies {FlatConfig.Config} */ ({
+    plugins: { [prettierNamespace]: prettier },
+    rules: off("no-irregular-whitespace", "no-unexpected-multiline"),
+  });

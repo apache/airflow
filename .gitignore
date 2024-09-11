@@ -127,9 +127,6 @@ ENV/
 .idea/
 *.iml
 
-# Visual Studio Code
-.vscode/
-
 # vim
 *.swp
 

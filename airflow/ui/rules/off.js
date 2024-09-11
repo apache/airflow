@@ -17,29 +17,16 @@
  * under the License.
  */
 
-/**
- * @import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
- */
-import { coreRules } from "./rules/core.js";
-import { perfectionistRules } from "./rules/perfectionist.js";
-import { prettierRules } from "./rules/prettier.js";
-import { reactRules } from "./rules/react.js";
-import { stylisticRules } from "./rules/stylistic.js";
-import { typescriptRules } from "./rules/typescript.js";
-import { unicornRules } from "./rules/unicorn.js";
+import { OFF } from "./levels.js";
 
 /**
- * ESLint configuration.
- * @see [ESLint configuration](https://eslint.org/docs/latest/use/configure/)
+ * Generates an object with all the given rules set to {@link OFF}.
+ *
+ * @template {string} Rule
+ * @param {ReadonlyArray<Rule>} rules Array of rules to turn off.
+ * @returns Object with rules set to {@link OFF}.
  */
-export default /** @type {const} @satisfies {ReadonlyArray<FlatConfig.Config>} */ ([
-  // Base rules
-  coreRules,
-  typescriptRules,
-  // Da rest
-  perfectionistRules,
-  prettierRules,
-  reactRules,
-  stylisticRules,
-  unicornRules,
-]);
+export const off = (...rules) =>
+  /** @type {Readonly<Record<Rule, typeof OFF>>} */ (
+    Object.fromEntries(rules.map((rule) => [rule, OFF]))
+  );
