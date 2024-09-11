@@ -870,10 +870,14 @@ class SelectiveChecks:
     def separate_test_types_list_as_string(self) -> str | None:
         if not self.run_tests:
             return None
-        current_test_types = set(self._get_test_types_to_run(split_to_individual_providers=True))
+        # current_test_types = set(self._get_test_types_to_run(split_to_individual_providers=True))
+        current_test_types = {"Providers"}
         if "Providers" in current_test_types:
             current_test_types.remove("Providers")
-            current_test_types.update({f"Providers[{provider}]" for provider in get_available_packages()})
+            # current_test_types.update({f"Providers[{provider}]" for provider in get_available_packages()})
+            current_test_types.update(
+                {f"Providers[{provider}]" for provider in ["cloudant", "http", "mongo", "sftp"]}
+            )
         if self.skip_provider_tests:
             current_test_types = {
                 test_type for test_type in current_test_types if not test_type.startswith("Providers")
