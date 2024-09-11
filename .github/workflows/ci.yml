@@ -500,6 +500,7 @@ jobs:
     if: needs.build-info.outputs.run-tests == 'true'
 
   tests-with-lowest-direct-resolution:
+    timeout-minutes: 180
     name: "Lowest direct dependency resolution tests"
     needs: [build-info, wait-for-ci-images]
     uses: ./.github/workflows/run-unit-tests.yml
