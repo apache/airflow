@@ -430,8 +430,8 @@ class DAG(LoggingMixin):
         new active DAG runs
     :param max_consecutive_failed_dag_runs: (experimental) maximum number of consecutive failed DAG runs,
         beyond this the scheduler will disable the DAG
-    :param dagrun_timeout: specify how long a DagRun should be up before
-        timing out / failing, so that new DagRuns can be created.
+    :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
+        fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
     :param sla_miss_callback: specify a function or list of functions to call when reporting SLA
         timeouts. See :ref:`sla_miss_callback<concepts:sla_miss_callback>` for
         more information about the function signature and parameters that are
