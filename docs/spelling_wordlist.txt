@@ -250,8 +250,8 @@ classpaths
 cleartext
 cli
 clientId
-Cloudant
 cloudant
+CloudantV
 cloudbuild
 CloudBuildClient
 cloudml
@@ -600,6 +600,7 @@ falsy
 faq
 Fargate
 fargate
+fastapi
 fbee
 fc
 fd
@@ -775,6 +776,7 @@ hyperparameter
 hyperparameters
 IaC
 iam
+ibmcloudant
 idempotence
 idempotency
 IdP

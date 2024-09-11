@@ -17,20 +17,22 @@
 # under the License.
 from __future__ import annotations
 
-from functools import cached_property
+import warnings
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
-from airflow.models import BaseOperator
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.glue_databrew import GlueDataBrewHook
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.glue_databrew import GlueDataBrewJobCompleteTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
+from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class GlueDataBrewStartJobOperator(BaseOperator):
+class GlueDataBrewStartJobOperator(AwsBaseOperator[GlueDataBrewHook]):
     """
     Start an AWS Glue DataBrew job.
 
@@ -47,14 +49,30 @@ class GlueDataBrewStartJobOperator(BaseOperator):
     :param deferrable: If True, the operator will wait asynchronously for the job to complete.
         This implies waiting for completion. This mode requires aiobotocore module to be installed.
         (default: False)
-    :param delay: Time in seconds to wait between status checks. Default is 30.
+    :param delay: Time in seconds to wait between status checks. (Deprecated).
+    :param waiter_delay: Time in seconds to wait between status checks. Default is 30.
+    :param waiter_max_attempts: Maximum number of attempts to check for job completion. (default: 60)
     :return: dictionary with key run_id and value of the resulting job's run_id.
+
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is ``None`` or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
+    :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
+    :param verify: Whether or not to verify SSL certificates. See:
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
+    :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
-    template_fields: Sequence[str] = (
+    aws_hook_class = GlueDataBrewHook
+
+    template_fields: Sequence[str] = aws_template_fields(
         "job_name",
         "wait_for_completion",
-        "delay",
+        "waiter_delay",
+        "waiter_max_attempts",
         "deferrable",
     )
 
@@ -62,21 +80,25 @@ class GlueDataBrewStartJobOperator(BaseOperator):
         self,
         job_name: str,
         wait_for_completion: bool = True,
-        delay: int = 30,
+        delay: int | None = None,
+        waiter_delay: int = 30,
+        waiter_max_attempts: int = 60,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.job_name = job_name
         self.wait_for_completion = wait_for_completion
+        self.waiter_delay = waiter_delay
+        self.waiter_max_attempts = waiter_max_attempts
         self.deferrable = deferrable
-        self.delay = delay
-        self.aws_conn_id = aws_conn_id
-
-    @cached_property
-    def hook(self) -> GlueDataBrewHook:
-        return GlueDataBrewHook(aws_conn_id=self.aws_conn_id)
+        if delay is not None:
+            warnings.warn(
+                "please use `waiter_delay` instead of delay.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=2,
+            )
+            self.waiter_delay = delay
 
     def execute(self, context: Context):
         job = self.hook.conn.start_job_run(Name=self.job_name)
@@ -88,7 +110,14 @@ class GlueDataBrewStartJobOperator(BaseOperator):
             self.log.info("Deferring job %s with run_id %s", self.job_name, run_id)
             self.defer(
                 trigger=GlueDataBrewJobCompleteTrigger(
-                    aws_conn_id=self.aws_conn_id, job_name=self.job_name, run_id=run_id, delay=self.delay
+                    job_name=self.job_name,
+                    run_id=run_id,
+                    waiter_delay=self.waiter_delay,
+                    waiter_max_attempts=self.waiter_max_attempts,
+                    aws_conn_id=self.aws_conn_id,
+                    region_name=self.region_name,
+                    verify=self.verify,
+                    botocore_config=self.botocore_config,
                 ),
                 method_name="execute_complete",
             )
@@ -97,13 +126,21 @@ class GlueDataBrewStartJobOperator(BaseOperator):
             self.log.info(
                 "Waiting for AWS Glue DataBrew Job: %s. Run Id: %s to complete.", self.job_name, run_id
             )
-            status = self.hook.job_completion(job_name=self.job_name, delay=self.delay, run_id=run_id)
+            status = self.hook.job_completion(
+                job_name=self.job_name,
+                delay=self.waiter_delay,
+                run_id=run_id,
+                max_attempts=self.waiter_max_attempts,
+            )
             self.log.info("Glue DataBrew Job: %s status: %s", self.job_name, status)
 
         return {"run_id": run_id}
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> dict[str, str]:
         event = validate_execute_complete_event(event)
+
+        if event["status"] != "success":
+            raise AirflowException("Error while running AWS Glue DataBrew job: %s", event)
 
         run_id = event.get("run_id", "")
         status = event.get("status", "")

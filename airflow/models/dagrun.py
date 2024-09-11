@@ -123,7 +123,7 @@ class DagRun(Base, LoggingMixin):
     id = Column(Integer, primary_key=True)
     dag_id = Column(StringID(), nullable=False)
     queued_at = Column(UtcDateTime)
-    execution_date = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    execution_date = Column("logical_date", UtcDateTime, default=timezone.utcnow, nullable=False)
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
     _state = Column("state", String(50), default=DagRunState.QUEUED)
@@ -163,7 +163,6 @@ class DagRun(Base, LoggingMixin):
 
     __table_args__ = (
         Index("dag_id_state", dag_id, _state),
-        UniqueConstraint("dag_id", "execution_date", name="dag_run_dag_id_execution_date_key"),
         UniqueConstraint("dag_id", "run_id", name="dag_run_dag_id_run_id_key"),
         Index("idx_dag_run_dag_id", dag_id),
         Index(
@@ -824,7 +823,7 @@ class DagRun(Base, LoggingMixin):
 
         # if all tasks finished and at least one failed, the run failed
         if not unfinished.tis and any(x.state in State.failed_states for x in tis_for_dagrun_state):
-            self.log.error("Marking run %s failed", self)
+            self.log.info("Marking run %s failed", self)
             self.set_state(DagRunState.FAILED)
             self.notify_dagrun_state_changed(msg="task_failure")
 

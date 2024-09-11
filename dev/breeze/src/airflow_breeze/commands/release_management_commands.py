@@ -2093,7 +2093,7 @@ def generate_issue_content_providers(
                     except UnknownObjectException:
                         get_console().print(f"[red]The PR #{pr_number} could not be found[/]")
                 # Retrieve linked issues
-                if pull_requests[pr_number].body:
+                if pr_number in pull_requests and pull_requests[pr_number].body:
                     body = " ".join(pull_requests[pr_number].body.splitlines())
                     linked_issue_numbers = {
                         int(issue_match.group(1)) for issue_match in ISSUE_MATCH_IN_BODY.finditer(body)
