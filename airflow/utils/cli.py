@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Utilities module for cli."""
+
 from __future__ import annotations
 
 import functools
@@ -34,7 +35,8 @@ import re2
 from sqlalchemy import select
 
 from airflow import settings
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.api_internal.internal_api_call import InternalApiConfig
+from airflow.exceptions import AirflowException
 from airflow.utils import cli_action_loggers, timezone
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.platform import getuser, is_terminal_support_colors
@@ -103,7 +105,7 @@ def action_cli(func=None, check_db=True):
                     handler.setLevel(logging.DEBUG)
             try:
                 # Check and run migrations if necessary
-                if check_db:
+                if check_db and not InternalApiConfig.get_use_internal_api():
                     from airflow.configuration import conf
                     from airflow.utils.db import check_and_run_migrations, synchronize_log_template
 
@@ -229,10 +231,11 @@ def get_dag(subdir: str | None, dag_id: str, from_db: bool = False) -> DAG:
 
     if from_db:
         dagbag = DagBag(read_dags_from_db=True)
+        dag = dagbag.get_dag(dag_id)  # get_dag loads from the DB as requested
     else:
         first_path = process_subdir(subdir)
         dagbag = DagBag(first_path)
-    dag = dagbag.get_dag(dag_id)
+        dag = dagbag.dags.get(dag_id)  # avoids db calls made in get_dag
     if not dag:
         if from_db:
             raise AirflowException(f"Dag {dag_id!r} could not be found in DagBag read from database.")
@@ -349,14 +352,6 @@ def should_use_colors(args) -> bool:
 
 
 def should_ignore_depends_on_past(args) -> bool:
-    if args.ignore_depends_on_past:
-        warnings.warn(
-            "Using `--ignore-depends-on-past` is Deprecated."
-            "Please use `--depends-on-past ignore` instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        return True
     return args.depends_on_past == "ignore"
 
 

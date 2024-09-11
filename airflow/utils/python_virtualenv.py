@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Utilities for creating a virtual environment."""
+
 from __future__ import annotations
 
 import os
@@ -104,7 +105,7 @@ def prepare_virtualenv(
     execute_in_subprocess(virtualenv_cmd)
 
     if requirements is not None and requirements_file_path is not None:
-        raise Exception("Either requirements OR requirements_file_path has to be passed, but not both")
+        raise ValueError("Either requirements OR requirements_file_path has to be passed, but not both")
 
     pip_cmd = None
     if requirements is not None and len(requirements) != 0:

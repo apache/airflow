@@ -33,6 +33,7 @@ from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 
 
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 class TestTaskInstanceSchema:
     @pytest.fixture(autouse=True)
@@ -65,6 +66,7 @@ class TestTaskInstanceSchema:
 
     def test_task_instance_schema_without_sla_and_rendered(self, session):
         ti = TI(task=self.task, **self.default_ti_init)
+        session.add(ti)
         for key, value in self.default_ti_extras.items():
             setattr(ti, key, value)
         serialized_ti = task_instance_schema.dump((ti, None, None))
@@ -73,6 +75,7 @@ class TestTaskInstanceSchema:
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
             "execution_date": "2020-01-01T00:00:00+00:00",
+            "executor": None,
             "executor_config": "{}",
             "hostname": "",
             "map_index": -1,
@@ -89,10 +92,12 @@ class TestTaskInstanceSchema:
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "running",
             "task_id": "TEST_TASK_ID",
+            "task_display_name": "TEST_TASK_ID",
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": None,
             "rendered_fields": {},
+            "rendered_map_index": None,
             "trigger": None,
             "triggerer_job": None,
         }
@@ -107,6 +112,7 @@ class TestTaskInstanceSchema:
         session.add(sla_miss)
         session.flush()
         ti = TI(task=self.task, **self.default_ti_init)
+        session.add(ti)
         for key, value in self.default_ti_extras.items():
             setattr(ti, key, value)
         self.task.template_fields = ["partitions"]
@@ -118,6 +124,7 @@ class TestTaskInstanceSchema:
             "duration": 10000.0,
             "end_date": "2020-01-03T00:00:00+00:00",
             "execution_date": "2020-01-01T00:00:00+00:00",
+            "executor": None,
             "executor_config": "{}",
             "hostname": "",
             "map_index": -1,
@@ -142,10 +149,12 @@ class TestTaskInstanceSchema:
             "start_date": "2020-01-02T00:00:00+00:00",
             "state": "running",
             "task_id": "TEST_TASK_ID",
+            "task_display_name": "TEST_TASK_ID",
             "try_number": 0,
             "unixname": getuser(),
             "dag_run_id": None,
             "rendered_fields": {"partitions": "data/ds=2022-02-17"},
+            "rendered_map_index": None,
             "trigger": None,
             "triggerer_job": None,
         }

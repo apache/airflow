@@ -27,6 +27,7 @@ import warnings
 from typing import TYPE_CHECKING, Any, Callable, Collection, Container, Iterable, Sequence
 
 import jwt
+import packaging.version
 import re2
 from deprecated import deprecated
 from flask import flash, g, has_request_context, session
@@ -57,8 +58,10 @@ from flask_appbuilder.security.views import (
     AuthOAuthView,
     AuthOIDView,
     AuthRemoteUserView,
+    AuthView,
     RegisterUserModelView,
 )
+from flask_appbuilder.views import expose
 from flask_babel import lazy_gettext
 from flask_jwt_extended import JWTManager, current_user as current_user_jwt
 from flask_login import LoginManager
@@ -69,6 +72,7 @@ from sqlalchemy.exc import MultipleResultsFound
 from sqlalchemy.orm import Session, joinedload
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from airflow import __version__ as airflow_version
 from airflow.auth.managers.utils.fab import get_method_from_fab_action_map
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, RemovedInAirflow3Warning
@@ -121,6 +125,29 @@ log = logging.getLogger(__name__)
 # continuously creates new sessions. Such setup should be fixed by reusing sessions or by periodically
 # purging the old sessions by using `airflow db clean` command.
 MAX_NUM_DATABASE_USER_SESSIONS = 50000
+
+
+# The following logic patches the logout method within AuthView, so it supports POST method
+# to make CSRF protection effective. It is backward-compatible with Airflow versions <= 2.9.2 as it still
+# allows utilizing the GET method for them.
+# You could remove the patch and configure it when it is supported
+# natively by Flask-AppBuilder (https://github.com/dpgaspar/Flask-AppBuilder/issues/2248)
+if packaging.version.parse(packaging.version.parse(airflow_version).base_version) < packaging.version.parse(
+    "2.10.0"
+):
+    _methods = ["GET", "POST"]
+else:
+    _methods = ["POST"]
+
+
+class _ModifiedAuthView(AuthView):
+    @expose("/logout/", methods=_methods)
+    def logout(self):
+        return super().logout()
+
+
+for auth_view in [AuthDBView, AuthLDAPView, AuthOAuthView, AuthOIDView, AuthRemoteUserView]:
+    auth_view.__bases__ = (_ModifiedAuthView,)
 
 
 class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
@@ -217,7 +244,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PASSWORD),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_MY_PROFILE),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_MY_PROFILE),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_LOG),
@@ -232,7 +258,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
-        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
     ]
@@ -248,6 +273,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
     ]
     # [END security_user_perms]
 
@@ -258,6 +284,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONFIG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CONNECTION),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_POOL),
+        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PROVIDER),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_XCOM),
@@ -268,6 +295,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_POOL),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_PROVIDER),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_VARIABLE),
@@ -275,6 +303,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_XCOM),
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
     ]
     # [END security_op_perms]
 
@@ -315,7 +344,16 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     ]
 
     # global resource for dag-level access
-    DAG_ACTIONS = permissions.DAG_ACTIONS
+    RESOURCE_DETAILS_MAP = getattr(
+        permissions,
+        "RESOURCE_DETAILS_MAP",
+        {
+            permissions.RESOURCE_DAG: {
+                "actions": permissions.DAG_ACTIONS,
+            }
+        },
+    )
+    DAG_ACTIONS = RESOURCE_DETAILS_MAP[permissions.RESOURCE_DAG]["actions"]
 
     def __init__(self, appbuilder):
         # done in super, but we need it before we can call super.
@@ -337,6 +375,43 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
 
         # Setup Flask-Jwt-Extended
         self.create_jwt_manager()
+
+    def _get_authentik_jwks(self, jwks_url) -> dict:
+        import requests
+
+        resp = requests.get(jwks_url)
+        if resp.status_code == 200:
+            return resp.json()
+        return {}
+
+    def _validate_jwt(self, id_token, jwks):
+        from authlib.jose import JsonWebKey, jwt as authlib_jwt
+
+        keyset = JsonWebKey.import_key_set(jwks)
+        claims = authlib_jwt.decode(id_token, keyset)
+        claims.validate()
+        log.info("JWT token is validated")
+        return claims
+
+    def _get_authentik_token_info(self, id_token):
+        me = jwt.decode(id_token, options={"verify_signature": False})
+
+        verify_signature = self.oauth_remotes["authentik"].client_kwargs.get("verify_signature", True)
+        if verify_signature:
+            # Validate the token using authentik certificate
+            jwks_uri = self.oauth_remotes["authentik"].server_metadata.get("jwks_uri")
+            if jwks_uri:
+                jwks = self._get_authentik_jwks(jwks_uri)
+                if jwks:
+                    return self._validate_jwt(id_token, jwks)
+            else:
+                log.error("jwks_uri not specified in OAuth Providers, could not verify token signature")
+        else:
+            # Return the token info without validating
+            log.warning("JWT token is not validated!")
+            return me
+
+        raise AirflowException("OAuth signature verify failed")
 
     def register_views(self):
         """Register FAB auth manager related views."""
@@ -511,9 +586,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def load_user_jwt(self, _jwt_header, jwt_data):
         identity = jwt_data["sub"]
         user = self.load_user(identity)
-        # Set flask g.user to JWT user, we can't do it on before request
-        g.user = user
-        return user
+        if user.is_active:
+            # Set flask g.user to JWT user, we can't do it on before request
+            g.user = user
+            return user
 
     @property
     def auth_type(self):
@@ -646,6 +722,10 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return self.appbuilder.get_app.config["AUTH_USER_REGISTRATION_ROLE_JMESPATH"]
 
     @property
+    def auth_remote_user_env_var(self) -> str:
+        return self.appbuilder.get_app.config["AUTH_REMOTE_USER_ENV_VAR"]
+
+    @property
     def api_login_allow_multiple_providers(self):
         return self.appbuilder.get_app.config["AUTH_API_LOGIN_ALLOW_MULTIPLE_PROVIDERS"]
 
@@ -725,8 +805,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         # If the user does not exist, make a random password and make it
         if not user_exists:
             print(f"FlaskAppBuilder Authentication Manager: Creating {user_name} user")
-            role = self.find_role("Admin")
-            assert role is not None
+            if (role := self.find_role("Admin")) is None:
+                raise AirflowException("Unable to find role 'Admin'")
             # password does not contain visually similar characters: ijlIJL1oO0
             password = "".join(random.choices("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789", k=16))
             with open(password_path, "w") as file:
@@ -766,7 +846,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         # LDAP Config
         if self.auth_type == AUTH_LDAP:
             if "AUTH_LDAP_SERVER" not in app.config:
-                raise Exception("No AUTH_LDAP_SERVER defined on config with AUTH_LDAP authentication type.")
+                raise ValueError("No AUTH_LDAP_SERVER defined on config with AUTH_LDAP authentication type.")
             app.config.setdefault("AUTH_LDAP_SEARCH", "")
             app.config.setdefault("AUTH_LDAP_SEARCH_FILTER", "")
             app.config.setdefault("AUTH_LDAP_APPEND_DOMAIN", "")
@@ -788,6 +868,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             app.config.setdefault("AUTH_LDAP_LASTNAME_FIELD", "sn")
             app.config.setdefault("AUTH_LDAP_EMAIL_FIELD", "mail")
 
+        if self.auth_type == AUTH_REMOTE_USER:
+            app.config.setdefault("AUTH_REMOTE_USER_ENV_VAR", "REMOTE_USER")
+
         # Rate limiting
         app.config.setdefault("AUTH_RATE_LIMITED", True)
         app.config.setdefault("AUTH_RATE_LIMIT", "5 per 40 second")
@@ -802,7 +885,12 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         if self.auth_type == AUTH_OID:
             from flask_openid import OpenID
 
+            log.warning(
+                "AUTH_OID is deprecated and will be removed in version 5. "
+                "Migrate to other authentication methods."
+            )
             self.oid = OpenID(app)
+
         if self.auth_type == AUTH_OAUTH:
             from authlib.integrations.flask_client import OAuth
 
@@ -870,8 +958,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             self.add_role(self.auth_role_public)
             if self.count_users() == 0 and self.auth_role_public != self.auth_role_admin:
                 log.warning(const.LOGMSG_WAR_SEC_NO_USER)
-        except Exception as e:
-            log.error(const.LOGMSG_ERR_SEC_CREATE_DB, e)
+        except Exception:
+            log.exception(const.LOGMSG_ERR_SEC_CREATE_DB)
             exit(1)
 
     def get_readable_dags(self, user) -> Iterable[DagModel]:
@@ -952,7 +1040,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         """Check if user has read or write access to some dags."""
         if dag_id and dag_id != "~":
             root_dag_id = self._get_root_dag_id(dag_id)
-            return self.has_access(action, permissions.resource_name_for_dag(root_dag_id))
+            return self.has_access(action, self._resource_name(root_dag_id, permissions.RESOURCE_DAG))
 
         user = g.user
         if action == permissions.ACTION_CAN_READ:
@@ -985,25 +1073,27 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         dags = dagbag.dags.values()
 
         for dag in dags:
-            root_dag_id = dag.parent_dag.dag_id if dag.parent_dag else dag.dag_id
-            dag_resource_name = permissions.resource_name_for_dag(root_dag_id)
-            for action_name in self.DAG_ACTIONS:
-                if (action_name, dag_resource_name) not in perms:
-                    self._merge_perm(action_name, dag_resource_name)
+            # TODO: Remove this when the minimum version of Airflow is bumped to 3.0
+            root_dag_id = (getattr(dag, "parent_dag", None) or dag).dag_id
+            for resource_name, resource_values in self.RESOURCE_DETAILS_MAP.items():
+                dag_resource_name = self._resource_name(root_dag_id, resource_name)
+                for action_name in resource_values["actions"]:
+                    if (action_name, dag_resource_name) not in perms:
+                        self._merge_perm(action_name, dag_resource_name)
 
             if dag.access_control is not None:
-                self.sync_perm_for_dag(dag_resource_name, dag.access_control)
+                self.sync_perm_for_dag(root_dag_id, dag.access_control)
 
     def prefixed_dag_id(self, dag_id: str) -> str:
         """Return the permission name for a DAG id."""
         warnings.warn(
             "`prefixed_dag_id` has been deprecated. "
-            "Please use `airflow.security.permissions.resource_name_for_dag` instead.",
+            "Please use `airflow.security.permissions.resource_name` instead.",
             RemovedInAirflow3Warning,
             stacklevel=2,
         )
         root_dag_id = self._get_root_dag_id(dag_id)
-        return permissions.resource_name_for_dag(root_dag_id)
+        return self._resource_name(root_dag_id, permissions.RESOURCE_DAG)
 
     def is_dag_resource(self, resource_name: str) -> bool:
         """Determine if a resource belongs to a DAG or all DAGs."""
@@ -1014,7 +1104,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def sync_perm_for_dag(
         self,
         dag_id: str,
-        access_control: dict[str, Collection[str]] | None = None,
+        access_control: dict[str, dict[str, Collection[str]]] | None = None,
     ) -> None:
         """
         Sync permissions for given dag id.
@@ -1022,62 +1112,78 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         The dag id surely exists in our dag bag as only / refresh button or DagBag will call this function.
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :param access_control: a dict where each key is a role name and
-            each value is a set() of action names (e.g.,
-            {'can_read'}
+        :param access_control: a dict where each key is a role name and each value can be:
+             - a set() of DAGs resource action names (e.g. `{'can_read'}`)
+             - or a dict where each key is a resource name ('DAGs' or 'DAG Runs') and each value
+             is a set() of action names (e.g., `{'DAG Runs': {'can_create'}, 'DAGs': {'can_read'}}`)
         :return:
         """
-        dag_resource_name = permissions.resource_name_for_dag(dag_id)
-        for dag_action_name in self.DAG_ACTIONS:
-            self.create_permission(dag_action_name, dag_resource_name)
+        for resource_name, resource_values in self.RESOURCE_DETAILS_MAP.items():
+            dag_resource_name = self._resource_name(dag_id, resource_name)
+            for dag_action_name in resource_values["actions"]:
+                self.create_permission(dag_action_name, dag_resource_name)
 
         if access_control is not None:
-            self.log.debug("Syncing DAG-level permissions for DAG '%s'", dag_resource_name)
-            self._sync_dag_view_permissions(dag_resource_name, access_control)
+            self.log.debug("Syncing DAG-level permissions for DAG '%s'", dag_id)
+            self._sync_dag_view_permissions(dag_id, access_control.copy())
         else:
             self.log.debug(
                 "Not syncing DAG-level permissions for DAG '%s' as access control is unset.",
-                dag_resource_name,
+                dag_id,
             )
 
-    def _sync_dag_view_permissions(self, dag_id: str, access_control: dict[str, Collection[str]]) -> None:
+    def _resource_name(self, dag_id: str, resource_name: str) -> str:
+        """
+        Get the resource name from permissions.
+
+        This method is to keep compatibility with new FAB versions
+        running with old airflow versions.
+        """
+        if hasattr(permissions, "resource_name"):
+            return getattr(permissions, "resource_name")(dag_id, resource_name)
+        return getattr(permissions, "resource_name_for_dag")(dag_id)
+
+    def _sync_dag_view_permissions(
+        self,
+        dag_id: str,
+        access_control: dict[str, dict[str, Collection[str]]],
+    ) -> None:
         """
         Set the access policy on the given DAG's ViewModel.
 
         :param dag_id: the ID of the DAG whose permissions should be updated
-        :param access_control: a dict where each key is a role name and
-            each value is a set() of action names (e.g. {'can_read'})
+        :param access_control: a dict where each key is a role name and each value is:
+            - a dict where each key is a resource name ('DAGs' or 'DAG Runs') and each value
+            is a set() of action names (e.g., `{'DAG Runs': {'can_create'}, 'DAGs': {'can_read'}}`)
         """
-        dag_resource_name = permissions.resource_name_for_dag(dag_id)
 
-        def _get_or_create_dag_permission(action_name: str) -> Permission | None:
+        def _get_or_create_dag_permission(action_name: str, dag_resource_name: str) -> Permission | None:
             perm = self.get_permission(action_name, dag_resource_name)
             if not perm:
                 self.log.info("Creating new action '%s' on resource '%s'", action_name, dag_resource_name)
                 perm = self.create_permission(action_name, dag_resource_name)
-
             return perm
 
-        def _revoke_stale_permissions(resource: Resource):
-            existing_dag_perms = self.get_resource_permissions(resource)
-            for perm in existing_dag_perms:
-                non_admin_roles = [role for role in perm.role if role.name != "Admin"]
-                for role in non_admin_roles:
-                    target_perms_for_role = access_control.get(role.name, ())
-                    if perm.action.name not in target_perms_for_role:
-                        self.log.info(
-                            "Revoking '%s' on DAG '%s' for role '%s'",
-                            perm.action,
-                            dag_resource_name,
-                            role.name,
-                        )
-                        self.remove_permission_from_role(role, perm)
+        # Revoking stale permissions for all possible DAG level resources
+        for resource_name in self.RESOURCE_DETAILS_MAP.keys():
+            dag_resource_name = self._resource_name(dag_id, resource_name)
+            if resource := self.get_resource(dag_resource_name):
+                existing_dag_perms = self.get_resource_permissions(resource)
+                for perm in existing_dag_perms:
+                    non_admin_roles = [role for role in perm.role if role.name != "Admin"]
+                    for role in non_admin_roles:
+                        target_perms_for_role = access_control.get(role.name, {}).get(resource_name, set())
+                        if perm.action.name not in target_perms_for_role:
+                            self.log.info(
+                                "Revoking '%s' on DAG '%s' for role '%s'",
+                                perm.action,
+                                dag_resource_name,
+                                role.name,
+                            )
+                            self.remove_permission_from_role(role, perm)
 
-        resource = self.get_resource(dag_resource_name)
-        if resource:
-            _revoke_stale_permissions(resource)
-
-        for rolename, action_names in access_control.items():
+        # Adding the access control permissions
+        for rolename, resource_actions in access_control.items():
             role = self.find_role(rolename)
             if not role:
                 raise AirflowException(
@@ -1085,19 +1191,34 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                     f"'{rolename}', but that role does not exist"
                 )
 
-            action_names = set(action_names)
-            invalid_action_names = action_names - self.DAG_ACTIONS
-            if invalid_action_names:
-                raise AirflowException(
-                    f"The access_control map for DAG '{dag_resource_name}' includes "
-                    f"the following invalid permissions: {invalid_action_names}; "
-                    f"The set of valid permissions is: {self.DAG_ACTIONS}"
-                )
+            if isinstance(resource_actions, (set, list)):
+                # Support for old-style access_control where only the actions are specified
+                resource_actions = {permissions.RESOURCE_DAG: set(resource_actions)}
 
-            for action_name in action_names:
-                dag_perm = _get_or_create_dag_permission(action_name)
-                if dag_perm:
-                    self.add_permission_to_role(role, dag_perm)
+            for resource_name, actions in resource_actions.items():
+                if resource_name not in self.RESOURCE_DETAILS_MAP:
+                    raise AirflowException(
+                        f"The access_control map for DAG '{dag_id}' includes the following invalid "
+                        f"resource name: '{resource_name}'; "
+                        f"The set of valid resource names is: {self.RESOURCE_DETAILS_MAP.keys()}"
+                    )
+
+                dag_resource_name = self._resource_name(dag_id, resource_name)
+                self.log.debug("Syncing DAG-level permissions for DAG '%s'", dag_resource_name)
+
+                invalid_actions = set(actions) - self.RESOURCE_DETAILS_MAP[resource_name]["actions"]
+
+                if invalid_actions:
+                    raise AirflowException(
+                        f"The access_control map for DAG '{dag_resource_name}' includes "
+                        f"the following invalid permissions: {invalid_actions}; "
+                        f"The set of valid permissions is: {self.RESOURCE_DETAILS_MAP[resource_name]['actions']}"
+                    )
+
+                for action_name in actions:
+                    dag_perm = _get_or_create_dag_permission(action_name, dag_resource_name)
+                    if dag_perm:
+                        self.add_permission_to_role(role, dag_perm)
 
     def add_permissions_view(self, base_action_names, resource_name):  # Keep name for compatibility with FAB.
         """
@@ -1228,8 +1349,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         Add the missing ones to the table for admin.
         """
         session = self.appbuilder.get_session
+        prefixes = getattr(permissions, "PREFIX_LIST", [permissions.RESOURCE_DAG_PREFIX])
         dag_resources = session.scalars(
-            select(Resource).where(Resource.name.like(f"{permissions.RESOURCE_DAG_PREFIX}%"))
+            select(Resource).where(or_(*[Resource.name.like(f"{prefix}%") for prefix in prefixes]))
         )
         resource_ids = [resource.id for resource in dag_resources]
 
@@ -1247,8 +1369,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         sesh = self.appbuilder.get_session
         perms = sesh.query(Permission).filter(
             or_(
-                Permission.action == None,  # noqa
-                Permission.resource == None,  # noqa
+                Permission.action == None,  # noqa: E711
+                Permission.resource == None,  # noqa: E711
             )
         )
         # Since FAB doesn't define ON DELETE CASCADE on these tables, we need
@@ -1454,14 +1576,15 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             user.username = username
             user.email = email
             user.active = True
+            self.get_session.add(user)
             user.roles = role if isinstance(role, list) else [role]
             if hashed_password:
                 user.password = hashed_password
             else:
                 user.password = generate_password_hash(password)
-            self.get_session.add(user)
             self.get_session.commit()
             log.info(const.LOGMSG_INF_SEC_ADD_USER, username)
+
             return user
         except Exception as e:
             log.error(const.LOGMSG_ERR_SEC_ADD_USER, e)
@@ -1469,8 +1592,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             return False
 
     def load_user(self, user_id):
-        """Load user by ID."""
-        return self.get_user_by_id(int(user_id))
+        user = self.get_user_by_id(int(user_id))
+        if user.is_active:
+            return user
 
     def get_user_by_id(self, pk):
         return self.get_session.get(self.user_model, pk)
@@ -1567,7 +1691,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return self.get_session.query(self.user_model).all()
 
     def update_user_auth_stat(self, user, success=True):
-        """Update user authentication stats.
+        """
+        Update user authentication stats.
 
         This is done upon successful/unsuccessful authentication attempts.
 
@@ -2114,7 +2239,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         return wraps
 
     def get_oauth_user_info(self, provider: str, resp: dict[str, Any]) -> dict[str, Any]:
-        """There are different OAuth APIs with different ways to retrieve user info.
+        """
+        There are different OAuth APIs with different ways to retrieve user info.
 
         All providers have different ways to retrieve user info.
         """
@@ -2159,7 +2285,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             log.debug("User info from Azure: %s", me)
             # https://learn.microsoft.com/en-us/azure/active-directory/develop/id-token-claims-reference#payload-claims
             return {
-                "email": me.get("upn", me["email"]),
+                "email": me["email"] if "email" in me else me["upn"],
                 "first_name": me.get("given_name", ""),
                 "last_name": me.get("family_name", ""),
                 "username": me["oid"],
@@ -2176,13 +2302,17 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
             me = self.oauth_remotes[provider].get("userinfo")
             data = me.json()
             log.debug("User info from Okta: %s", data)
-            return {
-                "username": f"{provider}_{data['sub']}",
-                "first_name": data.get("given_name", ""),
-                "last_name": data.get("family_name", ""),
-                "email": data["email"],
-                "role_keys": data.get("groups", []),
-            }
+            if "error" not in data:
+                return {
+                    "username": f"{provider}_{data['sub']}",
+                    "first_name": data.get("given_name", ""),
+                    "last_name": data.get("family_name", ""),
+                    "email": data["email"],
+                    "role_keys": data.get("groups", []),
+                }
+            else:
+                log.error(data.get("error_description"))
+            return {}
         # for Auth0
         if provider == "auth0":
             data = self.appbuilder.sm.oauth_remotes[provider].userinfo()
@@ -2205,7 +2335,20 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 "first_name": data.get("given_name", ""),
                 "last_name": data.get("family_name", ""),
                 "email": data.get("email", ""),
+                "role_keys": data.get("groups", []),
             }
+        # for Authentik
+        if provider == "authentik":
+            id_token = resp["id_token"]
+            me = self._get_authentik_token_info(id_token)
+            log.debug("User info from authentik: %s", me)
+            return {
+                "email": me["preferred_username"],
+                "first_name": me.get("given_name", ""),
+                "username": me["nickname"],
+                "role_keys": me.get("groups", []),
+            }
+
         else:
             return {}
 
@@ -2265,7 +2408,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 return _provider.get("token_key", "oauth_token")
 
     def get_oauth_token_secret_name(self, provider):
-        """Get the ``token_secret`` name for the oauth provider.
+        """
+        Get the ``token_secret`` name for the oauth provider.
 
         If none is configured, defaults to ``oauth_secret``. This is configured
         using ``OAUTH_PROVIDERS`` and ``token_secret``.
@@ -2411,7 +2555,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     """
 
     def _rotate_session_id(self):
-        """Rotate the session ID.
+        """
+        Rotate the session ID.
 
         We need to do this upon successful authentication when using the
         database session backend.
@@ -2443,8 +2588,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         :param ldap: The ldap module reference
         :param con: The ldap connection
         """
-        # always check AUTH_LDAP_BIND_USER is set before calling this method
-        assert self.auth_ldap_bind_user, "AUTH_LDAP_BIND_USER must be set"
+        if not self.auth_ldap_bind_user:
+            # always check AUTH_LDAP_BIND_USER is set before calling this method
+            raise ValueError("AUTH_LDAP_BIND_USER must be set")
 
         try:
             log.debug("LDAP bind indirect TRY with username: %r", self.auth_ldap_bind_user)
@@ -2463,8 +2609,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         :param username: username to match with AUTH_LDAP_UID_FIELD
         :return: ldap object array
         """
-        # always check AUTH_LDAP_SEARCH is set before calling this method
-        assert self.auth_ldap_search, "AUTH_LDAP_SEARCH must be set"
+        if not self.auth_ldap_search:
+            # always check AUTH_LDAP_SEARCH is set before calling this method
+            raise ValueError("AUTH_LDAP_SEARCH must be set")
 
         # build the filter string for the LDAP search
         if self.auth_ldap_search_filter:
@@ -2577,7 +2724,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     def _get_user_permission_resources(
         self, user: User | None, action_name: str, resource_names: list[str] | None = None
     ) -> set[str]:
-        """Get resource names with a certain action name that a user has access to.
+        """
+        Get resource names with a certain action name that a user has access to.
 
         Mainly used to fetch all menu permissions on a single db call, will also
         check public permissions and builtin roles
@@ -2681,7 +2829,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         ).all()
 
     def _get_root_dag_id(self, dag_id: str) -> str:
-        if "." in dag_id:
+        # TODO: The "root_dag_id" check can be remove when the minimum version of Airflow is bumped to 3.0
+        if "." in dag_id and hasattr(DagModel, "root_dag_id"):
             dm = self.appbuilder.get_session.execute(
                 select(DagModel.dag_id, DagModel.root_dag_id).where(DagModel.dag_id == dag_id)
             ).one()

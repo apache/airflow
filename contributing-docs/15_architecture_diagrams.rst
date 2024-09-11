@@ -61,4 +61,4 @@ source code for it changes.
 
 ----
 
-You can  now see an overview of the whole `contribution workflow <16_contribution_workflow.rst>`__
+You can now see an overview of the whole `contribution workflow <16_contribution_workflow.rst>`__

@@ -26,8 +26,11 @@ from io import StringIO
 import pytest
 
 from airflow.cli import cli_parser
-from airflow.providers.fab.auth_manager.cli_commands import user_command
-from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
+from tests.test_utils.compat import ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.9.0+", __file__):
+    from airflow.providers.fab.auth_manager.cli_commands import user_command
+    from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
 
 pytestmark = pytest.mark.db_test
 
@@ -36,7 +39,7 @@ TEST_USER2_EMAIL = "test-user2@example.com"
 TEST_USER3_EMAIL = "test-user3@example.com"
 
 
-@pytest.fixture()
+@pytest.fixture
 def parser():
     return cli_parser.get_parser()
 
@@ -61,10 +64,10 @@ class TestCliUsers:
             self.clear_users()
 
     def clear_users(self):
-        for email in [TEST_USER1_EMAIL, TEST_USER2_EMAIL]:
-            test_user = self.appbuilder.sm.find_user(email=email)
-            if test_user:
-                self.appbuilder.sm.del_register_user(test_user)
+        session = self.appbuilder.get_session
+        for user in self.appbuilder.sm.get_all_users():
+            session.delete(user)
+        session.commit()
 
     def test_cli_create_user_random_password(self):
         args = self.parser.parse_args(
@@ -354,7 +357,7 @@ class TestCliUsers:
             user_command.users_export(args)
             return f.name
 
-    @pytest.fixture()
+    @pytest.fixture
     def create_user_test4(self):
         args = self.parser.parse_args(
             [
@@ -404,21 +407,28 @@ class TestCliUsers:
         ), "User should have been removed from role 'Viewer'"
 
     @pytest.mark.parametrize(
-        "action, role, message",
+        "role, message",
         [
-            ["add-role", "Viewer", 'User "test4" is already a member of role "Viewer"'],
-            ["add-role", "Foo", '"Foo" is not a valid role. Valid roles are'],
-            ["remove-role", "Admin", 'User "test4" is not a member of role "Admin"'],
-            ["remove-role", "Foo", '"Foo" is not a valid role. Valid roles are'],
+            ["Viewer", 'User "test4" is already a member of role "Viewer"'],
+            ["Foo", '"Foo" is not a valid role. Valid roles are'],
         ],
     )
-    def test_cli_manage_roles_exceptions(self, create_user_test4, action, role, message):
-        args = self.parser.parse_args(["users", action, "--username", "test4", "--role", role])
+    def test_cli_manage_add_role_exceptions(self, create_user_test4, role, message):
+        args = self.parser.parse_args(["users", "add-role", "--username", "test4", "--role", role])
         with pytest.raises(SystemExit, match=message):
-            if action == "add-role":
-                user_command.add_role(args)
-            else:
-                user_command.remove_role(args)
+            user_command.add_role(args)
+
+    @pytest.mark.parametrize(
+        "role, message",
+        [
+            ["Admin", 'User "test4" is not a member of role "Admin"'],
+            ["Foo", '"Foo" is not a valid role. Valid roles are'],
+        ],
+    )
+    def test_cli_manage_remove_role_exceptions(self, create_user_test4, role, message):
+        args = self.parser.parse_args(["users", "remove-role", "--username", "test4", "--role", role])
+        with pytest.raises(SystemExit, match=message):
+            user_command.remove_role(args)
 
     @pytest.mark.parametrize(
         "user, message",

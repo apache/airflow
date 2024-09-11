@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Jinja2 template rendering context helper."""
+
 from __future__ import annotations
 
 import contextlib
@@ -35,16 +36,32 @@ from typing import (
     ValuesView,
 )
 
+import attrs
 import lazy_object_proxy
+from sqlalchemy import select
 
+from airflow.datasets import (
+    Dataset,
+    DatasetAlias,
+    DatasetAliasEvent,
+    extract_event_key,
+)
 from airflow.exceptions import RemovedInAirflow3Warning
+from airflow.models.dataset import DatasetAliasModel, DatasetEvent, DatasetModel
+from airflow.utils.db import LazySelectSequence
 from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
+    from sqlalchemy.engine import Row
+    from sqlalchemy.orm import Session
+    from sqlalchemy.sql.expression import Select, TextClause
+
     from airflow.models.baseoperator import BaseOperator
 
-# NOTE: Please keep this in sync with Context in airflow/utils/context.pyi.
-KNOWN_CONTEXT_KEYS = {
+# NOTE: Please keep this in sync with the following:
+# * Context in airflow/utils/context.pyi.
+# * Table in docs/apache-airflow/templates-ref.rst
+KNOWN_CONTEXT_KEYS: set[str] = {
     "conf",
     "conn",
     "dag",
@@ -57,12 +74,15 @@ KNOWN_CONTEXT_KEYS = {
     "expanded_ti_count",
     "exception",
     "inlets",
+    "inlet_events",
     "logical_date",
     "macros",
+    "map_index_template",
     "next_ds",
     "next_ds_nodash",
     "next_execution_date",
     "outlets",
+    "outlet_events",
     "params",
     "prev_data_interval_start_success",
     "prev_data_interval_end_success",
@@ -72,6 +92,7 @@ KNOWN_CONTEXT_KEYS = {
     "prev_execution_date_success",
     "prev_start_date_success",
     "prev_end_date_success",
+    "reason",
     "run_id",
     "task",
     "task_instance",
@@ -141,6 +162,141 @@ class ConnectionAccessor:
             return default_conn
 
 
+@attrs.define()
+class OutletEventAccessor:
+    """
+    Wrapper to access an outlet dataset event in template.
+
+    :meta private:
+    """
+
+    raw_key: str | Dataset | DatasetAlias
+    extra: dict[str, Any] = attrs.Factory(dict)
+    dataset_alias_event: DatasetAliasEvent | None = None
+
+    def add(self, dataset: Dataset | str, extra: dict[str, Any] | None = None) -> None:
+        """Add a DatasetEvent to an existing Dataset."""
+        if isinstance(dataset, str):
+            dataset_uri = dataset
+        elif isinstance(dataset, Dataset):
+            dataset_uri = dataset.uri
+        else:
+            return
+
+        if isinstance(self.raw_key, str):
+            dataset_alias_name = self.raw_key
+        elif isinstance(self.raw_key, DatasetAlias):
+            dataset_alias_name = self.raw_key.name
+        else:
+            return
+
+        if extra:
+            self.extra = extra
+
+        self.dataset_alias_event = DatasetAliasEvent(
+            source_alias_name=dataset_alias_name, dest_dataset_uri=dataset_uri
+        )
+
+
+class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
+    """
+    Lazy mapping of outlet dataset event accessors.
+
+    :meta private:
+    """
+
+    def __init__(self) -> None:
+        self._dict: dict[str, OutletEventAccessor] = {}
+
+    def __str__(self) -> str:
+        return f"OutletEventAccessors(_dict={self._dict})"
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._dict)
+
+    def __len__(self) -> int:
+        return len(self._dict)
+
+    def __getitem__(self, key: str | Dataset | DatasetAlias) -> OutletEventAccessor:
+        event_key = extract_event_key(key)
+        if event_key not in self._dict:
+            self._dict[event_key] = OutletEventAccessor(extra={}, raw_key=key)
+        return self._dict[event_key]
+
+
+class LazyDatasetEventSelectSequence(LazySelectSequence[DatasetEvent]):
+    """
+    List-like interface to lazily access DatasetEvent rows.
+
+    :meta private:
+    """
+
+    @staticmethod
+    def _rebuild_select(stmt: TextClause) -> Select:
+        return select(DatasetEvent).from_statement(stmt)
+
+    @staticmethod
+    def _process_row(row: Row) -> DatasetEvent:
+        return row[0]
+
+
+@attrs.define(init=False)
+class InletEventsAccessors(Mapping[str, LazyDatasetEventSelectSequence]):
+    """
+    Lazy mapping for inlet dataset events accessors.
+
+    :meta private:
+    """
+
+    _inlets: list[Any]
+    _datasets: dict[str, Dataset]
+    _dataset_aliases: dict[str, DatasetAlias]
+    _session: Session
+
+    def __init__(self, inlets: list, *, session: Session) -> None:
+        self._inlets = inlets
+        self._session = session
+        self._datasets = {}
+        self._dataset_aliases = {}
+
+        for inlet in inlets:
+            if isinstance(inlet, Dataset):
+                self._datasets[inlet.uri] = inlet
+            elif isinstance(inlet, DatasetAlias):
+                self._dataset_aliases[inlet.name] = inlet
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._inlets)
+
+    def __len__(self) -> int:
+        return len(self._inlets)
+
+    def __getitem__(self, key: int | str | Dataset | DatasetAlias) -> LazyDatasetEventSelectSequence:
+        if isinstance(key, int):  # Support index access; it's easier for trivial cases.
+            obj = self._inlets[key]
+            if not isinstance(obj, (Dataset, DatasetAlias)):
+                raise IndexError(key)
+        else:
+            obj = key
+
+        if isinstance(obj, DatasetAlias):
+            dataset_alias = self._dataset_aliases[obj.name]
+            join_clause = DatasetEvent.source_aliases
+            where_clause = DatasetAliasModel.name == dataset_alias.name
+        elif isinstance(obj, (Dataset, str)):
+            dataset = self._datasets[extract_event_key(obj)]
+            join_clause = DatasetEvent.dataset
+            where_clause = DatasetModel.uri == dataset.uri
+        else:
+            raise ValueError(key)
+
+        return LazyDatasetEventSelectSequence.from_select(
+            select(DatasetEvent).join(join_clause).where(where_clause),
+            order_by=[DatasetEvent.timestamp],
+            session=self._session,
+        )
+
+
 class AirflowContextDeprecationWarning(RemovedInAirflow3Warning):
     """Warn for usage of deprecated context variables in a task."""
 
@@ -158,7 +314,8 @@ def _create_deprecation_warning(key: str, replacements: list[str]) -> RemovedInA
 
 
 class Context(MutableMapping[str, Any]):
-    """Jinja2 template context for task rendering.
+    """
+    Jinja2 template context for task rendering.
 
     This is a mapping (dict-like) class that can lazily emit warnings when
     (and only when) deprecated context keys are accessed.
@@ -189,7 +346,8 @@ class Context(MutableMapping[str, Any]):
         return repr(self._context)
 
     def __reduce_ex__(self, protocol: SupportsIndex) -> tuple[Any, ...]:
-        """Pickle the context as a dict.
+        """
+        Pickle the context as a dict.
 
         We are intentionally going through ``__getitem__`` in this function,
         instead of using ``items()``, to trigger deprecation warnings.
@@ -204,7 +362,10 @@ class Context(MutableMapping[str, Any]):
 
     def __getitem__(self, key: str) -> Any:
         with contextlib.suppress(KeyError):
-            warnings.warn(_create_deprecation_warning(key, self._deprecation_replacements[key]))
+            warnings.warn(
+                _create_deprecation_warning(key, self._deprecation_replacements[key]),
+                stacklevel=2,
+            )
         with contextlib.suppress(KeyError):
             return self._context[key]
         raise KeyError(key)
@@ -247,7 +408,8 @@ class Context(MutableMapping[str, Any]):
 
 
 def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
-    """Merge parameters into an existing context.
+    """
+    Merge parameters into an existing context.
 
     Like ``dict.update()`` , this take the same parameters, and updates
     ``context`` in-place.
@@ -262,7 +424,8 @@ def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
 
 
 def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
-    """Update context after task unmapping.
+    """
+    Update context after task unmapping.
 
     Since ``get_template_context()`` is called before unmapping, the context
     contains information about the mapped task. We need to do some in-place
@@ -277,7 +440,8 @@ def context_update_for_unmapped(context: Context, task: BaseOperator) -> None:
 
 
 def context_copy_partial(source: Context, keys: Container[str]) -> Context:
-    """Create a context by copying items under selected keys in ``source``.
+    """
+    Create a context by copying items under selected keys in ``source``.
 
     This is implemented as a free function because the ``Context`` type is
     "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
@@ -291,7 +455,8 @@ def context_copy_partial(source: Context, keys: Container[str]) -> Context:
 
 
 def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
-    """Create a mapping that wraps deprecated entries in a lazy object proxy.
+    """
+    Create a mapping that wraps deprecated entries in a lazy object proxy.
 
     This further delays deprecation warning to until when the entry is actually
     used, instead of when it's accessed in the context. The result is useful for
@@ -312,7 +477,7 @@ def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
 
     def _deprecated_proxy_factory(k: str, v: Any) -> Any:
         replacements = source._deprecation_replacements[k]
-        warnings.warn(_create_deprecation_warning(k, replacements))
+        warnings.warn(_create_deprecation_warning(k, replacements), stacklevel=2)
         return v
 
     def _create_value(k: str, v: Any) -> Any:
@@ -322,3 +487,10 @@ def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:
         return lazy_object_proxy.Proxy(factory)
 
     return {k: _create_value(k, v) for k, v in source._context.items()}
+
+
+def context_get_outlet_events(context: Context) -> OutletEventAccessors:
+    try:
+        return context["outlet_events"]
+    except KeyError:
+        return OutletEventAccessors()

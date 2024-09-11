@@ -49,7 +49,7 @@ def trigger():
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def async_get_data_scan_job():
     def func(**kwargs):
         m = mock.MagicMock()

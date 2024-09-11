@@ -34,7 +34,8 @@ Delta = Union[datetime.timedelta, relativedelta]
 
 
 class _DataIntervalTimetable(Timetable):
-    """Basis for timetable implementations that schedule data intervals.
+    """
+    Basis for timetable implementations that schedule data intervals.
 
     This kind of timetable classes create periodic data intervals from an
     underlying schedule representation (e.g. a cron expression, or a timedelta
@@ -42,7 +43,8 @@ class _DataIntervalTimetable(Timetable):
     """
 
     def _skip_to_latest(self, earliest: DateTime | None) -> DateTime:
-        """Bound the earliest time a run can be scheduled.
+        """
+        Bound the earliest time a run can be scheduled.
 
         This is called when ``catchup=False``. See docstring of subclasses for
         exact skipping behaviour of a schedule.
@@ -50,7 +52,8 @@ class _DataIntervalTimetable(Timetable):
         raise NotImplementedError()
 
     def _align_to_next(self, current: DateTime) -> DateTime:
-        """Align given time to the next scheduled time.
+        """
+        Align given time to the next scheduled time.
 
         For fixed schedules (e.g. every midnight); this finds the next time that
         aligns to the declared time, if the given time does not align. If the
@@ -59,7 +62,8 @@ class _DataIntervalTimetable(Timetable):
         raise NotImplementedError()
 
     def _align_to_prev(self, current: DateTime) -> DateTime:
-        """Align given time to the previous scheduled time.
+        """
+        Align given time to the previous scheduled time.
 
         For fixed schedules (e.g. every midnight); this finds the prev time that
         aligns to the declared time, if the given time does not align. If the
@@ -113,7 +117,8 @@ class _DataIntervalTimetable(Timetable):
 
 
 class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
-    """Timetable that schedules data intervals with a cron expression.
+    """
+    Timetable that schedules data intervals with a cron expression.
 
     This corresponds to ``schedule=<cron>``, where ``<cron>`` is either
     a five/six-segment representation, or one of ``cron_presets``.
@@ -137,7 +142,8 @@ class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
         return {"expression": self._expression, "timezone": encode_timezone(self._timezone)}
 
     def _skip_to_latest(self, earliest: DateTime | None) -> DateTime:
-        """Bound the earliest time a run can be scheduled.
+        """
+        Bound the earliest time a run can be scheduled.
 
         The logic is that we move start_date up until one period before, so the
         current time is AFTER the period end, and the job can be created...
@@ -168,7 +174,8 @@ class CronDataIntervalTimetable(CronMixin, _DataIntervalTimetable):
 
 
 class DeltaDataIntervalTimetable(_DataIntervalTimetable):
-    """Timetable that schedules data intervals with a time delta.
+    """
+    Timetable that schedules data intervals with a time delta.
 
     This corresponds to ``schedule=<delta>``, where ``<delta>`` is
     either a ``datetime.timedelta`` or ``dateutil.relativedelta.relativedelta``
@@ -250,7 +257,8 @@ class DeltaDataIntervalTimetable(_DataIntervalTimetable):
         return DateTime.fromtimestamp(rounded_dt, tz=dt.tzinfo)
 
     def _skip_to_latest(self, earliest: DateTime | None) -> DateTime:
-        """Bound the earliest time a run can be scheduled.
+        """
+        Bound the earliest time a run can be scheduled.
 
         The logic is that we move start_date up until one period before, so the
         current time is AFTER the period end, and the job can be created...

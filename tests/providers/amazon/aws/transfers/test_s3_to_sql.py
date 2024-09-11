@@ -64,11 +64,11 @@ class TestS3ToSqlTransfer:
             "commit_every": 5000,
         }
 
-    @pytest.fixture()
+    @pytest.fixture
     def mock_parser(self):
         return MagicMock()
 
-    @pytest.fixture()
+    @pytest.fixture
     def mock_bad_hook(self):
         bad_hook = MagicMock()
         del bad_hook.insert_rows

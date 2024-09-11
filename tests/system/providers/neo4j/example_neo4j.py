@@ -18,6 +18,7 @@
 """
 Example use of Neo4j related operators.
 """
+
 from __future__ import annotations
 
 import os
@@ -32,6 +33,7 @@ DAG_ID = "example_neo4j"
 with DAG(
     DAG_ID,
     start_date=datetime(2021, 1, 1),
+    schedule=None,
     tags=["example"],
     catchup=False,
 ) as dag:

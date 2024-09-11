@@ -29,12 +29,12 @@ from airflow.utils import timezone
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
-@pytest.mark.integration("celery")
+@pytest.mark.integration("redis")
 class TestRedisPublishOperator:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
-        self.dag = DAG("test_redis_dag_id", default_args=args)
+        self.dag = DAG("test_redis_dag_id", schedule=None, default_args=args)
 
         self.mock_context = MagicMock()
         self.channel = "test"

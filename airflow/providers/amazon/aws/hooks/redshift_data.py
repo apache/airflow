@@ -25,7 +25,7 @@ from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils import trim_none_values
 
 if TYPE_CHECKING:
-    from mypy_boto3_redshift_data import RedshiftDataAPIServiceClient  # noqa
+    from mypy_boto3_redshift_data import RedshiftDataAPIServiceClient  # noqa: F401
     from mypy_boto3_redshift_data.type_defs import DescribeStatementResponseTypeDef
 
 FINISHED_STATE = "FINISHED"
@@ -231,7 +231,8 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         return pk_columns or None
 
     async def is_still_running(self, statement_id: str) -> bool:
-        """Async function to check whether the query is still running.
+        """
+        Async function to check whether the query is still running.
 
         :param statement_id: the UUID of the statement
         """
@@ -240,7 +241,8 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
             return desc["Status"] in RUNNING_STATES
 
     async def check_query_is_finished_async(self, statement_id: str) -> bool:
-        """Async function to check statement is finished.
+        """
+        Async function to check statement is finished.
 
         It takes statement_id, makes async connection to redshift data to get the query status
         by statement_id and returns the query status.

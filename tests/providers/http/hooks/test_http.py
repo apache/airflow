@@ -138,6 +138,7 @@ class TestHttpHook:
             assert conn.verify is True
             assert conn.cert is None
             assert conn.max_redirects == 3
+            assert conn.trust_env is True
 
     def test_hook_ignore_proxies_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(
@@ -154,6 +155,7 @@ class TestHttpHook:
             assert conn.verify is True
             assert conn.cert is None
             assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
+            assert conn.trust_env is True
 
     def test_hook_ignore_verify_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "verify": False})
@@ -168,6 +170,7 @@ class TestHttpHook:
             assert conn.verify is False
             assert conn.cert is None
             assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
+            assert conn.trust_env is True
 
     def test_hook_ignore_cert_from_extra_field_as_header(self):
         airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "cert": "cert.crt"})
@@ -182,6 +185,22 @@ class TestHttpHook:
             assert conn.verify is True
             assert conn.cert == "cert.crt"
             assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
+            assert conn.trust_env is True
+
+    def test_hook_ignore_trust_env_from_extra_field_as_header(self):
+        airflow_connection = get_airflow_connection_with_extra(extra={"bearer": "test", "trust_env": False})
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=airflow_connection):
+            expected_conn = airflow_connection()
+            conn = self.get_hook.get_conn()
+            assert dict(conn.headers, **json.loads(expected_conn.extra)) != conn.headers
+            assert conn.headers.get("bearer") == "test"
+            assert conn.headers.get("cert") is None
+            assert conn.proxies == {}
+            assert conn.stream is False
+            assert conn.verify is True
+            assert conn.cert is None
+            assert conn.max_redirects == DEFAULT_REDIRECT_LIMIT
+            assert conn.trust_env is False
 
     @mock.patch("requests.Request")
     def test_hook_with_method_in_lowercase(self, mock_requests):
@@ -497,6 +516,18 @@ class TestHttpHook:
             tcp_keep_alive_send.assert_not_called()
             http_send.assert_called()
 
+    @pytest.mark.parametrize(
+        "base_url, endpoint, expected_url",
+        [
+            pytest.param("https://example.org", "/v1/test", "https://example.org/v1/test", id="both-set"),
+            pytest.param("", "http://foo/bar/v1/test", "http://foo/bar/v1/test", id="only-endpoint"),
+        ],
+    )
+    def test_url_from_endpoint(self, base_url: str, endpoint: str, expected_url: str):
+        hook = HttpHook()
+        hook.base_url = base_url
+        assert hook.url_from_endpoint(endpoint) == expected_url
+
 
 class TestHttpAsyncHook:
     @pytest.mark.asyncio
@@ -604,6 +635,7 @@ class TestHttpAsyncHook:
                     "verify": False,
                     "allow_redirects": False,
                     "max_redirects": 3,
+                    "trust_env": False,
                 },
             }
         )
@@ -621,6 +653,7 @@ class TestHttpAsyncHook:
                 assert mocked_function.call_args.kwargs.get("verify_ssl") is False
                 assert mocked_function.call_args.kwargs.get("allow_redirects") is False
                 assert mocked_function.call_args.kwargs.get("max_redirects") == 3
+                assert mocked_function.call_args.kwargs.get("trust_env") is False
 
     def test_process_extra_options_from_connection(self):
         extra_options = {}
@@ -635,6 +668,7 @@ class TestHttpAsyncHook:
                 "verify": False,
                 "allow_redirects": False,
                 "max_redirects": 3,
+                "trust_env": False,
             }
         )()
 
@@ -646,5 +680,28 @@ class TestHttpAsyncHook:
             "verify_ssl": False,
             "allow_redirects": False,
             "max_redirects": 3,
+            "trust_env": False,
         }
         assert actual == {"bearer": "test"}
+
+    @pytest.mark.asyncio
+    async def test_build_request_url_from_connection(self):
+        conn = get_airflow_connection()
+        schema = conn.schema or "http"  # default to http
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection):
+            hook = HttpAsyncHook()
+            with mock.patch("aiohttp.ClientSession.post", new_callable=mock.AsyncMock) as mocked_function:
+                await hook.run("v1/test")
+                assert mocked_function.call_args.args[0] == f"{schema}://{conn.host}v1/test"
+
+    @pytest.mark.asyncio
+    async def test_build_request_url_from_endpoint_param(self):
+        def get_empty_conn(conn_id: str = "http_default"):
+            return Connection(conn_id=conn_id, conn_type="http")
+
+        hook = HttpAsyncHook()
+        with mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_empty_conn), mock.patch(
+            "aiohttp.ClientSession.post", new_callable=mock.AsyncMock
+        ) as mocked_function:
+            await hook.run("test.com:8080/v1/test")
+            assert mocked_function.call_args.args[0] == "http://test.com:8080/v1/test"

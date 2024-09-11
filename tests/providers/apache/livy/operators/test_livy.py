@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.apache.livy.hooks.livy import BatchState
@@ -41,7 +41,7 @@ LOG_RESPONSE = {"total": 3, "log": ["first_line", "second_line", "third_line"]}
 class TestLivyOperator:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
         db.merge_conn(
             Connection(
                 conn_id="livyunittest", conn_type="livy", host="localhost:8998", port="8998", schema="http"
@@ -134,7 +134,7 @@ class TestLivyOperator:
 
         task.execute(context=self.mock_context)
 
-        assert task.get_hook().extra_options == extra_options
+        assert task.hook.extra_options == extra_options
 
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.delete_batch")
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.post_batch", return_value=BATCH_ID)
@@ -281,6 +281,19 @@ class TestLivyOperator:
         assert task.hook.extra_options == extra_options
 
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.delete_batch")
+    def test_when_kill_is_called_right_after_construction_it_should_not_raise_attribute_error(
+        self, mock_delete_batch
+    ):
+        task = LivyOperator(
+            livy_conn_id="livyunittest",
+            file="sparkapp",
+            dag=self.dag,
+            task_id="livy_example",
+        )
+        task.kill()
+        mock_delete_batch.assert_not_called()
+
+    @patch("airflow.providers.apache.livy.operators.livy.LivyHook.delete_batch")
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.post_batch", return_value=BATCH_ID)
     @patch("airflow.providers.apache.livy.operators.livy.LivyHook.get_batch", return_value=GET_BATCH)
     @patch(
@@ -380,9 +393,39 @@ class TestLivyOperator:
             )
         self.mock_context["ti"].xcom_push.assert_not_called()
 
+    @patch("airflow.providers.apache.livy.operators.livy.LivyHook.post_batch", return_value=BATCH_ID)
+    @patch("airflow.providers.apache.livy.operators.livy.LivyHook.delete_batch")
+    def test_execute_complete_timeout(self, mock_delete, mock_post):
+        task = LivyOperator(
+            livy_conn_id="livyunittest",
+            file="sparkapp",
+            dag=self.dag,
+            task_id="livy_example",
+            polling_interval=1,
+            deferrable=True,
+        )
+        with pytest.raises(AirflowException):
+            task.execute_complete(
+                context=self.mock_context,
+                event={
+                    "status": "timeout",
+                    "log_lines": ["mock log"],
+                    "batch_id": BATCH_ID,
+                    "response": "mock timeout",
+                },
+            )
+        mock_delete.assert_called_once_with(BATCH_ID)
+        self.mock_context["ti"].xcom_push.assert_not_called()
+
+    def test_deprecated_get_hook(self):
+        op = LivyOperator(task_id="livy_example", file="sparkapp")
+        with pytest.warns(AirflowProviderDeprecationWarning, match="use `hook` property instead"):
+            hook = op.get_hook()
+        assert hook is op.hook
+
 
 @pytest.mark.db_test
-def test_spark_params_templating(create_task_instance_of_operator):
+def test_spark_params_templating(create_task_instance_of_operator, session):
     ti = create_task_instance_of_operator(
         LivyOperator,
         # Templated fields
@@ -407,6 +450,8 @@ def test_spark_params_templating(create_task_instance_of_operator):
         task_id="test_template_body_templating_task",
         execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
     )
+    session.add(ti)
+    session.commit()
     ti.render_templates()
     task: LivyOperator = ti.task
     assert task.spark_params == {

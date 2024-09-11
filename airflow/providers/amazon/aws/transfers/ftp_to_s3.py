@@ -72,7 +72,7 @@ class FTPToS3Operator(BaseOperator):
         ftp_filenames: str | list[str] | None = None,
         s3_filenames: str | list[str] | None = None,
         ftp_conn_id: str = "ftp_default",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         replace: bool = False,
         encrypt: bool = False,
         gzip: bool = False,

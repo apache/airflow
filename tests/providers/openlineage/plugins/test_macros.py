@@ -16,37 +16,61 @@
 # under the License.
 from __future__ import annotations
 
-import uuid
+from datetime import datetime, timezone
 from unittest import mock
 
-from airflow.providers.openlineage.plugins.adapter import _DAG_NAMESPACE
-from airflow.providers.openlineage.plugins.macros import lineage_parent_id, lineage_run_id
+from airflow.providers.openlineage.conf import namespace
+from airflow.providers.openlineage.plugins.macros import (
+    lineage_job_name,
+    lineage_job_namespace,
+    lineage_parent_id,
+    lineage_run_id,
+)
+
+_DAG_NAMESPACE = namespace()
+
+
+def test_lineage_job_namespace():
+    assert lineage_job_namespace() == _DAG_NAMESPACE
+
+
+def test_lineage_job_name():
+    task_instance = mock.MagicMock(
+        dag_id="dag_id",
+        task_id="task_id",
+        try_number=1,
+        execution_date=datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc),
+    )
+    assert lineage_job_name(task_instance) == "dag_id.task_id"
 
 
 def test_lineage_run_id():
-    task = mock.MagicMock(
-        dag_id="dag_id", execution_date="execution_date", try_number=1, task=mock.MagicMock(task_id="task_id")
+    task_instance = mock.MagicMock(
+        dag_id="dag_id",
+        task_id="task_id",
+        dag_run=mock.MagicMock(run_id="run_id"),
+        execution_date=datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc),
+        try_number=1,
     )
-    actual = lineage_run_id(task)
-    expected = str(
-        uuid.uuid3(
-            uuid.NAMESPACE_URL,
-            f"{_DAG_NAMESPACE}.dag_id.task_id.execution_date.1",
-        )
-    )
-    assert actual == expected
+
+    call_result1 = lineage_run_id(task_instance)
+    call_result2 = lineage_run_id(task_instance)
+
+    # random part value does not matter, it just have to be the same for the same TaskInstance
+    assert call_result1 == call_result2
+    # execution_date is used as most significant bits of UUID
+    assert call_result1.startswith("016f5e9e-c4c8-")
 
 
-def test_lineage_parent_id():
-    task = mock.MagicMock(
-        dag_id="dag_id", execution_date="execution_date", try_number=1, task=mock.MagicMock(task_id="task_id")
+@mock.patch("airflow.providers.openlineage.plugins.macros.lineage_run_id")
+def test_lineage_parent_id(mock_run_id):
+    mock_run_id.return_value = "run_id"
+    task_instance = mock.MagicMock(
+        dag_id="dag_id",
+        task_id="task_id",
+        try_number=1,
+        execution_date=datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc),
     )
-    actual = lineage_parent_id(run_id="run_id", task_instance=task)
-    job_name = str(
-        uuid.uuid3(
-            uuid.NAMESPACE_URL,
-            f"{_DAG_NAMESPACE}.dag_id.task_id.execution_date.1",
-        )
-    )
-    expected = f"{_DAG_NAMESPACE}/{job_name}/run_id"
+    actual = lineage_parent_id(task_instance)
+    expected = f"{_DAG_NAMESPACE}/dag_id.task_id/run_id"
     assert actual == expected

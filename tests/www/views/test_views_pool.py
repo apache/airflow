@@ -41,7 +41,7 @@ def clear_pools():
         session.query(Pool).delete()
 
 
-@pytest.fixture()
+@pytest.fixture
 def pool_factory(session):
     def factory(**values):
         pool = Pool(**{**POOL, **values})  # Passed in values override defaults.

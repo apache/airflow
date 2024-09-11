@@ -17,15 +17,16 @@
  * under the License.
  */
 
-import React from "react";
-import { Box, Tooltip, Flex } from "@chakra-ui/react";
+import React, { useEffect } from "react";
+import { Box } from "@chakra-ui/react";
+
 import useSelection from "src/dag/useSelection";
-import { getDuration } from "src/datetime_utils";
-import { SimpleStatus } from "src/dag/StatusBox";
-import { useContainerRef } from "src/context/containerRef";
-import { hoverDelay } from "src/utils";
+import { boxSize } from "src/dag/StatusBox";
+import { getMetaValue } from "src/utils";
 import type { Task } from "src/types";
-import GanttTooltip from "./GanttTooltip";
+import { useTIHistory } from "src/api";
+
+import InstanceBar from "./InstanceBar";
 
 interface Props {
   ganttWidth?: number;
@@ -33,7 +34,14 @@ interface Props {
   task: Task;
   ganttStartDate?: string | null;
   ganttEndDate?: string | null;
+  setGanttDuration?: (
+    queued: string | null | undefined,
+    start: string | null | undefined,
+    end: string | null | undefined
+  ) => void;
 }
+
+const dagId = getMetaValue("dag_id");
 
 const Row = ({
   ganttWidth = 500,
@@ -41,45 +49,45 @@ const Row = ({
   task,
   ganttStartDate,
   ganttEndDate,
+  setGanttDuration,
 }: Props) => {
   const {
     selected: { runId, taskId },
-    onSelect,
   } = useSelection();
-  const containerRef = useContainerRef();
-
-  const runDuration = getDuration(ganttStartDate, ganttEndDate);
 
   const instance = task.instances.find((ti) => ti.runId === runId);
+
+  const { data: tiHistory } = useTIHistory({
+    dagId,
+    taskId: task.id || "",
+    dagRunId: runId || "",
+    options: {
+      enabled: !!(instance?.tryNumber && instance?.tryNumber > 1) && !!task.id, // Only try to look up task tries if try number > 1
+    },
+  });
+
   const isSelected = taskId === instance?.taskId;
-  const hasValidQueuedDttm =
-    !!instance?.queuedDttm &&
-    (instance?.startDate && instance?.queuedDttm
-      ? instance.queuedDttm < instance.startDate
-      : true);
   const isOpen = openGroupIds.includes(task.id || "");
 
-  // Calculate durations in ms
-  const taskDuration = getDuration(instance?.startDate, instance?.endDate);
-  const queuedDuration = hasValidQueuedDttm
-    ? getDuration(instance?.queuedDttm, instance?.startDate)
-    : 0;
-  const taskStartOffset = hasValidQueuedDttm
-    ? getDuration(ganttStartDate, instance?.queuedDttm || instance?.startDate)
-    : getDuration(ganttStartDate, instance?.startDate);
+  // Adjust gantt start/end if the instance dates are out of bounds
+  useEffect(() => {
+    if (setGanttDuration) {
+      setGanttDuration(
+        instance?.queuedDttm,
+        instance?.startDate,
+        instance?.endDate
+      );
+    }
+  }, [instance, setGanttDuration]);
 
-  // Percent of each duration vs the overall dag run
-  const taskDurationPercent = taskDuration / runDuration;
-  const taskStartOffsetPercent = taskStartOffset / runDuration;
-  const queuedDurationPercent = queuedDuration / runDuration;
-
-  // Calculate the pixel width of the queued and task bars and the position in the graph
-  // Min width should be 5px
-  let width = ganttWidth * taskDurationPercent;
-  if (width < 5) width = 5;
-  let queuedWidth = hasValidQueuedDttm ? ganttWidth * queuedDurationPercent : 0;
-  if (hasValidQueuedDttm && queuedWidth < 5) queuedWidth = 5;
-  const offsetMargin = taskStartOffsetPercent * ganttWidth;
+  // Adjust gantt start/end if the ti history dates are out of bounds
+  useEffect(() => {
+    tiHistory?.taskInstances?.forEach(
+      (tih) =>
+        setGanttDuration &&
+        setGanttDuration(tih.queuedWhen, tih.startDate, tih.endDate)
+    );
+  }, [tiHistory, setGanttDuration]);
 
   return (
     <div>
@@ -88,49 +96,36 @@ const Row = ({
         borderBottomWidth={1}
         borderBottomColor={!!task.children && isOpen ? "gray.400" : "gray.200"}
         bg={isSelected ? "blue.100" : "inherit"}
+        position="relative"
+        width={ganttWidth}
+        height={`${boxSize + 9}px`}
       >
-        {instance ? (
-          <Tooltip
-            label={<GanttTooltip task={task} instance={instance} />}
-            hasArrow
-            portalProps={{ containerRef }}
-            placement="top"
-            openDelay={hoverDelay}
-          >
-            <Flex
-              width={`${width + queuedWidth}px`}
-              cursor="pointer"
-              pointerEvents="auto"
-              marginLeft={`${offsetMargin}px`}
-              onClick={() => {
-                onSelect({
-                  runId: instance.runId,
-                  taskId: instance.taskId,
-                });
-              }}
-            >
-              {instance.state !== "queued" && hasValidQueuedDttm && (
-                <SimpleStatus
-                  state="queued"
-                  width={`${queuedWidth}px`}
-                  borderRightRadius={0}
-                  // The normal queued color is too dark when next to the actual task's state
-                  opacity={0.6}
-                />
-              )}
-              <SimpleStatus
-                state={instance.state}
-                width={`${width}px`}
-                borderLeftRadius={
-                  instance.state !== "queued" && hasValidQueuedDttm
-                    ? 0
-                    : undefined
-                }
+        {!!instance && (
+          <InstanceBar
+            key={`${instance.taskId}-${instance.tryNumber}`}
+            instance={{
+              ...instance,
+              queuedWhen: instance.queuedDttm,
+              dagRunId: instance.runId,
+            }}
+            task={task}
+            ganttWidth={ganttWidth}
+            ganttStartDate={ganttStartDate}
+            ganttEndDate={ganttEndDate}
+          />
+        )}
+        {tiHistory?.taskInstances?.map(
+          (ti) =>
+            ti.tryNumber !== instance?.tryNumber && (
+              <InstanceBar
+                key={`${ti.taskId}-${ti.tryNumber}`}
+                instance={ti}
+                task={task}
+                ganttWidth={ganttWidth}
+                ganttStartDate={ganttStartDate}
+                ganttEndDate={ganttEndDate}
               />
-            </Flex>
-          </Tooltip>
-        ) : (
-          <Box height="10px" />
+            )
         )}
       </Box>
       {isOpen &&

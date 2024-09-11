@@ -19,8 +19,9 @@ KubernetesExecutor.
 
 .. seealso::
     For more information on how the KubernetesExecutor works, take a look at the guide:
-    :ref:`executor:KubernetesExecutor`
+    :doc:`/kubernetes_executor`
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -37,42 +38,18 @@ from typing import TYPE_CHECKING, Any, Sequence
 from kubernetes.dynamic import DynamicClient
 from sqlalchemy import select, update
 
-from airflow.providers.cncf.kubernetes.pod_generator import PodMutationHookException, PodReconciliationError
-from airflow.stats import Stats
-
-try:
-    from airflow.cli.cli_config import (
-        ARG_DAG_ID,
-        ARG_EXECUTION_DATE,
-        ARG_OUTPUT_PATH,
-        ARG_SUBDIR,
-        ARG_VERBOSE,
-        ActionCommand,
-        Arg,
-        GroupCommand,
-        lazy_load_command,
-        positive_int,
-    )
-except ImportError:
-    try:
-        from airflow import __version__ as airflow_version
-    except ImportError:
-        from airflow.version import version as airflow_version
-
-    import packaging.version
-
-    from airflow.exceptions import AirflowOptionalProviderFeatureException
-
-    base_version = packaging.version.parse(airflow_version).base_version
-
-    if packaging.version.parse(base_version) < packaging.version.parse("2.7.0"):
-        raise AirflowOptionalProviderFeatureException(
-            "Kubernetes Executor from CNCF Provider should only be used with Airflow 2.7.0+.\n"
-            f"This is Airflow {airflow_version} and Kubernetes and CeleryKubernetesExecutor are "
-            f"available in the 'airflow.executors' package. You should not use "
-            f"the provider's executors in this version of Airflow."
-        )
-    raise
+from airflow.cli.cli_config import (
+    ARG_DAG_ID,
+    ARG_EXECUTION_DATE,
+    ARG_OUTPUT_PATH,
+    ARG_SUBDIR,
+    ARG_VERBOSE,
+    ActionCommand,
+    Arg,
+    GroupCommand,
+    lazy_load_command,
+    positive_int,
+)
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
@@ -81,6 +58,8 @@ from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types impor
 )
 from airflow.providers.cncf.kubernetes.kube_config import KubeConfig
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import annotations_to_key
+from airflow.providers.cncf.kubernetes.pod_generator import PodMutationHookException, PodReconciliationError
+from airflow.stats import Stats
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import remove_escape_codes
 from airflow.utils.session import NEW_SESSION, provide_session
@@ -103,7 +82,6 @@ if TYPE_CHECKING:
     from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils import (
         AirflowKubernetesScheduler,
     )
-
 
 # CLI Args
 ARG_NAMESPACE = Arg(
@@ -131,14 +109,14 @@ KUBERNETES_COMMANDS = (
             "(created by KubernetesExecutor/KubernetesPodOperator) "
             "in evicted/failed/succeeded/pending states"
         ),
-        func=lazy_load_command("airflow.cli.commands.kubernetes_command.cleanup_pods"),
+        func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.cleanup_pods"),
         args=(ARG_NAMESPACE, ARG_MIN_PENDING_MINUTES, ARG_VERBOSE),
     ),
     ActionCommand(
         name="generate-dag-yaml",
         help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
         "launching into a cluster",
-        func=lazy_load_command("airflow.cli.commands.kubernetes_command.generate_pod_yaml"),
+        func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.generate_pod_yaml"),
         args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH, ARG_VERBOSE),
     ),
 )
@@ -181,16 +159,7 @@ class KubernetesExecutor(BaseExecutor):
 
         pods = []
         for namespace in namespaces:
-            # Dynamic Client list pods is throwing TypeError when there are no matching pods to return
-            # This bug was fixed in MR https://github.com/kubernetes-client/python/pull/2155
-            # TODO: Remove the try-except clause once we upgrade the K8 Python client version which
-            # includes the above MR
-            try:
-                pods.extend(
-                    dynamic_client.get(resource=pod_resource, namespace=namespace, **query_kwargs).items
-                )
-            except TypeError:
-                continue
+            pods.extend(dynamic_client.get(resource=pod_resource, namespace=namespace, **query_kwargs).items)
 
         return pods
 
@@ -431,10 +400,9 @@ class KubernetesExecutor(BaseExecutor):
                     self.kube_scheduler.run_next(task)
                     self.task_publish_retries.pop(key, None)
                 except PodReconciliationError as e:
-                    self.log.error(
+                    self.log.exception(
                         "Pod reconciliation failed, likely due to kubernetes library upgrade. "
                         "Try clearing the task to re-run.",
-                        exc_info=True,
                     )
                     self.fail(task[0], e)
                 except ApiException as e:
@@ -504,7 +472,12 @@ class KubernetesExecutor(BaseExecutor):
         if self.kube_config.delete_worker_pods:
             if state != TaskInstanceState.FAILED or self.kube_config.delete_worker_pods_on_failure:
                 self.kube_scheduler.delete_pod(pod_name=pod_name, namespace=namespace)
-                self.log.info("Deleted pod: %s in namespace %s", key, namespace)
+                self.log.info(
+                    "Deleted pod associated with the TI %s. Pod name: %s. Namespace: %s",
+                    key,
+                    pod_name,
+                    namespace,
+                )
         else:
             self.kube_scheduler.patch_pod_executor_done(pod_name=pod_name, namespace=namespace)
             self.log.info("Patched pod %s in namespace %s to mark it as done", key, namespace)
@@ -599,7 +572,22 @@ class KubernetesExecutor(BaseExecutor):
                 for pod in pod_list:
                     self.adopt_launched_task(kube_client, pod, tis_to_flush_by_key)
             self._adopt_completed_pods(kube_client)
-            tis_to_flush.extend(tis_to_flush_by_key.values())
+
+            # as this method can be retried within a short time frame
+            # (wrapped in a run_with_db_retries of scheduler_job_runner,
+            # and get retried due to an OperationalError, for example),
+            # there is a chance that in second attempt, adopt_launched_task will not be called even once
+            # as all pods are already adopted in the first attempt.
+            # and tis_to_flush_by_key will contain TIs that are already adopted.
+            # therefore, we need to check if the TIs are already adopted by the first attempt and remove them.
+            def _iter_tis_to_flush():
+                for key, ti in tis_to_flush_by_key.items():
+                    if key in self.running:
+                        self.log.info("%s is already adopted, no need to flush.", ti)
+                    else:
+                        yield ti
+
+            tis_to_flush.extend(_iter_tis_to_flush())
             return tis_to_flush
 
     def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:
@@ -711,6 +699,8 @@ class KubernetesExecutor(BaseExecutor):
                 )
             except ApiException as e:
                 self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
+                continue
+
             ti_id = annotations_to_key(pod.metadata.annotations)
             self.running.add(ti_id)
 

@@ -49,6 +49,7 @@ def _require_fab(func: Callable) -> Callable:
                 "This API endpoint is deprecated. "
                 "Please use the API under /auth/fab/v1 instead for this operation.",
                 DeprecationWarning,
+                stacklevel=1,  # This decorator wrapped multiple times, better point to this file
             )
             return func(*args, **kwargs)
 

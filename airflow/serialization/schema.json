@@ -136,22 +136,10 @@
     "dag": {
       "type": "object",
       "properties": {
-        "params": { "$ref": "#/definitions/params_dict" },
+        "params": { "$ref": "#/definitions/params" },
         "_dag_id": { "type": "string" },
         "tasks": {  "$ref": "#/definitions/tasks" },
         "timezone": { "$ref": "#/definitions/timezone" },
-        "schedule_interval": {
-          "anyOf": [
-            { "type": "null" },
-            { "type": "string" },
-            { "$ref": "#/definitions/typed_timedelta" },
-            { "$ref": "#/definitions/typed_relativedelta" }
-          ]
-        },
-        "dataset_triggers": {
-        "$ref": "#/definitions/typed_dataset_cond"
-
-},
         "owner_links": { "type": "object" },
         "timetable": {
           "type": "object",
@@ -161,7 +149,6 @@
           }
         },
         "catchup": { "type": "boolean" },
-        "is_subdag": { "type": "boolean" },
         "fileloc": { "type" : "string"},
         "_processor_dags_folder": {
             "anyOf": [
@@ -169,11 +156,13 @@
                 {"type": "string"}
             ]
         },
-         "orientation": { "type" : "string"},
+        "orientation": { "type" : "string"},
+        "_dag_display_property_value": { "type" : "string"},
         "_description": { "type" : "string"},
         "_concurrency": { "type" : "number"},
         "_max_active_tasks": { "type" : "number"},
         "max_active_runs": { "type" : "number"},
+        "max_consecutive_failed_dag_runs": { "type" : "number"},
         "default_args": { "$ref": "#/definitions/dict" },
         "start_date": { "$ref": "#/definitions/datetime" },
         "end_date": { "$ref": "#/definitions/datetime" },
@@ -204,9 +193,13 @@
       "type": "array",
       "additionalProperties": { "$ref": "#/definitions/operator" }
     },
-    "params_dict": {
-      "type": "object",
-      "additionalProperties": {"$ref": "#/definitions/param" }
+    "params": {
+      "type": "array",
+      "prefixItems": [
+          { "type": "string" },
+          { "$ref": "#/definitions/param" }
+      ],
+      "unevaluatedItems": false
     },
     "param": {
       "$comment": "A param for a dag / operator",
@@ -238,6 +231,7 @@
         "_task_module": { "type": "string" },
         "_operator_extra_links": { "$ref":  "#/definitions/extra_links" },
         "task_id": { "type": "string" },
+        "task_display_name": { "type": "string" },
         "label": { "type": "string" },
         "owner": { "type": "string" },
         "start_date": { "$ref": "#/definitions/datetime" },
@@ -255,9 +249,10 @@
         "retry_delay": { "$ref": "#/definitions/timedelta" },
         "retry_exponential_backoff": { "type": "boolean" },
         "max_retry_delay": { "$ref": "#/definitions/timedelta" },
-        "params": { "$ref": "#/definitions/params_dict" },
+        "params": { "$ref": "#/definitions/params" },
         "priority_weight": { "type": "number" },
         "weight_rule": { "type": "string" },
+        "executor": { "type": "string" },
         "executor_config": { "$ref": "#/definitions/dict" },
         "do_xcom_push": { "type": "boolean" },
         "ui_color": { "$ref": "#/definitions/color" },
@@ -287,7 +282,9 @@
         "_log_config_logger_name": { "type": "string" },
         "_is_mapped": { "const": true, "$comment": "only present when True" },
         "expand_input": { "type": "object" },
-        "partial_kwargs": { "type": "object" }
+        "partial_kwargs": { "type": "object" },
+        "map_index_template": { "type": "string" },
+        "allow_nested_operators": { "type": "boolean" }
       },
       "dependencies": {
         "expand_input": ["partial_kwargs", "_is_mapped"],

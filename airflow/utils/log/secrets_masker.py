@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Mask sensitive information from logs."""
+
 from __future__ import annotations
 
 import collections.abc
@@ -289,7 +290,8 @@ class SecretsMasker(logging.Filter):
             return item
 
     def redact(self, item: Redactable, name: str | None = None, max_depth: int | None = None) -> Redacted:
-        """Redact an any secrets found in ``item``, if it is a string.
+        """
+        Redact an any secrets found in ``item``, if it is a string.
 
         If ``name`` is given, and it's a "sensitive" name (see
         :func:`should_hide_value_for_key`) then all string values in the item
@@ -299,7 +301,8 @@ class SecretsMasker(logging.Filter):
 
     @cached_property
     def _mask_adapter(self) -> None | Callable:
-        """Pulls the secret mask adapter from config.
+        """
+        Pulls the secret mask adapter from config.
 
         This lives in a function here to be cached and only hit the config once.
         """
@@ -309,7 +312,8 @@ class SecretsMasker(logging.Filter):
 
     @cached_property
     def _test_mode(self) -> bool:
-        """Pulls the unit test mode flag from config.
+        """
+        Pulls the unit test mode flag from config.
 
         This lives in a function here to be cached and only hit the config once.
         """
@@ -356,7 +360,8 @@ class SecretsMasker(logging.Filter):
 
 
 class RedactedIO(TextIO):
-    """IO class that redacts values going into stdout.
+    """
+    IO class that redacts values going into stdout.
 
     Expected usage::
 

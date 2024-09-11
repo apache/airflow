@@ -20,6 +20,7 @@
 """
 Example Airflow DAG for Google Vertex AI service testing Batch Prediction operations.
 """
+
 from __future__ import annotations
 
 import os
@@ -33,7 +34,6 @@ from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
     GCSDeleteBucketOperator,
-    GCSSynchronizeBucketsOperator,
 )
 from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLForecastingTrainingJobOperator,
@@ -52,7 +52,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "example_vertex_ai_batch_prediction_operations"
+DAG_ID = "vertex_ai_batch_prediction_operations"
 REGION = "us-central1"
 
 FORECAST_DISPLAY_NAME = f"auto-ml-forecasting-{ENV_ID}"
@@ -61,7 +61,7 @@ MODEL_DISPLAY_NAME = f"auto-ml-forecasting-model-{ENV_ID}"
 JOB_DISPLAY_NAME = f"batch_prediction_job_test_{ENV_ID}"
 RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
 DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
-DATA_SAMPLE_GCS_OBJECT_NAME = "vertex-ai/forecast-dataset.csv"
+DATA_SAMPLE_GCS_OBJECT_NAME = "vertex-ai/datasets/forecast-dataset.csv"
 
 FORECAST_DATASET = {
     "display_name": f"forecast-dataset-{ENV_ID}",
@@ -69,7 +69,7 @@ FORECAST_DATASET = {
     "metadata": ParseDict(
         {
             "input_config": {
-                "gcs_source": {"uri": [f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/{DATA_SAMPLE_GCS_OBJECT_NAME}"]}
+                "gcs_source": {"uri": [f"gs://{RESOURCE_DATA_BUCKET}/{DATA_SAMPLE_GCS_OBJECT_NAME}"]}
             }
         },
         Value(),
@@ -87,7 +87,7 @@ COLUMN_SPECS = {
     "county": "categorical",
 }
 
-BIGQUERY_SOURCE = f"bq://{PROJECT_ID}.test_iowa_liquor_sales_forecasting_us.2021_sales_predict"
+BIGQUERY_SOURCE = "bq://airflow-system-tests-resources.vertex_ai_training_dataset.data"
 GCS_DESTINATION_PREFIX = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/output"
 MODEL_PARAMETERS: dict[str, str] = {}
 
@@ -105,15 +105,6 @@ with DAG(
         bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME,
         storage_class="REGIONAL",
         location=REGION,
-    )
-
-    move_dataset_file = GCSSynchronizeBucketsOperator(
-        task_id="move_dataset_to_bucket",
-        source_bucket=RESOURCE_DATA_BUCKET,
-        source_object="vertex-ai/datasets",
-        destination_bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
-        destination_object="vertex-ai",
-        recursive=True,
     )
 
     create_forecast_dataset = CreateDatasetOperator(
@@ -161,6 +152,21 @@ with DAG(
     )
     # [END how_to_cloud_vertex_ai_create_batch_prediction_job_operator]
 
+    # [START how_to_cloud_vertex_ai_create_batch_prediction_job_operator_def]
+    create_batch_prediction_job_def = CreateBatchPredictionJobOperator(
+        task_id="create_batch_prediction_job_def",
+        job_display_name=JOB_DISPLAY_NAME,
+        model_name="{{ti.xcom_pull('auto_ml_forecasting_task')['name']}}",
+        predictions_format="csv",
+        bigquery_source=BIGQUERY_SOURCE,
+        gcs_destination_prefix=GCS_DESTINATION_PREFIX,
+        model_parameters=MODEL_PARAMETERS,
+        region=REGION,
+        project_id=PROJECT_ID,
+        deferrable=True,
+    )
+    # [END how_to_cloud_vertex_ai_create_batch_prediction_job_operator_def]
+
     # [START how_to_cloud_vertex_ai_list_batch_prediction_job_operator]
     list_batch_prediction_job = ListBatchPredictionJobsOperator(
         task_id="list_batch_prediction_jobs",
@@ -178,6 +184,14 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END how_to_cloud_vertex_ai_delete_batch_prediction_job_operator]
+
+    delete_batch_prediction_job_def = DeleteBatchPredictionJobOperator(
+        task_id="delete_batch_prediction_job_def",
+        batch_prediction_job_id=create_batch_prediction_job_def.output["batch_prediction_job_id"],
+        region=REGION,
+        project_id=PROJECT_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
 
     delete_auto_ml_forecasting_training_job = DeleteAutoMLTrainingJobOperator(
         task_id="delete_auto_ml_forecasting_training_job",
@@ -203,19 +217,25 @@ with DAG(
     (
         # TEST SETUP
         create_bucket
-        >> move_dataset_file
         >> create_forecast_dataset
         >> create_auto_ml_forecasting_training_job
         # TEST BODY
-        >> create_batch_prediction_job
+        >> [create_batch_prediction_job, create_batch_prediction_job_def]
         >> list_batch_prediction_job
         # TEST TEARDOWN
-        >> delete_batch_prediction_job
+        >> [delete_batch_prediction_job, delete_batch_prediction_job_def]
         >> delete_auto_ml_forecasting_training_job
         >> delete_forecast_dataset
         >> delete_bucket
     )
 
+    # ### Everything below this line is not part of example ###
+    # ### Just for system tests purpose ###
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
 
 from tests.system.utils import get_test_run  # noqa: E402
 

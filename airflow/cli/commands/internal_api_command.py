@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Internal API command."""
+
 from __future__ import annotations
 
 import logging
@@ -70,7 +71,7 @@ def internal_api(args):
     worker_timeout = args.worker_timeout
 
     if args.debug:
-        log.info(f"Starting the Internal API server on port {args.port} and host {args.hostname}.")
+        log.info("Starting the Internal API server on port %s and host %s.", args.port, args.hostname)
         app = create_app(testing=conf.getboolean("core", "unit_test_mode"))
         app.run(
             debug=True,  # nosec
@@ -114,6 +115,8 @@ def internal_api(args):
             str(access_logfile),
             "--error-logfile",
             str(error_logfile),
+            "--config",
+            "python:airflow.api_internal.gunicorn_config",
         ]
 
         if args.access_logformat and args.access_logformat.strip():
@@ -219,7 +222,12 @@ def create_app(config=None, testing=False):
     if "SQLALCHEMY_ENGINE_OPTIONS" not in flask_app.config:
         flask_app.config["SQLALCHEMY_ENGINE_OPTIONS"] = settings.prepare_engine_args()
 
-    InternalApiConfig.force_database_direct_access()
+    if conf.getboolean("core", "database_access_isolation", fallback=False):
+        InternalApiConfig.set_use_database_access("Gunicorn worker initialization")
+    else:
+        raise AirflowConfigException(
+            "The internal-api component should only be run when database_access_isolation is enabled."
+        )
 
     csrf = CSRFProtect()
     csrf.init_app(flask_app)

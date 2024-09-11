@@ -23,7 +23,7 @@ Customizing breeze environment
 
 Breeze can be customized in a number of ways. You can read about those ways in this document.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 
 Customizing Breeze startup
@@ -45,7 +45,7 @@ will be evaluated at entering the environment.
 The ``files`` folder from your local sources is automatically mounted to the container under
 ``/files`` path and you can put there any files you want to make available for the Breeze container.
 
-You can also copy any .whl or .sdist packages to dist and when you pass ``--use-packages-from-dist`` flag
+You can also copy any .whl or ``sdist`` packages to dist and when you pass ``--use-packages-from-dist`` flag
 as ``wheel`` or ``sdist`` line parameter, breeze will automatically install the packages found there
 when you enter Breeze.
 
@@ -95,7 +95,7 @@ Launching Breeze integrations
 
 When Breeze starts, it can start additional integrations. Those are additional docker containers
 that are started in the same docker-compose command. Those are required by some of the tests
-as described in `<../../../contributing-docs/testing/integration-tests.rst>`_.
+as described in `<../../../contributing-docs/testing/integration_tests.rst>`_.
 
 By default Breeze starts only airflow container without any integration enabled. If you selected
 ``postgres`` or ``mysql`` backend, the container for the selected backend is also started (but only the one

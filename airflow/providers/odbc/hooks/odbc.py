@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains ODBC hook."""
+
 from __future__ import annotations
 
 from collections import namedtuple
@@ -25,8 +26,6 @@ from pyodbc import Connection, Row, connect
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.helpers import merge_dicts
-
-DEFAULT_ODBC_PLACEHOLDERS = frozenset({"%s", "?"})
 
 
 class OdbcHook(DbApiHook):
@@ -57,6 +56,7 @@ class OdbcHook(DbApiHook):
     conn_type = "odbc"
     hook_name = "ODBC"
     supports_autocommit = True
+    supports_executemany = True
 
     default_driver: str | None = None
 
@@ -80,13 +80,6 @@ class OdbcHook(DbApiHook):
         self._connect_kwargs = connect_kwargs
 
     @property
-    def connection(self):
-        """The Connection object with ID ``odbc_conn_id``."""
-        if not self._connection:
-            self._connection = self.get_connection(getattr(self, self.conn_name_attr))
-        return self._connection
-
-    @property
     def database(self) -> str | None:
         """Database provided in init if exists; otherwise, ``schema`` from ``Connection`` object."""
         return self._database or self.connection.schema
@@ -98,15 +91,6 @@ class OdbcHook(DbApiHook):
         if not self._sqlalchemy_scheme and extra_scheme and (":" in extra_scheme or "/" in extra_scheme):
             raise RuntimeError("sqlalchemy_scheme in connection extra should not contain : or / characters")
         return self._sqlalchemy_scheme or extra_scheme or self.DEFAULT_SQLALCHEMY_SCHEME
-
-    @property
-    def connection_extra_lower(self) -> dict:
-        """
-        ``connection.extra_dejson`` but where keys are converted to lower case.
-
-        This is used internally for case-insensitive access of odbc params.
-        """
-        return {k.lower(): v for k, v in self.connection.extra_dejson.items()}
 
     @property
     def driver(self) -> str | None:
@@ -139,7 +123,8 @@ class OdbcHook(DbApiHook):
 
     @property
     def odbc_connection_string(self):
-        """ODBC connection string.
+        """
+        ODBC connection string.
 
         We build connection string instead of using ``pyodbc.connect`` params
         because, for example, there is no param representing
@@ -165,9 +150,7 @@ class OdbcHook(DbApiHook):
                 conn_str += f"PORT={self.connection.port};"
 
             extra_exclude = {"driver", "dsn", "connect_kwargs", "sqlalchemy_scheme", "placeholder"}
-            extra_params = {
-                k: v for k, v in self.connection.extra_dejson.items() if k.lower() not in extra_exclude
-            }
+            extra_params = {k: v for k, v in self.connection_extra.items() if k.lower() not in extra_exclude}
             for k, v in extra_params.items():
                 conn_str += f"{k}={v};"
 
@@ -176,7 +159,8 @@ class OdbcHook(DbApiHook):
 
     @property
     def connect_kwargs(self) -> dict:
-        """Effective kwargs to be passed to ``pyodbc.connect``.
+        """
+        Effective kwargs to be passed to ``pyodbc.connect``.
 
         The kwargs are merged from connection extra, ``connect_kwargs``, and
         the hook's init arguments. Values received to the hook precede those
@@ -200,20 +184,6 @@ class OdbcHook(DbApiHook):
         """Return ``pyodbc`` connection object."""
         conn = connect(self.odbc_connection_string, **self.connect_kwargs)
         return conn
-
-    @property
-    def placeholder(self):
-        placeholder = self.connection.extra_dejson.get("placeholder")
-        if placeholder in DEFAULT_ODBC_PLACEHOLDERS:
-            return placeholder
-        else:
-            self.log.warning(
-                "Placeholder defined in Connection '%s' is not listed in 'DEFAULT_ODBC_PLACEHOLDERS' "
-                "and got ignored. Falling back to the default placeholder '%s'.",
-                placeholder,
-                self._placeholder,
-            )
-            return self._placeholder
 
     def get_uri(self) -> str:
         """URI invoked in :meth:`~airflow.providers.common.sql.hooks.sql.DbApiHook.get_sqlalchemy_engine`."""

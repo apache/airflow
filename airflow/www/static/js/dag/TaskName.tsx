@@ -54,7 +54,6 @@ const TaskName = ({
       data-testid={id}
       color={colors.gray[800]}
       fontSize={isZoomedOut ? 24 : undefined}
-      textAlign="justify"
       {...rest}
     >
       <chakra.span onClick={onClick}>

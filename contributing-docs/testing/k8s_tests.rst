@@ -25,7 +25,7 @@ deploy and run the cluster tests in our repository and into Breeze development e
 KinD has a really nice ``kind`` tool that you can use to interact with the cluster. Run ``kind --help`` to
 learn more.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 K8S test environment
 --------------------
@@ -77,7 +77,7 @@ Managing Kubernetes Cluster
 For your testing, you manage Kind cluster with ``k8s`` breeze command group. Those commands allow to
 created:
 
-.. image:: ../dev/breeze/doc/images/output_k8s.svg
+.. image:: ../../dev/breeze/doc/images/output_k8s.svg
   :width: 100%
   :alt: Breeze k8s
 
@@ -358,7 +358,14 @@ Should show the status of current KinD cluster.
     Cluster healthy: airflow-python-3.8-v1.24.2
 
 5. Build the image base on PROD Airflow image. You need to build the PROD image first (the command will
-   guide you if you did not - either by running the build separately or passing ``--rebuild-base-image`` flag
+   guide you if you did not) either by running the build separately or passing ``--rebuild-base-image``
+   flag. Generally speaking you should not need to rebuild the base image unless you changed some
+   dependencies in ``pyproject.toml``.
+
+   Note, that this command by default uses ``--use-uv`` flag to use ``uv`` to build the image instead of
+   ``pip``. This is much faster (50% faster) to rebuild the image and iterate with your code but if you
+   built your PROD image without ``--use-uv`` flag the first build might be a bit longer. You can also switch
+   to using a ``pip`` based image by specifying ``--no-use-uv`` flag together with ``--rebuid-base-image``.
 
 .. code-block:: bash
 

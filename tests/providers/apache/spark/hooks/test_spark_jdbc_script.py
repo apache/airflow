@@ -32,7 +32,7 @@ from airflow.providers.apache.spark.hooks.spark_jdbc_script import (
 )
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_spark_session():
     with mock.patch("airflow.providers.apache.spark.hooks.spark_jdbc_script.SparkSession") as mok:
         yield mok

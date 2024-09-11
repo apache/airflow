@@ -16,11 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google AutoML links."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
+from airflow.providers.google.common.deprecated import deprecated
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -43,6 +46,11 @@ AUTOML_MODEL_PREDICT_LINK = (
 )
 
 
+@deprecated(
+    planned_removal_date="December 31, 2024",
+    use_instead="TranslationLegacyDatasetLink class from airflow/providers/google/cloud/links/translate.py",
+    category=AirflowProviderDeprecationWarning,
+)
 class AutoMLDatasetLink(BaseGoogleLink):
     """Helper class for constructing AutoML Dataset link."""
 
@@ -64,6 +72,11 @@ class AutoMLDatasetLink(BaseGoogleLink):
         )
 
 
+@deprecated(
+    planned_removal_date="December 31, 2024",
+    use_instead="TranslationDatasetListLink class from airflow/providers/google/cloud/links/translate.py",
+    category=AirflowProviderDeprecationWarning,
+)
 class AutoMLDatasetListLink(BaseGoogleLink):
     """Helper class for constructing AutoML Dataset List link."""
 
@@ -86,6 +99,11 @@ class AutoMLDatasetListLink(BaseGoogleLink):
         )
 
 
+@deprecated(
+    planned_removal_date="December 31, 2024",
+    use_instead="TranslationLegacyModelLink class from airflow/providers/google/cloud/links/translate.py",
+    category=AirflowProviderDeprecationWarning,
+)
 class AutoMLModelLink(BaseGoogleLink):
     """Helper class for constructing AutoML Model link."""
 
@@ -113,6 +131,12 @@ class AutoMLModelLink(BaseGoogleLink):
         )
 
 
+@deprecated(
+    planned_removal_date="December 31, 2024",
+    use_instead="TranslationLegacyModelTrainLink class from "
+    "airflow/providers/google/cloud/links/translate.py",
+    category=AirflowProviderDeprecationWarning,
+)
 class AutoMLModelTrainLink(BaseGoogleLink):
     """Helper class for constructing AutoML Model Train link."""
 
@@ -137,6 +161,12 @@ class AutoMLModelTrainLink(BaseGoogleLink):
         )
 
 
+@deprecated(
+    planned_removal_date="December 31, 2024",
+    use_instead="TranslationLegacyModelPredictLink class from "
+    "airflow/providers/google/cloud/links/translate.py",
+    category=AirflowProviderDeprecationWarning,
+)
 class AutoMLModelPredictLink(BaseGoogleLink):
     """Helper class for constructing AutoML Model Predict link."""
 

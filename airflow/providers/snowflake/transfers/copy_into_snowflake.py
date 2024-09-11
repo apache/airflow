@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Abstract operator that child classes implement ``COPY INTO <TABLE> SQL in Snowflake``."""
+
 from __future__ import annotations
 
 from typing import Any, Sequence
@@ -41,8 +42,6 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
     :param prefix: cloud storage location specified to limit the set of files to load
     :param files: files to load into table
     :param pattern: pattern to load files from external location to table
-    :param copy_into_postifx: optional sql postfix for INSERT INTO query
-           such as `formatTypeOptions` and `copyOptions`
     :param snowflake_conn_id:  Reference to :ref:`Snowflake connection id<howto/connection:snowflake>`
     :param account: snowflake account name
     :param warehouse: name of snowflake warehouse
@@ -153,7 +152,8 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
     def _extract_openlineage_unique_dataset_paths(
         query_result: list[dict[str, Any]],
     ) -> tuple[list[tuple[str, str]], list[str]]:
-        """Extract and return unique OpenLineage dataset paths and file paths that failed to be parsed.
+        """
+        Extract and return unique OpenLineage dataset paths and file paths that failed to be parsed.
 
         Each row in the results is expected to have a 'file' field, which is a URI.
         The function parses these URIs and constructs a set of unique OpenLineage (namespace, name) tuples.
@@ -228,14 +228,13 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         """Implement _on_complete because we rely on return value of a query."""
         import re
 
-        from openlineage.client.facet import (
+        from airflow.providers.common.compat.openlineage.facet import (
+            Dataset,
+            Error,
             ExternalQueryRunFacet,
-            ExtractionError,
             ExtractionErrorRunFacet,
-            SqlJobFacet,
+            SQLJobFacet,
         )
-        from openlineage.client.run import Dataset
-
         from airflow.providers.openlineage.extractors import OperatorLineage
         from airflow.providers.openlineage.sqlparser import SQLParser
 
@@ -254,14 +253,14 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         run_facets = {}
         if extraction_error_files:
             self.log.debug(
-                f"Unable to extract Dataset namespace and name "
-                f"for the following files: `{extraction_error_files}`."
+                "Unable to extract Dataset namespace and name for the following files: `%s`.",
+                extraction_error_files,
             )
             run_facets["extractionError"] = ExtractionErrorRunFacet(
                 totalTasks=len(query_results),
                 failedTasks=len(extraction_error_files),
                 errors=[
-                    ExtractionError(
+                    Error(
                         errorMessage="Unable to extract Dataset namespace and name.",
                         stackTrace=None,
                         task=file_uri,
@@ -293,6 +292,6 @@ class CopyFromExternalStageToSnowflakeOperator(BaseOperator):
         return OperatorLineage(
             inputs=input_datasets,
             outputs=[Dataset(namespace=snowflake_namespace, name=dest_name)],
-            job_facets={"sql": SqlJobFacet(query=query)},
+            job_facets={"sql": SQLJobFacet(query=query)},
             run_facets=run_facets,
         )

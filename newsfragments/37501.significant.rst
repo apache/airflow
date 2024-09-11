@@ -1,9 +1,0 @@
-The audit_logs permissions have been updated for heightened security.
-
-This was done under the policy that we do not want users like Viewer, Ops,
-and other users apart from Admin to have access to audit_logs. The intention behind
-this change is to restrict users with less permissions from viewing user details
-like First Name, Email etc. from the audit_logs when they are not permitted to.
-
-The impact of this change is that the existing users with non admin rights won't be able
-to view or access the audit_logs, both from the Browse tab or from the DAG run.

@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Config sub-commands."""
+
 from __future__ import annotations
 
 from io import StringIO
@@ -23,6 +24,7 @@ import pygments
 from pygments.lexers.configs import IniLexer
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowConfigException
 from airflow.utils.cli import should_use_colors
 from airflow.utils.code_utils import get_terminal_formatter
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -57,8 +59,8 @@ def get_value(args):
     # providers are initialized. Theoretically Providers might add new sections and options
     # but also override defaults for existing options, so without loading all providers we
     # cannot be sure what is the final value of the option.
-    if not conf.has_option(args.section, args.option):
-        raise SystemExit(f"The option [{args.section}/{args.option}] is not found in config.")
-
-    value = conf.get(args.section, args.option)
-    print(value)
+    try:
+        value = conf.get(args.section, args.option)
+        print(value)
+    except AirflowConfigException:
+        pass

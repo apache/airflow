@@ -176,7 +176,7 @@ info:
     `airflow config get-value api auth_backends` command as in the example below.
     ```bash
     $ airflow config get-value api auth_backends
-    airflow.api.auth.backend.basic_auth
+    airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
     ```
     The default is to deny all requests.
 
@@ -679,6 +679,71 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/dependencies:
+    parameters:
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
+      - $ref: "#/components/parameters/TaskID"
+
+    get:
+      summary: Get task dependencies blocking task from getting scheduled.
+      description: |
+        Get task dependencies blocking task from getting scheduled.
+
+        *New in version 2.10.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_task_instance_dependencies
+      tags: [TaskInstance]
+
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskInstanceDependencyCollection"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  ? /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/dependencies
+  : parameters:
+      - $ref: "#/components/parameters/DAGID"
+      - $ref: "#/components/parameters/DAGRunID"
+      - $ref: "#/components/parameters/TaskID"
+      - $ref: "#/components/parameters/MapIndex"
+
+    get:
+      summary: Get task dependencies blocking task from getting scheduled.
+      description: |
+        Get task dependencies blocking task from getting scheduled.
+
+        *New in version 2.10.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_mapped_task_instance_dependencies
+      tags: [TaskInstance]
+
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskInstanceDependencyCollection"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /dags/{dag_id}/updateTaskInstancesState:
     parameters:
       - $ref: "#/components/parameters/DAGID"
@@ -1091,6 +1156,27 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /parseDagFile/{file_token}:
+    parameters:
+      - $ref: "#/components/parameters/FileToken"
+
+    put:
+      summary: Request re-parsing of a DAG file
+      description: >
+        Request re-parsing of existing DAG files using a file token.
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_parsing
+      operationId: reparse_dag_file
+      tags: [ DAG ]
+      responses:
+        "201":
+          description: Success.
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /datasets/queuedEvent/{uri}:
     parameters:
       - $ref: "#/components/parameters/DatasetURI"
@@ -1156,10 +1242,29 @@ paths:
         - $ref: "#/components/parameters/OrderBy"
         - $ref: "#/components/parameters/FilterDAGID"
         - $ref: "#/components/parameters/FilterTaskID"
+        - $ref: "#/components/parameters/FilterRunID"
+        - $ref: "#/components/parameters/FilterMapIndex"
+        - $ref: "#/components/parameters/FilterTryNumber"
         - $ref: "#/components/parameters/Event"
         - $ref: "#/components/parameters/Owner"
         - $ref: "#/components/parameters/Before"
         - $ref: "#/components/parameters/After"
+        - name: included_events
+          in: query
+          schema:
+            type: string
+          required: false
+          description: |
+            One or more event names separated by commas. If set, only return event logs with events matching this pattern.
+            *New in version 2.9.0*
+        - name: excluded_events
+          in: query
+          schema:
+            type: string
+          required: false
+          description: |
+            One or more event names separated by commas. If set, only return event logs with events that do not match this pattern.
+            *New in version 2.9.0*
       responses:
         "200":
           description: Success.
@@ -1400,6 +1505,7 @@ paths:
       - $ref: "#/components/parameters/FilterState"
       - $ref: "#/components/parameters/FilterPool"
       - $ref: "#/components/parameters/FilterQueue"
+      - $ref: "#/components/parameters/FilterExecutor"
     get:
       summary: List task instances
       description: >
@@ -1411,6 +1517,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PageLimit"
         - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/TaskInstanceOrderBy"
       responses:
         "200":
           description: Success.
@@ -1568,7 +1675,8 @@ paths:
         - $ref: "#/components/parameters/FilterState"
         - $ref: "#/components/parameters/FilterPool"
         - $ref: "#/components/parameters/FilterQueue"
-        - $ref: "#/components/parameters/OrderBy"
+        - $ref: "#/components/parameters/FilterExecutor"
+        - $ref: "#/components/parameters/TaskInstanceOrderBy"
       responses:
         "200":
           description: Success.
@@ -1614,6 +1722,129 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
+
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries/{task_try_number}:
+    get:
+      summary: get taskinstance try
+      description: |
+        Get details of a task instance try.
+
+        *New in version 2.10.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_task_instance_try_details
+      tags: [TaskInstance]
+      parameters:
+        - $ref: "#/components/parameters/DAGID"
+        - $ref: "#/components/parameters/DAGRunID"
+        - $ref: "#/components/parameters/TaskID"
+        - $ref: "#/components/parameters/TaskTryNumber"
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskInstance"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/tries:
+    get:
+      summary: List task instance tries
+      description: |
+        Get details of all task instance tries.
+
+        *New in version 2.10.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_task_instance_tries
+      tags: [TaskInstance]
+      parameters:
+        - $ref: "#/components/parameters/DAGID"
+        - $ref: "#/components/parameters/DAGRunID"
+        - $ref: "#/components/parameters/TaskID"
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/OrderBy"
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskInstanceCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries:
+    get:
+      summary: List mapped task instance tries
+      description: |
+        Get details of all task instance tries.
+
+        *New in version 2.10.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_mapped_task_instance_tries
+      tags: [TaskInstance]
+      parameters:
+        - $ref: "#/components/parameters/DAGID"
+        - $ref: "#/components/parameters/DAGRunID"
+        - $ref: "#/components/parameters/TaskID"
+        - $ref: "#/components/parameters/MapIndex"
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/OrderBy"
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskInstanceCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances/{task_id}/{map_index}/tries/{task_try_number}:
+    get:
+      summary: get mapped taskinstance try
+      description: |
+        Get details of a mapped task instance try.
+
+        *New in version 2.10.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.task_instance_endpoint
+      operationId: get_mapped_task_instance_try_details
+      tags: [TaskInstance]
+      parameters:
+        - $ref: "#/components/parameters/DAGID"
+        - $ref: "#/components/parameters/DAGRunID"
+        - $ref: "#/components/parameters/TaskID"
+        - $ref: "#/components/parameters/MapIndex"
+        - $ref: "#/components/parameters/TaskTryNumber"
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskInstance"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
 
   /variables:
     get:
@@ -1797,6 +2028,19 @@ paths:
             This parameter is not meaningful when using the default XCom backend.
 
             *New in version 2.4.0*
+        - in: query
+          name: stringify
+          schema:
+            type: boolean
+            default: true
+          required: false
+          description: |
+            Whether to convert the XCom value to be a string. XCom values can be of Any data type.
+
+            If set to true (default) the Any value will be returned as string, e.g. a Python representation
+            of a dict. If set to false it will return the raw data as dict, list, string or whatever was stored.
+
+            *New in version 2.10.0*
       responses:
         "200":
           description: Success.
@@ -1982,6 +2226,32 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
+  /dagStats:
+    get:
+      summary: List Dag statistics
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_stats_endpoint
+      operationId: get_dag_stats
+      tags: [DagStats]
+      parameters:
+        - name: dag_ids
+          in: query
+          schema:
+            type: string
+          required: true
+          description: |
+            One or more DAG IDs separated by commas to filter relevant Dags.
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DagStatsCollectionSchema"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+
   /dagSources/{file_token}:
     parameters:
       - $ref: "#/components/parameters/FileToken"
@@ -2113,21 +2383,21 @@ paths:
           $ref: "#/components/responses/NotFound"
 
   /datasets/events:
-    parameters:
-      - $ref: "#/components/parameters/PageLimit"
-      - $ref: "#/components/parameters/PageOffset"
-      - $ref: "#/components/parameters/OrderBy"
-      - $ref: "#/components/parameters/FilterDatasetID"
-      - $ref: "#/components/parameters/FilterSourceDAGID"
-      - $ref: "#/components/parameters/FilterSourceTaskID"
-      - $ref: "#/components/parameters/FilterSourceRunID"
-      - $ref: "#/components/parameters/FilterSourceMapIndex"
     get:
       summary: Get dataset events
       description: Get dataset events
       x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
       operationId: get_dataset_events
       tags: [Dataset]
+      parameters:
+        - $ref: "#/components/parameters/PageLimit"
+        - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/OrderBy"
+        - $ref: "#/components/parameters/FilterDatasetID"
+        - $ref: "#/components/parameters/FilterSourceDAGID"
+        - $ref: "#/components/parameters/FilterSourceTaskID"
+        - $ref: "#/components/parameters/FilterSourceRunID"
+        - $ref: "#/components/parameters/FilterSourceMapIndex"
       responses:
         "200":
           description: Success.
@@ -2141,6 +2411,33 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
+    post:
+      summary: Create dataset event
+      description: Create dataset event
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: create_dataset_event
+      tags: [Dataset]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDatasetEvent'
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetEvent'
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
 
   /config:
     get:
@@ -2803,11 +3100,13 @@ components:
           type: string
           readOnly: true
           description: The ID of the DAG.
-        root_dag_id:
+        dag_display_name:
           type: string
           readOnly: true
-          nullable: true
-          description: If the DAG is SubDAG then it is the top level DAG identifier. Otherwise, null.
+          description: |
+            Human centric display text for the DAG.
+
+            *New in version 2.9.0*
         is_paused:
           type: boolean
           nullable: true
@@ -2822,10 +3121,6 @@ components:
           nullable: true
           readOnly: true
           type: boolean
-        is_subdag:
-          description: Whether the DAG is SubDAG.
-          type: boolean
-          readOnly: true
         last_parsed_time:
           type: string
           format: date-time
@@ -2901,14 +3196,20 @@ components:
           description: >
             User-provided DAG description, which can consist of several sentences or paragraphs that
             describe DAG contents.
-        schedule_interval:
-          $ref: "#/components/schemas/ScheduleInterval"
+        timetable_summary:
+          type: string
+          readOnly: true
+          nullable: true
+          description: |
+            Timetable summary.
+
+            *New in version 3.0.0*
         timetable_description:
           type: string
           readOnly: true
           nullable: true
           description: |
-            Timetable/Schedule Interval description.
+            Timetable description.
 
             *New in version 2.3.0*
         tags:
@@ -2986,6 +3287,14 @@ components:
             Earliest time at which this ``next_dagrun`` can be created.
 
             *New in version 2.3.0*
+        max_consecutive_failed_dag_runs:
+          type: integer
+          nullable: true
+          readOnly: true
+          description: |
+            (experimental) The maximum number of consecutive DAG failures before DAG is automatically paused.
+
+            *New in version 2.9.0*
 
     DAGCollection:
       description: |
@@ -3108,6 +3417,7 @@ components:
             *New in version 2.5.0*
           nullable: true
 
+
     UpdateDagRunState:
       type: object
       description: |
@@ -3137,6 +3447,46 @@ components:
               items:
                 $ref: "#/components/schemas/DAGRun"
         - $ref: "#/components/schemas/CollectionInfo"
+
+    DagStatsCollectionSchema:
+      type: object
+      description: |
+        Collection of Dag statistics.
+
+      allOf:
+        - type: object
+          properties:
+            dags:
+              type: array
+              items:
+                $ref: "#/components/schemas/DagStatsCollectionItem"
+        - $ref: "#/components/schemas/CollectionInfo"
+
+    DagStatsCollectionItem:
+      description: DagStats entry collection item.
+
+      type: object
+      properties:
+        dag_id:
+          type: string
+          description: The DAG ID.
+        stats:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/DagStatsStateCollectionItem"
+
+    DagStatsStateCollectionItem:
+      description: DagStatsState entry collection item.
+
+      type: object
+      properties:
+        state:
+          type: string
+          description: The DAG state.
+        count:
+          type: integer
+          description: The DAG state count.
 
     DagWarning:
       type: object
@@ -3199,8 +3549,23 @@ components:
           readOnly: true
           nullable: true
         task_id:
-          description: The DAG ID
+          description: The Task ID
           type: string
+          readOnly: true
+          nullable: true
+        run_id:
+          description: The DAG Run ID
+          type: string
+          readOnly: true
+          nullable: true
+        map_index:
+          description: The Map Index
+          type: integer
+          readOnly: true
+          nullable: true
+        try_number:
+          description: The Try Number
+          type: integer
           readOnly: true
           nullable: true
         event:
@@ -3217,6 +3582,7 @@ components:
         owner:
           description: Name of the user who triggered these events a.
           type: string
+          nullable: true
           readOnly: true
         extra:
           description: |
@@ -3231,6 +3597,7 @@ components:
         Collection of event logs.
 
         *Changed in version 2.1.0*&#58; 'total_entries' field is added.
+        *Changed in version 2.10.0*&#58; 'try_number' and 'map_index' fields are added.
       allOf:
         - type: object
           properties:
@@ -3259,7 +3626,7 @@ components:
         stack_trace:
           type: string
           readOnly: true
-          description: The full stackstrace..
+          description: The full stackstrace.
 
     ImportErrorCollection:
       type: object
@@ -3479,6 +3846,22 @@ components:
           type: integer
           nullable: true
 
+    TaskFailedDependency:
+      type: object
+      properties:
+        name:
+          type: string
+        reason:
+          type: string
+
+    TaskInstanceDependencyCollection:
+      type: object
+      properties:
+        dependencies:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskFailedDependency"
+
     Job:
       type: object
       nullable: true
@@ -3521,6 +3904,12 @@ components:
       properties:
         task_id:
           type: string
+        task_display_name:
+          type: string
+          description: |
+            Human centric display text for the task.
+
+            *New in version 2.9.0*
         dag_id:
           type: string
         dag_run_id:
@@ -3578,10 +3967,24 @@ components:
         pid:
           type: integer
           nullable: true
+        executor:
+          type: string
+          nullable: true
+          description: |
+            Executor the task is configured to run on or None (which indicates the default executor)
+
+            *New in version 2.10.0*
         executor_config:
           type: string
         sla_miss:
           $ref: "#/components/schemas/SLAMiss"
+        rendered_map_index:
+          description: |
+            Rendered name of an expanded task instance, if the task is mapped.
+
+            *New in version 2.9.0*
+          type: string
+          nullable: true
         rendered_fields:
           description: |
             JSON object describing rendered fields.
@@ -3730,8 +4133,16 @@ components:
         - type: object
           properties:
             value:
-              type: string
-              description: The value
+              anyOf:
+                - type: string
+                - type: number
+                - type: integer
+                - type: boolean
+                - type: array
+                  items: {}
+                - type: object
+                  nullable: true
+              description: The value(s),
 
     # Python objects
     # Based on
@@ -3773,6 +4184,10 @@ components:
                 *Changed in version 2.0.1*&#58; Field becomes nullable.
             dag_run_timeout:
               $ref: "#/components/schemas/TimeDelta"
+              nullable: true
+            dataset_expression:
+              type: object
+              description: Nested dataset any/all conditions
               nullable: true
             doc_md:
               type: string
@@ -3865,6 +4280,9 @@ components:
         task_id:
           type: string
           readOnly: true
+        task_display_name:
+          type: string
+          readOnly: true
         owner:
           type: string
           readOnly: true
@@ -3872,6 +4290,7 @@ components:
           type: string
           format: "date-time"
           readOnly: true
+          nullable: true
         end_date:
           type: string
           format: "date-time"
@@ -3900,6 +4319,10 @@ components:
           type: number
           readOnly: true
         queue:
+          type: string
+          readOnly: true
+          nullable: true
+        executor:
           type: string
           readOnly: true
           nullable: true
@@ -3937,6 +4360,14 @@ components:
           readOnly: true
           items:
             type: string
+        doc_md:
+          type: string
+          readOnly: true
+          nullable: true
+          description: |
+            Task documentation in markdown.
+
+            *New in version 2.10.0*
 
     TaskCollection:
       type: object
@@ -4267,6 +4698,20 @@ components:
           description: The dataset event creation time
           nullable: false
 
+    CreateDatasetEvent:
+      type: object
+      required:
+        - dataset_uri
+      properties:
+        dataset_uri:
+          type: string
+          description: The URI of the dataset
+          nullable: false
+        extra:
+          type: object
+          description: The dataset event extra
+          nullable: true
+
     QueuedEvent:
       type: object
       properties:
@@ -4456,14 +4901,6 @@ components:
           description: Only clear running tasks.
           type: boolean
           default: false
-
-        include_subdags:
-          description: Clear tasks in subdags and clear external tasks indicated by ExternalTaskMarker.
-          type: boolean
-
-        include_parentdag:
-          description: Clear tasks in the parent dag of the subdag.
-          type: boolean
 
         reset_dag_runs:
           description: Set state of DAG runs to RUNNING.
@@ -4742,21 +5179,23 @@ components:
           items:
             type: string
           description: The value can be repeated to retrieve multiple matching values (OR condition).
+        executor:
+          type: array
+          items:
+            type: string
+          description: The value can be repeated to retrieve multiple matching values (OR condition).
+        order_by:
+          type: string
+          description: |
+            The name of the field to order the results by. Prefix a field name
+            with `-` to reverse the sort order. `order_by` defaults to
+            `map_index` when unspecified.
+            Supported field names: `state`, `duration`, `start_date`, `end_date`
+            and `map_index`.
+
+            *New in version 3.0.0*
 
     # Common data type
-    ScheduleInterval:
-      description: |
-        Schedule interval. Defines how often DAG runs, this object gets added to your latest task instance's
-        execution_date to figure out the next schedule.
-      nullable: true
-      readOnly: true
-      anyOf:
-        - $ref: "#/components/schemas/TimeDelta"
-        - $ref: "#/components/schemas/RelativeDelta"
-        - $ref: "#/components/schemas/CronExpression"
-      discriminator:
-        propertyName: __type
-
     TimeDelta:
       description: Time delta
       type: object
@@ -5298,7 +5737,14 @@ components:
         items:
           type: string
       description: The value can be repeated to retrieve multiple matching values (OR condition).
-
+    FilterExecutor:
+      in: query
+      name: executor
+      schema:
+        type: array
+        items:
+          type: string
+      description: The value can be repeated to retrieve multiple matching values (OR condition).
     FilterTags:
       in: query
       name: tags
@@ -5352,6 +5798,28 @@ components:
       schema:
         type: integer
       description: Filter on map index for mapped task.
+
+    FilterTryNumber:
+      in: query
+      name: try_number
+      schema:
+        type: integer
+      description: Filter on try_number for task instance.
+
+    TaskInstanceOrderBy:
+      in: query
+      name: order_by
+      schema:
+        type: string
+      required: false
+      description: |
+        The name of the field to order the results by. Prefix a field name
+        with `-` to reverse the sort order. `order_by` defaults to
+        `map_index` when unspecified.
+        Supported field names: `state`, `duration`, `start_date`, `end_date`
+        and `map_index`.
+
+        *New in version 3.0.0*
 
     OrderBy:
       in: query
@@ -5439,6 +5907,14 @@ components:
         type: string
       required: false
       description: Returns objects matched by the Task ID.
+
+    FilterRunID:
+      in: query
+      name: run_id
+      schema:
+        type: string
+      required: false
+      description: Returns objects matched by the Run ID.
 
     # Other parameters
     FileToken:
@@ -5569,20 +6045,20 @@ tags:
   - name: Connection
   - name: DAG
   - name: DAGRun
+  - name: DagWarning
+  - name: Dataset
   - name: EventLog
   - name: ImportError
   - name: Monitoring
+  - name: Permission
+  - name: Plugin
   - name: Pool
   - name: Provider
+  - name: Role
   - name: TaskInstance
+  - name: User
   - name: Variable
   - name: XCom
-  - name: Plugin
-  - name: Role
-  - name: Permission
-  - name: User
-  - name: DagWarning
-  - name: Dataset
 
 externalDocs:
   url: https://airflow.apache.org/docs/apache-airflow/stable/

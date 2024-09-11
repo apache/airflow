@@ -28,18 +28,22 @@ Setup and develop using GitHub Codespaces
    .. raw:: html
 
      <div align="center" style="padding-bottom:10px">
-       <img src="images/quick_start/airflow_fork.png"
+       <img src="images/airflow_fork.png"
             alt="Forking Apache Airflow project">
      </div>
 
-2. Follow `Codespaces Quickstart <https://docs.github.com/en/codespaces/getting-started/quickstart>`_ to start
-   a new codespace.
+2. From you fork create a codespace by clicking this
+   👉 |codespace|
 
-3. Once the codespace starts your terminal should be already in ``Breeze`` environment and you should
+   .. |codespace| image:: https://github.com/codespaces/badge.svg
+       :target: https://github.com/codespaces/new?hide_repo_select=true&ref=main&repo=33884891
+       :alt: Open in GitHub Codespaces
+
+3. Once the codespace starts your terminal should already be in the ``Breeze`` environment and you should
    be able to edit and run the tests in VS Code interface.
 
 4. You can use `Quick start quide for Visual Studio Code <contributors_quick_start_vscode.rst>`_ for details
    as Codespaces use Visual Studio Code as interface.
 
 
-Follow the `Quick start <03_contributors_quick_start.rst>`_ for typical development tasks.
+Follow the `Quick start <../03_contributors_quick_start.rst>`_ for typical development tasks.

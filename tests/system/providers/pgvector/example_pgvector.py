@@ -28,7 +28,7 @@ POSTGRES_CONN_ID = "postgres_default"
 
 @dag(
     "example_pgvector_dag",
-    schedule_interval=None,
+    schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example", "pgvector"],

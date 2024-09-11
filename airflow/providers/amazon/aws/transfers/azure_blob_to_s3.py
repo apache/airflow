@@ -23,7 +23,13 @@ from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
+
+try:
+    from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
+except ModuleNotFoundError as e:
+    from airflow.exceptions import AirflowOptionalProviderFeatureException
+
+    raise AirflowOptionalProviderFeatureException(e)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -84,7 +90,7 @@ class AzureBlobStorageToS3Operator(BaseOperator):
         container_name: str,
         prefix: str | None = None,
         delimiter: str = "",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         dest_s3_key: str,
         dest_verify: str | bool | None = None,
         dest_s3_extra_args: dict | None = None,
@@ -120,8 +126,10 @@ class AzureBlobStorageToS3Operator(BaseOperator):
         )
 
         self.log.info(
-            f"Getting list of the files in Container: {self.container_name}; "
-            f"Prefix: {self.prefix}; Delimiter: {self.delimiter};"
+            "Getting list of the files in Container: %r; Prefix: %r; Delimiter: %r.",
+            self.container_name,
+            self.prefix,
+            self.delimiter,
         )
 
         files = wasb_hook.get_blobs_list_recursive(

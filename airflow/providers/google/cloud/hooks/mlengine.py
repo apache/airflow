@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google ML Engine Hook."""
+
 from __future__ import annotations
 
 import contextlib
@@ -30,7 +31,11 @@ from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+)
 from airflow.version import version as airflow_version
 
 if TYPE_CHECKING:
@@ -549,7 +554,7 @@ class MLEngineAsyncHook(GoogleBaseAsyncHook):
     def _check_fileds(
         self,
         job_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
     ):
         if not project_id:
             raise AirflowException("Google Cloud project id is required.")
@@ -568,7 +573,7 @@ class MLEngineAsyncHook(GoogleBaseAsyncHook):
 
         return job
 
-    async def get_job(self, job_id: str, session: Session, project_id: str | None = None):
+    async def get_job(self, job_id: str, session: Session, project_id: str = PROVIDE_PROJECT_ID):
         """Get the specified job resource by job ID and project ID."""
         self._check_fileds(project_id=project_id, job_id=job_id)
 
@@ -578,7 +583,7 @@ class MLEngineAsyncHook(GoogleBaseAsyncHook):
     async def get_job_status(
         self,
         job_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
     ) -> str | None:
         """
         Poll for job status asynchronously using gcloud-aio.

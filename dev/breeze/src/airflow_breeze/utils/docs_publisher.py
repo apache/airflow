@@ -58,7 +58,11 @@ class DocsPublisher:
     @property
     def _current_version(self):
         if not self.is_versioned:
-            raise Exception("This documentation package is not versioned")
+            msg = (
+                "This documentation package is not versioned. "
+                "Make sure to add version in `provider.yaml` for the package."
+            )
+            raise RuntimeError(msg)
         if self.package_name == "apache-airflow":
             return get_airflow_version()
         if self.package_name.startswith("apache-airflow-providers-"):
@@ -66,7 +70,7 @@ class DocsPublisher:
             return provider["versions"][0]
         if self.package_name == "helm-chart":
             return chart_version()
-        return Exception(f"Unsupported package: {self.package_name}")
+        raise SystemExit(f"Unsupported package: {self.package_name}")
 
     @property
     def _publish_dir(self) -> str:

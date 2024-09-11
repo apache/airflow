@@ -43,7 +43,7 @@ from functools import wraps
 from unittest.mock import patch
 from urllib.parse import unquote, urlparse
 
-from .fake_elasticsearch import FakeElasticsearch
+from tests.providers.elasticsearch.log.elasticmock.fake_elasticsearch import FakeElasticsearch
 
 ELASTIC_INSTANCES: dict[str, FakeElasticsearch] = {}
 

@@ -26,7 +26,7 @@ This means that communication plays a big role in it, and this chapter is all ab
 
 In our communication, everyone is expected to follow the `ASF Code of Conduct <https://www.apache.org/foundation/policies/conduct>`_.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Various Communication channels
 ------------------------------
@@ -47,14 +47,15 @@ You can join the channels via links at the `Airflow Community page <https://airf
 * GitHub `Pull Requests (PRs) <https://github.com/apache/airflow/pulls>`_ for:
    * discussing implementation details of PRs
    * not for architectural discussions (use the devlist for that)
-* The deprecated `JIRA issues <https://issues.apache.org/jira/projects/AIRFLOW/issues/AIRFLOW-4470?filter=allopenissues>`_ for:
+* The deprecated `JIRA issues <https://issues.apache.org/jira/projects/AIRFLOW/issues/?filter=allopenissues&orderby=updated+DESC>`_ for:
+    **IMPORTANT**
+    We don't create new issues on JIRA anymore. The reason we still look at JIRA issues is that there are valuable
+    tickets inside of it. However, each new PR should be created on `GitHub issues <https://github.com/apache/airflow/issues>`_
+    as stated in `Contribution Workflow Example <contribution-workflow.rst>`_
+
    * checking out old but still valuable issues that are not on GitHub yet
    * mentioning the JIRA issue number in the title of the related PR you would like to open on GitHub
 
-**IMPORTANT**
-We don't create new issues on JIRA anymore. The reason we still look at JIRA issues is that there are valuable
-tickets inside of it. However, each new PR should be created on `GitHub issues <https://github.com/apache/airflow/issues>`_
-as stated in `Contribution Workflow Example <contribution-workflow.rst>`_
 
 Slack details
 -------------

@@ -82,9 +82,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                          (will overwrite any spark_binary defined in the connection's extra JSON)
     :param properties_file: Path to a file from which to load extra properties. If not
                               specified, this will look for conf/spark-defaults.conf.
-    :param queue: The name of the YARN queue to which the application is submitted.
+    :param yarn_queue: The name of the YARN queue to which the application is submitted.
                         (will overwrite any yarn queue defined in the connection's extra JSON)
-    :param deploy_mode: Whether to deploy your driver on the worker nodes (cluster) or locally as an    client.
+    :param deploy_mode: Whether to deploy your driver on the worker nodes (cluster) or locally as an client.
                         (will overwrite any deployment mode defined in the connection's extra JSON)
     :param use_krb5ccache: if True, configure spark to use ticket cache instead of relying
         on keytab for Kerberos login
@@ -165,7 +165,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         verbose: bool = False,
         spark_binary: str | None = None,
         properties_file: str | None = None,
-        queue: str | None = None,
+        yarn_queue: str | None = None,
         deploy_mode: str | None = None,
         *,
         use_krb5ccache: bool = False,
@@ -199,9 +199,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._submit_sp: Any | None = None
         self._yarn_application_id: str | None = None
         self._kubernetes_driver_pod: str | None = None
+        self._kubernetes_application_id: str | None = None
         self.spark_binary = spark_binary
         self._properties_file = properties_file
-        self._queue = queue
+        self._yarn_queue = yarn_queue
         self._deploy_mode = deploy_mode
         self._connection = self._resolve_connection()
         self._is_yarn = "yarn" in self._connection["master"]
@@ -218,7 +219,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._env: dict[str, Any] | None = None
 
     def _resolve_should_track_driver_status(self) -> bool:
-        """Check if we should track the driver status.
+        """
+        Check if we should track the driver status.
 
         If so, we should send subsequent spark-submit status requests after the
         initial spark-submit request.
@@ -231,7 +233,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         # Build from connection master or default to yarn if not available
         conn_data = {
             "master": "yarn",
-            "queue": None,
+            "queue": None,  # yarn queue
             "deploy_mode": None,
             "spark_binary": self.spark_binary or DEFAULT_SPARK_BINARY,
             "namespace": None,
@@ -248,7 +250,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
             # Determine optional yarn queue from the extra field
             extra = conn.extra_dejson
-            conn_data["queue"] = self._queue if self._queue else extra.get("queue")
+            conn_data["queue"] = self._yarn_queue if self._yarn_queue else extra.get("queue")
             conn_data["deploy_mode"] = self._deploy_mode if self._deploy_mode else extra.get("deploy-mode")
             if not self.spark_binary:
                 self.spark_binary = extra.get("spark-binary", DEFAULT_SPARK_BINARY)
@@ -445,7 +447,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         return connection_cmd
 
     def _resolve_kerberos_principal(self, principal: str | None) -> str:
-        """Resolve kerberos principal if airflow > 2.8.
+        """
+        Resolve kerberos principal if airflow > 2.8.
 
         TODO: delete when min airflow version >= 2.8 and import directly from airflow.security.kerberos
         """
@@ -544,15 +547,20 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 match = re.search("application[0-9_]+", line)
                 if match:
                     self._yarn_application_id = match.group(0)
-                    self.log.info("Identified spark driver id: %s", self._yarn_application_id)
+                    self.log.info("Identified spark application id: %s", self._yarn_application_id)
 
             # If we run Kubernetes cluster mode, we want to extract the driver pod id
             # from the logs so we can kill the application when we stop it unexpectedly
             elif self._is_kubernetes:
-                match = re.search(r"\s*pod name: ((.+?)-([a-z0-9]+)-driver)", line)
-                if match:
-                    self._kubernetes_driver_pod = match.group(1)
+                match_driver_pod = re.search(r"\s*pod name: ((.+?)-([a-z0-9]+)-driver$)", line)
+                if match_driver_pod:
+                    self._kubernetes_driver_pod = match_driver_pod.group(1)
                     self.log.info("Identified spark driver pod: %s", self._kubernetes_driver_pod)
+
+                match_application_id = re.search(r"\s*spark-app-selector -> (spark-([a-z0-9]+)), ", line)
+                if match_application_id:
+                    self._kubernetes_application_id = match_application_id.group(1)
+                    self.log.info("Identified spark application id: %s", self._kubernetes_application_id)
 
                 # Store the Spark Exit code
                 match_exit_code = re.search(r"\s*[eE]xit code: (\d+)", line)

@@ -60,8 +60,44 @@ function in_container_go_to_airflow_sources() {
     pushd "${AIRFLOW_SOURCES}" >/dev/null 2>&1 || exit 1
 }
 
+function in_container_get_packaging_tool() {
+    ## IMPORTANT: IF YOU MODIFY THIS FUNCTION YOU SHOULD ALSO MODIFY CORRESPONDING FUNCTION IN
+    ## `scripts/docker/common.sh`
+    local PYTHON_BIN
+    PYTHON_BIN=$(which python)
+    if [[ ${AIRFLOW_USE_UV} == "true" ]]; then
+        echo
+        echo "${COLOR_BLUE}Using 'uv' to install Airflow${COLOR_RESET}"
+        echo
+        export PACKAGING_TOOL=""
+        export PACKAGING_TOOL_CMD="uv pip"
+        if [[ -z ${VIRTUAL_ENV=} ]]; then
+            export EXTRA_INSTALL_FLAGS="--python ${PYTHON_BIN}"
+            export EXTRA_UNINSTALL_FLAGS="--python ${PYTHON_BIN}"
+        else
+            export EXTRA_INSTALL_FLAGS=""
+            export EXTRA_UNINSTALL_FLAGS=""
+        fi
+        export UPGRADE_EAGERLY="--upgrade --resolution highest"
+        export UPGRADE_IF_NEEDED="--upgrade"
+        UV_CONCURRENT_DOWNLOADS=$(nproc --all)
+        export UV_CONCURRENT_DOWNLOADS
+    else
+        echo
+        echo "${COLOR_BLUE}Using 'pip' to install Airflow${COLOR_RESET}"
+        echo
+        export PACKAGING_TOOL="pip"
+        export PACKAGING_TOOL_CMD="pip"
+        export EXTRA_INSTALL_FLAGS="--root-user-action ignore"
+        export EXTRA_UNINSTALL_FLAGS="--yes"
+        export UPGRADE_EAGERLY="--upgrade-strategy eager"
+        export UPGRADE_IF_NEEDED="--upgrade --upgrade-strategy only-if-needed"
+    fi
+}
+
 function in_container_basic_check() {
     assert_in_container
+    in_container_get_packaging_tool
     in_container_go_to_airflow_sources
 }
 
@@ -93,3 +129,4 @@ function in_container_set_colors() {
 
 export CI=${CI:="false"}
 export GITHUB_ACTIONS=${GITHUB_ACTIONS:="false"}
+export AIRFLOW_USE_UV=${AIRFLOW_USE_UV:="false"}

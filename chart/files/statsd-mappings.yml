@@ -23,7 +23,7 @@
 # */}}
 mappings:
   # Map dot separated stats to labels
-  - match: airflow.dagrun.dependency-check.*
+  - match: airflow.dagrun.dependency-check.*.*
     name: "airflow_dagrun_dependency_check"
     labels:
       dag_id: "$1"
@@ -91,3 +91,18 @@ mappings:
     name: "airflow_pool_starving_tasks"
     labels:
       pool: "$1"
+
+  - match: airflow.executor.open_slots.*
+    name: "airflow_executor_open_slots"
+    labels:
+      executor: "$1"
+
+  - match: airflow.executor.queued_tasks.*
+    name: "airflow_executor_queued_tasks"
+    labels:
+      executor: "$1"
+
+  - match: airflow.executor.running_tasks.*
+    name: "airflow_executor_running_tasks"
+    labels:
+      executor: "$1"

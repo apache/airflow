@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import re
 from unittest import mock
 
 import pytest
@@ -188,9 +189,12 @@ class TestWasbHook:
         )
 
     def test_managed_identity(self, mocked_default_azure_credential, mocked_blob_service_client):
-        assert mocked_default_azure_credential.called_with(None, None)
+        mocked_default_azure_credential.assert_not_called()
         mocked_default_azure_credential.return_value = "foo-bar"
         WasbHook(wasb_conn_id=self.managed_identity_conn_id).get_conn()
+        mocked_default_azure_credential.assert_called_with(
+            managed_identity_client_id=None, workload_identity_tenant_id=None
+        )
         mocked_blob_service_client.assert_called_once_with(
             account_url="https://None.blob.core.windows.net/",
             credential="foo-bar",
@@ -581,18 +585,16 @@ class TestWasbHook:
     def test_delete_nonexisting_blob_fails(self, mock_check, mock_getblobs, mocked_blob_service_client):
         mock_getblobs.return_value = []
         mock_check.return_value = False
-        with pytest.raises(Exception) as ctx:
-            hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        with pytest.raises(AirflowException, match=re.escape("Blob(s) not found: nonexisting_blob")):
             hook.delete_file("container", "nonexisting_blob", is_prefix=False, ignore_if_missing=False)
-        assert isinstance(ctx.value, AirflowException)
 
     @mock.patch.object(WasbHook, "get_blobs_list")
     def test_delete_multiple_nonexisting_blobs_fails(self, mock_getblobs):
         mock_getblobs.return_value = []
-        with pytest.raises(Exception) as ctx:
-            hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
+        with pytest.raises(AirflowException, match=re.escape("Blob(s) not found: nonexisting_blob_prefix")):
             hook.delete_file("container", "nonexisting_blob_prefix", is_prefix=True, ignore_if_missing=False)
-        assert isinstance(ctx.value, AirflowException)
 
     def test_connection_success(self, mocked_blob_service_client):
         hook = WasbHook(wasb_conn_id=self.azure_shared_key_test)
@@ -613,3 +615,33 @@ class TestWasbHook:
         status, msg = hook.test_connection()
         assert status is False
         assert msg == "Authentication failed."
+
+    @pytest.mark.parametrize(
+        "conn_id_str",
+        [
+            "wasb_test_key",
+            "pub_read_id",
+            "pub_read_id_without_host",
+            "azure_test_connection_string",
+            "azure_shared_key_test",
+            "ad_conn_id",
+            "managed_identity_conn_id",
+            "sas_conn_id",
+            "extra__wasb__sas_conn_id",
+            "http_sas_conn_id",
+            "extra__wasb__http_sas_conn_id",
+        ],
+    )
+    def test_extract_account_name_from_connection(self, conn_id_str, mocked_blob_service_client):
+        expected_account_name = "testname"
+        if conn_id_str == "azure_test_connection_string":
+            mocked_blob_service_client.from_connection_string().account_name = expected_account_name
+        else:
+            mocked_blob_service_client.return_value.account_name = expected_account_name
+
+        wasb_hook = WasbHook(wasb_conn_id=conn_id_str)
+        account_name = wasb_hook.get_conn().account_name
+
+        assert (
+            account_name == expected_account_name
+        ), f"Expected account name {expected_account_name} but got {account_name}"

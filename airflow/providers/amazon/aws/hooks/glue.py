@@ -19,12 +19,14 @@ from __future__ import annotations
 
 import asyncio
 import time
+from functools import cached_property
+from typing import Any
 
-import boto3
 from botocore.exceptions import ClientError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 
 DEFAULT_LOG_SUFFIX = "output"
 ERROR_LOG_SUFFIX = "error"
@@ -213,6 +215,13 @@ class GlueJobHook(AwsBaseHook):
             job_run = await client.get_job_run(JobName=job_name, RunId=run_id)
         return job_run["JobRun"]["JobRunState"]
 
+    @cached_property
+    def logs_hook(self):
+        """Returns an AwsLogsHook instantiated with the parameters of the GlueJobHook."""
+        return AwsLogsHook(
+            aws_conn_id=self.aws_conn_id, region_name=self.region_name, verify=self.verify, config=self.config
+        )
+
     def print_job_logs(
         self,
         job_name: str,
@@ -225,7 +234,7 @@ class GlueJobHook(AwsBaseHook):
         :param continuation_tokens: the tokens where to resume from when reading logs.
             The object gets updated with the new tokens by this method.
         """
-        log_client = boto3.client("logs")
+        log_client = self.logs_hook.get_conn()
         paginator = log_client.get_paginator("filter_log_events")
 
         def display_logs_from(log_group: str, continuation_token: str | None) -> str | None:
@@ -245,8 +254,9 @@ class GlueJobHook(AwsBaseHook):
                 if e.response["Error"]["Code"] == "ResourceNotFoundException":
                     # we land here when the log groups/streams don't exist yet
                     self.log.warning(
-                        "No new Glue driver logs so far.\nIf this persists, check the CloudWatch dashboard "
-                        f"at: https://{self.conn_region_name}.console.aws.amazon.com/cloudwatch/home"
+                        "No new Glue driver logs so far.\n"
+                        "If this persists, check the CloudWatch dashboard at: %r.",
+                        f"https://{self.conn_region_name}.console.aws.amazon.com/cloudwatch/home",
                     )
                 else:
                     raise
@@ -263,7 +273,6 @@ class GlueJobHook(AwsBaseHook):
         log_group_prefix = self.conn.get_job_run(JobName=job_name, RunId=run_id)["JobRun"]["LogGroupName"]
         log_group_default = f"{log_group_prefix}/{DEFAULT_LOG_SUFFIX}"
         log_group_error = f"{log_group_prefix}/{ERROR_LOG_SUFFIX}"
-
         # one would think that the error log group would contain only errors, but it actually contains
         # a lot of interesting logs too, so it's valuable to have both
         continuation_tokens.output_stream_continuation = display_logs_from(
@@ -422,3 +431,125 @@ class GlueJobHook(AwsBaseHook):
             self.conn.create_job(**config)
 
         return self.job_name
+
+
+class GlueDataQualityHook(AwsBaseHook):
+    """
+    Interact with AWS Glue Data Quality.
+
+    Provide thick wrapper around :external+boto3:py:class:`boto3.client("glue") <Glue.Client>`.
+
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        - :class:`airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+    """
+
+    def __init__(
+        self,
+        *args,
+        **kwargs,
+    ):
+        kwargs["client_type"] = "glue"
+        super().__init__(*args, **kwargs)
+
+    def has_data_quality_ruleset(self, name: str) -> bool:
+        try:
+            self.conn.get_data_quality_ruleset(Name=name)
+            return True
+        except self.conn.exceptions.EntityNotFoundException:
+            return False
+
+    def _log_results(self, result: dict[str, Any]) -> None:
+        """
+        Print the outcome of evaluation run, An evaluation run can involve multiple rulesets evaluated against a data source (Glue table).
+
+        Name    Description                                     Result        EvaluatedMetrics                                                                    EvaluationMessage
+        Rule_1    RowCount between 150000 and 600000             PASS        {'Dataset.*.RowCount': 300000.0}                                                       NaN
+        Rule_2    IsComplete "marketplace"                       PASS        {'Column.marketplace.Completeness': 1.0}                                               NaN
+        Rule_3    ColumnLength "marketplace" between 1 and 2     FAIL        {'Column.marketplace.MaximumLength': 9.0, 'Column.marketplace.MinimumLength': 3.0}     Value: 9.0 does not meet the constraint requirement!
+
+        """
+        import pandas as pd
+
+        pd.set_option("display.max_rows", None)
+        pd.set_option("display.max_columns", None)
+        pd.set_option("display.width", None)
+        pd.set_option("display.max_colwidth", None)
+
+        self.log.info(
+            "AWS Glue data quality ruleset evaluation result for RulesetName: %s RulesetEvaluationRunId: %s Score: %s",
+            result.get("RulesetName"),
+            result.get("RulesetEvaluationRunId"),
+            result.get("Score"),
+        )
+
+        rule_results = result["RuleResults"]
+        rule_results_df = pd.DataFrame(rule_results)
+        self.log.info(rule_results_df)
+
+    def get_evaluation_run_results(self, run_id: str) -> dict[str, Any]:
+        response = self.conn.get_data_quality_ruleset_evaluation_run(RunId=run_id)
+
+        return self.conn.batch_get_data_quality_result(ResultIds=response["ResultIds"])
+
+    def validate_evaluation_run_results(
+        self, evaluation_run_id: str, show_results: bool = True, verify_result_status: bool = True
+    ) -> None:
+        results = self.get_evaluation_run_results(evaluation_run_id)
+        total_failed_rules = 0
+
+        if results.get("ResultsNotFound"):
+            self.log.info(
+                "AWS Glue data quality ruleset evaluation run, results not found for %s",
+                results["ResultsNotFound"],
+            )
+
+        for result in results["Results"]:
+            rule_results = result["RuleResults"]
+
+            total_failed_rules += len(
+                list(
+                    filter(
+                        lambda result: result.get("Result") == "FAIL" or result.get("Result") == "ERROR",
+                        rule_results,
+                    )
+                )
+            )
+
+            if show_results:
+                self._log_results(result)
+
+        self.log.info(
+            "AWS Glue data quality ruleset evaluation run, total number of rules failed: %s",
+            total_failed_rules,
+        )
+
+        if verify_result_status and total_failed_rules > 0:
+            raise AirflowException(
+                "AWS Glue data quality ruleset evaluation run failed for one or more rules"
+            )
+
+    def log_recommendation_results(self, run_id: str) -> None:
+        """
+        Print the outcome of recommendation run, recommendation run generates multiple rules against a data source (Glue table) in Data Quality Definition Language (DQDL) format.
+
+        Rules = [
+        IsComplete "NAME",
+        ColumnLength "EMP_ID" between 1 and 12,
+        IsUnique "EMP_ID",
+        ColumnValues "INCOME" > 50000
+        ]
+        """
+        result = self.conn.get_data_quality_rule_recommendation_run(RunId=run_id)
+
+        if result.get("RecommendedRuleset"):
+            self.log.info(
+                "AWS Glue data quality recommended rules for DatabaseName: %s TableName: %s",
+                result["DataSource"]["GlueTable"]["DatabaseName"],
+                result["DataSource"]["GlueTable"]["TableName"],
+            )
+            self.log.info(result["RecommendedRuleset"])
+        else:
+            self.log.info("AWS Glue data quality, no recommended rules available for RunId: %s", run_id)

@@ -16,12 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """File logging handler for tasks."""
+
 from __future__ import annotations
 
 import inspect
 import logging
 import os
-import warnings
 from contextlib import suppress
 from enum import Enum
 from functools import cached_property
@@ -31,18 +31,25 @@ from urllib.parse import urljoin
 
 import pendulum
 
+from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
 from airflow.utils.log.logging_mixin import SetContextPropagate
-from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
-from airflow.utils.session import create_session
+from airflow.utils.log.non_caching_file_handler import NonCachingRotatingFileHandler
+from airflow.utils.session import provide_session
 from airflow.utils.state import State, TaskInstanceState
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from pendulum import DateTime
+
+    from airflow.models import DagRun
+    from airflow.models.taskinstance import TaskInstance
+    from airflow.models.taskinstancekey import TaskInstanceKey
+    from airflow.serialization.pydantic.dag_run import DagRunPydantic
+    from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +86,7 @@ def _set_task_deferred_context_var():
 
 def _fetch_logs_from_service(url, log_relative_path):
     # Import occurs in function scope for perf. Ref: https://github.com/apache/airflow/pull/21438
-    import httpx
+    import requests
 
     from airflow.utils.jwt_signer import JWTSigner
 
@@ -89,7 +96,7 @@ def _fetch_logs_from_service(url, log_relative_path):
         expiration_time_in_seconds=conf.getint("webserver", "log_request_clock_grace", fallback=30),
         audience="task-instance-logs",
     )
-    response = httpx.get(
+    response = requests.get(
         url,
         timeout=timeout,
         headers={"Authorization": signer.generate_signed_token({"filename": log_relative_path})},
@@ -125,22 +132,23 @@ def _interleave_logs(*logs):
     for log in logs:
         records.extend(_parse_timestamps_in_log_file(log.splitlines()))
     last = None
-    for _, _, v in sorted(
+    for timestamp, _, line in sorted(
         records, key=lambda x: (x[0], x[1]) if x[0] else (pendulum.datetime(2000, 1, 1), x[1])
     ):
-        if v != last:  # dedupe
-            yield v
-        last = v
+        if line != last or not timestamp:  # dedupe
+            yield line
+        last = line
 
 
-def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
-    """Given TI | TIKey, return a TI object.
+def _ensure_ti(ti: TaskInstanceKey | TaskInstance | TaskInstancePydantic, session) -> TaskInstance:
+    """
+    Given TI | TIKey, return a TI object.
 
     Will raise exception if no TI is found in the database.
     """
-    from airflow.models.taskinstance import TaskInstance, TaskInstanceKey
+    from airflow.models.taskinstance import TaskInstance
 
-    if not isinstance(ti, TaskInstanceKey):
+    if isinstance(ti, TaskInstance):
         return ti
     val = (
         session.query(TaskInstance)
@@ -152,36 +160,10 @@ def _ensure_ti(ti: TaskInstanceKey | TaskInstance, session) -> TaskInstance:
         )
         .one_or_none()
     )
-    if isinstance(val, TaskInstance):
-        val._try_number = ti.try_number
-        return val
-    else:
+    if not val:
         raise AirflowException(f"Could not find TaskInstance for {ti}")
-
-
-def _change_directory_permissions_up(directory: Path, folder_permissions: int):
-    """
-    Change permissions of the given directory and its parents.
-
-    Only attempt to change permissions for directories owned by the current user.
-
-    :param directory: directory to change permissions of (including parents)
-    :param folder_permissions: permissions to set
-    """
-    if directory.stat().st_uid == os.getuid():
-        if directory.stat().st_mode % 0o1000 != folder_permissions % 0o1000:
-            print(f"Changing {directory} permission to {folder_permissions}")
-            try:
-                directory.chmod(folder_permissions)
-            except PermissionError as e:
-                # In some circumstances (depends on user and filesystem) we might not be able to
-                # change the permission for the folder (when the folder was created by another user
-                # before or when the filesystem does not allow to change permission). We should not
-                # fail in this case but rather ignore it.
-                print(f"Failed to change {directory} permission to {folder_permissions}: {e}")
-                return
-        if directory.parent != directory:
-            _change_directory_permissions_up(directory.parent, folder_permissions)
+    val.try_number = ti.try_number
+    return val
 
 
 class FileTaskHandler(logging.Handler):
@@ -192,7 +174,9 @@ class FileTaskHandler(logging.Handler):
     instance context.  It reads logs from task instance's host machine.
 
     :param base_log_folder: Base log folder to place logs.
-    :param filename_template: template filename string
+    :param max_bytes: max bytes size for the log file
+    :param backup_count: backup file count for the log file
+    :param delay:  default False -> StreamHandler, True -> Handler
     """
 
     trigger_should_wrap = True
@@ -200,19 +184,20 @@ class FileTaskHandler(logging.Handler):
         "Operator inherits from empty operator and thus does not have logs"
     )
 
-    def __init__(self, base_log_folder: str, filename_template: str | None = None):
+    def __init__(
+        self,
+        base_log_folder: str,
+        max_bytes: int = 0,
+        backup_count: int = 0,
+        delay: bool = False,
+    ):
         super().__init__()
         self.handler: logging.Handler | None = None
         self.local_base = base_log_folder
-        if filename_template is not None:
-            warnings.warn(
-                "Passing filename_template to a log handler is deprecated and has no effect",
-                RemovedInAirflow3Warning,
-                # We want to reference the stack that actually instantiates the
-                # handler, not the one that calls super()__init__.
-                stacklevel=(2 if type(self) == FileTaskHandler else 3),
-            )
         self.maintain_propagate: bool = False
+        self.max_bytes = max_bytes
+        self.backup_count = backup_count
+        self.delay = delay
         """
         If true, overrides default behavior of setting propagate=False
 
@@ -241,7 +226,13 @@ class FileTaskHandler(logging.Handler):
             to task logs from a context other than task or trigger run
         """
         local_loc = self._init_file(ti, identifier=identifier)
-        self.handler = NonCachingFileHandler(local_loc, encoding="utf-8")
+        self.handler = NonCachingRotatingFileHandler(
+            local_loc,
+            encoding="utf-8",
+            maxBytes=self.max_bytes,
+            backupCount=self.backup_count,
+            delay=self.delay,
+        )
         if self.formatter:
             self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
@@ -279,31 +270,42 @@ class FileTaskHandler(logging.Handler):
         if self.handler:
             self.handler.close()
 
-    def _render_filename(self, ti: TaskInstance | TaskInstanceKey, try_number: int) -> str:
-        """Return the worker log filename."""
-        with create_session() as session:
-            ti = _ensure_ti(ti, session)
-            dag_run = ti.get_dagrun(session=session)
-            template = dag_run.get_log_template(session=session).filename
-            str_tpl, jinja_tpl = parse_template_string(template)
-
-            if jinja_tpl:
-                if hasattr(ti, "task"):
-                    context = ti.get_template_context(session=session)
-                else:
-                    context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
-                context["try_number"] = try_number
-                return render_template_to_string(jinja_tpl, context)
-
-        if str_tpl:
-            try:
-                dag = ti.task.dag
-            except AttributeError:  # ti.task is not always set.
-                data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
+    @staticmethod
+    @internal_api_call
+    @provide_session
+    def _render_filename_db_access(
+        *, ti: TaskInstance | TaskInstancePydantic, try_number: int, session=None
+    ) -> tuple[DagRun | DagRunPydantic, TaskInstance | TaskInstancePydantic, str | None, str | None]:
+        ti = _ensure_ti(ti, session)
+        dag_run = ti.get_dagrun(session=session)
+        template = dag_run.get_log_template(session=session).filename
+        str_tpl, jinja_tpl = parse_template_string(template)
+        filename = None
+        if jinja_tpl:
+            if getattr(ti, "task", None) is not None:
+                context = ti.get_template_context(session=session)
             else:
-                if TYPE_CHECKING:
-                    assert dag is not None
+                context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
+            context["try_number"] = try_number
+            filename = render_template_to_string(jinja_tpl, context)
+        return dag_run, ti, str_tpl, filename
+
+    def _render_filename(self, ti: TaskInstance | TaskInstancePydantic, try_number: int) -> str:
+        """Return the worker log filename."""
+        dag_run, ti, str_tpl, filename = self._render_filename_db_access(ti=ti, try_number=try_number)
+        if filename:
+            return filename
+        if str_tpl:
+            if ti.task is not None and ti.task.dag is not None:
+                dag = ti.task.dag
                 data_interval = dag.get_run_data_interval(dag_run)
+            else:
+                from airflow.timetables.base import DataInterval
+
+                if TYPE_CHECKING:
+                    assert isinstance(dag_run.data_interval_start, DateTime)
+                    assert isinstance(dag_run.data_interval_end, DateTime)
+                data_interval = DataInterval(dag_run.data_interval_start, dag_run.data_interval_end)
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()
             else:
@@ -368,25 +370,23 @@ class FileTaskHandler(logging.Handler):
         executor_messages: list[str] = []
         executor_logs: list[str] = []
         served_logs: list[str] = []
-        is_running = ti.try_number == try_number and ti.state in (
-            TaskInstanceState.RUNNING,
-            TaskInstanceState.DEFERRED,
-        )
         with suppress(NotImplementedError):
             remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
             messages_list.extend(remote_messages)
+        has_k8s_exec_pod = False
         if ti.state == TaskInstanceState.RUNNING:
             response = self._executor_get_task_log(ti, try_number)
             if response:
                 executor_messages, executor_logs = response
             if executor_messages:
                 messages_list.extend(executor_messages)
+                has_k8s_exec_pod = True
         if not (remote_logs and ti.state not in State.unfinished):
             # when finished, if we have remote logs, no need to check local
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             local_messages, local_logs = self._read_from_local(worker_log_full_path)
             messages_list.extend(local_messages)
-        if is_running and not executor_messages:
+        if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not has_k8s_exec_pod:
             served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             messages_list.extend(served_messages)
         elif ti.state not in State.unfinished and not (local_logs or remote_logs):
@@ -406,11 +406,15 @@ class FileTaskHandler(logging.Handler):
         )
         log_pos = len(logs)
         messages = "".join([f"*** {x}\n" for x in messages_list])
+        end_of_log = ti.try_number != try_number or ti.state not in (
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.DEFERRED,
+        )
         if metadata and "log_pos" in metadata:
             previous_chars = metadata["log_pos"]
             logs = logs[previous_chars:]  # Cut off previously passed log test as new tail
         out_message = logs if "log_pos" in (metadata or {}) else messages + logs
-        return out_message, {"end_of_log": not is_running, "log_pos": log_pos}
+        return out_message, {"end_of_log": end_of_log, "log_pos": log_pos}
 
     @staticmethod
     def _get_pod_namespace(ti: TaskInstance):
@@ -458,7 +462,7 @@ class FileTaskHandler(logging.Handler):
         # try number gets incremented in DB, i.e logs produced the time
         # after cli run and before try_number + 1 in DB will not be displayed.
         if try_number is None:
-            next_try = task_instance.next_try_number
+            next_try = task_instance.try_number + 1
             try_numbers = list(range(1, next_try))
         elif try_number < 1:
             logs = [
@@ -481,7 +485,8 @@ class FileTaskHandler(logging.Handler):
 
         return logs, metadata_array
 
-    def _prepare_log_folder(self, directory: Path):
+    @staticmethod
+    def _prepare_log_folder(directory: Path, new_folder_permissions: int):
         """
         Prepare the log folder and ensure its mode is as configured.
 
@@ -505,11 +510,9 @@ class FileTaskHandler(logging.Handler):
         sure that the same group is set as default group for both - impersonated user and main airflow
         user.
         """
-        new_folder_permissions = int(
-            conf.get("logging", "file_task_handler_new_folder_permissions", fallback="0o775"), 8
-        )
-        directory.mkdir(mode=new_folder_permissions, parents=True, exist_ok=True)
-        _change_directory_permissions_up(directory, new_folder_permissions)
+        for parent in reversed(directory.parents):
+            parent.mkdir(mode=new_folder_permissions, exist_ok=True)
+        directory.mkdir(mode=new_folder_permissions, exist_ok=True)
 
     def _init_file(self, ti, *, identifier: str | None = None):
         """
@@ -531,14 +534,17 @@ class FileTaskHandler(logging.Handler):
             # if this is true, we're invoked via set_context in the context of
             # setting up individual trigger logging. return trigger log path.
             full_path = self.add_triggerer_suffix(full_path=full_path, job_id=ti.triggerer_job.id)
-        self._prepare_log_folder(Path(full_path).parent)
+        new_folder_permissions = int(
+            conf.get("logging", "file_task_handler_new_folder_permissions", fallback="0o775"), 8
+        )
+        self._prepare_log_folder(Path(full_path).parent, new_folder_permissions)
 
         if not os.path.exists(full_path):
             open(full_path, "a").close()
             try:
                 os.chmod(full_path, new_file_permissions)
             except OSError as e:
-                logging.warning("OSError while changing ownership of the log file. ", e)
+                logger.warning("OSError while changing ownership of the log file. ", e)
 
         return full_path
 
@@ -574,9 +580,9 @@ class FileTaskHandler(logging.Handler):
                 messages.append(f"Found logs served from host {url}")
                 logs.append(response.text)
         except Exception as e:
-            from httpx import UnsupportedProtocol
+            from requests.exceptions import InvalidSchema
 
-            if isinstance(e, UnsupportedProtocol) and ti.task.inherits_from_empty_operator is True:
+            if isinstance(e, InvalidSchema) and ti.task.inherits_from_empty_operator is True:
                 messages.append(self.inherits_from_empty_operator_log_message)
             else:
                 messages.append(f"Could not read served logs: {e}")

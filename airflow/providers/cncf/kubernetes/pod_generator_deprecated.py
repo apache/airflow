@@ -22,6 +22,7 @@ API and outputs a kubernetes.client.models.V1Pod.
 The advantage being that the full Kubernetes API
 is supported and no serialization need be written.
 """
+
 from __future__ import annotations
 
 import copy
@@ -29,8 +30,6 @@ import uuid
 
 import re2
 from kubernetes.client import models as k8s
-
-from airflow.utils.hashlib_wrapper import md5
 
 MAX_POD_ID_LEN = 253
 
@@ -70,6 +69,8 @@ def make_safe_label_value(string):
     way from the original value sent to this function, then we need to truncate to
     53 chars, and append it with a unique hash.
     """
+    from airflow.utils.hashlib_wrapper import md5
+
     safe_label = re2.sub(r"^[^a-z0-9A-Z]*|[^a-zA-Z0-9_\-\.]|[^a-z0-9A-Z]*$", "", string)
 
     if len(safe_label) > MAX_LABEL_LEN or string != safe_label:

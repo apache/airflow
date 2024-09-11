@@ -24,6 +24,7 @@ import yandexcloud
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.yandex.utils.credentials import (
+    CredentialsType,
     get_credentials,
     get_service_account_id,
 )
@@ -79,14 +80,14 @@ class YandexCloudBaseHook(BaseHook):
             "folder_id": StringField(
                 lazy_gettext("Default folder ID"),
                 widget=BS3TextFieldWidget(),
-                description="Optional. This folder will be used "
-                "to create all new clusters and nodes by default",
+                description="Optional. "
+                "If specified, this ID will be used by default when creating nodes and clusters.",
             ),
             "public_ssh_key": StringField(
                 lazy_gettext("Public SSH key"),
                 widget=BS3TextFieldWidget(),
-                description="Optional. This key will be placed to all created Compute nodes "
-                "to let you have a root shell there",
+                description="Optional. The key will be placed to all created Compute nodes, "
+                "allowing you to have a root shell there.",
             ),
             "endpoint": StringField(
                 lazy_gettext("API endpoint"),
@@ -132,13 +133,18 @@ class YandexCloudBaseHook(BaseHook):
         self.connection_id = yandex_conn_id or connection_id or default_conn_name
         self.connection = self.get_connection(self.connection_id)
         self.extras = self.connection.extra_dejson
-        credentials = get_credentials(
+        self.credentials: CredentialsType = get_credentials(
             oauth_token=self._get_field("oauth"),
             service_account_json=self._get_field("service_account_json"),
             service_account_json_path=self._get_field("service_account_json_path"),
         )
         sdk_config = self._get_endpoint()
-        self.sdk = yandexcloud.SDK(user_agent=provider_user_agent(), **sdk_config, **credentials)
+        self.sdk = yandexcloud.SDK(
+            user_agent=provider_user_agent(),
+            token=self.credentials.get("token"),
+            service_account_key=self.credentials.get("service_account_key"),
+            endpoint=sdk_config.get("endpoint"),
+        )
         self.default_folder_id = default_folder_id or self._get_field("folder_id")
         self.default_public_ssh_key = default_public_ssh_key or self._get_field("public_ssh_key")
         self.default_service_account_id = default_service_account_id or get_service_account_id(

@@ -22,8 +22,8 @@ from typing import TYPE_CHECKING, Any, Sequence
 import attr
 
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.xcom import XCom
+from tests.test_utils.compat import BaseOperatorLink
 
 if TYPE_CHECKING:
     import jinja2
@@ -139,6 +139,8 @@ class CustomOpLink(BaseOperatorLink):
         search_query = XCom.get_one(
             task_id=ti_key.task_id, dag_id=ti_key.dag_id, run_id=ti_key.run_id, key="search_query"
         )
+        if not search_query:
+            return None
         return f"http://google.com/custom_base_link?search={search_query}"
 
 

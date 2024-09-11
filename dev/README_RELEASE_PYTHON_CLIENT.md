@@ -58,6 +58,8 @@ cd airflow
 # Checkout the right branch
 git checkout v2-8-test
 export AIRFLOW_REPO_ROOT=$(pwd -P)
+export TEST_BRANCH=v2-8-test
+export STABLE_BRANCH=v2-8-stable
 cd ..
 ```
 
@@ -66,7 +68,7 @@ cd ..
 
 ```bash
 # If you have not done so yet
-git clone git@github.com/apache/airflow-client-python
+git clone git@github.com:apache/airflow-client-python
 cd airflow-client-python
 # Checkout the right branch
 git checkout main
@@ -80,8 +82,8 @@ cd ..
 
 ```bash
 cd ${AIRFLOW_REPO_ROOT}
-VERSION="2.8.0"
-VERSION_SUFFIX="rc1"
+export VERSION="2.8.0"
+export VERSION_SUFFIX="rc1"
 echo "${VERSION}" > clients/python/version.txt
 ```
 
@@ -98,23 +100,19 @@ git log 2.8.0..HEAD --pretty=oneline -- airflow/api_connexion/openapi/v1.yaml
 - Create PR where you add the changelog in `main` branch and cherry-pick it to the `v2-test` branch - same
   as in case of Airflow changelog.
 
-- Merge it to the `v2-*-stable` branch. You will release API client from the latest `v2-*-stable` branch
-  of Airflow repository - same branch that is used to release Airflow.
+- Merge it to the `v2-*-stable` branch with the command below. You will release API client from the latest `v2-*-stable` branch
+  of Airflow repository - same branch that is used to release Airflow:
 
-- Tag your release with RC candidate tag (note that this is the RC tag even if version of the packages
-  is the same as the final version. This is because when the packages get approved and released they
-  will turn into official release and must be binary identical to the RC packages in SVN). The tags
-  should be set in both Airflow and Airflow Client repositories (with python-client prefix in Airflow repo and
-  without the prefix in the Python Client repo).
-
-```shell script
-cd ${AIRFLOW_REPO_ROOT}
-git tag -s python-client-${VERSION}${VERSION_SUFFIX} -m "Airflow Python Client ${VERSION}${VERSION_SUFFIX}"
-git push apache python-client-${VERSION}${VERSION_SUFFIX}
-cd ${CLIENT__REPO_ROOT}
-git tag -s ${VERSION}${VERSION_SUFFIX} -m "Airflow Python Client ${VERSION}${VERSION_SUFFIX}"
-git push apache ${VERSION}${VERSION_SUFFIX}
-```
+  ```shell script
+  git checkout ${STABLE_BRANCH}
+  # make sure you are up to date
+  git fetch origin ${STABLE_BRANCH}
+  git reset --hard origin/${STABLE_BRANCH}
+  # merge the changes from the test branch
+  git merge --ff-only ${TEST_BRANCH}
+  # push the changes to the stable branch
+  git push origin ${STABLE_BRANCH}
+  ```
 
 - Build the sdist and wheel packages to be added to SVN and copy generated client sources to the
   Python Client repository.
@@ -135,10 +133,29 @@ breeze release-management prepare-python-client --package-format both --python-c
 ```shell script
 cd ${CLIENT_REPO_ROOT}
 git diff HEAD
+git checkout -b release-${VERSION}
 git add .
 git commit -m "Update Python Client to ${VERSION}${VERSION_SUFFIX}"
-git push origin main
+git push apache release-${VERSION}
 ```
+
+Then open a PR and merge it into main.
+
+- Tag your release with RC candidate tag (note that this is the RC tag even if version of the packages
+  is the same as the final version. This is because when the packages get approved and released they
+  will turn into official release and must be binary identical to the RC packages in SVN). The tags
+  should be set in both Airflow and Airflow Client repositories (with python-client prefix in Airflow repo and
+  without the prefix in the Python Client repo).
+
+```shell script
+cd ${AIRFLOW_REPO_ROOT}
+git tag -s python-client-${VERSION}${VERSION_SUFFIX} -m "Airflow Python Client ${VERSION}${VERSION_SUFFIX}"
+git push apache python-client-${VERSION}${VERSION_SUFFIX}
+cd ${CLIENT_REPO_ROOT}
+git tag -s ${VERSION}${VERSION_SUFFIX} -m "Airflow Python Client ${VERSION}${VERSION_SUFFIX}"
+git push apache tag ${VERSION}${VERSION_SUFFIX}
+```
+
 
 - Generate signatures and checksum files for the packages (if you have not generated a key yet, generate
   it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
@@ -165,6 +182,12 @@ mv ${AIRFLOW_REPO_ROOT}/dist/apache_airflow_client-* ${VERSION}${VERSION_SUFFIX}
 cd ${VERSION}${VERSION_SUFFIX}
 svn add *
 svn commit -m "Add artifacts for Apache Airflow Python Client ${VERSION}${VERSION_SUFFIX}"
+
+# Remove old version
+cd ..
+export PREVIOUS_VERSION_WITH_SUFFIX=2.8.0rc1
+svn rm ${PREVIOUS_VERSION_WITH_SUFFIX}
+svn commit -m "Remove old Apache Airflow Python Client ${PREVIOUS_VERSION_WITH_SUFFIX}"
 ```
 
 ## Prepare PyPI convenience "RC" packages
@@ -203,7 +226,7 @@ Subject:
 
 ```shell script
 cat <<EOF
-[VOTE] Release Airflow Python Client ${VERSION} from ${VERSION}${VERSION_SUFFIX}
+[VOTE] Release Apache Airflow Python Client ${VERSION} from ${VERSION}${VERSION_SUFFIX}
 EOF
 ```
 
@@ -213,17 +236,17 @@ Body:
 cat <<EOF
 Hey fellow Airflowers,
 
-I have cut the first release candidate for the Airflow Python Client ${VERSION}.
+I have cut the first release candidate for the Apache Airflow Python Client ${VERSION}.
 This email is calling for a vote on the release,
 which will last for 72 hours. Consider this my (binding) +1.
 
 Airflow Client ${VERSION}${VERSION_SUFFIX} is available at:
 https://dist.apache.org/repos/dist/dev/airflow/clients/python/${VERSION}${VERSION_SUFFIX}/
 
-The apache_airflow_client-${VERSION}.tar.gz is sdist release that contains INSTALL instructions, and also
+The apache_airflow_client-${VERSION}.tar.gz is an sdist release that contains INSTALL instructions, and also
 is the official source release.
 
-The apache_airflow_client-${VERSION}-py3-none-any.whl is a binary wheel release that pip can installl.
+The apache_airflow_client-${VERSION}-py3-none-any.whl is a binary wheel release that pip can install.
 
 Those packages do not contain .rc* version as, when approved, they will be released as the final version.
 
@@ -233,16 +256,13 @@ https://pypi.org/project/apache-airflow-client/${VERSION}${VERSION_SUFFIX}/
 Public keys are available at:
 https://dist.apache.org/repos/dist/release/airflow/KEYS
 
-The
+Only votes from PMC members are binding, but all members of the community
+are encouraged to test the release and vote with "(non-binding)".
 
-Only votes from PMC members are binding, but the release manager should
-encourage members of the community to test the release and vote with
-"(non-binding)".
-
-The way how PMC members can check the candidate release is described here:
+The test procedure for PMC members is described in:
 https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PYTHON_CLIENT.md#verify-the-release-candidate-by-pmc-members
 
-The way how anyone can test the candidate release is described here:
+The test procedure for contributors and members of the community who would like to test this RC is described in:
 https://github.com/apache/airflow/blob/main/dev/README_RELEASE_PYTHON_CLIENT.md#verify-the-release-candidate-by-contributors
 
 *Changelog:*
@@ -287,7 +307,7 @@ The following files should be present (6 files):
 * .tar.gz + .asc + .sha512
 * -py3-none-any.whl + .asc + .sha512
 
-As a PMC you should be able to clone the SVN repository
+As a PMC member, you should be able to clone the SVN repository
 
 ```shell script
 svn co https://dist.apache.org/repos/dist/dev/airflow/clients/python
@@ -305,11 +325,11 @@ Airflow Python client supports reproducible builds, which means that the package
 sources should produce binary identical packages in reproducible way. You should check if the packages can be
 binary-reproduced when built from the sources.
 
-Checkout airflow sources and build packages in dist folder (replace X.Y.Z with the version
+Checkout airflow sources and build packages in dist folder (replace X.Y.Zrc1 with the version + rc candidate)
 you are checking):
 
 ```shell script
-VERSION=X.Y.Z
+VERSION=X.Y.Zrc1
 git checkout python-client-${VERSION}
 export AIRFLOW_REPO_ROOT=$(pwd)
 rm -rf dist/*
@@ -337,7 +357,7 @@ cd ..
 svn update --set-depth=infinity asf-dist/dev/airflow/clients/python
 
 # Then compare the packages
-cd asf-dist/dev/airflow/clients/python/X.Y.Zrc1
+cd asf-dist/dev/airflow/clients/python/${VERSION}
 for i in ${AIRFLOW_REPO_ROOT}/dist/*
 do
   echo "Checking if $(basename $i) is the same as $i"
@@ -457,7 +477,7 @@ and allows you to test the client in a real environment.
    variable in `files/airflow-breeze-config/init.sh`:
 
 ```shell
-export AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth
+export AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
 export AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
 ```
 
@@ -524,6 +544,9 @@ Cheers,
 ## Publish release to SVN
 
 ```shell script
+# Go to Airflow sources first
+cd <YOUR_AIRFLOW_REPO_ROOT>
+export AIRFLOW_REPO_ROOT="$(pwd)"
 # Go to Airflow python client sources first
 cd <YOUR_AIRFLOW_CLIENT_REPO_ROOT>
 export CLIENT_REPO_ROOT="$(pwd)"
@@ -549,15 +572,15 @@ cd ${VERSION}
 
 # Move the artifacts to svn folder & commit
 for f in ${CLIENT_DEV_SVN}/${VERSION}${VERSION_SUFFIX}/*; do
-  svn mv $f . ;
+  svn cp $f . ;
 done
 # Remove old release
 cd ..
 svn rm ${PREVIOUS_VERSION}
-svn commit -m "Release Apache Airflow Python Client ${VERSION} from ${RC}"
+svn commit -m "Release Apache Airflow Python Client ${VERSION} from ${VERSION}${VERSION_SUFFIX}"
 ```
 
-Verify that the packages appear in [airflow](https://downloads.apache.org/airflow/clients/python/)
+Verify that the packages appear in [airflow](https://dist.apache.org/repos/dist/release/airflow/clients/python)
 
 ## Prepare PyPI "release" packages
 
@@ -580,11 +603,13 @@ twine upload -r pypi *.tar.gz *.whl
 
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
-git tag -s python-client-${VERSION}
-git push origin python-client-${VERSION}
+git checkout python-client-${VERSION}${VERSION_SUFFIX}
+git tag -s python-client-${VERSION} -m "Airflow Python Client ${VERSION}"
+git push apache tag python-client-${VERSION}
 cd ${CLIENT_REPO_ROOT}
-git tag -s ${VERSION}
-git push origin ${VERSION}
+git checkout ${VERSION}${VERSION_SUFFIX}
+git tag -s ${VERSION} -m ${VERSION}
+git push origin tag ${VERSION}
 ```
 
 ## Create release on GitHub
@@ -594,7 +619,38 @@ from the release svn.
 
 ## Notify developers of release
 
-See Airflow process documented [here](https://github.com/apache/airflow/blob/master/dev/README_RELEASE_AIRFLOW.md#notify-developers-of-release) (just replace Airflow with Airflow Client)
+Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org) that the artifacts have been published:
+
+Subject:
+
+```
+cat <<EOF
+[ANNOUNCE] Apache Airflow Python Client ${VERSION} Released
+EOF
+```
+
+Body:
+
+```
+cat <<EOF
+Dear Airflow community,
+
+I'm happy to announce that Apache Airflow Python Client ${VERSION} was just released.
+
+We made this version available on PyPI for convenience:
+\`pip install apache-airflow-client\`
+https://pypi.org/project/apache-airflow-client/${VERSION}/
+
+The documentation is available at:
+https://github.com/apache/airflow-client-python/
+
+Find the changelog here for more details:
+https://github.com/apache/airflow-client-python/blob/main/CHANGELOG.md
+
+Thanks,
+<your name>
+EOF
+```
 
 ## Add release data to Apache Committee Report Helper
 

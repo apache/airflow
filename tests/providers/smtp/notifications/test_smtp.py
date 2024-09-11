@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import tempfile
 from unittest import mock
 
 import pytest
@@ -30,10 +31,15 @@ from airflow.providers.smtp.notifications.smtp import (
     send_smtp_notification,
 )
 from airflow.utils import timezone
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
+from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
 
 SMTP_API_DEFAULT_CONN_ID = SmtpHook.default_conn_name
+
+
+NUM_TRY = 0 if AIRFLOW_V_2_10_PLUS else 1
 
 
 class TestSmtpNotifier:
@@ -127,7 +133,7 @@ class TestSmtpNotifier:
             from_email=conf.get("smtp", "smtp_mail_from"),
             to="test_reciver@test.com",
             subject="DAG dag - Task op - Run ID test in State None",
-            html_content="""<!DOCTYPE html>\n<html>\n    <head>\n        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />\n        <meta name="viewport" content="width=device-width">\n    </head>\n<body>\n    <table role="presentation">\n        \n        <tr>\n            <td>Run ID:</td>\n            <td>test</td>\n        </tr>\n        <tr>\n            <td>Try:</td>\n            <td>1 of 1</td>\n        </tr>\n        <tr>\n            <td>Task State:</td>\n            <td>None</td>\n        </tr>\n        <tr>\n            <td>Host:</td>\n            <td></td>\n        </tr>\n        <tr>\n            <td>Log Link:</td>\n            <td><a href="http://localhost:8080/log?execution_date=2018-01-01T00%3A00%3A00%2B00%3A00&task_id=op&dag_id=dag&map_index=-1" style="text-decoration:underline;">http://localhost:8080/log?execution_date=2018-01-01T00%3A00%3A00%2B00%3A00&task_id=op&dag_id=dag&map_index=-1</a></td>\n        </tr>\n        <tr>\n            <td>Mark Success Link:</td>\n            <td><a href="http://localhost:8080/confirm?task_id=op&dag_id=dag&dag_run_id=test&upstream=false&downstream=false&state=success" style="text-decoration:underline;">http://localhost:8080/confirm?task_id=op&dag_id=dag&dag_run_id=test&upstream=false&downstream=false&state=success</a></td>\n        </tr>\n        \n    </table>\n</body>\n</html>""",
+            html_content=mock.ANY,
             smtp_conn_id="smtp_default",
             files=None,
             cc=None,
@@ -136,6 +142,8 @@ class TestSmtpNotifier:
             mime_charset="utf-8",
             custom_headers=None,
         )
+        content = mock_smtphook_hook.return_value.__enter__().send_email_smtp.call_args.kwargs["html_content"]
+        assert f"{NUM_TRY} of 1" in content
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
     def test_notifier_with_defaults_sla(self, mock_smtphook_hook, dag_maker):
@@ -157,7 +165,7 @@ class TestSmtpNotifier:
             from_email=conf.get("smtp", "smtp_mail_from"),
             to="test_reciver@test.com",
             subject="SLA Missed for DAG test_notifier - Task op",
-            html_content="""<!DOCTYPE html>\n<html>\n    <head>\n        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />\n        <meta name="viewport" content="width=device-width">\n    </head>\n<body>\n    <table role="presentation">\n        \n        <tr>\n            <td>Dag:</td>\n            <td>test_notifier</td>\n        </tr>\n        <tr>\n            <td>Task List:</td>\n            <td>[]</td>\n        </tr>\n        <tr>\n            <td>Blocking Task List:</td>\n            <td>[]</td>\n        </tr>\n        <tr>\n            <td>SLAs:</td>\n            <td>[(\'test_notifier\', \'op\', \'2018-01-01T00:00:00+00:00\')]</td>\n        </tr>\n        <tr>\n            <td>Blocking TI\'s</td>\n            <td>[]</td>\n        </tr>\n        \n    </table>\n</body>\n</html>""",
+            html_content=mock.ANY,
             smtp_conn_id="smtp_default",
             files=None,
             cc=None,
@@ -166,3 +174,44 @@ class TestSmtpNotifier:
             mime_charset="utf-8",
             custom_headers=None,
         )
+        content = mock_smtphook_hook.return_value.__enter__().send_email_smtp.call_args.kwargs["html_content"]
+        assert "Task List:" in content
+
+    @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
+    def test_notifier_with_nondefault_conf_vars(self, mock_smtphook_hook, create_task_instance):
+        ti = create_task_instance(dag_id="dag", task_id="op", execution_date=timezone.datetime(2018, 1, 1))
+        context = {"dag": ti.dag_run.dag, "ti": ti}
+
+        with tempfile.NamedTemporaryFile(mode="wt", suffix=".txt") as f_subject, tempfile.NamedTemporaryFile(
+            mode="wt", suffix=".txt"
+        ) as f_content:
+            f_subject.write("Task {{ ti.task_id }} failed")
+            f_subject.flush()
+
+            f_content.write("Mock content goes here")
+            f_content.flush()
+
+            with conf_vars(
+                {
+                    ("smtp", "templated_html_content_path"): f_content.name,
+                    ("smtp", "templated_email_subject_path"): f_subject.name,
+                }
+            ):
+                notifier = SmtpNotifier(
+                    from_email=conf.get("smtp", "smtp_mail_from"),
+                    to="test_reciver@test.com",
+                )
+                notifier(context)
+                mock_smtphook_hook.return_value.__enter__().send_email_smtp.assert_called_once_with(
+                    from_email=conf.get("smtp", "smtp_mail_from"),
+                    to="test_reciver@test.com",
+                    subject="Task op failed",
+                    html_content="Mock content goes here",
+                    smtp_conn_id="smtp_default",
+                    files=None,
+                    cc=None,
+                    bcc=None,
+                    mime_subtype="mixed",
+                    mime_charset="utf-8",
+                    custom_headers=None,
+                )

@@ -19,10 +19,11 @@ from __future__ import annotations
 import logging
 import secrets
 import string
-import warnings
 from typing import TYPE_CHECKING
 
 import pendulum
+from deprecated import deprecated
+from kubernetes.client.rest import ApiException
 from slugify import slugify
 
 from airflow.compat.functools import cache
@@ -40,7 +41,8 @@ POD_NAME_MAX_LENGTH = 63  # Matches Linux kernel's HOST_NAME_MAX default value m
 
 
 def rand_str(num):
-    """Generate random lowercase alphanumeric string of length num.
+    """
+    Generate random lowercase alphanumeric string of length num.
 
     :meta private:
     """
@@ -48,7 +50,8 @@ def rand_str(num):
 
 
 def add_unique_suffix(*, name: str, rand_len: int = 8, max_len: int = POD_NAME_MAX_LENGTH) -> str:
-    """Add random string to pod or job name while staying under max length.
+    """
+    Add random string to pod or job name while staying under max length.
 
     :param name: name of the pod or job
     :param rand_len: length of the random string to append
@@ -59,22 +62,20 @@ def add_unique_suffix(*, name: str, rand_len: int = 8, max_len: int = POD_NAME_M
     return name[: max_len - len(suffix)].strip("-.") + suffix
 
 
+@deprecated(
+    reason="This function is deprecated. Please use `add_unique_suffix`",
+    category=AirflowProviderDeprecationWarning,
+)
 def add_pod_suffix(*, pod_name: str, rand_len: int = 8, max_len: int = POD_NAME_MAX_LENGTH) -> str:
-    """Add random string to pod name while staying under max length.
+    """
+    Add random string to pod name while staying under max length.
 
     :param pod_name: name of the pod
     :param rand_len: length of the random string to append
     :param max_len: maximum length of the pod name
     :meta private:
     """
-    warnings.warn(
-        "This function is deprecated. Please use `add_unique_suffix`.",
-        AirflowProviderDeprecationWarning,
-        stacklevel=2,
-    )
-
-    suffix = "-" + rand_str(rand_len)
-    return pod_name[: max_len - len(suffix)].strip("-.") + suffix
+    return add_unique_suffix(name=pod_name, rand_len=rand_len, max_len=max_len)
 
 
 def create_unique_id(
@@ -104,11 +105,15 @@ def create_unique_id(
         name += task_id
     base_name = slugify(name, lowercase=True)[:max_length].strip(".-")
     if unique:
-        return add_pod_suffix(pod_name=base_name, rand_len=8, max_len=max_length)
+        return add_unique_suffix(name=base_name, rand_len=8, max_len=max_length)
     else:
         return base_name
 
 
+@deprecated(
+    reason="This function is deprecated. Please use `create_unique_id`.",
+    category=AirflowProviderDeprecationWarning,
+)
 def create_pod_id(
     dag_id: str | None = None,
     task_id: str | None = None,
@@ -125,26 +130,7 @@ def create_pod_id(
     :param unique: whether a random string suffix should be added
     :return: A valid identifier for a kubernetes pod name
     """
-    warnings.warn(
-        "This function is deprecated. Please use `create_unique_id`.",
-        AirflowProviderDeprecationWarning,
-        stacklevel=2,
-    )
-
-    if not (dag_id or task_id):
-        raise ValueError("Must supply either dag_id or task_id.")
-    name = ""
-    if dag_id:
-        name += dag_id
-    if task_id:
-        if name:
-            name += "-"
-        name += task_id
-    base_name = slugify(name, lowercase=True)[:max_length].strip(".-")
-    if unique:
-        return add_pod_suffix(pod_name=base_name, rand_len=8, max_len=max_length)
-    else:
-        return base_name
+    return create_unique_id(dag_id=dag_id, task_id=task_id, max_length=max_length, unique=unique)
 
 
 def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
@@ -199,3 +185,18 @@ def annotations_for_logging_task_metadata(annotation_set):
     else:
         annotations_for_logging = "<omitted>"
     return annotations_for_logging
+
+
+def should_retry_creation(exception: BaseException) -> bool:
+    """
+    Check if an Exception indicates a transient error and warrants retrying.
+
+    This function is needed for preventing 'No agent available' error. The error appears time to time
+    when users try to create a Resource or Job. This issue is inside kubernetes and in the current moment
+    has no solution. Like a temporary solution we decided to retry Job or Resource creation request each
+    time when this error appears.
+    More about this issue here: https://github.com/cert-manager/cert-manager/issues/6457
+    """
+    if isinstance(exception, ApiException):
+        return str(exception.status) == "500"
+    return False

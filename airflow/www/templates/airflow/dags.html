@@ -22,7 +22,7 @@
 {% from 'airflow/dataset_next_run_modal.html' import dataset_next_run_modal %}
 {% from 'airflow/_messages.html' import show_message %}
 
-{%- macro sortable_column(display_name, attribute_name) -%}
+{%- macro sortable_column(dag_display_name, attribute_name) -%}
   {% set curr_ordering_direction = (request.args.get('sorting_direction', 'desc')) %}
   {% set new_ordering_direction = ('asc' if (request.args.get('sorting_key') != attribute_name or curr_ordering_direction == 'desc') else 'desc') %}
   <a href="{{ url_for('Airflow.index',
@@ -36,9 +36,9 @@
      role="tooltip"
      title="Sort by {{ new_ordering_direction }} {{ attribute_name }}."
   >
-    {{ display_name }}
+    {{ dag_display_name }}
 
-    <span class="material-icons" aria-hidden="true" aria-describedby="sorting-tip-{{ display_name }}">
+    <span class="material-icons" aria-hidden="true" aria-describedby="sorting-tip-{{ dag_display_name }}">
       {% if curr_ordering_direction == 'desc' and request.args.get('sorting_key') == attribute_name %}
         expand_more
       {% elif curr_ordering_direction == 'asc' and request.args.get('sorting_key') == attribute_name %}
@@ -119,12 +119,6 @@
       <a href={{ get_docs_url("executor/index.html") }}  target="_blank" rel="noopener noreferrer"><b>Click here</b></a> for more information.
     {% endcall %}
   {% endif %}
-  {% if otel_on | default(false) %}
-    {% call show_message(category='warning', dismissible=false) %}
-      OpenTelemetry support is experimental. <a href="https://github.com/apache/airflow/blob/main/dev/breeze/doc/03_developer_tasks.rst#running-breeze-with-an-opentelemetry-metrics-stack" target="_blank" rel="noopener noreferrer">
-        <b>Click here</b></a> for more information.
-    {% endcall %}
-  {% endif %}
 {% endblock %}
 
 {% block content %}
@@ -133,27 +127,27 @@
     <div class="dags-table-header">
       <div class="form-group btn-group">
         <a
-          href="{{ url_for('Airflow.index', status='all', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
+          href="{{ url_for('Airflow.index', status='all', lastrun=request.args.get('lastrun', None), search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
           class="btn {{ 'btn-primary' if status_filter == 'all' else 'btn-default' }}"
           title="Show active and paused DAGs">All <span class="badge">{{ "{:,}".format(status_count_all) }}</span></a>
         <a
-          href="{{ url_for('Airflow.index', status='active', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
+          href="{{ url_for('Airflow.index', status='active', lastrun=request.args.get('lastrun', None), search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
           class="btn {{ 'btn-primary' if status_filter == 'active' else 'btn-default' }}"
           title="Show only active DAGs">Active <span class="badge">{{ "{:,}".format(status_count_active) }}</span></a>
         <a
-          href="{{ url_for('Airflow.index', status='paused', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
+          href="{{ url_for('Airflow.index', status='paused', lastrun=request.args.get('lastrun', None), search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
           class="btn {{ 'btn-primary' if status_filter == 'paused' else 'btn-default' }}"
           title="Show only paused DAGs">Paused <span class="badge">{{ "{:,}".format(status_count_paused) }}</span></a>
       </div>
       <div class="form-group btn-group p-2">
         <a
-          href="{{ url_for('Airflow.index', status='running', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
-          class="btn {{ 'btn-primary' if status_filter == 'running' else 'btn-default' }}"
-          title="Show currently running DAG runs">Running <span class="badge">{{ "{:,}".format(status_count_running) }}</span></a>
+          href="{{ url_for('Airflow.index', lastrun='reset_filter' if lastrun_filter == 'running' else 'running', status=request.args.get('status', None), search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
+          class="btn {{ 'btn-primary' if lastrun_filter == 'running' else 'btn-default' }}"
+          title="Show currently running DAG runs">Running <span class="badge">{{ "{:,}".format(lastrun_count_running) }}</span></a>
         <a
-          href="{{ url_for('Airflow.index', status='failed', search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
-          class="btn {{ 'btn-primary' if status_filter == 'failed' else 'btn-default' }}"
-          title="Show DAGs with failed latest DAG run">Failed <span class="badge">{{ "{:,}".format(status_count_failed) }}</span></a>
+          href="{{ url_for('Airflow.index', lastrun='reset_filter' if lastrun_filter == 'failed' else 'failed', status=request.args.get('status', None), search=request.args.get('search', None), tags=request.args.getlist('tags', None)) }}"
+          class="btn {{ 'btn-primary' if lastrun_filter == 'failed' else 'btn-default' }}"
+          title="Show DAGs with failed latest DAG run">Failed <span class="badge">{{ "{:,}".format(lastrun_count_failed) }}</span></a>
       </div>
       <div style="min-width: 200px; padding: 0 10px;">
         <form id="tags_form">
@@ -257,7 +251,7 @@
             <td>
               <a href="{{ url_for('Airflow.'+ dag.get_default_view(), dag_id=dag.dag_id) }}"
                  title="{{ dag.description[0:80] + '…' if dag.description and dag.description|length > 80 else dag.description|default('', true) }}">
-                <strong>{{ dag.dag_id }}</strong>
+                <strong title="{{ dag.dag_id }}">{{ dag.dag_display_name }}</strong>
               </a>
               <div>
                 {% for tag in dag.tags | sort(attribute='name') %}
@@ -290,7 +284,7 @@
               <a class="label label-default schedule"
                  href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}"
                  data-dag-id="{{ dag.dag_id }}">
-                {{ dag.schedule_interval }}
+                {{ dag.timetable_summary }}
               </a>
               {% if dag is defined and dag.timetable_description %}
                 <span class="material-icons text-muted js-tooltip" aria-hidden="true"
@@ -392,6 +386,10 @@
                     <span class="material-icons" aria-hidden="true">play_arrow</span>
                   </a>
                 {% endif %}
+                <a href="{{ url_for('Airflow.parse_dag', file_token=file_tokens[dag.dag_id], redirect_url=url_for(request.endpoint)) }}" title="Reparse&nbsp;DAG" aria-label="Reparse DAG"
+                    class="btn btn-sm btn-default btn-icon-only{{ ' disabled' if not dag.can_edit }}">
+                    <span class="material-icons">restore_page</span>
+                </a>
                 <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id, redirect_url=url_for(request.endpoint)) }}"
                     onclick="return confirmDeleteDag(this, '{{ dag.dag_id }}')" title="Delete&nbsp;DAG"
                     aria-label="Delete DAG"
@@ -490,4 +488,7 @@
       return false;
     }
   </script>
+  {% if scarf_url %}
+  <img referrerpolicy="no-referrer-when-downgrade" src="{{ scarf_url }}" width="0" height="0" alt="" style="display:none;" />
+  {% endif %}
 {% endblock %}

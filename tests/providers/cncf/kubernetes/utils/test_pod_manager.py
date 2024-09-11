@@ -40,8 +40,7 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     container_is_terminated,
 )
 from airflow.utils.timezone import utc
-
-from ..test_callbacks import MockKubernetesPodOperatorCallback, MockWrapper
+from tests.providers.cncf.kubernetes.test_callbacks import MockKubernetesPodOperatorCallback, MockWrapper
 
 if TYPE_CHECKING:
     from pendulum import DateTime
@@ -61,7 +60,7 @@ class TestPodManager:
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.read_namespaced_pod_log.return_value = mock.sentinel.logs
         logs = self.pod_manager.read_pod_logs(pod=mock.sentinel, container_name="base")
-        assert type(logs) == PodLogsConsumer
+        assert isinstance(logs, PodLogsConsumer)
         assert logs.response == mock.sentinel.logs
 
     def test_read_pod_logs_retries_successfully(self):
@@ -71,7 +70,7 @@ class TestPodManager:
             mock.sentinel.logs,
         ]
         logs = self.pod_manager.read_pod_logs(pod=mock.sentinel, container_name="base")
-        assert type(logs) == PodLogsConsumer
+        assert isinstance(logs, PodLogsConsumer)
         assert mock.sentinel.logs == logs.response
         self.mock_kube_client.read_namespaced_pod_log.assert_has_calls(
             [
@@ -94,6 +93,21 @@ class TestPodManager:
             ]
         )
 
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.container_is_running")
+    def test_fetch_container_logs_do_not_log_none(self, mock_container_is_running, caplog):
+        MockWrapper.reset()
+        caplog.set_level(logging.INFO)
+
+        def consumer_iter():
+            """This will simulate a container that hasn't produced any logs in the last read_timeout window"""
+            yield from ()
+
+        with mock.patch.object(PodLogsConsumer, "__iter__") as mock_consumer_iter:
+            mock_consumer_iter.side_effect = consumer_iter
+            mock_container_is_running.side_effect = [True, True, False]
+            self.pod_manager.fetch_container_logs(mock.MagicMock(), "container-name", follow=True)
+            assert "[container-name] None" not in (record.message for record in caplog.records)
+
     def test_read_pod_logs_retries_fails(self):
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.read_namespaced_pod_log.side_effect = [
@@ -111,7 +125,7 @@ class TestPodManager:
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.read_namespaced_pod_log.side_effect = [mock.sentinel.logs]
         logs = self.pod_manager.read_pod_logs(pod=mock.sentinel, container_name="base", tail_lines=100)
-        assert type(logs) == PodLogsConsumer
+        assert isinstance(logs, PodLogsConsumer)
         assert mock.sentinel.logs == logs.response
         self.mock_kube_client.read_namespaced_pod_log.assert_has_calls(
             [
@@ -131,7 +145,7 @@ class TestPodManager:
         mock.sentinel.metadata = mock.MagicMock()
         self.mock_kube_client.read_namespaced_pod_log.side_effect = [mock.sentinel.logs]
         logs = self.pod_manager.read_pod_logs(mock.sentinel, "base", since_seconds=2)
-        assert type(logs) == PodLogsConsumer
+        assert isinstance(logs, PodLogsConsumer)
         assert mock.sentinel.logs == logs.response
         self.mock_kube_client.read_namespaced_pod_log.assert_has_calls(
             [
@@ -557,12 +571,12 @@ class TestPodManager:
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
     def test_extract_xcom_failure(self, mock_exec_xcom_kill, mock_exec_pod_command, mock_kubernetes_stream):
         """test when invalid json is retrieved from xcom sidecar container."""
+        xcom_json = """{"a": "tru"""  # codespell:ignore tru
+        mock_pod = MagicMock()
+        mock_exec_pod_command.return_value = xcom_json
         with pytest.raises(JSONDecodeError):
-            xcom_json = """{"a": "tru"""
-            mock_pod = MagicMock()
-            mock_exec_pod_command.return_value = xcom_json
             self.pod_manager.extract_xcom(pod=mock_pod)
-            assert mock_exec_xcom_kill.call_count == 1
+        assert mock_exec_xcom_kill.call_count == 1
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.kubernetes_stream")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager._exec_pod_command")
@@ -581,11 +595,11 @@ class TestPodManager:
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom_kill")
     def test_extract_xcom_none(self, mock_exec_xcom_kill, mock_exec_pod_command, mock_kubernetes_stream):
         """test when None is retrieved from xcom sidecar container."""
+        mock_pod = MagicMock()
+        mock_exec_pod_command.return_value = None
         with pytest.raises(AirflowException):
-            mock_pod = MagicMock()
-            mock_exec_pod_command.return_value = None
             self.pod_manager.extract_xcom(pod=mock_pod)
-            assert mock_exec_xcom_kill.call_count == 1
+        assert mock_exec_xcom_kill.call_count == 1
 
 
 def params_for_test_container_is_running():

@@ -41,6 +41,7 @@ class EcrCredentials:
     expires_at: datetime
 
     def __post_init__(self):
+        """Initialize the `Ecr` credentials object."""
         mask_secret(self.password)
         logger.debug("Credentials to Amazon ECR %r expires at %s.", self.proxy_endpoint, self.expires_at)
 
@@ -69,7 +70,8 @@ class EcrHook(AwsBaseHook):
         super().__init__(**kwargs)
 
     def get_temporary_credentials(self, registry_ids: list[str] | str | None = None) -> list[EcrCredentials]:
-        """Get temporary credentials for Amazon ECR.
+        """
+        Get temporary credentials for Amazon ECR.
 
         .. seealso::
             - :external+boto3:py:meth:`ECR.Client.get_authorization_token`

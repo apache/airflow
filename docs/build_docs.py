@@ -20,6 +20,7 @@ Builds documentation and runs spell checking
 
 # isort:skip_file (needed to workaround isort bug)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -448,6 +449,15 @@ def main():
     with with_group("Available packages"):
         for pkg in sorted(available_packages):
             console.print(f" - {pkg}")
+
+    for package in available_packages:
+        api_dir = os.path.join(DOCS_DIR, package, "_api")
+        if os.path.exists(api_dir):
+            if not os.listdir(api_dir):
+                console.print(
+                    f"[red]The toctree already contains a reference to a non-existing document for provider [green]'{package}'[/green]. Use the --clean-build option while building docs"
+                )
+                sys.exit(1)
 
     if package_filters:
         console.print("Current package filters: ", package_filters)

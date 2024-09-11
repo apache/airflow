@@ -22,14 +22,19 @@ import pytest
 from sqlalchemy.sql.functions import count
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.providers.fab.auth_manager.models import User
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.compat import ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.9.0+", __file__):
+    from airflow.providers.fab.auth_manager.models import User
+
+from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_role, delete_user
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
+
 
 DEFAULT_TIME = "2020-06-11T18:00:00+00:00"
 
@@ -54,6 +59,7 @@ def configured_app(minimal_app_for_auth_api):
 
     delete_user(app, username="test")  # type: ignore
     delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_role(app, name="TestNoPermissions")
 
 
 class TestUserEndpoint:
@@ -347,21 +353,21 @@ def _delete_user(**filters):
         session.delete(user)
 
 
-@pytest.fixture()
+@pytest.fixture
 def autoclean_username():
     _delete_user(username=EXAMPLE_USER_NAME)
     yield EXAMPLE_USER_NAME
     _delete_user(username=EXAMPLE_USER_NAME)
 
 
-@pytest.fixture()
+@pytest.fixture
 def autoclean_email():
     _delete_user(email=EXAMPLE_USER_EMAIL)
     yield EXAMPLE_USER_EMAIL
     _delete_user(email=EXAMPLE_USER_EMAIL)
 
 
-@pytest.fixture()
+@pytest.fixture
 def user_with_same_username(configured_app, autoclean_username):
     user = create_user(
         configured_app,
@@ -373,7 +379,7 @@ def user_with_same_username(configured_app, autoclean_username):
     return user
 
 
-@pytest.fixture()
+@pytest.fixture
 def user_with_same_email(configured_app, autoclean_email):
     user = create_user(
         configured_app,
@@ -385,7 +391,7 @@ def user_with_same_email(configured_app, autoclean_email):
     return user
 
 
-@pytest.fixture()
+@pytest.fixture
 def user_different(configured_app):
     username = "another_user"
     email = "another_user@example.com"
@@ -397,7 +403,7 @@ def user_different(configured_app):
     _delete_user(username=username, email=email)
 
 
-@pytest.fixture()
+@pytest.fixture
 def autoclean_user_payload(autoclean_username, autoclean_email):
     return {
         "username": autoclean_username,
@@ -408,7 +414,7 @@ def autoclean_user_payload(autoclean_username, autoclean_email):
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def autoclean_admin_user(configured_app, autoclean_user_payload):
     security_manager = configured_app.appbuilder.sm
     return security_manager.add_user(

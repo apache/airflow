@@ -68,7 +68,7 @@ class PostgresOperator(SQLExecuteQueryOperator):
     ) -> None:
         if database is not None:
             hook_params = kwargs.pop("hook_params", {})
-            kwargs["hook_params"] = {"schema": database, **hook_params}
+            kwargs["hook_params"] = {"database": database, **hook_params}
 
         if runtime_parameters:
             warnings.warn(

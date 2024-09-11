@@ -26,11 +26,13 @@
 # declare "these are defined, but don't error if others are accessed" someday.
 from __future__ import annotations
 
-from typing import Any, Collection, Container, Iterable, Mapping, overload
+from typing import Any, Collection, Container, Iterable, Iterator, Mapping, Sequence, overload
 
 from pendulum import DateTime
+from sqlalchemy.orm import Session
 
 from airflow.configuration import AirflowConfigParser
+from airflow.datasets import Dataset, DatasetAlias, DatasetAliasEvent
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
@@ -55,7 +57,40 @@ class VariableAccessor:
 class ConnectionAccessor:
     def get(self, key: str, default_conn: Any = None) -> Any: ...
 
-# NOTE: Please keep this in sync with KNOWN_CONTEXT_KEYS in airflow/utils/context.py.
+class OutletEventAccessor:
+    def __init__(
+        self,
+        *,
+        extra: dict[str, Any],
+        raw_key: str | Dataset | DatasetAlias,
+        dataset_alias_event: DatasetAliasEvent | None = None,
+    ) -> None: ...
+    def add(self, dataset: Dataset | str, extra: dict[str, Any] | None = None) -> None: ...
+    extra: dict[str, Any]
+    raw_key: str | Dataset | DatasetAlias
+    dataset_alias_event: DatasetAliasEvent | None
+
+class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
+    def __iter__(self) -> Iterator[str]: ...
+    def __len__(self) -> int: ...
+    def __getitem__(self, key: str | Dataset | DatasetAlias) -> OutletEventAccessor: ...
+
+class InletEventsAccessor(Sequence[DatasetEvent]):
+    @overload
+    def __getitem__(self, key: int) -> DatasetEvent: ...
+    @overload
+    def __getitem__(self, key: slice) -> Sequence[DatasetEvent]: ...
+    def __len__(self) -> int: ...
+
+class InletEventsAccessors(Mapping[str, InletEventsAccessor]):
+    def __init__(self, inlets: list, *, session: Session) -> None: ...
+    def __iter__(self) -> Iterator[str]: ...
+    def __len__(self) -> int: ...
+    def __getitem__(self, key: int | str | Dataset | DatasetAlias) -> InletEventsAccessor: ...
+
+# NOTE: Please keep this in sync with the following:
+# * KNOWN_CONTEXT_KEYS in airflow/utils/context.py
+# * Table in docs/apache-airflow/templates-ref.rst
 class Context(TypedDict, total=False):
     conf: AirflowConfigParser
     conn: Any
@@ -63,14 +98,17 @@ class Context(TypedDict, total=False):
     dag_run: DagRun | DagRunPydantic
     data_interval_end: DateTime
     data_interval_start: DateTime
+    outlet_events: OutletEventAccessors
     ds: str
     ds_nodash: str
     exception: BaseException | str | None
     execution_date: DateTime
     expanded_ti_count: int | None
     inlets: list
+    inlet_events: InletEventsAccessors
     logical_date: DateTime
     macros: Any
+    map_index_template: str
     next_ds: str | None
     next_ds_nodash: str | None
     next_execution_date: DateTime | None
@@ -114,3 +152,4 @@ def context_merge(context: Context, **kwargs: Any) -> None: ...
 def context_update_for_unmapped(context: Context, task: BaseOperator) -> None: ...
 def context_copy_partial(source: Context, keys: Container[str]) -> Context: ...
 def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]: ...
+def context_get_outlet_events(context: Context) -> OutletEventAccessors: ...

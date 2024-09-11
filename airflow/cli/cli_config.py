@@ -321,15 +321,6 @@ ARG_BF_IGNORE_DEPENDENCIES = Arg(
     ),
     action="store_true",
 )
-ARG_BF_IGNORE_FIRST_DEPENDS_ON_PAST = Arg(
-    ("-I", "--ignore-first-depends-on-past"),
-    help=(
-        "Ignores depends_on_past dependencies for the first "
-        "set of tasks only (subsequent executions in the backfill "
-        "DO respect depends_on_past)"
-    ),
-    action="store_true",
-)
 ARG_POOL = Arg(("--pool",), "Resource pool to use")
 ARG_DELAY_ON_LIMIT = Arg(
     ("--delay-on-limit",),
@@ -382,11 +373,14 @@ ARG_RUN_BACKWARDS = Arg(
     ),
     action="store_true",
 )
-ARG_TREAT_DAG_AS_REGEX = Arg(
-    ("--treat-dag-as-regex",),
+
+
+ARG_TREAT_DAG_ID_AS_REGEX = Arg(
+    ("--treat-dag-id-as-regex",),
     help=("if set, dag_id will be treated as regex instead of an exact string"),
     action="store_true",
 )
+
 # test_dag
 ARG_SHOW_DAGRUN = Arg(
     ("--show-dagrun",),
@@ -409,9 +403,19 @@ ARG_SAVE_DAGRUN = Arg(
     ("--save-dagrun",),
     help="After completing the backfill, saves the diagram for current DAG Run to the indicated file.\n\n",
 )
-
-# list_tasks
-ARG_TREE = Arg(("-t", "--tree"), help="Tree view", action="store_true")
+ARG_USE_EXECUTOR = Arg(
+    ("--use-executor",),
+    help="Use an executor to test the DAG. By default it runs the DAG without an executor. "
+    "If set, it uses the executor configured in the environment.",
+    action="store_true",
+)
+ARG_MARK_SUCCESS_PATTERN = Arg(
+    ("--mark-success-pattern",),
+    help=(
+        "Don't run task_ids matching the regex <MARK_SUCCESS_PATTERN>, mark them as successful instead.\n"
+        "Can be used to skip e.g. dependency check sensors or cleanup steps in local testing.\n"
+    ),
+)
 
 # tasks_run
 # This is a hidden option -- not meant for users to set or know about
@@ -428,12 +432,6 @@ ARG_UPSTREAM = Arg(("-u", "--upstream"), help="Include upstream tasks", action="
 ARG_ONLY_FAILED = Arg(("-f", "--only-failed"), help="Only failed jobs", action="store_true")
 ARG_ONLY_RUNNING = Arg(("-r", "--only-running"), help="Only running jobs", action="store_true")
 ARG_DOWNSTREAM = Arg(("-d", "--downstream"), help="Include downstream tasks", action="store_true")
-ARG_EXCLUDE_SUBDAGS = Arg(("-x", "--exclude-subdags"), help="Exclude subdags", action="store_true")
-ARG_EXCLUDE_PARENTDAG = Arg(
-    ("-X", "--exclude-parentdag"),
-    help="Exclude ParentDAGS if the task cleared is a part of a SubDAG",
-    action="store_true",
-)
 ARG_DAG_REGEX = Arg(
     ("-R", "--dag-regex"), help="Search dag_id as regex instead of exact string", action="store_true"
 )
@@ -600,12 +598,6 @@ ARG_IGNORE_ALL_DEPENDENCIES = Arg(
 ARG_IGNORE_DEPENDENCIES = Arg(
     ("-i", "--ignore-dependencies"),
     help="Ignore task-specific dependencies, e.g. upstream, depends_on_past, and retry delay dependencies",
-    action="store_true",
-)
-ARG_IGNORE_DEPENDS_ON_PAST = Arg(
-    ("-I", "--ignore-depends-on-past"),
-    help="Deprecated -- use `--depends-on-past ignore` instead. "
-    "Ignore depends_on_past dependencies (but respect upstream dependencies)",
     action="store_true",
 )
 ARG_DEPENDS_ON_PAST = Arg(
@@ -786,6 +778,45 @@ ARG_INTERNAL_API_ACCESS_LOGFORMAT = Arg(
     ("-L", "--access-logformat"),
     help="The access log format for gunicorn logs",
 )
+
+
+# fastapi-api
+ARG_FASTAPI_API_PORT = Arg(
+    ("-p", "--port"),
+    default=9091,
+    type=int,
+    help="The port on which to run the server",
+)
+ARG_FASTAPI_API_WORKERS = Arg(
+    ("-w", "--workers"),
+    default=4,
+    type=int,
+    help="Number of workers to run the FastAPI API-on",
+)
+ARG_FASTAPI_API_WORKER_TIMEOUT = Arg(
+    ("-t", "--worker-timeout"),
+    default=120,
+    type=int,
+    help="The timeout for waiting on FastAPI API workers",
+)
+ARG_FASTAPI_API_HOSTNAME = Arg(
+    ("-H", "--hostname"),
+    default="0.0.0.0",  # nosec
+    help="Set the hostname on which to run the web server",
+)
+ARG_FASTAPI_API_ACCESS_LOGFILE = Arg(
+    ("-A", "--access-logfile"),
+    help="The logfile to store the access log. Use '-' to print to stdout",
+)
+ARG_FASTAPI_API_ERROR_LOGFILE = Arg(
+    ("-E", "--error-logfile"),
+    help="The logfile to store the error log. Use '-' to print to stderr",
+)
+ARG_FASTAPI_API_ACCESS_LOGFORMAT = Arg(
+    ("-L", "--access-logformat"),
+    help="The access log format for gunicorn logs",
+)
+
 
 # scheduler
 ARG_NUM_RUNS = Arg(
@@ -1098,15 +1129,25 @@ DAGS_COMMANDS = (
     ),
     ActionCommand(
         name="pause",
-        help="Pause a DAG",
+        help="Pause DAG(s)",
+        description=(
+            "Pause one or more DAGs. This command allows to halt the execution of specified DAGs, "
+            "disabling further task scheduling. Use `--treat-dag-id-as-regex` to target multiple DAGs by "
+            "treating the `--dag-id` as a regex pattern."
+        ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_pause"),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_TREAT_DAG_ID_AS_REGEX, ARG_YES, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="unpause",
-        help="Resume a paused DAG",
+        help="Resume paused DAG(s)",
+        description=(
+            "Resume one or more DAGs. This command allows to restore the execution of specified "
+            "DAGs, enabling further task scheduling. Use `--treat-dag-id-as-regex` to target multiple DAGs "
+            "treating the `--dag-id` as a regex pattern."
+        ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_unpause"),
-        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_TREAT_DAG_ID_AS_REGEX, ARG_YES, ARG_OUTPUT, ARG_VERBOSE),
     ),
     ActionCommand(
         name="trigger",
@@ -1211,7 +1252,6 @@ DAGS_COMMANDS = (
             ARG_CONTINUE_ON_FAILURES,
             ARG_DISABLE_RETRY,
             ARG_BF_IGNORE_DEPENDENCIES,
-            ARG_BF_IGNORE_FIRST_DEPENDS_ON_PAST,
             ARG_SUBDIR,
             ARG_POOL,
             ARG_DELAY_ON_LIMIT,
@@ -1221,7 +1261,7 @@ DAGS_COMMANDS = (
             ARG_RESET_DAG_RUN,
             ARG_RERUN_FAILED_TASKS,
             ARG_RUN_BACKWARDS,
-            ARG_TREAT_DAG_AS_REGEX,
+            ARG_TREAT_DAG_ID_AS_REGEX,
         ),
     ),
     ActionCommand(
@@ -1255,7 +1295,9 @@ DAGS_COMMANDS = (
             ARG_SHOW_DAGRUN,
             ARG_IMGCAT_DAGRUN,
             ARG_SAVE_DAGRUN,
+            ARG_USE_EXECUTOR,
             ARG_VERBOSE,
+            ARG_MARK_SUCCESS_PATTERN,
         ),
     ),
     ActionCommand(
@@ -1279,7 +1321,7 @@ TASKS_COMMANDS = (
         name="list",
         help="List the tasks within a DAG",
         func=lazy_load_command("airflow.cli.commands.task_command.task_list"),
-        args=(ARG_DAG_ID, ARG_TREE, ARG_SUBDIR, ARG_VERBOSE),
+        args=(ARG_DAG_ID, ARG_SUBDIR, ARG_VERBOSE),
     ),
     ActionCommand(
         name="clear",
@@ -1296,8 +1338,6 @@ TASKS_COMMANDS = (
             ARG_YES,
             ARG_ONLY_FAILED,
             ARG_ONLY_RUNNING,
-            ARG_EXCLUDE_SUBDAGS,
-            ARG_EXCLUDE_PARENTDAG,
             ARG_DAG_REGEX,
             ARG_VERBOSE,
         ),
@@ -1356,7 +1396,6 @@ TASKS_COMMANDS = (
             ARG_RAW,
             ARG_IGNORE_ALL_DEPENDENCIES,
             ARG_IGNORE_DEPENDENCIES,
-            ARG_IGNORE_DEPENDS_ON_PAST,
             ARG_DEPENDS_ON_PAST,
             ARG_SHIP_DAG,
             ARG_PICKLE,
@@ -1833,14 +1872,14 @@ KUBERNETES_COMMANDS = (
             "(created by KubernetesExecutor/KubernetesPodOperator) "
             "in evicted/failed/succeeded/pending states"
         ),
-        func=lazy_load_command("airflow.cli.commands.kubernetes_command.cleanup_pods"),
+        func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.cleanup_pods"),
         args=(ARG_NAMESPACE, ARG_MIN_PENDING_MINUTES, ARG_VERBOSE),
     ),
     ActionCommand(
         name="generate-dag-yaml",
         help="Generate YAML files for all tasks in DAG. Useful for debugging tasks without "
         "launching into a cluster",
-        func=lazy_load_command("airflow.cli.commands.kubernetes_command.generate_pod_yaml"),
+        func=lazy_load_command("airflow.providers.cncf.kubernetes.cli.kubernetes_command.generate_pod_yaml"),
         args=(ARG_DAG_ID, ARG_EXECUTION_DATE, ARG_SUBDIR, ARG_OUTPUT_PATH, ARG_VERBOSE),
     ),
 )
@@ -1920,7 +1959,7 @@ core_commands: list[CLICommand] = [
     ),
     ActionCommand(
         name="webserver",
-        help="Start a Airflow webserver instance",
+        help="Start an Airflow webserver instance",
         func=lazy_load_command("airflow.cli.commands.webserver_command.webserver"),
         args=(
             ARG_PORT,
@@ -1935,6 +1974,28 @@ core_commands: list[CLICommand] = [
             ARG_ACCESS_LOGFILE,
             ARG_ERROR_LOGFILE,
             ARG_ACCESS_LOGFORMAT,
+            ARG_LOG_FILE,
+            ARG_SSL_CERT,
+            ARG_SSL_KEY,
+            ARG_DEBUG,
+        ),
+    ),
+    ActionCommand(
+        name="fastapi-api",
+        help="Start an Airflow FastAPI API instance",
+        func=lazy_load_command("airflow.cli.commands.fastapi_api_command.fastapi_api"),
+        args=(
+            ARG_FASTAPI_API_PORT,
+            ARG_FASTAPI_API_WORKERS,
+            ARG_FASTAPI_API_WORKER_TIMEOUT,
+            ARG_FASTAPI_API_HOSTNAME,
+            ARG_PID,
+            ARG_DAEMON,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_FASTAPI_API_ACCESS_LOGFILE,
+            ARG_FASTAPI_API_ERROR_LOGFILE,
+            ARG_FASTAPI_API_ACCESS_LOGFORMAT,
             ARG_LOG_FILE,
             ARG_SSL_CERT,
             ARG_SSL_KEY,
@@ -2060,7 +2121,7 @@ if _ENABLE_AIP_44:
     core_commands.append(
         ActionCommand(
             name="internal-api",
-            help="Start a Airflow Internal API instance",
+            help="Start an Airflow Internal API instance",
             func=lazy_load_command("airflow.cli.commands.internal_api_command.internal_api"),
             args=(
                 ARG_INTERNAL_API_PORT,

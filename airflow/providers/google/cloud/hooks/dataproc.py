@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Dataproc hook."""
+
 from __future__ import annotations
 
 import time
@@ -83,7 +84,8 @@ class DataProcJobBuilder:
             self.job["job"][job_type]["properties"] = properties
 
     def add_labels(self, labels: dict | None = None) -> None:
-        """Set labels for Dataproc job.
+        """
+        Set labels for Dataproc job.
 
         :param labels: Labels for the job query.
         """
@@ -91,7 +93,8 @@ class DataProcJobBuilder:
             self.job["job"]["labels"].update(labels)
 
     def add_variables(self, variables: dict | None = None) -> None:
-        """Set variables for Dataproc job.
+        """
+        Set variables for Dataproc job.
 
         :param variables: Variables for the job query.
         """
@@ -99,7 +102,8 @@ class DataProcJobBuilder:
             self.job["job"][self.job_type]["script_variables"] = variables
 
     def add_args(self, args: list[str] | None = None) -> None:
-        """Set args for Dataproc job.
+        """
+        Set args for Dataproc job.
 
         :param args: Args for the job query.
         """
@@ -107,21 +111,24 @@ class DataProcJobBuilder:
             self.job["job"][self.job_type]["args"] = args
 
     def add_query(self, query: str) -> None:
-        """Set query for Dataproc job.
+        """
+        Set query for Dataproc job.
 
         :param query: query for the job.
         """
         self.job["job"][self.job_type]["query_list"] = {"queries": [query]}
 
     def add_query_uri(self, query_uri: str) -> None:
-        """Set query uri for Dataproc job.
+        """
+        Set query uri for Dataproc job.
 
         :param query_uri: URI for the job query.
         """
         self.job["job"][self.job_type]["query_file_uri"] = query_uri
 
     def add_jar_file_uris(self, jars: list[str] | None = None) -> None:
-        """Set jars uris for Dataproc job.
+        """
+        Set jars uris for Dataproc job.
 
         :param jars: List of jars URIs
         """
@@ -129,7 +136,8 @@ class DataProcJobBuilder:
             self.job["job"][self.job_type]["jar_file_uris"] = jars
 
     def add_archive_uris(self, archives: list[str] | None = None) -> None:
-        """Set archives uris for Dataproc job.
+        """
+        Set archives uris for Dataproc job.
 
         :param archives: List of archives URIs
         """
@@ -137,7 +145,8 @@ class DataProcJobBuilder:
             self.job["job"][self.job_type]["archive_uris"] = archives
 
     def add_file_uris(self, files: list[str] | None = None) -> None:
-        """Set file uris for Dataproc job.
+        """
+        Set file uris for Dataproc job.
 
         :param files: List of files URIs
         """
@@ -145,7 +154,8 @@ class DataProcJobBuilder:
             self.job["job"][self.job_type]["file_uris"] = files
 
     def add_python_file_uris(self, pyfiles: list[str] | None = None) -> None:
-        """Set python file uris for Dataproc job.
+        """
+        Set python file uris for Dataproc job.
 
         :param pyfiles: List of python files URIs
         """
@@ -153,28 +163,31 @@ class DataProcJobBuilder:
             self.job["job"][self.job_type]["python_file_uris"] = pyfiles
 
     def set_main(self, main_jar: str | None = None, main_class: str | None = None) -> None:
-        """Set Dataproc main class.
+        """
+        Set Dataproc main class.
 
         :param main_jar: URI for the main file.
         :param main_class: Name of the main class.
-        :raises: Exception
+        :raises: ValueError
         """
         if main_class is not None and main_jar is not None:
-            raise Exception("Set either main_jar or main_class")
+            raise ValueError("Set either main_jar or main_class")
         if main_jar:
             self.job["job"][self.job_type]["main_jar_file_uri"] = main_jar
         else:
             self.job["job"][self.job_type]["main_class"] = main_class
 
     def set_python_main(self, main: str) -> None:
-        """Set Dataproc main python file uri.
+        """
+        Set Dataproc main python file uri.
 
         :param main: URI for the python main file.
         """
         self.job["job"][self.job_type]["main_python_file_uri"] = main
 
     def set_job_name(self, name: str) -> None:
-        """Set Dataproc job name.
+        """
+        Set Dataproc job name.
 
         Job name is sanitized, replacing dots by underscores.
 
@@ -184,7 +197,8 @@ class DataProcJobBuilder:
         self.job["job"]["reference"]["job_id"] = sanitized_name
 
     def build(self) -> dict:
-        """Return Dataproc job.
+        """
+        Return Dataproc job.
 
         :return: Dataproc job
         """
@@ -192,7 +206,8 @@ class DataProcJobBuilder:
 
 
 class DataprocHook(GoogleBaseHook):
-    """Google Cloud Dataproc APIs.
+    """
+    Google Cloud Dataproc APIs.
 
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
@@ -259,7 +274,7 @@ class DataprocHook(GoogleBaseHook):
         self,
         operation: Operation,
         timeout: float | None = None,
-        result_retry: AsyncRetry | _MethodDefault = DEFAULT,
+        result_retry: AsyncRetry | _MethodDefault | Retry = DEFAULT,
     ) -> Any:
         """Wait for a long-lasting operation to complete."""
         try:
@@ -282,7 +297,8 @@ class DataprocHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
-        """Create a cluster in a specified project.
+        """
+        Create a cluster in a specified project.
 
         :param project_id: Google Cloud project ID that the cluster belongs to.
         :param region: Cloud Dataproc region in which to handle the request.
@@ -349,7 +365,8 @@ class DataprocHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
-        """Delete a cluster in a project.
+        """
+        Delete a cluster in a project.
 
         :param project_id: Google Cloud project ID that the cluster belongs to.
         :param region: Cloud Dataproc region in which to handle the request.
@@ -396,7 +413,8 @@ class DataprocHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
-        """Get cluster diagnostic information.
+        """
+        Get cluster diagnostic information.
 
         After the operation completes, the response contains the Cloud Storage URI of the diagnostic output report containing a summary of collected diagnostics.
 
@@ -441,7 +459,8 @@ class DataprocHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Cluster:
-        """Get the resource representation for a cluster in a project.
+        """
+        Get the resource representation for a cluster in a project.
 
         :param project_id: Google Cloud project ID that the cluster belongs to.
         :param region: Cloud Dataproc region to handle the request.
@@ -473,7 +492,8 @@ class DataprocHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ):
-        """List all regions/{region}/clusters in a project.
+        """
+        List all regions/{region}/clusters in a project.
 
         :param project_id: Google Cloud project ID that the cluster belongs to.
         :param region: Cloud Dataproc region to handle the request.
@@ -513,7 +533,8 @@ class DataprocHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
-        """Update a cluster in a project.
+        """
+        Update a cluster in a project.
 
         :param project_id: Google Cloud project ID that the cluster belongs to.
         :param region: Cloud Dataproc region to handle the request.
@@ -595,7 +616,8 @@ class DataprocHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
-        """Start a cluster in a project.
+        """
+        Start a cluster in a project.
 
         :param region: Cloud Dataproc region to handle the request.
         :param project_id: Google Cloud project ID that the cluster belongs to.
@@ -639,7 +661,8 @@ class DataprocHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
-        """Start a cluster in a project.
+        """
+        Start a cluster in a project.
 
         :param region: Cloud Dataproc region to handle the request.
         :param project_id: Google Cloud project ID that the cluster belongs to.
@@ -681,7 +704,8 @@ class DataprocHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> WorkflowTemplate:
-        """Create a new workflow template.
+        """
+        Create a new workflow template.
 
         :param project_id: Google Cloud project ID that the cluster belongs to.
         :param region: Cloud Dataproc region to handle the request.
@@ -717,7 +741,8 @@ class DataprocHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
-        """Instantiate a template and begins execution.
+        """
+        Instantiate a template and begins execution.
 
         :param template_name: Name of template to instantiate.
         :param project_id: Google Cloud project ID that the cluster belongs to.
@@ -763,7 +788,8 @@ class DataprocHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
-        """Instantiate a template and begin execution.
+        """
+        Instantiate a template and begin execution.
 
         :param template: The workflow template to instantiate. If a dict is
             provided, it must be of the same form as the protobuf message
@@ -802,7 +828,8 @@ class DataprocHook(GoogleBaseHook):
         wait_time: int = 10,
         timeout: int | None = None,
     ) -> None:
-        """Poll a job to check if it has finished.
+        """
+        Poll a job to check if it has finished.
 
         :param job_id: Dataproc job ID.
         :param project_id: Google Cloud project ID that the cluster belongs to.
@@ -839,7 +866,8 @@ class DataprocHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Job:
-        """Get the resource representation for a job in a project.
+        """
+        Get the resource representation for a job in a project.
 
         :param job_id: Dataproc job ID.
         :param project_id: Google Cloud project ID that the cluster belongs to.
@@ -873,7 +901,8 @@ class DataprocHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Job:
-        """Submit a job to a cluster.
+        """
+        Submit a job to a cluster.
 
         :param job: The job resource. If a dict is provided, it must be of the
             same form as the protobuf message Job.
@@ -909,7 +938,8 @@ class DataprocHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Job:
-        """Start a job cancellation request.
+        """
+        Start a job cancellation request.
 
         :param project_id: Google Cloud project ID that the cluster belongs to.
         :param region: Cloud Dataproc region to handle the request.
@@ -943,7 +973,8 @@ class DataprocHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
-        """Create a batch workload.
+        """
+        Create a batch workload.
 
         :param project_id: Google Cloud project ID that the cluster belongs to.
         :param region: Cloud Dataproc region to handle the request.
@@ -988,7 +1019,8 @@ class DataprocHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
-        """Delete the batch workload resource.
+        """
+        Delete the batch workload resource.
 
         :param batch_id: The batch ID.
         :param project_id: Google Cloud project ID that the cluster belongs to.
@@ -1022,7 +1054,8 @@ class DataprocHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Batch:
-        """Get the batch workload resource representation.
+        """
+        Get the batch workload resource representation.
 
         :param batch_id: The batch ID.
         :param project_id: Google Cloud project ID that the cluster belongs to.
@@ -1060,7 +1093,8 @@ class DataprocHook(GoogleBaseHook):
         filter: str | None = None,
         order_by: str | None = None,
     ):
-        """List batch workloads.
+        """
+        List batch workloads.
 
         :param project_id: Google Cloud project ID that the cluster belongs to.
         :param region: Cloud Dataproc region to handle the request.
@@ -1106,7 +1140,8 @@ class DataprocHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Batch:
-        """Wait for a batch job to complete.
+        """
+        Wait for a batch job to complete.
 
         After submission of a batch job, the operator waits for the job to
         complete. This hook is, however, useful in the case when Airflow is
@@ -1159,7 +1194,8 @@ class DataprocHook(GoogleBaseHook):
 
 
 class DataprocAsyncHook(GoogleBaseHook):
-    """Asynchronous interaction with Google Cloud Dataproc APIs.
+    """
+    Asynchronous interaction with Google Cloud Dataproc APIs.
 
     All the methods in the hook where project_id is used must be called with
     keyword arguments rather than positional.
@@ -1241,7 +1277,8 @@ class DataprocAsyncHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
-        """Create a cluster in a project.
+        """
+        Create a cluster in a project.
 
         :param project_id: Google Cloud project ID that the cluster belongs to.
         :param region: Cloud Dataproc region in which to handle the request.
@@ -1308,7 +1345,8 @@ class DataprocAsyncHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
-        """Delete a cluster in a project.
+        """
+        Delete a cluster in a project.
 
         :param project_id: Google Cloud project ID that the cluster belongs to.
         :param region: Cloud Dataproc region in which to handle the request.
@@ -1355,7 +1393,8 @@ class DataprocAsyncHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
-        """Get cluster diagnostic information.
+        """
+        Get cluster diagnostic information.
 
         After the operation completes, the response contains the Cloud Storage URI of the diagnostic output report containing a summary of collected diagnostics.
 
@@ -1400,7 +1439,8 @@ class DataprocAsyncHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Cluster:
-        """Get the resource representation for a cluster in a project.
+        """
+        Get the resource representation for a cluster in a project.
 
         :param project_id: Google Cloud project ID that the cluster belongs to.
         :param region: Cloud Dataproc region to handle the request.
@@ -1432,7 +1472,8 @@ class DataprocAsyncHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ):
-        """List all regions/{region}/clusters in a project.
+        """
+        List all regions/{region}/clusters in a project.
 
         :param project_id: Google Cloud project ID that the cluster belongs to.
         :param region: Cloud Dataproc region to handle the request.
@@ -1472,7 +1513,8 @@ class DataprocAsyncHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
-        """Update a cluster in a project.
+        """
+        Update a cluster in a project.
 
         :param project_id: Google Cloud project ID that the cluster belongs to.
         :param region: Cloud Dataproc region to handle the request.
@@ -1552,7 +1594,8 @@ class DataprocAsyncHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> WorkflowTemplate:
-        """Create a new workflow template.
+        """
+        Create a new workflow template.
 
         :param project_id: Google Cloud project ID that the cluster belongs to.
         :param region: Cloud Dataproc region to handle the request.
@@ -1588,7 +1631,8 @@ class DataprocAsyncHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
-        """Instantiate a template and begins execution.
+        """
+        Instantiate a template and begins execution.
 
         :param template_name: Name of template to instantiate.
         :param project_id: Google Cloud project ID that the cluster belongs to.
@@ -1634,7 +1678,8 @@ class DataprocAsyncHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
-        """Instantiate a template and begin execution.
+        """
+        Instantiate a template and begin execution.
 
         :param template: The workflow template to instantiate. If a dict is
             provided, it must be of the same form as the protobuf message
@@ -1677,7 +1722,8 @@ class DataprocAsyncHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Job:
-        """Get the resource representation for a job in a project.
+        """
+        Get the resource representation for a job in a project.
 
         :param job_id: Dataproc job ID.
         :param project_id: Google Cloud project ID that the cluster belongs to.
@@ -1711,7 +1757,8 @@ class DataprocAsyncHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Job:
-        """Submit a job to a cluster.
+        """
+        Submit a job to a cluster.
 
         :param job: The job resource. If a dict is provided, it must be of the
             same form as the protobuf message Job.
@@ -1747,7 +1794,8 @@ class DataprocAsyncHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Job:
-        """Start a job cancellation request.
+        """
+        Start a job cancellation request.
 
         :param project_id: Google Cloud project ID that the cluster belongs to.
         :param region: Cloud Dataproc region to handle the request.
@@ -1781,7 +1829,8 @@ class DataprocAsyncHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> AsyncOperation:
-        """Create a batch workload.
+        """
+        Create a batch workload.
 
         :param project_id: Google Cloud project ID that the cluster belongs to.
         :param region: Cloud Dataproc region to handle the request.
@@ -1826,7 +1875,8 @@ class DataprocAsyncHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
-        """Delete the batch workload resource.
+        """
+        Delete the batch workload resource.
 
         :param batch_id: The batch ID.
         :param project_id: Google Cloud project ID that the cluster belongs to.
@@ -1860,7 +1910,8 @@ class DataprocAsyncHook(GoogleBaseHook):
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
     ) -> Batch:
-        """Get the batch workload resource representation.
+        """
+        Get the batch workload resource representation.
 
         :param batch_id: The batch ID.
         :param project_id: Google Cloud project ID that the cluster belongs to.
@@ -1898,7 +1949,8 @@ class DataprocAsyncHook(GoogleBaseHook):
         filter: str | None = None,
         order_by: str | None = None,
     ):
-        """List batch workloads.
+        """
+        List batch workloads.
 
         :param project_id: Google Cloud project ID that the cluster belongs to.
         :param region: Cloud Dataproc region to handle the request.

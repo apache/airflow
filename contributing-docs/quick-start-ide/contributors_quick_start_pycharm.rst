@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Setup your project
 ##################
@@ -25,7 +25,7 @@ Setup your project
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/pycharm_clone.png"
+        <img src="images/pycharm_clone.png"
              alt="Cloning github fork to Pycharm">
       </div>
 
@@ -35,7 +35,7 @@ Setup your project
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/click_on_clone.png"
+        <img src="images/pycharm_click_on_clone.png"
              alt="Cloning github fork to Pycharm">
       </div>
 
@@ -68,7 +68,7 @@ It requires "airflow-env" virtual environment configured locally.
   .. raw:: html
 
     <div align="center" style="padding-bottom:10px">
-      <img src="images/quick_start/add Interpreter.png"
+      <img src="images/pycharm_add_interpreter.png"
            alt="Adding existing interpreter">
     </div>
 
@@ -93,7 +93,7 @@ It requires "airflow-env" virtual environment configured locally.
     .. raw:: html
 
         <div align="center" style="padding-bottom:10px">
-          <img src="images/quick_start/add_configuration.png"
+          <img src="images/pycharm_add_configuration.png"
                alt="Add Configuration pycharm">
         </div>
 
@@ -102,7 +102,7 @@ It requires "airflow-env" virtual environment configured locally.
     .. raw:: html
 
         <div align="center" style="padding-bottom:10px">
-          <img src="images/quick_start/add_env_variable.png"
+          <img src="images/pycharm_add_env_variable.png"
                alt="Add environment variable pycharm">
         </div>
 
@@ -116,7 +116,7 @@ Creating a branch
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/creating_branch_1.png"
+        <img src="images/pycharm_creating_branch_1.png"
              alt="Creating a new branch">
       </div>
 
@@ -125,8 +125,8 @@ Creating a branch
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/creating_branch_2.png"
+        <img src="images/pycharm_creating_branch_2.png"
              alt="Giving a name to a branch">
       </div>
 
-Follow the `Quick start <03_contributors_quick_start.rst>`_ for typical development tasks.
+Follow the `Quick start <../03_contributors_quick_start.rst>`_ for typical development tasks.

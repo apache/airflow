@@ -45,6 +45,7 @@ The required scope for this DAG is https://www.googleapis.com/auth/youtube.reado
 This can be set via the environment variable AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT,
 or by creating a custom connection.
 """
+
 from __future__ import annotations
 
 import json

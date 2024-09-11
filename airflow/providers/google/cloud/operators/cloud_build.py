@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Operators that integrates with Google Cloud Build service."""
+
 from __future__ import annotations
 
 import json
@@ -39,6 +40,7 @@ from airflow.providers.google.cloud.links.cloud_build import (
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
 from airflow.providers.google.cloud.triggers.cloud_build import CloudBuildCreateBuildTrigger
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils import yaml
 from airflow.utils.helpers import exactly_one
 
@@ -86,7 +88,7 @@ class CloudBuildCancelBuildOperator(GoogleCloudBaseOperator):
         self,
         *,
         id_: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -170,7 +172,7 @@ class CloudBuildCreateBuildOperator(GoogleCloudBaseOperator):
         self,
         *,
         build: dict | Build,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         wait: bool = True,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -315,7 +317,7 @@ class CloudBuildCreateBuildTriggerOperator(GoogleCloudBaseOperator):
         self,
         *,
         trigger: dict | BuildTrigger,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -398,7 +400,7 @@ class CloudBuildDeleteBuildTriggerOperator(GoogleCloudBaseOperator):
         self,
         *,
         trigger_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -472,7 +474,7 @@ class CloudBuildGetBuildOperator(GoogleCloudBaseOperator):
         self,
         *,
         id_: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -548,7 +550,7 @@ class CloudBuildGetBuildTriggerOperator(GoogleCloudBaseOperator):
         self,
         *,
         trigger_id: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -626,7 +628,7 @@ class CloudBuildListBuildTriggersOperator(GoogleCloudBaseOperator):
         self,
         *,
         location: str = "global",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         page_size: int | None = None,
         page_token: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -706,7 +708,7 @@ class CloudBuildListBuildsOperator(GoogleCloudBaseOperator):
         self,
         *,
         location: str = "global",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         page_size: int | None = None,
         filter_: str | None = None,
         retry: Retry | _MethodDefault = DEFAULT,
@@ -782,7 +784,7 @@ class CloudBuildRetryBuildOperator(GoogleCloudBaseOperator):
         self,
         *,
         id_: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         wait: bool = True,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -867,7 +869,7 @@ class CloudBuildRunBuildTriggerOperator(GoogleCloudBaseOperator):
         *,
         trigger_id: str,
         source: dict | RepoSource,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         wait: bool = True,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
@@ -952,7 +954,7 @@ class CloudBuildUpdateBuildTriggerOperator(GoogleCloudBaseOperator):
         *,
         trigger_id: str,
         trigger: dict | BuildTrigger,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),

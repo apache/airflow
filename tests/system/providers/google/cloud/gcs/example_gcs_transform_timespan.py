@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for Google Cloud Storage GCSTimeSpanFileTransformOperator operator.
 """
+
 from __future__ import annotations
 
 import os
@@ -31,14 +32,16 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSDeleteBucketOperator,
     GCSTimeSpanFileTransformOperator,
 )
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 DAG_ID = "gcs_transform_timespan"
 
+RESOURCES_BUCKET_NAME = "airflow-system-tests-resources"
 BUCKET_NAME_SRC = f"bucket_{DAG_ID}_{ENV_ID}"
 BUCKET_NAME_DST = f"bucket_dst_{DAG_ID}_{ENV_ID}"
 
@@ -47,7 +50,7 @@ SOURCE_GCP_CONN_ID = DESTINATION_GCP_CONN_ID = "google_cloud_default"
 FILE_NAME = "example_upload.txt"
 SOURCE_PREFIX = "timespan_source"
 DESTINATION_PREFIX = "timespan_destination"
-UPLOAD_FILE_PATH = str(Path(__file__).parent / "resources" / FILE_NAME)
+UPLOAD_FILE_PATH = f"gcs/{FILE_NAME}"
 
 TRANSFORM_SCRIPT_PATH = str(Path(__file__).parent / "resources" / "transform_timespan.py")
 
@@ -71,11 +74,13 @@ with DAG(
         project_id=PROJECT_ID,
     )
 
-    upload_file = LocalFilesystemToGCSOperator(
-        task_id="upload_file",
-        src=UPLOAD_FILE_PATH,
-        dst=f"{SOURCE_PREFIX}/{FILE_NAME}",
-        bucket=BUCKET_NAME_SRC,
+    copy_file = GCSToGCSOperator(
+        task_id="copy_example_gcs_file",
+        source_bucket=RESOURCES_BUCKET_NAME,
+        source_object=UPLOAD_FILE_PATH,
+        destination_bucket=BUCKET_NAME_SRC,
+        destination_object=f"{SOURCE_PREFIX}/{FILE_NAME}",
+        exact_match=True,
     )
 
     # [START howto_operator_gcs_timespan_file_transform_operator_Task]
@@ -101,7 +106,7 @@ with DAG(
     chain(
         # TEST SETUP
         [create_bucket_src, create_bucket_dst],
-        upload_file,
+        copy_file,
         # TEST BODY
         gcs_timespan_transform_files_task,
         # TEST TEARDOWN

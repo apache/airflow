@@ -27,7 +27,6 @@ import boto3
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.hooks.ssm import SsmHook
 from airflow.providers.amazon.aws.operators.emr import (
     EmrAddStepsOperator,
     EmrCreateJobFlowOperator,
@@ -72,7 +71,7 @@ SPARK_STEPS = [
 
 JOB_FLOW_OVERRIDES: dict[str, Any] = {
     "Name": "PiCalc",
-    "ReleaseLabel": "emr-6.7.0",
+    "ReleaseLabel": "emr-7.1.0",
     "Applications": [{"Name": "Spark"}],
     "Instances": {
         "InstanceGroups": [
@@ -92,16 +91,6 @@ JOB_FLOW_OVERRIDES: dict[str, Any] = {
     "ServiceRole": "EMR_DefaultRole",
 }
 # [END howto_operator_emr_steps_config]
-
-
-@task
-def get_ami_id():
-    """
-    Returns an AL2 AMI compatible with EMR
-    """
-    return SsmHook(aws_conn_id=None).get_parameter_value(
-        "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs"
-    )
 
 
 @task
@@ -147,7 +136,6 @@ with DAG(
 
     JOB_FLOW_OVERRIDES["LogUri"] = f"s3://{s3_bucket}/"
     JOB_FLOW_OVERRIDES["SecurityConfiguration"] = config_name
-    JOB_FLOW_OVERRIDES["Instances"]["InstanceGroups"][0]["CustomAmiId"] = get_ami_id()
 
     create_security_configuration = configure_security_config(config_name)
 
@@ -173,9 +161,6 @@ with DAG(
     )
     # [END howto_operator_emr_add_steps]
     add_steps.wait_for_completion = True
-    # On rare occasion (1 in 50ish?) this system test times out.  Extending the
-    # max_attempts from the default 60 to attempt to mitigate the flaky test.
-    add_steps.waiter_max_attempts = 90
 
     # [START howto_sensor_emr_step]
     wait_for_step = EmrStepSensor(

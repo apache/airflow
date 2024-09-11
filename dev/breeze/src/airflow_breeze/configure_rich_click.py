@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from airflow_breeze.commands.sbom_commands_config import SBOM_COMMANDS, SBOM_PARAMETERS
 
-from airflow_breeze.utils import recording  # isort:skip # noqa
+from airflow_breeze.utils import recording  # isort:skip  # noqa: F401
 
 try:
     # We handle ImportError so that click autocomplete works

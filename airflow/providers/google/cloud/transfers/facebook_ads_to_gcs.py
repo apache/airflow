@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Facebook Ad Reporting to GCS operators."""
+
 from __future__ import annotations
 
 import csv
@@ -42,7 +43,8 @@ class FlushAction(Enum):
 
 
 class FacebookAdsReportToGcsOperator(BaseOperator):
-    """Fetch from Facebook Ads API.
+    """
+    Fetch from Facebook Ads API.
 
     This converts and saves the data as a temporary JSON file, and uploads the
     JSON to Google Cloud Storage.

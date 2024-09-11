@@ -44,40 +44,40 @@ def _mask_variable_fields(extra_fields):
     Mask the 'val_content' field if 'key_content' is in the mask list.
 
     The variable requests values and args comes in this form:
-    [('key', 'key_content'),('val', 'val_content'), ('description', 'description_content')]
+    {'key': 'key_content', 'val': 'val_content', 'description': 'description_content'}
     """
-    result = []
+    result = {}
     keyname = None
-    for k, v in extra_fields:
+    for k, v in extra_fields.items():
         if k == "key":
             keyname = v
-            result.append((k, v))
-        elif keyname and k == "val":
+            result[k] = v
+        elif keyname and (k == "val" or k == "value"):
             x = secrets_masker.redact(v, keyname)
-            result.append((k, x))
+            result[k] = x
             keyname = None
         else:
-            result.append((k, v))
+            result[k] = v
     return result
 
 
 def _mask_connection_fields(extra_fields):
     """Mask connection fields."""
-    result = []
-    for k, v in extra_fields:
-        if k == "extra":
+    result = {}
+    for k, v in extra_fields.items():
+        if k == "extra" and v:
             try:
                 extra = json.loads(v)
-                extra = [(k, secrets_masker.redact(v, k)) for k, v in extra.items()]
-                result.append((k, json.dumps(dict(extra))))
+                extra = {k: secrets_masker.redact(v, k) for k, v in extra.items()}
+                result[k] = dict(extra)
             except json.JSONDecodeError:
-                result.append((k, "Encountered non-JSON in `extra` field"))
+                result[k] = "Encountered non-JSON in `extra` field"
         else:
-            result.append((k, secrets_masker.redact(v, k)))
+            result[k] = secrets_masker.redact(v, k)
     return result
 
 
-def action_logging(func: Callable | None = None, event: str | None = None) -> Callable[[T], T]:
+def action_logging(func: T | None = None, event: str | None = None) -> T | Callable:
     """Log user actions."""
 
     def log_action(f: T) -> T:
@@ -86,6 +86,7 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
             __tracebackhide__ = True  # Hide from pytest traceback.
 
             with create_session() as session:
+                event_name = event or f.__name__
                 if not get_auth_manager().is_logged_in():
                     user = "anonymous"
                     user_display = ""
@@ -93,29 +94,55 @@ def action_logging(func: Callable | None = None, event: str | None = None) -> Ca
                     user = get_auth_manager().get_user_name()
                     user_display = get_auth_manager().get_user_display_name()
 
-                fields_skip_logging = {"csrf_token", "_csrf_token", "is_paused"}
-                extra_fields = [
-                    (k, secrets_masker.redact(v, k))
+                isAPIRequest = request.blueprint == "/api/v1"
+                hasJsonBody = request.headers.get("content-type") == "application/json" and request.json
+
+                fields_skip_logging = {
+                    "csrf_token",
+                    "_csrf_token",
+                    "is_paused",
+                    "dag_id",
+                    "task_id",
+                    "dag_run_id",
+                    "run_id",
+                    "execution_date",
+                }
+                extra_fields = {
+                    k: secrets_masker.redact(v, k)
                     for k, v in itertools.chain(request.values.items(multi=True), request.view_args.items())
                     if k not in fields_skip_logging
-                ]
+                }
                 if event and event.startswith("variable."):
-                    extra_fields = _mask_variable_fields(extra_fields)
-                if event and event.startswith("connection."):
-                    extra_fields = _mask_connection_fields(extra_fields)
+                    extra_fields = _mask_variable_fields(
+                        request.json if isAPIRequest and hasJsonBody else extra_fields
+                    )
+                elif event and event.startswith("connection."):
+                    extra_fields = _mask_connection_fields(
+                        request.json if isAPIRequest and hasJsonBody else extra_fields
+                    )
+                elif hasJsonBody:
+                    masked_json = {k: secrets_masker.redact(v, k) for k, v in request.json.items()}
+                    extra_fields = {**extra_fields, **masked_json}
 
                 params = {**request.values, **request.view_args}
-
                 if params and "is_paused" in params:
-                    extra_fields.append(("is_paused", params["is_paused"] == "false"))
+                    extra_fields["is_paused"] = params["is_paused"] == "false"
+
+                if isAPIRequest:
+                    if f"{request.origin}/" == request.root_url:
+                        event_name = f"ui.{event_name}"
+                    else:
+                        event_name = f"api.{event_name}"
+
                 log = Log(
-                    event=event or f.__name__,
+                    event=event_name,
                     task_instance=None,
                     owner=user,
                     owner_display_name=user_display,
-                    extra=str(extra_fields),
+                    extra=json.dumps(extra_fields),
                     task_id=params.get("task_id"),
                     dag_id=params.get("dag_id"),
+                    run_id=params.get("run_id") or params.get("dag_run_id"),
                 )
 
                 if "execution_date" in request.values:

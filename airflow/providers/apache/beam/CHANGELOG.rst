@@ -26,6 +26,95 @@
 Changelog
 ---------
 
+5.8.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+5.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix BeamRunJavaPipelineOperator fails without job_name set (#40645)``
+
+5.7.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix deferrable mode for BeamRunJavaPipelineOperator (#39371)``
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
+5.7.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bugfix to correct GCSHook being called even when not required with BeamRunPythonPipelineOperator (#38716)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+
+5.6.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: skip apache beam pipeline options if value is set to false (#38496)``
+* ``Fix side-effect of default options in Beam Operators (#37916)``
+* ``Avoid to use subprocess in asyncio loop (#38292)``
+* ``Avoid change attributes into the constructor in Apache Beam operators (#37934)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``fix: try002 for provider apache beam (#38790)``
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``bump mypy version to 1.9.0 (#38239)``
+   * ``Resolve G004: Logging statement uses f-string (#37873)``
+
+5.6.2
+.....
+
+Misc
+~~~~
+
+* ``Add Python 3.12 exclusions in providers/pyproject.toml (#37404)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add comment about versions updated by release manager (#37488)``
+
 5.6.1
 .....
 

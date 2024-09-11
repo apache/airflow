@@ -21,7 +21,7 @@ Installation
 
 This document describes prerequisites for running Breeze and installation process.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Docker Desktop
 --------------
@@ -52,8 +52,7 @@ Here is an example configuration with more than 200GB disk space for Docker:
 .. raw:: html
 
     <div align="center">
-        <img src="../../../images/disk_space_osx.png" width="640"
-             alt="Disk space MacOS">
+        <img src="images/disk_space_osx.png" width="640" alt="Disk space MacOS">
     </div>
 
 
@@ -81,8 +80,7 @@ Here is an example configuration with more than 200GB disk space for Docker:
 .. raw:: html
 
    <div align="center">
-        <img src="../../../images/docker_socket.png" width="640"
-             alt="Docker socket used">
+        <img src="images/docker_socket.png" width="640" alt="Docker socket used">
     </div>
 
 Note: If you use Colima, please follow instructions at:
@@ -114,8 +112,7 @@ Docker in WSL 2
 .. raw:: html
 
     <div align="center">
-        <img src="../../../images/docker_wsl_integration.png" width="640"
-             alt="Airflow Breeze - Docker WSL2 integration">
+        <img src="images/docker_wsl_integration.png" width="640" alt="Airflow Breeze - Docker WSL2 integration">
     </div>
 
 - **WSL 2 Filesystem Performance** :
@@ -254,7 +251,7 @@ Run this command to install Breeze (make sure to use ``-e`` flag):
 
   The workaround is to downgrade packaging to 23.1 and re-running the ``pipx install`` command.
 
-  .. code-block::bash
+  .. code-block:: bash
 
      pip install "packaging<23.2"
      pipx install -e ./dev/breeze --force

@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for Google Cloud Dataflow service
 """
+
 from __future__ import annotations
 
 import os
@@ -33,8 +34,9 @@ from airflow.providers.google.cloud.operators.bigquery import (
 )
 from airflow.providers.google.cloud.operators.dataflow import DataflowStartSqlJobOperator
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_dataflow_sql"
 LOCATION = "europe-west3"
@@ -55,6 +57,7 @@ INSERT_ROWS_QUERY = (
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
+    schedule=None,
     catchup=False,
     tags=["example", "dataflow-sql"],
 ) as dag:

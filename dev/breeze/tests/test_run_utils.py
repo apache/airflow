@@ -29,7 +29,8 @@ def test_change_file_permission(tmp_path):
     tmpfile.write_text("content")
     change_file_permission(tmpfile)
     mode = tmpfile.stat().st_mode
-    assert not (mode & stat.S_IWGRP) and not (mode & stat.S_IWOTH)
+    assert not (mode & stat.S_IWGRP)
+    assert not (mode & stat.S_IWOTH)
 
 
 def test_change_directory_permission(tmp_path):
@@ -37,9 +38,7 @@ def test_change_directory_permission(tmp_path):
     subdir.mkdir()
     change_directory_permission(subdir)
     mode = subdir.stat().st_mode
-    assert (
-        not (mode & stat.S_IWGRP)
-        and not (mode & stat.S_IWOTH)
-        and (mode & stat.S_IXGRP)
-        and (mode & stat.S_IXOTH)
-    )
+    assert not (mode & stat.S_IWGRP)
+    assert not (mode & stat.S_IWOTH)
+    assert mode & stat.S_IXGRP
+    assert mode & stat.S_IXOTH

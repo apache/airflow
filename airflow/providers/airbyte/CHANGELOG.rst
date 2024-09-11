@@ -26,6 +26,88 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. note::
+  This version introduce a new way to handle the connection to Airbyte using ``client_id`` and ``client_secret`` instead of ``login`` and ``password``.
+  You can get them accessing the Airbyte UI and creating a new Application in the Settings page.
+
+  There is a large refactor to create a connection.
+  You must specify the Full Qualified Domain Name in the ``host`` parameter, eg: ``https://my.company:8000/airbyte/v1/``.
+  The ``token_url`` parameter is optional and it is used to create the access token, the default value is ``v1/applications/token`` used by Airbyte Cloud.
+  You must remove the ``api_type`` parameter from your DAG it isn't required anymore.
+
+3.9.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.8.1
+.....
+
+Misc
+~~~~
+
+* ``Simplify 'airflow_version' imports (#39497)``
+* ``Faster 'airflow_version' imports (#39552)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
+3.8.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(airbyte/hooks): add schema and port to prevent InvalidURL error (#38860)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+
+3.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Ensure Airbyte Provider is Compatible with Cloud and Config APIs (#37943)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: try002 for provider airbyte (#38786)``
+* ``fix(airbyte): add return statement to yield within a while loop in triggers (#38390)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Add comment about versions updated by release manager (#37488)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Applied D401 to airbyte files. (#37370)``
+
 3.6.0
 .....
 

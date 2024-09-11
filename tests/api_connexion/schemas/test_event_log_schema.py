@@ -26,7 +26,7 @@ from airflow.api_connexion.schemas.event_log_schema import (
 from airflow.models import Log
 from airflow.utils import timezone
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.fixture
@@ -35,6 +35,7 @@ def task_instance(session, create_task_instance, request):
         session=session,
         dag_id="TEST_DAG_ID",
         task_id="TEST_TASK_ID",
+        run_id="TEST_RUN_ID",
         execution_date=request.instance.default_time,
     )
 
@@ -56,6 +57,9 @@ class TestEventLogSchema(TestEventLogSchemaBase):
             "event": "TEST_EVENT",
             "dag_id": "TEST_DAG_ID",
             "task_id": "TEST_TASK_ID",
+            "run_id": "TEST_RUN_ID",
+            "map_index": -1,
+            "try_number": 0,
             "execution_date": self.default_time.isoformat(),
             "owner": "airflow",
             "when": self.default_time.isoformat(),
@@ -79,6 +83,9 @@ class TestEventLogCollection(TestEventLogSchemaBase):
                     "event": "TEST_EVENT_1",
                     "dag_id": "TEST_DAG_ID",
                     "task_id": "TEST_TASK_ID",
+                    "run_id": "TEST_RUN_ID",
+                    "map_index": -1,
+                    "try_number": 0,
                     "execution_date": self.default_time.isoformat(),
                     "owner": "airflow",
                     "when": self.default_time.isoformat(),
@@ -89,6 +96,9 @@ class TestEventLogCollection(TestEventLogSchemaBase):
                     "event": "TEST_EVENT_2",
                     "dag_id": "TEST_DAG_ID",
                     "task_id": "TEST_TASK_ID",
+                    "run_id": "TEST_RUN_ID",
+                    "map_index": -1,
+                    "try_number": 0,
                     "execution_date": self.default_time.isoformat(),
                     "owner": "airflow",
                     "when": self.default_time2.isoformat(),

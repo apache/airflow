@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
@@ -31,6 +31,7 @@ from airflow.api_connexion.schemas.event_log_schema import (
 from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models import Log
 from airflow.utils import timezone
+from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
@@ -56,8 +57,13 @@ def get_event_logs(
     *,
     dag_id: str | None = None,
     task_id: str | None = None,
+    run_id: str | None = None,
+    map_index: int | None = None,
+    try_number: int | None = None,
     owner: str | None = None,
     event: str | None = None,
+    excluded_events: str | None = None,
+    included_events: str | None = None,
     before: str | None = None,
     after: str | None = None,
     limit: int,
@@ -67,33 +73,47 @@ def get_event_logs(
 ) -> APIResponse:
     """Get all log entries from event log."""
     to_replace = {"event_log_id": "id", "when": "dttm"}
-    allowed_filter_attrs = [
+    allowed_sort_attrs = [
         "event_log_id",
         "when",
         "dag_id",
         "task_id",
+        "run_id",
         "event",
         "execution_date",
         "owner",
         "extra",
     ]
-    total_entries = session.scalars(func.count(Log.id)).one()
     query = select(Log)
 
     if dag_id:
         query = query.where(Log.dag_id == dag_id)
     if task_id:
         query = query.where(Log.task_id == task_id)
+    if run_id:
+        query = query.where(Log.run_id == run_id)
+    if map_index:
+        query = query.where(Log.map_index == map_index)
+    if try_number:
+        query = query.where(Log.try_number == try_number)
     if owner:
         query = query.where(Log.owner == owner)
     if event:
         query = query.where(Log.event == event)
+    if included_events:
+        included_events_list = included_events.split(",")
+        query = query.where(Log.event.in_(included_events_list))
+    if excluded_events:
+        excluded_events_list = excluded_events.split(",")
+        query = query.where(Log.event.notin_(excluded_events_list))
     if before:
         query = query.where(Log.dttm < timezone.parse(before))
     if after:
         query = query.where(Log.dttm > timezone.parse(after))
 
-    query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
+    total_entries = get_query_count(query, session=session)
+
+    query = apply_sorting(query, order_by, to_replace, allowed_sort_attrs)
     event_logs = session.scalars(query.offset(offset).limit(limit)).all()
     return event_log_collection_schema.dump(
         EventLogCollection(event_logs=event_logs, total_entries=total_entries)

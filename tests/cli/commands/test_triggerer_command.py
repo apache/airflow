@@ -24,7 +24,7 @@ import pytest
 from airflow.cli import cli_parser
 from airflow.cli.commands import triggerer_command
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestTriggererCommand:
@@ -50,3 +50,16 @@ class TestTriggererCommand:
         mock_serve.return_value.__enter__.assert_called_once()
         mock_serve.return_value.__exit__.assert_called_once()
         mock_triggerer_job_runner.assert_called_once_with(job=mock.ANY, capacity=42)
+
+    @mock.patch("airflow.cli.commands.triggerer_command.TriggererJobRunner")
+    @mock.patch("airflow.cli.commands.triggerer_command.run_job")
+    @mock.patch("airflow.cli.commands.triggerer_command.Process")
+    def test_trigger_run_serve_logs(self, mock_process, mock_run_job, mock_trigger_job_runner):
+        """Ensure that trigger runner and server log functions execute as intended"""
+        triggerer_command.triggerer_run(False, 1, 10.3)
+
+        mock_process.assert_called_once()
+        mock_run_job.assert_called_once_with(
+            job=mock_trigger_job_runner.return_value.job,
+            execute_callable=mock_trigger_job_runner.return_value._execute,
+        )

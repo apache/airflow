@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Launches PODs."""
+
 from __future__ import annotations
 
 import enum
@@ -41,7 +42,7 @@ from urllib3.exceptions import HTTPError, TimeoutError
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.callbacks import ExecutionMode, KubernetesPodOperatorCallback
-from airflow.providers.cncf.kubernetes.pod_generator import PodDefaults
+from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.timezone import utcnow
 
@@ -187,6 +188,10 @@ def get_container_termination_message(pod: V1Pod, container_name: str):
         container_statuses = pod.status.container_statuses
         container_status = next((x for x in container_statuses if x.name == container_name), None)
         return container_status.state.terminated.message if container_status else None
+
+
+def check_exception_is_kubernetes_api_unauthorized(exc: BaseException):
+    return isinstance(exc, ApiException) and exc.status and str(exc.status) == "401"
 
 
 class PodLaunchTimeoutException(AirflowException):
@@ -463,7 +468,8 @@ class PodManager(LoggingMixin):
                                         self._callbacks.progress_callback(
                                             line=line, client=self._client, mode=ExecutionMode.SYNC
                                         )
-                                self.log.info("[%s] %s", container_name, message_to_log)
+                                if message_to_log is not None:
+                                    self.log.info("[%s] %s", container_name, message_to_log)
                                 last_captured_timestamp = message_timestamp
                                 message_to_log = message
                                 message_timestamp = line_timestamp
@@ -480,7 +486,8 @@ class PodManager(LoggingMixin):
                             self._callbacks.progress_callback(
                                 line=line, client=self._client, mode=ExecutionMode.SYNC
                             )
-                    self.log.info("[%s] %s", container_name, message_to_log)
+                    if message_to_log is not None:
+                        self.log.info("[%s] %s", container_name, message_to_log)
                     last_captured_timestamp = message_timestamp
             except TimeoutError as e:
                 # in case of timeout, increment return time by 2 seconds to avoid
@@ -509,7 +516,7 @@ class PodManager(LoggingMixin):
                 # a timeout is a normal thing and we ignore it and resume following logs
                 if not isinstance(exc, TimeoutError):
                     self.log.warning(
-                        "Pod %s log read interrupted but container %s still running",
+                        "Pod %s log read interrupted but container %s still running. Logs generated in the last one second might get duplicated.",
                         pod.metadata.name,
                         container_name,
                     )
@@ -789,7 +796,7 @@ class PodManager(LoggingMixin):
                 _preload_content=False,
             )
         ) as resp:
-            self._exec_pod_command(resp, "kill -s SIGINT 1")
+            self._exec_pod_command(resp, "kill -2 1")
 
     def _exec_pod_command(self, resp, command: str) -> str | None:
         res = ""

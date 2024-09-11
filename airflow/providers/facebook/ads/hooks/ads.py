@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Facebook Ads Reporting hooks."""
+
 from __future__ import annotations
 
 import time
@@ -45,7 +46,8 @@ class JobStatus(Enum):
 
 
 class FacebookAdsReportingHook(BaseHook):
-    """Facebook Ads API.
+    """
+    Facebook Ads API.
 
     .. seealso::
         For more information on the Facebook Ads API, take a look at the API docs:
@@ -89,7 +91,8 @@ class FacebookAdsReportingHook(BaseHook):
 
     @cached_property
     def facebook_ads_config(self) -> dict:
-        """Get the ``facebook_ads_config`` attribute.
+        """
+        Get the ``facebook_ads_config`` attribute.
 
         This fetches Facebook Ads connection from meta database, and sets the
         ``facebook_ads_config`` attribute with returned config file.
@@ -109,7 +112,8 @@ class FacebookAdsReportingHook(BaseHook):
         fields: list[str],
         sleep_time: int = 5,
     ) -> list[AdsInsights] | dict[str, list[AdsInsights]]:
-        """Pull data from Facebook Ads API regarding Account ID with matching return type.
+        """
+        Pull data from Facebook Ads API regarding Account ID with matching return type.
 
         The return type and value depends on the ``account_id`` configuration. If the
         configuration is a str representing a single Account ID, the return value is the
@@ -154,7 +158,8 @@ class FacebookAdsReportingHook(BaseHook):
         fields: list[str],
         sleep_time: int = 5,
     ) -> list[AdsInsights]:
-        """Pull data from the Facebook Ads API with given ``account_id``.
+        """
+        Pull data from the Facebook Ads API with given ``account_id``.
 
         :param account_id: Facebook Account ID that holds ads information
             https://developers.facebook.com/docs/marketing-api/reference/ads-insights/

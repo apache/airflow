@@ -39,7 +39,8 @@ class RunJobStatus(Enum):
 
 
 class CloudRunJobFinishedTrigger(BaseTrigger):
-    """Cloud Run trigger to check if templated job has been finished.
+    """
+    Cloud Run trigger to check if templated job has been finished.
 
     :param operation_name: Required. Name of the operation.
     :param job_name: Required. Name of the job.
@@ -120,6 +121,7 @@ class CloudRunJobFinishedTrigger(BaseTrigger):
                             "job_name": self.job_name,
                         }
                     )
+                return
             elif operation.error.message:
                 raise AirflowException(f"Cloud Run Job error: {operation.error.message}")
 

@@ -38,8 +38,9 @@ Sensitive field names
 When masking is enabled, Airflow will always mask the password field of every Connection that is accessed by a
 task.
 
-It will also mask the value of a Variable, or the field of a Connection's extra JSON blob if the name contains
-any words in ('access_token', 'api_key', 'apikey','authorization', 'passphrase', 'passwd',
+It will also mask the value of a Variable, rendered template dictionaries, XCom dictionaries or the
+field of a Connection's extra JSON blob if the name contains
+any words in ('access_token', 'api_key', 'apikey', 'authorization', 'passphrase', 'passwd',
 'password', 'private_key', 'secret', 'token'). This list can also be extended:
 
 .. code-block:: ini
@@ -77,3 +78,14 @@ or
             ...
 
 The mask must be set before any log/output is produced to have any effect.
+
+NOT masking when using environment variables
+""""""""""""""""""""""""""""""""""""""""""""
+
+When you are using some operators - for example :class:`airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator`,
+you might be tempted to pass secrets via environment variables. This is very bad practice because the environment
+variables are visible to anyone who has access to see the environment of the process - such secrets passed by
+environment variables will NOT be masked by Airflow.
+
+If you need to pass secrets to the KubernetesPodOperator, you should use native Kubernetes secrets or
+use Airflow Connection or Variables to retrieve the secrets dynamically.

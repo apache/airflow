@@ -23,20 +23,11 @@ import pytest
 
 import airflow.www.auth as auth
 from airflow.auth.managers.models.resource_details import DagAccessEntity
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models import Connection, Pool, Variable
-from airflow.www.auth import has_access
 
 mock_call = Mock()
 
-
-class TestHasAccessDecorator:
-    def test_has_access_decorator_raises_deprecation_warning(self):
-        with pytest.warns(RemovedInAirflow3Warning):
-
-            @has_access
-            def test_function():
-                pass
+pytestmark = pytest.mark.skip_if_database_isolation_mode
 
 
 @pytest.mark.parametrize(
@@ -108,17 +99,17 @@ class TestHasAccessNoDetails:
         assert result.status_code == 302
 
 
-@pytest.fixture()
+@pytest.fixture
 def get_connection():
     return [Connection("conn_1"), Connection("conn_2")]
 
 
-@pytest.fixture()
+@pytest.fixture
 def get_pool():
     return [Pool(pool="pool_1"), Pool(pool="pool_2")]
 
 
-@pytest.fixture()
+@pytest.fixture
 def get_variable():
     return [Variable("var_1"), Variable("var_2")]
 

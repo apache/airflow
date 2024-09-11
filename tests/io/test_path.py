@@ -17,14 +17,17 @@
 # under the License.
 from __future__ import annotations
 
+import sys
 import uuid
 from stat import S_ISDIR, S_ISREG
 from tempfile import NamedTemporaryFile
+from typing import Any, ClassVar
 from unittest import mock
 
 import pytest
 from fsspec.implementations.local import LocalFileSystem
-from fsspec.utils import stringify_path
+from fsspec.implementations.memory import MemoryFileSystem
+from fsspec.registry import _registry as _fsspec_registry, register_implementation
 
 from airflow.datasets import Dataset
 from airflow.io import _register_filesystems, get_fs
@@ -38,19 +41,46 @@ FOO = "file:///mnt/warehouse/foo"
 BAR = FOO
 
 
-class FakeRemoteFileSystem(LocalFileSystem):
-    id = "fakefs"
-    auto_mk_dir = True
+class FakeLocalFileSystem(MemoryFileSystem):
+    protocol = ("file", "local")
+    root_marker = "/"
+    store: ClassVar[dict[str, Any]] = {}
+    pseudo_dirs = [""]
 
-    @property
-    def fsid(self):
-        return self.id
+    def __init__(self, *args, **kwargs):
+        self.conn_id = kwargs.pop("conn_id", None)
+        super().__init__(*args, **kwargs)
 
     @classmethod
-    def _strip_protocol(cls, path) -> str:
-        path = stringify_path(path)
-        i = path.find("://")
-        return path[i + 3 :] if i > 0 else path
+    def _strip_protocol(cls, path):
+        for protocol in cls.protocol:
+            if path.startswith(f"{protocol}://"):
+                return path[len(f"{protocol}://") :]
+        if "::" in path or "://" in path:
+            return path.rstrip("/")
+        path = path.lstrip("/").rstrip("/")
+        return path
+
+
+class FakeRemoteFileSystem(MemoryFileSystem):
+    protocol = ("s3", "fakefs", "ffs", "ffs2")
+    root_marker = ""
+    store: ClassVar[dict[str, Any]] = {}
+    pseudo_dirs = [""]
+
+    def __init__(self, *args, **kwargs):
+        self.conn_id = kwargs.pop("conn_id", None)
+        super().__init__(*args, **kwargs)
+
+    @classmethod
+    def _strip_protocol(cls, path):
+        for protocol in cls.protocol:
+            if path.startswith(f"{protocol}://"):
+                return path[len(f"{protocol}://") :]
+        if "::" in path or "://" in path:
+            return path.rstrip("/")
+        path = path.lstrip("/").rstrip("/")
+        return path
 
 
 def get_fs_no_storage_options(_: str):
@@ -60,10 +90,15 @@ def get_fs_no_storage_options(_: str):
 class TestFs:
     def setup_class(self):
         self._store_cache = _STORE_CACHE.copy()
+        self._fsspec_registry = _fsspec_registry.copy()
+        for protocol in FakeRemoteFileSystem.protocol:
+            register_implementation(protocol, FakeRemoteFileSystem, clobber=True)
 
     def teardown(self):
         _STORE_CACHE.clear()
         _STORE_CACHE.update(self._store_cache)
+        _fsspec_registry.clear()
+        _fsspec_registry.update(self._fsspec_registry)
 
     def test_alias(self):
         store = attach("file", alias="local")
@@ -71,22 +106,24 @@ class TestFs:
         assert "local" in _STORE_CACHE
 
     def test_init_objectstoragepath(self):
-        path = ObjectStoragePath("file://bucket/key/part1/part2")
+        attach("s3", fs=FakeRemoteFileSystem())
+
+        path = ObjectStoragePath("s3://bucket/key/part1/part2")
         assert path.bucket == "bucket"
         assert path.key == "key/part1/part2"
-        assert path.protocol == "file"
+        assert path.protocol == "s3"
         assert path.path == "bucket/key/part1/part2"
 
         path2 = ObjectStoragePath(path / "part3")
         assert path2.bucket == "bucket"
         assert path2.key == "key/part1/part2/part3"
-        assert path2.protocol == "file"
+        assert path2.protocol == "s3"
         assert path2.path == "bucket/key/part1/part2/part3"
 
         path3 = ObjectStoragePath(path2 / "2023")
         assert path3.bucket == "bucket"
         assert path3.key == "key/part1/part2/part3/2023"
-        assert path3.protocol == "file"
+        assert path3.protocol == "s3"
         assert path3.path == "bucket/key/part1/part2/part3/2023"
 
     def test_read_write(self):
@@ -116,49 +153,57 @@ class TestFs:
 
         assert not o.exists()
 
-    @pytest.fixture()
-    def fake_fs(self):
-        fs = mock.Mock()
-        fs._strip_protocol.return_value = "/"
-        fs.conn_id = "fake"
-        return fs
-
-    def test_objectstoragepath_init_conn_id_in_uri(self, fake_fs):
-        fake_fs.stat.return_value = {"stat": "result"}
-        attach(protocol="fake", conn_id="fake", fs=fake_fs)
+    def test_objectstoragepath_init_conn_id_in_uri(self):
+        attach(protocol="fake", conn_id="fake", fs=FakeRemoteFileSystem(conn_id="fake"))
         p = ObjectStoragePath("fake://fake@bucket/path")
-        assert p.stat() == {"stat": "result", "conn_id": "fake", "protocol": "fake"}
+        p.touch()
+        fsspec_info = p.fs.info(p.path)
+        assert p.stat() == {**fsspec_info, "conn_id": "fake", "protocol": "fake"}
+
+    @pytest.fixture
+    def fake_local_files(self):
+        obj = FakeLocalFileSystem()
+        obj.touch(FOO)
+        try:
+            yield
+        finally:
+            FakeLocalFileSystem.store.clear()
+            FakeLocalFileSystem.pseudo_dirs[:] = [""]
 
     @pytest.mark.parametrize(
         "fn, args, fn2, path, expected_args, expected_kwargs",
         [
-            ("checksum", {}, "checksum", FOO, FakeRemoteFileSystem._strip_protocol(BAR), {}),
-            ("size", {}, "size", FOO, FakeRemoteFileSystem._strip_protocol(BAR), {}),
+            ("checksum", {}, "checksum", FOO, FakeLocalFileSystem._strip_protocol(BAR), {}),
+            ("size", {}, "size", FOO, FakeLocalFileSystem._strip_protocol(BAR), {}),
             (
                 "sign",
                 {"expiration": 200, "extra": "xtra"},
                 "sign",
                 FOO,
-                FakeRemoteFileSystem._strip_protocol(BAR),
+                FakeLocalFileSystem._strip_protocol(BAR),
                 {"expiration": 200, "extra": "xtra"},
             ),
-            ("ukey", {}, "ukey", FOO, FakeRemoteFileSystem._strip_protocol(BAR), {}),
+            ("ukey", {}, "ukey", FOO, FakeLocalFileSystem._strip_protocol(BAR), {}),
             (
                 "read_block",
                 {"offset": 0, "length": 1},
                 "read_block",
                 FOO,
-                FakeRemoteFileSystem._strip_protocol(BAR),
+                FakeLocalFileSystem._strip_protocol(BAR),
                 {"delimiter": None, "length": 1, "offset": 0},
             ),
         ],
     )
-    def test_standard_extended_api(self, fake_fs, fn, args, fn2, path, expected_args, expected_kwargs):
-        store = attach(protocol="file", conn_id="fake", fs=fake_fs)
-        o = ObjectStoragePath(path, conn_id="fake")
+    def test_standard_extended_api(
+        self, fake_local_files, fn, args, fn2, path, expected_args, expected_kwargs
+    ):
+        fs = FakeLocalFileSystem()
+        with mock.patch.object(fs, fn2) as method:
+            attach(protocol="file", conn_id="fake", fs=fs)
+            o = ObjectStoragePath(path, conn_id="fake")
 
-        getattr(o, fn)(**args)
-        getattr(store.fs, fn2).assert_called_once_with(expected_args, **expected_kwargs)
+            getattr(o, fn)(**args)
+            method.assert_called_once_with(expected_args, **expected_kwargs)
 
     def test_stat(self):
         with NamedTemporaryFile() as f:
@@ -168,6 +213,8 @@ class TestFs:
             assert S_ISDIR(o.parent.stat().st_mode)
 
     def test_bucket_key_protocol(self):
+        attach(protocol="s3", fs=FakeRemoteFileSystem())
+
         bucket = "bkt"
         key = "yek"
         protocol = "s3"
@@ -200,9 +247,31 @@ class TestFs:
 
         e.unlink()
 
-    def test_move_local(self):
-        _from = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
-        _to = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
+    @pytest.mark.skipif(sys.version_info < (3, 9), reason="`is_relative_to` new in version 3.9")
+    def test_is_relative_to(self):
+        uuid_dir = f"/tmp/{str(uuid.uuid4())}"
+        o1 = ObjectStoragePath(f"file://{uuid_dir}/aaa")
+        o2 = ObjectStoragePath(f"file://{uuid_dir}")
+        o3 = ObjectStoragePath(f"file://{str(uuid.uuid4())}")
+        assert o1.is_relative_to(o2)
+        assert not o1.is_relative_to(o3)
+
+    def test_relative_to(self):
+        uuid_dir = f"/tmp/{str(uuid.uuid4())}"
+        o1 = ObjectStoragePath(f"file://{uuid_dir}/aaa")
+        o2 = ObjectStoragePath(f"file://{uuid_dir}")
+        o3 = ObjectStoragePath(f"file://{str(uuid.uuid4())}")
+
+        _ = o1.relative_to(o2)  # Should not raise any error
+
+        with pytest.raises(ValueError):
+            o1.relative_to(o3)
+
+    def test_move_local(self, hook_lineage_collector):
+        _from_path = f"file:///tmp/{str(uuid.uuid4())}"
+        _to_path = f"file:///tmp/{str(uuid.uuid4())}"
+        _from = ObjectStoragePath(_from_path)
+        _to = ObjectStoragePath(_to_path)
 
         _from.touch()
         _from.move(_to)
@@ -211,13 +280,21 @@ class TestFs:
 
         _to.unlink()
 
-    def test_move_remote(self):
+        collected_datasets = hook_lineage_collector.collected_datasets
+
+        assert len(collected_datasets.inputs) == 1
+        assert len(collected_datasets.outputs) == 1
+        assert collected_datasets.inputs[0].dataset == Dataset(uri=_from_path)
+        assert collected_datasets.outputs[0].dataset == Dataset(uri=_to_path)
+
+    def test_move_remote(self, hook_lineage_collector):
         attach("fakefs", fs=FakeRemoteFileSystem())
 
-        _from = ObjectStoragePath(f"file:///tmp/{str(uuid.uuid4())}")
-        print(_from)
-        _to = ObjectStoragePath(f"fakefs:///tmp/{str(uuid.uuid4())}")
-        print(_to)
+        _from_path = f"file:///tmp/{str(uuid.uuid4())}"
+        _to_path = f"fakefs:///tmp/{str(uuid.uuid4())}"
+
+        _from = ObjectStoragePath(_from_path)
+        _to = ObjectStoragePath(_to_path)
 
         _from.touch()
         _from.move(_to)
@@ -226,25 +303,33 @@ class TestFs:
 
         _to.unlink()
 
-    def test_copy_remote_remote(self):
-        # foo = xxx added to prevent same fs token
-        attach("ffs", fs=FakeRemoteFileSystem(auto_mkdir=True, foo="bar"))
-        attach("ffs2", fs=FakeRemoteFileSystem(auto_mkdir=True, foo="baz"))
+        collected_datasets = hook_lineage_collector.collected_datasets
 
-        dir_src = f"/tmp/{str(uuid.uuid4())}"
-        dir_dst = f"/tmp/{str(uuid.uuid4())}"
+        assert len(collected_datasets.inputs) == 1
+        assert len(collected_datasets.outputs) == 1
+        assert collected_datasets.inputs[0].dataset == Dataset(uri=str(_from))
+        assert collected_datasets.outputs[0].dataset == Dataset(uri=str(_to))
+
+    def test_copy_remote_remote(self, hook_lineage_collector):
+        attach("ffs", fs=FakeRemoteFileSystem(skip_instance_cache=True))
+        attach("ffs2", fs=FakeRemoteFileSystem(skip_instance_cache=True))
+
+        dir_src = f"bucket1/{str(uuid.uuid4())}"
+        dir_dst = f"bucket2/{str(uuid.uuid4())}"
         key = "foo/bar/baz.txt"
 
-        # note we are dealing with object storage characteristics
-        # while working on a local filesystem, so it might feel not intuitive
-        _from = ObjectStoragePath(f"ffs://{dir_src}")
+        _from_path = f"ffs://{dir_src}"
+        _from = ObjectStoragePath(_from_path)
         _from_file = _from / key
         _from_file.touch()
+        assert _from.bucket == "bucket1"
         assert _from_file.exists()
 
-        _to = ObjectStoragePath(f"ffs2://{dir_dst}")
+        _to_path = f"ffs2://{dir_dst}"
+        _to = ObjectStoragePath(_to_path)
         _from.copy(_to)
 
+        assert _to.bucket == "bucket2"
         assert _to.exists()
         assert _to.is_dir()
         assert (_to / _from.key / key).exists()
@@ -253,8 +338,14 @@ class TestFs:
         _from.rmdir(recursive=True)
         _to.rmdir(recursive=True)
 
+        assert len(hook_lineage_collector.collected_datasets.inputs) == 1
+        assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(uri=str(_from_file))
+
+        # Empty file - shutil.copyfileobj does nothing
+        assert len(hook_lineage_collector.collected_datasets.outputs) == 0
+
     def test_serde_objectstoragepath(self):
-        path = "file://bucket/key/part1/part2"
+        path = "file:///bucket/key/part1/part2"
         o = ObjectStoragePath(path)
 
         s = o.serialize()
@@ -312,9 +403,33 @@ class TestFs:
             _register_filesystems.cache_clear()
 
     def test_dataset(self):
+        attach("s3", fs=FakeRemoteFileSystem())
+
         p = "s3"
         f = "/tmp/foo"
         i = Dataset(uri=f"{p}://{f}", extra={"foo": "bar"})
         o = ObjectStoragePath(i)
         assert o.protocol == p
         assert o.path == f
+
+    def test_hash(self):
+        file_uri_1 = f"file:///tmp/{str(uuid.uuid4())}"
+        file_uri_2 = f"file:///tmp/{str(uuid.uuid4())}"
+        s = set()
+        for _ in range(10):
+            s.add(ObjectStoragePath(file_uri_1))
+            s.add(ObjectStoragePath(file_uri_2))
+        assert len(s) == 2
+
+    def test_lazy_load(self):
+        o = ObjectStoragePath("file:///tmp/foo")
+        with pytest.raises(AttributeError):
+            assert o._fs_cached
+
+        assert o.fs is not None
+        assert o._fs_cached
+
+    @pytest.mark.parametrize("input_str", ("file:///tmp/foo", "s3://conn_id@bucket/test.txt"))
+    def test_str(self, input_str):
+        o = ObjectStoragePath(input_str)
+        assert str(o) == input_str

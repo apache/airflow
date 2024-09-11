@@ -36,7 +36,11 @@ class EC2StartInstanceOperator(BaseOperator):
         :ref:`howto/operator:EC2StartInstanceOperator`
 
     :param instance_id: id of the AWS EC2 instance
-    :param aws_conn_id: aws connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param region_name: (optional) aws region name associated with the client
     :param check_interval: time in seconds that the job should wait in
         between each instance state checks until operation is completed
@@ -50,7 +54,7 @@ class EC2StartInstanceOperator(BaseOperator):
         self,
         *,
         instance_id: str,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         check_interval: float = 15,
         **kwargs,
@@ -82,7 +86,11 @@ class EC2StopInstanceOperator(BaseOperator):
         :ref:`howto/operator:EC2StopInstanceOperator`
 
     :param instance_id: id of the AWS EC2 instance
-    :param aws_conn_id: aws connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param region_name: (optional) aws region name associated with the client
     :param check_interval: time in seconds that the job should wait in
         between each instance state checks until operation is completed
@@ -96,7 +104,7 @@ class EC2StopInstanceOperator(BaseOperator):
         self,
         *,
         instance_id: str,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         check_interval: float = 15,
         **kwargs,
@@ -130,7 +138,11 @@ class EC2CreateInstanceOperator(BaseOperator):
     :param image_id: ID of the AMI used to create the instance.
     :param max_count: Maximum number of instances to launch. Defaults to 1.
     :param min_count: Minimum number of instances to launch. Defaults to 1.
-    :param aws_conn_id: AWS connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param region_name: AWS region name associated with the client.
     :param poll_interval: Number of seconds to wait before attempting to
         check state of instance. Only used if wait_for_completion is True. Default is 20.
@@ -156,7 +168,7 @@ class EC2CreateInstanceOperator(BaseOperator):
         image_id: str,
         max_count: int = 1,
         min_count: int = 1,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         poll_interval: int = 20,
         max_attempts: int = 20,
@@ -223,7 +235,11 @@ class EC2TerminateInstanceOperator(BaseOperator):
         :ref:`howto/operator:EC2TerminateInstanceOperator`
 
     :param instance_id: ID of the instance to be terminated.
-    :param aws_conn_id: AWS connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param region_name: AWS region name associated with the client.
     :param poll_interval: Number of seconds to wait before attempting to
         check state of instance. Only used if wait_for_completion is True. Default is 20.
@@ -238,7 +254,7 @@ class EC2TerminateInstanceOperator(BaseOperator):
     def __init__(
         self,
         instance_ids: str | list[str],
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         poll_interval: int = 20,
         max_attempts: int = 20,
@@ -280,7 +296,11 @@ class EC2RebootInstanceOperator(BaseOperator):
         :ref:`howto/operator:EC2RebootInstanceOperator`
 
     :param instance_ids: ID of the instance(s) to be rebooted.
-    :param aws_conn_id: AWS connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param region_name: AWS region name associated with the client.
     :param poll_interval: Number of seconds to wait before attempting to
         check state of instance. Only used if wait_for_completion is True. Default is 20.
@@ -298,7 +318,7 @@ class EC2RebootInstanceOperator(BaseOperator):
         self,
         *,
         instance_ids: str | list[str],
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         poll_interval: int = 20,
         max_attempts: int = 20,
@@ -339,7 +359,11 @@ class EC2HibernateInstanceOperator(BaseOperator):
         :ref:`howto/operator:EC2HibernateInstanceOperator`
 
     :param instance_ids: ID of the instance(s) to be hibernated.
-    :param aws_conn_id: AWS connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node).
     :param region_name: AWS region name associated with the client.
     :param poll_interval: Number of seconds to wait before attempting to
         check state of instance. Only used if wait_for_completion is True. Default is 20.
@@ -357,7 +381,7 @@ class EC2HibernateInstanceOperator(BaseOperator):
         self,
         *,
         instance_ids: str | list[str],
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         region_name: str | None = None,
         poll_interval: int = 20,
         max_attempts: int = 20,

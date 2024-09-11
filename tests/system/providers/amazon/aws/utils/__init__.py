@@ -43,18 +43,18 @@ DEFAULT_ENV_ID_LEN: int = 8
 DEFAULT_ENV_ID: str = f"{DEFAULT_ENV_ID_PREFIX}{uuid4()!s:.{DEFAULT_ENV_ID_LEN}}"
 PURGE_LOGS_INTERVAL_PERIOD = 5
 
-# All test file names will contain this string.
-TEST_FILE_IDENTIFIER: str = "example"
+# All test file names will contain one of these strings.
+TEST_FILE_IDENTIFIERS: list[str] = ["example_", "test_"]
 
 INVALID_ENV_ID_MSG: str = (
-    "In order to maximize compatibility, the SYSTEM_TESTS_ENV_ID must be an alphanumeric string "
-    "which starts with a letter. Please see `tests/system/providers/amazon/aws/README.md`."
+    "To maximize compatibility, the SYSTEM_TESTS_ENV_ID must be an alphanumeric string "
+    "which starts with a letter. Please see `tests/system/providers/amazon/README.md`."
 )
 LOWERCASE_ENV_ID_MSG: str = (
     "The provided Environment ID contains uppercase letters and "
     "will be converted to lowercase for the AWS System Tests."
 )
-NO_VALUE_MSG: str = "No Value Found: Variable {key} could not be found and no default value was provided."
+NO_VALUE_MSG: str = "No Value Found: Variable {key} could not be found, and no default value was provided."
 
 log = logging.getLogger(__name__)
 
@@ -68,7 +68,9 @@ def _get_test_name() -> str:
     # The exact layer of the stack will depend on if this is called directly
     # or from another helper, but the test will always contain the identifier.
     test_filename: str = next(
-        frame.filename for frame in inspect.stack() if TEST_FILE_IDENTIFIER in frame.filename
+        frame.filename
+        for frame in inspect.stack()
+        if any(identifier in frame.filename for identifier in TEST_FILE_IDENTIFIERS)
     )
     return Path(test_filename).stem
 

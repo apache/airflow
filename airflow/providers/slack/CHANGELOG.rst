@@ -27,6 +27,101 @@
 Changelog
 ---------
 
+8.9.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+8.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``feat(slack): add unfurl options to slack notifier (#40694)``
+
+Misc
+~~~~
+
+* ``docs(SlackNotifier): add newly added unfurl args to the docstring (#40709)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave July 2024 (#40644)``
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+8.7.1
+.....
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
+8.7.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.7+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+.. note::
+  Due to future discontinue of `files.upload <https://api.slack.com/changelog/2024-04-a-better-way-to-upload-files-is-here-to-stay>`__
+  Slack API method the default value of ``SlackAPIFileOperator.method_version`` and ``SqlToSlackApiFileOperator.slack_method_version``
+  changed from ``v1`` to ``v2``
+
+  If you previously use ``v1`` you should check that your application has appropriate scopes:
+
+  * **files:write** - for write files.
+  * **files:read** - for read files (not required if you use Slack SDK >= 3.23.0).
+  * **channels:read** - get list of public channels, for convert Channel Name to Channel ID.
+  * **groups:read** - get list of private channels, for convert Channel Name to Channel ID
+  * **mpim:read** - additional permission for API method **conversations.list**
+  * **im:read** - additional permission for API method **conversations.list**
+
+  If you use ``SlackHook.send_file`` please consider switch to ``SlackHook.send_file_v2``
+  or ``SlackHook.send_file_v1_to_v2`` methods.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.7.0 (#39240)``
+* ``Use 'upload_files_v2' Slack SDK method by default in Slack Operators (#39340)``
+
+8.6.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix set deprecated slack operators arguments in 'MappedOperator' (#38345)``
+* ``Update SqlToSlackApiFileOperator with new param to check empty output (#38079)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+   * ``Bump ruff to 0.3.3 (#38240)``
+   * ``Prepare docs 1st wave (RC1) March 2024 (#37876)``
+   * ``Avoid to use too broad 'noqa' (#37862)``
+   * ``Add comment about versions updated by release manager (#37488)``
+
 8.6.1
 .....
 

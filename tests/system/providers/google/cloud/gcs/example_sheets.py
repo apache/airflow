@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from datetime import datetime
 
@@ -35,7 +36,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "example_sheets_gcs"
+DAG_ID = "sheets_gcs"
 
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 SPREADSHEET = {
@@ -43,6 +44,9 @@ SPREADSHEET = {
     "sheets": [{"properties": {"title": "Sheet1"}}],
 }
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"
+
+
+log = logging.getLogger(__name__)
 
 
 with DAG(
@@ -57,9 +61,9 @@ with DAG(
     )
 
     @task
-    def create_temp_sheets_connection():
+    def create_connection(connection_id: str):
         conn = Connection(
-            conn_id=CONNECTION_ID,
+            conn_id=connection_id,
             conn_type="google_cloud_platform",
         )
         conn_extra = {
@@ -71,10 +75,15 @@ with DAG(
         conn.set_extra(conn_extra_json)
 
         session = Session()
+        log.info("Removing connection %s if it exists", connection_id)
+        query = session.query(Connection).filter(Connection.conn_id == connection_id)
+        query.delete()
+
         session.add(conn)
         session.commit()
+        log.info("Connection %s created", connection_id)
 
-    create_temp_sheets_connection_task = create_temp_sheets_connection()
+    create_connection_task = create_connection(connection_id=CONNECTION_ID)
 
     # [START upload_sheet_to_gcs]
     upload_sheet_to_gcs = GoogleSheetsToGCSOperator(
@@ -110,11 +119,15 @@ with DAG(
     )
     # [END upload_gcs_to_sheet]
 
-    delete_temp_sheets_connection_task = BashOperator(
-        task_id="delete_temp_sheets_connection",
-        bash_command=f"airflow connections delete {CONNECTION_ID}",
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
+    @task(task_id="delete_connection")
+    def delete_connection(connection_id: str) -> None:
+        session = Session()
+        log.info("Removing connection %s", connection_id)
+        query = session.query(Connection).filter(Connection.conn_id == connection_id)
+        query.delete()
+        session.commit()
+
+    delete_connection_task = delete_connection(connection_id=CONNECTION_ID)
 
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
@@ -122,14 +135,14 @@ with DAG(
 
     (
         # TEST SETUP
-        [create_bucket, create_temp_sheets_connection_task]
+        [create_bucket, create_connection_task]
         # TEST BODY
         >> create_spreadsheet
         >> print_spreadsheet_url
         >> upload_sheet_to_gcs
         >> upload_gcs_to_sheet
         # TEST TEARDOWN
-        >> [delete_bucket, delete_temp_sheets_connection_task]
+        >> [delete_bucket, delete_connection_task]
     )
 
     from tests.system.utils.watcher import watcher

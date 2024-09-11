@@ -128,9 +128,8 @@ describe("Test useFilters hook", () => {
     if (paramName === "baseDate") {
       expect(result.current.filters[paramName]).toBe(date.toISOString());
     } else if (paramName === "numRuns") {
-      expect(result.current.filters[paramName]).toBe(
-        global.defaultDagRunDisplayNumber.toString()
-      );
+      // Number of runs isn't a filter so it should persist
+      expect(result.current.filters[paramName]).toBe("10");
     } else {
       expect(result.current.filters[paramName]).toEqual([]);
     }

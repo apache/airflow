@@ -64,7 +64,7 @@ class TestTrigger:
 
         p = Producer(**{"bootstrap.servers": "broker:29092"})
 
-        for x in range(20):
+        for _ in range(20):
             p.produce(TOPIC, "not_this")
 
         p.produce(TOPIC, TOPIC)

@@ -20,6 +20,7 @@
 """
 Example Airflow DAG for Google Vertex AI service testing Model Service operations.
 """
+
 from __future__ import annotations
 
 import os
@@ -60,7 +61,7 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "example_vertex_ai_model_service_operations"
+DAG_ID = "vertex_ai_model_service_operations"
 REGION = "us-central1"
 TRAIN_DISPLAY_NAME = f"train-housing-custom-{ENV_ID}"
 MODEL_DISPLAY_NAME = f"custom-housing-model-{ENV_ID}"
@@ -86,7 +87,11 @@ TABULAR_DATASET = {
 
 CONTAINER_URI = "gcr.io/cloud-aiplatform/training/tf-cpu.2-2:latest"
 
-LOCAL_TRAINING_SCRIPT_PATH = "california_housing_training_script.py"
+# LOCAL_TRAINING_SCRIPT_PATH should be set for Airflow which is running on distributed system.
+# For example in Composer the correct path is `gcs/data/california_housing_training_script.py`.
+# Because `gcs/data/` is shared folder for Airflow's workers.
+IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
+LOCAL_TRAINING_SCRIPT_PATH = "gcs/data/california_housing_training_script.py" if IS_COMPOSER else ""
 
 MODEL_OUTPUT_CONFIG = {
     "artifact_destination": {
@@ -225,6 +230,13 @@ with DAG(
         model=MODEL_OBJ,
     )
     # [END how_to_cloud_vertex_ai_upload_model_operator]
+    upload_model_with_parent_model = UploadModelOperator(
+        task_id="upload_model_with_parent_model",
+        region=REGION,
+        project_id=PROJECT_ID,
+        model=MODEL_OBJ,
+        parent_model=MODEL_DISPLAY_NAME,
+    )
 
     # [START how_to_cloud_vertex_ai_export_model_operator]
     export_model = ExportModelOperator(
@@ -245,6 +257,13 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END how_to_cloud_vertex_ai_delete_model_operator]
+    delete_model_with_parent_model = DeleteModelOperator(
+        task_id="delete_model_with_parent_model",
+        project_id=PROJECT_ID,
+        region=REGION,
+        model_id=upload_model_with_parent_model.output["model_id"],
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
 
     # [START how_to_cloud_vertex_ai_list_models_operator]
     list_models = ListModelsOperator(
@@ -311,8 +330,10 @@ with DAG(
         >> set_default_version
         >> add_version_alias
         >> upload_model
+        >> upload_model_with_parent_model
         >> export_model
         >> delete_model
+        >> delete_model_with_parent_model
         >> list_models
         # TEST TEARDOWN
         >> delete_version_alias
@@ -322,6 +343,13 @@ with DAG(
         >> delete_bucket
     )
 
+    # ### Everything below this line is not part of example ###
+    # ### Just for system tests purpose ###
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
 
 from tests.system.utils import get_test_run  # noqa: E402
 

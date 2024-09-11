@@ -73,21 +73,36 @@ def pre_process_files(files: list[str]) -> list[str]:
     return result
 
 
-def insert_documentation(file_path: Path, content: list[str], header: str, footer: str):
-    text = file_path.read_text().splitlines(keepends=True)
+def insert_documentation(
+    file_path: Path, content: list[str], header: str, footer: str, add_comment: bool = False
+) -> bool:
+    found = False
+    old_content = file_path.read_text()
+    lines = old_content.splitlines(keepends=True)
     replacing = False
     result: list[str] = []
-    for line in text:
+    for line in lines:
         if line.strip().startswith(header.strip()):
             replacing = True
+            found = True
             result.append(line)
-            result.extend(content)
+            if add_comment:
+                result.extend(["# " + line if line != "\n" else "#\n" for line in content])
+            else:
+                result.extend(content)
         if line.strip().startswith(footer.strip()):
             replacing = False
         if not replacing:
             result.append(line)
-    src = "".join(result)
-    file_path.write_text(src)
+    new_content = "".join(result)
+    if not found:
+        print(f"Header {header} not found in {file_path}")
+        sys.exit(1)
+    if new_content != old_content:
+        file_path.write_text(new_content)
+        console.print(f"Updated {file_path}")
+        return True
+    return False
 
 
 def initialize_breeze_precommit(name: str, file: str):

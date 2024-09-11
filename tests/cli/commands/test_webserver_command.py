@@ -30,7 +30,7 @@ from airflow import settings
 from airflow.cli import cli_parser
 from airflow.cli.commands import webserver_command
 from airflow.cli.commands.webserver_command import GunicornMonitor
-from tests.cli.commands._common_cli_classes import _ComonCLIGunicornTestClass
+from tests.cli.commands._common_cli_classes import _CommonCLIGunicornTestClass
 from tests.test_utils.config import conf_vars
 
 console = Console(width=400, color_system="standard")
@@ -227,10 +227,10 @@ class TestCLIGetNumReadyWorkersRunning:
 
 
 @pytest.mark.db_test
-class TestCliWebServer(_ComonCLIGunicornTestClass):
+class TestCliWebServer(_CommonCLIGunicornTestClass):
     main_process_regexp = r"airflow webserver"
 
-    @pytest.mark.execution_timeout(210)
+    @pytest.mark.execution_timeout(400)
     def test_cli_webserver_background(self, tmp_path):
         with mock.patch.dict(
             "os.environ",
@@ -272,11 +272,13 @@ class TestCliWebServer(_ComonCLIGunicornTestClass):
                 assert self._find_process(r"airflow webserver", print_found_process=True)
                 console.print("[blue]Waiting for gunicorn processes:")
                 # wait for gunicorn to start
-                for i in range(30):
+                for _ in range(120):
                     if self._find_process(r"^gunicorn"):
                         break
                     console.print("[blue]Waiting for gunicorn to start ...")
                     time.sleep(1)
+                else:
+                    pytest.fail("Gunicorn processes not found after 120 seconds")
                 console.print("[blue]Running gunicorn processes:")
                 assert self._find_all_processes("^gunicorn", print_found_process=True)
                 console.print("[magenta]Webserver process started successfully.")

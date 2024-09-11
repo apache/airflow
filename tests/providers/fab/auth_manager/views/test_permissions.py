@@ -21,8 +21,13 @@ import pytest
 
 from airflow.security import permissions
 from airflow.www import app as application
-from tests.test_utils.api_connexion_utils import create_user
+from tests.test_utils.api_connexion_utils import create_user, delete_user
+from tests.test_utils.compat import AIRFLOW_V_2_9_PLUS
 from tests.test_utils.www import client_with_login
+
+pytestmark = [
+    pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Tests for Airflow 2.9.0+ only"),
+]
 
 
 @pytest.fixture(scope="module")
@@ -32,7 +37,7 @@ def fab_app():
 
 @pytest.fixture(scope="module")
 def user_permissions_reader(fab_app):
-    return create_user(
+    yield create_user(
         fab_app,
         username="user_permissions",
         role_name="role_permissions",
@@ -44,8 +49,10 @@ def user_permissions_reader(fab_app):
         ],
     )
 
+    delete_user(fab_app, "user_permissions")
 
-@pytest.fixture()
+
+@pytest.fixture
 def client_permissions_reader(fab_app, user_permissions_reader):
     fab_app.config["WTF_CSRF_ENABLED"] = False
     return client_with_login(

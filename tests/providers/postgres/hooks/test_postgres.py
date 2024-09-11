@@ -18,12 +18,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from unittest import mock
 
 import psycopg2.extras
 import pytest
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.utils.types import NOTSET
@@ -58,11 +60,11 @@ class TestPostgresHookConn:
 
     @mock.patch("airflow.providers.postgres.hooks.postgres.psycopg2.connect")
     def test_get_uri(self, mock_connect):
-        self.connection.extra = json.dumps({"client_encoding": "utf-8"})
         self.connection.conn_type = "postgres"
+        self.connection.port = 5432
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
-        assert self.db_hook.get_uri() == "postgresql://login:password@host/database?client_encoding=utf-8"
+        assert self.db_hook.get_uri() == "postgresql://login:password@host:5432/database"
 
     @mock.patch("airflow.providers.postgres.hooks.postgres.psycopg2.connect")
     def test_get_conn_cursor(self, mock_connect):
@@ -266,7 +268,11 @@ class TestPostgresHookConn:
 
     def test_schema_kwarg_database_kwarg_compatibility(self):
         database = "database-override"
-        hook = PostgresHook(schema=database)
+        with pytest.warns(
+            AirflowProviderDeprecationWarning,
+            match='The "schema" arg has been renamed to "database" as it contained the database name.Please use "database" to set the database name.',
+        ):
+            hook = PostgresHook(schema=database)
         assert hook.database == database
 
     @mock.patch("airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook")
@@ -403,8 +409,7 @@ class TestPostgresHook:
         assert commit_count == self.conn.commit.call_count
 
         sql = f"INSERT INTO {table}  VALUES (%s)"
-        for row in rows:
-            self.cur.execute.assert_any_call(sql, row)
+        self.cur.executemany.assert_any_call(sql, rows)
 
     def test_insert_rows_replace(self):
         table = "table"
@@ -432,8 +437,7 @@ class TestPostgresHook:
             f"INSERT INTO {table} ({fields[0]}, {fields[1]}) VALUES (%s,%s) "
             f"ON CONFLICT ({fields[0]}) DO UPDATE SET {fields[1]} = excluded.{fields[1]}"
         )
-        for row in rows:
-            self.cur.execute.assert_any_call(sql, row)
+        self.cur.executemany.assert_any_call(sql, rows)
 
     def test_insert_rows_replace_missing_target_field_arg(self):
         table = "table"
@@ -497,8 +501,7 @@ class TestPostgresHook:
             f"INSERT INTO {table} ({', '.join(fields)}) VALUES (%s,%s) "
             f"ON CONFLICT ({', '.join(fields)}) DO NOTHING"
         )
-        for row in rows:
-            self.cur.execute.assert_any_call(sql, row)
+        self.cur.executemany.assert_any_call(sql, rows)
 
     def test_rowcount(self):
         hook = PostgresHook()
@@ -511,3 +514,36 @@ class TestPostgresHook:
                 cur.execute(f"INSERT INTO {self.table} VALUES {values}")
                 conn.commit()
                 assert cur.rowcount == len(input_data)
+
+    @pytest.mark.usefixtures("reset_logging_config")
+    def test_get_all_db_log_messages(self, caplog):
+        messages = ["a", "b", "c"]
+
+        class FakeLogger:
+            notices = messages
+
+        with caplog.at_level(logging.INFO):
+            hook = PostgresHook(enable_log_db_messages=True)
+            hook.get_db_log_messages(FakeLogger)
+            for msg in messages:
+                assert msg in caplog.text
+
+    @pytest.mark.usefixtures("reset_logging_config")
+    def test_log_db_messages_by_db_proc(self, caplog):
+        proc_name = "raise_notice"
+        notice_proc = f"""
+        CREATE PROCEDURE {proc_name} (s text) LANGUAGE PLPGSQL AS
+        $$
+        BEGIN
+            raise notice 'Message from db: %', s;
+        END;
+        $$;
+        """
+        with caplog.at_level(logging.INFO):
+            hook = PostgresHook(enable_log_db_messages=True)
+            try:
+                hook.run(sql=notice_proc)
+                hook.run(sql=f"call {proc_name}('42')")
+                assert "NOTICE:  Message from db: 42" in caplog.text
+            finally:
+                hook.run(sql=f"DROP PROCEDURE {proc_name} (s text)")

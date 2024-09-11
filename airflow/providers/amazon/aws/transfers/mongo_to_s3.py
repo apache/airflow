@@ -34,7 +34,8 @@ if TYPE_CHECKING:
 
 
 class MongoToS3Operator(BaseOperator):
-    """Move data from MongoDB to S3.
+    """
+    Move data from MongoDB to S3.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -64,7 +65,7 @@ class MongoToS3Operator(BaseOperator):
         self,
         *,
         mongo_conn_id: str = "mongo_default",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         mongo_collection: str,
         mongo_query: list | dict,
         s3_bucket: str,
@@ -128,7 +129,8 @@ class MongoToS3Operator(BaseOperator):
 
     @staticmethod
     def _stringify(iterable: Iterable, joinable: str = "\n") -> str:
-        """Stringify an iterable of dicts.
+        """
+        Stringify an iterable of dicts.
 
         This dumps each dict with JSON, and joins them with ``joinable``.
         """
@@ -136,7 +138,8 @@ class MongoToS3Operator(BaseOperator):
 
     @staticmethod
     def transform(docs: Any) -> Any:
-        """Transform the data for transfer.
+        """
+        Transform the data for transfer.
 
         This method is meant to be extended by child classes to perform
         transformations unique to those operators needs. Processes pyMongo

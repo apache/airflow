@@ -40,6 +40,8 @@ from airflow_breeze.commands.common_options import (
     option_project_name,
     option_python,
     option_standalone_dag_processor,
+    option_use_uv,
+    option_uv_http_timeout,
     option_verbose,
 )
 from airflow_breeze.commands.production_image_commands import prod_image
@@ -49,7 +51,7 @@ from airflow_breeze.utils.click_utils import BreezeGroup
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import remove_docker_networks
-from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
+from airflow_breeze.utils.path_utils import AIRFLOW_HOME_DIR, BUILD_CACHE_DIR
 from airflow_breeze.utils.run_utils import run_command
 from airflow_breeze.utils.shared_options import get_dry_run
 
@@ -119,6 +121,8 @@ class MainGroupWithAliases(BreezeGroup):
 @option_python
 @option_project_name
 @option_standalone_dag_processor
+@option_use_uv
+@option_uv_http_timeout
 @option_verbose
 @click.pass_context
 def main(ctx: click.Context, **kwargs: dict[str, Any]):
@@ -288,5 +292,12 @@ def cleanup(all: bool):
     if given_answer == Answer.YES:
         if not get_dry_run():
             shutil.rmtree(BUILD_CACHE_DIR, ignore_errors=True)
+    get_console().print("Uninstalling airflow and removing configuration")
+    given_answer = user_confirm("Are you sure with the uninstall / remove?")
+    if given_answer == Answer.YES:
+        if not get_dry_run():
+            shutil.rmtree(AIRFLOW_HOME_DIR, ignore_errors=True)
+            AIRFLOW_HOME_DIR.mkdir(exist_ok=True, parents=True)
+            run_command(["pip", "uninstall", "apache-airflow", "--yes"], check=False)
     elif given_answer == Answer.QUIT:
         sys.exit(0)

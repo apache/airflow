@@ -25,6 +25,7 @@ import shutil
 from io import StringIO
 from pathlib import Path
 from unittest import mock
+from unittest.mock import Mock, patch
 from urllib.parse import quote
 
 import elasticsearch
@@ -42,14 +43,12 @@ from airflow.providers.elasticsearch.log.es_task_handler import (
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.timezone import datetime
+from tests.providers.elasticsearch.log.elasticmock import elasticmock
+from tests.providers.elasticsearch.log.elasticmock.utilities import SearchFailedException
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
-from .elasticmock import elasticmock
-from .elasticmock.utilities import SearchFailedException
-
 pytestmark = pytest.mark.db_test
-
 
 AIRFLOW_SOURCES_ROOT_DIR = Path(__file__).parents[4].resolve()
 ES_PROVIDER_YAML_FILE = AIRFLOW_SOURCES_ROOT_DIR / "airflow" / "providers" / "elasticsearch" / "provider.yaml"
@@ -76,7 +75,7 @@ class TestElasticsearchTaskHandler:
     JSON_LOG_ID = f"{DAG_ID}-{TASK_ID}-{ElasticsearchTaskHandler._clean_date(EXECUTION_DATE)}-1"
     FILENAME_TEMPLATE = "{try_number}.log"
 
-    @pytest.fixture()
+    @pytest.fixture
     def ti(self, create_task_instance, create_log_template):
         create_log_template(self.FILENAME_TEMPLATE, "{dag_id}-{task_id}-{execution_date}-{try_number}")
         yield get_ti(
@@ -644,10 +643,32 @@ class TestElasticsearchTaskHandler:
         assert second_log["asctime"] == t2.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
         assert third_log["asctime"] == t3.format("YYYY-MM-DDTHH:mm:ss.SSSZZ")
 
+    def test_get_index_patterns_with_callable(self):
+        with patch("airflow.providers.elasticsearch.log.es_task_handler.import_string") as mock_import_string:
+            mock_callable = Mock(return_value="callable_index_pattern")
+            mock_import_string.return_value = mock_callable
+
+            self.es_task_handler.index_patterns_callable = "path.to.index_pattern_callable"
+            result = self.es_task_handler._get_index_patterns({})
+
+            mock_import_string.assert_called_once_with("path.to.index_pattern_callable")
+            mock_callable.assert_called_once_with({})
+            assert result == "callable_index_pattern"
+
+    def test_filename_template_for_backward_compatibility(self):
+        # filename_template arg support for running the latest provider on airflow 2
+        ElasticsearchTaskHandler(
+            base_log_folder="local/log/location",
+            end_of_log_mark="end_of_log\n",
+            write_stdout=False,
+            json_format=False,
+            json_fields="asctime,filename,lineno,levelname,message,exc_text",
+            filename_template=None,
+        )
+
 
 def test_safe_attrgetter():
-    class A:
-        ...
+    class A: ...
 
     a = A()
     a.b = "b"
@@ -691,7 +712,7 @@ def test_retrieve_retry_on_timeout():
     """
     with conf_vars(
         {
-            ("elasticsearch_configs", "retry_timeout"): "True",
+            ("elasticsearch_configs", "retry_on_timeout"): "True",
         }
     ):
         args_from_config = get_es_kwargs_from_config().keys()

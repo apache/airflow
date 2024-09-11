@@ -18,13 +18,20 @@
 from __future__ import annotations
 
 import json
+import logging
 from unittest import mock
 
 import pytest
+from pyodbc import Cursor
 
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler, fetch_one_handler
+from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
+
+pytestmark = [
+    pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Tests for Airflow 2.8.0+ only"),
+]
 
 
 class DbApiHookInProvider(DbApiHook):
@@ -39,16 +46,16 @@ class TestDbApiHook:
     def setup_method(self, **kwargs):
         self.cur = mock.MagicMock(
             rowcount=0,
-            spec=["description", "rowcount", "execute", "executemany", "fetchall", "fetchone", "close"],
+            spec=Cursor,
         )
         self.conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
         self.conn.schema.return_value = "test_schema"
+        self.conn.extra_dejson = {}
         conn = self.conn
 
         class DbApiHookMock(DbApiHook):
             conn_name_attr = "test_conn_id"
-            log = mock.MagicMock()
 
             @classmethod
             def get_connection(cls, conn_id: str) -> Connection:
@@ -57,9 +64,14 @@ class TestDbApiHook:
             def get_conn(self):
                 return conn
 
+            def get_db_log_messages(self, conn) -> None:
+                return conn.get_messages()
+
         self.db_hook = DbApiHookMock(**kwargs)
         self.db_hook_no_log_sql = DbApiHookMock(log_sql=False)
         self.db_hook_schema_override = DbApiHookMock(schema="schema-override")
+        self.db_hook.supports_executemany = False
+        self.db_hook.log.setLevel(logging.DEBUG)
 
     def test_get_records(self):
         statement = "SQL"
@@ -188,6 +200,49 @@ class TestDbApiHook:
         assert self.conn.commit.call_count == 2
 
         sql = f"UPSERT {table}  VALUES (%s) WITH PRIMARY KEY"
+        self.cur.executemany.assert_any_call(sql, rows)
+
+    def test_insert_rows_as_generator(self, caplog):
+        table = "table"
+        rows = [("What's",), ("up",), ("world",)]
+
+        with caplog.at_level(logging.DEBUG):
+            self.db_hook.insert_rows(table, iter(rows))
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+        assert self.conn.commit.call_count == 2
+
+        sql = f"INSERT INTO {table}  VALUES (%s)"
+
+        assert any(f"Generated sql: {sql}" in message for message in caplog.messages)
+        assert any(
+            f"Done loading. Loaded a total of 3 rows into {table}" in message for message in caplog.messages
+        )
+
+        for row in rows:
+            self.cur.execute.assert_any_call(sql, row)
+
+    def test_insert_rows_as_generator_supports_executemany(self, caplog):
+        table = "table"
+        rows = [("What's",), ("up",), ("world",)]
+
+        with caplog.at_level(logging.DEBUG):
+            self.db_hook.supports_executemany = True
+            self.db_hook.insert_rows(table, iter(rows))
+
+        assert self.conn.close.call_count == 1
+        assert self.cur.close.call_count == 1
+        assert self.conn.commit.call_count == 2
+
+        sql = f"INSERT INTO {table}  VALUES (%s)"
+
+        assert any(f"Generated sql: {sql}" in message for message in caplog.messages)
+        assert any(f"Loaded 3 rows into {table} so far" in message for message in caplog.messages)
+        assert any(
+            f"Done loading. Loaded a total of 3 rows into {table}" in message for message in caplog.messages
+        )
+
         self.cur.executemany.assert_any_call(sql, rows)
 
     def test_get_uri_schema_not_none(self):
@@ -383,15 +438,61 @@ class TestDbApiHook:
         )
         assert self.db_hook.get_uri() == "conn-type://@:3306/schema?charset=utf-8"
 
-    def test_run_log(self):
+    def test_placeholder(self, caplog):
+        self.db_hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="conn-type",
+                login=None,
+                password=None,
+                schema="schema",
+                port=3306,
+            )
+        )
+        assert self.db_hook.placeholder == "%s"
+        assert not caplog.messages
+
+    def test_placeholder_with_valid_placeholder_in_extra(self, caplog):
+        self.db_hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="conn-type",
+                login=None,
+                password=None,
+                schema="schema",
+                port=3306,
+                extra=json.dumps({"placeholder": "?"}),
+            )
+        )
+        assert self.db_hook.placeholder == "?"
+        assert not caplog.messages
+
+    def test_placeholder_with_invalid_placeholder_in_extra(self, caplog):
+        self.db_hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="conn-type",
+                login=None,
+                password=None,
+                schema="schema",
+                port=3306,
+                extra=json.dumps({"placeholder": "!"}),
+            )
+        )
+
+        assert self.db_hook.placeholder == "%s"
+        assert (
+            "Placeholder defined in Connection 'test_conn_id' is not listed in 'DEFAULT_SQL_PLACEHOLDERS' "
+            "and got ignored. Falling back to the default placeholder '%s'." in message
+            for message in caplog.messages
+        )
+
+    def test_run_log(self, caplog):
         statement = "SQL"
         self.db_hook.run(statement)
-        assert self.db_hook.log.info.call_count == 2
+        assert len(caplog.messages) == 2
 
-    def test_run_no_log(self):
+    def test_run_no_log(self, caplog):
         statement = "SQL"
         self.db_hook_no_log_sql.run(statement)
-        assert self.db_hook_no_log_sql.log.info.call_count == 1
+        assert len(caplog.messages) == 1
 
     def test_run_with_handler(self):
         sql = "SQL"
@@ -432,16 +533,16 @@ class TestDbApiHook:
             self.db_hook.run(sql=[])
         assert err.value.args[0] == "List of SQL statements is empty"
 
+    def test_run_and_log_db_messages(self):
+        statement = "SQL"
+        self.db_hook.run(statement)
+        self.conn.get_messages.assert_called()
+
     def test_instance_check_works_for_provider_derived_hook(self):
         assert isinstance(DbApiHookInProvider(), DbApiHook)
 
     def test_instance_check_works_for_non_db_api_hook(self):
         assert not isinstance(NonDbApiHook(), DbApiHook)
-
-    def test_instance_check_works_for_legacy_db_api_hook(self):
-        from airflow.hooks.dbapi import DbApiHook as LegacyDbApiHook
-
-        assert isinstance(DbApiHookInProvider(), LegacyDbApiHook)
 
     def test_run_fetch_all_handler_select_1(self):
         self.cur.rowcount = -1  # can be -1 according to pep249

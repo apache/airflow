@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Sanitizer for body fields sent via Google Cloud API.
+"""
+Sanitizer for body fields sent via Google Cloud API.
 
 The sanitizer removes fields specified from the body.
 
@@ -67,7 +68,7 @@ specification of the path you should delete - separated with '.'
 >>>         },
 >>>     }
 >>> }
->>> sanitizer=GcpBodyFieldSanitizer(FIELDS_TO_SANITIZE)
+>>> sanitizer = GcpBodyFieldSanitizer(FIELDS_TO_SANITIZE)
 >>> sanitizer.sanitize(body)
 >>> json.dumps(body, indent=2)
 {
@@ -96,6 +97,7 @@ In case  they are dictionaries, subsequent component names key of the field, in 
 arrays - the sanitizer iterates through all dictionaries in the array and searches
 components in all elements of the array.
 """
+
 from __future__ import annotations
 
 from airflow.exceptions import AirflowException
@@ -107,7 +109,8 @@ class GcpFieldSanitizerException(AirflowException):
 
 
 class GcpBodyFieldSanitizer(LoggingMixin):
-    """Sanitizes the body according to specification.
+    """
+    Sanitizes the body according to specification.
 
     :param sanitize_specs: array of strings that specifies which fields to remove
 

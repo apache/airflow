@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import warnings
 from functools import partial, wraps
+from urllib.parse import urlparse, urlunparse
 
 from azure.core.pipeline import PipelineContext, PipelineRequest
 from azure.core.pipeline.policies import BearerTokenCredentialPolicy
@@ -61,7 +62,8 @@ def _get_default_azure_credential(
     workload_identity_tenant_id: str | None = None,
     use_async: bool = False,
 ) -> DefaultAzureCredential | AsyncDefaultAzureCredential:
-    """Get DefaultAzureCredential based on provided arguments.
+    """
+    Get DefaultAzureCredential based on provided arguments.
 
     If managed_identity_client_id and workload_identity_tenant_id are provided, this function returns
     DefaultAzureCredential with managed identity.
@@ -114,7 +116,8 @@ def add_managed_identity_connection_widgets(func):
 
 
 class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
-    """Adapt azure-identity credentials for backward compatibility.
+    """
+    Adapt azure-identity credentials for backward compatibility.
 
     Adapt credentials from azure-identity to be compatible with SD
     that needs msrestazure or azure.common.credentials
@@ -131,7 +134,8 @@ class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
         workload_identity_tenant_id: str | None = None,
         **kwargs,
     ):
-        """Adapt azure-identity credentials for backward compatibility.
+        """
+        Adapt azure-identity credentials for backward compatibility.
 
         :param credential: Any azure-identity credential (DefaultAzureCredential by default)
         :param resource_id: The scope to use to get the token (default ARM)
@@ -155,7 +159,8 @@ class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
         )
 
     def set_token(self):
-        """Ask the azure-core BearerTokenCredentialPolicy policy to get a token.
+        """
+        Ask the azure-core BearerTokenCredentialPolicy policy to get a token.
 
         Using the policy gives us for free the caching system of azure-core.
         We could make this code simpler by using private method, but by definition
@@ -171,3 +176,36 @@ class AzureIdentityCredentialAdapter(BasicTokenAuthentication):
     def signed_session(self, azure_session=None):
         self.set_token()
         return super().signed_session(azure_session)
+
+
+def parse_blob_account_url(host: str | None, login: str | None) -> str:
+    account_url = host if host else f"https://{login}.blob.core.windows.net/"
+
+    parsed_url = urlparse(account_url)
+
+    # if there's no netloc then user provided the DNS name without the https:// prefix.
+    if parsed_url.scheme == "":
+        account_url = "https://" + account_url
+        parsed_url = urlparse(account_url)
+
+    netloc = parsed_url.netloc
+    if "." not in netloc:
+        # if there's no netloc and no dots in the path, then user only
+        # provided the Active Directory ID, not the full URL or DNS name
+        netloc = f"{login}.blob.core.windows.net/"
+
+    # Now enforce 3 to 23 character limit on account name
+    # https://learn.microsoft.com/en-us/azure/storage/common/storage-account-overview#storage-account-name
+    host_components = netloc.split(".")
+    host_components[0] = host_components[0][:24]
+    netloc = ".".join(host_components)
+
+    url_components = [
+        parsed_url.scheme,
+        netloc,
+        parsed_url.path,
+        parsed_url.params,
+        parsed_url.query,
+        parsed_url.fragment,
+    ]
+    return urlunparse(url_components)

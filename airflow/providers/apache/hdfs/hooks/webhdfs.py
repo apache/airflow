@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Web HDFS."""
+
 from __future__ import annotations
 
 import logging
@@ -161,7 +162,8 @@ class WebHDFSHook(BaseHook):
         self.log.debug("Uploaded file %s to %s", source, destination)
 
     def read_file(self, filename: str) -> bytes:
-        """Read a file from HDFS.
+        """
+        Read a file from HDFS.
 
         :param filename: The path of the file to read.
         :return: File content as a raw string

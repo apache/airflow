@@ -28,6 +28,7 @@
 - [Possible states of provider packages](#possible-states-of-provider-packages)
 - [Chicken-egg providers](#chicken-egg-providers)
 - [Prepare Regular Provider packages (RC)](#prepare-regular-provider-packages-rc)
+  - [Move provider into remove state](#move-provider-into-remove-state)
   - [Increasing version number](#increasing-version-number)
   - [Generate release notes](#generate-release-notes)
   - [(Optional) Apply template updates](#optional-apply-template-updates)
@@ -92,6 +93,18 @@ searching and replacing old version occurrences with newer one. For example 2.5.
 in `src/airflow_breeze/utils/packages.py` and run the `prepare-provider-documentation`
 command with the `--only-min-version-update` flag. This will only update the min version in
 the `__init__.py` files and package documentation without bumping the provider versions.
+
+
+Note: Sometimes we are releasing a subset of providers and would not want to add the
+list of these providers to every breeze command we run, specifically:
+`prepare-provider-packages`, `build-docs` , `publish-docs`, and, `add-back-references`. In this
+case, we can instead export an environment variable: `PACKAGE_LIST`, and it will work for every breeze
+command involved in the release process. The value can also be passed as the `--package-list` argument.
+Follow the steps below to set the environment variable:
+
+```shell script
+ export PACKAGE_LIST=PACKAGE1,PACKAGE2
+```
 
 ```shell script
 branch="update-min-airflow-version"
@@ -186,6 +199,19 @@ We call such case chicken-egg providers as it's not clear who should be released
 the Airflow.
 
 # Prepare Regular Provider packages (RC)
+
+## Move provider into remove state
+
+The removed state needs to be in a release wave before you actually plan to remove the source code for the provider.
+Set provider with removed state -> release provider -> remove source code of the provider.
+When setting the provider in removed state you need also to clarify in the change log that there will be
+no more releases for this provider.
+
+To set provider as removed do the following:
+
+1. In provider yaml change state from to `ready` to `removed`
+2. Place entry in changelog.txt that notify users about provider being removed.
+3. Update test_get_removed_providers in `/dev/breeze/tests/test_packages.py` by adding the provider to the list
 
 ## Increasing version number
 
@@ -413,6 +439,18 @@ breeze release-management prepare-provider-packages \
 --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
 ```
 
+Alternatively, if you have set the environment variable: `PACKAGE_LIST` above, just run the command:
+
+```shell script
+breeze release-management prepare-provider-packages
+```
+
+Or using `--package-list` argument:
+
+```shell script
+breeze release-management prepare-provider-packages --package-list PACKAGE1,PACKAGE2
+```
+
 In case some packages already had rc1 suffix prepared and released, and they still need to be released, they
 will have automatically appropriate rcN suffix added to them. The suffix will be increased for each release
 candidate and checked if tag has been already created for that release candidate. If yes, the suffix will be
@@ -444,7 +482,7 @@ and lead to annoying errors. The default behaviour would be to clean such local 
 If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
 
 ```shell script
-./dev/provider_packages/tag_providers.sh
+breeze release-management tag-providers
 ```
 
 ## Prepare documentation
@@ -493,6 +531,19 @@ cd "${AIRFLOW_REPO_ROOT}"
 breeze build-docs apache-airflow-providers cncf.kubernetes sftp --clean-build
 ```
 
+Alternatively, if you have set the environment variable: `PACKAGE_LIST` above, just run the command:
+
+```shell script
+cd "${AIRFLOW_REPO_ROOT}"
+breeze build-docs --clean-build
+```
+
+Or using `--package-list` argument:
+
+```shell script
+breeze build-docs --package-list PACKAGE1,PACKAGE2
+```
+
 - Now you can preview the documentation.
 
 ```shell script
@@ -532,6 +583,21 @@ cd "${AIRFLOW_REPO_ROOT}"
 breeze release-management publish-docs amazon apache.beam google ....
 breeze release-management add-back-references all-providers
 ```
+
+Alternatively, if you have set the environment variable: `PACKAGE_LIST` above, just run the command:
+
+```shell script
+breeze release-management publish-docs
+breeze release-management add-back-references all-providers
+```
+
+Or using `--package-list` argument:
+
+```shell script
+breeze release-management publish-docs --package-list PACKAGE1,PACKAGE2
+breeze release-management add-back-references all-providers
+```
+
 
 Review the state of removed, suspended, new packages in
 [the docs index](https://github.com/apache/airflow-site/blob/master/landing-pages/site/content/en/docs/_index.md):
@@ -686,7 +752,7 @@ EOF
 
 Due to the nature of packages, not all packages have to be released as convenience
 packages in the final release. During the voting process
-the voting PMCs might decide to exclude certain packages from the release if some critical
+the voting PMC members might decide to exclude certain packages from the release if some critical
 problems have been found in some packages.
 
 Please modify the message above accordingly to clearly exclude those packages.
@@ -705,7 +771,7 @@ The following files should be present (6 files):
 * .tar.gz + .asc + .sha512 (one set of files per provider)
 * -py3-none-any.whl + .asc + .sha512 (one set of files per provider)
 
-As a PMC you should be able to clone the SVN repository:
+As a PMC member, you should be able to clone the SVN repository:
 
 ```shell script
 svn co https://dist.apache.org/repos/dist/dev/airflow/
@@ -1211,8 +1277,7 @@ and lead to annoying errors. The default behaviour would be to clean such local 
 If you want to disable this behaviour, set the env **CLEAN_LOCAL_TAGS** to false.
 
 ```shell script
-cd ${AIRFLOW_REPO_ROOT}
-./dev/provider_packages/tag_providers.sh
+breeze release-management tag-providers
 ```
 
 ## Update providers metadata
@@ -1294,7 +1359,8 @@ NOTE!
 
 
 As a rule we announce only new providers that were added.
-If you believe there is a reason to announce in social media for another case consult with PMCs about it.
+If you believe there is a reason to announce in social media for another case consult with PMC
+members about it.
 
 Example for special cases:
 
@@ -1310,7 +1376,7 @@ Announcement is done from official Apache-Airflow accounts.
 * Fosstodon: https://fosstodon.org/@airflow
 
 Make sure attach the release image generated with Figma to the post.
-If you don't have access to the account ask PMC to post.
+If you don't have access to the account ask a PMC member to post.
 
 ------------------------------------------------------------------------------------------------------------
 
@@ -1348,3 +1414,5 @@ The following places should be checked:
 * `generated/provider_metadata.json`
 
 Run `breeze setup regenerate-command-images --force`
+
+Update test_get_removed_providers in `/dev/breeze/tests/test_packages.py` by removing the provider from the list

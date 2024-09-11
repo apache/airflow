@@ -16,9 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Vertex AI operators."""
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+import warnings
+from functools import cached_property
+from typing import TYPE_CHECKING, Any, Sequence
 
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -26,6 +29,8 @@ from google.cloud.aiplatform.models import Model
 from google.cloud.aiplatform_v1.types.dataset import Dataset
 from google.cloud.aiplatform_v1.types.training_pipeline import TrainingPipeline
 
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobHook
 from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAIModelLink,
@@ -33,9 +38,20 @@ from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAITrainingPipelinesLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.cloud.triggers.vertex_ai import (
+    CustomContainerTrainingJobTrigger,
+    CustomPythonPackageTrainingJobTrigger,
+    CustomTrainingJobTrigger,
+)
+from airflow.providers.google.common.deprecated import deprecated
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
+    from google.cloud.aiplatform import (
+        CustomContainerTrainingJob,
+        CustomPythonPackageTrainingJob,
+        CustomTrainingJob,
+    )
 
     from airflow.utils.context import Context
 
@@ -157,9 +173,51 @@ class CustomTrainingJobBaseOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    def execute(self, context: Context) -> None:
+        warnings.warn(
+            "The 'sync' parameter is deprecated and will be removed after 01.10.2024.",
+            AirflowProviderDeprecationWarning,
+            stacklevel=2,
+        )
+
+    def execute_complete(self, context: Context, event: dict[str, Any]) -> dict[str, Any] | None:
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+        training_pipeline = event["job"]
+        custom_job_id = self.hook.extract_custom_job_id_from_training_pipeline(training_pipeline)
+        self.xcom_push(context, key="custom_job_id", value=custom_job_id)
+        try:
+            model = training_pipeline["model_to_upload"]
+            model_id = self.hook.extract_model_id(model)
+            self.xcom_push(context, key="model_id", value=model_id)
+            VertexAIModelLink.persist(context=context, task_instance=self, model_id=model_id)
+            return model
+        except KeyError:
+            self.log.warning(
+                "It is impossible to get the Model. "
+                "The Training Pipeline did not produce a Managed Model because it was not "
+                "configured to upload a Model. Please ensure that the 'model_serving_container_image_uri' "
+                "and 'model_display_name' parameters are passed in when creating a Training Pipeline, "
+                "and check that your training script saves the model to os.environ['AIP_MODEL_DIR']."
+            )
+            return None
+
+    @cached_property
+    def hook(self) -> CustomJobHook:
+        return CustomJobHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+        )
+
+    def on_kill(self) -> None:
+        """Act as a callback called when the operator is killed; cancel any running job."""
+        if self.hook:
+            self.hook.cancel_job()
+
 
 class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
-    """Create Custom Container Training job.
+    """
+    Create Custom Container Training job.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -418,9 +476,6 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             ``projects/{project}/locations/{location}/tensorboards/{tensorboard}``
             For more information on configuring your service account please visit:
             https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
-    :param sync: Whether to execute the AI Platform job synchronously. If False, this method
-            will be executed in concurrent Future and any downstream object will
-            be immediately returned and synced when the Future has completed.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -430,6 +485,9 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable:  If True, run the task in the deferrable mode.
+    :param poll_interval: Time (seconds) to wait between two consecutive calls to check the job.
+        The default is 60 seconds.
     """
 
     template_fields = (
@@ -439,7 +497,10 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         "dataset_id",
         "impersonation_chain",
     )
-    operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
+    operator_extra_links = (
+        VertexAIModelLink(),
+        VertexAITrainingLink(),
+    )
 
     def __init__(
         self,
@@ -449,6 +510,8 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         parent_model: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         dataset_id: str | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        poll_interval: int = 60,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -459,13 +522,16 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
             **kwargs,
         )
         self.command = command
+        self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def execute(self, context: Context):
-        self.hook = CustomJobHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-        self.parent_model = self.parent_model.rpartition("@")[0] if self.parent_model else None
+        super().execute(context)
+
+        self.parent_model = self.parent_model.split("@")[0] if self.parent_model else None
+
+        if self.deferrable:
+            self.invoke_defer(context=context)
 
         model, training_id, custom_job_id = self.hook.create_custom_container_training_job(
             project_id=self.project_id,
@@ -533,14 +599,79 @@ class CreateCustomContainerTrainingJobOperator(CustomTrainingJobBaseOperator):
         VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
-    def on_kill(self) -> None:
-        """Act as a callback called when the operator is killed; cancel any running job."""
-        if self.hook:
-            self.hook.cancel_job()
+    def invoke_defer(self, context: Context) -> None:
+        custom_container_training_job_obj: CustomContainerTrainingJob = self.hook.submit_custom_container_training_job(
+            project_id=self.project_id,
+            region=self.region,
+            display_name=self.display_name,
+            command=self.command,
+            container_uri=self.container_uri,
+            model_serving_container_image_uri=self.model_serving_container_image_uri,
+            model_serving_container_predict_route=self.model_serving_container_predict_route,
+            model_serving_container_health_route=self.model_serving_container_health_route,
+            model_serving_container_command=self.model_serving_container_command,
+            model_serving_container_args=self.model_serving_container_args,
+            model_serving_container_environment_variables=self.model_serving_container_environment_variables,
+            model_serving_container_ports=self.model_serving_container_ports,
+            model_description=self.model_description,
+            model_instance_schema_uri=self.model_instance_schema_uri,
+            model_parameters_schema_uri=self.model_parameters_schema_uri,
+            model_prediction_schema_uri=self.model_prediction_schema_uri,
+            parent_model=self.parent_model,
+            is_default_version=self.is_default_version,
+            model_version_aliases=self.model_version_aliases,
+            model_version_description=self.model_version_description,
+            labels=self.labels,
+            training_encryption_spec_key_name=self.training_encryption_spec_key_name,
+            model_encryption_spec_key_name=self.model_encryption_spec_key_name,
+            staging_bucket=self.staging_bucket,
+            # RUN
+            dataset=Dataset(name=self.dataset_id) if self.dataset_id else None,
+            annotation_schema_uri=self.annotation_schema_uri,
+            model_display_name=self.model_display_name,
+            model_labels=self.model_labels,
+            base_output_dir=self.base_output_dir,
+            service_account=self.service_account,
+            network=self.network,
+            bigquery_destination=self.bigquery_destination,
+            args=self.args,
+            environment_variables=self.environment_variables,
+            replica_count=self.replica_count,
+            machine_type=self.machine_type,
+            accelerator_type=self.accelerator_type,
+            accelerator_count=self.accelerator_count,
+            boot_disk_type=self.boot_disk_type,
+            boot_disk_size_gb=self.boot_disk_size_gb,
+            training_fraction_split=self.training_fraction_split,
+            validation_fraction_split=self.validation_fraction_split,
+            test_fraction_split=self.test_fraction_split,
+            training_filter_split=self.training_filter_split,
+            validation_filter_split=self.validation_filter_split,
+            test_filter_split=self.test_filter_split,
+            predefined_split_column_name=self.predefined_split_column_name,
+            timestamp_split_column_name=self.timestamp_split_column_name,
+            tensorboard=self.tensorboard,
+        )
+        custom_container_training_job_obj.wait_for_resource_creation()
+        training_pipeline_id: str = custom_container_training_job_obj.name
+        self.xcom_push(context, key="training_id", value=training_pipeline_id)
+        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_pipeline_id)
+        self.defer(
+            trigger=CustomContainerTrainingJobTrigger(
+                conn_id=self.gcp_conn_id,
+                project_id=self.project_id,
+                location=self.region,
+                job_id=training_pipeline_id,
+                poll_interval=self.poll_interval,
+                impersonation_chain=self.impersonation_chain,
+            ),
+            method_name="execute_complete",
+        )
 
 
 class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator):
-    """Create Custom Python Package Training job.
+    """
+    Create Custom Python Package Training job.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -799,9 +930,6 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
             ``projects/{project}/locations/{location}/tensorboards/{tensorboard}``
             For more information on configuring your service account please visit:
             https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
-    :param sync: Whether to execute the AI Platform job synchronously. If False, this method
-            will be executed in concurrent Future and any downstream object will
-            be immediately returned and synced when the Future has completed.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -811,6 +939,9 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable:  If True, run the task in the deferrable mode.
+    :param poll_interval: Time (seconds) to wait between two consecutive calls to check the job.
+        The default is 60 seconds.
     """
 
     template_fields = (
@@ -830,6 +961,8 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         parent_model: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         dataset_id: str | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        poll_interval: int = 60,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -841,13 +974,17 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         )
         self.python_package_gcs_uri = python_package_gcs_uri
         self.python_module_name = python_module_name
+        self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def execute(self, context: Context):
-        self.hook = CustomJobHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-        self.parent_model = self.parent_model.rpartition("@")[0] if self.parent_model else None
+        super().execute(context)
+
+        self.parent_model = self.parent_model.split("@")[0] if self.parent_model else None
+
+        if self.deferrable:
+            self.invoke_defer(context=context)
+
         model, training_id, custom_job_id = self.hook.create_custom_python_package_training_job(
             project_id=self.project_id,
             region=self.region,
@@ -915,14 +1052,80 @@ class CreateCustomPythonPackageTrainingJobOperator(CustomTrainingJobBaseOperator
         VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
-    def on_kill(self) -> None:
-        """Cancel any running job. Callback called when the operator is killed."""
-        if self.hook:
-            self.hook.cancel_job()
+    def invoke_defer(self, context: Context) -> None:
+        custom_python_training_job_obj: CustomPythonPackageTrainingJob = self.hook.submit_custom_python_package_training_job(
+            project_id=self.project_id,
+            region=self.region,
+            display_name=self.display_name,
+            python_package_gcs_uri=self.python_package_gcs_uri,
+            python_module_name=self.python_module_name,
+            container_uri=self.container_uri,
+            model_serving_container_image_uri=self.model_serving_container_image_uri,
+            model_serving_container_predict_route=self.model_serving_container_predict_route,
+            model_serving_container_health_route=self.model_serving_container_health_route,
+            model_serving_container_command=self.model_serving_container_command,
+            model_serving_container_args=self.model_serving_container_args,
+            model_serving_container_environment_variables=self.model_serving_container_environment_variables,
+            model_serving_container_ports=self.model_serving_container_ports,
+            model_description=self.model_description,
+            model_instance_schema_uri=self.model_instance_schema_uri,
+            model_parameters_schema_uri=self.model_parameters_schema_uri,
+            model_prediction_schema_uri=self.model_prediction_schema_uri,
+            parent_model=self.parent_model,
+            is_default_version=self.is_default_version,
+            model_version_aliases=self.model_version_aliases,
+            model_version_description=self.model_version_description,
+            labels=self.labels,
+            training_encryption_spec_key_name=self.training_encryption_spec_key_name,
+            model_encryption_spec_key_name=self.model_encryption_spec_key_name,
+            staging_bucket=self.staging_bucket,
+            # RUN
+            dataset=Dataset(name=self.dataset_id) if self.dataset_id else None,
+            annotation_schema_uri=self.annotation_schema_uri,
+            model_display_name=self.model_display_name,
+            model_labels=self.model_labels,
+            base_output_dir=self.base_output_dir,
+            service_account=self.service_account,
+            network=self.network,
+            bigquery_destination=self.bigquery_destination,
+            args=self.args,
+            environment_variables=self.environment_variables,
+            replica_count=self.replica_count,
+            machine_type=self.machine_type,
+            accelerator_type=self.accelerator_type,
+            accelerator_count=self.accelerator_count,
+            boot_disk_type=self.boot_disk_type,
+            boot_disk_size_gb=self.boot_disk_size_gb,
+            training_fraction_split=self.training_fraction_split,
+            validation_fraction_split=self.validation_fraction_split,
+            test_fraction_split=self.test_fraction_split,
+            training_filter_split=self.training_filter_split,
+            validation_filter_split=self.validation_filter_split,
+            test_filter_split=self.test_filter_split,
+            predefined_split_column_name=self.predefined_split_column_name,
+            timestamp_split_column_name=self.timestamp_split_column_name,
+            tensorboard=self.tensorboard,
+        )
+        custom_python_training_job_obj.wait_for_resource_creation()
+        training_pipeline_id: str = custom_python_training_job_obj.name
+        self.xcom_push(context, key="training_id", value=training_pipeline_id)
+        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_pipeline_id)
+        self.defer(
+            trigger=CustomPythonPackageTrainingJobTrigger(
+                conn_id=self.gcp_conn_id,
+                project_id=self.project_id,
+                location=self.region,
+                job_id=training_pipeline_id,
+                poll_interval=self.poll_interval,
+                impersonation_chain=self.impersonation_chain,
+            ),
+            method_name="execute_complete",
+        )
 
 
 class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
-    """Create Custom Training job.
+    """
+    Create a Custom Training Job pipeline.
 
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
@@ -1181,9 +1384,6 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
             ``projects/{project}/locations/{location}/tensorboards/{tensorboard}``
             For more information on configuring your service account please visit:
             https://cloud.google.com/vertex-ai/docs/experiments/tensorboard-training
-    :param sync: Whether to execute the AI Platform job synchronously. If False, this method
-            will be executed in concurrent Future and any downstream object will
-            be immediately returned and synced when the Future has completed.
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -1193,6 +1393,9 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param deferrable:  If True, run the task in the deferrable mode.
+    :param poll_interval: Time (seconds) to wait between two consecutive calls to check the job.
+        The default is 60 seconds.
     """
 
     template_fields = (
@@ -1203,7 +1406,10 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         "dataset_id",
         "impersonation_chain",
     )
-    operator_extra_links = (VertexAIModelLink(), VertexAITrainingLink())
+    operator_extra_links = (
+        VertexAIModelLink(),
+        VertexAITrainingLink(),
+    )
 
     def __init__(
         self,
@@ -1214,6 +1420,8 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         parent_model: str | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         dataset_id: str | None = None,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        poll_interval: int = 60,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -1225,13 +1433,16 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         )
         self.requirements = requirements
         self.script_path = script_path
+        self.deferrable = deferrable
+        self.poll_interval = poll_interval
 
     def execute(self, context: Context):
-        self.hook = CustomJobHook(
-            gcp_conn_id=self.gcp_conn_id,
-            impersonation_chain=self.impersonation_chain,
-        )
-        self.parent_model = self.parent_model.rpartition("@")[0] if self.parent_model else None
+        super().execute(context)
+
+        self.parent_model = self.parent_model.split("@")[0] if self.parent_model else None
+
+        if self.deferrable:
+            self.invoke_defer(context=context)
 
         model, training_id, custom_job_id = self.hook.create_custom_training_job(
             project_id=self.project_id,
@@ -1300,10 +1511,75 @@ class CreateCustomTrainingJobOperator(CustomTrainingJobBaseOperator):
         VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_id)
         return result
 
-    def on_kill(self) -> None:
-        """Cancel any running job. Callback called when the operator is killed."""
-        if self.hook:
-            self.hook.cancel_job()
+    def invoke_defer(self, context: Context) -> None:
+        custom_training_job_obj: CustomTrainingJob = self.hook.submit_custom_training_job(
+            project_id=self.project_id,
+            region=self.region,
+            display_name=self.display_name,
+            script_path=self.script_path,
+            container_uri=self.container_uri,
+            requirements=self.requirements,
+            model_serving_container_image_uri=self.model_serving_container_image_uri,
+            model_serving_container_predict_route=self.model_serving_container_predict_route,
+            model_serving_container_health_route=self.model_serving_container_health_route,
+            model_serving_container_command=self.model_serving_container_command,
+            model_serving_container_args=self.model_serving_container_args,
+            model_serving_container_environment_variables=self.model_serving_container_environment_variables,
+            model_serving_container_ports=self.model_serving_container_ports,
+            model_description=self.model_description,
+            model_instance_schema_uri=self.model_instance_schema_uri,
+            model_parameters_schema_uri=self.model_parameters_schema_uri,
+            model_prediction_schema_uri=self.model_prediction_schema_uri,
+            parent_model=self.parent_model,
+            is_default_version=self.is_default_version,
+            model_version_aliases=self.model_version_aliases,
+            model_version_description=self.model_version_description,
+            labels=self.labels,
+            training_encryption_spec_key_name=self.training_encryption_spec_key_name,
+            model_encryption_spec_key_name=self.model_encryption_spec_key_name,
+            staging_bucket=self.staging_bucket,
+            # RUN
+            dataset=Dataset(name=self.dataset_id) if self.dataset_id else None,
+            annotation_schema_uri=self.annotation_schema_uri,
+            model_display_name=self.model_display_name,
+            model_labels=self.model_labels,
+            base_output_dir=self.base_output_dir,
+            service_account=self.service_account,
+            network=self.network,
+            bigquery_destination=self.bigquery_destination,
+            args=self.args,
+            environment_variables=self.environment_variables,
+            replica_count=self.replica_count,
+            machine_type=self.machine_type,
+            accelerator_type=self.accelerator_type,
+            accelerator_count=self.accelerator_count,
+            boot_disk_type=self.boot_disk_type,
+            boot_disk_size_gb=self.boot_disk_size_gb,
+            training_fraction_split=self.training_fraction_split,
+            validation_fraction_split=self.validation_fraction_split,
+            test_fraction_split=self.test_fraction_split,
+            training_filter_split=self.training_filter_split,
+            validation_filter_split=self.validation_filter_split,
+            test_filter_split=self.test_filter_split,
+            predefined_split_column_name=self.predefined_split_column_name,
+            timestamp_split_column_name=self.timestamp_split_column_name,
+            tensorboard=self.tensorboard,
+        )
+        custom_training_job_obj.wait_for_resource_creation()
+        training_pipeline_id: str = custom_training_job_obj.name
+        self.xcom_push(context, key="training_id", value=training_pipeline_id)
+        VertexAITrainingLink.persist(context=context, task_instance=self, training_id=training_pipeline_id)
+        self.defer(
+            trigger=CustomTrainingJobTrigger(
+                conn_id=self.gcp_conn_id,
+                project_id=self.project_id,
+                location=self.region,
+                job_id=training_pipeline_id,
+                poll_interval=self.poll_interval,
+                impersonation_chain=self.impersonation_chain,
+            ),
+            method_name="execute_complete",
+        )
 
 
 class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
@@ -1328,7 +1604,7 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
-    template_fields = ("training_pipeline", "custom_job", "region", "project_id", "impersonation_chain")
+    template_fields = ("training_pipeline_id", "custom_job_id", "region", "project_id", "impersonation_chain")
 
     def __init__(
         self,
@@ -1345,8 +1621,8 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.training_pipeline = training_pipeline_id
-        self.custom_job = custom_job_id
+        self.training_pipeline_id = training_pipeline_id
+        self.custom_job_id = custom_job_id
         self.region = region
         self.project_id = project_id
         self.retry = retry
@@ -1355,15 +1631,35 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
+    @property
+    @deprecated(
+        planned_removal_date="March 01, 2025",
+        use_instead="training_pipeline_id",
+        category=AirflowProviderDeprecationWarning,
+    )
+    def training_pipeline(self):
+        """Alias for ``training_pipeline_id``, used for compatibility (deprecated)."""
+        return self.training_pipeline_id
+
+    @property
+    @deprecated(
+        planned_removal_date="March 01, 2025",
+        use_instead="custom_job_id",
+        category=AirflowProviderDeprecationWarning,
+    )
+    def custom_job(self):
+        """Alias for ``custom_job_id``, used for compatibility (deprecated)."""
+        return self.custom_job_id
+
     def execute(self, context: Context):
         hook = CustomJobHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
         try:
-            self.log.info("Deleting custom training pipeline: %s", self.training_pipeline)
+            self.log.info("Deleting custom training pipeline: %s", self.training_pipeline_id)
             training_pipeline_operation = hook.delete_training_pipeline(
-                training_pipeline=self.training_pipeline,
+                training_pipeline=self.training_pipeline_id,
                 region=self.region,
                 project_id=self.project_id,
                 retry=self.retry,
@@ -1373,11 +1669,11 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
             hook.wait_for_operation(timeout=self.timeout, operation=training_pipeline_operation)
             self.log.info("Training pipeline was deleted.")
         except NotFound:
-            self.log.info("The Training Pipeline ID %s does not exist.", self.training_pipeline)
+            self.log.info("The Training Pipeline ID %s does not exist.", self.training_pipeline_id)
         try:
-            self.log.info("Deleting custom job: %s", self.custom_job)
+            self.log.info("Deleting custom job: %s", self.custom_job_id)
             custom_job_operation = hook.delete_custom_job(
-                custom_job=self.custom_job,
+                custom_job=self.custom_job_id,
                 region=self.region,
                 project_id=self.project_id,
                 retry=self.retry,
@@ -1387,7 +1683,7 @@ class DeleteCustomTrainingJobOperator(GoogleCloudBaseOperator):
             hook.wait_for_operation(timeout=self.timeout, operation=custom_job_operation)
             self.log.info("Custom job was deleted.")
         except NotFound:
-            self.log.info("The Custom Job ID %s does not exist.", self.custom_job)
+            self.log.info("The Custom Job ID %s does not exist.", self.custom_job_id)
 
 
 class ListCustomTrainingJobOperator(GoogleCloudBaseOperator):

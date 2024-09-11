@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.xcom import MAX_XCOM_SIZE
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -77,7 +77,7 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         self,
         *,
         bucket: str,
-        object_name: str | None = None,
+        object_name: str,
         filename: str | None = None,
         store_to_xcom_key: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
@@ -85,19 +85,8 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         file_encoding: str = "utf-8",
         **kwargs,
     ) -> None:
-        # To preserve backward compatibility
-        # TODO: Remove one day
-        if object_name is None:
-            object_name = kwargs.get("object")
-            if object_name is not None:
-                self.object_name = object_name
-                AirflowProviderDeprecationWarning("Use 'object_name' instead of 'object'.")
-            else:
-                TypeError("__init__() missing 1 required positional argument: 'object_name'")
-
         if filename is not None and store_to_xcom_key is not None:
             raise ValueError("Either filename or store_to_xcom_key can be set")
-
         super().__init__(**kwargs)
         self.bucket = bucket
         self.filename = filename

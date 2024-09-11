@@ -100,6 +100,7 @@ def test_all_fields_with_blanks(admin_client, session):
     assert "airflow" == conn.schema
 
 
+@pytest.mark.enable_redact
 def test_action_logging_connection_masked_secrets(session, admin_client):
     admin_client.post("/connection/add", data=conn_with_extra(), follow_redirects=True)
     _check_last_log_masked_connection(session, dag_id=None, event="connection.create", execution_date=None)
@@ -389,7 +390,7 @@ def test_duplicate_connection_error(admin_client):
     assert expected_connections_ids == connections_ids
 
 
-@pytest.fixture()
+@pytest.fixture
 def connection():
     connection = Connection(
         conn_id="conn1",

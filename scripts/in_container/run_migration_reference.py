@@ -19,6 +19,7 @@
 """
 Module to update db migration information in Airflow
 """
+
 from __future__ import annotations
 
 import os
@@ -27,11 +28,13 @@ import textwrap
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterable
 
+import re2
 from alembic.script import ScriptDirectory
 from rich.console import Console
 from tabulate import tabulate
 
 from airflow import __version__ as airflow_version
+from airflow.providers.fab import __version__ as fab_version
 from airflow.utils.db import _get_alembic_config
 
 if TYPE_CHECKING:
@@ -40,6 +43,7 @@ if TYPE_CHECKING:
 console = Console(width=400, color_system="standard")
 
 airflow_version = re.match(r"(\d+\.\d+\.\d+).*", airflow_version).group(1)  # type: ignore
+fab_version = re.match(r"(\d+\.\d+\.\d+).*", fab_version).group(1)  # type: ignore
 project_root = Path(__file__).parents[2].resolve()
 
 
@@ -79,14 +83,25 @@ def update_doc(file, data):
     )
 
 
-def has_version(content):
-    return re.search(r"^airflow_version\s*=.*", content, flags=re.MULTILINE) is not None
+def has_version(content, app):
+    if app == "airflow":
+        return re.search(r"^airflow_version\s*=.*", content, flags=re.MULTILINE) is not None
+    return re.search(r"^fab_version\s*=.*", content, flags=re.MULTILINE) is not None
 
 
-def insert_version(old_content, file):
+def insert_version(old_content, file, app):
+    if app == "airflow":
+        new_content = re.sub(
+            r"(^depends_on.*)",
+            lambda x: f'{x.group(1)}\nairflow_version = "{airflow_version}"',
+            old_content,
+            flags=re.MULTILINE,
+        )
+        return
+
     new_content = re.sub(
         r"(^depends_on.*)",
-        lambda x: f"{x.group(1)}\nairflow_version = '{airflow_version}'",
+        lambda x: f'{x.group(1)}\nfab_version = "{fab_version}"',
         old_content,
         flags=re.MULTILINE,
     )
@@ -105,19 +120,27 @@ def revision_suffix(rev: Script):
     return ""
 
 
-def ensure_airflow_version(revisions: Iterable[Script]):
+def ensure_version(revisions: Iterable[Script], app):
     for rev in revisions:
-        assert rev.module.__file__ is not None  # For Mypy.
+        if TYPE_CHECKING:  # For mypy
+            assert rev.module.__file__ is not None
         file = Path(rev.module.__file__)
         content = file.read_text()
-        if not has_version(content):
-            insert_version(content, file)
+        if not has_version(content, app=app):
+            insert_version(content, file, app=app)
 
 
-def get_revisions() -> Iterable[Script]:
-    config = _get_alembic_config()
-    script = ScriptDirectory.from_config(config)
-    yield from script.walk_revisions()
+def get_revisions(app="airflow") -> Iterable[Script]:
+    if app == "airflow":
+        config = _get_alembic_config()
+        script = ScriptDirectory.from_config(config)
+        yield from script.walk_revisions()
+    else:
+        from airflow.providers.fab.auth_manager.models.db import FABDBManager
+
+        config = FABDBManager(session="").get_alembic_config()
+        script = ScriptDirectory.from_config(config)
+        yield from script.walk_revisions()
 
 
 def update_docs(revisions: Iterable[Script]):
@@ -152,13 +175,16 @@ def ensure_mod_prefix(mod_name, idx, version):
     return "_".join(parts)
 
 
-def ensure_filenames_are_sorted(revisions):
+def ensure_filenames_are_sorted(revisions, app):
     renames = []
     is_branched = False
     unmerged_heads = []
     for idx, rev in enumerate(revisions):
         mod_path = Path(rev.module.__file__)
-        version = rev.module.airflow_version.split(".")[0:3]  # only first 3 tokens
+        if app == "airflow":
+            version = rev.module.airflow_version.split(".")[0:3]  # only first 3 tokens
+        else:
+            version = rev.module.fab_version.split(".")[0:3]  # only first 3 tokens
         correct_mod_basename = ensure_mod_prefix(mod_path.name, idx, version)
         if mod_path.name != correct_mod_basename:
             renames.append((mod_path, Path(mod_path.parent, correct_mod_basename)))
@@ -174,23 +200,51 @@ def ensure_filenames_are_sorted(revisions):
             "alembic merge -m 'merge heads " + ", ".join(head_prefixes) + "' " + " ".join(unmerged_heads)
         )
         raise SystemExit(
-            "You have multiple alembic heads; please merge them with the `alembic merge` command "
-            f"and re-run pre-commit. It should fail once more before succeeding. "
-            f"\nhint: `{alembic_command}`"
+            "You have multiple alembic heads; please merge them with by running `alembic merge` command under "
+            f'"airflow" directory (where alembic.ini located) and re-run pre-commit. '
+            f"It should fail once more before succeeding.\nhint: `{alembic_command}`"
         )
     for old, new in renames:
         os.rename(old, new)
 
 
+def correct_mismatching_revision_nums(revisions: Iterable[Script]):
+    revision_pattern = r'revision = "([a-fA-F0-9]+)"'
+    down_revision_pattern = r'down_revision = "([a-fA-F0-9]+)"'
+    revision_id_pattern = r"Revision ID: ([a-fA-F0-9]+)"
+    revises_id_pattern = r"Revises: ([a-fA-F0-9]+)"
+    for rev in revisions:
+        if TYPE_CHECKING:  # For mypy
+            assert rev.module.__file__ is not None
+        file = Path(rev.module.__file__)
+        content = file.read_text()
+        revision_match = re2.search(
+            revision_pattern,
+            content,
+        )
+        revision_id_match = re2.search(revision_id_pattern, content)
+        new_content = content.replace(revision_id_match.group(1), revision_match.group(1), 1)
+        down_revision_match = re2.search(down_revision_pattern, new_content)
+        revises_id_match = re2.search(revises_id_pattern, new_content)
+        if down_revision_match:
+            new_content = new_content.replace(revises_id_match.group(1), down_revision_match.group(1), 1)
+        file.write_text(new_content)
+
+
 if __name__ == "__main__":
-    console.print("[bright_blue]Updating migration reference")
-    revisions = list(reversed(list(get_revisions())))
-    console.print("[bright_blue]Making sure airflow version updated")
-    ensure_airflow_version(revisions=revisions)
-    revisions = list(reversed(list(get_revisions())))
-    console.print("[bright_blue]Making sure filenames are sorted")
-    ensure_filenames_are_sorted(revisions=revisions)
-    revisions = list(get_revisions())
-    console.print("[bright_blue]Updating documentation")
-    update_docs(revisions=revisions)
-    console.print("[green]Migrations OK")
+    apps = ["airflow", "fab"]
+    for app in apps:
+        console.print("[bright_blue]Updating migration reference")
+        revisions = list(reversed(list(get_revisions(app))))
+        console.print("[bright_blue]Making sure airflow version updated")
+        ensure_version(revisions=revisions, app=app)
+        console.print("[bright_blue]Making sure there's no mismatching revision numbers")
+        correct_mismatching_revision_nums(revisions=revisions)
+        revisions = list(reversed(list(get_revisions(app=app))))
+        console.print("[bright_blue]Making sure filenames are sorted")
+        ensure_filenames_are_sorted(revisions=revisions, app=app)
+        revisions = list(get_revisions(app=app))
+        if app == "airflow":
+            console.print("[bright_blue]Updating documentation")
+            update_docs(revisions=revisions)
+            console.print("[green]Migrations OK")

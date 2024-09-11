@@ -25,6 +25,7 @@ import pytest
 from airflow.models.xcom import XCom
 from airflow.providers.amazon.aws.links.base_aws import BaseAwsLink
 from airflow.serialization.serialized_objects import SerializedDAG
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.mock_operators import MockOperator
 
 if TYPE_CHECKING:
@@ -75,11 +76,13 @@ class TestBaseAwsLink:
         )
 
         ti = mock_context["ti"]
-        ti.xcom_push.assert_called_once_with(
-            execution_date=None,
-            key=XCOM_KEY,
-            value=expected_value,
-        )
+        if AIRFLOW_V_3_0_PLUS:
+            ti.xcom_push.assert_called_once_with(
+                key=XCOM_KEY,
+                value=expected_value,
+            )
+        else:
+            ti.xcom_push.assert_called_once_with(key=XCOM_KEY, value=expected_value, execution_date=None)
 
     def test_disable_xcom_push(self):
         mock_context = mock.MagicMock()
@@ -203,9 +206,10 @@ class BaseAwsLinksTestCase:
         """Test: Operator links should exist for serialized DAG."""
         self.create_op_and_ti(self.link_class, dag_id="test_link_serialize", task_id=self.task_id)
         serialized_dag = self.dag_maker.get_serialized_data()
-        operator_extra_link = serialized_dag["dag"]["tasks"][0]["_operator_extra_links"]
+        deserialized_dag = SerializedDAG.deserialize_dag(serialized_dag["dag"])
+        operator_extra_link = deserialized_dag.tasks[0].operator_extra_links[0]
         error_message = "Operator links should exist for serialized DAG"
-        assert operator_extra_link == [{self.full_qualname: {}}], error_message
+        assert operator_extra_link.name == self.link_class.name, error_message
 
     def test_empty_xcom(self):
         """Test: Operator links should return empty string if no XCom value."""

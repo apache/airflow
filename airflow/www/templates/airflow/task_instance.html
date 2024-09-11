@@ -25,7 +25,7 @@
   <hr>
   <br>
   <h4>
-    <span class="text-muted">Task Instance:</span> <span>{{ task_id }}</span>
+    <span class="text-muted">Task Instance:</span> <span title="{{ task_id }}">{{ task_display_name }}</span>
     <span class="text-muted">at</span> <time datetime="{{ execution_date }}">{{ execution_date }}</time>
     {% if map_index is defined and map_index >= 0 %}
       <span class="text-muted">Map Index:</span> <span>{{ map_index }}</span>
@@ -39,6 +39,9 @@
         {{ url_for(endpoint, dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}
       {%- endif -%}
     {% endmacro -%}
+    <li><a href="{{ url_for('Airflow.grid', dag_id=dag.dag_id, dag_run_id=dag_run_id ,task_id=task_id, map_index=map_index) }}">
+        <span class="material-icons" aria-hidden="true">grid_on</span>
+      Grid</a></li>
     <li><a href="{{ ti_url('Airflow.task') }}">
         <span class="material-icons" aria-hidden="true">details</span>
       Task Instance Details</a></li>

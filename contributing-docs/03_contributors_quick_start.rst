@@ -19,7 +19,7 @@
 Contributor's Quick Start
 *************************
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Note to Starters
 ################
@@ -47,7 +47,7 @@ Before deciding which method to choose, there are a couple of factors to conside
 Local machine development
 #########################
 
-If you do not work in remote development environment, you need those prerequisites.
+If you do not work in a remote development environment, you will need these prerequisites:
 
 1. Docker Community Edition (you can also use Colima, see instructions below)
 2. Docker Compose
@@ -164,12 +164,13 @@ like system, this command will install all necessary dependencies that should be
 .. code-block:: bash
 
   sudo apt install apt-transport-https apt-utils build-essential ca-certificates dirmngr \
-  freetds-bin freetds-dev git gosu graphviz graphviz-dev krb5-user ldap-utils libffi-dev \
+  freetds-bin freetds-dev git graphviz graphviz-dev krb5-user ldap-utils libffi-dev \
   libkrb5-dev libldap2-dev libpq-dev libsasl2-2 libsasl2-dev libsasl2-modules \
   libssl-dev locales lsb-release openssh-client sasl2-bin \
   software-properties-common sqlite3 sudo unixodbc unixodbc-dev
 
-3. With Hatch you can enter virtual environment with ``hatch env shell`` command:
+3. With Hatch you can enter the virtual environment with ``hatch shell`` command, check
+   `Local virtualenvs <./07_local_virtualenv.rst#using-hatch>`__ for more details:
 
 Forking and cloning Project
 ---------------------------
@@ -197,7 +198,7 @@ Forking and cloning Project
       </div>
 
 3. Follow `Cloning a repository <https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository>`_
-   to clone the repo locally (you can also do it in your IDE - see the `Using your IDE <using-your-ide>`_
+   to clone the repo locally (you can also do it in your IDE - see the `Using your IDE`_
    chapter below.
 
 Note: For windows based machines, on cloning, the Git line endings may be different from unix based systems
@@ -221,7 +222,7 @@ see in CI in your local environment.
 Setting up Breeze
 -----------------
 
-1. Install ``pipx`` (>=1.2.1) - follow the instructions in   `Install pipx <https://pypa.github.io/pipx/>`_
+1. Install ``pipx`` (>=1.2.1) - follow the instructions in `Install pipx <https://pipx.pypa.io/stable/>`_
    It is important to install version of pipx >= 1.2.1 to workaround ``packaging`` breaking change introduced
    in September 2023.
 
@@ -239,7 +240,7 @@ Setting up Breeze
   The workaround is to downgrade packaging to 23.1 and re-running the ``pipx install`` command, for example
   by running ``pip install "packaging<23.2"``.
 
-  .. code-block::bash
+  .. code-block:: bash
 
      pip install "packaging==23.1"
      pipx install -e ./dev/breeze --force
@@ -334,19 +335,19 @@ Using Breeze
    Ports are forwarded to the running docker containers for webserver and database
      * 12322 -> forwarded to Airflow ssh server -> airflow:22
      * 28080 -> forwarded to Airflow webserver -> airflow:8080
+     * 29091 -> forwarded to Airflow FastAPI API -> airflow:9091
      * 25555 -> forwarded to Flower dashboard -> airflow:5555
      * 25433 -> forwarded to Postgres database -> postgres:5432
      * 23306 -> forwarded to MySQL database  -> mysql:3306
-     * 21433 -> forwarded to MSSQL database  -> mssql:1443
      * 26379 -> forwarded to Redis broker -> redis:6379
 
    Here are links to those services that you can use on host:
      * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 (password: airflow)
      * Webserver: http://127.0.0.1:28080
+     * FastAPI API:    http://127.0.0.1:29091
      * Flower:    http://127.0.0.1:25555
      * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
      * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root
-     * MSSQL:     jdbc:sqlserver://127.0.0.1:21433;databaseName=airflow;user=sa;password=Airflow123
      * Redis:     redis://127.0.0.1:26379/0
 
 
@@ -426,54 +427,13 @@ Using Breeze
   breeze --help
 
 
-For more information visit : |Breeze documentation|
+Following are some of important topics of `Breeze documentation <../dev/breeze/doc/README.rst>`__:
 
-.. |Breeze documentation| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/dev/breeze/doc/README.rst" target="_blank">Breeze documentation</a>
-
-Following are some of important topics of Breeze documentation:
-
-
-- |Regular Developer tasks |
-
-.. |Regular developer tasks| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/dev/breeze/doc/03_developer_tasks.rst" target="_blank">
-   Regular developer tasks</a>
-
-
-- |Troubleshooting Breeze environment|
-
-.. |Troubleshooting Breeze environment| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/dev/breeze/doc/04_troubleshooting.rst" target="_blank">Troubleshooting
-   Breeze environment</a>
-
-
-- |Installing Additional tools to the Docker Image|
-
-.. |Installing Additional tools to the Docker Image| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/dev/breeze/doc/02-customizing.rst#additional-tools-in-breeze-container"
-   target="_blank">Installing Additional tools to the Docker Image</a>
-
-
-- |Breeze Installation|
-
-.. |Breeze Installation| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/dev/breeze/doc/01_installation.rst"
-   target="_blank">Breeze Installation</a>
-
-
-- |Cleaning the environment|
-
-.. |Cleaning the environment| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/dev/breeze/doc/03_developer_tasks#breeze-cleanup" target="_blank">
-   Breeze cleanup</a>
-
+* `Breeze Installation <../dev/breeze/doc/01_installation.rst>`__
+* `Installing Additional tools to the Docker Image <../dev/breeze/doc/02-customizing.rst#additional-tools-in-breeze-container>`__
+* `Regular developer tasks <../dev/breeze/doc/03_developer_tasks.rst>`__
+* `Cleaning the environment <../dev/breeze/doc/03_developer_tasks.rst#breeze-cleanup>`__
+* `Troubleshooting Breeze environment <../dev/breeze/doc/04_troubleshooting.rst>`__
 
 
 Configuring Pre-commit
@@ -511,8 +471,7 @@ on macOS, install via
 
 .. code-block:: bash
 
-  pyenv activate airflow-env
-  pip install pre-commit
+  pipx install pre-commit
 
 3. Go to your project directory
 
@@ -777,21 +736,9 @@ In the meantime new commits are merged, and you might run into conflicts, theref
 synchronize main in your fork with the ``apache/airflow`` main and rebase your PR on top of it. Following
 describes how to do it.
 
+* `Update new changes made to apache:airflow project to your fork <10_working_with_git.rst#how-to-sync-your-fork>`__
+* `Rebasing pull request <10_working_with_git.rst#how-to-rebase-pr>`__
 
-- |Syncing fork|
-
-.. |Syncing fork| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/working-with-git.rst#how-to-sync-your-fork" target="_blank">
-   Update new changes made to apache:airflow project to your fork</a>
-
-
-- |Rebasing pull request|
-
-.. |Rebasing pull request| raw:: html
-
-   <a href="https://github.com/apache/airflow/blob/main/contributing-docs/working-with-git.rst#how-to-rebase-pr" target="_blank">
-   Rebasing pull request</a>
 
 Using your IDE
 ##############

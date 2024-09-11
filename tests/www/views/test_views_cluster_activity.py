@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
+
 import pendulum
 import pytest
 
@@ -47,7 +49,6 @@ def clean():
 @pytest.fixture
 def freeze_time_for_dagruns(time_machine):
     time_machine.move_to("2023-05-02T00:00:00+00:00", tick=False)
-    yield
 
 
 @pytest.fixture
@@ -74,8 +75,8 @@ def make_dag_runs(dag_maker, session, time_machine):
         run_id="run_2",
         state=DagRunState.FAILED,
         run_type=DagRunType.DATASET_TRIGGERED,
-        execution_date=dag_maker.dag.next_dagrun_info(date).logical_date,
-        start_date=dag_maker.dag.next_dagrun_info(date).logical_date,
+        execution_date=date + timedelta(days=1),
+        start_date=date + timedelta(days=1),
     )
 
     run3 = dag_maker.create_dagrun(
@@ -117,7 +118,6 @@ def test_historical_metrics_data(admin_client, session, time_machine):
             "restarting": 0,
             "running": 0,
             "scheduled": 0,
-            "shutdown": 0,
             "skipped": 0,
             "success": 2,
             "up_for_reschedule": 0,
@@ -146,7 +146,6 @@ def test_historical_metrics_data_date_filters(admin_client, session):
             "restarting": 0,
             "running": 0,
             "scheduled": 0,
-            "shutdown": 0,
             "skipped": 0,
             "success": 0,
             "up_for_reschedule": 0,

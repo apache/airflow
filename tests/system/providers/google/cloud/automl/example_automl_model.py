@@ -16,31 +16,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""
-Example Airflow DAG for Google AutoML service testing model operations.
-"""
+"""Example Airflow DAG for Google AutoML service testing model operations."""
+
 from __future__ import annotations
 
 import os
-from copy import deepcopy
 from datetime import datetime
 
 from google.protobuf.struct_pb2 import Value
 
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.operators.automl import (
     AutoMLBatchPredictOperator,
     AutoMLCreateDatasetOperator,
     AutoMLDeleteDatasetOperator,
     AutoMLDeleteModelOperator,
-    AutoMLDeployModelOperator,
     AutoMLGetModelOperator,
     AutoMLImportDataOperator,
     AutoMLPredictOperator,
-    AutoMLTablesListColumnSpecsOperator,
-    AutoMLTablesListTableSpecsOperator,
-    AutoMLTablesUpdateDatasetOperator,
     AutoMLTrainModelOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import (
@@ -51,7 +44,7 @@ from airflow.providers.google.cloud.operators.gcs import (
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
-DAG_ID = "example_automl_model"
+DAG_ID = "automl_model"
 GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 GCP_AUTOML_LOCATION = "us-central1"
@@ -59,7 +52,7 @@ GCP_AUTOML_LOCATION = "us-central1"
 DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
 RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
 
-DATASET_NAME = f"md_tabular_{ENV_ID}".replace("-", "_")
+DATASET_NAME = f"ds_{DAG_ID}_{ENV_ID}".replace("-", "_")
 DATASET = {
     "display_name": DATASET_NAME,
     "tables_dataset_metadata": {"target_column_spec_id": ""},
@@ -71,7 +64,7 @@ IMPORT_OUTPUT_CONFIG = {
 }
 
 # change the name here
-MODEL_NAME = f"md_tabular_{ENV_ID}".replace("-", "_")
+MODEL_NAME = f"md_{DAG_ID}_{ENV_ID}".replace("-", "_")
 MODEL = {
     "display_name": MODEL_NAME,
     "tables_model_metadata": {"train_budget_milli_node_hours": 1000},
@@ -97,29 +90,12 @@ PREDICT_VALUES = [
     Value(string_value="unknown"),
 ]
 
-extract_object_id = CloudAutoMLHook.extract_object_id
-
-
-def get_target_column_spec(columns_specs: list[dict], column_name: str) -> str:
-    """
-    Using column name returns spec of the column.
-    """
-    for column in columns_specs:
-        if column["display_name"] == column_name:
-            return extract_object_id(column)
-    raise Exception(f"Unknown target column: {column_name}")
-
 
 with DAG(
     dag_id=DAG_ID,
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    user_defined_macros={
-        "get_target_column_spec": get_target_column_spec,
-        "target": "Deposit",
-        "extract_object_id": extract_object_id,
-    },
     tags=["example", "automl", "model"],
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
@@ -154,33 +130,6 @@ with DAG(
         input_config=IMPORT_INPUT_CONFIG,
     )
 
-    list_tables_spec = AutoMLTablesListTableSpecsOperator(
-        task_id="list_tables_spec",
-        dataset_id=dataset_id,
-        location=GCP_AUTOML_LOCATION,
-        project_id=GCP_PROJECT_ID,
-    )
-
-    list_columns_spec = AutoMLTablesListColumnSpecsOperator(
-        task_id="list_columns_spec",
-        dataset_id=dataset_id,
-        table_spec_id="{{ extract_object_id(task_instance.xcom_pull('list_tables_spec')[0]) }}",
-        location=GCP_AUTOML_LOCATION,
-        project_id=GCP_PROJECT_ID,
-    )
-
-    update = deepcopy(DATASET)
-    update["name"] = '{{ task_instance.xcom_pull("create_dataset")["name"] }}'
-    update["tables_dataset_metadata"][  # type: ignore
-        "target_column_spec_id"
-    ] = "{{ get_target_column_spec(task_instance.xcom_pull('list_columns_spec'), target) }}"
-
-    update_dataset = AutoMLTablesUpdateDatasetOperator(
-        task_id="update_dataset",
-        dataset=update,
-        location=GCP_AUTOML_LOCATION,
-    )
-
     # [START howto_operator_automl_create_model]
     create_model = AutoMLTrainModelOperator(
         task_id="create_model",
@@ -199,15 +148,6 @@ with DAG(
         project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_get_model]
-
-    # [START howto_operator_deploy_model]
-    deploy_model = AutoMLDeployModelOperator(
-        task_id="deploy_model",
-        model_id=model_id,
-        location=GCP_AUTOML_LOCATION,
-        project_id=GCP_PROJECT_ID,
-    )
-    # [END howto_operator_deploy_model]
 
     # [START howto_operator_prediction]
     predict_task = AutoMLPredictOperator(
@@ -252,20 +192,18 @@ with DAG(
     )
 
     delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket", bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+        task_id="delete_bucket",
+        bucket_name=DATA_SAMPLE_GCS_BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     (
         # TEST SETUP
         [create_bucket >> move_dataset_file, create_dataset]
         >> import_dataset
-        >> list_tables_spec
-        >> list_columns_spec
-        >> update_dataset
         # TEST BODY
         >> create_model
         >> get_model
-        >> deploy_model
         >> predict_task
         >> batch_predict_task
         # TEST TEARDOWN

@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Setup your project
 ##################
@@ -25,7 +25,7 @@ Setup your project
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/vscode_clone.png"
+        <img src="images/vscode_clone.png"
              alt="Cloning github fork to Visual Studio Code">
       </div>
 
@@ -35,7 +35,7 @@ Setup your project
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/vscode_click_on_clone.png"
+        <img src="images/vscode_click_on_clone.png"
              alt="Cloning github fork to Visual Studio Code">
       </div>
 
@@ -82,11 +82,11 @@ Setting up debugging
     .. raw:: html
 
         <div align="center" style="padding-bottom:10px">
-          <img src="images/quick_start/vscode_add_configuration_1.png"
+          <img src="images/vscode_add_configuration_1.png"
                alt="Add Debug Configuration to Visual Studio Code">
-          <img src="images/quick_start/vscode_add_configuration_2.png"
+          <img src="images/vscode_add_configuration_2.png"
                alt="Add Debug Configuration to Visual Studio Code">
-          <img src="images/quick_start/vscode_add_configuration_3.png"
+          <img src="images/vscode_add_configuration_3.png"
                alt="Add Debug Configuration to Visual Studio Code">
         </div>
 
@@ -108,7 +108,7 @@ Setting up debugging
     .. raw:: html
 
         <div align="center" style="padding-bottom:10px">
-          <img src="images/quick_start/vscode_add_env_variable.png"
+          <img src="images/vscode_add_env_variable.png"
                alt="Add environment variable to Visual Studio Code Debug configuration">
         </div>
 
@@ -122,7 +122,7 @@ Creating a branch
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/vscode_creating_branch_1.png"
+        <img src="images/vscode_creating_branch_1.png"
              alt="Creating a new branch">
       </div>
 
@@ -131,8 +131,8 @@ Creating a branch
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/vscode_creating_branch_2.png"
+        <img src="images/vscode_creating_branch_2.png"
              alt="Giving a name to a branch">
       </div>
 
-Follow the `Quick start <03_contributors_quick_start.rst>`_ for typical development tasks.
+Follow the `Quick start <../03_contributors_quick_start.rst>`_ for typical development tasks.

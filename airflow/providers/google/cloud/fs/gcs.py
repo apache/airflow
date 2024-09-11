@@ -47,12 +47,11 @@ def get_fs(conn_id: str | None, storage_options: dict[str, str] | None = None) -
         return GCSFileSystem()
 
     g = GoogleBaseHook(gcp_conn_id=conn_id)
-    creds = g.get_credentials()
 
     options = {
         "project": g.project_id,
         "access": g.extras.get(GCS_ACCESS, "full_control"),
-        "token": creds.token,
+        "token": g._get_access_token(),
         "consistency": g.extras.get(GCS_CONSISTENCY, "none"),
         "cache_timeout": g.extras.get(GCS_CACHE_TIMEOUT),
         "requester_pays": g.extras.get(GCS_REQUESTER_PAYS, False),

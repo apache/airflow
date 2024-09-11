@@ -15,9 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """Executes a Kubernetes Job."""
+
 from __future__ import annotations
 
 import copy
+import json
 import logging
 import os
 from functools import cached_property
@@ -25,7 +27,11 @@ from typing import TYPE_CHECKING, Sequence
 
 from kubernetes.client import BatchV1Api, models as k8s
 from kubernetes.client.api_client import ApiClient
+from kubernetes.client.rest import ApiException
 
+from airflow.configuration import conf
+from airflow.exceptions import AirflowException
+from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     add_unique_suffix,
@@ -33,7 +39,10 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
 )
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator, merge_objects
+from airflow.providers.cncf.kubernetes.triggers.job import KubernetesJobTrigger
+from airflow.providers.cncf.kubernetes.utils.pod_manager import EMPTY_XCOM_RESULT, PodNotFoundException
 from airflow.utils import yaml
+from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -65,6 +74,12 @@ class KubernetesJobOperator(KubernetesPodOperator):
     :param selector: The selector of this V1JobSpec.
     :param suspend: Suspend specifies whether the Job controller should create Pods or not.
     :param ttl_seconds_after_finished: ttlSecondsAfterFinished limits the lifetime of a Job that has finished execution (either Complete or Failed).
+    :param wait_until_job_complete: Whether to wait until started job finished execution (either Complete or
+        Failed). Default is False.
+    :param job_poll_interval: Interval in seconds between polling the job status. Default is 10.
+        Used if the parameter `wait_until_job_complete` set True.
+    :param deferrable: Run operator in the deferrable mode. Note that the parameter
+        `wait_until_job_complete` must be set True.
     """
 
     template_fields: Sequence[str] = tuple({"job_template_file"} | set(KubernetesPodOperator.template_fields))
@@ -82,6 +97,9 @@ class KubernetesJobOperator(KubernetesPodOperator):
         selector: k8s.V1LabelSelector | None = None,
         suspend: bool | None = None,
         ttl_seconds_after_finished: int | None = None,
+        wait_until_job_complete: bool = False,
+        job_poll_interval: float = 10,
+        deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -97,6 +115,9 @@ class KubernetesJobOperator(KubernetesPodOperator):
         self.selector = selector
         self.suspend = suspend
         self.ttl_seconds_after_finished = ttl_seconds_after_finished
+        self.wait_until_job_complete = wait_until_job_complete
+        self.job_poll_interval = job_poll_interval
+        self.deferrable = deferrable
 
     @cached_property
     def _incluster_namespace(self):
@@ -116,7 +137,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
         return hook
 
     @cached_property
-    def client(self) -> BatchV1Api:
+    def job_client(self) -> BatchV1Api:
         return self.hook.batch_v1_client
 
     def create_job(self, job_request_obj: k8s.V1Job) -> k8s.V1Job:
@@ -126,6 +147,16 @@ class KubernetesJobOperator(KubernetesPodOperator):
         return job_request_obj
 
     def execute(self, context: Context):
+        if self.deferrable and not self.wait_until_job_complete:
+            self.log.warning(
+                "Deferrable mode is available only with parameter `wait_until_job_complete=True`. "
+                "Please, set it up."
+            )
+        if (self.get_logs or self.do_xcom_push) and not self.wait_until_job_complete:
+            self.log.warning(
+                "Getting Logs and pushing to XCom are available only with parameter `wait_until_job_complete=True`. "
+                "Please, set it up."
+            )
         self.job_request_obj = self.build_job_request_obj(context)
         self.job = self.create_job(  # must set `self.job` for `on_kill`
             job_request_obj=self.job_request_obj
@@ -134,6 +165,85 @@ class KubernetesJobOperator(KubernetesPodOperator):
         ti = context["ti"]
         ti.xcom_push(key="job_name", value=self.job.metadata.name)
         ti.xcom_push(key="job_namespace", value=self.job.metadata.namespace)
+
+        if self.pod is None:
+            self.pod = self.get_or_create_pod(  # must set `self.pod` for `on_kill`
+                pod_request_obj=self.pod_request_obj,
+                context=context,
+            )
+
+        if self.wait_until_job_complete and self.deferrable:
+            self.execute_deferrable()
+            return
+
+        if self.wait_until_job_complete:
+            if self.do_xcom_push:
+                self.pod_manager.await_container_completion(
+                    pod=self.pod, container_name=self.base_container_name
+                )
+                self.pod_manager.await_xcom_sidecar_container_start(pod=self.pod)
+                xcom_result = self.extract_xcom(pod=self.pod)
+            self.job = self.hook.wait_until_job_complete(
+                job_name=self.job.metadata.name,
+                namespace=self.job.metadata.namespace,
+                job_poll_interval=self.job_poll_interval,
+            )
+            if self.get_logs:
+                self.pod_manager.fetch_requested_container_logs(
+                    pod=self.pod,
+                    containers=self.container_logs,
+                    follow_logs=True,
+                )
+
+        ti.xcom_push(key="job", value=self.job.to_dict())
+        if self.wait_until_job_complete:
+            if error_message := self.hook.is_job_failed(job=self.job):
+                raise AirflowException(
+                    f"Kubernetes job '{self.job.metadata.name}' is failed with error '{error_message}'"
+                )
+            if self.do_xcom_push:
+                return xcom_result
+
+    def execute_deferrable(self):
+        self.defer(
+            trigger=KubernetesJobTrigger(
+                job_name=self.job.metadata.name,  # type: ignore[union-attr]
+                job_namespace=self.job.metadata.namespace,  # type: ignore[union-attr]
+                pod_name=self.pod.metadata.name,  # type: ignore[union-attr]
+                pod_namespace=self.pod.metadata.namespace,  # type: ignore[union-attr]
+                base_container_name=self.base_container_name,
+                kubernetes_conn_id=self.kubernetes_conn_id,
+                cluster_context=self.cluster_context,
+                config_file=self.config_file,
+                in_cluster=self.in_cluster,
+                poll_interval=self.job_poll_interval,
+                get_logs=self.get_logs,
+                do_xcom_push=self.do_xcom_push,
+            ),
+            method_name="execute_complete",
+        )
+
+    def execute_complete(self, context: Context, event: dict, **kwargs):
+        ti = context["ti"]
+        ti.xcom_push(key="job", value=event["job"])
+        if event["status"] == "error":
+            raise AirflowException(event["message"])
+
+        if self.get_logs:
+            pod_name = event["pod_name"]
+            pod_namespace = event["pod_namespace"]
+            self.pod = self.hook.get_pod(pod_name, pod_namespace)
+            if not self.pod:
+                raise PodNotFoundException("Could not find pod after resuming from deferral")
+            self._write_logs(self.pod)
+
+        if self.do_xcom_push:
+            xcom_result = event["xcom_result"]
+            if isinstance(xcom_result, str) and xcom_result.rstrip() == EMPTY_XCOM_RESULT:
+                self.log.info("xcom result file is empty.")
+                return None
+            self.log.info("xcom result: \n%s", xcom_result)
+            return json.loads(xcom_result)
 
     @staticmethod
     def deserialize_job_template_file(path: str) -> k8s.V1Job:
@@ -163,10 +273,13 @@ class KubernetesJobOperator(KubernetesPodOperator):
             kwargs = {
                 "name": job.metadata.name,
                 "namespace": job.metadata.namespace,
+                "job": self.hook.batch_v1_client.api_client.sanitize_for_serialization(self.job),
             }
             if self.termination_grace_period is not None:
                 kwargs.update(grace_period_seconds=self.termination_grace_period)
-            self.client.delete_namespaced_job(**kwargs)
+            self.job_client.delete_namespaced_job(**kwargs)
+        if self.pod:
+            super().on_kill()
 
     def build_job_request_obj(self, context: Context | None = None) -> k8s.V1Job:
         """
@@ -191,6 +304,7 @@ class KubernetesJobOperator(KubernetesPodOperator):
             metadata=pod_template.metadata,
             spec=pod_template.spec,
         )
+        self.pod_request_obj = pod_template
 
         job = k8s.V1Job(
             api_version="batch/v1",
@@ -284,3 +398,179 @@ class KubernetesJobOperator(KubernetesPodOperator):
             return merge_objects(base_spec, client_spec)
 
         return None
+
+
+class KubernetesDeleteJobOperator(BaseOperator):
+    """
+    Delete a Kubernetes Job.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:KubernetesDeleteJobOperator`
+
+    :param name: name of the Job.
+    :param namespace: the namespace to run within kubernetes.
+    :param kubernetes_conn_id: The :ref:`kubernetes connection id <howto/connection:kubernetes>`
+        for the Kubernetes cluster.
+    :param config_file: The path to the Kubernetes config file. (templated)
+        If not specified, default value is ``~/.kube/config``
+    :param in_cluster: run kubernetes client with in_cluster configuration.
+    :param cluster_context: context that points to kubernetes cluster.
+        Ignored when in_cluster is True. If None, current-context is used. (templated)
+    :param delete_on_status: Condition for performing delete operation depending on the job status. Values:
+        ``None`` - delete the job regardless of its status, "Complete" - delete only successfully completed
+        jobs, "Failed" - delete only failed jobs. (default: ``None``)
+    :param wait_for_completion: Whether to wait for the job to complete. (default: ``False``)
+    :param poll_interval: Interval in seconds between polling the job status. Used when the `delete_on_status`
+        parameter is set. (default: 10.0)
+    """
+
+    template_fields: Sequence[str] = (
+        "config_file",
+        "name",
+        "namespace",
+        "cluster_context",
+    )
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        namespace: str,
+        kubernetes_conn_id: str | None = KubernetesHook.default_conn_name,
+        config_file: str | None = None,
+        in_cluster: bool | None = None,
+        cluster_context: str | None = None,
+        delete_on_status: str | None = None,
+        wait_for_completion: bool = False,
+        poll_interval: float = 10.0,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.name = name
+        self.namespace = namespace
+        self.kubernetes_conn_id = kubernetes_conn_id
+        self.config_file = config_file
+        self.in_cluster = in_cluster
+        self.cluster_context = cluster_context
+        self.delete_on_status = delete_on_status
+        self.wait_for_completion = wait_for_completion
+        self.poll_interval = poll_interval
+
+    @cached_property
+    def hook(self) -> KubernetesHook:
+        return KubernetesHook(
+            conn_id=self.kubernetes_conn_id,
+            in_cluster=self.in_cluster,
+            config_file=self.config_file,
+            cluster_context=self.cluster_context,
+        )
+
+    @cached_property
+    def client(self) -> BatchV1Api:
+        return self.hook.batch_v1_client
+
+    def execute(self, context: Context):
+        try:
+            if self.delete_on_status not in ("Complete", "Failed", None):
+                raise AirflowException(
+                    "The `delete_on_status` parameter must be one of 'Complete', 'Failed' or None. "
+                    "The current value is %s",
+                    str(self.delete_on_status),
+                )
+
+            if self.wait_for_completion:
+                job = self.hook.wait_until_job_complete(
+                    job_name=self.name, namespace=self.namespace, job_poll_interval=self.poll_interval
+                )
+            else:
+                job = self.hook.get_job_status(job_name=self.name, namespace=self.namespace)
+
+            if (
+                self.delete_on_status is None
+                or (self.delete_on_status == "Complete" and self.hook.is_job_successful(job=job))
+                or (self.delete_on_status == "Failed" and self.hook.is_job_failed(job=job))
+            ):
+                self.log.info("Deleting kubernetes Job: %s", self.name)
+                self.client.delete_namespaced_job(name=self.name, namespace=self.namespace)
+                self.log.info("Kubernetes job was deleted.")
+            else:
+                self.log.info(
+                    "Deletion of the job %s was skipped due to settings of on_status=%s",
+                    self.name,
+                    self.delete_on_status,
+                )
+        except ApiException as e:
+            if e.status == 404:
+                self.log.info("The Kubernetes job %s does not exist.", self.name)
+            else:
+                raise e
+
+
+class KubernetesPatchJobOperator(BaseOperator):
+    """
+    Update a Kubernetes Job.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:KubernetesPatchJobOperator`
+
+    :param name: name of the Job
+    :param namespace: the namespace to run within kubernetes
+    :param body: Job json object with parameters for update
+        https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.25/#job-v1-batch
+        e.g. ``{"spec": {"suspend": True}}``
+    :param kubernetes_conn_id: The :ref:`kubernetes connection id <howto/connection:kubernetes>`
+        for the Kubernetes cluster.
+    :param config_file: The path to the Kubernetes config file. (templated)
+        If not specified, default value is ``~/.kube/config``
+    :param in_cluster: run kubernetes client with in_cluster configuration.
+    :param cluster_context: context that points to kubernetes cluster.
+        Ignored when in_cluster is True. If None, current-context is used. (templated)
+    """
+
+    template_fields: Sequence[str] = (
+        "config_file",
+        "name",
+        "namespace",
+        "body",
+        "cluster_context",
+    )
+
+    def __init__(
+        self,
+        *,
+        name: str,
+        namespace: str,
+        body: object,
+        kubernetes_conn_id: str | None = KubernetesHook.default_conn_name,
+        config_file: str | None = None,
+        in_cluster: bool | None = None,
+        cluster_context: str | None = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.name = name
+        self.namespace = namespace
+        self.body = body
+        self.kubernetes_conn_id = kubernetes_conn_id
+        self.config_file = config_file
+        self.in_cluster = in_cluster
+        self.cluster_context = cluster_context
+
+    @cached_property
+    def hook(self) -> KubernetesHook:
+        return KubernetesHook(
+            conn_id=self.kubernetes_conn_id,
+            in_cluster=self.in_cluster,
+            config_file=self.config_file,
+            cluster_context=self.cluster_context,
+        )
+
+    def execute(self, context: Context) -> dict:
+        self.log.info("Updating existing Job: %s", self.name)
+        job_object = self.hook.patch_namespaced_job(
+            job_name=self.name, namespace=self.namespace, body=self.body
+        )
+        self.log.info("Job was updated.")
+        return k8s.V1Job.to_dict(job_object)

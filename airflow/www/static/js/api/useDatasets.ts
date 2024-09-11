@@ -21,65 +21,29 @@ import axios, { AxiosResponse } from "axios";
 import { useQuery } from "react-query";
 
 import { getMetaValue } from "src/utils";
-import type { DatasetListItem } from "src/types";
-import type { unitOfTime } from "moment";
-
-export interface DatasetsData {
-  datasets: DatasetListItem[];
-  totalEntries: number;
-}
-
-export interface DateOption {
-  count: number;
-  unit: unitOfTime.DurationConstructor;
-}
+import type { API } from "src/types";
 
 interface Props {
-  limit?: number;
-  offset?: number;
-  order?: string;
-  uri?: string;
-  updatedAfter?: DateOption;
+  dagIds?: string[];
+  enabled?: boolean;
 }
 
-export default function useDatasets({
-  limit,
-  offset,
-  order,
-  uri,
-  updatedAfter,
-}: Props) {
-  const query = useQuery(
-    ["datasets", limit, offset, order, uri, updatedAfter],
+export default function useDatasets({ dagIds, enabled = true }: Props) {
+  return useQuery(
+    ["datasets", dagIds],
     () => {
       const datasetsUrl = getMetaValue("datasets_api");
-      const orderParam = order ? { order_by: order } : {};
-      const uriParam = uri ? { uri_pattern: uri } : {};
-      const updatedAfterParam =
-        updatedAfter && updatedAfter.count && updatedAfter.unit
-          ? {
-              // @ts-ignore
-              updated_after: moment()
-                .subtract(updatedAfter.count, updatedAfter.unit)
-                .toISOString(),
-            }
-          : {};
-      return axios.get<AxiosResponse, DatasetsData>(datasetsUrl, {
+      const dagIdsParam =
+        dagIds && dagIds.length ? { dag_ids: dagIds.join(",") } : {};
+
+      return axios.get<AxiosResponse, API.DatasetCollection>(datasetsUrl, {
         params: {
-          offset,
-          limit,
-          ...orderParam,
-          ...uriParam,
-          ...updatedAfterParam,
+          ...dagIdsParam,
         },
       });
     },
     {
-      keepPreviousData: true,
+      enabled,
     }
   );
-  return {
-    ...query,
-    data: query.data ?? { datasets: [], totalEntries: 0 },
-  };
 }

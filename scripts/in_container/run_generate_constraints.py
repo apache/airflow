@@ -109,6 +109,7 @@ class ConfigParams:
     github_actions: bool
     eager_upgrade_additional_requirements: str
     python: str
+    use_uv: bool
 
     @cached_property
     def constraints_dir(self) -> Path:
@@ -128,22 +129,65 @@ class ConfigParams:
     def current_constraints_file(self) -> Path:
         return self.constraints_dir / f"{self.airflow_constraints_mode}-{self.python}.txt"
 
+    @cached_property
+    def get_freeze_command(self) -> list[str]:
+        # Some day we might use uv instead of pip
+        # if self.use_uv:
+        #     return ["uv", "pip", "freeze", "--python", sys.executable]
+        # else:
+        #     return ["pip", "freeze"]
+        return ["pip", "freeze"]
 
-def install_local_airflow_with_eager_upgrade(
-    config_params: ConfigParams, eager_upgrade_additional_requirements: str
-) -> None:
+    @cached_property
+    def get_install_command(self) -> list[str]:
+        if self.use_uv:
+            return ["uv", "pip", "install", "--python", sys.executable]
+        else:
+            return ["pip", "install"]
+
+    @cached_property
+    def get_uninstall_command(self) -> list[str]:
+        if self.use_uv:
+            return ["uv", "pip", "uninstall", "--python", sys.executable]
+        else:
+            return ["pip", "uninstall"]
+
+    @cached_property
+    def get_install_args(self) -> list[str]:
+        if self.use_uv:
+            return []
+        else:
+            return ["--root-user-action", "ignore"]
+
+    @cached_property
+    def get_uninstall_args(self) -> list[str]:
+        if self.use_uv:
+            return []
+        else:
+            return ["--root-user-action", "ignore", "--yes"]
+
+    @cached_property
+    def get_resolution_highest_args(self) -> list[str]:
+        if self.use_uv:
+            return ["--resolution", "highest"]
+        else:
+            return ["--upgrade", "--upgrade-strategy", "eager"]
+
+    @cached_property
+    def eager_upgrade_additional_requirements_list(self) -> list[str]:
+        if self.eager_upgrade_additional_requirements:
+            return self.eager_upgrade_additional_requirements.split(" ")
+        return []
+
+
+def install_local_airflow_with_eager_upgrade(config_params: ConfigParams) -> None:
     run_command(
         [
-            "pip",
-            "install",
-            "--root-user-action",
-            "ignore",
+            *config_params.get_install_command,
             "-e",
             ".[all-core]",
-            *eager_upgrade_additional_requirements.split(" "),
-            "--upgrade",
-            "--upgrade-strategy",
-            "eager",
+            *config_params.eager_upgrade_additional_requirements_list,
+            *config_params.get_resolution_highest_args,
         ],
         github_actions=config_params.github_actions,
         cwd=AIRFLOW_SOURCE_DIR,
@@ -154,7 +198,7 @@ def install_local_airflow_with_eager_upgrade(
 def freeze_packages_to_file(config_params: ConfigParams, file: TextIO) -> None:
     console.print(f"[bright_blue]Freezing constraints to file: {file.name}")
     result = run_command(
-        ["pip", "freeze"],
+        cmd=config_params.get_freeze_command,
         github_actions=config_params.github_actions,
         text=True,
         check=True,
@@ -165,6 +209,8 @@ def freeze_packages_to_file(config_params: ConfigParams, file: TextIO) -> None:
         if line.startswith(("apache_airflow", "apache-airflow==", "/opt/airflow", "#", "-e")):
             continue
         if "@" in line:
+            continue
+        if "from file://" in line:
             continue
         if line.strip() == "":
             continue
@@ -239,20 +285,22 @@ def diff_constraints(config_params: ConfigParams) -> None:
 def uninstall_all_packages(config_params: ConfigParams):
     console.print("[bright_blue]Uninstall All PIP packages")
     result = run_command(
-        ["pip", "freeze"],
+        cmd=config_params.get_freeze_command,
         github_actions=config_params.github_actions,
         cwd=AIRFLOW_SOURCE_DIR,
         text=True,
         check=True,
         capture_output=True,
     )
+    # do not remove installer!
+    installer = "uv==" if config_params.use_uv else "pip=="
     all_installed_packages = [
         dep.split("==")[0]
         for dep in result.stdout.strip().split("\n")
-        if not dep.startswith(("apache-airflow", "apache-airflow==", "/opt/airflow", "#", "-e"))
+        if not dep.startswith(("apache-airflow", "apache-airflow==", "/opt/airflow", "#", "-e", installer))
     ]
     run_command(
-        ["pip", "uninstall", "--root-user-action", "ignore", "-y", *all_installed_packages],
+        cmd=[*config_params.get_uninstall_command, *all_installed_packages],
         github_actions=config_params.github_actions,
         cwd=AIRFLOW_SOURCE_DIR,
         text=True,
@@ -260,11 +308,15 @@ def uninstall_all_packages(config_params: ConfigParams):
     )
 
 
-def get_all_active_provider_packages() -> list[str]:
+def get_all_active_provider_packages(python_version: str | None = None) -> list[str]:
     return [
         f"apache-airflow-providers-{provider.replace('.','-')}"
         for provider in ALL_PROVIDER_DEPENDENCIES.keys()
         if ALL_PROVIDER_DEPENDENCIES[provider]["state"] == "ready"
+        and (
+            python_version is None
+            or python_version not in ALL_PROVIDER_DEPENDENCIES[provider]["excluded-python-versions"]
+        )
     ]
 
 
@@ -290,7 +342,7 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
     :return:
     """
     dist_dir = Path("/dist")
-    all_provider_packages = get_all_active_provider_packages()
+    all_provider_packages = get_all_active_provider_packages(python_version=config_params.python)
     chicken_egg_prefixes = []
     packages_to_install = []
     console.print("[bright_blue]Installing Airflow with PyPI providers with eager upgrade")
@@ -314,12 +366,14 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
                     f"[yellow]Installing {file.name} from local dist folder as it is "
                     f"a chicken egg provider"
                 )
-                packages_to_install.append(file.as_posix())
+                packages_to_install.append(f"{provider_package} @ file://{file.as_posix()}")
+                break
             else:
                 console.print(
                     f"[yellow]Skipping {provider_package} as it is not found in dist folder to install."
                 )
-                continue
+            # Skip checking if chicken egg provider is available in PyPI - it does not have to be there
+            continue
         console.print(f"[bright_blue]Checking if {provider_package} is available in PyPI: ... ", end="")
         r = requests.head(f"https://pypi.org/pypi/{provider_package}/json", timeout=60)
         if r.status_code == 200:
@@ -329,16 +383,11 @@ def generate_constraints_pypi_providers(config_params: ConfigParams) -> None:
             console.print("[yellow]NOK. Skipping.")
     run_command(
         cmd=[
-            "pip",
-            "install",
-            "--root-user-action",
-            "ignore",
+            *config_params.get_install_command,
             ".[all-core]",
             *packages_to_install,
-            *config_params.eager_upgrade_additional_requirements.split(" "),
-            "--upgrade",
-            "--upgrade-strategy",
-            "eager",
+            *config_params.eager_upgrade_additional_requirements_list,
+            *config_params.get_resolution_highest_args,
         ],
         github_actions=config_params.github_actions,
         check=True,
@@ -358,12 +407,10 @@ def generate_constraints_no_providers(config_params: ConfigParams) -> None:
     """
     uninstall_all_packages(config_params)
     console.print(
-        "[bright_blue]Installing airflow with [all-core] extras only with eager upgrade in "
+        "[bright_blue]Installing airflow with `all-core` extras only with eager upgrade in "
         "installable mode."
     )
-    install_local_airflow_with_eager_upgrade(
-        config_params, config_params.eager_upgrade_additional_requirements
-    )
+    install_local_airflow_with_eager_upgrade(config_params)
     console.print("[success]Installed airflow with [all-core] extras only with eager upgrade.")
     with config_params.current_constraints_file.open("w") as constraints_file:
         constraints_file.write(NO_PROVIDERS_CONSTRAINTS_PREFIX)
@@ -404,6 +451,7 @@ ALLOWED_CONSTRAINTS_MODES = ["constraints", "constraints-source-providers", "con
 @click.option(
     "--eager-upgrade-additional-requirements",
     envvar="EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS",
+    default="",
     help="Additional requirements to add to eager upgrade",
 )
 @click.option(
@@ -420,6 +468,13 @@ ALLOWED_CONSTRAINTS_MODES = ["constraints", "constraints-source-providers", "con
     envvar="PYTHON_MAJOR_MINOR_VERSION",
     help="Python major.minor version",
 )
+@click.option(
+    "--use-uv/--no-use-uv",
+    is_flag=True,
+    default=True,
+    help="Use uv instead of pip as packaging tool.",
+    envvar="USE_UV",
+)
 def generate_constraints(
     airflow_constraints_mode: str,
     chicken_egg_providers: str,
@@ -428,6 +483,7 @@ def generate_constraints(
     eager_upgrade_additional_requirements: str,
     github_actions: bool,
     python: str,
+    use_uv: bool,
 ) -> None:
     config_params = ConfigParams(
         airflow_constraints_mode=airflow_constraints_mode,
@@ -437,6 +493,7 @@ def generate_constraints(
         eager_upgrade_additional_requirements=eager_upgrade_additional_requirements,
         github_actions=github_actions,
         python=python,
+        use_uv=use_uv,
     )
     if airflow_constraints_mode == "constraints-source-providers":
         generate_constraints_source_providers(config_params)

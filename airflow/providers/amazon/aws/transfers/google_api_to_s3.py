@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module allows you to transfer data from any Google API endpoint into a S3 Bucket."""
+
 from __future__ import annotations
 
 import json
@@ -112,7 +113,7 @@ class GoogleApiToS3Operator(BaseOperator):
         google_api_num_retries: int = 0,
         s3_overwrite: bool = False,
         gcp_conn_id: str = "google_cloud_default",
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):

@@ -19,6 +19,7 @@
 Example DAG demonstrating the usage of the classic Python operators to execute Python functions natively and
 within a virtual environment.
 """
+
 from __future__ import annotations
 
 import logging
@@ -51,8 +52,12 @@ with DAG(
     # [START howto_operator_python]
     def print_context(ds=None, **kwargs):
         """Print the Airflow context and ds variable from the context."""
+        print("::group::All kwargs")
         pprint(kwargs)
+        print("::endgroup::")
+        print("::group::Context variable ds")
         print(ds)
+        print("::endgroup::")
         return "Whatever you return gets printed in the logs"
 
     run_this = PythonOperator(task_id="print_the_context", python_callable=print_context)
@@ -60,7 +65,7 @@ with DAG(
 
     # [START howto_operator_python_render_sql]
     def log_sql(**kwargs):
-        logging.info("Python task decorator query: %s", str(kwargs["templates_dict"]["query"]))
+        log.info("Python task decorator query: %s", str(kwargs["templates_dict"]["query"]))
 
     log_the_sql = PythonOperator(
         task_id="log_sql_query",
@@ -92,7 +97,7 @@ with DAG(
             """
             Example function that will be performed in a virtual environment.
 
-            Importing at the module level ensures that it will not attempt to import the
+            Importing at the function level ensures that it will not attempt to import the
             library before it is installed.
             """
             from time import sleep

@@ -22,9 +22,10 @@ from unittest.mock import patch
 
 import pytest
 
+from airflow.configuration import conf
 from airflow.utils.log.colored_log import CustomTTYColoredFormatter
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @patch("airflow.utils.log.timezone_aware.TimezoneAware.formatTime")
@@ -32,7 +33,12 @@ def test_format_time_uses_tz_aware(mock_fmt):
     # get a logger that uses CustomTTYColoredFormatter
     logger = logging.getLogger("test_format_time")
     h = logging.StreamHandler()
-    h.setFormatter(CustomTTYColoredFormatter())
+
+    # Explicitly pass fmt to CustomTTYColoredFormatter to avoid side effects
+    # from the default value being changed by other tests.
+    # Previously, it was being affected by tests/models/test_trigger.py::test_assign_unassigned
+    log_fmt = conf.get("logging", "log_format")
+    h.setFormatter(CustomTTYColoredFormatter(fmt=log_fmt))
     logger.addHandler(h)
 
     # verify that it uses TimezoneAware.formatTime

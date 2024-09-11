@@ -29,6 +29,7 @@ from operator import attrgetter
 import rich_click as click
 
 from airflow.jobs.job import run_job
+from airflow.utils.types import DagRunTriggeredByType
 
 MAX_DAG_RUNS_ALLOWED = 1
 
@@ -79,8 +80,7 @@ class ShortCircuitExecutorMixin:
         if not run:
             import airflow.models
 
-            # odd `list()` is to work across Airflow versions.
-            run = list(airflow.models.DagRun.find(dag_id=dag_id, execution_date=execution_date))[0]
+            run = airflow.models.DagRun.find(dag_id=dag_id, execution_date=execution_date)[0]
             self.dags_to_watch[dag_id].runs[execution_date] = run
 
         if run and all(t.state == TaskInstanceState.SUCCESS for t in run.get_task_instances()):
@@ -178,6 +178,7 @@ def create_dag_runs(dag, num_runs, session):
             state=DagRunState.RUNNING,
             external_trigger=False,
             session=session,
+            triggered_by=DagRunTriggeredByType.TEST,
         )
         last_dagrun_data_interval = next_info.data_interval
 

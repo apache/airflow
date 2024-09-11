@@ -41,7 +41,7 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 if TYPE_CHECKING:
@@ -79,7 +79,6 @@ class TestLogView:
     def configure_loggers(self, log_dir, settings_folder):
         logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
         logging_config["handlers"]["task"]["base_log_folder"] = log_dir
-        logging_config["handlers"]["task"]["filename_template"] = self.FILENAME_TEMPLATE
         settings_file = os.path.join(settings_folder, "airflow_local_settings_test.py")
         with open(settings_file, "w") as handle:
             new_logging_file = f"LOGGING_CONFIG = {logging_config}"

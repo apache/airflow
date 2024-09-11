@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import timedelta
 from unittest import mock
 
 import pytest
@@ -46,6 +47,7 @@ class TestLivyTrigger:
             "extra_options": None,
             "extra_headers": None,
             "livy_hook_async": None,
+            "execution_timeout": None,
         }
 
     @pytest.mark.asyncio
@@ -195,3 +197,31 @@ class TestLivyTrigger:
         # TriggerEvent was not returned
         assert task.done() is False
         asyncio.get_event_loop().stop()
+
+    @pytest.mark.asyncio
+    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.get_batch_state")
+    @mock.patch("airflow.providers.apache.livy.hooks.livy.LivyAsyncHook.dump_batch_logs")
+    async def test_livy_trigger_poll_for_termination_timeout(
+        self, mock_dump_batch_logs, mock_get_batch_state
+    ):
+        """
+        Test if poll_for_termination() returns timeout response when execution times out.
+        """
+        mock_get_batch_state.return_value = {"batch_state": BatchState.RUNNING}
+        mock_dump_batch_logs.return_value = ["mock_log"]
+        trigger = LivyTrigger(
+            batch_id=1,
+            spark_params={},
+            livy_conn_id=LivyHook.default_conn_name,
+            polling_interval=1,
+            execution_timeout=timedelta(seconds=0),
+        )
+
+        task = await trigger.poll_for_termination(1)
+
+        assert task == {
+            "status": "timeout",
+            "batch_id": 1,
+            "response": "Batch 1 timed out",
+            "log_lines": ["mock_log"],
+        }

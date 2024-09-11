@@ -21,6 +21,7 @@ Example DAG using GoogleCloudStorageToGoogleDriveOperator.
 Using this operator requires the following additional scopes:
 https://www.googleapis.com/auth/drive
 """
+
 from __future__ import annotations
 
 import json
@@ -32,27 +33,28 @@ from pathlib import Path
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
-from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
+from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 from airflow.providers.google.suite.transfers.gcs_to_gdrive import GCSToGoogleDriveOperator
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 FOLDER_ID = os.environ.get("GCP_GDRIVE_FOLDER_ID", "root")
 
-DAG_ID = "example_gcs_to_gdrive"
+DAG_ID = "gcs_to_gdrive"
 
+RESOURCES_BUCKET_NAME = "airflow-system-tests-resources"
 BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 CONNECTION_ID = f"connection_{DAG_ID}_{ENV_ID}"
 
 TMP_PATH = "tmp"
 WORK_DIR = f"folder_{DAG_ID}_{ENV_ID}".replace("-", "_")
 CURRENT_FOLDER = Path(__file__).parent
-LOCAL_PATH = str(Path(CURRENT_FOLDER) / "resources")
+LOCAL_PATH = str(Path("gcs"))
 FILE_LOCAL_PATH = str(Path(LOCAL_PATH))
 FILE_NAME = "example_upload.txt"
 
@@ -68,9 +70,9 @@ with DAG(
 ) as dag:
 
     @task
-    def create_temp_gcp_connection():
+    def create_connection(connection_id: str):
         conn = Connection(
-            conn_id=CONNECTION_ID,
+            conn_id=connection_id,
             conn_type="google_cloud_platform",
         )
         conn_extra_json = json.dumps(
@@ -82,30 +84,36 @@ with DAG(
         conn.set_extra(conn_extra_json)
 
         session = Session()
-        if session.query(Connection).filter(Connection.conn_id == CONNECTION_ID).first():
-            log.warning("Connection %s already exists", CONNECTION_ID)
-            return None
+        log.info("Removing connection %s if it exists", connection_id)
+        query = session.query(Connection).filter(Connection.conn_id == connection_id)
+        query.delete()
+
         session.add(conn)
         session.commit()
+        log.info("Connection created: '%s'", connection_id)
 
-    create_temp_gcp_connection_task = create_temp_gcp_connection()
+    create_connection_task = create_connection(connection_id=CONNECTION_ID)
 
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
     )
 
-    upload_file_1 = LocalFilesystemToGCSOperator(
+    upload_file_1 = GCSToGCSOperator(
         task_id="upload_file_1",
-        src=f"{FILE_LOCAL_PATH}/{FILE_NAME}",
-        dst=f"{TMP_PATH}/{FILE_NAME}",
-        bucket=BUCKET_NAME,
+        source_bucket=RESOURCES_BUCKET_NAME,
+        source_object=f"{FILE_LOCAL_PATH}/{FILE_NAME}",
+        destination_bucket=BUCKET_NAME,
+        destination_object=f"{TMP_PATH}/{FILE_NAME}",
+        exact_match=True,
     )
 
-    upload_file_2 = LocalFilesystemToGCSOperator(
+    upload_file_2 = GCSToGCSOperator(
         task_id="upload_file_2",
-        src=f"{FILE_LOCAL_PATH}/{FILE_NAME}",
-        dst=f"{TMP_PATH}/2_{FILE_NAME}",
-        bucket=BUCKET_NAME,
+        source_bucket=RESOURCES_BUCKET_NAME,
+        source_object=f"{FILE_LOCAL_PATH}/{FILE_NAME}",
+        destination_bucket=BUCKET_NAME,
+        destination_object=f"{TMP_PATH}/2_{FILE_NAME}",
+        exact_match=True,
     )
     # [START howto_operator_gcs_to_gdrive_copy_single_file]
     copy_single_file = GCSToGoogleDriveOperator(
@@ -171,16 +179,20 @@ with DAG(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
     )
 
-    delete_temp_gcp_connection_task = BashOperator(
-        task_id="delete_temp_gcp_connection",
-        bash_command=f"airflow connections delete {CONNECTION_ID}",
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
+    @task(task_id="delete_connection")
+    def delete_connection(connection_id: str) -> None:
+        session = Session()
+        log.info("Removing connection %s", connection_id)
+        query = session.query(Connection).filter(Connection.conn_id == connection_id)
+        query.delete()
+        session.commit()
+
+    delete_connection_task = delete_connection(connection_id=CONNECTION_ID)
 
     # TEST SETUP
     create_bucket >> [upload_file_1, upload_file_2]
     (
-        [upload_file_1, upload_file_2, create_temp_gcp_connection_task]
+        [upload_file_1, upload_file_2, create_connection_task]
         # TEST BODY
         >> copy_single_file
         >> copy_single_file_into_folder
@@ -188,7 +200,7 @@ with DAG(
         >> move_files
         # TEST TEARDOWN
         >> remove_files_from_drive_task
-        >> [delete_bucket, delete_temp_gcp_connection_task]
+        >> [delete_bucket, delete_connection_task]
     )
 
     from tests.system.utils.watcher import watcher

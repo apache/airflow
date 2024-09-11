@@ -19,18 +19,13 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow.models import DAG
-
-try:
-    from airflow.operators.empty import EmptyOperator
-except ModuleNotFoundError:
-    from airflow.operators.dummy import DummyOperator as EmptyOperator  # type: ignore
-
+from airflow.operators.empty import EmptyOperator
 from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudGetJobRunArtifactOperator,
     DbtCloudListJobsOperator,
     DbtCloudRunJobOperator,
 )
-from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunAsyncSensor, DbtCloudJobRunSensor
+from airflow.providers.dbt.cloud.sensors.dbt import DbtCloudJobRunSensor
 from airflow.utils.edgemodifier import Label
 from tests.system.utils import get_test_env_id
 
@@ -77,17 +72,11 @@ with DAG(
     )
     # [END howto_operator_dbt_cloud_run_job_sensor]
 
-    # [START howto_operator_dbt_cloud_run_job_sensor_defered]
-    job_run_sensor_defered = DbtCloudJobRunSensor(
-        task_id="job_run_sensor_defered", run_id=trigger_job_run2.output, timeout=20, deferrable=True
+    # [START howto_operator_dbt_cloud_run_job_sensor_deferred]
+    job_run_sensor_deferred = DbtCloudJobRunSensor(
+        task_id="job_run_sensor_deferred", run_id=trigger_job_run2.output, timeout=20, deferrable=True
     )
-    # [END howto_operator_dbt_cloud_run_job_sensor_defered]
-
-    # [START howto_operator_dbt_cloud_run_job_async_sensor]
-    job_run_async_sensor = DbtCloudJobRunAsyncSensor(
-        task_id="job_run_async_sensor", run_id=trigger_job_run2.output, timeout=20
-    )
-    # [END howto_operator_dbt_cloud_run_job_async_sensor]
+    # [END howto_operator_dbt_cloud_run_job_sensor_deferred]
 
     # [START howto_operator_dbt_cloud_list_jobs]
     list_dbt_jobs = DbtCloudListJobsOperator(task_id="list_dbt_jobs", account_id=106277, project_id=160645)
@@ -100,6 +89,7 @@ with DAG(
     # Task dependency created via `XComArgs`:
     # trigger_job_run1 >> get_run_results_artifact
     # trigger_job_run2 >> job_run_sensor
+    # trigger_job_run2 >> job_run_sensor_deferred
 
     from tests.system.utils.watcher import watcher
 

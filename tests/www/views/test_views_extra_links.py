@@ -24,13 +24,16 @@ from unittest import mock
 import pytest
 
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.models.dag import DAG
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS, BaseOperatorLink
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.mock_operators import AirflowLink, Dummy2TestOperator, Dummy3TestOperator
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -62,7 +65,8 @@ class FooBarLink(BaseOperatorLink):
 
 
 class DummyTestOperator(BaseOperator):
-    operator_extra_links = (
+    # We need to ignore type check here due to 2.7 compatibility import
+    operator_extra_links = (  # type: ignore[assignment]
         RaiseErrorLink(),
         NoResponseLink(),
         FooBarLink(),
@@ -72,24 +76,26 @@ class DummyTestOperator(BaseOperator):
 
 @pytest.fixture(scope="module")
 def dag():
-    return DAG("dag", start_date=DEFAULT_DATE)
+    return DAG("dag", start_date=DEFAULT_DATE, schedule="0 0 * * *")
 
 
 @pytest.fixture(scope="module")
 def create_dag_run(dag):
     def _create_dag_run(*, execution_date, session):
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         return dag.create_dagrun(
             state=DagRunState.RUNNING,
             execution_date=execution_date,
             data_interval=(execution_date, execution_date),
             run_type=DagRunType.MANUAL,
             session=session,
+            **triggered_by_kwargs,
         )
 
     return _create_dag_run
 
 
-@pytest.fixture()
+@pytest.fixture
 def dag_run(create_dag_run, session):
     return create_dag_run(execution_date=DEFAULT_DATE, session=session)
 

@@ -16,7 +16,11 @@
 # under the License.
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
+
+DATA_FILES_DIRECTORY = Path(__file__).resolve().parent
 
 
 @pytest.fixture(autouse=True)
@@ -24,3 +28,13 @@ def initialize_providers_manager():
     from airflow.providers_manager import ProvidersManager
 
     ProvidersManager().initialize_providers_configuration()
+
+
+@pytest.fixture
+def pod_template() -> Path:
+    return (DATA_FILES_DIRECTORY / "pod.yaml").resolve(strict=True)
+
+
+@pytest.fixture
+def basic_pod_template() -> Path:
+    return (DATA_FILES_DIRECTORY / "basic_pod.yaml").resolve(strict=True)

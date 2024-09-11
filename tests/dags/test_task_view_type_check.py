@@ -18,6 +18,7 @@
 """
 DAG designed to test a PythonOperator that calls a functool.partial
 """
+
 from __future__ import annotations
 
 import functools
@@ -27,6 +28,7 @@ from datetime import datetime
 from airflow.models.dag import DAG
 from airflow.operators.python import PythonOperator
 
+logger = logging.getLogger(__name__)
 DEFAULT_DATE = datetime(2016, 1, 1)
 default_args = dict(start_date=DEFAULT_DATE, owner="airflow")
 
@@ -47,9 +49,9 @@ def a_function(_, __):
 partial_function = functools.partial(a_function, arg_x=1)
 class_instance = CallableClass()
 
-logging.info("class_instance type: %s", type(class_instance))
+logger.info("class_instance type: %s", type(class_instance))
 
-dag = DAG(dag_id="test_task_view_type_check", default_args=default_args)
+dag = DAG(dag_id="test_task_view_type_check", schedule=None, default_args=default_args)
 
 dag_task1 = PythonOperator(
     task_id="test_dagrun_functool_partial",

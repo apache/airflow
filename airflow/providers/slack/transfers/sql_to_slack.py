@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, Mapping, Sequence
 from deprecated import deprecated
 from typing_extensions import Literal
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
 from airflow.providers.slack.hooks.slack import SlackHook
 from airflow.providers.slack.transfers.base_sql_to_slack import BaseSqlToSlackOperator
 from airflow.providers.slack.transfers.sql_to_slack_webhook import SqlToSlackWebhookOperator
@@ -58,6 +58,11 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
     :param slack_base_url: A string representing the Slack API base URL. Optional
     :param slack_method_version: The version of the Slack SDK Client method to be used, either "v1" or "v2".
     :param df_kwargs: Keyword arguments forwarded to ``pandas.DataFrame.to_{format}()`` method.
+    :param action_on_empty_df: Specifying how to handle an empty sql output df. Possible values:
+
+        - ``send``: (default) send the slack with an empty file.
+        - ``skip``: skip sending the slack message. Task state set to "skipped".
+        - ``error``: raise an error to fail the task. Task state set to "failed".
     """
 
     template_fields: Sequence[str] = (
@@ -85,8 +90,9 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
         slack_initial_comment: str | None = None,
         slack_title: str | None = None,
         slack_base_url: str | None = None,
-        slack_method_version: Literal["v1", "v2"] = "v1",
+        slack_method_version: Literal["v1", "v2"] = "v2",
         df_kwargs: dict | None = None,
+        action_on_empty_df: Literal["send", "skip", "error"] = "send",
         **kwargs,
     ):
         super().__init__(
@@ -100,6 +106,9 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
         self.slack_base_url = slack_base_url
         self.slack_method_version = slack_method_version
         self.df_kwargs = df_kwargs or {}
+        if not action_on_empty_df or action_on_empty_df not in ("send", "skip", "error"):
+            raise ValueError(f"Invalid `action_on_empty_df` value {action_on_empty_df!r}")
+        self.action_on_empty_df = action_on_empty_df
 
     @cached_property
     def slack_hook(self):
@@ -134,6 +143,13 @@ class SqlToSlackApiFileOperator(BaseSqlToSlackOperator):
             output_file_name = fp.name
             output_file_format = output_file_format.upper()
             df_result = self._get_query_results()
+            if df_result.empty:
+                if self.action_on_empty_df == "skip":
+                    raise AirflowSkipException("SQL output df is empty. Skipping.")
+                elif self.action_on_empty_df == "error":
+                    raise ValueError("SQL output df must be non-empty. Failing.")
+                elif self.action_on_empty_df != "send":
+                    raise ValueError(f"Invalid `action_on_empty_df` value {self.action_on_empty_df!r}")
             if output_file_format == "CSV":
                 df_result.to_csv(output_file_name, **self.df_kwargs)
             elif output_file_format == "JSON":

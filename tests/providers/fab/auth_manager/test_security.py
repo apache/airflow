@@ -31,16 +31,19 @@ from flask_appbuilder import SQLA, Model, expose, has_access
 from flask_appbuilder.views import BaseView, ModelView
 from sqlalchemy import Column, Date, Float, Integer, String
 
-from airflow.auth.managers.models.resource_details import DagDetails
 from airflow.configuration import initialize_config
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
-from airflow.models.base import Base
 from airflow.models.dag import DAG
-from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
-from airflow.providers.fab.auth_manager.models import User, assoc_permission_role
-from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
+from tests.test_utils.compat import ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("2.9.0+", __file__):
+    from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
+    from airflow.providers.fab.auth_manager.models import assoc_permission_role
+    from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
+
 from airflow.security import permissions
+from airflow.security.permissions import ACTION_CAN_READ
 from airflow.www import app as application
 from airflow.www.auth import get_access_denied_message
 from airflow.www.extensions.init_auth_manager import get_auth_manager
@@ -55,11 +58,12 @@ from tests.test_utils.api_connexion_utils import (
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.mock_security_manager import MockSecurityManager
+from tests.test_utils.permissions import _resource_name
 
 pytestmark = pytest.mark.db_test
 
-READ_WRITE = {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}
-READ_ONLY = {permissions.ACTION_CAN_READ}
+READ_WRITE = {permissions.RESOURCE_DAG: {permissions.ACTION_CAN_READ, permissions.ACTION_CAN_EDIT}}
+READ_ONLY = {permissions.RESOURCE_DAG: {permissions.ACTION_CAN_READ}}
 
 logging.basicConfig(format="%(asctime)s:%(levelname)s:%(name)s:%(message)s")
 logging.getLogger().setLevel(logging.DEBUG)
@@ -104,7 +108,7 @@ def _clear_db_dag_and_runs():
 
 
 def _delete_dag_permissions(dag_id, security_manager):
-    dag_resource_name = permissions.resource_name_for_dag(dag_id)
+    dag_resource_name = _resource_name(dag_id, permissions.RESOURCE_DAG)
     for dag_action_name in security_manager.DAG_ACTIONS:
         security_manager.delete_permission(dag_action_name, dag_resource_name)
 
@@ -124,14 +128,20 @@ def _delete_dag_model(dag_model, session, security_manager):
 
 
 def _can_read_dag(dag_id: str, user) -> bool:
+    from airflow.auth.managers.models.resource_details import DagDetails
+
     return get_auth_manager().is_authorized_dag(method="GET", details=DagDetails(id=dag_id), user=user)
 
 
 def _can_edit_dag(dag_id: str, user) -> bool:
+    from airflow.auth.managers.models.resource_details import DagDetails
+
     return get_auth_manager().is_authorized_dag(method="PUT", details=DagDetails(id=dag_id), user=user)
 
 
 def _can_delete_dag(dag_id: str, user) -> bool:
+    from airflow.auth.managers.models.resource_details import DagDetails
+
     return get_auth_manager().is_authorized_dag(method="DELETE", details=DagDetails(id=dag_id), user=user)
 
 
@@ -154,7 +164,7 @@ def clear_db_after_suite():
     _clear_db_dag_and_runs()
 
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest.fixture(autouse=True)
 def clear_db_before_test():
     _clear_db_dag_and_runs()
 
@@ -189,7 +199,7 @@ def db(app):
     return SQLA(app)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def role(request, app, security_manager):
     params = request.param
     _role = None
@@ -201,7 +211,7 @@ def role(request, app, security_manager):
     delete_role(app, params["name"])
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def mock_dag_models(request, session, security_manager):
     dags_ids = request.param
     dags = [_create_dag_model(dag_id, session, security_manager) for dag_id in dags_ids]
@@ -212,11 +222,11 @@ def mock_dag_models(request, session, security_manager):
         _delete_dag_model(dag, session, security_manager)
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def sample_dags(security_manager):
     dags = [
-        DAG("has_access_control", access_control={"Public": {permissions.ACTION_CAN_READ}}),
-        DAG("no_access_control"),
+        DAG("has_access_control", schedule=None, access_control={"Public": {permissions.ACTION_CAN_READ}}),
+        DAG("no_access_control", schedule=None),
     ]
 
     yield dags
@@ -228,6 +238,8 @@ def sample_dags(security_manager):
 @pytest.fixture(scope="module")
 def has_dag_perm(security_manager):
     def _has_dag_perm(perm, dag_id, user):
+        from airflow.auth.managers.models.resource_details import DagDetails
+
         root_dag_id = security_manager._get_root_dag_id(dag_id)
         return get_auth_manager().is_authorized_dag(
             method=perm, details=DagDetails(id=root_dag_id), user=user
@@ -428,7 +440,6 @@ def test_get_user_roles_for_anonymous_user(app, security_manager):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_JOB),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
@@ -446,7 +457,6 @@ def test_get_user_roles_for_anonymous_user(app, security_manager):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DATASET),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
-        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_PLUGIN),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DOCS_MENU),
@@ -503,7 +513,10 @@ def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, sessio
             ],
         ) as user:
             mock_is_logged_in.return_value = True
-            dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
+            if hasattr(DagModel, "schedule_interval"):  # Airflow 2 compat.
+                dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
+            else:  # Airflow 3.
+                dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", timetable_summary="2 2 * * *")
             session.add(dag_model)
             session.commit()
 
@@ -534,7 +547,10 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
             ],
         ) as user:
             mock_is_logged_in.return_value = True
-            dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
+            if hasattr(DagModel, "schedule_interval"):  # Airflow 2 compat.
+                dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
+            else:  # Airflow 3.
+                dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", timetable_summary="2 2 * * *")
             session.add(dag_model)
             session.commit()
 
@@ -547,7 +563,7 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
 
 def test_has_access(security_manager):
     user = mock.MagicMock()
-    action_name = "action"
+    action_name = ACTION_CAN_READ
     resource_name = "resource"
     user.perms = [(action_name, resource_name)]
     assert security_manager.has_access(action_name, resource_name, user)
@@ -741,6 +757,19 @@ def test_access_control_with_non_existent_role(security_manager):
     assert "role does not exist" in str(ctx.value)
 
 
+def test_access_control_with_non_allowed_resource(security_manager):
+    with pytest.raises(AirflowException) as ctx:
+        security_manager._sync_dag_view_permissions(
+            dag_id="access-control-test",
+            access_control={
+                "Public": {
+                    permissions.RESOURCE_POOL: {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ}
+                }
+            },
+        )
+    assert "invalid resource name" in str(ctx.value)
+
+
 def test_all_dag_access_doesnt_give_non_dag_access(app, security_manager):
     username = "dag_access_user"
     role_name = "dag_access_role"
@@ -779,6 +808,17 @@ def test_access_control_with_invalid_permission(app, security_manager):
                     access_control={rolename: {action}},
                 )
             assert "invalid permissions" in str(ctx.value)
+
+            with pytest.raises(AirflowException) as ctx:
+                security_manager._sync_dag_view_permissions(
+                    "access_control_test",
+                    access_control={rolename: {permissions.RESOURCE_DAG_RUN: {action}}},
+                )
+            if hasattr(permissions, "resource_name"):
+                assert "invalid permission" in str(ctx.value)
+            else:
+                # Test with old airflow running new FAB
+                assert "invalid resource name" in str(ctx.value)
 
 
 def test_access_control_is_set_on_init(
@@ -880,7 +920,11 @@ def test_correct_roles_have_perms_to_read_config(security_manager):
 
 
 def test_create_dag_specific_permissions(session, security_manager, monkeypatch, sample_dags):
-    access_control = {"Public": {permissions.ACTION_CAN_READ}}
+    access_control = (
+        {"Public": {"DAGs": {permissions.ACTION_CAN_READ}}}
+        if hasattr(permissions, "resource_name")
+        else {"Public": {permissions.ACTION_CAN_READ}}
+    )
 
     collect_dags_from_db_mock = mock.Mock()
     dagbag_mock = mock.Mock()
@@ -888,7 +932,7 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
     dagbag_mock.collect_dags_from_db = collect_dags_from_db_mock
     dagbag_class_mock = mock.Mock()
     dagbag_class_mock.return_value = dagbag_mock
-    import airflow.www.security
+    import airflow.providers.fab.auth_manager.security_manager
 
     monkeypatch.setitem(
         airflow.providers.fab.auth_manager.security_manager.override.__dict__, "DagBag", dagbag_class_mock
@@ -896,7 +940,7 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
     security_manager._sync_dag_view_permissions = mock.Mock()
 
     for dag in sample_dags:
-        dag_resource_name = permissions.resource_name_for_dag(dag.dag_id)
+        dag_resource_name = _resource_name(dag.dag_id, permissions.RESOURCE_DAG)
         all_perms = security_manager.get_all_permissions()
         assert ("can_read", dag_resource_name) not in all_perms
         assert ("can_edit", dag_resource_name) not in all_perms
@@ -907,13 +951,13 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
     collect_dags_from_db_mock.assert_called_once_with()
 
     for dag in sample_dags:
-        dag_resource_name = permissions.resource_name_for_dag(dag.dag_id)
+        dag_resource_name = _resource_name(dag.dag_id, permissions.RESOURCE_DAG)
         all_perms = security_manager.get_all_permissions()
         assert ("can_read", dag_resource_name) in all_perms
         assert ("can_edit", dag_resource_name) in all_perms
 
     security_manager._sync_dag_view_permissions.assert_called_once_with(
-        permissions.resource_name_for_dag("has_access_control"),
+        "has_access_control",
         access_control,
     )
 
@@ -963,50 +1007,10 @@ def test_prefixed_dag_id_is_deprecated(security_manager):
         DeprecationWarning,
         match=(
             "`prefixed_dag_id` has been deprecated. "
-            "Please use `airflow.security.permissions.resource_name_for_dag` instead."
+            "Please use `airflow.security.permissions.resource_name` instead."
         ),
     ):
         security_manager.prefixed_dag_id("hello")
-
-
-def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_has_dag_perms, session):
-    username = "dag_permission_user"
-    role_name = "dag_permission_role"
-    parent_dag_name = "parent_dag"
-    subdag_name = parent_dag_name + ".subdag"
-    subsubdag_name = parent_dag_name + ".subdag.subsubdag"
-    with app.app_context():
-        mock_roles = [
-            {
-                "role": role_name,
-                "perms": [
-                    (permissions.ACTION_CAN_READ, f"DAG:{parent_dag_name}"),
-                    (permissions.ACTION_CAN_EDIT, f"DAG:{parent_dag_name}"),
-                ],
-            }
-        ]
-        with create_user_scope(
-            app,
-            username=username,
-            role_name=role_name,
-        ) as user:
-            dag1 = DagModel(dag_id=parent_dag_name)
-            dag2 = DagModel(dag_id=subdag_name, is_subdag=True, root_dag_id=parent_dag_name)
-            dag3 = DagModel(dag_id=subsubdag_name, is_subdag=True, root_dag_id=parent_dag_name)
-            session.add_all([dag1, dag2, dag3])
-            session.commit()
-            security_manager.bulk_sync_roles(mock_roles)
-            for dag in [dag1, dag2, dag3]:
-                security_manager._sync_dag_view_permissions(
-                    parent_dag_name, access_control={role_name: READ_WRITE}
-                )
-
-            assert_user_has_dag_perms(perms=["GET", "PUT"], dag_id=parent_dag_name, user=user)
-            assert_user_has_dag_perms(perms=["GET", "PUT"], dag_id=parent_dag_name + ".subdag", user=user)
-            assert_user_has_dag_perms(
-                perms=["GET", "PUT"], dag_id=parent_dag_name + ".subdag.subsubdag", user=user
-            )
-            session.query(DagModel).delete()
 
 
 def test_permissions_work_for_dags_with_dot_in_dagname(
@@ -1043,20 +1047,14 @@ def test_permissions_work_for_dags_with_dot_in_dagname(
             session.query(DagModel).delete()
 
 
-def test_fab_models_use_airflow_base_meta():
-    # TODO: move this test to appropriate place when we have more tests for FAB models
-    user = User()
-    assert user.metadata is Base.metadata
-
-
-@pytest.fixture()
+@pytest.fixture
 def mock_security_manager(app_builder):
     mocked_security_manager = MockSecurityManager(appbuilder=app_builder)
     mocked_security_manager.update_user = mock.MagicMock()
     return mocked_security_manager
 
 
-@pytest.fixture()
+@pytest.fixture
 def new_user():
     user = mock.MagicMock()
     user.login_count = None
@@ -1065,7 +1063,7 @@ def new_user():
     return user
 
 
-@pytest.fixture()
+@pytest.fixture
 def old_user():
     user = mock.MagicMock()
     user.login_count = 42
@@ -1081,7 +1079,7 @@ def test_update_user_auth_stat_first_successful_auth(mock_security_manager, new_
     assert new_user.login_count == 1
     assert new_user.fail_login_count == 0
     assert new_user.last_login == datetime.datetime(1985, 11, 5, 1, 24, 0)
-    assert mock_security_manager.update_user.called_once
+    mock_security_manager.update_user.assert_called_once_with(new_user)
 
 
 @time_machine.travel(datetime.datetime(1985, 11, 5, 1, 24, 0), tick=False)
@@ -1091,7 +1089,7 @@ def test_update_user_auth_stat_subsequent_successful_auth(mock_security_manager,
     assert old_user.login_count == 43
     assert old_user.fail_login_count == 0
     assert old_user.last_login == datetime.datetime(1985, 11, 5, 1, 24, 0)
-    assert mock_security_manager.update_user.called_once
+    mock_security_manager.update_user.assert_called_once_with(old_user)
 
 
 @time_machine.travel(datetime.datetime(1985, 11, 5, 1, 24, 0), tick=False)
@@ -1101,7 +1099,7 @@ def test_update_user_auth_stat_first_unsuccessful_auth(mock_security_manager, ne
     assert new_user.login_count == 0
     assert new_user.fail_login_count == 1
     assert new_user.last_login is None
-    assert mock_security_manager.update_user.called_once
+    mock_security_manager.update_user.assert_called_once_with(new_user)
 
 
 @time_machine.travel(datetime.datetime(1985, 11, 5, 1, 24, 0), tick=False)
@@ -1111,7 +1109,7 @@ def test_update_user_auth_stat_subsequent_unsuccessful_auth(mock_security_manage
     assert old_user.login_count == 42
     assert old_user.fail_login_count == 10
     assert old_user.last_login == datetime.datetime(1984, 12, 1, 0, 0, 0)
-    assert mock_security_manager.update_user.called_once
+    mock_security_manager.update_user.assert_called_once_with(old_user)
 
 
 def test_users_can_be_found(app, security_manager, session, caplog):

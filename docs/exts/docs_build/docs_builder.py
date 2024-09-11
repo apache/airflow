@@ -25,16 +25,15 @@ from subprocess import run
 
 from rich.console import Console
 
-from .code_utils import (
+from docs.exts.docs_build.code_utils import (
     ALL_PROVIDER_YAMLS,
     ALL_PROVIDER_YAMLS_WITH_SUSPENDED,
     CONSOLE_WIDTH,
     DOCS_DIR,
     PROCESS_TIMEOUT,
 )
-from .errors import DocBuildError, parse_sphinx_warnings
-from .helm_chart_utils import chart_version
-from .spelling_checks import SpellingError, parse_spelling_warnings
+from docs.exts.docs_build.errors import DocBuildError, parse_sphinx_warnings
+from docs.exts.docs_build.spelling_checks import SpellingError, parse_spelling_warnings
 
 console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WIDTH)
 
@@ -87,21 +86,6 @@ class AirflowDocsBuilder:
     def log_build_warning_filename(self) -> str:
         """Warnings from build job."""
         return os.path.join(self._build_dir, f"warning-build-{self.package_name}.log")
-
-    @property
-    def _current_version(self):
-        if not self.is_versioned:
-            raise Exception("This documentation package is not versioned")
-        if self.package_name == "apache-airflow":
-            from airflow.version import version as airflow_version
-
-            return airflow_version
-        if self.package_name.startswith("apache-airflow-providers-"):
-            provider = next(p for p in ALL_PROVIDER_YAMLS if p["package-name"] == self.package_name)
-            return provider["versions"][0]
-        if self.package_name == "helm-chart":
-            return chart_version()
-        return Exception(f"Unsupported package: {self.package_name}")
 
     @property
     def _src_dir(self) -> str:

@@ -39,7 +39,6 @@ from wtforms.validators import InputRequired, Optional
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.providers_manager import ProvidersManager
-from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 from airflow.www.validators import ReadOnly, ValidConnID
 from airflow.www.widgets import (
@@ -99,27 +98,9 @@ class DateTimeForm(FlaskForm):
     execution_date = DateTimeWithTimezoneField("Logical date", widget=AirflowDateTimePickerWidget())
 
 
-class DateTimeWithNumRunsForm(FlaskForm):
-    """Date time and number of runs form for tree view, task duration and landing times."""
-
-    base_date = DateTimeWithTimezoneField(
-        "Anchor date", widget=AirflowDateTimePickerWidget(), default=timezone.utcnow()
-    )
-    num_runs = SelectField(
-        "Number of runs",
-        default=25,
-        choices=(
-            (5, "5"),
-            (25, "25"),
-            (50, "50"),
-            (100, "100"),
-            (365, "365"),
-        ),
-    )
-
-
 class DagRunEditForm(DynamicForm):
-    """Form for editing DAG Run.
+    """
+    Form for editing DAG Run.
 
     Only note field is editable, so everything else is read-only here.
     """
@@ -152,7 +133,8 @@ class DagRunEditForm(DynamicForm):
 
 
 class TaskInstanceEditForm(DynamicForm):
-    """Form for editing TaskInstance.
+    """
+    Form for editing TaskInstance.
 
     Only note and state fields are editable, so everything else is read-only here.
     """
@@ -196,7 +178,8 @@ class TaskInstanceEditForm(DynamicForm):
 
 @cache
 def create_connection_form_class() -> type[DynamicForm]:
-    """Create a form class for editing and adding Connection.
+    """
+    Create a form class for editing and adding Connection.
 
     This class is created dynamically because it relies heavily on run-time
     provider discovery, which slows down webserver startup a lot.

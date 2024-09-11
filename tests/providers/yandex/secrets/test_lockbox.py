@@ -19,6 +19,10 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, Mock, patch
 
+import pytest
+
+yandexcloud = pytest.importorskip("yandexcloud")
+
 import yandex.cloud.lockbox.v1.payload_pb2 as payload_pb
 import yandex.cloud.lockbox.v1.secret_pb2 as secret_pb
 import yandex.cloud.lockbox.v1.secret_service_pb2 as secret_service_pb
@@ -55,7 +59,7 @@ class TestLockboxSecretBackend:
     def test_yandex_lockbox_secret_backend_get_connection_from_json(self, mock_get_value):
         conn_id = "airflow_to_yandexcloud"
         conn_type = "yandex_cloud"
-        extra = "some extra values"
+        extra = '{"some": "extra values"}'
         c = {
             "conn_type": conn_type,
             "extra": extra,
@@ -65,14 +69,15 @@ class TestLockboxSecretBackend:
 
         conn = LockboxSecretBackend().get_connection(conn_id)
 
+        assert conn.extra == extra
+
         assert conn.conn_id == conn_id
         assert conn.conn_type == conn_type
-        assert conn.extra == extra
 
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value")
     def test_yandex_lockbox_secret_backend_get_variable(self, mock_get_value):
-        k = "thisiskey"
-        v = "thisisvalue"
+        k = "this-is-key"
+        v = "this-is-value"
 
         mock_get_value.return_value = v
 
@@ -82,8 +87,8 @@ class TestLockboxSecretBackend:
 
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value")
     def test_yandex_lockbox_secret_backend_get_config(self, mock_get_value):
-        k = "thisiskey"
-        v = "thisisvalue"
+        k = "this-is-key"
+        v = "this-is-value"
 
         mock_get_value.return_value = v
 
@@ -111,7 +116,7 @@ class TestLockboxSecretBackend:
         mock_get_value.return_value = uri
 
         conn = LockboxSecretBackend(
-            yc_oauth_token="y3_Vdheub7w9bIut67GHeL345gfb5GAnd3dZnf08FRbvjeUFvetYiohGvc",
+            yc_oauth_token="y3_Vd3eub7w9bIut67GHeL345gfb5GAnd3dZnf08FR1vjeUFve7Yi8hGvc",
         ).get_connection(conn_id)
 
         assert conn.conn_id == conn_id
@@ -143,8 +148,8 @@ class TestLockboxSecretBackend:
 
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value")
     def test_yandex_lockbox_secret_backend_get_variable_prefix_is_none(self, mock_get_value):
-        k = "thisiskey"
-        v = "thisisvalue"
+        k = "this-is-key"
+        v = "this-is-value"
 
         mock_get_value.return_value = v
 
@@ -156,8 +161,8 @@ class TestLockboxSecretBackend:
 
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_secret_value")
     def test_yandex_lockbox_secret_backend_get_config_prefix_is_none(self, mock_get_value):
-        k = "thisiskey"
-        v = "thisisvalue"
+        k = "this-is-key"
+        v = "this-is-value"
 
         mock_get_value.return_value = v
 
@@ -168,7 +173,7 @@ class TestLockboxSecretBackend:
         assert value is None
 
     def test_yandex_lockbox_secret_backend__client_created_without_exceptions(self):
-        yc_oauth_token = "y3_Vdheub7w9bIut67GHeL345gfb5GAnd3dZnf08FRbvjeUFvetYiohGvc"
+        yc_oauth_token = "y3_Vd3eub7w9bIut67GHeL345gfb5GAnd3dZnf08FR1vjeUFve7Yi8hGvc"
 
         sm = LockboxSecretBackend(
             yc_oauth_token=yc_oauth_token,
@@ -178,7 +183,7 @@ class TestLockboxSecretBackend:
 
     @patch("airflow.providers.yandex.secrets.lockbox.LockboxSecretBackend._get_field")
     def test_yandex_lockbox_secret_backend__client_credentials_received_from_connection(self, mock_get_field):
-        yc_oauth_token = "y3_Vdheub7w9bIut67GHeL345gfb5GAnd3dZnf08FRbvjeUFvetYiohGvc"
+        yc_oauth_token = "y3_Vd3eub7w9bIut67GHeL345gfb5GAnd3dZnf08FR1vjeUFve7Yi8hGvc"
         yc_sa_key_json = "sa_key_json"
         yc_sa_key_json_path = "sa_key_json_path"
         folder_id = "folder_id123"
@@ -207,8 +212,8 @@ class TestLockboxSecretBackend:
         assert sm.endpoint == endpoint
         assert sm.yc_connection_id == yc_connection_id
 
-    def test_yandex_lockbox_secret_backedn__get_endpoint(self):
-        endpoint = "api.cloud.yandex.net"
+    def test_yandex_lockbox_secret_backend__get_endpoint(self):
+        endpoint = "some-custom-api-endpoint.cloud.yandex.net"
         expected = {
             "endpoint": endpoint,
         }
@@ -219,7 +224,7 @@ class TestLockboxSecretBackend:
 
         assert res == expected
 
-    def test_yandex_lockbox_secret_backedn__get_endpoint_not_specified(self):
+    def test_yandex_lockbox_secret_backend__get_endpoint_not_specified(self):
         expected = {}
 
         res = LockboxSecretBackend()._get_endpoint()
@@ -227,9 +232,9 @@ class TestLockboxSecretBackend:
         assert res == expected
 
     def test_yandex_lockbox_secret_backend__build_secret_name(self):
-        prefix = "thiisprefix"
-        key = "thisiskey"
-        expected = "thiisprefix/thisiskey"
+        prefix = "this-is-prefix"
+        key = "this-is-key"
+        expected = "this-is-prefix/this-is-key"
 
         res = LockboxSecretBackend()._build_secret_name(prefix, key)
 
@@ -237,8 +242,8 @@ class TestLockboxSecretBackend:
 
     def test_yandex_lockbox_secret_backend__build_secret_name_no_prefix(self):
         prefix = ""
-        key = "thisiskey"
-        expected = "thisiskey"
+        key = "this-is-key"
+        expected = "this-is-key"
 
         res = LockboxSecretBackend()._build_secret_name(prefix, key)
 
@@ -246,9 +251,9 @@ class TestLockboxSecretBackend:
 
     def test_yandex_lockbox_secret_backend__build_secret_name_custom_sep(self):
         sep = "_"
-        prefix = "thiisprefix"
-        key = "thisiskey"
-        expected = "thiisprefix_thisiskey"
+        prefix = "this-is-prefix"
+        key = "this-is-key"
+        expected = "this-is-prefix_this-is-key"
 
         res = LockboxSecretBackend(
             sep=sep,
@@ -364,7 +369,7 @@ class TestLockboxSecretBackend:
         mock_client.return_value = None
 
         res = LockboxSecretBackend(
-            folder_id="someid",
+            folder_id="some-id",
         )._get_secrets()
 
         assert res == secrets.secrets
@@ -402,7 +407,7 @@ class TestLockboxSecretBackend:
         mock_client.return_value = None
 
         res = LockboxSecretBackend(
-            folder_id="someid",
+            folder_id="some-id",
         )._get_secrets()
 
         assert res == [*first_secrets.secrets, *second_secrets.secrets]
@@ -465,6 +470,6 @@ class TestLockboxSecretBackend:
     def test_yandex_lockbox_secret_backend__get_field_connection_not_specified(self):
         sm = LockboxSecretBackend()
         sm.yc_connection_id = None
-        res = sm._get_field("somefield")
+        res = sm._get_field("some-field")
 
         assert res is None

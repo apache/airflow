@@ -19,7 +19,7 @@
 Troubleshooting
 ===============
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Basic troubleshooting of breeze command
 ---------------------------------------
@@ -51,7 +51,7 @@ In case the problems are not solved, you can set the VERBOSE_COMMANDS variable t
 
 
 Then run the failed command, copy-and-paste the output from your terminal to the
-`Airflow Slack <https://s.apache.org/airflow-slack>`_  #airflow-breeze channel and
+`Airflow Slack <https://s.apache.org/airflow-slack>`_  ``#airflow-breeze`` channel and
 describe your problem.
 
 
@@ -72,6 +72,14 @@ describe your problem.
     stated in `This comment <https://github.com/moby/moby/issues/43361#issuecomment-1227617516>`_ and allows to
     run Breeze with no problems.
 
+Bad Interpreter Error
+---------------------
+
+If you are experiencing bad interpreter errors
+``zsh: /Users/eladkal/.local/bin/breeze: bad interpreter: /Users/eladkal/.local/pipx/venvs/apache-airflow-breeze/bin/python: no such file or directory``
+
+try to run ``pipx list`` to view which packages has bad interpreter (it can be more than just breeze, for example  pre-commit)
+you can fix these errors by running ``pipx reinstall-all``
 
 ETIMEDOUT Error
 --------------

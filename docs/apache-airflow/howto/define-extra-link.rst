@@ -21,6 +21,9 @@
 Define an operator extra link
 =============================
 
+If you want to add further links to operators you can define them via a plugin or provider package.
+Extra links will be displayed in task details page in Grid view.
+
 .. image:: ../img/operator_extra_link.png
 
 The following code shows how to add extra links to an operator via Plugins:
@@ -96,7 +99,11 @@ tasks using :class:`~airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Ope
       operators = [GCSToS3Operator]
 
       def get_link(self, operator: BaseOperator, *, ti_key: TaskInstanceKey):
-          return "https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{run_id}".format(
+          # Invalid bucket name because upper case letters and underscores are used
+          # This will not be a valid bucket in any region
+          bucket_name = "Invalid_Bucket_Name"
+          return "https://s3.amazonaws.com/airflow-logs/{bucket_name}/{dag_id}/{task_id}/{run_id}".format(
+              bucket_name=bucket_name,
               dag_id=operator.dag_id,
               task_id=operator.task_id,
               run_id=ti_key.run_id,

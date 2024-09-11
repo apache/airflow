@@ -55,7 +55,8 @@ class PrevDagrunDep(BaseTIDep):
 
     @staticmethod
     def _has_tis(dagrun: DagRun, task_id: str, *, session: Session) -> bool:
-        """Check if a task has presence in the specified DAG run.
+        """
+        Check if a task has presence in the specified DAG run.
 
         This function exists for easy mocking in tests.
         """
@@ -68,7 +69,8 @@ class PrevDagrunDep(BaseTIDep):
 
     @staticmethod
     def _has_any_prior_tis(ti: TI, *, session: Session) -> bool:
-        """Check if a task has ever been run before.
+        """
+        Check if a task has ever been run before.
 
         This function exists for easy mocking in tests.
         """
@@ -81,7 +83,8 @@ class PrevDagrunDep(BaseTIDep):
 
     @staticmethod
     def _count_unsuccessful_tis(dagrun: DagRun, task_id: str, *, session: Session) -> int:
-        """Get a count of unsuccessful task instances in a given run.
+        """
+        Get a count of unsuccessful task instances in a given run.
 
         Due to historical design considerations, "unsuccessful" here means the
         task instance is not in either SUCCESS or SKIPPED state. This means that
@@ -100,7 +103,8 @@ class PrevDagrunDep(BaseTIDep):
 
     @staticmethod
     def _has_unsuccessful_dependants(dagrun: DagRun, task: Operator, *, session: Session) -> bool:
-        """Check if any of the task's dependants are unsuccessful in a given run.
+        """
+        Check if any of the task's dependants are unsuccessful in a given run.
 
         Due to historical design considerations, "unsuccessful" here means the
         task instance is not in either SUCCESS or SKIPPED state. This means that
@@ -120,6 +124,8 @@ class PrevDagrunDep(BaseTIDep):
 
     @provide_session
     def _get_dep_statuses(self, ti: TI, session: Session, dep_context):
+        if TYPE_CHECKING:
+            assert ti.task
         if dep_context.ignore_depends_on_past:
             self._push_past_deps_met_xcom_if_needed(ti, dep_context)
             reason = "The context specified that the state of past DAGs could be ignored."

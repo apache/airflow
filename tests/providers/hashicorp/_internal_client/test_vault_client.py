@@ -838,6 +838,70 @@ class TestVaultClient:
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_existing_key_v1_ssl_verify_false(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+
+        mock_client.secrets.kv.v1.read_secret.return_value = {
+            "request_id": "182d0673-618c-9889-4cba-4e1f4cfe4b4b",
+            "lease_id": "",
+            "renewable": False,
+            "lease_duration": 2764800,
+            "data": {"value": "world"},
+            "wrap_info": None,
+            "warnings": None,
+            "auth": None,
+        }
+
+        vault_client = _VaultClient(
+            auth_type="radius",
+            radius_host="radhost",
+            radius_port=8110,
+            radius_secret="pass",
+            kv_engine_version=1,
+            url="http://localhost:8180",
+            verify=False,
+        )
+        secret = vault_client.get_secret(secret_path="/path/to/secret")
+        assert {"value": "world"} == secret
+        assert not vault_client.kwargs["session"].verify
+        mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
+            mount_point="secret", path="/path/to/secret"
+        )
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
+    def test_get_existing_key_v1_trust_private_ca(self, mock_hvac):
+        mock_client = mock.MagicMock()
+        mock_hvac.Client.return_value = mock_client
+
+        mock_client.secrets.kv.v1.read_secret.return_value = {
+            "request_id": "182d0673-618c-9889-4cba-4e1f4cfe4b4b",
+            "lease_id": "",
+            "renewable": False,
+            "lease_duration": 2764800,
+            "data": {"value": "world"},
+            "wrap_info": None,
+            "warnings": None,
+            "auth": None,
+        }
+
+        vault_client = _VaultClient(
+            auth_type="radius",
+            radius_host="radhost",
+            radius_port=8110,
+            radius_secret="pass",
+            kv_engine_version=1,
+            url="http://localhost:8180",
+            verify="/etc/ssl/certificates/ca-bundle.pem",
+        )
+        secret = vault_client.get_secret(secret_path="/path/to/secret")
+        assert {"value": "world"} == secret
+        assert "/etc/ssl/certificates/ca-bundle.pem" == vault_client.kwargs["session"].verify
+        mock_client.secrets.kv.v1.read_secret.assert_called_once_with(
+            mount_point="secret", path="/path/to/secret"
+        )
+
+    @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_existing_key_v1_without_preconfigured_mount_point(self, mock_hvac):
         mock_client = mock.MagicMock()
         mock_hvac.Client.return_value = mock_client
@@ -1061,7 +1125,7 @@ class TestVaultClient:
         )
         vault_client.create_or_update_secret(secret_path="path", secret={"key": "value"})
         mock_client.secrets.kv.v2.create_or_update_secret.assert_called_once_with(
-            mount_point="secret", secret_path="path", secret={"key": "value"}, cas=None
+            mount_point="secret", path="path", secret={"key": "value"}, cas=None
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -1093,7 +1157,7 @@ class TestVaultClient:
         )
         vault_client.create_or_update_secret(secret_path="path", secret={"key": "value"}, cas=10)
         mock_client.secrets.kv.v2.create_or_update_secret.assert_called_once_with(
-            mount_point="secret", secret_path="path", secret={"key": "value"}, cas=10
+            mount_point="secret", path="path", secret={"key": "value"}, cas=10
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -1111,7 +1175,7 @@ class TestVaultClient:
         )
         vault_client.create_or_update_secret(secret_path="path", secret={"key": "value"})
         mock_client.secrets.kv.v1.create_or_update_secret.assert_called_once_with(
-            mount_point="secret", secret_path="path", secret={"key": "value"}, method=None
+            mount_point="secret", path="path", secret={"key": "value"}, method=None
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
@@ -1145,7 +1209,7 @@ class TestVaultClient:
         )
         vault_client.create_or_update_secret(secret_path="path", secret={"key": "value"}, method="post")
         mock_client.secrets.kv.v1.create_or_update_secret.assert_called_once_with(
-            mount_point="secret", secret_path="path", secret={"key": "value"}, method="post"
+            mount_point="secret", path="path", secret={"key": "value"}, method="post"
         )
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")

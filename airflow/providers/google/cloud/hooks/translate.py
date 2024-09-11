@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Translate Hook."""
+
 from __future__ import annotations
 
 from typing import Sequence
@@ -70,7 +71,8 @@ class CloudTranslateHook(GoogleBaseHook):
         source_language: str | None = None,
         model: str | list[str] | None = None,
     ) -> dict:
-        """Translate a string or list of strings.
+        """
+        Translate a string or list of strings.
 
         See https://cloud.google.com/translate/docs/translating-text
 

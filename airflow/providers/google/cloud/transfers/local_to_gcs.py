@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains operator for uploading local file(s) to GCS."""
+
 from __future__ import annotations
 
 import os
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
 
 class LocalFilesystemToGCSOperator(BaseOperator):
     """
-    Uploads a file or list of files to Google Cloud Storage; optionally can compress the file for upload.
+    Uploads a file or list of files to Google Cloud Storage; optionally can compress the file for upload; optionally can upload the data in multiple chunks.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -46,6 +47,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param mime_type: The mime-type string
     :param gzip: Allows for file to be compressed and uploaded as gzip
+    :param chunk_size: Blob chunk size in bytes. This must be a multiple of 262144 bytes (256 KiB)
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -72,6 +74,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         gcp_conn_id="google_cloud_default",
         mime_type="application/octet-stream",
         gzip=False,
+        chunk_size: int | None = None,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
@@ -83,6 +86,7 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.mime_type = mime_type
         self.gzip = gzip
+        self.chunk_size = chunk_size
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context):
@@ -113,4 +117,5 @@ class LocalFilesystemToGCSOperator(BaseOperator):
                 mime_type=self.mime_type,
                 filename=filepath,
                 gzip=self.gzip,
+                chunk_size=self.chunk_size,
             )

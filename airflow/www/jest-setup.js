@@ -67,3 +67,5 @@ global.filtersOptions = {
 global.moment = moment;
 
 global.standaloneDagProcessor = true;
+
+global.autoRefreshInterval = undefined;

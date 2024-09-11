@@ -32,6 +32,14 @@
 .. toctree::
     :hidden:
     :maxdepth: 1
+    :caption: Executors
+
+    KubernetesExecutor details <kubernetes_executor>
+    LocalKubernetesExecutor details <local_kubernetes_executor>
+
+.. toctree::
+    :hidden:
+    :maxdepth: 1
     :caption: Guides
 
     Connection types <connections/kubernetes>
@@ -79,7 +87,7 @@ apache-airflow-providers-cncf-kubernetes package
 `Kubernetes <https://kubernetes.io/>`__
 
 
-Release: 8.0.0
+Release: 8.4.1
 
 Provider package
 ----------------
@@ -97,16 +105,16 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.6.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
 ======================  =====================
 PIP package             Version required
 ======================  =====================
 ``aiofiles``            ``>=23.2.0``
-``apache-airflow``      ``>=2.6.0``
+``apache-airflow``      ``>=2.8.0``
 ``asgiref``             ``>=3.5.2``
-``cryptography``        ``>=2.0.0``
-``kubernetes``          ``>=28.1.0,<=29.0.0``
-``kubernetes_asyncio``  ``>=28.1.0,<=29.0.0``
+``cryptography``        ``>=41.0.0``
+``kubernetes``          ``>=29.0.0,<=30.1.0``
+``kubernetes_asyncio``  ``>=29.0.0,<=30.1.0``
 ``google-re2``          ``>=1.0``
 ======================  =====================

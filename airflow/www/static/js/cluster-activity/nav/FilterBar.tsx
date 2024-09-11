@@ -19,7 +19,7 @@
 
 /* global moment */
 
-import { Box, Button, Flex, Input, Text } from "@chakra-ui/react";
+import { Box, Button, Flex, Text } from "@chakra-ui/react";
 import React from "react";
 
 import { useTimezone } from "src/context/timezone";
@@ -29,6 +29,7 @@ import {
   getDuration,
 } from "src/datetime_utils";
 import useFilters from "src/cluster-activity/useFilters";
+import DateTimeInput from "src/components/DateTimeInput";
 
 const FilterBar = () => {
   const { filters, onStartDateChange, onEndDateChange, clearFilters } =
@@ -61,9 +62,8 @@ const FilterBar = () => {
           <Text fontSize="sm" as="b" position="absolute" mt="-14px" ml={1}>
             Start Date
           </Text>
-          <Input
+          <DateTimeInput
             {...inputStyles}
-            type="datetime-local"
             value={formattedStartDate || ""}
             onChange={(e) => onStartDateChange(e.target.value)}
           />
@@ -72,9 +72,8 @@ const FilterBar = () => {
           <Text fontSize="sm" as="b" position="absolute" mt="-14px" ml={1}>
             End Date
           </Text>
-          <Input
+          <DateTimeInput
             {...inputStyles}
-            type="datetime-local"
             value={formattedEndDate || ""}
             onChange={(e) => onEndDateChange(e.target.value)}
           />

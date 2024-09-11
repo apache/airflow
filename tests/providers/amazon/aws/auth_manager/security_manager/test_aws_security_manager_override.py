@@ -21,10 +21,17 @@ from unittest.mock import Mock, patch
 import pytest
 from flask import Flask
 
-from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
-    AwsSecurityManagerOverride,
-)
+from tests.test_utils.compat import ignore_provider_compatibility_error
+
+python3_saml = pytest.importorskip("python3-saml")
+
+with ignore_provider_compatibility_error("2.8.0", __file__):
+    from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
+        AwsSecurityManagerOverride,
+    )
 from airflow.www.extensions.init_appbuilder import init_appbuilder
+
+pytestmark = pytest.mark.skip_if_database_isolation_mode
 
 
 @pytest.fixture
@@ -44,7 +51,6 @@ class TestAwsSecurityManagerOverride:
         "airflow.providers.amazon.aws.auth_manager.views.auth.conf.get_mandatory_value", return_value="test"
     )
     def test_register_views(self, mock_get_mandatory_value, override, appbuilder):
-        pytest.importorskip("onelogin")
         from airflow.providers.amazon.aws.auth_manager.views.auth import AwsAuthManagerAuthenticationViews
 
         with patch.object(AwsAuthManagerAuthenticationViews, "idp_data"):

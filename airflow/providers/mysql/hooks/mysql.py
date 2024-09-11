@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module allows to connect to a MySQL database."""
+
 from __future__ import annotations
 
 import json
@@ -71,7 +72,6 @@ class MySqlHook(DbApiHook):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
-        self.connection = kwargs.pop("connection", None)
         self.local_infile = kwargs.pop("local_infile", False)
         self.init_command = kwargs.pop("init_command", None)
 
@@ -184,7 +184,7 @@ class MySqlHook(DbApiHook):
 
         :return: a mysql connection object
         """
-        conn = self.connection or self.get_connection(getattr(self, self.conn_name_attr))
+        conn = self.connection or self.get_connection(self.get_conn_id())
 
         client_name = conn.extra_dejson.get("client", "mysqlclient")
 

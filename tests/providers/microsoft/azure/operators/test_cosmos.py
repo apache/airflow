@@ -35,6 +35,7 @@ class TestAzureCosmosDbHook:
         self.test_master_key = "magic_test_key"
         self.test_database_name = "test_database_name"
         self.test_collection_name = "test_collection_name"
+        self.test_partition_key = "test_partition_key"
         create_mock_connection(
             Connection(
                 conn_id="azure_cosmos_test_key_id",
@@ -44,6 +45,7 @@ class TestAzureCosmosDbHook:
                 extra={
                     "database_name": self.test_database_name,
                     "collection_name": self.test_collection_name,
+                    "partition_key": self.test_partition_key,
                 },
             )
         )

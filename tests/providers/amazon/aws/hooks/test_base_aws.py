@@ -246,7 +246,10 @@ class TestSessionFactory:
 
         session_profile = async_session.get_config_variable("profile")
 
+        import aiobotocore.session
+
         assert session_profile == profile_name
+        assert isinstance(async_session, aiobotocore.session.AioSession)
 
     @pytest.mark.asyncio
     async def test_async_create_a_session_from_credentials_without_token(self):
@@ -263,9 +266,12 @@ class TestSessionFactory:
         sf = BaseSessionFactory(conn=mock_conn_config, config=None)
         async_session = sf.create_session(deferrable=True)
         cred = await async_session.get_credentials()
+        import aiobotocore.session
+
         assert cred.access_key == "test_aws_access_key_id"
         assert cred.secret_key == "test_aws_secret_access_key"
         assert cred.token is None
+        assert isinstance(async_session, aiobotocore.session.AioSession)
 
     config_for_credentials_test = [
         (
@@ -300,6 +306,7 @@ class TestSessionFactory:
         # Validate method of botocore credentials provider.
         # It shouldn't be 'explicit' which refers in this case to initial credentials.
         assert session.get_credentials().method == "sts-assume-role"
+        assert isinstance(session, boto3.session.Session)
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -330,14 +337,15 @@ class TestSessionFactory:
             conn = AwsConnectionWrapper.from_connection_metadata(conn_id=conn_id, extra=extra)
             sf = BaseSessionFactory(conn=conn)
             session = sf.create_session(deferrable=True)
-            assert session.region_name == region_name
+            assert session.get_config_variable("region") == region_name
             # Validate method of botocore credentials provider.
             # It shouldn't be 'explicit' which refers in this case to initial credentials.
             credentials = await session.get_credentials()
+            import aiobotocore.session
 
             assert inspect.iscoroutinefunction(credentials.get_frozen_credentials)
-
             assert credentials.method == "sts-assume-role"
+            assert isinstance(session, aiobotocore.session.AioSession)
 
 
 class TestAwsBaseHook:
@@ -427,6 +435,7 @@ class TestAwsBaseHook:
         assert mock_class_name.call_count == len(found_classes)
         assert user_agent_tags["Caller"] == found_classes[-1]
 
+    @pytest.mark.db_test
     @mock.patch.object(AwsEcsExecutor, "_load_run_kwargs")
     def test_user_agent_caller_target_executor_found(self, mock_load_run_kwargs):
         with conf_vars(
@@ -449,6 +458,7 @@ class TestAwsBaseHook:
 
         assert user_agent_tags["Caller"] == default_caller_name
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize("env_var, expected_version", [({"AIRFLOW_CTX_DAG_ID": "banana"}, 5), [{}, None]])
     @mock.patch.object(AwsBaseHook, "_get_caller", return_value="Test")
     def test_user_agent_dag_run_key_is_hashed_correctly(self, _, env_var, expected_version):
@@ -1053,7 +1063,7 @@ class ThrowErrorUntilCount:
         """
         if self.counter < self.count:
             self.counter += 1
-            raise Exception()
+            raise RuntimeError("Fake Unexpected Error")
         return True
 
 
@@ -1107,12 +1117,12 @@ class TestRetryDecorator:  # ptlint: disable=invalid-name
             count=2,
             quota_retry=quota_retry,
         )
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Fake Unexpected Error"):
             _non_retryable_test(custom_fn)
 
     def test_raise_exception_when_no_retry_args(self):
         custom_fn = ThrowErrorUntilCount(count=2, quota_retry=None)
-        with pytest.raises(Exception):
+        with pytest.raises(RuntimeError, match="Fake Unexpected Error"):
             _retryable_test(custom_fn)
 
 
@@ -1123,13 +1133,11 @@ def test_raise_no_creds_default_credentials_strategy(tmp_path_factory, monkeypat
         monkeypatch.delenv(env_key, raising=False)
 
     hook = AwsBaseHook(aws_conn_id=None, client_type="sts")
-    with pytest.raises(NoCredentialsError):
+    with pytest.raises(NoCredentialsError) as credential_error:
         # Call AWS STS API method GetCallerIdentity
         # which should return result in case of valid credentials
-        result = hook.conn.get_caller_identity()
-        # In normal circumstances lines below should not execute.
-        # We want to show additional information why this test not passed
-        assert not result, f"Credentials Method: {hook.get_session().get_credentials().method}"
+        hook.conn.get_caller_identity()
+    assert str(credential_error.value) == "Unable to locate credentials"
 
 
 TEST_WAITER_CONFIG_LOCATION = Path(__file__).parents[1].joinpath("waiters/test.json")

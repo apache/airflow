@@ -56,10 +56,11 @@ Schema (optional)
 Extras (optional)
     Specify headers and default requests parameters in json format.
     Following default requests parameters are taken into account:
+
     * ``stream``
     * ``cert``
-    * ``proxies or proxy``
-    * ``verify or verify_ssl``
+    * ``proxies`` or ``proxy``
+    * ``verify`` or ``verify_ssl``
     * ``allow_redirects``
     * ``max_redirects``
 

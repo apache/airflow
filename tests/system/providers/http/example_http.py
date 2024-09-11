@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Example HTTP operator and sensor"""
+
 from __future__ import annotations
 
 import json
@@ -35,6 +36,7 @@ dag = DAG(
     default_args={"retries": 1},
     tags=["example"],
     start_date=datetime(2021, 1, 1),
+    schedule=None,
     catchup=False,
 )
 

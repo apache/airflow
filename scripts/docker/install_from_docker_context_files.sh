@@ -24,7 +24,7 @@
 # shellcheck source=scripts/docker/common.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
-: "${AIRFLOW_PIP_VERSION:?Should be set}"
+# TODO: rewrite it all in Python (and all other scripts in scripts/docker)
 
 function install_airflow_and_providers_from_docker_context_files(){
     if [[ ${INSTALL_MYSQL_CLIENT} != "true" ]]; then
@@ -41,45 +41,35 @@ function install_airflow_and_providers_from_docker_context_files(){
         exit 1
     fi
 
-    # shellcheck disable=SC2206
-    local pip_flags=(
-        # Don't quote this -- if it is empty we don't want it to create an
-        # empty array element
-        --find-links="file:///docker-context-files"
-    )
+    # This is needed to get package names for local context packages
+    ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} --constraint ${HOME}/constraints.txt packaging
 
-    # Find Apache Airflow packages in docker-context files
-    local reinstalling_apache_airflow_package
-    reinstalling_apache_airflow_package=$(ls \
-        /docker-context-files/apache?airflow?[0-9]*.{whl,tar.gz} 2>/dev/null || true)
-    # Add extras when installing airflow
-    if [[ -n "${reinstalling_apache_airflow_package}" ]]; then
-        # When a provider depends on a dev version of Airflow, we need to
-        # specify `apache-airflow==$VER`, otherwise pip will look for it on
-        # pip, and fail to find it
-
-        # This will work as long as the wheel file is correctly named, which it
-        # will be if it was build by wheel tooling
-        local ver
-        ver=$(basename "$reinstalling_apache_airflow_package" | cut -d "-" -f 2)
-        reinstalling_apache_airflow_package="apache-airflow[${AIRFLOW_EXTRAS}]==$ver"
+    if [[ -n ${AIRFLOW_EXTRAS=} ]]; then
+        AIRFLOW_EXTRAS_TO_INSTALL="[${AIRFLOW_EXTRAS}]"
+    else
+        AIRFLOW_EXTRAS_TO_INSTALL=""
     fi
 
-    if [[ -z "${reinstalling_apache_airflow_package}" && ${AIRFLOW_VERSION=} != "" ]]; then
+    # Find Apache Airflow package in docker-context files
+    readarray -t install_airflow_package < <(EXTRAS="${AIRFLOW_EXTRAS_TO_INSTALL}" \
+        python /scripts/docker/get_package_specs.py /docker-context-files/apache?airflow?[0-9]*.{whl,tar.gz} 2>/dev/null || true)
+    echo
+    echo "${COLOR_BLUE}Found airflow packages in docker-context-files folder: ${install_airflow_package[*]}${COLOR_RESET}"
+    echo
+
+    if [[ -z "${install_airflow_package[*]}" && ${AIRFLOW_VERSION=} != "" ]]; then
         # When we install only provider packages from docker-context files, we need to still
         # install airflow from PyPI when AIRFLOW_VERSION is set. This handles the case where
         # pre-release dockerhub image of airflow is built, but we want to install some providers from
         # docker-context files
-        reinstalling_apache_airflow_package="apache-airflow[${AIRFLOW_EXTRAS}]==${AIRFLOW_VERSION}"
+        install_airflow_package=("apache-airflow[${AIRFLOW_EXTRAS}]==${AIRFLOW_VERSION}")
     fi
-    # Find Apache Airflow packages in docker-context files
-    local reinstalling_apache_airflow_providers_packages
-    reinstalling_apache_airflow_providers_packages=$(ls \
-        /docker-context-files/apache?airflow?providers*.{whl,tar.gz} 2>/dev/null || true)
-    if [[ -z "${reinstalling_apache_airflow_package}" && \
-          -z "${reinstalling_apache_airflow_providers_packages}" ]]; then
-        return
-    fi
+
+    # Find Provider packages in docker-context files
+    readarray -t installing_providers_packages< <(python /scripts/docker/get_package_specs.py /docker-context-files/apache?airflow?providers*.{whl,tar.gz} 2>/dev/null || true)
+    echo
+    echo "${COLOR_BLUE}Found provider packages in docker-context-files folder: ${installing_providers_packages[*]}${COLOR_RESET}"
+    echo
 
     if [[ ${USE_CONSTRAINTS_FOR_CONTEXT_PACKAGES=} == "true" ]]; then
         local python_version
@@ -92,19 +82,23 @@ function install_airflow_and_providers_from_docker_context_files(){
             echo
             # force reinstall all airflow + provider packages with constraints found in
             set -x
-            pip install "${pip_flags[@]}" --root-user-action ignore --upgrade \
+            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} --upgrade \
                 ${ADDITIONAL_PIP_INSTALL_FLAGS} --constraint "${local_constraints_file}" \
-                ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
+                "${install_airflow_package[@]}" "${installing_providers_packages[@]}"
             set +x
+            echo
+            echo "${COLOR_BLUE}Copying ${local_constraints_file} to ${HOME}/constraints.txt${COLOR_RESET}"
+            echo
+            cp "${local_constraints_file}" "${HOME}/constraints.txt"
         else
             echo
             echo "${COLOR_BLUE}Installing docker-context-files packages with constraints from GitHub${COLOR_RESET}"
             echo
             set -x
-            pip install "${pip_flags[@]}" --root-user-action ignore \
+            ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
                 ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-                --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" \
-                ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
+                --constraint "${HOME}/constraints.txt" \
+                "${install_airflow_package[@]}" "${installing_providers_packages[@]}"
             set +x
         fi
     else
@@ -112,12 +106,12 @@ function install_airflow_and_providers_from_docker_context_files(){
         echo "${COLOR_BLUE}Installing docker-context-files packages without constraints${COLOR_RESET}"
         echo
         set -x
-        pip install "${pip_flags[@]}" --root-user-action ignore \
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} \
             ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-            ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
+            "${install_airflow_package[@]}" "${installing_providers_packages[@]}"
         set +x
     fi
-    common::install_pip_version
+    common::install_packaging_tools
     pip check
 }
 
@@ -126,7 +120,6 @@ function install_airflow_and_providers_from_docker_context_files(){
 # method on air-gaped system where you do not want to download any dependencies from remote hosts
 # which is a requirement for serious installations
 function install_all_other_packages_from_docker_context_files() {
-
     echo
     echo "${COLOR_BLUE}Force re-installing all other package from local files without dependencies${COLOR_RESET}"
     echo
@@ -136,20 +129,19 @@ function install_all_other_packages_from_docker_context_files() {
         grep -v apache_airflow | grep -v apache-airflow || true)
     if [[ -n "${reinstalling_other_packages}" ]]; then
         set -x
-        pip install ${ADDITIONAL_PIP_INSTALL_FLAGS} \
-            --root-user-action ignore --force-reinstall --no-deps --no-index ${reinstalling_other_packages}
-        common::install_pip_version
+        ${PACKAGING_TOOL_CMD} install ${EXTRA_INSTALL_FLAGS} ${ADDITIONAL_PIP_INSTALL_FLAGS} \
+            --force-reinstall --no-deps --no-index ${reinstalling_other_packages}
+        common::install_packaging_tools
         set +x
     fi
 }
 
 common::get_colors
+common::get_packaging_tool
 common::get_airflow_version_specification
-common::override_pip_version_if_needed
 common::get_constraints_location
-common::show_pip_version_and_location
+common::show_packaging_tool_version_and_location
 
 install_airflow_and_providers_from_docker_context_files
 
-common::show_pip_version_and_location
 install_all_other_packages_from_docker_context_files

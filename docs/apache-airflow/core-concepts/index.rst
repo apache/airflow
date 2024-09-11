@@ -18,7 +18,7 @@
 Core Concepts
 =============================
 
-Here you can find detailed documentation about each one of the core concepts of Apache Airflow™ and how to use them, as well as a high-level :doc:`architectural overview <overview>`.
+Here you can find detailed documentation about each one of the core concepts of Apache Airflow® and how to use them, as well as a high-level :doc:`architectural overview <overview>`.
 
 **Architecture**
 
@@ -51,3 +51,10 @@ Here you can find detailed documentation about each one of the core concepts of 
     xcoms
     variables
     params
+
+**Debugging**
+
+.. toctree::
+    :maxdepth: 1
+
+    debug

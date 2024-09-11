@@ -17,6 +17,8 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.models.dag import DAG
 from airflow.providers.apache.spark.operators.spark_jdbc import SparkJDBCOperator
 from airflow.utils import timezone
@@ -58,7 +60,7 @@ class TestSparkJDBCOperator:
 
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     def test_execute(self):
         # Given / When
@@ -111,8 +113,8 @@ class TestSparkJDBCOperator:
         assert expected_dict["executor_memory"] == operator._executor_memory
         assert expected_dict["driver_memory"] == operator._driver_memory
         assert expected_dict["verbose"] == operator._verbose
-        assert expected_dict["keytab"] == operator._keytab
-        assert expected_dict["principal"] == operator._principal
+        assert expected_dict["keytab"] == operator.keytab
+        assert expected_dict["principal"] == operator.principal
         assert expected_dict["cmd_type"] == operator._cmd_type
         assert expected_dict["jdbc_table"] == operator._jdbc_table
         assert expected_dict["jdbc_driver"] == operator._jdbc_driver
@@ -128,3 +130,50 @@ class TestSparkJDBCOperator:
         assert expected_dict["upper_bound"] == operator._upper_bound
         assert expected_dict["create_table_column_types"] == operator._create_table_column_types
         assert expected_dict["use_krb5ccache"] == operator._use_krb5ccache
+
+    @pytest.mark.db_test
+    def test_templating_with_create_task_instance_of_operator(
+        self, create_task_instance_of_operator, session
+    ):
+        ti = create_task_instance_of_operator(
+            SparkJDBCOperator,
+            # Templated fields
+            application="{{ 'application' }}",
+            conf="{{ 'conf' }}",
+            files="{{ 'files' }}",
+            py_files="{{ 'py-files' }}",
+            jars="{{ 'jars' }}",
+            driver_class_path="{{ 'driver_class_path' }}",
+            packages="{{ 'packages' }}",
+            exclude_packages="{{ 'exclude_packages' }}",
+            keytab="{{ 'keytab' }}",
+            principal="{{ 'principal' }}",
+            proxy_user="{{ 'proxy_user' }}",
+            name="{{ 'name' }}",
+            application_args="{{ 'application_args' }}",
+            env_vars="{{ 'env_vars' }}",
+            properties_file="{{ 'properties_file' }}",
+            # Other parameters
+            dag_id="test_template_body_templating_dag",
+            task_id="test_template_body_templating_task",
+            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+        )
+        session.add(ti)
+        session.commit()
+        ti.render_templates()
+        task: SparkJDBCOperator = ti.task
+        assert task.application == "application"
+        assert task.conf == "conf"
+        assert task.files == "files"
+        assert task.py_files == "py-files"
+        assert task.jars == "jars"
+        assert task.driver_class_path == "driver_class_path"
+        assert task.packages == "packages"
+        assert task.exclude_packages == "exclude_packages"
+        assert task.keytab == "keytab"
+        assert task.principal == "principal"
+        assert task.proxy_user == "proxy_user"
+        assert task.name == "name"
+        assert task.application_args == "application_args"
+        assert task.env_vars == "env_vars"
+        assert task.properties_file == "properties_file"

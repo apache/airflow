@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains an operator to move data from Vertica to Hive."""
+
 from __future__ import annotations
 
 import csv
@@ -93,7 +94,8 @@ class VerticaToHiveOperator(BaseOperator):
 
     @classmethod
     def type_map(cls, vertica_type):
-        """Manually hack Vertica-Python type mapping.
+        """
+        Manually hack Vertica-Python type mapping.
 
         The stock datatype.py does not provide the full type mapping access.
 

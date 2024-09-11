@@ -42,8 +42,12 @@ from airflow.utils.sqlalchemy import (
 )
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
-pytestmark = pytest.mark.db_test
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
+
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 TEST_POD = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]))
@@ -70,18 +74,18 @@ class TestSqlAlchemyUtils:
         iso_date = start_date.isoformat()
         execution_date = start_date + datetime.timedelta(hours=1, days=1)
 
-        dag = DAG(
-            dag_id=dag_id,
-            start_date=start_date,
-        )
+        dag = DAG(dag_id=dag_id, schedule=datetime.timedelta(days=1), start_date=start_date)
         dag.clear()
 
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         run = dag.create_dagrun(
             run_id=iso_date,
             state=State.NONE,
             execution_date=execution_date,
             start_date=start_date,
             session=self.session,
+            data_interval=dag.timetable.infer_manual_data_interval(run_after=execution_date),
+            **triggered_by_kwargs,
         )
 
         assert execution_date == run.execution_date
@@ -103,8 +107,9 @@ class TestSqlAlchemyUtils:
 
         # naive
         start_date = datetime.datetime.now()
-        dag = DAG(dag_id=dag_id, start_date=start_date)
+        dag = DAG(dag_id=dag_id, start_date=start_date, schedule=datetime.timedelta(days=1))
         dag.clear()
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
 
         with pytest.raises((ValueError, StatementError)):
             dag.create_dagrun(
@@ -113,6 +118,8 @@ class TestSqlAlchemyUtils:
                 execution_date=start_date,
                 start_date=start_date,
                 session=self.session,
+                data_interval=dag.timetable.infer_manual_data_interval(run_after=start_date),
+                **triggered_by_kwargs,
             )
         dag.clear()
 
@@ -155,8 +162,8 @@ class TestSqlAlchemyUtils:
             guard.commit()
 
             # Check the expected_commit is reset
-            with pytest.raises(RuntimeError):
-                self.session.execute(text("SELECT 1"))
+            self.session.execute(text("SELECT 1"))
+            with pytest.raises(RuntimeError, match="UNEXPECTED COMMIT"):
                 self.session.commit()
 
     def test_prohibit_commit_specific_session_only(self):

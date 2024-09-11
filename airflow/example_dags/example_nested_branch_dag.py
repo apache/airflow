@@ -20,6 +20,7 @@ Example DAG demonstrating a workflow with nested branching. The join tasks are c
 ``none_failed_min_one_success`` trigger rule such that they are skipped whenever their corresponding
 branching tasks are skipped.
 """
+
 from __future__ import annotations
 
 import pendulum

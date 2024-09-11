@@ -16,12 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module provides helper code to make type annotation within Airflow codebase easier."""
+
 from __future__ import annotations
 
 __all__ = [
     "Literal",
     "ParamSpec",
     "Protocol",
+    "Self",
     "TypedDict",
     "TypeGuard",
     "runtime_checkable",
@@ -44,3 +46,8 @@ if sys.version_info >= (3, 10):
     from typing import ParamSpec, TypeGuard
 else:
     from typing_extensions import ParamSpec, TypeGuard
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self

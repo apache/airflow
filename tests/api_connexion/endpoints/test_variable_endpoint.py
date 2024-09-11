@@ -28,7 +28,7 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_variables
 from tests.test_utils.www import _check_last_log
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.fixture(scope="module")
@@ -98,7 +98,7 @@ class TestDeleteVariable(TestVariableEndpoint):
         # make sure variable is deleted
         response = self.client.get("/api/v1/variables/delete_var1", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
-        _check_last_log(session, dag_id=None, event="variable.delete", execution_date=None)
+        _check_last_log(session, dag_id=None, event="api.variable.delete", execution_date=None)
 
     def test_should_respond_404_if_key_does_not_exist(self):
         response = self.client.delete(
@@ -250,17 +250,20 @@ class TestGetVariables(TestVariableEndpoint):
 class TestPatchVariable(TestVariableEndpoint):
     def test_should_update_variable(self, session):
         Variable.set("var1", "foo")
+        payload = {
+            "key": "var1",
+            "value": "updated",
+        }
         response = self.client.patch(
             "/api/v1/variables/var1",
-            json={
-                "key": "var1",
-                "value": "updated",
-            },
+            json=payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
         assert response.json == {"key": "var1", "value": "updated", "description": None}
-        _check_last_log(session, dag_id=None, event="variable.edit", execution_date=None)
+        _check_last_log(
+            session, dag_id=None, event="api.variable.edit", execution_date=None, expected_extra=payload
+        )
 
     def test_should_update_variable_with_mask(self, session):
         Variable.set("var1", "foo", description="before update")
@@ -271,7 +274,7 @@ class TestPatchVariable(TestVariableEndpoint):
         )
         assert response.status_code == 200
         assert response.json == {"key": "var1", "value": "foo", "description": "after_update"}
-        _check_last_log(session, dag_id=None, event="variable.edit", execution_date=None)
+        _check_last_log(session, dag_id=None, event="api.variable.edit", execution_date=None)
 
     def test_should_reject_invalid_update(self):
         response = self.client.patch(
@@ -353,13 +356,38 @@ class TestPostVariables(TestVariableEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 200
-        _check_last_log(session, dag_id=None, event="variable.create", execution_date=None)
+        _check_last_log(
+            session, dag_id=None, event="api.variable.create", execution_date=None, expected_extra=payload
+        )
         response = self.client.get("/api/v1/variables/var_create", environ_overrides={"REMOTE_USER": "test"})
         assert response.json == {
             "key": "var_create",
             "value": "{}",
             "description": description,
         }
+
+    @pytest.mark.enable_redact
+    def test_should_create_masked_variable(self, session):
+        payload = {"key": "api_key", "value": "secret_key", "description": "secret"}
+        response = self.client.post(
+            "/api/v1/variables",
+            json=payload,
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 200
+        expected_extra = {
+            **payload,
+            "value": "***",
+        }
+        _check_last_log(
+            session,
+            dag_id=None,
+            event="api.variable.create",
+            execution_date=None,
+            expected_extra=expected_extra,
+        )
+        response = self.client.get("/api/v1/variables/api_key", environ_overrides={"REMOTE_USER": "test"})
+        assert response.json == payload
 
     def test_should_reject_invalid_request(self, session):
         response = self.client.post(
@@ -377,7 +405,7 @@ class TestPostVariables(TestVariableEndpoint):
             "type": EXCEPTIONS_LINK_MAP[400],
             "detail": "{'value': ['Missing data for required field.'], 'v': ['Unknown field.']}",
         }
-        _check_last_log(session, dag_id=None, event="variable.create", execution_date=None)
+        _check_last_log(session, dag_id=None, event="api.variable.create", execution_date=None)
 
     def test_should_raises_401_unauthenticated(self):
         response = self.client.post(

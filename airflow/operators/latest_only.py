@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Contains an operator to run downstream tasks only for the latest scheduled DagRun."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable

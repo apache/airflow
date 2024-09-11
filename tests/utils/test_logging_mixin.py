@@ -38,7 +38,7 @@ def logger():
 
 @pytest.fixture
 def child_logger(logger):
-    yield logger.getChild("child")
+    return logger.getChild("child")
 
 
 @pytest.fixture

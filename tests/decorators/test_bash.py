@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import stat
+import warnings
 from contextlib import nullcontext as no_raise
 from unittest import mock
 
@@ -35,7 +36,7 @@ DEFAULT_DATE = timezone.datetime(2023, 1, 1)
 
 @pytest.mark.db_test
 class TestBashDecorator:
-    @pytest.fixture(scope="function", autouse=True)
+    @pytest.fixture(autouse=True)
     def setup(self, dag_maker):
         self.dag_maker = dag_maker
 
@@ -69,8 +70,7 @@ class TestBashDecorator:
         with self.dag:
 
             @task.bash
-            def bash():
-                ...
+            def bash(): ...
 
             bash_task = bash()
 
@@ -83,6 +83,7 @@ class TestBashDecorator:
         assert bash_task.operator.cwd is None
         assert bash_task.operator._init_bash_command_not_set is True
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.parametrize(
         argnames=["command", "expected_command", "expected_return_val"],
         argvalues=[
@@ -112,6 +113,7 @@ class TestBashDecorator:
 
         self.validate_bash_command_rtif(ti, expected_command)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_op_args_kwargs(self):
         """Test op_args and op_kwargs are passed to the bash_command."""
 
@@ -132,6 +134,7 @@ class TestBashDecorator:
 
         self.validate_bash_command_rtif(ti, "echo hello world && echo 2")
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_multiline_command(self):
         """Verify a multi-line string can be used as a Bash command."""
         command = """
@@ -157,6 +160,7 @@ class TestBashDecorator:
 
         self.validate_bash_command_rtif(ti, excepted_command)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.parametrize(
         argnames=["append_env", "user_defined_env", "expected_airflow_home"],
         argvalues=[
@@ -185,6 +189,7 @@ class TestBashDecorator:
 
         self.validate_bash_command_rtif(ti, "echo var=$var; echo AIRFLOW_HOME=$AIRFLOW_HOME;")
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.parametrize(
         argnames=["exit_code", "expected"],
         argvalues=[
@@ -211,6 +216,7 @@ class TestBashDecorator:
 
             self.validate_bash_command_rtif(ti, f"exit {exit_code}")
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.parametrize(
         argnames=["skip_on_exit_code", "exit_code", "expected"],
         argvalues=[
@@ -256,6 +262,7 @@ class TestBashDecorator:
 
             self.validate_bash_command_rtif(ti, f"exit {exit_code}")
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.parametrize(
         argnames=[
             "user_defined_env",
@@ -304,6 +311,7 @@ class TestBashDecorator:
         assert return_val == f"razz={expected_razz}"
         self.validate_bash_command_rtif(ti, f"{cmd_file} ")
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_valid_cwd(self, tmp_path):
         """Test a user-defined working directory can be used."""
         cwd_path = tmp_path / "test_cwd"
@@ -325,6 +333,7 @@ class TestBashDecorator:
         assert (cwd_path / "output.txt").read_text().splitlines()[0] == "foo"
         self.validate_bash_command_rtif(ti, "echo foo | tee output.txt")
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_cwd_does_not_exist(self, tmp_path):
         """Verify task failure for non-existent, user-defined working directory."""
         cwd_path = tmp_path / "test_cwd"
@@ -339,14 +348,16 @@ class TestBashDecorator:
 
         assert bash_task.operator.bash_command == NOTSET
 
+        dr = self.dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
         with pytest.raises(AirflowException, match=f"Can not find the cwd: {cwd_path}"):
-            ti, _ = self.execute_task(bash_task)
+            ti.run()
+        assert ti.task.bash_command == "echo"
 
-            self.validate_bash_command_rtif(ti, "echo")
-
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_cwd_is_file(self, tmp_path):
         """Verify task failure for user-defined working directory that is actually a file."""
-        cwd_file = tmp_path / "test_file.sh"
+        cwd_file = tmp_path / "testfile.var.env"
         cwd_file.touch()
 
         with self.dag:
@@ -359,41 +370,46 @@ class TestBashDecorator:
 
         assert bash_task.operator.bash_command == NOTSET
 
+        dr = self.dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
         with pytest.raises(AirflowException, match=f"The cwd {cwd_file} must be a directory"):
-            ti, _ = self.execute_task(bash_task)
+            ti.run()
+        assert ti.task.bash_command == "echo"
 
-            self.validate_bash_command_rtif(ti, "echo")
-
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_command_not_found(self):
         """Fail task if executed command is not found on path."""
+
+        with self.dag:
+
+            @task.bash
+            def bash():
+                return "set -e; something-that-isnt-on-path"
+
+            bash_task = bash()
+
+        assert bash_task.operator.bash_command == NOTSET
+
+        dr = self.dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
         with pytest.raises(
             AirflowException, match="Bash command failed\\. The command returned a non-zero exit code 127\\."
         ):
-            with self.dag:
+            ti.run()
+        assert ti.task.bash_command == "set -e; something-that-isnt-on-path"
 
-                @task.bash
-                def bash():
-                    return "set -e; something-that-isnt-on-path"
-
-                bash_task = bash()
-
-            assert bash_task.operator.bash_command == NOTSET
-
-            ti, _ = self.execute_task(bash_task)
-            self.validate_bash_command_rtif(ti, "set -e; something-that-isnt-on-path")
-
-    @pytest.mark.parametrize(argnames="multiple_outputs", argvalues=[True, False])
-    def test_multiple_outputs(self, multiple_outputs):
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
+    def test_multiple_outputs_true(self):
         """Verify setting `multiple_outputs` for a @task.bash-decorated function is ignored."""
 
         with self.dag:
 
-            @task.bash(multiple_outputs=multiple_outputs)
+            @task.bash(multiple_outputs=True)
             def bash():
                 return "echo"
 
             with pytest.warns(
-                UserWarning, match="`multiple_outputs` is not supported in @task.bash tasks. Ignoring."
+                UserWarning, match="`multiple_outputs=True` is not supported in @task.bash tasks. Ignoring."
             ):
                 bash_task = bash()
 
@@ -404,6 +420,36 @@ class TestBashDecorator:
         assert bash_task.operator.multiple_outputs is False
         self.validate_bash_command_rtif(ti, "echo")
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
+    @pytest.mark.parametrize(
+        "multiple_outputs", [False, pytest.param(None, id="none"), pytest.param(NOTSET, id="not-set")]
+    )
+    def test_multiple_outputs(self, multiple_outputs):
+        """Verify setting `multiple_outputs` for a @task.bash-decorated function is ignored."""
+
+        decorator_kwargs = {}
+        if multiple_outputs is not NOTSET:
+            decorator_kwargs["multiple_outputs"] = multiple_outputs
+
+        with self.dag:
+
+            @task.bash(**decorator_kwargs)
+            def bash():
+                return "echo"
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("error", category=UserWarning)
+
+                bash_task = bash()
+
+                assert bash_task.operator.bash_command == NOTSET
+
+                ti, _ = self.execute_task(bash_task)
+
+        assert bash_task.operator.multiple_outputs is False
+        self.validate_bash_command_rtif(ti, "echo")
+
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     @pytest.mark.parametrize(
         argnames=["return_val", "expected"],
         argvalues=[
@@ -435,6 +481,7 @@ class TestBashDecorator:
 
             self.validate_bash_command_rtif(ti, return_val)
 
+    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_rtif_updates_upon_failure(self):
         """Veriy RenderedTaskInstanceField data should contain the rendered command even if the task fails."""
         with self.dag:
@@ -447,7 +494,8 @@ class TestBashDecorator:
 
         assert bash_task.operator.bash_command == NOTSET
 
+        dr = self.dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
         with pytest.raises(AirflowException):
-            ti, _ = self.execute_task(bash_task)
-
-            self.validate_bash_command_rtif(ti, f"{DEFAULT_DATE.date()}; exit 1;")
+            ti.run()
+        assert ti.task.bash_command == f"{DEFAULT_DATE.date()}; exit 1;"

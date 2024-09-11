@@ -24,8 +24,8 @@ This document describes how to set up your IDE to work with Airflow.
 Local development environments
 ------------------------------
 
-- `PyCharm/IntelliJ <quick-start-ide/contributors_quick_start_pycharm.rst>`__ quick start instructions
-- `VSCode <quick-start-ide/contributors_quick_start_vscode.rst>`__ quick start instructions
+- `PyCharm/IntelliJ <contributors_quick_start_pycharm.rst>`__ quick start instructions
+- `VSCode <contributors_quick_start_vscode.rst>`__ quick start instructions
 
 
 Remote development environments
@@ -33,10 +33,10 @@ Remote development environments
 
 There are also remote development environments that you can use to develop Airflow:
 
-- `CodeSpaces <quick-star-ide/contributors_quick_start_codespaces.rst>`_ - a browser-based development
+- `CodeSpaces <contributors_quick_start_codespaces.rst>`_ - a browser-based development
    environment that you can use to develop Airflow in a browser. It is based on GitHub CodeSpaces and
    is available for all GitHub users (free version has number of hours/month limitations).
 
-- `GitPod <quick-star-ide/contributors_quick_start_gitpod.rst>`_ - a browser-based development
+- `GitPod <contributors_quick_start_gitpod.rst>`_ - a browser-based development
    environment that you can use to develop Airflow in a browser. It is based on GitPod and
    is a paid service.

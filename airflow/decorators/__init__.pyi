@@ -21,15 +21,17 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any, Callable, Collection, Container, Iterable, Mapping, overload
+from typing import Any, Callable, Collection, Container, Iterable, Mapping, TypeVar, overload
 
+from docker.types import Mount
 from kubernetes.client import models as k8s
 
-from airflow.decorators.base import FParams, FReturn, Task, TaskDecorator
+from airflow.decorators.base import FParams, FReturn, Task, TaskDecorator, _TaskDecorator
 from airflow.decorators.bash import bash_task
 from airflow.decorators.branch_external_python import branch_external_python_task
 from airflow.decorators.branch_python import branch_task
 from airflow.decorators.branch_virtualenv import branch_virtualenv_task
+from airflow.decorators.condition import AnyConditionFunc
 from airflow.decorators.external_python import external_python_task
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
@@ -59,6 +61,8 @@ __all__ = [
     "setup",
     "teardown",
 ]
+
+_T = TypeVar("_T", bound=Task[..., Any] | _TaskDecorator[..., Any, Any])
 
 class TaskDecoratorCollection:
     @overload
@@ -111,7 +115,7 @@ class TaskDecoratorCollection:
         # _PythonVirtualenvDecoratedOperator.
         requirements: None | Iterable[str] | str = None,
         python_version: None | str | int | float = None,
-        use_dill: bool = False,
+        serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
         system_site_packages: bool = True,
         templates_dict: Mapping[str, Any] | None = None,
         pip_install_options: list[str] | None = None,
@@ -119,6 +123,10 @@ class TaskDecoratorCollection:
         index_urls: None | Collection[str] | str = None,
         venv_cache_path: None | str = None,
         show_return_value_in_logs: bool = True,
+        env_vars: dict[str, str] | None = None,
+        inherit_env: bool = True,
+        use_dill: bool = False,
+        use_airflow_context: bool = False,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a virtual environment task.
@@ -129,6 +137,13 @@ class TaskDecoratorCollection:
             "requirements file" as specified by pip.
         :param python_version: The Python version to run the virtual environment with. Note that
             both 2 and 2.7 are acceptable forms.
+        :param serializer: Which serializer use to serialize the args and result. It can be one of the following:
+
+            - ``"pickle"``: (default) Use pickle for serialization. Included in the Python Standard Library.
+            - ``"cloudpickle"``: Use cloudpickle for serialize more complex types,
+              this requires to include cloudpickle in your requirements.
+            - ``"dill"``: Use dill for serialize more complex types,
+              this requires to include dill in your requirements.
         :param use_dill: Whether to use dill to serialize
             the args and result (pickle is default). This allow more complex types
             but requires you to include dill in your requirements.
@@ -154,6 +169,16 @@ class TaskDecoratorCollection:
             logs. Defaults to True, which allows return value log output.
             It can be set to False to prevent log output of return value when you return huge data
             such as transmission a large amount of XCom to TaskAPI.
+        :param env_vars: A dictionary containing additional environment variables to set for the virtual
+            environment when it is executed.
+        :param inherit_env: Whether to inherit the current environment variables when executing the virtual
+            environment. If set to ``True``, the virtual environment will inherit the environment variables
+            of the parent process (``os.environ``). If set to ``False``, the virtual environment will be
+            executed with a clean environment.
+        :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
+            the args and result (pickle is default). This allows more complex types
+            but requires you to include dill in your requirements.
+        :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
         """
     @overload
     def virtualenv(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
@@ -164,9 +189,13 @@ class TaskDecoratorCollection:
         multiple_outputs: bool | None = None,
         # 'python_callable', 'op_args' and 'op_kwargs' since they are filled by
         # _PythonVirtualenvDecoratedOperator.
-        use_dill: bool = False,
+        serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
         templates_dict: Mapping[str, Any] | None = None,
         show_return_value_in_logs: bool = True,
+        env_vars: dict[str, str] | None = None,
+        inherit_env: bool = True,
+        use_dill: bool = False,
+        use_airflow_context: bool = False,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a virtual environment task.
@@ -176,9 +205,13 @@ class TaskDecoratorCollection:
             (so usually start with "/" or "X:/" depending on the filesystem/os used).
         :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
             Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
-        :param use_dill: Whether to use dill to serialize
-            the args and result (pickle is default). This allow more complex types
-            but requires you to include dill in your requirements.
+        :param serializer: Which serializer use to serialize the args and result. It can be one of the following:
+
+            - ``"pickle"``: (default) Use pickle for serialization. Included in the Python Standard Library.
+            - ``"cloudpickle"``: Use cloudpickle for serialize more complex types,
+              this requires to include cloudpickle in your requirements.
+            - ``"dill"``: Use dill for serialize more complex types,
+              this requires to include dill in your requirements.
         :param templates_dict: a dictionary where the values are templates that
             will get templated by the Airflow engine sometime between
             ``__init__`` and ``execute`` takes place and are made available
@@ -187,6 +220,16 @@ class TaskDecoratorCollection:
             logs. Defaults to True, which allows return value log output.
             It can be set to False to prevent log output of return value when you return huge data
             such as transmission a large amount of XCom to TaskAPI.
+        :param env_vars: A dictionary containing additional environment variables to set for the virtual
+            environment when it is executed.
+        :param inherit_env: Whether to inherit the current environment variables when executing the virtual
+            environment. If set to ``True``, the virtual environment will inherit the environment variables
+            of the parent process (``os.environ``). If set to ``False``, the virtual environment will be
+            executed with a clean environment.
+        :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
+            the args and result (pickle is default). This allows more complex types
+            but requires you to include dill in your requirements.
+        :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
         """
     @overload
     def branch(  # type: ignore[misc]
@@ -211,7 +254,7 @@ class TaskDecoratorCollection:
         # _PythonVirtualenvDecoratedOperator.
         requirements: None | Iterable[str] | str = None,
         python_version: None | str | int | float = None,
-        use_dill: bool = False,
+        serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
         system_site_packages: bool = True,
         templates_dict: Mapping[str, Any] | None = None,
         pip_install_options: list[str] | None = None,
@@ -219,6 +262,8 @@ class TaskDecoratorCollection:
         index_urls: None | Collection[str] | str = None,
         venv_cache_path: None | str = None,
         show_return_value_in_logs: bool = True,
+        use_dill: bool = False,
+        use_airflow_context: bool = False,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to wrap the decorated callable into a BranchPythonVirtualenvOperator.
@@ -232,9 +277,13 @@ class TaskDecoratorCollection:
             "requirements file" as specified by pip.
         :param python_version: The Python version to run the virtual environment with. Note that
             both 2 and 2.7 are acceptable forms.
-        :param use_dill: Whether to use dill to serialize
-            the args and result (pickle is default). This allow more complex types
-            but requires you to include dill in your requirements.
+        :param serializer: Which serializer use to serialize the args and result. It can be one of the following:
+
+            - ``"pickle"``: (default) Use pickle for serialization. Included in the Python Standard Library.
+            - ``"cloudpickle"``: Use cloudpickle for serialize more complex types,
+              this requires to include cloudpickle in your requirements.
+            - ``"dill"``: Use dill for serialize more complex types,
+              this requires to include dill in your requirements.
         :param system_site_packages: Whether to include
             system_site_packages in your virtual environment.
             See virtualenv documentation for more information.
@@ -253,6 +302,10 @@ class TaskDecoratorCollection:
             logs. Defaults to True, which allows return value log output.
             It can be set to False to prevent log output of return value when you return huge data
             such as transmission a large amount of XCom to TaskAPI.
+        :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
+            the args and result (pickle is default). This allows more complex types
+            but requires you to include dill in your requirements.
+        :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
         """
     @overload
     def branch_virtualenv(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
@@ -264,9 +317,10 @@ class TaskDecoratorCollection:
         multiple_outputs: bool | None = None,
         # 'python_callable', 'op_args' and 'op_kwargs' since they are filled by
         # _PythonVirtualenvDecoratedOperator.
-        use_dill: bool = False,
+        serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
         templates_dict: Mapping[str, Any] | None = None,
         show_return_value_in_logs: bool = True,
+        use_dill: bool = False,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to wrap the decorated callable into a BranchExternalPythonOperator.
@@ -279,9 +333,13 @@ class TaskDecoratorCollection:
             (so usually start with "/" or "X:/" depending on the filesystem/os used).
         :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
             Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
-        :param use_dill: Whether to use dill to serialize
-            the args and result (pickle is default). This allow more complex types
-            but requires you to include dill in your requirements.
+        :param serializer: Which serializer use to serialize the args and result. It can be one of the following:
+
+            - ``"pickle"``: (default) Use pickle for serialization. Included in the Python Standard Library.
+            - ``"cloudpickle"``: Use cloudpickle for serialize more complex types,
+              this requires to include cloudpickle in your requirements.
+            - ``"dill"``: Use dill for serialize more complex types,
+              this requires to include dill in your requirements.
         :param templates_dict: a dictionary where the values are templates that
             will get templated by the Airflow engine sometime between
             ``__init__`` and ``execute`` takes place and are made available
@@ -290,6 +348,9 @@ class TaskDecoratorCollection:
             logs. Defaults to True, which allows return value log output.
             It can be set to False to prevent log output of return value when you return huge data
             such as transmission a large amount of XCom to TaskAPI.
+        :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
+            the args and result (pickle is default). This allows more complex types
+            but requires you to include dill in your requirements.
         """
     @overload
     def branch_external_python(
@@ -319,15 +380,16 @@ class TaskDecoratorCollection:
         self,
         *,
         multiple_outputs: bool | None = None,
-        use_dill: bool = False,  # Added by _DockerDecoratedOperator.
         python_command: str = "python3",
+        serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
+        use_dill: bool = False,  # Added by _DockerDecoratedOperator.
         # 'command', 'retrieve_output', and 'retrieve_output_path' are filled by
         # _DockerDecoratedOperator.
         image: str,
         api_version: str | None = None,
         container_name: str | None = None,
         cpus: float = 1.0,
-        docker_url: str = "unix://var/run/docker.sock",
+        docker_url: str | None = None,
         environment: dict[str, str] | None = None,
         private_environment: dict[str, str] | None = None,
         env_file: str | None = None,
@@ -344,7 +406,7 @@ class TaskDecoratorCollection:
         mount_tmp_dir: bool = True,
         tmp_dir: str = "/tmp/airflow",
         user: str | int | None = None,
-        mounts: list[str] | None = None,
+        mounts: list[Mount] | None = None,
         entrypoint: str | list[str] | None = None,
         working_dir: str | None = None,
         xcom_all: bool = False,
@@ -372,8 +434,17 @@ class TaskDecoratorCollection:
 
         :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
             Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
-        :param use_dill: Whether to use dill or pickle for serialization
         :param python_command: Python command for executing functions, Default: python3
+        :param serializer: Which serializer use to serialize the args and result. It can be one of the following:
+
+            - ``"pickle"``: (default) Use pickle for serialization. Included in the Python Standard Library.
+            - ``"cloudpickle"``: Use cloudpickle for serialize more complex types,
+              this requires to include cloudpickle in your requirements.
+            - ``"dill"``: Use dill for serialize more complex types,
+              this requires to include dill in your requirements.
+        :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
+            the args and result (pickle is default). This allows more complex types
+            but requires you to include dill in your requirements.
         :param image: Docker image from which to create the container.
             If image tag is omitted, "latest" will be used.
         :param api_version: Remote API version. Set to ``auto`` to automatically
@@ -383,7 +454,8 @@ class TaskDecoratorCollection:
             This value gets multiplied with 1024. See
             https://docs.docker.com/engine/reference/run/#cpu-share-constraint
         :param docker_url: URL of the host running the docker daemon.
-            Default is unix://var/run/docker.sock
+            Default is the value of the ``DOCKER_HOST`` environment variable or unix://var/run/docker.sock
+            if it is unset.
         :param environment: Environment variables to set in the container. (templated)
         :param private_environment: Private environment variables to set in the container.
             These are not templated, and hidden from the website.
@@ -719,6 +791,23 @@ class TaskDecoratorCollection:
         """
     @overload
     def bash(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
+    def run_if(self, condition: AnyConditionFunc, skip_message: str | None = None) -> Callable[[_T], _T]:
+        """
+        Decorate a task to run only if a condition is met.
+
+        :param condition: A function that takes a context and returns a boolean.
+        :param skip_message: The message to log if the task is skipped.
+            If None, a default message is used.
+        """
+    def skip_if(self, condition: AnyConditionFunc, skip_message: str | None = None) -> Callable[[_T], _T]:
+        """
+        Decorate a task to skip if a condition is met.
+
+        :param condition: A function that takes a context and returns a boolean.
+        :param skip_message: The message to log if the task is skipped.
+            If None, a default message is used.
+        """
+    def __getattr__(self, name: str) -> TaskDecorator: ...
 
 task: TaskDecoratorCollection
 setup: Callable

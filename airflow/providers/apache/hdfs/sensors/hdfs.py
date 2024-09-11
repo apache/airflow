@@ -39,14 +39,14 @@ class HdfsSensor(BaseSensorOperator):
     """
 
     def __init__(self, *args, **kwargs):
-        raise Exception(_EXCEPTION_MESSAGE)
+        raise RuntimeError(_EXCEPTION_MESSAGE)
 
 
 class HdfsRegexSensor(HdfsSensor):  # noqa: D101 Ignore missing docstring
     def __init__(self, *args, **kwargs):
-        raise Exception(_EXCEPTION_MESSAGE)
+        raise RuntimeError(_EXCEPTION_MESSAGE)
 
 
 class HdfsFolderSensor(HdfsSensor):  # noqa: D101 Ignore missing docstring
     def __init__(self, *args, **kwargs):
-        raise Exception(_EXCEPTION_MESSAGE)
+        raise RuntimeError(_EXCEPTION_MESSAGE)

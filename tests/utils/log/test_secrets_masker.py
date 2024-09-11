@@ -29,7 +29,6 @@ from unittest.mock import patch
 
 import pytest
 
-from airflow import settings
 from airflow.models import Connection
 from airflow.utils.log.secrets_masker import (
     RedactedIO,
@@ -41,8 +40,7 @@ from airflow.utils.log.secrets_masker import (
 from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
 from tests.test_utils.config import conf_vars
 
-settings.MASK_SECRETS_IN_LOGS = True
-
+pytestmark = pytest.mark.enable_redact
 p = "password"
 
 
@@ -96,10 +94,12 @@ class TestSecretsMasker:
         assert caplog.text == "INFO Cannot connect to user:***\n"
 
     def test_extra(self, logger, caplog):
-        logger.handlers[0].formatter = ShortExcFormatter("%(levelname)s %(message)s %(conn)s")
-        logger.info("Cannot connect", extra={"conn": "user:password"})
+        with patch.object(
+            logger.handlers[0], "formatter", ShortExcFormatter("%(levelname)s %(message)s %(conn)s")
+        ):
+            logger.info("Cannot connect", extra={"conn": "user:password"})
 
-        assert caplog.text == "INFO Cannot connect user:***\n"
+            assert caplog.text == "INFO Cannot connect user:***\n"
 
     def test_exception(self, logger, caplog):
         try:
@@ -341,7 +341,7 @@ class TestSecretsMasker:
         assert "TypeError" not in caplog.text
 
     def test_masking_quoted_strings_in_connection(self, logger, caplog):
-        secrets_masker = [fltr for fltr in logger.filters if isinstance(fltr, SecretsMasker)][0]
+        secrets_masker = next(fltr for fltr in logger.filters if isinstance(fltr, SecretsMasker))
         with patch("airflow.utils.log.secrets_masker._secrets_masker", return_value=secrets_masker):
             test_conn_attributes = dict(
                 conn_type="scheme",
@@ -448,7 +448,7 @@ class TestRedactedIO:
 
 
 class TestMaskSecretAdapter:
-    @pytest.fixture(scope="function", autouse=True)
+    @pytest.fixture(autouse=True)
     def reset_secrets_masker_and_skip_escape(self):
         self.secrets_masker = SecretsMasker()
         with patch("airflow.utils.log.secrets_masker._secrets_masker", return_value=self.secrets_masker):

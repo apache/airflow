@@ -126,7 +126,9 @@ def _get_otel_safe_name(name: str) -> str:
     if name != otel_safe_name:
         warnings.warn(
             f"Metric name `{name}` exceeds OpenTelemetry's name length limit of "
-            f"{OTEL_NAME_MAX_LENGTH} characters and will be truncated to `{otel_safe_name}`."
+            f"{OTEL_NAME_MAX_LENGTH} characters and will be truncated to `{otel_safe_name}`.",
+            category=UserWarning,
+            stacklevel=2,
         )
     return otel_safe_name
 
@@ -305,7 +307,7 @@ class MetricsMap:
         else:
             counter = self.meter.create_counter(name=otel_safe_name)
 
-        logging.debug("Created %s as type: %s", otel_safe_name, _type_as_str(counter))
+        log.debug("Created %s as type: %s", otel_safe_name, _type_as_str(counter))
         return counter
 
     def get_counter(self, name: str, attributes: Attributes = None):
@@ -400,7 +402,7 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     protocol = "https" if ssl_active else "http"
     endpoint = f"{protocol}://{host}:{port}/v1/metrics"
 
-    logging.info("[Metric Exporter] Connecting to OpenTelemetry Collector at %s", endpoint)
+    log.info("[Metric Exporter] Connecting to OpenTelemetry Collector at %s", endpoint)
     readers = [
         PeriodicExportingMetricReader(
             OTLPMetricExporter(

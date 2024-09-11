@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Providers sub-commands."""
+
 from __future__ import annotations
 
 import sys
@@ -235,7 +236,8 @@ def config_list(args):
 
 @suppress_logs_and_warning
 def lazy_loaded(args):
-    """Informs if providers manager has been initialized too early.
+    """
+    Informs if providers manager has been initialized too early.
 
     If provider is initialized, shows the stack trace and exit with error code 1.
     """

@@ -23,9 +23,15 @@ import pytest
 
 from airflow.cli import cli_parser
 from airflow.providers.amazon.aws.auth_manager.cli.avp_commands import init_avp, update_schema
+from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
 from tests.test_utils.config import conf_vars
 
 mock_boto3 = Mock()
+
+pytestmark = [
+    pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Test requires Airflow 2.8+"),
+    pytest.mark.skip_if_database_isolation_mode,
+]
 
 
 @pytest.mark.db_test
@@ -81,16 +87,14 @@ class TestAvpCommands:
 
         if dry_run:
             mock_boto3.create_policy_store.assert_not_called()
-            mock_boto3.update_policy_store.assert_not_called()
             mock_boto3.put_schema.assert_not_called()
         else:
             mock_boto3.create_policy_store.assert_called_once_with(
                 validationSettings={
-                    "mode": "OFF",
+                    "mode": "STRICT",
                 },
                 description=policy_store_description,
             )
-            assert mock_boto3.update_policy_store.call_count == 2
             mock_boto3.put_schema.assert_called_once_with(
                 policyStoreId=policy_store_id,
                 definition={
@@ -163,10 +167,8 @@ class TestAvpCommands:
             update_schema(self.arg_parser.parse_args(params))
 
         if dry_run:
-            mock_boto3.update_policy_store.assert_not_called()
             mock_boto3.put_schema.assert_not_called()
         else:
-            assert mock_boto3.update_policy_store.call_count == 2
             mock_boto3.put_schema.assert_called_once_with(
                 policyStoreId=policy_store_id,
                 definition={

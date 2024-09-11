@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Analytics 4 (GA4) operators."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
@@ -105,8 +106,9 @@ class GoogleAnalyticsAdminListAccountsOperator(GoogleCloudBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         self.log.info(
-            "Requesting list of Google Analytics accounts. "
-            f"Page size: {self.page_size}, page token: {self.page_token}"
+            "Requesting list of Google Analytics accounts. Page size: %s, page token: %s",
+            self.page_size,
+            self.page_token,
         )
         accounts = hook.list_accounts(
             page_size=self.page_size,
@@ -528,6 +530,7 @@ class GoogleAnalyticsAdminGetGoogleAdsLinkOperator(GoogleCloudBaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
         "google_ads_link_id",
+        "property_id",
     )
 
     def __init__(

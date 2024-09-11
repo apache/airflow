@@ -21,7 +21,7 @@ Release management tasks
 Maintainers also can use Breeze for other purposes (those are commands that regular contributors likely
 do not need or have no access to run). Those are usually connected with releasing Airflow:
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Those are all of the available release management commands:
 
@@ -127,6 +127,16 @@ When we prepare final release, we automate some of the steps we need to do.
   :width: 100%
   :alt: Breeze release-management start-rc-process
 
+Generating airflow core Issue
+"""""""""""""""""""""""""
+
+You can use Breeze to generate a airflow core issue when you release new airflow.
+
+.. image:: ./images/output_release-management_generate-issue-content-providers.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-issue-content-core.svg
+  :width: 100%
+  :alt: Breeze generate-issue-content-core
+
 
 Preparing Python Clients
 """"""""""""""""""""""""
@@ -179,6 +189,29 @@ These are all of the available flags for the ``release-prod-images`` command:
   :width: 100%
   :alt: Breeze release management release prod images
 
+Adding git tags for providers
+"""""""""""""""""""""""""""""
+
+This command can be utilized to manage git tags for providers within the airflow remote repository during provider releases.
+Sometimes in cases when there is a connectivity issue to Github, it might be possible that local tags get created and lead to annoying errors.
+The default behaviour would be to clean such local tags up.
+
+The flag ``--clean-local-tags`` can be used to delete the local tags.
+
+However, If you want to disable this behaviour, set the envvar CLEAN_LOCAL_TAGS to false or use the
+``--no-clean-local-tags`` flag.
+
+.. code-block:: bash
+
+     breeze release-management tag-providers
+
+These are all of the available flags for the ``tag-providers`` command:
+
+.. image:: ./images/output_release-management_tag-providers.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_tag-providers.svg
+  :width: 100%
+  :alt: Breeze release management tag-providers
+
 Helm Chart release commands
 ...........................
 
@@ -226,6 +259,16 @@ This prepares helm chart .tar.gz package in the dist folder.
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_release-management_prepare-helm-chart-package.svg
   :width: 100%
   :alt: Breeze release-management prepare-helm-chart-package
+
+Generating helm chart Issue
+"""""""""""""""""""""""""
+
+You can use Breeze to generate a helm chart issue when you release new helm chart.
+
+.. image:: ./images/output_release-management_generate-issue-content-providers.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/doc/images/output_release-management_generate-issue-content-helm-chart.svg
+  :width: 100%
+  :alt: Breeze generate-issue-content-helm-chart
 
 
 Provider release commands
@@ -606,6 +649,18 @@ This command will build one docker image per python version, with all the airflo
   :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_sbom_build-all-airflow-images.svg
   :width: 100%
   :alt: Breeze build all airflow images
+
+
+Exporting SBOM information
+""""""""""""""""""""""""""
+
+The SBOM information published on our website can be converted into a spreadsheet that we are using to analyse security
+properties of the dependencies. This is done by the ``export-dependency-information`` command.
+
+.. image:: ./images/output_sbom_export-dependency-information.svg
+  :target: https://raw.githubusercontent.com/apache/airflow/main/dev/breeze/images/output_sbom_export-dependency-information.svg
+  :width: 100%
+  :alt: Breeze sbom export dependency information
 
 -----
 

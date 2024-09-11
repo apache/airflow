@@ -20,6 +20,7 @@
 Documentation that goes along with the Airflow tutorial located
 [here](https://airflow.apache.org/tutorial.html)
 """
+
 from __future__ import annotations
 
 # [START tutorial]
@@ -94,7 +95,7 @@ with DAG(
     You can document your task using the attributes `doc_md` (markdown),
     `doc` (plain text), `doc_rst`, `doc_json`, `doc_yaml` which gets
     rendered in the UI's Task Instance Details page.
-    ![img](http://montcs.bloomu.edu/~bobmon/Semesters/2012-01/491/import%20soul.png)
+    ![img](https://imgs.xkcd.com/comics/fixing_problems.png)
     **Image Credit:** Randall Munroe, [XKCD](https://xkcd.com/license.html)
     """
     )

@@ -94,7 +94,7 @@ class DepContext:
         if self.finished_tis is None:
             finished_tis = dag_run.get_task_instances(state=State.finished, session=session)
             for ti in finished_tis:
-                if not hasattr(ti, "task") and dag_run.dag:
+                if not getattr(ti, "task", None) is not None and dag_run.dag:
                     try:
                         ti.task = dag_run.dag.get_task(ti.task_id)
                     except TaskNotFound:

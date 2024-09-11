@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains operator to move data from Hive to Druid."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Sequence
@@ -32,7 +33,8 @@ DEFAULT_TARGET_PARTITION_SIZE = 5000000
 
 
 class HiveToDruidOperator(BaseOperator):
-    """Moves data from Hive to Druid.
+    """
+    Moves data from Hive to Druid.
 
     [del]note that for now the data is loaded into memory before being pushed to
     Druid, so this operator should be used for smallish amount of data.[/del]

@@ -20,12 +20,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from airflow import settings
-from airflow.decorators import task
-from airflow.models import Connection
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
     RedshiftCreateClusterSnapshotOperator,
@@ -36,7 +32,6 @@ from airflow.providers.amazon.aws.operators.redshift_cluster import (
 )
 from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
 from airflow.providers.amazon.aws.sensors.redshift_cluster import RedshiftClusterSensor
-from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
@@ -56,24 +51,6 @@ DB_NAME = "dev"
 POLL_INTERVAL = 10
 
 
-@task
-def create_connection(conn_id_name: str, cluster_id: str):
-    redshift_hook = RedshiftHook()
-    cluster_endpoint = redshift_hook.get_conn().describe_clusters(ClusterIdentifier=cluster_id)["Clusters"][0]
-    conn = Connection(
-        conn_id=conn_id_name,
-        conn_type="redshift",
-        host=cluster_endpoint["Endpoint"]["Address"],
-        login=DB_LOGIN,
-        password=DB_PASS,
-        port=cluster_endpoint["Endpoint"]["Port"],
-        schema=cluster_endpoint["DBName"],
-    )
-    session = settings.Session()
-    session.add(conn)
-    session.commit()
-
-
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
@@ -87,7 +64,6 @@ with DAG(
     cluster_subnet_group_name = test_context[CLUSTER_SUBNET_GROUP_KEY]
     redshift_cluster_identifier = f"{env_id}-redshift-cluster"
     redshift_cluster_snapshot_identifier = f"{env_id}-snapshot"
-    conn_id_name = f"{env_id}-conn-id"
     sg_name = f"{env_id}-sg"
 
     # [START howto_operator_redshift_cluster]
@@ -145,7 +121,7 @@ with DAG(
         task_id="wait_cluster_paused",
         cluster_identifier=redshift_cluster_identifier,
         target_status="paused",
-        poke_interval=15,
+        poke_interval=30,
         timeout=60 * 30,
     )
 
@@ -160,11 +136,9 @@ with DAG(
         task_id="wait_cluster_available_after_resume",
         cluster_identifier=redshift_cluster_identifier,
         target_status="available",
-        poke_interval=15,
+        poke_interval=30,
         timeout=60 * 30,
     )
-
-    set_up_connection = create_connection(conn_id_name, cluster_id=redshift_cluster_identifier)
 
     # [START howto_operator_redshift_data]
     create_table_redshift_data = RedshiftDataOperator(
@@ -201,13 +175,6 @@ with DAG(
         wait_for_completion=True,
     )
 
-    drop_table = SQLExecuteQueryOperator(
-        task_id="drop_table",
-        conn_id=conn_id_name,
-        sql="DROP TABLE IF EXISTS fruit",
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
-
     # [START howto_operator_redshift_delete_cluster]
     delete_cluster = RedshiftDeleteClusterOperator(
         task_id="delete_cluster",
@@ -236,10 +203,8 @@ with DAG(
         wait_cluster_paused,
         resume_cluster,
         wait_cluster_available_after_resume,
-        set_up_connection,
         create_table_redshift_data,
         insert_data,
-        drop_table,
         delete_cluster_snapshot,
         delete_cluster,
     )

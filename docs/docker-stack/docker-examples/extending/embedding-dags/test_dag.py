@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This dag only runs some simple tasks to test Airflow's task execution."""
+
 from __future__ import annotations
 
 # [START dag]

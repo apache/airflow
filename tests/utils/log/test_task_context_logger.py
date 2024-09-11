@@ -17,14 +17,22 @@
 from __future__ import annotations
 
 import logging
+from unittest import mock
 from unittest.mock import Mock
 
 import pytest
 
+from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.utils.log.task_context_logger import TaskContextLogger
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.config import conf_vars
 
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
+
 logger = logging.getLogger(__name__)
+
+pytestmark = pytest.mark.skip_if_database_isolation_mode
 
 
 @pytest.fixture
@@ -47,9 +55,10 @@ def ti(dag_maker):
 
         nothing()
 
-    dr = dag.create_dagrun("running", run_id="abc")
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    dr = dag.create_dagrun("running", run_id="abc", **triggered_by_kwargs)
     ti = dr.get_task_instances()[0]
-    yield ti
+    return ti
 
 
 def test_task_context_logger_enabled_by_default():
@@ -64,6 +73,7 @@ def test_task_handler_not_supports_task_context_logging(mock_handler, supported)
     assert t.enabled is supported
 
 
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 @pytest.mark.parametrize("supported", [True, False])
 def test_task_context_log_with_correct_arguments(ti, mock_handler, supported):
@@ -78,6 +88,25 @@ def test_task_context_log_with_correct_arguments(ti, mock_handler, supported):
         mock_handler.emit.assert_not_called()
 
 
+@pytest.mark.skip_if_database_isolation_mode
+@pytest.mark.db_test
+@mock.patch("airflow.utils.log.task_context_logger._ensure_ti")
+@pytest.mark.parametrize("supported", [True, False])
+def test_task_context_log_with_task_instance_key(mock_ensure_ti, ti, mock_handler, supported):
+    mock_handler.supports_task_context_logging = supported
+    mock_ensure_ti.return_value = ti
+    task_instance_key = TaskInstanceKey(ti.dag_id, ti.task_id, ti.run_id, ti.try_number, ti.map_index)
+    t = TaskContextLogger(component_name="test_component")
+    t.info("test message with args %s, %s", "a", "b", ti=task_instance_key)
+    if supported:
+        mock_handler.set_context.assert_called_once_with(ti, identifier="test_component")
+        mock_handler.emit.assert_called_once()
+    else:
+        mock_handler.set_context.assert_not_called()
+        mock_handler.emit.assert_not_called()
+
+
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 def test_task_context_log_closes_task_handler(ti, mock_handler):
     t = TaskContextLogger("blah")
@@ -85,6 +114,8 @@ def test_task_context_log_closes_task_handler(ti, mock_handler):
     mock_handler.close.assert_called_once()
 
 
+@pytest.mark.skip_if_database_isolation_mode
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 def test_task_context_log_also_emits_to_call_site_logger(ti):
     logger = logging.getLogger("abc123567")

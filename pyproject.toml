@@ -22,27 +22,24 @@
 # The dependencies can be automatically upgraded by running:
 # pre-commit run --hook-stage manual update-build-dependencies --all-files
 requires = [
-    "GitPython==3.1.42",
-    "editables==0.5",
+    "GitPython==3.1.43",
     "gitdb==4.0.11",
-    "hatchling==1.21.1",
-    "packaging==23.2",
+    "hatchling==1.25.0",
+    "packaging==24.1",
     "pathspec==0.12.1",
-    "pluggy==1.4.0",
+    "pluggy==1.5.0",
     "smmap==5.0.1",
     "tomli==2.0.1; python_version < '3.11'",
-    "trove-classifiers==2024.1.31",
+    "trove-classifiers==2024.7.2",
 ]
 build-backend = "hatchling.build"
 
 [project]
 name = "apache-airflow"
-dynamic = ["version"]
-
 description = "Programmatically author, schedule and monitor data pipelines"
 readme = { file = "generated/PYPI_README.md", content-type = "text/markdown" }
 license-files.globs = ["LICENSE", "3rd-party-licenses/*.txt"]
-requires-python = "~=3.8"
+requires-python = "~=3.8,<3.13"
 authors = [
     { name = "Apache Software Foundation", email = "dev@airflow.apache.org" },
 ]
@@ -62,1131 +59,91 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: System :: Monitoring",
 ]
-dependencies = [
-    # Alembic is important to handle our migrations in predictable and performant way. It is developed
-    # together with SQLAlchemy. Our experience with Alembic is that it very stable in minor version
-    # The 1.13.0 of alembic marked some migration code as SQLAlchemy 2+ only so we limit it to 1.13.1
-    "alembic>=1.13.1, <2.0",
-    "argcomplete>=1.10",
-    "asgiref",
-    "attrs>=22.1.0",
-    "blinker",
-    # Colorlog 6.x merges TTYColoredFormatter into ColoredFormatter, breaking backwards compatibility with 4.x
-    # Update CustomTTYColoredFormatter to remove
-    "colorlog>=4.0.2, <5.0",
-    "configupdater>=3.1.1",
-    # `airflow/www/extensions/init_views` imports `connexion.decorators.validation.RequestBodyValidator`
-    # connexion v3 has refactored the entire module to middleware, see: /spec-first/connexion/issues/1525
-    # Specifically, RequestBodyValidator was removed in: /spec-first/connexion/pull/1595
-    # The usage was added in #30596, seemingly only to override and improve the default error message.
-    # Either revert that change or find another way, preferably without using connexion internals.
-    # This limit can be removed after https://github.com/apache/airflow/issues/35234 is fixed
-    "connexion[flask]>=2.10.0,<3.0",
-    "cron-descriptor>=1.2.24",
-    "croniter>=0.3.17",
-    "cryptography>=0.9.3",
-    "deprecated>=1.2.13",
-    "dill>=0.2.2",
-    "flask-caching>=1.5.0",
-    # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
-    # all parameters now are mandatory which make AirflowDatabaseSessionInterface incopatible with this version.
-    "flask-session>=0.4.0,<0.6",
-    "flask-wtf>=0.15",
-    # Flask 2.3 is scheduled to introduce a number of deprecation removals - some of them might be breaking
-    # for our dependencies - notably `_app_ctx_stack` and `_request_ctx_stack` removals.
-    # We should remove the limitation after 2.3 is released and our dependencies are updated to handle it
-    "flask>=2.2,<2.3",
-    "fsspec>=2023.10.0",
-    "google-re2>=1.0",
-    "gunicorn>=20.1.0",
-    "httpx",
-    "importlib_metadata>=1.7;python_version<\"3.9\"",
-    "importlib_resources>=5.2;python_version<\"3.9\"",
-    "itsdangerous>=2.0",
-    "jinja2>=3.0.0",
-    "jsonschema>=4.18.0",
-    "lazy-object-proxy",
-    "linkify-it-py>=2.0.0",
-    "lockfile>=0.12.2",
-    "markdown-it-py>=2.1.0",
-    "markupsafe>=1.1.1",
-    "marshmallow-oneofschema>=2.0.1",
-    "mdit-py-plugins>=0.3.0",
-    "opentelemetry-api>=1.15.0",
-    "opentelemetry-exporter-otlp",
-    "packaging>=14.0",
-    "pathspec>=0.9.0",
-    "pendulum>=2.1.2,<4.0",
-    "pluggy>=1.0",
-    "psutil>=4.2.0",
-    "pygments>=2.0.1",
-    "pyjwt>=2.0.0",
-    "python-daemon>=3.0.0",
-    "python-dateutil>=2.3",
-    "python-nvd3>=0.15.0",
-    "python-slugify>=5.0",
-    # Requests 3 if it will be released, will be heavily breaking.
-    "requests>=2.27.0,<3",
-    "rfc3339-validator>=0.1.4",
-    "rich-argparse>=1.0.0",
-    "rich>=12.4.4",
-    "setproctitle>=1.1.8",
-    # We use some deprecated features of sqlalchemy 2.0 and we should replace them before we can upgrade
-    # See https://sqlalche.me/e/b8d9 for details of deprecated features
-    # you can set environment variable SQLALCHEMY_WARN_20=1 to show all deprecation warnings.
-    # The issue tracking it is https://github.com/apache/airflow/issues/28723
-    "sqlalchemy>=1.4.28,<2.0",
-    "sqlalchemy-jsonfield>=1.0",
-    "tabulate>=0.7.5",
-    "tenacity>=6.2.0,!=8.2.0",
-    "termcolor>=1.1.0",
-    # We should remove this dependency when Providers are limited to Airflow 2.7+
-    # as we replaced the usage of unicodecsv with csv in Airflow 2.7
-    # See https://github.com/apache/airflow/pull/31693
-    # We should also remove "licenses/LICENSE-unicodecsv.txt" file when we remove this dependency
-    "unicodecsv>=0.14.1",
-    # The Universal Pathlib provides  Pathlib-like interface for FSSPEC
-    # In 0.1. *It was not very well defined for extension, so the way how we use it for 0.1.*
-    # so we used a lot of private methods and attributes that were not defined in the interface
-    # an they are broken with version 0.2.0 which is much better suited for extension and supports
-    # Python 3.12. We should limit it, unti we migrate to 0.2.0
-    # See: https://github.com/fsspec/universal_pathlib/pull/173#issuecomment-1937090528
-    # This is prerequistite to make Airflow compatible with Python 3.12
-    # Tracked in https://github.com/apache/airflow/pull/36755
-    "universal-pathlib>=0.1.4,<0.2.0",
-    # Werkzug 3 breaks Flask-Login 0.6.2, also connexion needs to be updated to >= 3.0
-    # we should remove this limitation when FAB supports Flask 2.3 and we migrate connexion to 3+
-    "werkzeug>=2.0,<3",
-]
 
-[project.optional-dependencies]
-# Here manually managed extras start
-# Those extras are manually managed and should be updated when needed
+dynamic = ["version", "optional-dependencies", "dependencies"]
+
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# !!! YOU MIGHT BE SURPRISED NOT SEEING THE DEPENDENCIES AS `project.dependencies`     !!!!!!!!!
+# !!! AND EXTRAS AS `project.optional-dependencies`                                    !!!!!!!!!
+# !!! THEY ARE marked as `dynamic`  GENERATED by `hatch_build.py`                      !!!!!!!!!
+# !!! SEE COMMENTS BELOW TO FIND WHERE DEPENDENCIES ARE MAINTAINED                     !!!!!!!!!
+# !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 #
-# START OF core extras
+# !!!!!! Those providers are defined in `hatch_build.py` and should be maintained there  !!!!!!!
 #
-# This required for AWS deferrable operators.
-# There is conflict between boto3 and aiobotocore dependency botocore.
-# TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
-# boto3 have native aync support and we move away from aio aiobotocore
+# Those extras are available as regular core airflow extras - they install optional features of Airflow.
 #
-aiobotocore = [
-    "aiobotocore>=2.7.0",
-]
-async = [
-    "eventlet>=0.33.3",
-    "gevent>=0.13",
-    "greenlet>=0.4.9",
-]
-cgroups = [
-    # Cgroupspy 0.2.2 added Python 3.10 compatibility
-    "cgroupspy>=0.2.2",
-]
-deprecated-api = [
-    "requests>=2.27.0,<3",
-]
-github-enterprise = [
-    "apache-airflow[fab]",
-    "authlib>=1.0.0",
-]
-google-auth = [
-    "apache-airflow[fab]",
-    "authlib>=1.0.0",
-]
-graphviz = [
-    "graphviz>=0.12",
-]
-kerberos = [
-    "pykerberos>=1.1.13",
-    "requests-kerberos>=0.10.0",
-    "thrift-sasl>=0.2.0",
-]
-ldap = [
-    "ldap3>=2.5.1",
-    "python-ldap",
-]
-leveldb = [
-    "plyvel",
-]
-otel = [
-    "opentelemetry-exporter-prometheus",
-]
-pandas = [
-    "pandas>=1.2.5",
-]
-password = [
-    "bcrypt>=2.0.0",
-    "flask-bcrypt>=0.7.1",
-]
-pydantic = [
-    "pydantic>=2.3.0",
-]
-rabbitmq = [
-    "amqp",
-]
-s3fs = [
-    # This is required for support of S3 file system which uses aiobotocore
-    # which can have a conflict with boto3 as mentioned in aiobotocore extra
-    "s3fs>=2023.10.0",
-]
-saml = [
-    # This is required for support of SAML which might be used by some providers (e.g. Amazon)
-    "python3-saml>=1.16.0",
-]
-sentry = [
-    "blinker>=1.1",
-    # Sentry SDK 1.33 is broken when greenlets are installed and fails to import
-    # See https://github.com/getsentry/sentry-python/issues/2473
-    "sentry-sdk>=1.32.0,!=1.33.0",
-]
-statsd = [
-    "statsd>=3.3.0",
-]
-virtualenv = [
-    "virtualenv",
-]
-# END OF core extras
-# START OF Apache no provider extras
-apache-atlas = [
-    "atlasclient>=0.1.2",
-]
-apache-webhdfs = [
-    "hdfs[avro,dataframe,kerberos]>=2.0.4",
-]
-# END OF Apache no provider extras
-all-core = [
-    "apache-airflow[aiobotocore]",
-    "apache-airflow[apache-atlas]",
-    "apache-airflow[async]",
-    "apache-airflow[cgroups]",
-    "apache-airflow[deprecated-api]",
-    "apache-airflow[github-enterprise]",
-    "apache-airflow[google-auth]",
-    "apache-airflow[graphviz]",
-    "apache-airflow[kerberos]",
-    "apache-airflow[ldap]",
-    "apache-airflow[leveldb]",
-    "apache-airflow[otel]",
-    "apache-airflow[pandas]",
-    "apache-airflow[password]",
-    "apache-airflow[pydantic]",
-    "apache-airflow[rabbitmq]",
-    "apache-airflow[s3fs]",
-    "apache-airflow[saml]",
-    "apache-airflow[sentry]",
-    "apache-airflow[statsd]",
-    "apache-airflow[apache-webhdfs]",
-    "apache-airflow[virtualenv]",
-]
-# START OF devel extras
-devel-debuggers = [
-    "ipdb>=0.13.13",
-]
-devel-devscripts = [
-    "click>=8.0",
-    "gitpython>=3.1.40",
-    "hatch>=1.9.1",
-    "pipdeptree>=2.13.1",
-    "pygithub>=2.1.1",
-    "restructuredtext-lint>=1.4.0",
-    "rich-click>=1.7.0",
-    "semver>=3.0.2",
-    "towncrier>=23.11.0",
-    "twine>=4.0.2",
-]
-devel-duckdb = [
-    "duckdb>=0.9.0",
-]
-# Mypy 0.900 and above ships only with stubs from stdlib so if we need other stubs, we need to install them
-# manually as `types-*`. See https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
-# for details. We want to install them explicitly because we want to eventually move to
-# mypyd which does not support installing the types dynamically with --install-types
-devel-mypy = [
-    # TODO: upgrade to newer versions of MyPy continuously as they are released
-    # Make sure to upgrade the mypy version in update-common-sql-api-stubs in .pre-commit-config.yaml
-    # when you upgrade it here !!!!
-    "mypy==1.8.0",
-    "types-Deprecated",
-    "types-Markdown",
-    "types-PyMySQL",
-    "types-PyYAML",
-    "types-aiofiles",
-    "types-certifi",
-    "types-croniter",
-    "types-docutils",
-    "types-paramiko",
-    "types-protobuf",
-    "types-python-dateutil",
-    "types-python-slugify",
-    "types-pytz",
-    "types-redis",
-    "types-requests",
-    "types-setuptools",
-    "types-tabulate",
-    "types-termcolor",
-    "types-toml",
-]
-devel-sentry = [
-    "blinker>=1.7.0",
-]
-devel-static-checks = [
-    "black>=23.12.0",
-    "pre-commit>=3.5.0",
-    "ruff==0.2.1",
-    "yamllint>=1.33.0",
-]
-devel-tests = [
-    "aioresponses>=0.7.6",
-    "backports.zoneinfo>=0.2.1;python_version<'3.9'",
-    "beautifulsoup4>=4.7.1",
-    "coverage>=7.2",
-    "pytest-asyncio>=0.23.3",
-    "pytest-cov>=4.1.0",
-    "pytest-icdiff>=0.9",
-    "pytest-instafail>=0.5.0",
-    "pytest-mock>=3.12.0",
-    "pytest-rerunfailures>=13.0",
-    "pytest-timeouts>=1.2.1",
-    "pytest-xdist>=3.5.0",
-    # Temporary upper limmit to <8, not all dependencies at that moment ready to use 8.0
-    # Internal meta-task for track https://github.com/apache/airflow/issues/37156
-    "pytest>=7.4.4,<8.0",
-    "requests_mock>=1.11.0",
-    "time-machine>=2.13.0",
-]
-# END OF devel extras
-# START OF doc extras
-doc = [
-    "astroid>=2.12.3,<3.0",
-    "checksumdir>=1.2.0",
-    # click 8.1.4 and 8.1.5 generate mypy errors due to typing issue in the upstream package:
-    # https://github.com/pallets/click/issues/2558
-    "click>=8.0,!=8.1.4,!=8.1.5",
-    # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
-    # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
-    # <section> tags for sections
-    "docutils<0.17,>=0.16",
-    "sphinx-airflow-theme>=0.0.12",
-    "sphinx-argparse>=0.4.0",
-    # sphinx-autoapi fails with astroid 3.0, see: https://github.com/readthedocs/sphinx-autoapi/issues/407
-    # This was fixed in sphinx-autoapi 3.0, however it has requirement sphinx>=6.1, but we stuck on 5.x
-    "sphinx-autoapi>=2.1.1",
-    "sphinx-copybutton>=0.5.2",
-    "sphinx-design>=0.5.0",
-    "sphinx-jinja>=2.0.2",
-    "sphinx-rtd-theme>=2.0.0",
-    # Currently we are using sphinx 5 but we need to migrate to Sphinx 7
-    "sphinx>=5.3.0,<6.0.0",
-    "sphinxcontrib-applehelp>=1.0.4",
-    "sphinxcontrib-devhelp>=1.0.2",
-    "sphinxcontrib-htmlhelp>=2.0.1",
-    "sphinxcontrib-httpdomain>=1.8.1",
-    "sphinxcontrib-jquery>=4.1",
-    "sphinxcontrib-jsmath>=1.0.1",
-    "sphinxcontrib-qthelp>=1.0.3",
-    "sphinxcontrib-redoc>=1.6.0",
-    "sphinxcontrib-serializinghtml==1.1.5",
-    "sphinxcontrib-spelling>=8.0.0",
-]
-doc-gen = [
-    "apache-airflow[doc]",
-    "eralchemy2>=1.3.8",
-]
-# END OF doc extras
-# START OF bundle extras
-all-dbs = [
-    "apache-airflow[apache-cassandra]",
-    "apache-airflow[apache-drill]",
-    "apache-airflow[apache-druid]",
-    "apache-airflow[apache-hdfs]",
-    "apache-airflow[apache-hive]",
-    "apache-airflow[apache-impala]",
-    "apache-airflow[apache-pinot]",
-    "apache-airflow[arangodb]",
-    "apache-airflow[cloudant]",
-    "apache-airflow[databricks]",
-    "apache-airflow[exasol]",
-    "apache-airflow[influxdb]",
-    "apache-airflow[microsoft-mssql]",
-    "apache-airflow[mongo]",
-    "apache-airflow[mysql]",
-    "apache-airflow[neo4j]",
-    "apache-airflow[postgres]",
-    "apache-airflow[presto]",
-    "apache-airflow[trino]",
-    "apache-airflow[vertica]",
-]
-devel = [
-    "apache-airflow[celery]",
-    "apache-airflow[cncf-kubernetes]",
-    "apache-airflow[common-io]",
-    "apache-airflow[common-sql]",
-    "apache-airflow[devel-debuggers]",
-    "apache-airflow[devel-devscripts]",
-    "apache-airflow[devel-duckdb]",
-    "apache-airflow[devel-mypy]",
-    "apache-airflow[devel-sentry]",
-    "apache-airflow[devel-static-checks]",
-    "apache-airflow[devel-tests]",
-    "apache-airflow[fab]",
-    "apache-airflow[ftp]",
-    "apache-airflow[http]",
-    "apache-airflow[imap]",
-    "apache-airflow[sqlite]",
-]
-devel-all-dbs = [
-    "apache-airflow[apache-cassandra]",
-    "apache-airflow[apache-drill]",
-    "apache-airflow[apache-druid]",
-    "apache-airflow[apache-hdfs]",
-    "apache-airflow[apache-hive]",
-    "apache-airflow[apache-impala]",
-    "apache-airflow[apache-pinot]",
-    "apache-airflow[arangodb]",
-    "apache-airflow[cloudant]",
-    "apache-airflow[databricks]",
-    "apache-airflow[exasol]",
-    "apache-airflow[influxdb]",
-    "apache-airflow[microsoft-mssql]",
-    "apache-airflow[mongo]",
-    "apache-airflow[mysql]",
-    "apache-airflow[neo4j]",
-    "apache-airflow[postgres]",
-    "apache-airflow[presto]",
-    "apache-airflow[trino]",
-    "apache-airflow[vertica]",
-]
-devel-ci = [
-    "apache-airflow[devel-all]",
-]
-devel-hadoop = [
-    "apache-airflow[apache-hdfs]",
-    "apache-airflow[apache-hive]",
-    "apache-airflow[apache-impala]",
-    "apache-airflow[devel]",
-    "apache-airflow[hdfs]",
-    "apache-airflow[kerberos]",
-    "apache-airflow[presto]",
-]
-# END OF bundle extras
-#############################################################################################################
-#  The whole section can be removed in Airflow 3.0 as those old aliases are deprecated in 2.* series
-#############################################################################################################
-# START OF deprecated extras
-atlas = [
-    "apache-airflow[apache-atlas]",
-]
-aws = [
-    "apache-airflow[amazon]",
-]
-azure = [
-    "apache-airflow[microsoft-azure]",
-]
-cassandra = [
-    "apache-airflow[apache-cassandra]",
-]
-# Empty alias extra just for backward compatibility with Airflow 1.10
-crypto = [
-]
-druid = [
-    "apache-airflow[apache-druid]",
-]
-gcp = [
-    "apache-airflow[google]",
-]
-gcp_api = [
-    "apache-airflow[google]",
-]
-hdfs = [
-    "apache-airflow[apache-hdfs]",
-]
-hive = [
-    "apache-airflow[apache-hive]",
-]
-kubernetes = [
-    "apache-airflow[cncf-kubernetes]",
-]
-mssql = [
-    "apache-airflow[microsoft-mssql]",
-]
-pinot = [
-    "apache-airflow[apache-pinot]",
-]
-s3 = [
-    "apache-airflow[amazon]",
-]
-spark = [
-    "apache-airflow[apache-spark]",
-]
-webhdfs = [
-    "apache-airflow[apache-webhdfs]",
-]
-winrm = [
-    "apache-airflow[microsoft-winrm]",
-]
-# END OF deprecated extras
-#############################################################################################################
-#  The whole section below is automatically generated by `update-providers-dependencies` pre-commit based
-#  on `provider.yaml` files present in the `providers` subdirectories. The `provider.yaml` files are
-#  A single source of truth for provider dependencies,
+# START CORE EXTRAS HERE
 #
-# PLEASE DO NOT MODIFY THIS SECTION MANUALLY. IT WILL BE OVERWRITTEN BY PRE-COMMIT !!
-# If you want to modify these - modify the corresponding provider.yaml instead.
-#############################################################################################################
-# START OF GENERATED DEPENDENCIES
-airbyte = [ # source: airflow/providers/airbyte/provider.yaml
-  "apache-airflow[http]",
-]
-alibaba = [ # source: airflow/providers/alibaba/provider.yaml
-  "alibabacloud_adb20211201>=1.0.0",
-  "alibabacloud_tea_openapi>=0.3.7",
-  "oss2>=2.14.0",
-]
-amazon = [ # source: airflow/providers/amazon/provider.yaml
-  "PyAthena>=3.0.10",
-  "apache-airflow[common_sql]",
-  "apache-airflow[http]",
-  "asgiref",
-  "boto3>=1.33.0",
-  "botocore>=1.33.0",
-  "inflection>=0.5.1",
-  "jsonpath_ng>=1.5.3",
-  "redshift_connector>=2.0.918",
-  "sqlalchemy_redshift>=0.8.6",
-  "watchtower>=2.0.1,<4",
-  # Devel dependencies for the amazon provider
-  "aiobotocore>=2.7.0",
-  "aws_xray_sdk>=2.12.0",
-  "moto[cloudformation,glue]>=5.0.0",
-  "mypy-boto3-appflow>=1.33.0",
-  "mypy-boto3-rds>=1.33.0",
-  "mypy-boto3-redshift-data>=1.33.0",
-  "mypy-boto3-s3>=1.33.0",
-  "s3fs>=2023.10.0",
-]
-apache-beam = [ # source: airflow/providers/apache/beam/provider.yaml
-  "apache-beam>=2.53.0;python_version != \"3.12\"",
-  "pyarrow>=14.0.1;python_version != \"3.12\"",
-]
-apache-cassandra = [ # source: airflow/providers/apache/cassandra/provider.yaml
-  "cassandra-driver>=3.13.0",
-]
-apache-drill = [ # source: airflow/providers/apache/drill/provider.yaml
-  "apache-airflow[common_sql]",
-  "sqlalchemy-drill>=1.1.0",
-]
-apache-druid = [ # source: airflow/providers/apache/druid/provider.yaml
-  "apache-airflow[common_sql]",
-  "pydruid>=0.4.1",
-]
-apache-flink = [ # source: airflow/providers/apache/flink/provider.yaml
-  "apache-airflow[cncf_kubernetes]",
-  "cryptography>=2.0.0",
-]
-apache-hdfs = [ # source: airflow/providers/apache/hdfs/provider.yaml
-  "hdfs[avro,dataframe,kerberos]>=2.0.4",
-]
-apache-hive = [ # source: airflow/providers/apache/hive/provider.yaml
-  "apache-airflow[common_sql]",
-  "hmsclient>=0.1.0",
-  "pandas>=1.2.5",
-  "pyhive[hive_pure_sasl]>=0.7.0",
-  "thrift>=0.9.2",
-]
-apache-impala = [ # source: airflow/providers/apache/impala/provider.yaml
-  "impyla>=0.18.0,<1.0",
-]
-apache-kafka = [ # source: airflow/providers/apache/kafka/provider.yaml
-  "asgiref",
-  "confluent-kafka>=1.8.2",
-]
-apache-kylin = [ # source: airflow/providers/apache/kylin/provider.yaml
-  "kylinpy>=2.6",
-]
-apache-livy = [ # source: airflow/providers/apache/livy/provider.yaml
-  "aiohttp>=3.9.2",
-  "apache-airflow[http]",
-  "asgiref",
-]
-apache-pig = [] # source: airflow/providers/apache/pig/provider.yaml
-apache-pinot = [ # source: airflow/providers/apache/pinot/provider.yaml
-  "apache-airflow[common_sql]",
-  "pinotdb>0.4.7",
-]
-apache-spark = [ # source: airflow/providers/apache/spark/provider.yaml
-  "grpcio-status>=1.59.0",
-  "pyspark",
-]
-apprise = [ # source: airflow/providers/apprise/provider.yaml
-  "apprise",
-]
-arangodb = [ # source: airflow/providers/arangodb/provider.yaml
-  "python-arango>=7.3.2",
-]
-asana = [ # source: airflow/providers/asana/provider.yaml
-  "asana>=0.10,<4.0.0",
-]
-atlassian-jira = [ # source: airflow/providers/atlassian/jira/provider.yaml
-  "atlassian-python-api>=1.14.2,!=3.41.6",
-  "beautifulsoup4",
-]
-celery = [ # source: airflow/providers/celery/provider.yaml
-  "celery>=5.3.0,<6,!=5.3.3,!=5.3.2",
-  "flower>=1.0.0",
-  "google-re2>=1.0",
-]
-cloudant = [ # source: airflow/providers/cloudant/provider.yaml
-  "cloudant>=2.0",
-]
-cncf-kubernetes = [ # source: airflow/providers/cncf/kubernetes/provider.yaml
-  "aiofiles>=23.2.0",
-  "asgiref>=3.5.2",
-  "cryptography>=2.0.0",
-  "google-re2>=1.0",
-  "kubernetes>=28.1.0,<=29.0.0",
-  "kubernetes_asyncio>=28.1.0,<=29.0.0",
-]
-cohere = [ # source: airflow/providers/cohere/provider.yaml
-  "cohere>=4.37",
-]
-common-io = [] # source: airflow/providers/common/io/provider.yaml
-common-sql = [ # source: airflow/providers/common/sql/provider.yaml
-  "more-itertools>=9.0.0",
-  "sqlparse>=0.4.2",
-]
-databricks = [ # source: airflow/providers/databricks/provider.yaml
-  "aiohttp>=3.9.2, <4",
-  "apache-airflow[common_sql]",
-  "databricks-sql-connector>=2.0.0, <3.0.0, !=2.9.0",
-  "requests>=2.27.0,<3",
-  # Devel dependencies for the databricks provider
-  "deltalake>=0.12.0",
-]
-datadog = [ # source: airflow/providers/datadog/provider.yaml
-  "datadog>=0.14.0",
-]
-dbt-cloud = [ # source: airflow/providers/dbt/cloud/provider.yaml
-  "aiohttp>=3.9.2",
-  "apache-airflow[http]",
-  "asgiref",
-]
-dingding = [ # source: airflow/providers/dingding/provider.yaml
-  "apache-airflow[http]",
-]
-discord = [ # source: airflow/providers/discord/provider.yaml
-  "apache-airflow[http]",
-]
-docker = [ # source: airflow/providers/docker/provider.yaml
-  "docker>=6",
-  "python-dotenv>=0.21.0",
-]
-elasticsearch = [ # source: airflow/providers/elasticsearch/provider.yaml
-  "apache-airflow[common_sql]",
-  "elasticsearch>=8.10,<9",
-]
-exasol = [ # source: airflow/providers/exasol/provider.yaml
-  "apache-airflow[common_sql]",
-  "pandas>=1.2.5",
-  "pyexasol>=0.5.1",
-]
-fab = [ # source: airflow/providers/fab/provider.yaml
-  "flask-appbuilder==4.3.11",
-  "flask-login>=0.6.2",
-  "flask>=2.2,<2.3",
-  "google-re2>=1.0",
-]
-facebook = [ # source: airflow/providers/facebook/provider.yaml
-  "facebook-business>=6.0.2",
-]
-ftp = [] # source: airflow/providers/ftp/provider.yaml
-github = [ # source: airflow/providers/github/provider.yaml
-  "PyGithub!=1.58",
-]
-google = [ # source: airflow/providers/google/provider.yaml
-  "PyOpenSSL",
-  "apache-airflow[common_sql]",
-  "asgiref>=3.5.2",
-  "gcloud-aio-auth>=4.0.0,<5.0.0",
-  "gcloud-aio-bigquery>=6.1.2",
-  "gcloud-aio-storage>=9.0.0",
-  "gcsfs>=2023.10.0",
-  "google-ads>=22.1.0",
-  "google-analytics-admin",
-  "google-api-core>=2.11.0,!=2.16.0",
-  "google-api-python-client>=1.6.0",
-  "google-auth-httplib2>=0.0.1",
-  "google-auth>=1.0.0",
-  "google-cloud-aiplatform>=1.22.1",
-  "google-cloud-automl>=2.12.0",
-  "google-cloud-batch>=0.13.0",
-  "google-cloud-bigquery-datatransfer>=3.13.0",
-  "google-cloud-bigtable>=2.17.0",
-  "google-cloud-build>=3.22.0",
-  "google-cloud-compute>=1.10.0",
-  "google-cloud-container>=2.17.4",
-  "google-cloud-datacatalog>=3.11.1",
-  "google-cloud-dataflow-client>=0.8.6",
-  "google-cloud-dataform>=0.5.0",
-  "google-cloud-dataplex>=1.10.0",
-  "google-cloud-dataproc-metastore>=1.12.0",
-  "google-cloud-dataproc>=5.8.0",
-  "google-cloud-dlp>=3.12.0",
-  "google-cloud-kms>=2.15.0",
-  "google-cloud-language>=2.9.0",
-  "google-cloud-logging>=3.5.0",
-  "google-cloud-memcache>=1.7.0",
-  "google-cloud-monitoring>=2.18.0",
-  "google-cloud-orchestration-airflow>=1.10.0",
-  "google-cloud-os-login>=2.9.1",
-  "google-cloud-pubsub>=2.19.0",
-  "google-cloud-redis>=2.12.0",
-  "google-cloud-run>=0.9.0",
-  "google-cloud-secret-manager>=2.16.0",
-  "google-cloud-spanner>=3.11.1",
-  "google-cloud-speech>=2.18.0",
-  "google-cloud-storage-transfer>=1.4.1",
-  "google-cloud-storage>=2.7.0",
-  "google-cloud-tasks>=2.13.0",
-  "google-cloud-texttospeech>=2.14.1",
-  "google-cloud-translate>=3.11.0",
-  "google-cloud-videointelligence>=2.11.0",
-  "google-cloud-vision>=3.4.0",
-  "google-cloud-workflows>=1.10.0",
-  "grpcio-gcp>=0.2.2",
-  "httpx",
-  "json-merge-patch>=0.2",
-  "looker-sdk>=22.2.0",
-  "pandas-gbq",
-  "pandas>=1.2.5",
-  "proto-plus>=1.19.6",
-  "sqlalchemy-bigquery>=1.2.1",
-  "sqlalchemy-spanner>=1.6.2",
-]
-grpc = [ # source: airflow/providers/grpc/provider.yaml
-  "google-auth-httplib2>=0.0.1",
-  "google-auth>=1.0.0, <3.0.0",
-  "grpcio>=1.15.0",
-]
-hashicorp = [ # source: airflow/providers/hashicorp/provider.yaml
-  "hvac>=1.1.0",
-]
-http = [ # source: airflow/providers/http/provider.yaml
-  "aiohttp>=3.9.2",
-  "asgiref",
-  "requests>=2.27.0,<3",
-  "requests_toolbelt",
-]
-imap = [] # source: airflow/providers/imap/provider.yaml
-influxdb = [ # source: airflow/providers/influxdb/provider.yaml
-  "influxdb-client>=1.19.0",
-  "requests>=2.27.0,<3",
-]
-jdbc = [ # source: airflow/providers/jdbc/provider.yaml
-  "apache-airflow[common_sql]",
-  "jaydebeapi>=1.1.1",
-]
-jenkins = [ # source: airflow/providers/jenkins/provider.yaml
-  "python-jenkins>=1.0.0",
-]
-microsoft-azure = [ # source: airflow/providers/microsoft/azure/provider.yaml
-  "adal>=1.2.7",
-  "adlfs>=2023.10.0",
-  "azure-batch>=8.0.0",
-  "azure-cosmos>=4.0.0",
-  "azure-datalake-store>=0.0.45",
-  "azure-identity>=1.3.1",
-  "azure-keyvault-secrets>=4.1.0",
-  "azure-kusto-data>=4.1.0",
-  "azure-mgmt-containerinstance>=9.0.0",
-  "azure-mgmt-containerregistry>=8.0.0",
-  "azure-mgmt-cosmosdb",
-  "azure-mgmt-datafactory>=2.0.0",
-  "azure-mgmt-datalake-store>=0.5.0",
-  "azure-mgmt-resource>=2.2.0",
-  "azure-mgmt-storage>=16.0.0",
-  "azure-servicebus>=7.6.1",
-  "azure-storage-blob>=12.14.0",
-  "azure-storage-file-datalake>=12.9.1",
-  "azure-storage-file-share",
-  "azure-synapse-artifacts>=0.17.0",
-  "azure-synapse-spark",
-  # Devel dependencies for the microsoft.azure provider
-  "pywinrm",
-]
-microsoft-mssql = [ # source: airflow/providers/microsoft/mssql/provider.yaml
-  "apache-airflow[common_sql]",
-  "pymssql>=2.1.8",
-]
-microsoft-psrp = [ # source: airflow/providers/microsoft/psrp/provider.yaml
-  "pypsrp>=0.8.0",
-]
-microsoft-winrm = [ # source: airflow/providers/microsoft/winrm/provider.yaml
-  "pywinrm>=0.4",
-]
-mongo = [ # source: airflow/providers/mongo/provider.yaml
-  "dnspython>=1.13.0",
-  "pymongo>=3.6.0",
-  # Devel dependencies for the mongo provider
-  "mongomock",
-]
-mysql = [ # source: airflow/providers/mysql/provider.yaml
-  "apache-airflow[common_sql]",
-  "mysql-connector-python>=8.0.29",
-  "mysqlclient>=1.3.6",
-]
-neo4j = [ # source: airflow/providers/neo4j/provider.yaml
-  "neo4j>=4.2.1",
-]
-odbc = [ # source: airflow/providers/odbc/provider.yaml
-  "apache-airflow[common_sql]",
-  "pyodbc",
-]
-openai = [ # source: airflow/providers/openai/provider.yaml
-  "openai[datalib]>=1.0",
-]
-openfaas = [] # source: airflow/providers/openfaas/provider.yaml
-openlineage = [ # source: airflow/providers/openlineage/provider.yaml
-  "apache-airflow[common_sql]",
-  "attrs>=22.2",
-  "openlineage-integration-common>=0.28.0",
-  "openlineage-python>=0.28.0",
-]
-opensearch = [ # source: airflow/providers/opensearch/provider.yaml
-  "opensearch-py>=2.2.0",
-]
-opsgenie = [ # source: airflow/providers/opsgenie/provider.yaml
-  "opsgenie-sdk>=2.1.5",
-]
-oracle = [ # source: airflow/providers/oracle/provider.yaml
-  "apache-airflow[common_sql]",
-  "oracledb>=1.0.0",
-]
-pagerduty = [ # source: airflow/providers/pagerduty/provider.yaml
-  "pdpyras>=4.1.2",
-]
-papermill = [ # source: airflow/providers/papermill/provider.yaml
-  "ipykernel;python_version != \"3.12\"",
-  "papermill[all]>=2.4.0;python_version != \"3.12\"",
-  "scrapbook[all];python_version != \"3.12\"",
-]
-pgvector = [ # source: airflow/providers/pgvector/provider.yaml
-  "apache-airflow[postgres]",
-  "pgvector>=0.2.3",
-]
-pinecone = [ # source: airflow/providers/pinecone/provider.yaml
-  "pinecone-client>=2.2.4,<3.0",
-]
-postgres = [ # source: airflow/providers/postgres/provider.yaml
-  "apache-airflow[common_sql]",
-  "psycopg2-binary>=2.8.0",
-]
-presto = [ # source: airflow/providers/presto/provider.yaml
-  "apache-airflow[common_sql]",
-  "pandas>=1.2.5",
-  "presto-python-client>=0.8.4",
-]
-qdrant = [ # source: airflow/providers/qdrant/provider.yaml
-  "qdrant_client>=1.7.0",
-]
-redis = [ # source: airflow/providers/redis/provider.yaml
-  "redis>=4.5.2,<5.0.0,!=4.5.5",
-]
-salesforce = [ # source: airflow/providers/salesforce/provider.yaml
-  "pandas>=1.2.5",
-  "simple-salesforce>=1.0.0",
-]
-samba = [ # source: airflow/providers/samba/provider.yaml
-  "smbprotocol>=1.5.0",
-]
-segment = [ # source: airflow/providers/segment/provider.yaml
-  "analytics-python>=1.2.9",
-]
-sendgrid = [ # source: airflow/providers/sendgrid/provider.yaml
-  "sendgrid>=6.0.0",
-]
-sftp = [ # source: airflow/providers/sftp/provider.yaml
-  "apache-airflow[ssh]",
-  "asyncssh>=2.12.0",
-  "paramiko>=2.8.0",
-]
-singularity = [ # source: airflow/providers/singularity/provider.yaml
-  "spython>=0.0.56",
-]
-slack = [ # source: airflow/providers/slack/provider.yaml
-  "apache-airflow[common_sql]",
-  "slack_sdk>=3.19.0",
-]
-smtp = [] # source: airflow/providers/smtp/provider.yaml
-snowflake = [ # source: airflow/providers/snowflake/provider.yaml
-  "apache-airflow[common_sql]",
-  "snowflake-connector-python>=2.7.8",
-  "snowflake-sqlalchemy>=1.1.0",
-]
-sqlite = [ # source: airflow/providers/sqlite/provider.yaml
-  "apache-airflow[common_sql]",
-]
-ssh = [ # source: airflow/providers/ssh/provider.yaml
-  "paramiko>=2.6.0",
-  "sshtunnel>=0.3.2",
-]
-tableau = [ # source: airflow/providers/tableau/provider.yaml
-  "tableauserverclient",
-]
-tabular = [ # source: airflow/providers/tabular/provider.yaml
-  # Devel dependencies for the tabular provider
-  "pyiceberg>=0.5.0",
-]
-telegram = [ # source: airflow/providers/telegram/provider.yaml
-  "python-telegram-bot>=20.2",
-]
-teradata = [ # source: airflow/providers/teradata/provider.yaml
-  "apache-airflow[common_sql]",
-  "teradatasql>=17.20.0.28",
-  "teradatasqlalchemy>=17.20.0.0",
-]
-trino = [ # source: airflow/providers/trino/provider.yaml
-  "apache-airflow[common_sql]",
-  "pandas>=1.2.5",
-  "trino>=0.318.0",
-]
-vertica = [ # source: airflow/providers/vertica/provider.yaml
-  "apache-airflow[common_sql]",
-  "vertica-python>=0.5.1",
-]
-weaviate = [ # source: airflow/providers/weaviate/provider.yaml
-  "pandas>=1.2.5",
-  "weaviate-client>=3.24.2",
-]
-yandex = [ # source: airflow/providers/yandex/provider.yaml
-  "yandexcloud>=0.228.0",
-]
-zendesk = [ # source: airflow/providers/zendesk/provider.yaml
-  "zenpy>=2.0.24",
-]
-all = [
-    # core extras
-    "apache-airflow[aiobotocore]",
-    "apache-airflow[async]",
-    "apache-airflow[cgroups]",
-    "apache-airflow[deprecated-api]",
-    "apache-airflow[github-enterprise]",
-    "apache-airflow[google-auth]",
-    "apache-airflow[graphviz]",
-    "apache-airflow[kerberos]",
-    "apache-airflow[ldap]",
-    "apache-airflow[leveldb]",
-    "apache-airflow[otel]",
-    "apache-airflow[pandas]",
-    "apache-airflow[password]",
-    "apache-airflow[pydantic]",
-    "apache-airflow[rabbitmq]",
-    "apache-airflow[s3fs]",
-    "apache-airflow[saml]",
-    "apache-airflow[sentry]",
-    "apache-airflow[statsd]",
-    "apache-airflow[virtualenv]",
-    # Apache no provider extras
-    "apache-airflow[apache-atlas]",
-    "apache-airflow[apache-webhdfs]",
-    "apache-airflow[all-core]",
-    # Provider extras
-    "apache-airflow[airbyte]",
-    "apache-airflow[alibaba]",
-    "apache-airflow[amazon]",
-    "apache-airflow[apache-beam]",
-    "apache-airflow[apache-cassandra]",
-    "apache-airflow[apache-drill]",
-    "apache-airflow[apache-druid]",
-    "apache-airflow[apache-flink]",
-    "apache-airflow[apache-hdfs]",
-    "apache-airflow[apache-hive]",
-    "apache-airflow[apache-impala]",
-    "apache-airflow[apache-kafka]",
-    "apache-airflow[apache-kylin]",
-    "apache-airflow[apache-livy]",
-    "apache-airflow[apache-pig]",
-    "apache-airflow[apache-pinot]",
-    "apache-airflow[apache-spark]",
-    "apache-airflow[apprise]",
-    "apache-airflow[arangodb]",
-    "apache-airflow[asana]",
-    "apache-airflow[atlassian-jira]",
-    "apache-airflow[celery]",
-    "apache-airflow[cloudant]",
-    "apache-airflow[cncf-kubernetes]",
-    "apache-airflow[cohere]",
-    "apache-airflow[common-io]",
-    "apache-airflow[common-sql]",
-    "apache-airflow[databricks]",
-    "apache-airflow[datadog]",
-    "apache-airflow[dbt-cloud]",
-    "apache-airflow[dingding]",
-    "apache-airflow[discord]",
-    "apache-airflow[docker]",
-    "apache-airflow[elasticsearch]",
-    "apache-airflow[exasol]",
-    "apache-airflow[fab]",
-    "apache-airflow[facebook]",
-    "apache-airflow[ftp]",
-    "apache-airflow[github]",
-    "apache-airflow[google]",
-    "apache-airflow[grpc]",
-    "apache-airflow[hashicorp]",
-    "apache-airflow[http]",
-    "apache-airflow[imap]",
-    "apache-airflow[influxdb]",
-    "apache-airflow[jdbc]",
-    "apache-airflow[jenkins]",
-    "apache-airflow[microsoft-azure]",
-    "apache-airflow[microsoft-mssql]",
-    "apache-airflow[microsoft-psrp]",
-    "apache-airflow[microsoft-winrm]",
-    "apache-airflow[mongo]",
-    "apache-airflow[mysql]",
-    "apache-airflow[neo4j]",
-    "apache-airflow[odbc]",
-    "apache-airflow[openai]",
-    "apache-airflow[openfaas]",
-    "apache-airflow[openlineage]",
-    "apache-airflow[opensearch]",
-    "apache-airflow[opsgenie]",
-    "apache-airflow[oracle]",
-    "apache-airflow[pagerduty]",
-    "apache-airflow[papermill]",
-    "apache-airflow[pgvector]",
-    "apache-airflow[pinecone]",
-    "apache-airflow[postgres]",
-    "apache-airflow[presto]",
-    "apache-airflow[qdrant]",
-    "apache-airflow[redis]",
-    "apache-airflow[salesforce]",
-    "apache-airflow[samba]",
-    "apache-airflow[segment]",
-    "apache-airflow[sendgrid]",
-    "apache-airflow[sftp]",
-    "apache-airflow[singularity]",
-    "apache-airflow[slack]",
-    "apache-airflow[smtp]",
-    "apache-airflow[snowflake]",
-    "apache-airflow[sqlite]",
-    "apache-airflow[ssh]",
-    "apache-airflow[tableau]",
-    "apache-airflow[tabular]",
-    "apache-airflow[telegram]",
-    "apache-airflow[teradata]",
-    "apache-airflow[trino]",
-    "apache-airflow[vertica]",
-    "apache-airflow[weaviate]",
-    "apache-airflow[yandex]",
-    "apache-airflow[zendesk]",
-]
-devel-all = [
-    "apache-airflow[all]",
-    "apache-airflow[devel]",
-    "apache-airflow[doc]",
-    "apache-airflow[doc-gen]",
-    "apache-airflow[saml]",
-    # Apache no provider extras
-    "apache-airflow[apache-atlas]",
-    "apache-airflow[apache-webhdfs]",
-    "apache-airflow[all-core]",
-    # Include all provider deps
-    "apache-airflow[airbyte]",
-    "apache-airflow[alibaba]",
-    "apache-airflow[amazon]",
-    "apache-airflow[apache-beam]",
-    "apache-airflow[apache-cassandra]",
-    "apache-airflow[apache-drill]",
-    "apache-airflow[apache-druid]",
-    "apache-airflow[apache-flink]",
-    "apache-airflow[apache-hdfs]",
-    "apache-airflow[apache-hive]",
-    "apache-airflow[apache-impala]",
-    "apache-airflow[apache-kafka]",
-    "apache-airflow[apache-kylin]",
-    "apache-airflow[apache-livy]",
-    "apache-airflow[apache-pig]",
-    "apache-airflow[apache-pinot]",
-    "apache-airflow[apache-spark]",
-    "apache-airflow[apprise]",
-    "apache-airflow[arangodb]",
-    "apache-airflow[asana]",
-    "apache-airflow[atlassian-jira]",
-    "apache-airflow[celery]",
-    "apache-airflow[cloudant]",
-    "apache-airflow[cncf-kubernetes]",
-    "apache-airflow[cohere]",
-    "apache-airflow[common-io]",
-    "apache-airflow[common-sql]",
-    "apache-airflow[databricks]",
-    "apache-airflow[datadog]",
-    "apache-airflow[dbt-cloud]",
-    "apache-airflow[dingding]",
-    "apache-airflow[discord]",
-    "apache-airflow[docker]",
-    "apache-airflow[elasticsearch]",
-    "apache-airflow[exasol]",
-    "apache-airflow[fab]",
-    "apache-airflow[facebook]",
-    "apache-airflow[ftp]",
-    "apache-airflow[github]",
-    "apache-airflow[google]",
-    "apache-airflow[grpc]",
-    "apache-airflow[hashicorp]",
-    "apache-airflow[http]",
-    "apache-airflow[imap]",
-    "apache-airflow[influxdb]",
-    "apache-airflow[jdbc]",
-    "apache-airflow[jenkins]",
-    "apache-airflow[microsoft-azure]",
-    "apache-airflow[microsoft-mssql]",
-    "apache-airflow[microsoft-psrp]",
-    "apache-airflow[microsoft-winrm]",
-    "apache-airflow[mongo]",
-    "apache-airflow[mysql]",
-    "apache-airflow[neo4j]",
-    "apache-airflow[odbc]",
-    "apache-airflow[openai]",
-    "apache-airflow[openfaas]",
-    "apache-airflow[openlineage]",
-    "apache-airflow[opensearch]",
-    "apache-airflow[opsgenie]",
-    "apache-airflow[oracle]",
-    "apache-airflow[pagerduty]",
-    "apache-airflow[papermill]",
-    "apache-airflow[pgvector]",
-    "apache-airflow[pinecone]",
-    "apache-airflow[postgres]",
-    "apache-airflow[presto]",
-    "apache-airflow[qdrant]",
-    "apache-airflow[redis]",
-    "apache-airflow[salesforce]",
-    "apache-airflow[samba]",
-    "apache-airflow[segment]",
-    "apache-airflow[sendgrid]",
-    "apache-airflow[sftp]",
-    "apache-airflow[singularity]",
-    "apache-airflow[slack]",
-    "apache-airflow[smtp]",
-    "apache-airflow[snowflake]",
-    "apache-airflow[sqlite]",
-    "apache-airflow[ssh]",
-    "apache-airflow[tableau]",
-    "apache-airflow[tabular]",
-    "apache-airflow[telegram]",
-    "apache-airflow[teradata]",
-    "apache-airflow[trino]",
-    "apache-airflow[vertica]",
-    "apache-airflow[weaviate]",
-    "apache-airflow[yandex]",
-    "apache-airflow[zendesk]",
-]
-# END OF GENERATED DEPENDENCIES
-#############################################################################################################
-#  The rest of the pyproject.toml file should be manually maintained
-#############################################################################################################
+# aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, github-enterprise, google-
+# auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, sentry, statsd, uv,
+# virtualenv
+#
+# END CORE EXTRAS HERE
+#
+# The ``devel`` extras are not available in the released packages. They are only available when you install
+# Airflow from sources in ``editable`` installation - i.e. one that you are usually using to contribute to
+# Airflow. They provide tools such as ``pytest`` and ``mypy`` for general purpose development and testing.
+#
+# START DEVEL EXTRAS HERE
+#
+# devel, devel-all-dbs, devel-ci, devel-debuggers, devel-devscripts, devel-duckdb, devel-hadoop,
+# devel-mypy, devel-sentry, devel-static-checks, devel-tests
+#
+# END DEVEL EXTRAS HERE
+#
+# Those extras are bundles dynamically generated from other extras.
+#
+# START BUNDLE EXTRAS HERE
+#
+# all, all-core, all-dbs, devel-all, devel-ci
+#
+# END BUNDLE EXTRAS HERE
+#
+# The ``doc`` extras are not available in the released packages. They are only available when you install
+# Airflow from sources in ``editable`` installation - i.e. one that you are usually using to contribute to
+# Airflow. They provide tools needed when you want to build Airflow documentation (note that you also need
+# ``devel`` extras installed for airflow and providers in order to build documentation for airflow and
+# provider packages respectively). The ``doc`` package is enough to build regular documentation, where
+# ``doc_gen`` is needed to generate ER diagram we have describing our database.
+#
+# START DOC EXTRAS HERE
+#
+# doc, doc-gen
+#
+# END DOC EXTRAS HERE
+#
+# The `deprecated` extras are deprecated extras from Airflow 1 that will be removed in future versions.
+#
+# START DEPRECATED EXTRAS HERE
+#
+# atlas, aws, azure, cassandra, crypto, druid, gcp, gcp-api, hdfs, hive, kubernetes, mssql, pinot, s3,
+# spark, webhdfs, winrm
+#
+# END DEPRECATED EXTRAS HERE
+#
+# !!!!!! Those providers are defined in the `airflow/providers/<provider>/provider.yaml` files  !!!!!!!
+#
+# Those extras are available as regular Airflow extras, they install provider packages in standard builds
+# or dependencies that are necessary to enable the feature in editable build.
+# START PROVIDER EXTRAS HERE
+#
+# airbyte, alibaba, amazon, apache.beam, apache.cassandra, apache.drill, apache.druid, apache.flink,
+# apache.hdfs, apache.hive, apache.iceberg, apache.impala, apache.kafka, apache.kylin, apache.livy,
+# apache.pig, apache.pinot, apache.spark, apprise, arangodb, asana, atlassian.jira, celery, cloudant,
+# cncf.kubernetes, cohere, common.compat, common.io, common.sql, databricks, datadog, dbt.cloud,
+# dingding, discord, docker, elasticsearch, exasol, fab, facebook, ftp, github, google, grpc,
+# hashicorp, http, imap, influxdb, jdbc, jenkins, microsoft.azure, microsoft.mssql, microsoft.psrp,
+# microsoft.winrm, mongo, mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie,
+# oracle, pagerduty, papermill, pgvector, pinecone, postgres, presto, qdrant, redis, salesforce,
+# samba, segment, sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, tableau, telegram,
+# teradata, trino, vertica, weaviate, yandex, ydb, zendesk
+#
+# END PROVIDER EXTRAS HERE
+
 [project.scripts]
 airflow = "airflow.__main__:main"
 [project.urls]
@@ -1204,7 +161,7 @@ YouTube = "https://www.youtube.com/channel/UCSXwxpWZQ7XZ1WL3wqevChA/"
 python = "3.8"
 platforms = ["linux", "macos"]
 description = "Default environment with Python 3.8 for maximum compatibility"
-features = ["devel"]
+features = []
 
 [tool.hatch.envs.airflow-38]
 python = "3.8"
@@ -1229,6 +186,13 @@ python = "3.11"
 platforms = ["linux", "macos"]
 description = "Environment with Python 3.11. No devel installed"
 features = []
+
+[tool.hatch.envs.airflow-312]
+python = "3.12"
+platforms = ["linux", "macos"]
+description = "Environment with Python 3.12. No devel installed"
+features = []
+
 
 [tool.hatch.version]
 path = "airflow/__init__.py"
@@ -1255,7 +219,6 @@ artifacts = [
     "/airflow/www/static/dist/",
     "/airflow/git_version",
     "/generated/",
-    "airflow_pre_installed_providers.txt",
 ]
 
 
@@ -1274,7 +237,7 @@ artifacts = [
 ## black settings ##
 [tool.black]
 line-length = 110
-target-version = ['py38', 'py39', 'py310', 'py311']
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
 
 
 ## ruff settings ##
@@ -1283,12 +246,10 @@ target-version = "py38"
 line-length = 110
 extend-exclude = [
     ".eggs",
-    "airflow/_vendor/*",
-    "airflow/providers/google/ads/_vendor/*",
+    "*/_vendor/*",
     # The files generated by stubgen aren't 100% valid syntax it turns out, and we don't ship them, so we can
     # ignore them in ruff
     "airflow/providers/common/sql/*/*.pyi",
-    "airflow/migrations/versions/*.py",
     "tests/dags/test_imports.py",
 ]
 
@@ -1297,17 +258,27 @@ namespace-packages = ["airflow/providers"]
 [tool.ruff.lint]
 typing-modules = ["airflow.typing_compat"]
 extend-select = [
+    # Enable entire ruff rule section
     "I", # Missing required import (auto-fixable)
     "UP", # Pyupgrade
+    "ASYNC", # subset of flake8-async rules
+    "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
+    "TCH", # Rules around TYPE_CHECKING blocks
+    "G", # flake8-logging-format rules
+    "LOG", # flake8-logging rules, most of them autofixable
+    "PT", # flake8-pytest-style rules
+    "TID25", # flake8-tidy-imports rules
+    "E", # pycodestyle rules
+    "W", # pycodestyle rules
+    # Per rule enables
+    "RUF006", # Checks for asyncio dangling task
+    "RUF015", # Checks for unnecessary iterable allocation for first element
+    "RUF019", # Checks for unnecessary key check
     "RUF100", # Unused noqa (auto-fixable)
     # We ignore more pydocstyle than we enable, so be more selective at what we enable
-    "D101",
-    # We add modules that do not follow the rule `Missing docstring in magic method`
-    # into the `tool.ruff.per-file-ignores`, and should remove it from that list as soon as it follows.
-    # See: https://github.com/apache/airflow/issues/10742
-    "D105",
-    "D106",
+    "D1",
     "D2",
+    "D213", # Conflicts with D212.  Both can not be enabled.
     "D3",
     "D400",
     "D401",
@@ -1315,21 +286,57 @@ extend-select = [
     "D403",
     "D412",
     "D419",
-    "TCH",  # Rules around TYPE_CHECKING blocks
-    "TID251",  # Specific modules or module members that may not be imported or accessed
-    "TID253",  # Ban certain modules from being imported at module level
-    "ISC",  # Checks for implicit literal string concatenation (auto-fixable)
+    "PGH004",  # Use specific rule codes when using noqa
+    "PGH005", # Invalid unittest.mock.Mock methods/attributes/properties
+    "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
+    "B004", # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
     "B006", # Checks for uses of mutable objects as function argument defaults.
-    "PT014", # Checks for duplicate test cases in pytest.mark.parametrize
+    "B007", # Checks for unused variables in the loop
+    "B017", # Checks for pytest.raises context managers that catch Exception or BaseException.
+    "B019", # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
+    "B028", # No explicit stacklevel keyword argument found
+    "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
 ]
 ignore = [
+    "D100", # Unwanted; Docstring at the top of every file.
+    "D102", # TODO: Missing docstring in public method
+    "D103", # TODO: Missing docstring in public function
+    "D104", # Unwanted; Docstring at the top of every `__init__.py` file.
+    "D105", # Unwanted; See https://lists.apache.org/thread/8jbg1dd2lr2cfydtqbjxsd6pb6q2wkc3
+    "D107", # Unwanted; Docstring in every constructor is unnecessary if the class has a docstring.
     "D203",
-    "D212",
-    "D213",
+    "D212", # Conflicts with D213.  Both can not be enabled.
     "D214",
     "D215",
-    "E731",
-    "TCH003",  # Do not move imports from stdlib to TYPE_CHECKING block
+    "E731", # Do not assign a lambda expression, use a def
+    "TCH003", # Do not move imports from stdlib to TYPE_CHECKING block
+    "PT004", # Fixture does not return anything, add leading underscore
+    "PT005", # Fixture returns a value, remove leading underscore
+    "PT006", # Wrong type of names in @pytest.mark.parametrize
+    "PT007", # Wrong type of values in @pytest.mark.parametrize
+    "PT011", # pytest.raises() is too broad, set the match parameter
+    "PT019", # fixture without value is injected as parameter, use @pytest.mark.usefixtures instead
+    # Rules below explicitly set off which could overlap with Ruff's formatter
+    # as it recommended by https://docs.astral.sh/ruff/formatter/#conflicting-lint-rules
+    # Except ISC rules
+    "W191",
+    "E111",
+    "E114",
+    "E117",
+    "D206",
+    "D300",
+    "Q000",
+    "Q001",
+    "Q002",
+    "Q003",
+    "COM812",
+    "COM819",
+    "E501", # Formatted code may exceed the line length, leading to line-too-long (E501) errors.
+]
+unfixable = [
+    # PT022 replace empty `yield` to empty `return`. Might be fixed with a combination of PLR1711
+    # In addition, it can't do anything with invalid typing annotations, protected by mypy.
+    "PT022",
 ]
 
 [tool.ruff.format]
@@ -1340,7 +347,7 @@ required-imports = ["from __future__ import annotations"]
 combine-as-imports = true
 
 [tool.ruff.lint.per-file-ignores]
-"airflow/__init__.py" = ["F401"]
+"airflow/__init__.py" = ["F401", "TCH004"]
 "airflow/models/__init__.py" = ["F401", "TCH004"]
 "airflow/models/sqla_models.py" = ["F401"]
 
@@ -1355,19 +362,23 @@ combine-as-imports = true
 
 # Ignore pydoc style from these
 "*.pyi" = ["D"]
-"scripts/*" = ["D"]
+"scripts/*" = ["D", "PT"]  # In addition ignore pytest specific rules
 "docs/*" = ["D"]
 "provider_packages/*" = ["D"]
 "*/example_dags/*" = ["D"]
 "chart/*" = ["D"]
 "dev/*" = ["D"]
-# In addition ignore top level imports, e.g. pandas, numpy in tests
+# In addition, ignore in tests
+# TID253: Banned top level imports, e.g. pandas, numpy
+# S101: Use `assert`
+# TRY002: Use `raise Exception`
 "dev/perf/*" = ["TID253"]
-"dev/breeze/tests/*" = ["TID253"]
-"tests/*" = ["D", "TID253"]
-"docker_tests/*" = ["D", "TID253"]
-"kubernetes_tests/*" = ["D", "TID253"]
-"helm_tests/*" = ["D", "TID253"]
+"dev/check_files.py" = ["S101"]
+"dev/breeze/tests/*" = ["TID253", "S101", "TRY002"]
+"tests/*" = ["D", "TID253", "S101", "TRY002"]
+"docker_tests/*" = ["D", "TID253", "S101", "TRY002"]
+"kubernetes_tests/*" = ["D", "TID253", "S101", "TRY002"]
+"helm_tests/*" = ["D", "TID253", "S101", "TRY002"]
 
 # All of the modules which have an extra license header (i.e. that we copy from another project) need to
 # ignore E402 -- module level import not at top level
@@ -1375,88 +386,48 @@ combine-as-imports = true
 "airflow/api/auth/backend/kerberos_auth.py" = ["E402"]
 "airflow/security/kerberos.py" = ["E402"]
 "airflow/security/utils.py" = ["E402"]
+"tests/providers/amazon/aws/auth_manager/security_manager/test_aws_security_manager_override.py" = ["E402"]
+"tests/providers/common/io/xcom/test_backend.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/__init__.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/utilities/__init__.py" = ["E402"]
+"tests/providers/google/cloud/hooks/vertex_ai/test_batch_prediction_job.py" = ["E402"]
+"tests/providers/google/cloud/hooks/vertex_ai/test_hyperparameter_tuning_job.py" = ["E402"]
+"tests/providers/google/cloud/hooks/vertex_ai/test_auto_ml.py" = ["E402"]
+"tests/providers/google/cloud/hooks/vertex_ai/test_custom_job.py" = ["E402"]
+"tests/providers/google/cloud/hooks/vertex_ai/test_dataset.py" = ["E402"]
+"tests/providers/google/cloud/hooks/vertex_ai/test_endpoint_service.py" = ["E402"]
+"tests/providers/google/cloud/hooks/vertex_ai/test_generative_model.py" = ["E402"]
+"tests/providers/google/cloud/hooks/vertex_ai/test_model_service.py" = ["E402"]
+"tests/providers/google/cloud/hooks/vertex_ai/test_pipeline_job.py" = ["E402"]
+"tests/providers/google/cloud/hooks/vertex_ai/test_prediction_service.py" = ["E402"]
+"tests/providers/google/cloud/links/test_translate.py" = ["E402"]
+"tests/providers/google/cloud/operators/test_automl.py"= ["E402"]
+"tests/providers/google/cloud/operators/test_vertex_ai.py" = ["E402"]
+"tests/providers/google/cloud/operators/vertex_ai/test_generative_model.py" = ["E402"]
+"tests/providers/google/cloud/triggers/test_vertex_ai.py" = ["E402"]
 "tests/providers/openai/hooks/test_openai.py" = ["E402"]
 "tests/providers/openai/operators/test_openai.py" = ["E402"]
+"tests/providers/openai/triggers/test_openai.py" = ["E402"]
+"tests/providers/opensearch/conftest.py" = ["E402"]
+"tests/providers/opensearch/hooks/test_opensearch.py" = ["E402"]
+"tests/providers/opensearch/operators/test_opensearch.py" = ["E402"]
 "tests/providers/qdrant/hooks/test_qdrant.py" = ["E402"]
 "tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
+"tests/providers/snowflake/operators/test_snowflake_sql.py" = ["E402"]
+"tests/providers/yandex/*/*.py" = ["E402"]
 
-# All the modules which do not follow D105 yet, please remove as soon as it becomes compatible
-"airflow/callbacks/callback_requests.py" = ["D105"]
-"airflow/cli/commands/task_command.py" = ["D105"]
-"airflow/datasets/__init__.py" = ["D105"]
-"airflow/decorators/base.py" = ["D105"]
-"airflow/decorators/setup_teardown.py" = ["D105"]
-"airflow/exceptions.py" = ["D105"]
-"airflow/executors/base_executor.py" = ["D105"]
-"airflow/io/path.py" = ["D105"]
-"airflow/io/store/__init__.py" = ["D105"]
-"airflow/kubernetes/pre_7_4_0_compatibility/secret.py" = ["D105"]
-"airflow/metrics/protocols.py" = ["D105"]
-"airflow/metrics/validators.py" = ["D105"]
-"airflow/models/abstractoperator.py" = ["D105"]
-"airflow/models/baseoperator.py" = ["D105"]
-"airflow/models/connection.py" = ["D105"]
-"airflow/models/dag.py" = ["D105"]
-"airflow/models/dagrun.py" = ["D105"]
-"airflow/models/dagwarning.py" = ["D105"]
-"airflow/models/dataset.py" = ["D105"]
-"airflow/models/expandinput.py" = ["D105"]
-"airflow/models/log.py" = ["D105"]
-"airflow/models/mappedoperator.py" = ["D105"]
-"airflow/models/param.py" = ["D105"]
-"airflow/models/pool.py" = ["D105"]
-"airflow/models/renderedtifields.py" = ["D105"]
-"airflow/models/serialized_dag.py" = ["D105"]
-"airflow/models/slamiss.py" = ["D105"]
-"airflow/models/taskfail.py" = ["D105"]
-"airflow/models/taskinstance.py" = ["D105"]
-"airflow/models/tasklog.py" = ["D105"]
-"airflow/models/taskmixin.py" = ["D105"]
-"airflow/models/variable.py" = ["D105"]
-"airflow/models/xcom.py" = ["D105"]
-"airflow/models/xcom_arg.py" = ["D105"]
-"airflow/plugins_manager.py" = ["D105"]
-"airflow/providers_manager.py" = ["D105"]
-"airflow/sensors/base.py" = ["D105"]
-"airflow/sensors/external_task.py" = ["D105"]
-"airflow/timetables/events.py" = ["D105"]
-"airflow/triggers/base.py" = ["D105"]
-"airflow/utils/context.py" = ["D105"]
-"airflow/utils/db.py" = ["D105"]
-"airflow/utils/log/secrets_masker.py" = ["D105"]
-"airflow/utils/operator_resources.py" = ["D105"]
-"airflow/utils/sqlalchemy.py" = ["D105"]
-"airflow/utils/state.py" = ["D105"]
-"airflow/utils/task_group.py" = ["D105"]
-"airflow/utils/timeout.py" = ["D105"]
-"airflow/utils/trigger_rule.py" = ["D105"]
-"airflow/utils/types.py" = ["D105"]
-"airflow/utils/weight_rule.py" = ["D105"]
-"airflow/providers/amazon/aws/exceptions.py" = ["D105"]
-"airflow/providers/amazon/aws/executors/ecs/utils.py" = ["D105"]
-"airflow/providers/amazon/aws/hooks/ecr.py" = ["D105"]
-"airflow/providers/amazon/aws/utils/connection_wrapper.py" = ["D105"]
-"airflow/providers/apache/hive/hooks/hive.py" = ["D105"]
-"airflow/providers/cncf/kubernetes/secret.py" = ["D105"]
-"airflow/providers/cncf/kubernetes/utils/delete_from.py" = ["D105"]
-"airflow/providers/databricks/hooks/databricks.py" = ["D105"]
-"airflow/providers/databricks/hooks/databricks_base.py" = ["D105"]
-"airflow/providers/databricks/operators/databricks_repos.py" = ["D105"]
-"airflow/providers/elasticsearch/log/es_response.py" = ["D105"]
-"airflow/providers/fab/auth_manager/models/__init__.py" = ["D105"]
-"airflow/providers/ftp/hooks/ftp.py" = ["D105"]
-"airflow/providers/google/cloud/links/dataproc.py" = ["D105"]
-"airflow/providers/imap/hooks/imap.py" = ["D105"]
-"airflow/providers/microsoft/psrp/hooks/psrp.py" = ["D105"]
-"airflow/providers/mongo/hooks/mongo.py" = ["D105"]
-"airflow/providers/samba/hooks/samba.py" = ["D105"]
-"airflow/providers/smtp/hooks/smtp.py" = ["D105"]
-"airflow/providers/ssh/hooks/ssh.py" = ["D105"]
-"airflow/providers/tableau/hooks/tableau.py" = ["D105"]
+# All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
+"helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]
+
+# https://github.com/apache/airflow/issues/39252
+"airflow/providers/amazon/aws/hooks/eks.py" = ["W605"]
+
+# Test compat imports banned imports to allow testing against older airflow versions
+"tests/test_utils/compat.py" = ["TID251", "F401"]
 
 [tool.ruff.lint.flake8-tidy-imports]
+# Disallow all relative imports.
+ban-relative-imports = "all"
 # Ban certain modules from being imported at module level, instead requiring
 # that they're imported lazily (e.g., within a function definition).
 banned-module-level-imports = ["numpy", "pandas"]
@@ -1474,6 +445,8 @@ banned-module-level-imports = ["numpy", "pandas"]
 "airflow.PY312".msg = "Use sys.version_info >= (3, 12) instead."
 # Deprecated imports
 "airflow.models.baseoperator.BaseOperatorLink".msg = "Use airflow.models.baseoperatorlink.BaseOperatorLink"
+"airflow.models.errors.ImportError".msg = "Use airflow.models.errors.ParseImportError"
+"airflow.models.ImportError".msg = "Use airflow.models.errors.ParseImportError"
 # Deprecated in Python 3.11, Pending Removal in Python 3.15: https://github.com/python/cpython/issues/90817
 # Deprecation warning in Python 3.11 also recommends using locale.getencoding but it available in Python 3.11
 "locale.getdefaultlocale".msg = "Use locale.setlocale() and locale.getlocale() instead."
@@ -1491,19 +464,54 @@ banned-module-level-imports = ["numpy", "pandas"]
 "flask.escape".msg = "Use markupsafe.escape instead. Deprecated in Flask 2.3, removed in Flask 3.0"
 "flask.Markup".msg = "Use markupsafe.Markup instead. Deprecated in Flask 2.3, removed in Flask 3.0"
 "flask.signals_available".msg = "Signals are always available. Deprecated in Flask 2.3, removed in Flask 3.0"
+# Use root logger by a mistake / IDE autosuggestion
+# If for some reason root logger required it could obtained by logging.getLogger("root")
+"logging.debug".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.info".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.warning".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.error".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.exception".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.fatal".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.critical".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+"logging.log".msg = "Instantiate new `logger = logging.getLogger(__name__)` and use it instead of root logger"
+# unittest related restrictions
+"unittest.TestCase".msg = "Use pytest compatible classes: https://docs.pytest.org/en/stable/getting-started.html#group-multiple-tests-in-a-class"
+"unittest.skip".msg = "Use `pytest.mark.skip` instead: https://docs.pytest.org/en/stable/reference/reference.html#marks"
+"unittest.skipIf".msg = "Use `pytest.mark.skipif` instead: https://docs.pytest.org/en/stable/reference/reference.html#marks"
+"unittest.skipUnless".msg = "Use `pytest.mark.skipif` instead: https://docs.pytest.org/en/stable/reference/reference.html#marks"
+"unittest.expectedFailure".msg = "Use `pytest.mark.xfail` instead: https://docs.pytest.org/en/stable/reference/reference.html#marks"
+# Moved in SQLAlchemy 2.0
+"sqlalchemy.ext.declarative.declarative_base".msg = "Use `sqlalchemy.orm.declarative_base`. Moved in SQLAlchemy 2.0"
+"sqlalchemy.ext.declarative.as_declarative".msg = "Use `sqlalchemy.orm.as_declarative`. Moved in SQLAlchemy 2.0"
+"sqlalchemy.ext.declarative.has_inherited_table".msg = "Use `sqlalchemy.orm.has_inherited_table`. Moved in SQLAlchemy 2.0"
+"sqlalchemy.ext.declarative.synonym_for".msg = "Use `sqlalchemy.orm.synonym_for`. Moved in SQLAlchemy 2.0"
 
 [tool.ruff.lint.flake8-type-checking]
 exempt-modules = ["typing", "typing_extensions"]
 
+[tool.ruff.lint.flake8-pytest-style]
+mark-parentheses = false
+fixture-parentheses = false
+
 ## pytest settings ##
 [tool.pytest.ini_options]
-# * Disable `flaky` plugin for pytest. This plugin conflicts with `rerunfailures` because provide same marker.
-# * Disable `nose` builtin plugin for pytest. This feature deprecated in 7.2 and will be removed in pytest>=8
-# * And we focus on use native pytest capabilities rather than adopt another frameworks.
-addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose --asyncio-mode=strict"
+addopts = [
+    "-rasl",
+    "--verbosity=2",
+    # Disable `flaky` plugin for pytest. This plugin conflicts with `rerunfailures` because provide the same marker.
+    "-p", "no:flaky",
+    # Disable `nose` builtin plugin for pytest. This feature is deprecated in 7.2 and will be removed in pytest>=8
+    "-p", "no:nose",
+    # Disable support of a legacy `LocalPath` in favor of stdlib `pathlib.Path`.
+    "-p", "no:legacypath",
+    # Disable warnings summary, because we use our warning summary.
+    "--disable-warnings",
+    "--asyncio-mode=strict",
+]
 norecursedirs = [
     ".eggs",
     "airflow",
+    "tests/_internals",
     "tests/dags_with_system_exit",
     "tests/test_utils",
     "tests/dags_corrupted",
@@ -1514,12 +522,35 @@ norecursedirs = [
 log_level = "INFO"
 filterwarnings = [
     "error::pytest.PytestCollectionWarning",
+    "error::pytest.PytestReturnNotNoneWarning",
+    # Avoid building cartesian product which might impact performance
+    "error:SELECT statement has a cartesian product between FROM:sqlalchemy.exc.SAWarning:airflow",
+    'error:Coercing Subquery object into a select\(\) for use in IN\(\):sqlalchemy.exc.SAWarning:airflow',
+    'error:Class.*will not make use of SQL compilation caching',
     "ignore::DeprecationWarning:flask_appbuilder.filemanager",
     "ignore::DeprecationWarning:flask_appbuilder.widgets",
+    # FAB do not support SQLAclhemy 2
+    "ignore::sqlalchemy.exc.MovedIn20Warning:flask_appbuilder",
+    # https://github.com/dpgaspar/Flask-AppBuilder/issues/2194
+    "ignore::DeprecationWarning:marshmallow_sqlalchemy.convert",
     # https://github.com/dpgaspar/Flask-AppBuilder/pull/1940
     "ignore::DeprecationWarning:flask_sqlalchemy",
     # https://github.com/dpgaspar/Flask-AppBuilder/pull/1903
     "ignore::DeprecationWarning:apispec.utils",
+    # Connexion 2 use different deprecated objects, this should be resolved into Connexion 3
+    # https://github.com/spec-first/connexion/pull/1536
+    'ignore::DeprecationWarning:connexion.spec',
+    'ignore:jsonschema\.RefResolver:DeprecationWarning:connexion.json_schema',
+    'ignore:jsonschema\.exceptions\.RefResolutionError:DeprecationWarning:connexion.json_schema',
+    'ignore:Accessing jsonschema\.draft4_format_checker:DeprecationWarning:connexion.decorators.validation',
+]
+# We cannot add warnings from the airflow package into `filterwarnings`,
+# because it invokes import airflow before we set up test environment which breaks the tests.
+# Instead of that, we use a separate parameter and dynamically add it into `filterwarnings` marker.
+forbidden_warnings = [
+    "airflow.exceptions.RemovedInAirflow3Warning",
+    "airflow.utils.context.AirflowContextDeprecationWarning",
+    "airflow.exceptions.AirflowProviderDeprecationWarning",
 ]
 python_files = [
     "test_*.py",
@@ -1528,6 +559,9 @@ python_files = [
 testpaths = [
     "tests",
 ]
+# Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
+tmp_path_retention_count = "2"
+tmp_path_retention_policy = "failed"
 
 
 ## coverage.py settings ##
@@ -1582,6 +616,10 @@ disable_error_code = [
 
 [[tool.mypy.overrides]]
 module="airflow.migrations.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module="airflow.*._vendor.*"
 ignore_errors = true
 
 [[tool.mypy.overrides]]

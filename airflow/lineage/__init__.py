@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Provides lineage support functions."""
+
 from __future__ import annotations
 
 import logging
@@ -53,7 +54,10 @@ def get_backend() -> LineageBackend | None:
 
 
 def _render_object(obj: Any, context: Context) -> dict:
-    return context["ti"].task.render_template(obj, context)
+    ti = context["ti"]
+    if TYPE_CHECKING:
+        assert ti.task
+    return ti.task.render_template(obj, context)
 
 
 T = TypeVar("T", bound=Callable)
@@ -78,14 +82,10 @@ def apply_lineage(func: T) -> T:
         inlets = list(self.inlets)
 
         if outlets:
-            self.xcom_push(
-                context, key=PIPELINE_OUTLETS, value=outlets, execution_date=context["ti"].execution_date
-            )
+            self.xcom_push(context, key=PIPELINE_OUTLETS, value=outlets)
 
         if inlets:
-            self.xcom_push(
-                context, key=PIPELINE_INLETS, value=inlets, execution_date=context["ti"].execution_date
-            )
+            self.xcom_push(context, key=PIPELINE_INLETS, value=inlets)
 
         if _backend:
             _backend.send_lineage(operator=self, inlets=self.inlets, outlets=self.outlets, context=context)
@@ -130,10 +130,10 @@ def prepare_lineage(func: T) -> T:
             # Remove auto and task_ids
             self.inlets = [i for i in self.inlets if not isinstance(i, str)]
 
-            # We manually create a session here since xcom_pull returns a LazyXComAccess iterator.
-            # If we do not pass a session a new session will be created, however that session will not be
-            # properly closed and will remain open. After we are done iterating we can safely close this
-            # session.
+            # We manually create a session here since xcom_pull returns a
+            # LazySelectSequence proxy. If we do not pass a session, a new one
+            # will be created, but that session will not be properly closed.
+            # After we are done iterating, we can safely close this session.
             with create_session() as session:
                 _inlets = self.xcom_pull(
                     context, task_ids=task_ids, dag_id=self.dag_id, key=PIPELINE_OUTLETS, session=session

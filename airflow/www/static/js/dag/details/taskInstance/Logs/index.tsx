@@ -18,17 +18,8 @@
  */
 
 import React, { useState, useEffect, useMemo } from "react";
-import {
-  Text,
-  Box,
-  Flex,
-  Button,
-  Checkbox,
-  Icon,
-  Spinner,
-  Select,
-} from "@chakra-ui/react";
-import { MdWarning } from "react-icons/md";
+import { Text, Box, Flex, Checkbox, Icon, Spinner } from "@chakra-ui/react";
+import { MdInfo, MdWarning } from "react-icons/md";
 
 import { getMetaValue } from "src/utils";
 import useTaskLog from "src/api/useTaskLog";
@@ -36,12 +27,13 @@ import LinkButton from "src/components/LinkButton";
 import { useTimezone } from "src/context/timezone";
 import type { Dag, DagRun, TaskInstance } from "src/types";
 import MultiSelect from "src/components/MultiSelect";
-
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
+import { useTaskInstance } from "src/api";
 
 import LogLink from "./LogLink";
 import { LogLevel, logLevelColorMapping, parseLogs } from "./utils";
 import LogBlock from "./LogBlock";
+import TrySelector from "../TrySelector";
 
 interface LogLevelOption {
   label: LogLevel;
@@ -58,26 +50,6 @@ const showExternalLogRedirect =
   getMetaValue("show_external_log_redirect") === "True";
 const externalLogName = getMetaValue("external_log_name");
 const logUrl = getMetaValue("log_url");
-
-const getLinkIndexes = (
-  tryNumber: number | undefined
-): Array<Array<number>> => {
-  const internalIndexes: Array<number> = [];
-  const externalIndexes: Array<number> = [];
-
-  if (tryNumber) {
-    [...Array(tryNumber)].forEach((_, index) => {
-      const tryNum = index + 1;
-      if (showExternalLogRedirect) {
-        externalIndexes.push(tryNum);
-      } else {
-        internalIndexes.push(tryNum);
-      }
-    });
-  }
-
-  return [internalIndexes, externalIndexes];
-};
 
 const logLevelOptions: Array<LogLevelOption> = Object.values(LogLevel).map(
   (value): LogLevelOption => ({
@@ -103,13 +75,12 @@ const Logs = ({
   taskId,
   mapIndex,
   executionDate,
-  tryNumber,
+  tryNumber: finalTryNumber,
   state,
 }: Props) => {
-  const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
-  const [selectedTryNumber, setSelectedTryNumber] = useState<
-    number | undefined
-  >();
+  const [selectedTryNumber, setSelectedTryNumber] = useState(
+    finalTryNumber || 1
+  );
   const [wrap, setWrap] = useState(getMetaValue("default_wrap") === "True");
   const [logLevelFilters, setLogLevelFilters] = useState<Array<LogLevelOption>>(
     []
@@ -117,15 +88,22 @@ const Logs = ({
   const [fileSourceFilters, setFileSourceFilters] = useState<
     Array<FileSourceOption>
   >([]);
+  const [unfoldedLogGroups, setUnfoldedLogGroup] = useState<Array<string>>([]);
   const { timezone } = useTimezone();
 
-  const taskTryNumber = selectedTryNumber || tryNumber || 1;
+  const { data: taskInstance } = useTaskInstance({
+    dagId,
+    dagRunId,
+    taskId: taskId || "",
+    mapIndex,
+  });
+
   const { data, isLoading } = useTaskLog({
     dagId,
     dagRunId,
     taskId,
     mapIndex,
-    taskTryNumber,
+    taskTryNumber: selectedTryNumber,
     state,
   });
 
@@ -148,19 +126,17 @@ const Logs = ({
         data,
         timezone,
         logLevelFilters.map((option) => option.value),
-        fileSourceFilters.map((option) => option.value)
+        fileSourceFilters.map((option) => option.value),
+        unfoldedLogGroups
       ),
-    [data, fileSourceFilters, logLevelFilters, timezone]
+    [data, fileSourceFilters, logLevelFilters, timezone, unfoldedLogGroups]
   );
-
-  const logAttemptDropdownLimit = 10;
-  const showDropdown = internalIndexes.length > logAttemptDropdownLimit;
 
   useEffect(() => {
     // Reset fileSourceFilters and selected attempt when changing to
     // a task that do not have those filters anymore.
-    if (taskTryNumber > (tryNumber || 1)) {
-      setSelectedTryNumber(undefined);
+    if (selectedTryNumber > (finalTryNumber || 1)) {
+      setSelectedTryNumber(finalTryNumber || 1);
     }
 
     if (
@@ -174,151 +150,138 @@ const Logs = ({
     ) {
       setFileSourceFilters([]);
     }
-  }, [data, fileSourceFilters, fileSources, taskTryNumber, tryNumber]);
+  }, [data, fileSourceFilters, fileSources, selectedTryNumber, finalTryNumber]);
 
   return (
     <>
-      {externalLogName && externalIndexes.length > 0 && (
+      {showExternalLogRedirect && externalLogName && (
         <Box my={1}>
           <Text>View Logs in {externalLogName} (by attempts):</Text>
           <Flex flexWrap="wrap">
-            {externalIndexes.map((index) => (
-              <LogLink
-                key={index}
-                dagId={dagId}
-                taskId={taskId}
-                executionDate={executionDate}
-                tryNumber={index}
-              />
-            ))}
-          </Flex>
-        </Box>
-      )}
-      {tryNumber !== undefined && (
-        <>
-          <Box>
-            {!showDropdown && (
-              <Box>
-                <Text as="span"> (by attempts)</Text>
-                <Flex my={1} justifyContent="space-between">
-                  <Flex flexWrap="wrap">
-                    {internalIndexes.map((index) => (
-                      <Button
-                        key={index}
-                        variant={taskTryNumber === index ? "solid" : "ghost"}
-                        colorScheme="blue"
-                        onClick={() => setSelectedTryNumber(index)}
-                        data-testid={`log-attempt-select-button-${index}`}
-                      >
-                        {index}
-                      </Button>
-                    ))}
-                  </Flex>
-                </Flex>
-              </Box>
-            )}
-            <Flex my={1} justifyContent="space-between" flexWrap="wrap">
-              <Flex alignItems="center" flexGrow={1} mr={10}>
-                {showDropdown && (
-                  <Box width="100%" mr={2}>
-                    <Select
-                      size="sm"
-                      placeholder="Select log attempt"
-                      onChange={(e) => {
-                        setSelectedTryNumber(Number(e.target.value));
-                      }}
-                    >
-                      {internalIndexes.map((index) => (
-                        <option key={index} value={index}>
-                          {index}
-                        </option>
-                      ))}
-                    </Select>
-                  </Box>
-                )}
-                <Box width="100%" mr={2}>
-                  <MultiSelect
-                    size="sm"
-                    isMulti
-                    options={logLevelOptions}
-                    placeholder="All Levels"
-                    value={logLevelFilters}
-                    onChange={(options) => setLogLevelFilters([...options])}
-                    chakraStyles={{
-                      multiValue: (provided, ...rest) => ({
-                        ...provided,
-                        backgroundColor: rest[0].data.color,
-                      }),
-                      option: (provided, ...rest) => ({
-                        ...provided,
-                        borderLeft: "solid 4px black",
-                        borderColor: rest[0].data.color,
-                        mt: 2,
-                      }),
-                    }}
-                  />
-                </Box>
-                <Box width="100%">
-                  <MultiSelect
-                    size="sm"
-                    isMulti
-                    options={fileSources.map((fileSource) => ({
-                      label: fileSource,
-                      value: fileSource,
-                    }))}
-                    placeholder="All File Sources"
-                    value={fileSourceFilters}
-                    onChange={(options) => setFileSourceFilters([...options])}
-                  />
-                </Box>
-              </Flex>
-              <Flex alignItems="center" flexWrap="wrap">
-                <Checkbox
-                  isChecked={wrap}
-                  onChange={() => setWrap((previousState) => !previousState)}
-                  px={4}
-                  data-testid="wrap-checkbox"
-                >
-                  <Text as="strong">Wrap</Text>
-                </Checkbox>
+            {Array.from({ length: finalTryNumber || 1 }, (_, i) => i + 1).map(
+              (tryNumber) => (
                 <LogLink
+                  key={tryNumber}
                   dagId={dagId}
                   taskId={taskId}
                   executionDate={executionDate}
-                  isInternal
                   tryNumber={tryNumber}
                   mapIndex={mapIndex}
                 />
-                <LinkButton href={`${logUrl}&${params.toString()}`}>
-                  See More
-                </LinkButton>
-              </Flex>
-            </Flex>
-          </Box>
-          {!!warning && (
-            <Flex
-              bg="yellow.200"
-              borderRadius={2}
-              borderColor="gray.400"
-              alignItems="center"
-              p={2}
-            >
-              <Icon as={MdWarning} color="yellow.500" mr={2} />
-              <Text fontSize="sm">{warning}</Text>
-            </Flex>
-          )}
-          {isLoading ? (
-            <Spinner />
-          ) : (
-            !!parsedLogs && (
-              <LogBlock
-                parsedLogs={parsedLogs}
-                wrap={wrap}
-                tryNumber={taskTryNumber}
+              )
+            )}
+          </Flex>
+        </Box>
+      )}
+      <Box>
+        {!!taskInstance && (
+          <TrySelector
+            taskInstance={taskInstance}
+            selectedTryNumber={selectedTryNumber}
+            onSelectTryNumber={setSelectedTryNumber}
+          />
+        )}
+        <Flex my={1} justifyContent="space-between" flexWrap="wrap">
+          <Flex alignItems="center" flexGrow={1} mr={10}>
+            <Box width="100%" mr={2}>
+              <MultiSelect
+                size="sm"
+                isMulti
+                options={logLevelOptions}
+                placeholder="All Levels"
+                value={logLevelFilters}
+                onChange={(options) => setLogLevelFilters([...options])}
+                chakraStyles={{
+                  multiValue: (provided, ...rest) => ({
+                    ...provided,
+                    backgroundColor: rest[0].data.color,
+                  }),
+                  option: (provided, ...rest) => ({
+                    ...provided,
+                    borderLeft: "solid 4px black",
+                    borderColor: rest[0].data.color,
+                    mt: 2,
+                  }),
+                }}
               />
-            )
-          )}
-        </>
+            </Box>
+            <Box width="100%">
+              <MultiSelect
+                size="sm"
+                isMulti
+                options={fileSources.map((fileSource) => ({
+                  label: fileSource,
+                  value: fileSource,
+                }))}
+                placeholder="All File Sources"
+                value={fileSourceFilters}
+                onChange={(options) => setFileSourceFilters([...options])}
+              />
+            </Box>
+          </Flex>
+          <Flex alignItems="center" flexWrap="wrap">
+            <Checkbox
+              isChecked={wrap}
+              onChange={() => setWrap((previousState) => !previousState)}
+              px={4}
+              data-testid="wrap-checkbox"
+            >
+              <Text as="strong">Wrap</Text>
+            </Checkbox>
+            <LogLink
+              dagId={dagId}
+              taskId={taskId}
+              executionDate={executionDate}
+              isInternal
+              tryNumber={selectedTryNumber}
+              mapIndex={mapIndex}
+            />
+            <LinkButton href={`${logUrl}&${params.toString()}`}>
+              See More
+            </LinkButton>
+          </Flex>
+        </Flex>
+      </Box>
+      {!!warning && (
+        <Flex
+          bg="yellow.200"
+          borderRadius={2}
+          borderColor="gray.400"
+          alignItems="center"
+          p={2}
+          mb={2}
+        >
+          <Icon as={MdWarning} color="yellow.500" mr={2} />
+          <Text fontSize="sm">{warning}</Text>
+        </Flex>
+      )}
+      {(!data || !parsedLogs) && !isLoading && (
+        <Flex
+          bg="blue.100"
+          borderRadius={2}
+          borderColor="gray.400"
+          alignItems="center"
+          p={2}
+          mb={2}
+        >
+          <Icon as={MdInfo} color="blue.600" mr={2} />
+          <Text fontSize="sm">
+            No task logs found. Try the Event Log tab for more context.
+          </Text>
+        </Flex>
+      )}
+      {isLoading ? (
+        <Spinner />
+      ) : (
+        !!parsedLogs && (
+          <LogBlock
+            parsedLogs={parsedLogs}
+            wrap={wrap}
+            tryNumber={selectedTryNumber}
+            unfoldedGroups={unfoldedLogGroups}
+            setUnfoldedLogGroup={setUnfoldedLogGroup}
+          />
+        )
       )}
     </>
   );

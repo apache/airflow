@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for SSH connections."""
+
 from __future__ import annotations
 
 import os
@@ -42,7 +43,8 @@ CMD_TIMEOUT = 10
 
 
 class SSHHook(BaseHook):
-    """Execute remote commands with Paramiko.
+    """
+    Execute remote commands with Paramiko.
 
     .. seealso:: https://github.com/paramiko/paramiko
 
@@ -284,6 +286,12 @@ class SSHHook(BaseHook):
 
     def get_conn(self) -> paramiko.SSHClient:
         """Establish an SSH connection to the remote host."""
+        if self.client:
+            transport = self.client.get_transport()
+            if transport and transport.is_active():
+                # Return the existing connection
+                return self.client
+
         self.log.debug("Creating SSH client for conn_id: %s", self.ssh_conn_id)
         client = paramiko.SSHClient()
 
@@ -375,9 +383,11 @@ class SSHHook(BaseHook):
         category=AirflowProviderDeprecationWarning,
     )
     def __enter__(self) -> SSHHook:
+        """Return an instance of SSHHook when the `with` statement is used."""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        """Clear ssh client after exiting the `with` statement block."""
         if self.client is not None:
             self.client.close()
             self.client = None
@@ -385,7 +395,8 @@ class SSHHook(BaseHook):
     def get_tunnel(
         self, remote_port: int, remote_host: str = "localhost", local_port: int | None = None
     ) -> SSHTunnelForwarder:
-        """Create a tunnel between two hosts.
+        """
+        Create a tunnel between two hosts.
 
         This is conceptually similar to ``ssh -L <LOCAL_PORT>:host:<REMOTE_PORT>``.
 
@@ -436,7 +447,8 @@ class SSHHook(BaseHook):
     def create_tunnel(
         self, local_port: int, remote_port: int, remote_host: str = "localhost"
     ) -> SSHTunnelForwarder:
-        """Create a tunnel for SSH connection [Deprecated].
+        """
+        Create a tunnel for SSH connection [Deprecated].
 
         :param local_port: local port number
         :param remote_port: remote port number
@@ -445,7 +457,8 @@ class SSHHook(BaseHook):
         return self.get_tunnel(remote_port, remote_host, local_port)
 
     def _pkey_from_private_key(self, private_key: str, passphrase: str | None = None) -> paramiko.PKey:
-        """Create an appropriate Paramiko key for a given private key.
+        """
+        Create an appropriate Paramiko key for a given private key.
 
         :param private_key: string containing private key
         :return: ``paramiko.PKey`` appropriate for given key

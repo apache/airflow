@@ -41,6 +41,7 @@ class BuildCiParams(CommonBuildParams):
     eager_upgrade_additional_requirements: str | None = None
     skip_provider_dependencies_check: bool = False
     skip_image_upgrade_check: bool = False
+    use_uv: bool = True
     warn_image_upgrade_needed: bool = False
 
     @property
@@ -65,12 +66,17 @@ class BuildCiParams(CommonBuildParams):
         self._req_arg("AIRFLOW_IMAGE_DATE_CREATED", self.airflow_image_date_created)
         self._req_arg("AIRFLOW_IMAGE_REPOSITORY", self.airflow_image_repository)
         self._req_arg("AIRFLOW_PRE_CACHED_PIP_PACKAGES", self.airflow_pre_cached_pip_packages)
+        self._req_arg("AIRFLOW_USE_UV", self.use_uv)
+        if self.use_uv:
+            from airflow_breeze.utils.uv_utils import get_uv_timeout
+
+            self._opt_arg("UV_HTTP_TIMEOUT", get_uv_timeout(self))
         self._req_arg("AIRFLOW_VERSION", self.airflow_version)
         self._req_arg("BUILD_ID", self.build_id)
         self._req_arg("CONSTRAINTS_GITHUB_REPOSITORY", self.constraints_github_repository)
         self._req_arg("PYTHON_BASE_IMAGE", self.python_base_image)
         if self.upgrade_to_newer_dependencies:
-            self._opt_arg("UPGRADE_TO_NEWER_DEPENDENCIES", f"{random.randrange(2**32):x}")
+            self._opt_arg("UPGRADE_INVALIDATION_STRING", f"{random.randrange(2**32):x}")
             if self.eager_upgrade_additional_requirements:
                 # in case eager upgrade additional requirements have EOL, connect them together
                 self._opt_arg(
@@ -83,12 +89,6 @@ class BuildCiParams(CommonBuildParams):
         self._opt_arg("ADDITIONAL_DEV_APT_COMMAND", self.additional_dev_apt_command)
         self._opt_arg("ADDITIONAL_DEV_APT_DEPS", self.additional_dev_apt_deps)
         self._opt_arg("ADDITIONAL_DEV_APT_ENV", self.additional_dev_apt_env)
-        self._opt_arg("ADDITIONAL_PIP_INSTALL_FLAGS", self.additional_pip_install_flags)
-        self._opt_arg("ADDITIONAL_PYTHON_DEPS", self.additional_python_deps)
-        self._opt_arg("ADDITIONAL_DEV_APT_COMMAND", self.additional_dev_apt_command)
-        self._opt_arg("ADDITIONAL_DEV_APT_DEPS", self.additional_dev_apt_deps)
-        self._opt_arg("ADDITIONAL_DEV_APT_ENV", self.additional_dev_apt_env)
-        self._opt_arg("ADDITIONAL_AIRFLOW_EXTRAS", self.additional_airflow_extras)
         self._opt_arg("ADDITIONAL_PIP_INSTALL_FLAGS", self.additional_pip_install_flags)
         self._opt_arg("ADDITIONAL_PYTHON_DEPS", self.additional_python_deps)
         self._opt_arg("BUILD_PROGRESS", self.build_progress)

@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Config sub-commands."""
+
 from __future__ import annotations
 
 import locale
@@ -83,7 +84,7 @@ class PiiAnonymizer(Anonymizer):
     def process_username(self, value) -> str:
         if not value:
             return value
-        return value[0] + "..." + value[-1]
+        return f"{value[0]}...{value[-1]}"
 
     def process_url(self, value) -> str:
         if not value:
@@ -113,11 +114,11 @@ class PiiAnonymizer(Anonymizer):
 
             # pack
             if username and password and host:
-                netloc = username + ":" + password + "@" + host
+                netloc = f"{username}:{password}@{host}"
             elif username and host:
-                netloc = username + "@" + host
+                netloc = f"{username}@{host}"
             elif password and host:
-                netloc = ":" + password + "@" + host
+                netloc = f":{password}@{host}"
             elif host:
                 netloc = host
             else:
@@ -216,7 +217,7 @@ class AirflowInfo:
             if module is None or module == str.__class__.__module__:
                 return o.__class__.__name__  # Avoid reporting __builtin__
             else:
-                return module + "." + o.__class__.__name__
+                return f"{module}.{o.__class__.__name__}"
 
         try:
             handler_names = [get_fullname(handler) for handler in logging.getLogger("airflow.task").handlers]

@@ -40,9 +40,10 @@ class GlueCrawlerCompleteTrigger(AwsBaseWaiterTrigger):
         self,
         crawler_name: str,
         poll_interval: int | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         waiter_delay: int = 5,
         waiter_max_attempts: int = 1500,
+        **kwargs,
     ):
         if poll_interval is not None:
             warnings.warn(
@@ -62,7 +63,13 @@ class GlueCrawlerCompleteTrigger(AwsBaseWaiterTrigger):
             waiter_delay=waiter_delay,
             waiter_max_attempts=waiter_max_attempts,
             aws_conn_id=aws_conn_id,
+            **kwargs,
         )
 
     def hook(self) -> AwsGenericHook:
-        return GlueCrawlerHook(aws_conn_id=self.aws_conn_id)
+        return GlueCrawlerHook(
+            aws_conn_id=self.aws_conn_id,
+            region_name=self.region_name,
+            verify=self.verify,
+            config=self.botocore_config,
+        )

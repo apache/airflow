@@ -21,7 +21,7 @@ How to contribute
 There are various ways how you can contribute to Apache Airflow. Here is a short overview of
 some of those ways that involve creating issues and pull requests on GitHub.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Report Bugs
 -----------
@@ -61,7 +61,7 @@ If you have a very important topic to discuss, start a discussion on the
 The Apache Airflow project uses a set of labels for tracking and triaging issues, as
 well as a set of priorities and milestones to track how and when the enhancements and bug
 fixes make it into an Airflow release. This is documented as part of
-the `Issue reporting and resolution process <ISSUE_TRIAGE_PROCESS.rst>`_,
+the `Issue reporting and resolution process <../ISSUE_TRIAGE_PROCESS.rst>`_,
 
 Implement Features
 ------------------

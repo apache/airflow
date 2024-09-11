@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect } from "react";
 import ReactFlow, {
   ReactFlowProvider,
   Controls,
@@ -27,85 +27,87 @@ import ReactFlow, {
   useReactFlow,
   ControlButton,
   Panel,
+  useNodesInitialized,
 } from "reactflow";
 import { Box, Tooltip, useTheme } from "@chakra-ui/react";
 import { RiFocus3Line } from "react-icons/ri";
 
-import { useDatasetDependencies } from "src/api";
 import Edge from "src/components/Graph/Edge";
 import { useContainerRef } from "src/context/containerRef";
+import { useDatasetGraphs } from "src/api/useDatasetDependencies";
 
 import Node, { CustomNodeProps } from "./Node";
 import Legend from "./Legend";
+import type { OnSelectProps } from "../types";
 
 interface Props {
-  onSelect: (datasetId: string) => void;
-  selectedUri: string | null;
+  selectedNodeId?: string;
+  onSelect?: (props: OnSelectProps) => void;
 }
 
 const nodeTypes = { custom: Node };
 const edgeTypes = { custom: Edge };
 
-const Graph = ({ onSelect, selectedUri }: Props) => {
-  const { data } = useDatasetDependencies();
+const Graph = ({ selectedNodeId, onSelect }: Props) => {
   const { colors } = useTheme();
-  const { setCenter, setViewport } = useReactFlow();
+  const { setCenter } = useReactFlow();
   const containerRef = useContainerRef();
 
-  useEffect(() => {
-    setViewport({ x: 0, y: 0, zoom: 1 });
-  }, [selectedUri, setViewport]);
+  const { data: graph } = useDatasetGraphs();
 
   const nodeColor = ({
     data: { isSelected },
   }: ReactFlowNode<CustomNodeProps>) =>
     isSelected ? colors.blue["300"] : colors.gray["300"];
 
-  if (!data || !data.fullGraph || !data.subGraphs) return null;
-  const graph = selectedUri
-    ? data.subGraphs.find((g) =>
-        g.children.some((n) => n.id === `dataset:${selectedUri}`)
-      )
-    : data.fullGraph;
-  if (!graph) return null;
-
-  const edges = graph.edges.map((e) => ({
-    id: e.id,
-    source: e.sources[0],
-    target: e.targets[0],
-    type: "custom",
-    data: {
-      rest: {
-        ...e,
-        isSelected: selectedUri && e.id.includes(selectedUri),
+  const edges =
+    graph?.edges?.map((e) => ({
+      id: e.id,
+      source: e.sources[0],
+      target: e.targets[0],
+      type: "custom",
+      data: {
+        rest: {
+          ...e,
+          isSelected:
+            selectedNodeId &&
+            (e.id.includes(`dataset:${selectedNodeId}`) ||
+              e.id.includes(`dag:${selectedNodeId}`)),
+        },
       },
-    },
-  }));
+    })) || [];
 
-  const nodes: ReactFlowNode<CustomNodeProps>[] = graph.children.map((c) => ({
-    id: c.id,
-    data: {
-      label: c.value.label,
-      type: c.value.class,
-      width: c.width,
-      height: c.height,
-      onSelect,
-      isSelected: selectedUri === c.value.label,
-      isHighlighted: edges.some(
-        (e) => e.data.rest.isSelected && e.id.includes(c.id)
-      ),
-    },
-    type: "custom",
-    position: {
-      x: c.x || 0,
-      y: c.y || 0,
-    },
-  }));
+  const nodes: ReactFlowNode<CustomNodeProps>[] =
+    graph?.children?.map((c) => ({
+      id: c.id,
+      data: {
+        label: c.value.label,
+        type: c.value.class,
+        width: c.width,
+        height: c.height,
+        onSelect: () => {
+          if (onSelect) {
+            if (c.value.class === "dataset") onSelect({ uri: c.value.label });
+            else if (c.value.class === "dag")
+              onSelect({ dagId: c.value.label });
+          }
+        },
+        isSelected: selectedNodeId === c.value.label,
+        isHighlighted: edges.some(
+          (e) => e.data.rest.isSelected && e.id.includes(c.id)
+        ),
+      },
+      type: "custom",
+      position: {
+        x: c.x || 0,
+        y: c.y || 0,
+      },
+    })) || [];
 
-  const focusNode = () => {
-    if (selectedUri) {
-      const node = nodes.find((n) => n.data.label === selectedUri);
-      if (!node || !node.position) return;
+  const node = nodes.find((n) => n.data.label === selectedNodeId);
+
+  const focusNode = useCallback(() => {
+    if (node && node.position) {
       const { x, y } = node.position;
       setCenter(
         x + (node.data.width || 0) / 2,
@@ -115,7 +117,13 @@ const Graph = ({ onSelect, selectedUri }: Props) => {
         }
       );
     }
-  };
+  }, [setCenter, node]);
+
+  const nodesInitialized = useNodesInitialized();
+
+  useEffect(() => {
+    if (nodesInitialized) focusNode();
+  }, [selectedNodeId, nodesInitialized, focusNode]);
 
   return (
     <ReactFlow
@@ -131,7 +139,7 @@ const Graph = ({ onSelect, selectedUri }: Props) => {
     >
       <Background />
       <Controls showInteractive={false}>
-        <ControlButton onClick={focusNode} disabled={!selectedUri}>
+        <ControlButton onClick={focusNode} disabled={!selectedNodeId}>
           <Tooltip
             portalProps={{ containerRef }}
             label="Center selected dataset"

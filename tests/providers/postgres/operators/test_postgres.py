@@ -20,21 +20,22 @@ from __future__ import annotations
 import pytest
 
 from airflow.models.dag import DAG
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
-from airflow.providers.postgres.operators.postgres import PostgresOperator
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = "unit_test_dag"
+POSTGRES_DEFAULT = "postgres_default"
 
 
 @pytest.mark.backend("postgres")
 class TestPostgres:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG(TEST_DAG_ID, default_args=args)
+        dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
         self.dag = dag
 
     def teardown_method(self):
@@ -51,11 +52,17 @@ class TestPostgres:
             dummy VARCHAR(50)
         );
         """
-        op = PostgresOperator(task_id="basic_postgres", sql=sql, dag=self.dag)
+        op = SQLExecuteQueryOperator(
+            task_id="basic_postgres", sql=sql, dag=self.dag, conn_id=POSTGRES_DEFAULT
+        )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        autocommit_task = PostgresOperator(
-            task_id="basic_postgres_with_autocommit", sql=sql, dag=self.dag, autocommit=True
+        autocommit_task = SQLExecuteQueryOperator(
+            task_id="basic_postgres_with_autocommit",
+            sql=sql,
+            dag=self.dag,
+            autocommit=True,
+            conn_id=POSTGRES_DEFAULT,
         )
         autocommit_task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
@@ -65,7 +72,9 @@ class TestPostgres:
             "TRUNCATE TABLE test_airflow",
             "INSERT INTO test_airflow VALUES ('X')",
         ]
-        op = PostgresOperator(task_id="postgres_operator_test_multi", sql=sql, dag=self.dag)
+        op = SQLExecuteQueryOperator(
+            task_id="postgres_operator_test_multi", sql=sql, dag=self.dag, conn_id=POSTGRES_DEFAULT
+        )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_vacuum(self):
@@ -74,7 +83,13 @@ class TestPostgres:
         """
 
         sql = "VACUUM ANALYZE;"
-        op = PostgresOperator(task_id="postgres_operator_test_vacuum", sql=sql, dag=self.dag, autocommit=True)
+        op = SQLExecuteQueryOperator(
+            task_id="postgres_operator_test_vacuum",
+            sql=sql,
+            dag=self.dag,
+            autocommit=True,
+            conn_id=POSTGRES_DEFAULT,
+        )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_overwrite_database(self):
@@ -83,20 +98,19 @@ class TestPostgres:
         """
 
         sql = "SELECT 1;"
-        op = PostgresOperator(
+        op = SQLExecuteQueryOperator(
             task_id="postgres_operator_test_database_overwrite",
             sql=sql,
             dag=self.dag,
             autocommit=True,
             database="foobar",
+            conn_id=POSTGRES_DEFAULT,
         )
 
         from psycopg2 import OperationalError
 
-        try:
+        with pytest.raises(OperationalError, match='database "foobar" does not exist'):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        except OperationalError as e:
-            assert 'database "foobar" does not exist' in str(e)
 
     def test_runtime_parameter_setting(self):
         """
@@ -105,11 +119,12 @@ class TestPostgres:
         """
 
         sql = "SELECT 1;"
-        op = PostgresOperator(
+        op = SQLExecuteQueryOperator(
             task_id="postgres_operator_test_runtime_parameter_setting",
             sql=sql,
             dag=self.dag,
-            runtime_parameters={"statement_timeout": "3000ms"},
+            hook_params={"options": "-c statement_timeout=3000ms"},
+            conn_id=POSTGRES_DEFAULT,
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         assert op.get_db_hook().get_first("SHOW statement_timeout;")[0] == "3s"
@@ -121,7 +136,7 @@ class TestPostgresOpenLineage:
 
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG(TEST_DAG_ID, default_args=args)
+        dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
         self.dag = dag
 
         with PostgresHook().get_conn() as conn:
@@ -145,11 +160,12 @@ class TestPostgresOpenLineage:
             dummy VARCHAR(50)
         );
         """
-        op = PostgresOperator(
+        op = SQLExecuteQueryOperator(
             task_id="basic_postgres",
             sql=sql,
             dag=self.dag,
             hook_params={"options": "-c search_path=another_schema"},
+            conn_id=POSTGRES_DEFAULT,
         )
 
         lineage = op.get_openlineage_facets_on_start()
@@ -171,11 +187,12 @@ class TestPostgresOpenLineage:
             dummy VARCHAR(50)
         );
         """
-        op = PostgresOperator(
+        op = SQLExecuteQueryOperator(
             task_id="basic_postgres",
             sql=sql,
             dag=self.dag,
             hook_params={"options": "-c search_path=another_schema"},
+            conn_id=POSTGRES_DEFAULT,
         )
 
         lineage = op.get_openlineage_facets_on_start()
@@ -196,14 +213,19 @@ class TestPostgresOpenLineage:
 def test_parameters_are_templatized(create_task_instance_of_operator):
     """Test that PostgreSQL operator could template the same fields as SQLExecuteQueryOperator"""
     ti = create_task_instance_of_operator(
-        PostgresOperator,
-        postgres_conn_id="{{ param.conn_id }}",
+        SQLExecuteQueryOperator,
+        conn_id="{{ param.conn_id }}",
         sql="SELECT * FROM {{ param.table }} WHERE spam = %(spam)s;",
         parameters={"spam": "{{ param.bar }}"},
         dag_id="test-postgres-op-parameters-are-templatized",
         task_id="test-task",
     )
-    task: PostgresOperator = ti.render_templates({"param": {"conn_id": "pg", "table": "foo", "bar": "egg"}})
+    task: SQLExecuteQueryOperator = ti.render_templates(
+        {
+            "param": {"conn_id": "pg", "table": "foo", "bar": "egg"},
+            "ti": ti,
+        }
+    )
     assert task.conn_id == "pg"
     assert task.sql == "SELECT * FROM foo WHERE spam = %(spam)s;"
     assert task.parameters == {"spam": "egg"}

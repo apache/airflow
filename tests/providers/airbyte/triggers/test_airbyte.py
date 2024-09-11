@@ -21,12 +21,16 @@ import time
 from unittest import mock
 
 import pytest
+from airbyte_api.models import JobStatusEnum
 
+from airflow.models import Connection
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.providers.airbyte.triggers.airbyte import AirbyteSyncTrigger
 from airflow.triggers.base import TriggerEvent
+from airflow.utils import db
 
 
+@pytest.mark.db_test
 class TestAirbyteSyncTrigger:
     DAG_ID = "airbyte_sync_run"
     TASK_ID = "airbyte_sync_run_task_op"
@@ -35,10 +39,16 @@ class TestAirbyteSyncTrigger:
     END_TIME = time.time() + 60 * 60 * 24 * 7
     POLL_INTERVAL = 3.0
 
+    def setup_method(self):
+        db.merge_conn(Connection(conn_id=self.CONN_ID, conn_type="airbyte", host="http://test-airbyte"))
+
     def test_serialization(self):
         """Assert TestAirbyteSyncTrigger correctly serializes its arguments and classpath."""
         trigger = AirbyteSyncTrigger(
-            conn_id=self.CONN_ID, poll_interval=self.POLL_INTERVAL, end_time=self.END_TIME, job_id=self.JOB_ID
+            conn_id=self.CONN_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=self.END_TIME,
+            job_id=self.JOB_ID,
         )
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger"
@@ -71,7 +81,7 @@ class TestAirbyteSyncTrigger:
     @pytest.mark.parametrize(
         "mock_value, mock_status, mock_message",
         [
-            (AirbyteHook.SUCCEEDED, "success", "Job run 1234 has completed successfully."),
+            (JobStatusEnum.SUCCEEDED, "success", "Job run 1234 has completed successfully."),
         ],
     )
     @mock.patch("airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running")
@@ -102,7 +112,7 @@ class TestAirbyteSyncTrigger:
     @pytest.mark.parametrize(
         "mock_value, mock_status, mock_message",
         [
-            (AirbyteHook.CANCELLED, "cancelled", "Job run 1234 has been cancelled."),
+            (JobStatusEnum.CANCELLED, "cancelled", "Job run 1234 has been cancelled."),
         ],
     )
     @mock.patch("airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running")
@@ -114,7 +124,10 @@ class TestAirbyteSyncTrigger:
         mocked_is_still_running.return_value = False
         mock_get_job_status.return_value = mock_value
         trigger = AirbyteSyncTrigger(
-            conn_id=self.CONN_ID, poll_interval=self.POLL_INTERVAL, end_time=self.END_TIME, job_id=self.JOB_ID
+            conn_id=self.CONN_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=self.END_TIME,
+            job_id=self.JOB_ID,
         )
         expected_result = {
             "status": mock_status,
@@ -130,7 +143,7 @@ class TestAirbyteSyncTrigger:
     @pytest.mark.parametrize(
         "mock_value, mock_status, mock_message",
         [
-            (AirbyteHook.ERROR, "error", "Job run 1234 has failed."),
+            (JobStatusEnum.FAILED, "error", "Job run 1234 has failed."),
         ],
     )
     @mock.patch("airflow.providers.airbyte.triggers.airbyte.AirbyteSyncTrigger.is_still_running")
@@ -211,7 +224,7 @@ class TestAirbyteSyncTrigger:
     @pytest.mark.parametrize(
         "mock_response, expected_status",
         [
-            (AirbyteHook.SUCCEEDED, False),
+            (JobStatusEnum.SUCCEEDED, False),
         ],
     )
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
@@ -235,7 +248,7 @@ class TestAirbyteSyncTrigger:
     @pytest.mark.parametrize(
         "mock_response, expected_status",
         [
-            (AirbyteHook.RUNNING, True),
+            (JobStatusEnum.RUNNING, True),
         ],
     )
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job_status")
@@ -247,7 +260,10 @@ class TestAirbyteSyncTrigger:
         airbyte_hook = mock.AsyncMock(AirbyteHook)
         airbyte_hook.get_job_status.return_value = mock_response
         trigger = AirbyteSyncTrigger(
-            conn_id=self.CONN_ID, poll_interval=self.POLL_INTERVAL, end_time=self.END_TIME, job_id=self.JOB_ID
+            conn_id=self.CONN_ID,
+            poll_interval=self.POLL_INTERVAL,
+            end_time=self.END_TIME,
+            job_id=self.JOB_ID,
         )
         response = await trigger.is_still_running(airbyte_hook)
         assert response == expected_status

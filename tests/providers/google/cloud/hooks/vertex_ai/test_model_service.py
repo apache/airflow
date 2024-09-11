@@ -20,6 +20,10 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+
+# For no Pydantic environment, we need to skip the tests
+pytest.importorskip("google.cloud.aiplatform_v1")
+
 from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.providers.google.cloud.hooks.vertex_ai.model_service import ModelServiceHook
@@ -32,6 +36,7 @@ TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
 TEST_REGION: str = "test-region"
 TEST_PROJECT_ID: str = "test-project-id"
 TEST_MODEL = None
+TEST_PARENT_MODEL = "test-parent-model"
 TEST_MODEL_NAME: str = "test_model_name"
 TEST_OUTPUT_CONFIG: dict = {}
 
@@ -125,6 +130,24 @@ class TestModelServiceWithDefaultProjectIdHook:
             request=dict(
                 parent=mock_client.return_value.common_location_path.return_value,
                 model=TEST_MODEL,
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+
+    @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
+    def test_upload_model_with_parent_model(self, mock_client) -> None:
+        self.hook.upload_model(
+            project_id=TEST_PROJECT_ID, region=TEST_REGION, model=TEST_MODEL, parent_model=TEST_PARENT_MODEL
+        )
+        mock_client.assert_called_once_with(TEST_REGION)
+        mock_client.return_value.upload_model.assert_called_once_with(
+            request=dict(
+                parent=mock_client.return_value.common_location_path.return_value,
+                model=TEST_MODEL,
+                parent_model=TEST_PARENT_MODEL,
             ),
             metadata=(),
             retry=DEFAULT,
@@ -311,6 +334,24 @@ class TestModelServiceWithoutDefaultProjectIdHook:
             request=dict(
                 parent=mock_client.return_value.common_location_path.return_value,
                 model=TEST_MODEL,
+            ),
+            metadata=(),
+            retry=DEFAULT,
+            timeout=None,
+        )
+        mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
+
+    @mock.patch(MODEL_SERVICE_STRING.format("ModelServiceHook.get_model_service_client"))
+    def test_upload_model_with_parent_model(self, mock_client) -> None:
+        self.hook.upload_model(
+            project_id=TEST_PROJECT_ID, region=TEST_REGION, model=TEST_MODEL, parent_model=TEST_PARENT_MODEL
+        )
+        mock_client.assert_called_once_with(TEST_REGION)
+        mock_client.return_value.upload_model.assert_called_once_with(
+            request=dict(
+                parent=mock_client.return_value.common_location_path.return_value,
+                model=TEST_MODEL,
+                parent_model=TEST_PARENT_MODEL,
             ),
             metadata=(),
             retry=DEFAULT,

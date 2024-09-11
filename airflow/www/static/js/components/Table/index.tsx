@@ -192,7 +192,7 @@ export const Table = ({
 
   return (
     <>
-      <ChakraTable {...getTableProps()}>
+      <ChakraTable {...getTableProps()} variant="striped">
         <Thead>
           <Tr>
             {allColumns.map((column) => (
@@ -288,4 +288,5 @@ export const Table = ({
   );
 };
 
+export * from "./CardList";
 export * from "./Cells";

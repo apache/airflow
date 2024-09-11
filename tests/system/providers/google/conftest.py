@@ -21,6 +21,6 @@ import pytest
 REQUIRED_ENV_VARS = ("SYSTEM_TESTS_GCP_PROJECT",)
 
 
-@pytest.fixture()
+@pytest.fixture
 def provider_env_vars():
     return REQUIRED_ENV_VARS

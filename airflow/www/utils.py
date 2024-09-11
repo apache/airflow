@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import textwrap
 import time
 from typing import TYPE_CHECKING, Any, Callable, Sequence
@@ -38,11 +39,9 @@ from pygments.formatters import HtmlFormatter
 from sqlalchemy import delete, func, select, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
-from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning
-from airflow.models import errors
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
+from airflow.models.errors import ParseImportError
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
@@ -66,6 +65,8 @@ if TYPE_CHECKING:
 
 
 TI = TaskInstance
+
+logger = logging.getLogger(__name__)
 
 
 def datetime_to_string(value: DateTime | None) -> str | None:
@@ -94,12 +95,6 @@ def get_instance_with_map(task_instance, session):
         return data
     mapped_instances = get_mapped_instances(task_instance, session)
     return get_mapped_summary(task_instance, mapped_instances)
-
-
-def get_try_count(try_number: int, state: State):
-    if state in (TaskInstanceState.DEFERRED, TaskInstanceState.UP_FOR_RESCHEDULE):
-        return try_number + 1
-    return try_number
 
 
 priority: list[None | TaskInstanceState] = [
@@ -147,7 +142,7 @@ def get_mapped_summary(parent_instance, task_instances):
         "start_date": group_start_date,
         "end_date": group_end_date,
         "mapped_states": mapped_states,
-        "try_number": get_try_count(parent_instance._try_number, parent_instance.state),
+        "try_number": parent_instance.try_number,
         "execution_date": parent_instance.execution_date,
     }
 
@@ -169,34 +164,46 @@ def get_dag_run_conf(
 
 def encode_dag_run(
     dag_run: DagRun | None, *, json_encoder: type[json.JSONEncoder] = json.JSONEncoder
-) -> dict[str, Any] | None:
+) -> tuple[dict[str, Any] | None, None | str]:
     if not dag_run:
-        return None
+        return None, None
 
-    dag_run_conf, conf_is_json = get_dag_run_conf(dag_run.conf, json_encoder=json_encoder)
+    try:
+        dag_run_conf, conf_is_json = get_dag_run_conf(dag_run.conf, json_encoder=json_encoder)
+        encoded_dag_run = {
+            "run_id": dag_run.run_id,
+            "queued_at": datetime_to_string(dag_run.queued_at),
+            "start_date": datetime_to_string(dag_run.start_date),
+            "end_date": datetime_to_string(dag_run.end_date),
+            "state": dag_run.state,
+            "execution_date": datetime_to_string(dag_run.execution_date),
+            "data_interval_start": datetime_to_string(dag_run.data_interval_start),
+            "data_interval_end": datetime_to_string(dag_run.data_interval_end),
+            "run_type": dag_run.run_type,
+            "last_scheduling_decision": datetime_to_string(dag_run.last_scheduling_decision),
+            "external_trigger": dag_run.external_trigger,
+            "conf": dag_run_conf,
+            "conf_is_json": conf_is_json,
+            "note": dag_run.note,
+            "triggered_by": dag_run.triggered_by.value,
+        }
+    except ValueError as e:
+        logger.error("Error while encoding the DAG Run!", exc_info=e)
+        if str(e) == "Circular reference detected":
+            return None, (
+                f"Circular reference detected in the DAG Run config (#{dag_run.run_id}). "
+                f"You should check your webserver logs for more details."
+            )
+        else:
+            raise e
 
-    return {
-        "run_id": dag_run.run_id,
-        "queued_at": datetime_to_string(dag_run.queued_at),
-        "start_date": datetime_to_string(dag_run.start_date),
-        "end_date": datetime_to_string(dag_run.end_date),
-        "state": dag_run.state,
-        "execution_date": datetime_to_string(dag_run.execution_date),
-        "data_interval_start": datetime_to_string(dag_run.data_interval_start),
-        "data_interval_end": datetime_to_string(dag_run.data_interval_end),
-        "run_type": dag_run.run_type,
-        "last_scheduling_decision": datetime_to_string(dag_run.last_scheduling_decision),
-        "external_trigger": dag_run.external_trigger,
-        "conf": dag_run_conf,
-        "conf_is_json": conf_is_json,
-        "note": dag_run.note,
-    }
+    return encoded_dag_run, None
 
 
 def check_import_errors(fileloc, session):
     # Check dag import errors
     import_errors = session.scalars(
-        select(errors.ImportError).where(errors.ImportError.filename == fileloc)
+        select(ParseImportError).where(ParseImportError.filename == fileloc)
     ).all()
     if import_errors:
         for import_error in import_errors:
@@ -208,34 +215,6 @@ def check_dag_warnings(dag_id, session):
     if dag_warnings:
         for dag_warning in dag_warnings:
             flash(dag_warning.message, "warning")
-
-
-def get_sensitive_variables_fields():
-    import warnings
-
-    from airflow.utils.log.secrets_masker import get_sensitive_variables_fields
-
-    warnings.warn(
-        "This function is deprecated. Please use "
-        "`airflow.utils.log.secrets_masker.get_sensitive_variables_fields`",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    return get_sensitive_variables_fields()
-
-
-def should_hide_value_for_key(key_name):
-    import warnings
-
-    from airflow.utils.log.secrets_masker import should_hide_value_for_key
-
-    warnings.warn(
-        "This function is deprecated. Please use "
-        "`airflow.utils.log.secrets_masker.should_hide_value_for_key`",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    return should_hide_value_for_key(key_name)
 
 
 def get_params(**kwargs):
@@ -422,22 +401,37 @@ def task_instance_link(attr):
     """Generate a URL to the Graph view for a TaskInstance."""
     dag_id = attr.get("dag_id")
     task_id = attr.get("task_id")
-    execution_date = attr.get("dag_run.execution_date") or attr.get("execution_date") or timezone.utcnow()
+    run_id = attr.get("run_id")
+    map_index = attr.get("map_index", None)
+    execution_date = attr.get("execution_date") or attr.get("dag_run.execution_date")
+
+    if map_index == -1:
+        map_index = None
+
     url = url_for(
-        "Airflow.task",
+        "Airflow.grid",
         dag_id=dag_id,
         task_id=task_id,
-        execution_date=execution_date.isoformat(),
-        map_index=attr.get("map_index", -1),
+        dag_run_id=run_id,
+        map_index=map_index,
+        execution_date=execution_date,
+        tab="graph",
     )
     url_root = url_for(
-        "Airflow.graph", dag_id=dag_id, root=task_id, execution_date=execution_date.isoformat()
+        "Airflow.grid",
+        dag_id=dag_id,
+        task_id=task_id,
+        root=task_id,
+        dag_run_id=run_id,
+        map_index=map_index,
+        execution_date=execution_date,
+        tab="graph",
     )
     return Markup(
         """
         <span style="white-space: nowrap;">
         <a href="{url}">{task_id}</a>
-        <a href="{url_root}" title="Filter on this task and upstream">
+        <a href="{url_root}" title="Filter on this task">
         <span class="material-icons" style="margin-left:0;"
             aria-hidden="true">filter_alt</span>
         </a>
@@ -510,10 +504,10 @@ def json_f(attr_name):
 def dag_link(attr):
     """Generate a URL to the Graph view for a Dag."""
     dag_id = attr.get("dag_id")
-    execution_date = attr.get("execution_date")
+    execution_date = attr.get("execution_date") or attr.get("dag_run.execution_date")
     if not dag_id:
         return Markup("None")
-    url = url_for("Airflow.graph", dag_id=dag_id, execution_date=execution_date)
+    url = url_for("Airflow.grid", dag_id=dag_id, execution_date=execution_date)
     return Markup('<a href="{}">{}</a>').format(url, dag_id)
 
 
@@ -521,13 +515,23 @@ def dag_run_link(attr):
     """Generate a URL to the Graph view for a DagRun."""
     dag_id = attr.get("dag_id")
     run_id = attr.get("run_id")
-    execution_date = attr.get("dag_run.execution_date") or attr.get("execution_date")
-    url = url_for("Airflow.graph", dag_id=dag_id, run_id=run_id, execution_date=execution_date)
+    execution_date = attr.get("execution_date") or attr.get("dag_run.execution_date")
+
+    if not dag_id:
+        return Markup("None")
+
+    url = url_for(
+        "Airflow.grid",
+        dag_id=dag_id,
+        execution_date=execution_date,
+        dag_run_id=run_id,
+        tab="graph",
+    )
     return Markup('<a href="{url}">{run_id}</a>').format(url=url, run_id=run_id)
 
 
 def _get_run_ordering_expr(name: str) -> ColumnOperators:
-    expr = DagRun.__table__.columns[name]
+    expr = DagRun.__mapper__.columns[name]
     # Data interval columns are NULL for runs created before 2.3, but SQL's
     # NULL-sorting logic would make those old runs always appear first. In a
     # perfect world we'd want to sort by ``get_run_data_interval()``, but that's
@@ -541,7 +545,8 @@ def _get_run_ordering_expr(name: str) -> ColumnOperators:
 def sorted_dag_runs(
     query: Select, *, ordering: Sequence[str], limit: int, session: Session
 ) -> Sequence[DagRun]:
-    """Produce DAG runs sorted by specified columns.
+    """
+    Produce DAG runs sorted by specified columns.
 
     :param query: An ORM select object against *DagRun*.
     :param ordering: Column names to sort the runs. should generally come from a
@@ -614,7 +619,7 @@ def json_render(obj, lexer):
 
 def wrapped_markdown(s, css_class="rich_doc"):
     """Convert a Markdown string to HTML."""
-    md = MarkdownIt("gfm-like", {"html": conf.getboolean("webserver", "allow_raw_html_descriptions")})
+    md = MarkdownIt("gfm-like", {"html": False})
     if s is None:
         return None
     s = textwrap.dedent(s)
@@ -646,18 +651,6 @@ def get_attr_renderer():
         "tsql": lambda x: render(x, lexers.TransactSqlLexer),
         "yaml": lambda x: render(x, lexers.YamlLexer),
     }
-
-
-def get_chart_height(dag):
-    """
-    Use the number of tasks in the DAG to approximate the size of generated chart.
-
-    Without this the charts are tiny and unreadable when DAGs have a large number of tasks).
-    Ideally nvd3 should allow for dynamic-height charts, that is charts that take up space
-    based on the size of the components within.
-    TODO(aoen): See [AIRFLOW-1263].
-    """
-    return 600 + len(dag.tasks) * 10
 
 
 class UtcAwareFilterMixin:
@@ -784,7 +777,7 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
     def __init__(self, datamodel):
         super().__init__(datamodel)
 
-        for method, filters in self.conversion_table:
+        for _, filters in self.conversion_table:
             if FilterIsNull not in filters:
                 filters.append(FilterIsNull)
             if FilterIsNotNull not in filters:
@@ -852,7 +845,8 @@ class CustomSQLAInterface(SQLAInterface):
 
 
 class DagRunCustomSQLAInterface(CustomSQLAInterface):
-    """Custom interface to allow faster deletion.
+    """
+    Custom interface to allow faster deletion.
 
     The ``delete`` and ``delete_all`` methods are overridden to speed up
     deletion when a DAG run has a lot of related task instances. Relying on
@@ -931,7 +925,8 @@ class UIAlert:
         self.message = Markup(message) if html else message
 
     def should_show(self, appbuilder: AirflowAppBuilder) -> bool:
-        """Determine if the user should see the message.
+        """
+        Determine if the user should see the message.
 
         The decision is based on the user's role. If ``AUTH_ROLE_PUBLIC`` is
         set in ``webserver_config.py``, An anonymous user would have the

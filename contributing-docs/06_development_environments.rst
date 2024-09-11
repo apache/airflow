@@ -21,7 +21,7 @@ Development Environments
 There are two environments, available on Linux and macOS, that you can use to
 develop Apache Airflow.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Local virtualenv Development Environment
 ----------------------------------------
@@ -49,7 +49,7 @@ Limitations:
     real unit tests. Technically, to run integration tests, you can configure
     and install the dependencies on your own, but it is usually complex.
     Instead, you are recommended to use
-    `Breeze development environment <dev/breeze/doc/README.rst>`__ with all required packages
+    `Breeze development environment <../dev/breeze/doc/README.rst>`__ with all required packages
     pre-installed.
 
 -   You need to make sure that your local environment is consistent with other
@@ -71,7 +71,7 @@ Breeze Development Environment
 ------------------------------
 
 All details about using and running Airflow Breeze can be found in
-`Breeze <dev/breeze/doc/README.rst>`__.
+`Breeze <../dev/breeze/doc/README.rst>`__.
 
 The Airflow Breeze solution is intended to ease your local development as "*It's
 a Breeze to develop Airflow*".
@@ -86,7 +86,7 @@ Benefits:
 
 -   Breeze environment is almost the same as used in the CI automated builds.
     So, if the tests run in your Breeze environment, they will work in the CI as well.
-    See `<../../dev/breeze/doc/ci/README.md>`_ for details about Airflow CI.
+    See `Airflow CI design <../dev/breeze/doc/ci/README.md>`__ for details about Airflow CI.
 
 Limitations:
 
@@ -115,11 +115,11 @@ Remote development environments
 
 There are also remote development environments that you can use to develop Airflow:
 
-- `CodeSpaces <quick-star-ide/contributors_quick_start_codespaces.rst>`_ - a browser-based development
+- `CodeSpaces <quick-start-ide/contributors_quick_start_codespaces.rst>`_ - a browser-based development
    environment that you can use to develop Airflow in a browser. It is based on GitHub CodeSpaces and
    is available for all GitHub users (free version has number of hours/month limitations).
 
-- `GitPod <quick-star-ide/contributors_quick_start_gitpod.rst>`_ - a browser-based development
+- `GitPod <quick-start-ide/contributors_quick_start_gitpod.rst>`_ - a browser-based development
    environment that you can use to develop Airflow in a browser. It is based on GitPod and
    is a paid service.
 

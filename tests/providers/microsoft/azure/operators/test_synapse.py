@@ -21,6 +21,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.synapse import (
     AzureSynapsePipelineHook,
@@ -71,7 +72,7 @@ class TestAzureSynapseRunSparkBatchOperator:
         create_mock_connection(
             Connection(
                 conn_id=AZURE_SYNAPSE_CONN_ID,
-                conn_type="azure_synapse_pipeline",
+                conn_type="azure_synapse",
                 host="https://synapsetest.net",
                 login="client-id",
                 password="client-secret",
@@ -101,7 +102,7 @@ class TestAzureSynapseRunSparkBatchOperator:
             task_id="test", azure_synapse_conn_id=AZURE_SYNAPSE_CONN_ID, spark_pool="test_pool", payload={}
         )
         with pytest.raises(
-            Exception,
+            AirflowException,
             match=f"Job run {JOB_RUN_RESPONSE['id']} has failed or has been cancelled.",
         ):
             op.execute(context=self.mock_context)

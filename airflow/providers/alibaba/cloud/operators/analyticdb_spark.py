@@ -60,8 +60,7 @@ class AnalyticDBSparkBaseOperator(BaseOperator):
         """Get valid hook."""
         return self.hook
 
-    def execute(self, context: Context) -> Any:
-        ...
+    def execute(self, context: Context) -> Any: ...
 
     def monitor_application(self):
         self.log.info("Monitoring application with %s", self.app_id)

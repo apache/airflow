@@ -52,7 +52,7 @@ A minimal Airflow installation consists of the following components:
 * A *webserver*, which presents a handy user interface to inspect, trigger and debug the behaviour of
   DAGs and tasks.
 
-* A folder of *DAG files* is read by the *scheduler* to figure out what tasks to run and when and to
+* A folder of *DAG files*, which is read by the *scheduler* to figure out what tasks to run and when to
   run them.
 
 * A *metadata database*, which airflow components use to store state of workflows and tasks.
@@ -67,8 +67,8 @@ performance in your Airflow:
 
 * Optional *worker*, which executes the tasks given to it by the scheduler. In the basic installation
   worker might be part of the scheduler not a separate component. It can be run as a long running process
-  in the :doc:`CeleryExecutor <executor/celery>`, or as a POD in the
-  :doc:`KubernetesExecutor <executor/kubernetes>`.
+  in the :doc:`CeleryExecutor <apache-airflow-providers-celery:celery_executor>`, or as a POD in the
+  :doc:`KubernetesExecutor <apache-airflow-providers-cncf-kubernetes:kubernetes_executor>`.
 
 * Optional *triggerer*, which executes deferred tasks in an asyncio event loop. In basic installation
   where deferred tasks are not used, a triggerer is not necessary. More about deferring tasks can be
@@ -163,7 +163,7 @@ DAGs and tasks, but cannot author DAGs.
 
 The *DAG files* need to be synchronized between all the components that use them - *scheduler*,
 *triggerer* and *workers*. The *DAG files* can be synchronized by various mechanisms - typical
-ways how DAGs can be synchronized are described in :doc:`helm-chart:manage-dags-files` ot our
+ways how DAGs can be synchronized are described in :doc:`helm-chart:manage-dags-files` of our
 Helm Chart documentation. Helm chart is one of the ways how to deploy Airflow in K8S cluster.
 
 .. image:: ../img/diagram_distributed_airflow_architecture.png
@@ -180,6 +180,14 @@ support full multi-tenant features, it can be used to make sure that **DAG autho
 executed in the context of the scheduler.
 
 .. image:: ../img/diagram_dag_processor_airflow_architecture.png
+
+.. note::
+
+    When DAG file is changed there can be cases where the scheduler and the worker will see different
+    versions of the DAG until both components catch up. You can avoid the issue by making sure dag is
+    deactivated during deployment and reactivate once finished. If needed, the cadence of sync and scan
+    of DAG folder can be configured. Please make sure you really know what you are doing if you change
+    the configurations.
 
 .. _overview:workloads:
 
@@ -224,7 +232,7 @@ To pass data between tasks you have three options:
 
 Airflow sends out Tasks to run on Workers as space becomes available, so there's no guarantee all the tasks in your DAG will run on the same worker or the same machine.
 
-As you build out your DAGs, they are likely to get very complex, so Airflow provides several mechanisms for making this more sustainable - :ref:`SubDAGs <concepts:subdags>` let you make "reusable" DAGs you can embed into other ones, and :ref:`concepts:taskgroups` let you visually group tasks in the UI.
+As you build out your DAGs, they are likely to get very complex, so Airflow provides several mechanisms for making this more sustainable, example :ref:`concepts:taskgroups` let you visually group tasks in the UI.
 
 There are also features for letting you easily pre-configure access to a central resource, like a datastore, in the form of :doc:`../authoring-and-scheduling/connections`, and for limiting concurrency, via :doc:`../administration-and-deployment/pools`.
 

@@ -22,6 +22,7 @@ This module contains Google PubSub operators.
 
     MessageStoragePolicy
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable, Sequence
@@ -41,6 +42,7 @@ from google.cloud.pubsub_v1.types import (
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.links.pubsub import PubSubSubscriptionLink, PubSubTopicLink
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -49,7 +51,8 @@ if TYPE_CHECKING:
 
 
 class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
-    """Create a PubSub topic.
+    """
+    Create a PubSub topic.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -123,7 +126,7 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
         self,
         *,
         topic: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         fail_if_exists: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         labels: dict[str, str] | None = None,
@@ -182,7 +185,8 @@ class PubSubCreateTopicOperator(GoogleCloudBaseOperator):
 
 
 class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
-    """Create a PubSub subscription.
+    """
+    Create a PubSub subscription.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -309,7 +313,7 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
         self,
         *,
         topic: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         subscription: str | None = None,
         subscription_project_id: str | None = None,
         ack_deadline_secs: int = 10,
@@ -391,7 +395,8 @@ class PubSubCreateSubscriptionOperator(GoogleCloudBaseOperator):
 
 
 class PubSubDeleteTopicOperator(GoogleCloudBaseOperator):
-    """Delete a PubSub topic.
+    """
+    Delete a PubSub topic.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -451,7 +456,7 @@ class PubSubDeleteTopicOperator(GoogleCloudBaseOperator):
         self,
         *,
         topic: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         fail_if_not_exists: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         retry: Retry | _MethodDefault = DEFAULT,
@@ -489,7 +494,8 @@ class PubSubDeleteTopicOperator(GoogleCloudBaseOperator):
 
 
 class PubSubDeleteSubscriptionOperator(GoogleCloudBaseOperator):
-    """Delete a PubSub subscription.
+    """
+    Delete a PubSub subscription.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -551,7 +557,7 @@ class PubSubDeleteSubscriptionOperator(GoogleCloudBaseOperator):
         self,
         *,
         subscription: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         fail_if_not_exists: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         retry: Retry | _MethodDefault = DEFAULT,
@@ -589,7 +595,8 @@ class PubSubDeleteSubscriptionOperator(GoogleCloudBaseOperator):
 
 
 class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
-    """Publish messages to a PubSub topic.
+    """
+    Publish messages to a PubSub topic.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -602,12 +609,22 @@ class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
         m1 = {"data": b"Hello, World!", "attributes": {"type": "greeting"}}
         m2 = {"data": b"Knock, knock"}
         m3 = {"attributes": {"foo": ""}}
+        m4 = {"data": b"Who's there?", "attributes": {"ordering_key": "knock_knock"}}
 
         t1 = PubSubPublishMessageOperator(
             project_id="my-project",
             topic="my_topic",
             messages=[m1, m2, m3],
             create_topic=True,
+            dag=dag,
+        )
+
+        t2 = PubSubPublishMessageOperator(
+            project_id="my-project",
+            topic="my_topic",
+            messages=[m4],
+            create_topic=True,
+            enable_message_ordering=True,
             dag=dag,
         )
 
@@ -630,6 +647,10 @@ class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
         https://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage
     :param gcp_conn_id: The connection ID to use connecting to
         Google Cloud.
+    :param enable_message_ordering: If true, messages published with the same
+        ordering_key in PubsubMessage will be delivered to the subscribers in the order
+        in which they are received by the Pub/Sub system. Otherwise, they may be
+        delivered in any order. Default is False.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -644,6 +665,7 @@ class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
         "project_id",
         "topic",
         "messages",
+        "enable_message_ordering",
         "impersonation_chain",
     )
     ui_color = "#0273d4"
@@ -653,8 +675,9 @@ class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
         *,
         topic: str,
         messages: list,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         gcp_conn_id: str = "google_cloud_default",
+        enable_message_ordering: bool = False,
         impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
@@ -663,12 +686,14 @@ class PubSubPublishMessageOperator(GoogleCloudBaseOperator):
         self.topic = topic
         self.messages = messages
         self.gcp_conn_id = gcp_conn_id
+        self.enable_message_ordering = enable_message_ordering
         self.impersonation_chain = impersonation_chain
 
     def execute(self, context: Context) -> None:
         hook = PubSubHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
+            enable_message_ordering=self.enable_message_ordering,
         )
 
         self.log.info("Publishing to topic %s", self.topic)

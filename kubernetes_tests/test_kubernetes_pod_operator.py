@@ -20,7 +20,6 @@ import json
 import logging
 import os
 import shutil
-import sys
 from copy import copy
 from unittest import mock
 from unittest.mock import ANY, MagicMock
@@ -51,7 +50,7 @@ POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodMana
 
 
 def create_context(task) -> Context:
-    dag = DAG(dag_id="dag")
+    dag = DAG(dag_id="dag", schedule=None)
     execution_date = timezone.datetime(
         2016, 1, 1, 1, 0, 0, tzinfo=timezone.parse_timezone("Europe/Amsterdam")
     )
@@ -63,6 +62,7 @@ def create_context(task) -> Context:
     task_instance = TaskInstance(task=task)
     task_instance.dag_run = dag_run
     task_instance.dag_id = dag.dag_id
+    task_instance.try_number = 1
     task_instance.xcom_push = mock.Mock()  # type: ignore
     return Context(
         dag=dag,
@@ -85,7 +85,7 @@ def test_label(request):
     return label[-63:]
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_get_connection():
     with mock.patch(f"{HOOK_CLASS}.get_connection", return_value=Connection(conn_id="kubernetes_default")):
         yield
@@ -205,6 +205,21 @@ class TestKubernetesPodOperatorSystem:
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
         assert self.expected_pod["spec"] == actual_pod["spec"]
         assert self.expected_pod["metadata"]["labels"] == actual_pod["metadata"]["labels"]
+
+    def test_skip_cleanup(self, mock_get_connection):
+        k = KubernetesPodOperator(
+            namespace="unknown",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels=self.labels,
+            task_id=str(uuid4()),
+            in_cluster=False,
+            do_xcom_push=False,
+        )
+        context = create_context(k)
+        with pytest.raises(ApiException):
+            k.execute(context)
 
     def test_delete_operator_pod(self, mock_get_connection):
         k = KubernetesPodOperator(
@@ -614,12 +629,12 @@ class TestKubernetesPodOperatorSystem:
             do_xcom_push=False,
             startup_timeout_seconds=5,
         )
-        with pytest.raises(AirflowException):
-            context = create_context(k)
+        context = create_context(k)
+        with pytest.raises(AirflowException, match="Pod .* returned a failure"):
             k.execute(context)
-            actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-            self.expected_pod["spec"]["containers"][0]["image"] = bad_image_name
-            assert self.expected_pod == actual_pod
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod["spec"]["containers"][0]["image"] = bad_image_name
+        assert self.expected_pod == actual_pod
 
     def test_faulty_service_account(self, mock_get_connection):
         k = KubernetesPodOperator(
@@ -654,12 +669,12 @@ class TestKubernetesPodOperatorSystem:
             in_cluster=False,
             do_xcom_push=False,
         )
-        with pytest.raises(AirflowException):
-            context = create_context(k)
+        context = create_context(k)
+        with pytest.raises(AirflowException, match="Pod .* returned a failure"):
             k.execute(context)
-            actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-            self.expected_pod["spec"]["containers"][0]["args"] = bad_internal_command
-            assert self.expected_pod == actual_pod
+        actual_pod = self.api_client.sanitize_for_serialization(k.pod)
+        self.expected_pod["spec"]["containers"][0]["args"] = bad_internal_command
+        assert self.expected_pod == actual_pod
 
     def test_xcom_push(self, test_label, mock_get_connection):
         expected = {"test_label": test_label, "buzz": 2}
@@ -709,14 +724,13 @@ class TestKubernetesPodOperatorSystem:
         ]
         assert self.expected_pod == actual_pod
 
-    def test_pod_template_file_system(self, mock_get_connection):
+    def test_pod_template_file_system(self, mock_get_connection, basic_pod_template):
         """Note: this test requires that you have a namespace ``mem-example`` in your cluster."""
-        fixture = sys.path[0] + "/tests/providers/cncf/kubernetes/basic_pod.yaml"
         k = KubernetesPodOperator(
             task_id=str(uuid4()),
             in_cluster=False,
             labels=self.labels,
-            pod_template_file=fixture,
+            pod_template_file=basic_pod_template.as_posix(),
             do_xcom_push=True,
         )
 
@@ -732,14 +746,15 @@ class TestKubernetesPodOperatorSystem:
             pytest.param({"env_name": "value"}, id="backcompat"),  # todo: remove?
         ],
     )
-    def test_pod_template_file_with_overrides_system(self, env_vars, test_label, mock_get_connection):
-        fixture = sys.path[0] + "/tests/providers/cncf/kubernetes/basic_pod.yaml"
+    def test_pod_template_file_with_overrides_system(
+        self, env_vars, test_label, mock_get_connection, basic_pod_template
+    ):
         k = KubernetesPodOperator(
             task_id=str(uuid4()),
             labels=self.labels,
             env_vars=env_vars,
             in_cluster=False,
-            pod_template_file=fixture,
+            pod_template_file=basic_pod_template.as_posix(),
             do_xcom_push=True,
         )
 
@@ -759,8 +774,7 @@ class TestKubernetesPodOperatorSystem:
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
 
-    def test_pod_template_file_with_full_pod_spec(self, test_label, mock_get_connection):
-        fixture = sys.path[0] + "/tests/providers/cncf/kubernetes/basic_pod.yaml"
+    def test_pod_template_file_with_full_pod_spec(self, test_label, mock_get_connection, basic_pod_template):
         pod_spec = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
                 labels={"test_label": test_label, "fizz": "buzz"},
@@ -778,7 +792,7 @@ class TestKubernetesPodOperatorSystem:
             task_id=str(uuid4()),
             labels=self.labels,
             in_cluster=False,
-            pod_template_file=fixture,
+            pod_template_file=basic_pod_template.as_posix(),
             full_pod_spec=pod_spec,
             do_xcom_push=True,
         )
@@ -912,6 +926,7 @@ class TestKubernetesPodOperatorSystem:
         await_xcom_sidecar_container_start_mock,
         caplog,
         test_label,
+        pod_template,
     ):
         # todo: This isn't really a system test
         await_xcom_sidecar_container_start_mock.return_value = None
@@ -920,12 +935,11 @@ class TestKubernetesPodOperatorSystem:
         hook_mock.return_value.get_xcom_sidecar_container_resources.return_value = None
         hook_mock.return_value.get_connection.return_value = Connection(conn_id="kubernetes_default")
         extract_xcom_mock.return_value = "{}"
-        path = sys.path[0] + "/tests/providers/cncf/kubernetes/pod.yaml"
         k = KubernetesPodOperator(
             task_id=str(uuid4()),
             labels=self.labels,
             random_name_suffix=False,
-            pod_template_file=path,
+            pod_template_file=pod_template.as_posix(),
             do_xcom_push=True,
         )
         pod_mock = MagicMock()
@@ -1158,7 +1172,7 @@ class TestKubernetesPodOperatorSystem:
         # `create_pod` should be called because though there's still a pod to be found,
         # it will be `already_checked`
         with mock.patch(f"{POD_MANAGER_CLASS}.create_pod") as create_mock:
-            with pytest.raises(AirflowException):
+            with pytest.raises(ApiException, match=r'pods \\"test.[a-z0-9]+\\" not found'):
                 k.execute(context)
             create_mock.assert_called_once()
 

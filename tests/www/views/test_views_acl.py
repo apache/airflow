@@ -31,8 +31,13 @@ from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from airflow.www.views import FILTER_STATUS_COOKIE
 from tests.test_utils.api_connexion_utils import create_user_scope
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.db import clear_db_runs
+from tests.test_utils.permissions import _resource_name
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -138,6 +143,7 @@ def reset_dagruns():
 
 @pytest.fixture(autouse=True)
 def init_dagruns(acl_app, reset_dagruns):
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     acl_app.dag_bag.get_dag("example_bash_operator").create_dagrun(
         run_id=DEFAULT_RUN_ID,
         run_type=DagRunType.SCHEDULED,
@@ -145,29 +151,31 @@ def init_dagruns(acl_app, reset_dagruns):
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         start_date=timezone.utcnow(),
         state=State.RUNNING,
+        **triggered_by_kwargs,
     )
-    acl_app.dag_bag.get_dag("example_subdag_operator").create_dagrun(
+    acl_app.dag_bag.get_dag("example_python_operator").create_dagrun(
         run_type=DagRunType.SCHEDULED,
         execution_date=DEFAULT_DATE,
         start_date=timezone.utcnow(),
         data_interval=(DEFAULT_DATE, DEFAULT_DATE),
         state=State.RUNNING,
+        **triggered_by_kwargs,
     )
     yield
     clear_db_runs()
 
 
-@pytest.fixture()
+@pytest.fixture
 def dag_test_client(acl_app):
     return client_with_login(acl_app, username="dag_test", password="dag_test")
 
 
-@pytest.fixture()
+@pytest.fixture
 def dag_faker_client(acl_app):
     return client_with_login(acl_app, username="dag_faker", password="dag_faker")
 
 
-@pytest.fixture()
+@pytest.fixture
 def all_dag_user_client(acl_app):
     return client_with_login(
         acl_app,
@@ -225,7 +233,7 @@ def user_all_dags(acl_app):
         yield user
 
 
-@pytest.fixture()
+@pytest.fixture
 def client_all_dags(acl_app, user_all_dags):
     return client_with_login(
         acl_app,
@@ -237,14 +245,14 @@ def client_all_dags(acl_app, user_all_dags):
 def test_index_for_all_dag_user(client_all_dags):
     # The all dag user can access/view all dags.
     resp = client_all_dags.get("/", follow_redirects=True)
-    check_content_in_response("example_subdag_operator", resp)
+    check_content_in_response("example_python_operator", resp)
     check_content_in_response("example_bash_operator", resp)
 
 
 def test_index_failure(dag_test_client):
     # This user can only access/view example_bash_operator dag.
     resp = dag_test_client.get("/", follow_redirects=True)
-    check_content_not_in_response("example_subdag_operator", resp)
+    check_content_not_in_response("example_python_operator", resp)
 
 
 def test_dag_autocomplete_success(client_all_dags):
@@ -253,12 +261,36 @@ def test_dag_autocomplete_success(client_all_dags):
         follow_redirects=False,
     )
     expected = [
-        {"name": "airflow", "type": "owner"},
-        {"name": "example_dynamic_task_mapping_with_no_taskflow_operators", "type": "dag"},
-        {"name": "example_setup_teardown_taskflow", "type": "dag"},
-        {"name": "test_mapped_taskflow", "type": "dag"},
-        {"name": "tutorial_taskflow_api", "type": "dag"},
-        {"name": "tutorial_taskflow_api_virtualenv", "type": "dag"},
+        {"name": "airflow", "type": "owner", "dag_display_name": None},
+        {
+            "dag_display_name": None,
+            "name": "dataset_alias_example_alias_consumer_with_no_taskflow",
+            "type": "dag",
+        },
+        {
+            "dag_display_name": None,
+            "name": "dataset_alias_example_alias_producer_with_no_taskflow",
+            "type": "dag",
+        },
+        {
+            "dag_display_name": None,
+            "name": "dataset_s3_bucket_consumer_with_no_taskflow",
+            "type": "dag",
+        },
+        {
+            "dag_display_name": None,
+            "name": "dataset_s3_bucket_producer_with_no_taskflow",
+            "type": "dag",
+        },
+        {
+            "name": "example_dynamic_task_mapping_with_no_taskflow_operators",
+            "type": "dag",
+            "dag_display_name": None,
+        },
+        {"name": "example_setup_teardown_taskflow", "type": "dag", "dag_display_name": None},
+        {"name": "test_mapped_taskflow", "type": "dag", "dag_display_name": None},
+        {"name": "tutorial_taskflow_api", "type": "dag", "dag_display_name": None},
+        {"name": "tutorial_taskflow_api_virtualenv", "type": "dag", "dag_display_name": None},
     ]
 
     assert resp.json == expected
@@ -281,7 +313,15 @@ def test_dag_autocomplete_empty(client_all_dags, query, expected):
     assert resp.json == expected
 
 
-@pytest.fixture()
+def test_dag_autocomplete_dag_display_name(client_all_dags):
+    url = "dagmodel/autocomplete?query=Sample"
+    resp = client_all_dags.get(url, follow_redirects=False)
+    assert resp.json == [
+        {"name": "example_display_name", "type": "dag", "dag_display_name": "Sample DAG with Display Name"}
+    ]
+
+
+@pytest.fixture
 def setup_paused_dag():
     """Pause a DAG so we can test filtering."""
     dag_to_pause = "example_branch_operator"
@@ -326,7 +366,7 @@ def user_all_dags_dagruns(acl_app):
         yield user
 
 
-@pytest.fixture()
+@pytest.fixture
 def client_all_dags_dagruns(acl_app, user_all_dags_dagruns):
     return client_with_login(
         acl_app,
@@ -343,12 +383,12 @@ def test_dag_stats_success(client_all_dags_dagruns):
 
 def test_task_stats_failure(dag_test_client):
     resp = dag_test_client.post("task_stats", follow_redirects=True)
-    check_content_not_in_response("example_subdag_operator", resp)
+    check_content_not_in_response("example_python_operator", resp)
 
 
 def test_dag_stats_success_for_all_dag_user(client_all_dags_dagruns):
     resp = client_all_dags_dagruns.post("dag_stats", follow_redirects=True)
-    check_content_in_response("example_subdag_operator", resp)
+    check_content_in_response("example_python_operator", resp)
     check_content_in_response("example_bash_operator", resp)
 
 
@@ -368,7 +408,7 @@ def user_all_dags_dagruns_tis(acl_app):
         yield user
 
 
-@pytest.fixture()
+@pytest.fixture
 def client_all_dags_dagruns_tis(acl_app, user_all_dags_dagruns_tis):
     return client_with_login(
         acl_app,
@@ -380,18 +420,18 @@ def client_all_dags_dagruns_tis(acl_app, user_all_dags_dagruns_tis):
 def test_task_stats_empty_success(client_all_dags_dagruns_tis):
     resp = client_all_dags_dagruns_tis.post("task_stats", follow_redirects=True)
     check_content_in_response("example_bash_operator", resp)
-    check_content_in_response("example_subdag_operator", resp)
+    check_content_in_response("example_python_operator", resp)
 
 
 @pytest.mark.parametrize(
     "dags_to_run, unexpected_dag_ids",
     [
         (
-            ["example_subdag_operator"],
+            ["example_python_operator"],
             ["example_bash_operator", "example_xcom"],
         ),
         (
-            ["example_subdag_operator", "example_bash_operator"],
+            ["example_python_operator", "example_bash_operator"],
             ["example_xcom"],
         ),
     ],
@@ -428,7 +468,7 @@ def user_all_dags_codes(acl_app):
         yield user
 
 
-@pytest.fixture()
+@pytest.fixture
 def client_all_dags_codes(acl_app, user_all_dags_codes):
     return client_with_login(
         acl_app,
@@ -451,7 +491,7 @@ def test_code_failure(dag_test_client):
 
 @pytest.mark.parametrize(
     "dag_id",
-    ["example_bash_operator", "example_subdag_operator"],
+    ["example_bash_operator", "example_python_operator"],
 )
 def test_code_success_for_all_dag_user(client_all_dags_codes, dag_id):
     url = f"code?dag_id={dag_id}"
@@ -461,7 +501,7 @@ def test_code_success_for_all_dag_user(client_all_dags_codes, dag_id):
 
 @pytest.mark.parametrize(
     "dag_id",
-    ["example_bash_operator", "example_subdag_operator"],
+    ["example_bash_operator", "example_python_operator"],
 )
 def test_dag_details_success_for_all_dag_user(client_all_dags_dagruns, dag_id):
     url = f"dag_details?dag_id={dag_id}"
@@ -485,7 +525,7 @@ def user_all_dags_tis(acl_app):
         yield user
 
 
-@pytest.fixture()
+@pytest.fixture
 def client_all_dags_tis(acl_app, user_all_dags_tis):
     return client_with_login(
         acl_app,
@@ -510,7 +550,7 @@ def user_all_dags_tis_xcom(acl_app):
         yield user
 
 
-@pytest.fixture()
+@pytest.fixture
 def client_all_dags_tis_xcom(acl_app, user_all_dags_tis_xcom):
     return client_with_login(
         acl_app,
@@ -536,7 +576,7 @@ def user_dags_tis_logs(acl_app):
         yield user
 
 
-@pytest.fixture()
+@pytest.fixture
 def client_dags_tis_logs(acl_app, user_dags_tis_logs):
     return client_with_login(
         acl_app,
@@ -640,7 +680,7 @@ def test_blocked_success(client_all_dags_dagruns):
 def test_blocked_success_for_all_dag_user(all_dag_user_client):
     resp = all_dag_user_client.post("blocked")
     check_content_in_response("example_bash_operator", resp)
-    check_content_in_response("example_subdag_operator", resp)
+    check_content_in_response("example_python_operator", resp)
 
 
 def test_blocked_viewer(viewer_client):
@@ -652,11 +692,11 @@ def test_blocked_viewer(viewer_client):
     "dags_to_block, unexpected_dag_ids",
     [
         (
-            ["example_subdag_operator"],
+            ["example_python_operator"],
             ["example_bash_operator", "example_xcom"],
         ),
         (
-            ["example_subdag_operator", "example_bash_operator"],
+            ["example_python_operator", "example_bash_operator"],
             ["example_xcom"],
         ),
     ],
@@ -692,7 +732,7 @@ def user_all_dags_edit_tis(acl_app):
         yield user
 
 
-@pytest.fixture()
+@pytest.fixture
 def client_all_dags_edit_tis(acl_app, user_all_dags_edit_tis):
     return client_with_login(
         acl_app,
@@ -735,7 +775,7 @@ def user_only_dags_tis(acl_app):
         yield user
 
 
-@pytest.fixture()
+@pytest.fixture
 def client_only_dags_tis(acl_app, user_only_dags_tis):
     return client_with_login(
         acl_app,
@@ -755,7 +795,7 @@ def test_success_fail_for_read_only_task_instance_access(client_only_dags_tis):
         past="false",
     )
     resp = client_only_dags_tis.post("success", data=form)
-    check_content_not_in_response("Wait a minute", resp, resp_code=302)
+    check_content_not_in_response("Please confirm", resp, resp_code=302)
 
 
 GET_LOGS_WITH_METADATA_URL = (
@@ -791,7 +831,7 @@ def user_no_roles(acl_app):
         yield user
 
 
-@pytest.fixture()
+@pytest.fixture
 def client_no_roles(acl_app, user_no_roles):
     return client_with_login(
         acl_app,
@@ -810,7 +850,7 @@ def user_no_permissions(acl_app):
         yield user
 
 
-@pytest.fixture()
+@pytest.fixture
 def client_no_permissions(acl_app, user_no_permissions):
     return client_with_login(
         acl_app,
@@ -819,7 +859,7 @@ def client_no_permissions(acl_app, user_no_permissions):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def client_anonymous(acl_app):
     return acl_app.test_client()
 
@@ -851,13 +891,16 @@ def user_dag_level_access_with_ti_edit(acl_app):
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
-            (permissions.ACTION_CAN_EDIT, permissions.resource_name_for_dag("example_bash_operator")),
+            (
+                permissions.ACTION_CAN_EDIT,
+                _resource_name("example_bash_operator", permissions.RESOURCE_DAG),
+            ),
         ],
     ) as user:
         yield user
 
 
-@pytest.fixture()
+@pytest.fixture
 def client_dag_level_access_with_ti_edit(acl_app, user_dag_level_access_with_ti_edit):
     return client_with_login(
         acl_app,
@@ -896,7 +939,7 @@ def user_ti_edit_without_dag_level_access(acl_app):
         yield user
 
 
-@pytest.fixture()
+@pytest.fixture
 def client_ti_edit_without_dag_level_access(acl_app, user_ti_edit_without_dag_level_access):
     return client_with_login(
         acl_app,

@@ -39,6 +39,8 @@ except ImportError:
         "pip install apache-airflow-providers-amazon[python3-saml]"
     )
 
+logger = logging.getLogger(__name__)
+
 
 class AwsAuthManagerAuthenticationViews(AirflowBaseView):
     """
@@ -81,9 +83,9 @@ class AwsAuthManagerAuthenticationViews(AirflowBaseView):
         is_authenticated = saml_auth.is_authenticated()
         if not is_authenticated:
             error_reason = saml_auth.get_last_error_reason()
-            logging.error("Failed to authenticate")
-            logging.error("Errors: %s", errors)
-            logging.error("Error reason: %s", error_reason)
+            logger.error("Failed to authenticate")
+            logger.error("Errors: %s", errors)
+            logger.error("Error reason: %s", error_reason)
             raise AirflowException(f"Failed to authenticate: {error_reason}")
 
         attributes = saml_auth.get_attributes()
@@ -91,7 +93,7 @@ class AwsAuthManagerAuthenticationViews(AirflowBaseView):
             user_id=attributes["id"][0],
             groups=attributes["groups"],
             username=saml_auth.get_nameid(),
-            email=attributes["email"][0],
+            email=attributes["email"][0] if "email" in attributes else None,
         )
         session["aws_user"] = user
 

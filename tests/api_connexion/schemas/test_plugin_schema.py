@@ -25,16 +25,14 @@ from airflow.api_connexion.schemas.plugin_schema import (
     plugin_schema,
 )
 from airflow.hooks.base import BaseHook
-from airflow.models.baseoperatorlink import BaseOperatorLink
 from airflow.plugins_manager import AirflowPlugin
+from tests.test_utils.compat import BaseOperatorLink
 
 
-class PluginHook(BaseHook):
-    ...
+class PluginHook(BaseHook): ...
 
 
-def plugin_macro():
-    ...
+def plugin_macro(): ...
 
 
 class MockOperatorLink(BaseOperatorLink):
@@ -47,8 +45,7 @@ class MockOperatorLink(BaseOperatorLink):
 bp = Blueprint("mock_blueprint", __name__, url_prefix="/mock_blueprint")
 
 
-class MockView(BaseView):
-    ...
+class MockView(BaseView): ...
 
 
 appbuilder_menu_items = {

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains SFTP operator."""
+
 from __future__ import annotations
 
 import os
@@ -200,8 +201,7 @@ class SFTPOperator(BaseOperator):
             input: file://<local_host>/path
             output: file://<remote_host>:<remote_port>/path.
         """
-        from openlineage.client.run import Dataset
-
+        from airflow.providers.common.compat.openlineage.facet import Dataset
         from airflow.providers.openlineage.extractors import OperatorLineage
 
         scheme = "file"
@@ -210,7 +210,9 @@ class SFTPOperator(BaseOperator):
             local_host = socket.gethostbyname(local_host)
         except Exception as e:
             self.log.warning(
-                f"Failed to resolve local hostname. Using the hostname got by socket.gethostbyname() without resolution. {e}",
+                "Failed to resolve local hostname. "
+                "Using the hostname got by socket.gethostbyname() without resolution. %s",
+                e,
                 exc_info=True,
             )
 
@@ -225,7 +227,8 @@ class SFTPOperator(BaseOperator):
             remote_host = socket.gethostbyname(remote_host)
         except OSError as e:
             self.log.warning(
-                f"Failed to resolve remote hostname. Using the provided hostname without resolution. {e}",
+                "Failed to resolve remote hostname. Using the provided hostname without resolution. %s",
+                e,
                 exc_info=True,
             )
 

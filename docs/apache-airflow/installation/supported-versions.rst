@@ -21,15 +21,15 @@ Supported versions
 Version Life Cycle
 ``````````````````
 
-Apache Airflow™ version life cycle:
+Apache Airflow® version life cycle:
 
- .. This table is automatically updated by pre-commit scripts/ci/pre_commit/pre_commit_supported_versions.py
+ .. This table is automatically updated by pre-commit scripts/ci/pre_commit/supported_versions.py
  .. Beginning of auto-generated table
 
 =========  =====================  =========  ===============  =================  ================
 Version    Current Patch/Minor    State      First Release    Limited Support    EOL/Terminated
 =========  =====================  =========  ===============  =================  ================
-2          2.8.1                  Supported  Dec 17, 2020     TBD                TBD
+2          2.10.0                 Supported  Dec 17, 2020     TBD                TBD
 1.10       1.10.15                EOL        Aug 27, 2018     Dec 17, 2020       June 17, 2021
 1.9        1.9.0                  EOL        Jan 03, 2018     Aug 27, 2018       Aug 27, 2018
 1.8        1.8.2                  EOL        Mar 19, 2017     Jan 03, 2018       Jan 03, 2018

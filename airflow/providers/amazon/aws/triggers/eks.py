@@ -50,7 +50,7 @@ class EksCreateClusterTrigger(AwsBaseWaiterTrigger):
         cluster_name: str,
         waiter_delay: int,
         waiter_max_attempts: int,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
         region_name: str | None = None,
     ):
         super().__init__(
@@ -113,7 +113,7 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
         cluster_name,
         waiter_delay: int,
         waiter_max_attempts: int,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
         region_name: str | None,
         force_delete_compute: bool,
     ):
@@ -214,7 +214,7 @@ class EksDeleteClusterTrigger(AwsBaseWaiterTrigger):
                 )
             self.log.info("All Fargate profiles deleted")
         else:
-            self.log.info(f"No Fargate profiles associated with cluster {self.cluster_name}")
+            self.log.info("No Fargate profiles associated with cluster %s", self.cluster_name)
 
 
 class EksCreateFargateProfileTrigger(AwsBaseWaiterTrigger):
@@ -234,7 +234,7 @@ class EksCreateFargateProfileTrigger(AwsBaseWaiterTrigger):
         fargate_profile_name: str,
         waiter_delay: int,
         waiter_max_attempts: int,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
         region: str | None = None,
         region_name: str | None = None,
     ):
@@ -281,7 +281,7 @@ class EksDeleteFargateProfileTrigger(AwsBaseWaiterTrigger):
         fargate_profile_name: str,
         waiter_delay: int,
         waiter_max_attempts: int,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
         region: str | None = None,
         region_name: str | None = None,
     ):
@@ -318,13 +318,12 @@ class EksCreateNodegroupTrigger(AwsBaseWaiterTrigger):
     The trigger will asynchronously poll the boto3 API and wait for the
     nodegroup to be in the state specified by the waiter.
 
-    :param waiter_name: Name of the waiter to use, for instance 'nodegroup_active' or 'nodegroup_deleted'
     :param cluster_name: The name of the EKS cluster associated with the node group.
     :param nodegroup_name: The name of the nodegroup to check.
     :param waiter_delay: The amount of time in seconds to wait between attempts.
     :param waiter_max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-    :param region: Which AWS region the connection should use. (templated)
+    :param region_name: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
     """
 
@@ -334,7 +333,7 @@ class EksCreateNodegroupTrigger(AwsBaseWaiterTrigger):
         nodegroup_name: str,
         waiter_delay: int,
         waiter_max_attempts: int,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
         region_name: str | None = None,
     ):
         super().__init__(
@@ -366,13 +365,12 @@ class EksDeleteNodegroupTrigger(AwsBaseWaiterTrigger):
     The trigger will asynchronously poll the boto3 API and wait for the
     nodegroup to be in the state specified by the waiter.
 
-    :param waiter_name: Name of the waiter to use, for instance 'nodegroup_active' or 'nodegroup_deleted'
     :param cluster_name: The name of the EKS cluster associated with the node group.
     :param nodegroup_name: The name of the nodegroup to check.
     :param waiter_delay: The amount of time in seconds to wait between attempts.
     :param waiter_max_attempts: The maximum number of attempts to be made.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-    :param region: Which AWS region the connection should use. (templated)
+    :param region_name: Which AWS region the connection should use. (templated)
         If this is None or empty then the default boto3 behaviour is used.
     """
 
@@ -382,7 +380,7 @@ class EksDeleteNodegroupTrigger(AwsBaseWaiterTrigger):
         nodegroup_name: str,
         waiter_delay: int,
         waiter_max_attempts: int,
-        aws_conn_id: str,
+        aws_conn_id: str | None,
         region_name: str | None = None,
     ):
         super().__init__(

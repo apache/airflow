@@ -20,16 +20,29 @@ from __future__ import annotations
 import uuid
 from unittest import mock
 
+import pytest
+from botocore.exceptions import ClientError
 from moto import mock_aws
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
+
+TEST_IMPORT_ARN = "arn:aws:dynamodb:us-east-1:255683865591:table/test-table/import/01662190284205-aa94decf"
 
 
 class TestDynamoDBHook:
     @mock_aws
     def test_get_conn_returns_a_boto3_connection(self):
         hook = DynamoDBHook(aws_conn_id="aws_default")
-        assert hook.get_conn() is not None
+        conn = hook.get_conn()
+        assert conn is not None
+        assert conn.__class__.__name__ == "dynamodb.ServiceResource"
+
+    @mock_aws
+    def test_get_client_from_dynamodb_ressource(self):
+        hook = DynamoDBHook(aws_conn_id="aws_default")
+        client = hook.client
+        assert client.__class__.__name__ == "DynamoDB"
 
     @mock_aws
     def test_insert_batch_items_dynamodb_table(self):
@@ -60,4 +73,77 @@ class TestDynamoDBHook:
     def test_waiter_path_generated_from_resource_type(self, _):
         hook = DynamoDBHook(aws_conn_id="aws_default")
         path = hook.waiter_path
-        assert path.as_uri().endswith("/airflow/airflow/providers/amazon/aws/waiters/dynamodb.json")
+        assert path.as_uri().endswith("/airflow/providers/amazon/aws/waiters/dynamodb.json")
+
+    @pytest.mark.parametrize(
+        "response, status, error",
+        [
+            pytest.param(
+                {"ImportTableDescription": {"ImportStatus": "COMPLETED"}}, "COMPLETED", False, id="complete"
+            ),
+            pytest.param(
+                {
+                    "ImportTableDescription": {
+                        "ImportStatus": "CANCELLING",
+                        "FailureCode": "Failure1",
+                        "FailureMessage": "Message",
+                    }
+                },
+                "CANCELLING",
+                True,
+                id="cancel",
+            ),
+            pytest.param(
+                {"ImportTableDescription": {"ImportStatus": "IN_PROGRESS"}},
+                "IN_PROGRESS",
+                False,
+                id="progress",
+            ),
+        ],
+    )
+    @mock.patch("botocore.client.BaseClient._make_api_call")
+    def test_get_s3_import_status(self, mock_make_api_call, response, status, error):
+        mock_make_api_call.return_value = response
+        hook = DynamoDBHook(aws_conn_id="aws_default")
+        sta, code, msg = hook.get_import_status(import_arn=TEST_IMPORT_ARN)
+        mock_make_api_call.assert_called_once_with("DescribeImport", {"ImportArn": TEST_IMPORT_ARN})
+        assert sta == status
+        if error:
+            assert code == "Failure1"
+            assert msg == "Message"
+        else:
+            assert code is None
+            assert msg is None
+
+    @pytest.mark.parametrize(
+        "effect, error",
+        [
+            pytest.param(
+                ClientError(
+                    error_response={"Error": {"Message": "Error message", "Code": "GeneralException"}},
+                    operation_name="UnitTest",
+                ),
+                ClientError,
+                id="general-exception",
+            ),
+            pytest.param(
+                ClientError(
+                    error_response={"Error": {"Message": "Error message", "Code": "ImportNotFoundException"}},
+                    operation_name="UnitTest",
+                ),
+                AirflowException,
+                id="not-found-exception",
+            ),
+        ],
+    )
+    @mock.patch("botocore.client.BaseClient._make_api_call")
+    def test_get_s3_import_status_with_error(self, mock_make_api_call, effect, error):
+        mock_make_api_call.side_effect = effect
+        hook = DynamoDBHook(aws_conn_id="aws_default")
+        with pytest.raises(error):
+            hook.get_import_status(import_arn=TEST_IMPORT_ARN)
+
+    def test_hook_has_import_waiters(self):
+        hook = DynamoDBHook(aws_conn_id="aws_default")
+        waiter = hook.get_waiter("import_table")
+        assert waiter is not None

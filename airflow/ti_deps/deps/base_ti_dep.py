@@ -59,7 +59,8 @@ class BaseTIDep:
 
     @property
     def name(self) -> str:
-        """The human-readable name for the dependency.
+        """
+        The human-readable name for the dependency.
 
         Use the class name as the default if ``NAME`` is not provided.
         """

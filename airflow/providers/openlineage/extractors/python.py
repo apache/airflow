@@ -20,17 +20,11 @@ from __future__ import annotations
 import inspect
 from typing import Callable
 
-from openlineage.client.facet import SourceCodeJobFacet
+from openlineage.client.facet_v2 import source_code_job
 
+from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors.base import BaseExtractor, OperatorLineage
-from airflow.providers.openlineage.plugins.facets import (
-    UnknownOperatorAttributeRunFacet,
-    UnknownOperatorInstance,
-)
-from airflow.providers.openlineage.utils.utils import (
-    get_filtered_unknown_operator_keys,
-    is_source_enabled,
-)
+from airflow.providers.openlineage.utils.utils import get_unknown_source_attribute_run_facet
 
 """
 :meta private:
@@ -55,29 +49,24 @@ class PythonExtractor(BaseExtractor):
     def _execute_extraction(self) -> OperatorLineage | None:
         source_code = self.get_source_code(self.operator.python_callable)
         job_facet: dict = {}
-        if is_source_enabled() and source_code:
+        if conf.is_source_enabled() and source_code:
             job_facet = {
-                "sourceCode": SourceCodeJobFacet(
+                "sourceCode": source_code_job.SourceCodeJobFacet(
                     language="python",
                     # We're on worker and should have access to DAG files
-                    source=source_code,
+                    sourceCode=source_code,
                 )
             }
+        else:
+            self.log.debug(
+                "OpenLineage disable_source_code option is on - no source code is extracted.",
+            )
+
         return OperatorLineage(
             job_facets=job_facet,
-            run_facets={
-                # The PythonOperator is recorded as an "unknownSource" even though we have an
-                # extractor, as the data lineage cannot be determined from the operator
-                # directly.
-                "unknownSourceAttribute": UnknownOperatorAttributeRunFacet(
-                    unknownItems=[
-                        UnknownOperatorInstance(
-                            name="PythonOperator",
-                            properties=get_filtered_unknown_operator_keys(self.operator),
-                        )
-                    ]
-                )
-            },
+            # The PythonOperator is recorded as an "unknownSource" even though we have an extractor,
+            # as the <i>data lineage</i> cannot be determined from the operator directly.
+            run_facets=get_unknown_source_attribute_run_facet(task=self.operator, name="PythonOperator"),
         )
 
     def get_source_code(self, callable: Callable) -> str | None:

@@ -37,13 +37,14 @@ def get_ga_output(name: str, value: Any) -> str:
     return f"{output_name}={printed_value}"
 
 
-def download_file_from_github(tag: str, path: str, output_file: Path) -> bool:
+def download_file_from_github(tag: str, path: str, output_file: Path, timeout: int = 60) -> bool:
     """
     Downloads a file from GitHub repository of Apache Airflow
 
     :param tag: tag to download from
     :param path: path of the file relative to the repository root
     :param output_file: Path where the file should be downloaded
+    :param timeout: timeout in seconds for the download request, default is 60 seconds
     :return: whether the file was successfully downloaded (False if the file is missing or error occurred)
     """
     import requests
@@ -51,16 +52,20 @@ def download_file_from_github(tag: str, path: str, output_file: Path) -> bool:
     url = f"https://raw.githubusercontent.com/apache/airflow/{tag}/{path}"
     get_console().print(f"[info]Downloading {url} to {output_file}")
     if not get_dry_run():
-        response = requests.get(url)
-        if response.status_code == 404:
-            get_console().print(f"[warning]The {url} has not been found. Skipping")
+        try:
+            response = requests.get(url, timeout=timeout)
+            if response.status_code == 404:
+                get_console().print(f"[warning]The {url} has not been found. Skipping")
+                return False
+            if response.status_code != 200:
+                get_console().print(
+                    f"[error]{url} could not be downloaded. Status code {response.status_code}"
+                )
+                return False
+            output_file.write_bytes(response.content)
+        except requests.Timeout:
+            get_console().print(f"[error]The request to {url} timed out after {timeout} seconds.")
             return False
-        if response.status_code != 200:
-            get_console().print(
-                f"[error]The {url} could not be downloaded. Status code {response.status_code}"
-            )
-            return False
-        output_file.write_bytes(response.content)
     get_console().print(f"[success]Downloaded {url} to {output_file}")
     return True
 
@@ -68,16 +73,17 @@ def download_file_from_github(tag: str, path: str, output_file: Path) -> bool:
 ACTIVE_TAG_MATCH = re.compile(r"^(\d+)\.\d+\.\d+$")
 
 
-def get_active_airflow_versions(confirm: bool = True) -> list[str]:
+def get_active_airflow_versions(confirm: bool = True) -> tuple[list[str], dict[str, str]]:
     """
     Gets list of active Airflow versions from GitHub.
 
     :param confirm: if True, will ask the user before proceeding with the versions found
-    :return: list of active Airflow versions
+    :return: tuple: list of active Airflow versions and dict of Airflow release dates (in iso format)
     """
     from git import GitCommandError, Repo
     from packaging.version import Version
 
+    airflow_release_dates: dict[str, str] = {}
     get_console().print(
         "\n[warning]Make sure you have `apache` remote added pointing to apache/airflow repository\n"
     )
@@ -103,15 +109,23 @@ def get_active_airflow_versions(confirm: bool = True) -> list[str]:
         if match and match.group(1) == "2":
             all_active_tags.append(tag)
     airflow_versions = sorted(all_active_tags, key=Version)
+    for version in airflow_versions:
+        date = get_tag_date(version)
+        if not date:
+            get_console().print("[error]Error fetching tag date for Airflow {version}")
+            sys.exit(1)
+        airflow_release_dates[version] = date
+    get_console().print("[info]All Airflow 2 versions")
+    for version in airflow_versions:
+        get_console().print(f"  {version}: [info]{airflow_release_dates[version]}[/]")
     if confirm:
-        get_console().print(f"All Airflow 2 versions: {all_active_tags}")
         answer = user_confirm(
             "Should we continue with those versions?", quit_allowed=False, default_answer=Answer.YES
         )
         if answer == Answer.NO:
             get_console().print("[red]Aborting[/]")
             sys.exit(1)
-    return airflow_versions
+    return airflow_versions, airflow_release_dates
 
 
 def download_constraints_file(

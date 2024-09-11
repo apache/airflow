@@ -20,7 +20,7 @@ import inspect
 import itertools
 import textwrap
 import warnings
-from functools import cached_property
+from functools import cached_property, update_wrapper
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -83,7 +83,8 @@ if TYPE_CHECKING:
 
 
 class ExpandableFactory(Protocol):
-    """Protocol providing inspection against wrapped function.
+    """
+    Protocol providing inspection against wrapped function.
 
     This is used in ``validate_expand_kwargs`` and implemented by function
     decorators like ``@task`` and ``@task_group``.
@@ -208,11 +209,38 @@ class DecoratedOperator(BaseOperator):
         # since values for those will be provided when the task is run. Since
         # we're not actually running the function, None is good enough here.
         signature = inspect.signature(python_callable)
+
+        # Don't allow context argument defaults other than None to avoid ambiguities.
+        faulty_parameters = [
+            param.name
+            for param in signature.parameters.values()
+            if param.name in KNOWN_CONTEXT_KEYS and param.default not in (None, inspect.Parameter.empty)
+        ]
+        if faulty_parameters:
+            message = f"Context key parameter {faulty_parameters[0]} can't have a default other than None"
+            raise ValueError(message)
+
         parameters = [
             param.replace(default=None) if param.name in KNOWN_CONTEXT_KEYS else param
             for param in signature.parameters.values()
         ]
-        signature = signature.replace(parameters=parameters)
+        try:
+            signature = signature.replace(parameters=parameters)
+        except ValueError as err:
+            message = textwrap.dedent(
+                f"""
+                The function signature broke while assigning defaults to context key parameters.
+
+                The decorator is replacing the signature
+                > {python_callable.__name__}({', '.join(str(param) for param in signature.parameters.values())})
+
+                with
+                > {python_callable.__name__}({', '.join(str(param) for param in parameters)})
+
+                which isn't valid: {err}
+                """
+            )
+            raise ValueError(message) from err
 
         # Check that arguments can be binded. There's a slight difference when
         # we do validation for task-mapping: Since there's no guarantee we can
@@ -306,6 +334,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
     is_teardown: bool = False
     on_failure_fail_dagrun: bool = False
 
+    # This is set in __attrs_post_init__ by update_wrapper. Provided here for type hints.
+    __wrapped__: Callable[FParams, FReturn] = attr.ib(init=False)
+
     @multiple_outputs.default
     def _infer_multiple_outputs(self):
         if "return" not in self.function.__annotations__:
@@ -314,8 +345,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
 
         try:
             # We only care about the return annotation, not anything about the parameters
-            def fake():
-                ...
+            def fake(): ...
 
             fake.__annotations__ = {"return": self.function.__annotations__["return"]}
 
@@ -336,6 +366,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         if "self" in self.function_signature.parameters:
             raise TypeError(f"@{self.decorator_name} does not support methods")
         self.kwargs.setdefault("task_id", self.function.__name__)
+        update_wrapper(self, self.function)
 
     def __call__(self, *args: FParams.args, **kwargs: FParams.kwargs) -> XComArg:
         if self.is_teardown:
@@ -358,10 +389,6 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         if self.function.__doc__ and not any(op_doc_attrs):
             op.doc_md = self.function.__doc__
         return XComArg(op)
-
-    @property
-    def __wrapped__(self) -> Callable[FParams, FReturn]:
-        return self.function
 
     def _validate_arg_names(self, func: ValidationSource, kwargs: dict[str, Any]):
         # Ensure that context variables are not shadowed.
@@ -483,6 +510,8 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
             # task's expand() contribute to the op_kwargs operator argument, not
             # the operator arguments themselves, and should expand against it.
             expand_input_attr="op_kwargs_expand_input",
+            start_trigger_args=self.operator_class.start_trigger_args,
+            start_from_trigger=self.operator_class.start_from_trigger,
         )
         return XComArg(operator=operator)
 
@@ -521,11 +550,13 @@ class DecoratedMappedOperator(MappedOperator):
         super(DecoratedMappedOperator, DecoratedMappedOperator).__attrs_post_init__(self)
         XComArg.apply_upstream_relationship(self, self.op_kwargs_expand_input.value)
 
-    def _expand_mapped_kwargs(self, context: Context, session: Session) -> tuple[Mapping[str, Any], set[int]]:
+    def _expand_mapped_kwargs(
+        self, context: Context, session: Session, *, include_xcom: bool
+    ) -> tuple[Mapping[str, Any], set[int]]:
         # We only use op_kwargs_expand_input so this must always be empty.
         if self.expand_input is not EXPAND_INPUT_EMPTY:
             raise AssertionError(f"unexpected expand_input: {self.expand_input}")
-        op_kwargs, resolved_oids = super()._expand_mapped_kwargs(context, session)
+        op_kwargs, resolved_oids = super()._expand_mapped_kwargs(context, session, include_xcom=include_xcom)
         return {"op_kwargs": op_kwargs}, resolved_oids
 
     def _get_unmap_kwargs(self, mapped_kwargs: Mapping[str, Any], *, strict: bool) -> dict[str, Any]:
@@ -544,7 +575,8 @@ class DecoratedMappedOperator(MappedOperator):
 
 
 class Task(Protocol, Generic[FParams, FReturn]):
-    """Declaration of a @task-decorated callable for type-checking.
+    """
+    Declaration of a @task-decorated callable for type-checking.
 
     An instance of this type inherits the call signature of the decorated
     function wrapped in it (not *exactly* since it actually returns an XComArg,
@@ -559,20 +591,15 @@ class Task(Protocol, Generic[FParams, FReturn]):
     function: Callable[FParams, FReturn]
 
     @property
-    def __wrapped__(self) -> Callable[FParams, FReturn]:
-        ...
+    def __wrapped__(self) -> Callable[FParams, FReturn]: ...
 
-    def partial(self, **kwargs: Any) -> Task[FParams, FReturn]:
-        ...
+    def partial(self, **kwargs: Any) -> Task[FParams, FReturn]: ...
 
-    def expand(self, **kwargs: OperatorExpandArgument) -> XComArg:
-        ...
+    def expand(self, **kwargs: OperatorExpandArgument) -> XComArg: ...
 
-    def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg:
-        ...
+    def expand_kwargs(self, kwargs: OperatorExpandKwargsArgument, *, strict: bool = True) -> XComArg: ...
 
-    def override(self, **kwargs: Any) -> Task[FParams, FReturn]:
-        ...
+    def override(self, **kwargs: Any) -> Task[FParams, FReturn]: ...
 
 
 class TaskDecorator(Protocol):
@@ -594,8 +621,7 @@ class TaskDecorator(Protocol):
     ) -> Callable[[Callable[FParams, FReturn]], Task[FParams, FReturn]]:
         """For the decorator factory ``@task()`` case."""
 
-    def override(self, **kwargs: Any) -> Task[FParams, FReturn]:
-        ...
+    def override(self, **kwargs: Any) -> Task[FParams, FReturn]: ...
 
 
 def task_decorator_factory(
@@ -605,7 +631,8 @@ def task_decorator_factory(
     decorated_operator_class: type[BaseOperator],
     **kwargs,
 ) -> TaskDecorator:
-    """Generate a wrapper that wraps a function into an Airflow operator.
+    """
+    Generate a wrapper that wraps a function into an Airflow operator.
 
     Can be reused in a single DAG.
 

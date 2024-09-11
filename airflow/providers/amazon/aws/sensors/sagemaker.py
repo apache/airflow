@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Sequence
 
 from deprecated import deprecated
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -40,7 +40,7 @@ class SageMakerBaseSensor(BaseSensorOperator):
 
     ui_color = "#ededed"
 
-    def __init__(self, *, aws_conn_id: str = "aws_default", resource_type: str = "job", **kwargs):
+    def __init__(self, *, aws_conn_id: str | None = "aws_default", resource_type: str = "job", **kwargs):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.resource_type = resource_type  # only used for logs, to say what kind of resource we are sensing
@@ -65,11 +65,9 @@ class SageMakerBaseSensor(BaseSensorOperator):
             return False
         if state in self.failed_states():
             failed_reason = self.get_failed_reason_from_response(response)
-            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
-            message = f"Sagemaker {self.resource_type} failed for the following reason: {failed_reason}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
-            raise AirflowException(message)
+            raise AirflowException(
+                f"Sagemaker {self.resource_type} failed for the following reason: {failed_reason}"
+            )
         return True
 
     def non_terminal_states(self) -> set[str]:

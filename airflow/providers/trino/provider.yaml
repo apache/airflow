@@ -22,9 +22,14 @@ description: |
     `Trino <https://trino.io/>`__
 
 state: ready
-source-date-epoch: 1707636545
+source-date-epoch: 1723970622
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 5.8.0
+  - 5.7.2
+  - 5.7.1
+  - 5.7.0
+  - 5.6.3
   - 5.6.2
   - 5.6.1
   - 5.6.0
@@ -58,9 +63,14 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.6.0
+  - apache-airflow>=2.8.0
   - apache-airflow-providers-common-sql>=1.3.1
-  - pandas>=1.2.5
+  # In pandas 2.2 minimal version of the sqlalchemy is 2.0
+  # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
+  # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
+  # In addition FAB also limit sqlalchemy to < 2.0
+  - pandas>=2.1.2,<2.2;python_version>="3.9"
+  - pandas>=1.5.3,<2.2;python_version<"3.9"
   - trino>=0.318.0
 
 integrations:
@@ -75,6 +85,10 @@ operators:
   - integration-name: Trino
     python-modules:
       - airflow.providers.trino.operators.trino
+
+dataset-uris:
+  - schemes: [trino]
+    handler: airflow.providers.trino.datasets.trino.sanitize_uri
 
 hooks:
   - integration-name: Trino

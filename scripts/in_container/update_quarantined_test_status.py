@@ -202,14 +202,14 @@ if __name__ == "__main__":
     print(f"Token: {token}")
     github_repository = os.environ.get("GITHUB_REPOSITORY")
     if not github_repository:
-        raise Exception("GitHub Repository must be defined!")
+        raise RuntimeError("GitHub Repository must be defined!")
     user, repo = github_repository.split("/")
     print(f"User: {user}, Repo: {repo}")
     issue_id = int(os.environ.get("ISSUE_ID", 0))
     num_runs = int(os.environ.get("NUM_RUNS", 10))
 
     if issue_id == 0:
-        raise Exception("You need to define ISSUE_ID as environment variable")
+        raise RuntimeError("You need to define ISSUE_ID as environment variable")
 
     gh = login(token=token)
 

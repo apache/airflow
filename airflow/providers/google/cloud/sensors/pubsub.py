@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google PubSub sensor."""
+
 from __future__ import annotations
 
 from datetime import timedelta
@@ -24,7 +25,7 @@ from typing import TYPE_CHECKING, Any, Callable, Sequence
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
 from airflow.providers.google.cloud.triggers.pubsub import PubsubPullTrigger
 from airflow.sensors.base import BaseSensorOperator
@@ -68,6 +69,13 @@ class PubSubPullSensor(BaseSensorOperator):
         full subscription path.
     :param max_messages: The maximum number of messages to retrieve per
         PubSub pull request
+    :param return_immediately: If this field set to true, the system will
+        respond immediately even if it there are no messages available to
+        return in the ``Pull`` response. Otherwise, the system may wait
+        (for a bounded amount of time) until at least one message is available,
+        rather than returning no messages. Warning: setting this field to
+        ``true`` is discouraged because it adversely impacts the performance
+        of ``Pull`` operations. We recommend that users do not set this field.
     :param ack_messages: If True, each message will be acknowledged
         immediately rather than by any downstream tasks
     :param gcp_conn_id: The connection ID to use connecting to
@@ -101,6 +109,7 @@ class PubSubPullSensor(BaseSensorOperator):
         project_id: str,
         subscription: str,
         max_messages: int = 5,
+        return_immediately: bool = True,
         ack_messages: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         messages_callback: Callable[[list[ReceivedMessage], Context], Any] | None = None,
@@ -114,6 +123,7 @@ class PubSubPullSensor(BaseSensorOperator):
         self.project_id = project_id
         self.subscription = subscription
         self.max_messages = max_messages
+        self.return_immediately = return_immediately
         self.ack_messages = ack_messages
         self.messages_callback = messages_callback
         self.impersonation_chain = impersonation_chain
@@ -131,7 +141,7 @@ class PubSubPullSensor(BaseSensorOperator):
             project_id=self.project_id,
             subscription=self.subscription,
             max_messages=self.max_messages,
-            return_immediately=True,
+            return_immediately=self.return_immediately,
         )
 
         handle_messages = self.messages_callback or self._default_message_callback
@@ -174,9 +184,6 @@ class PubSubPullSensor(BaseSensorOperator):
             self.log.info("Sensor pulls messages: %s", event["message"])
             return event["message"]
         self.log.info("Sensor failed: %s", event["message"])
-        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-        if self.soft_fail:
-            raise AirflowSkipException(event["message"])
         raise AirflowException(event["message"])
 
     def _default_message_callback(
@@ -184,7 +191,8 @@ class PubSubPullSensor(BaseSensorOperator):
         pulled_messages: list[ReceivedMessage],
         context: Context,
     ):
-        """Convert `ReceivedMessage` objects into JSON-serializable dicts.
+        """
+        Convert `ReceivedMessage` objects into JSON-serializable dicts.
 
         This method can be overridden by subclasses or by `messages_callback` constructor argument.
 

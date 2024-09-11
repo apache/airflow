@@ -40,6 +40,7 @@ type TaskState =
   | "upstream_failed"
   | "skipped"
   | "deferred"
+  | "none"
   | null;
 
 interface Dag {
@@ -64,7 +65,6 @@ interface DagRun {
   lastSchedulingDecision: string | null;
   externalTrigger: boolean;
   conf: string | null;
-  confIsJson: boolean;
   note: string | null;
 }
 
@@ -133,16 +133,24 @@ interface DepNode {
   id: string;
   value: {
     id?: string;
-    class: "dag" | "dataset" | "trigger" | "sensor";
+    class:
+      | "dag"
+      | "dataset"
+      | "trigger"
+      | "sensor"
+      | "or-gate"
+      | "and-gate"
+      | "dataset-alias";
     label: string;
-    rx: number;
-    ry: number;
+    rx?: number;
+    ry?: number;
     isOpen?: boolean;
     isJoinNode?: boolean;
     childCount?: number;
-    labelStyle: string;
-    style: string;
+    labelStyle?: string;
+    style?: string;
     setupTeardownType?: "setup" | "teardown";
+    isMapped?: boolean;
   };
   children?: DepNode[];
   edges?: MidEdge[];
@@ -166,6 +174,7 @@ export interface EdgeData {
     isSetupTeardown?: boolean;
     parentNode?: string;
     isZoomedOut?: boolean;
+    isSourceDataset?: boolean;
   };
 }
 
@@ -181,6 +190,7 @@ export interface WebserverEdge {
   targetId: string;
   isSetupTeardown?: boolean;
   parentNode?: string;
+  isSourceDataset?: boolean;
 }
 
 interface DatasetListItem extends API.Dataset {

@@ -54,7 +54,6 @@ def build_python_op(dag_maker):
 def clear_db():
     clear_db_runs()
     clear_db_dags()
-    yield
 
 
 class TestXComArgBuild:
@@ -185,6 +184,7 @@ class TestXComArgRuntime:
         dag.run()
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @pytest.mark.parametrize(
     "fillvalue, expected_results",
     [

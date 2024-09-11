@@ -115,8 +115,8 @@ class TestHiveCliHook:
         )
 
     def test_hive_cli_hook_invalid_schema(self):
+        hook = InvalidHiveCliHook()
         with pytest.raises(RuntimeError) as error:
-            hook = InvalidHiveCliHook()
             hook.run_cli("SHOW DATABASES")
 
         assert str(error.value) == "The schema `default;` contains invalid characters: ;"
@@ -591,7 +591,7 @@ class TestHiveServer2Hook:
     def setup_method(self):
         self._upload_dataframe()
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
         self.database = "airflow"
         self.table = "hive_server_hook"
 
@@ -870,6 +870,18 @@ class TestHiveCli:
     def setup_method(self):
         self.nondefault_schema = "nondefault"
 
+    def test_default_values(self):
+        hook = MockHiveCliHook()
+
+        assert hook.use_beeline
+        assert hook.auth is None
+        assert hook.sub_process is None
+        assert hook.mapred_queue == "airflow"
+        assert hook.mapred_queue_priority is None
+        assert hook.mapred_job_name is None
+        assert hook.proxy_user is None
+        assert not hook.high_availability
+
     @pytest.mark.parametrize(
         "extra_dejson, correct_proxy_user, proxy_user",
         [
@@ -901,3 +913,43 @@ class TestHiveCli:
         # Run
         with pytest.raises(RuntimeError, match="The principal should not contain the ';' character"):
             hook._prepare_cli_cmd()
+
+    @pytest.mark.parametrize(
+        "extra_dejson, expected_keys",
+        [
+            (
+                {"high_availability": "true"},
+                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+            ),
+            (
+                {"high_availability": "false"},
+                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+            ),
+            ({}, "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2"),
+            # with proxy user
+            (
+                {"proxy_user": "a_user_proxy", "high_availability": "true"},
+                "hive.server2.proxy.user=a_user_proxy;"
+                "serviceDiscoveryMode=zooKeeper;ssl=true;zooKeeperNamespace=hiveserver2",
+            ),
+        ],
+    )
+    def test_high_availability(self, extra_dejson, expected_keys):
+        hook = MockHiveCliHook()
+        returner = mock.MagicMock()
+        returner.extra_dejson = extra_dejson
+        returner.login = "admin"
+        hook.use_beeline = True
+        hook.conn = returner
+        hook.high_availability = (
+            True
+            if ("high_availability" in extra_dejson and extra_dejson["high_availability"] == "true")
+            else False
+        )
+
+        result = hook._prepare_cli_cmd()
+
+        if hook.high_availability:
+            assert expected_keys in result[2]
+        else:
+            assert expected_keys not in result[2]

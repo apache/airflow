@@ -22,7 +22,7 @@ Airflow Breeze is a Python script serving as a "swiss-army-knife" of Airflow tes
 hood it uses other scripts that you can also run manually if you have problem with running the Breeze
 environment. Breeze script allows performing the following tasks:
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Running tests
 -------------
@@ -427,13 +427,13 @@ for all clusters in parallel.
 
 Run all tests:
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze k8s tests
 
 Run selected tests:
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze k8s tests test_kubernetes_executor.py
 
@@ -449,7 +449,7 @@ shell command directly. In case the shell parameters are the same as the paramet
 can pass them after ``--``. For example this is the way how you can see all available parameters of the shell
 you have:
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze k8s tests -- --help
 
@@ -458,7 +458,7 @@ with the specifications of tests you want to run. For example the command below 
 ``test_kubernetes_executor.py`` and will suppress capturing output from Pytest so that you can see the
 output during test execution.
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze k8s tests -- test_kubernetes_executor.py -s
 
@@ -471,13 +471,13 @@ to run the whole chains in parallel.
 
 Run all tests:
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze k8s run-complete-tests
 
 Run selected tests:
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze k8s run-complete-tests test_kubernetes_executor.py
 
@@ -493,7 +493,7 @@ shell command directly. In case the shell parameters are the same as the paramet
 can pass them after ``--``. For example this is the way how you can see all available parameters of the shell
 you have:
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze k8s run-complete-tests -- --help
 
@@ -502,7 +502,7 @@ with the specifications of tests you want to run. For example the command below 
 ``test_kubernetes_executor.py`` and will suppress capturing output from Pytest so that you can see the
 output during test execution.
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze k8s run-complete-tests -- test_kubernetes_executor.py -s
 
@@ -517,7 +517,7 @@ cluster pre-configured. This is done via ``breeze k8s shell`` command.
 Once you are in the shell, the prompt will indicate which cluster you are interacting with as well
 as executor you use, similar to:
 
-.. code-block::bash
+.. code-block:: bash
 
     (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)>
 
@@ -526,7 +526,7 @@ The shell automatically activates the virtual environment that has all appropria
 installed and you can interactively run all k8s tests with pytest command (of course the cluster need to
 be created and airflow deployed to it before running the tests):
 
-.. code-block::bash
+.. code-block:: bash
 
     (kind-airflow-python-3.9-v1.24.0:KubernetesExecutor)> pytest test_kubernetes_executor.py
     ================================================= test session starts =================================================
@@ -562,7 +562,7 @@ shell command directly. In case the shell parameters are the same as the paramet
 can pass them after ``--``. For example this is the way how you can see all available parameters of the shell
 you have:
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze k8s shell -- --help
 
@@ -585,7 +585,7 @@ You can also specify any ``k9s`` flags and commands as extra parameters - they w
 can pass them after ``--``. For example this is the way how you can see all available parameters of the
 ``k9s`` you have:
 
-.. code-block::bash
+.. code-block:: bash
 
     breeze k8s k9s -- --help
 

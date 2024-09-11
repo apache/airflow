@@ -19,9 +19,9 @@
 
 /* global moment */
 
+import { AnsiUp } from "ansi_up";
+import { getMetaValue, highlightByKeywords } from "src/utils";
 import { defaultFormatWithTZ } from "src/datetime_utils";
-
-import sanitizeHtml from "sanitize-html";
 
 export enum LogLevel {
   DEBUG = "DEBUG",
@@ -39,11 +39,29 @@ export const logLevelColorMapping = {
   [LogLevel.CRITICAL]: "red.400",
 };
 
+const errorKeywords = getMetaValue("color_log_error_keywords")
+  .split(",")
+  .filter((keyword) => keyword.length > 0)
+  .map((keyword) => keyword.toLowerCase());
+const warningKeywords = getMetaValue("color_log_warning_keywords")
+  .split(",")
+  .filter((keyword) => keyword.length > 0)
+  .map((keyword) => keyword.toLowerCase());
+
+// Detect log groups which can be collapsed
+// Either in Github like format '::group::<group name>' to '::endgroup::'
+// see https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#grouping-log-lines
+// Or in ADO pipeline like format '##[group]<group name>' to '##[endgroup]'
+// see https://learn.microsoft.com/en-us/azure/devops/pipelines/scripts/logging-commands?view=azure-devops&tabs=powershell#formatting-commands
+export const logGroupStart = / INFO - (::|##\[])group(::|\])([^\n])*/g;
+export const logGroupEnd = / INFO - (::|##\[])endgroup(::|\])/g;
+
 export const parseLogs = (
   data: string | undefined,
   timezone: string | null,
   logLevelFilters: Array<LogLevel>,
-  fileSourceFilters: Array<string>
+  fileSourceFilters: Array<string>,
+  unfoldedLogGroups: Array<string>
 ) => {
   if (!data) {
     return {};
@@ -61,6 +79,13 @@ export const parseLogs = (
 
   const parsedLines: Array<string> = [];
   const fileSources: Set<string> = new Set();
+  const ansiUp = new AnsiUp();
+  ansiUp.url_allowlist = {};
+
+  const urlRegex =
+    /http(s)?:\/\/[\w.-]+(\.?:[\w.-]+)*([/?#][\w\-._~:/?#[\]@!$&'()*+,;=.%]+)?/g;
+  // Coloring (blue-60 as chakra style, is #0060df) and style such that log group appears like a link
+  const logGroupStyle = "color:#0060df;cursor:pointer;font-weight:bold;";
 
   lines.forEach((line) => {
     let parsedLine = line;
@@ -99,29 +124,39 @@ export const parseLogs = (
         line.includes(fileSourceFilter)
       )
     ) {
-      // sanitize the lines to remove any tags that may cause HTML injection
-      const sanitizedLine = sanitizeHtml(parsedLine, {
-        allowedTags: ["a"],
-        allowedAttributes: {
-          a: ["href", "target", "style"],
-        },
-        transformTags: {
-          a: (tagName, attribs) => {
-            attribs.style = "color: blue; text-decoration: underline;";
-            return {
-              tagName: "a",
-              attribs,
-            };
-          },
-        },
-      });
+      parsedLine = highlightByKeywords(
+        parsedLine,
+        errorKeywords,
+        warningKeywords,
+        logGroupStart,
+        logGroupEnd
+      );
+      // for lines with color convert to nice HTML
+      const coloredLine = ansiUp.ansi_to_html(parsedLine);
 
       // for lines with links, transform to hyperlinks
-      const lineWithHyperlinks = sanitizedLine.replace(
-        /((https?:\/\/|http:\/\/)[^\s]+)/g,
-        '<a href="$1" target="_blank" style="color: blue; text-decoration: underline;">$1</a>'
-      );
-
+      const lineWithHyperlinks = coloredLine
+        .replace(
+          urlRegex,
+          (url) =>
+            `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: blue; text-decoration: underline;">${url}</a>`
+        )
+        .replace(logGroupStart, (textLine) => {
+          const unfoldIdSuffix = "_unfold";
+          const foldIdSuffix = "_fold";
+          const gName = textLine.substring(17);
+          const gId = gName.replace(/\W+/g, "_").toLowerCase();
+          const isFolded = unfoldedLogGroups.indexOf(gId) === -1;
+          const ufDisplay = isFolded ? "" : "display:none;";
+          const unfold = `<span id="${gId}${unfoldIdSuffix}" style="${ufDisplay}${logGroupStyle}"> &#9654; ${gName}</span>`;
+          const fDisplay = isFolded ? "display:none;" : "";
+          const fold = `<span style="${fDisplay}"><span id="${gId}${foldIdSuffix}" style="${logGroupStyle}"> &#9660; ${gName}</span>`;
+          return unfold + fold;
+        })
+        .replace(
+          logGroupEnd,
+          " <span style='color:#0060df;'>&#9650;&#9650;&#9650; Log group end</span></span>"
+        );
       parsedLines.push(lineWithHyperlinks);
     }
   });

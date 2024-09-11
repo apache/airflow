@@ -96,7 +96,7 @@ Extra (optional)
 
     .. code-block::
 
-        DRIVER={ODBC Driver 17 for SQL Server};ApplicationIntent=ReadOnly;TrustedConnection=Yes;
+        DRIVER={ODBC Driver 18 for SQL Server};ApplicationIntent=ReadOnly;TrustedConnection=Yes;
 
     See `DSN and Connection String Keywords and Attributes <https://docs.microsoft.com/en-us/sql/connect/odbc/dsn-connection-string-attribute?view=sql-server-ver15>`_
     for more info.

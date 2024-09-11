@@ -513,7 +513,17 @@ def regenerate_help_images_for_all_commands(commands: tuple[str, ...], check_onl
 COMMON_PARAM_NAMES = ["--help", "--verbose", "--dry-run", "--answer"]
 COMMAND_PATH_PREFIX = "dev/breeze/src/airflow_breeze/commands/"
 
-DEVELOPER_COMMANDS = ["start-airflow", "build-docs", "down", "exec", "shell", "compile-www-assets", "cleanup"]
+DEVELOPER_COMMANDS = [
+    "start-airflow",
+    "build-docs",
+    "down",
+    "exec",
+    "shell",
+    "compile-www-assets",
+    "compile-ui-assets",
+    "cleanup",
+    "generate-migration-file",
+]
 
 
 def command_path(command: str) -> str:

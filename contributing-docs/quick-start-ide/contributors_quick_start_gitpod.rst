@@ -15,7 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Connect your project to Gitpod
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -29,7 +29,7 @@ Connect your project to Gitpod
    .. raw:: html
 
      <div align="center" style="padding-bottom:10px">
-       <img src="images/quick_start/airflow_fork.png"
+       <img src="images/airflow_fork.png"
             alt="Forking Apache Airflow project">
      </div>
 
@@ -38,7 +38,7 @@ Connect your project to Gitpod
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/airflow_clone.png"
+        <img src="images/airflow_clone.png"
              alt="Cloning github fork of Apache airflow">
       </div>
 
@@ -47,7 +47,7 @@ Connect your project to Gitpod
    .. raw:: html
 
       <div align="center" style="padding-bottom:10px">
-        <img src="images/quick_start/airflow_gitpod_url.png"
+        <img src="images/airflow_gitpod_url.png"
              alt="Open personal airflow clone with Gitpod">
       </div>
 
@@ -68,7 +68,7 @@ Gitpod default image have all the required packages installed.
   The workaround is to downgrade packaging to 23.1 and re-running the ``pipx install`` command. for example
   by running ``pip install "packaging<23.2"``.
 
-  .. code-block::bash
+  .. code-block:: bash
 
      pip install "packaging==23.1"
      pipx install -e ./dev/breeze --force
@@ -93,4 +93,4 @@ the first time you run tests.
   root@b76fcb399bb6:/opt/airflow# airflow users create --role Admin --username admin --password admin \
     --email admin@example.com --firstname foo --lastname bar
 
-Follow the `Quick start <03_contributors_quick_start.rst>`_ for typical development tasks.
+Follow the `Quick start <../03_contributors_quick_start.rst>`_ for typical development tasks.

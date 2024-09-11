@@ -18,6 +18,7 @@
 """
 Unit Tests for the Google Calendar Hook
 """
+
 from __future__ import annotations
 
 from unittest import mock

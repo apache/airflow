@@ -61,7 +61,7 @@ model.
 DAG Authors
 ...........
 
-They can upload, modify, and delete DAG files. The
+They can create, modify, and delete DAG files. The
 code in DAG files is executed on workers and in the DAG File Processor. Note
 that in the simple deployment configuration, parsing DAGs is executed as
 a subprocess of the Scheduler process, but with Standalone DAG File Processor
@@ -69,7 +69,7 @@ deployment managers might separate parsing DAGs from the Scheduler process.
 Therefore, DAG authors can create and change code executed on workers
 and the DAG File Processor and potentially access the credentials that the DAG
 code uses to access external systems. DAG Authors have full access
-to the metadata database and internal audit logs.
+to the metadata database.
 
 Authenticated UI users
 .......................
@@ -81,7 +81,7 @@ Non-authenticated UI users
 ..........................
 
 Airflow doesn't support unauthenticated users by default. If allowed, potential vulnerabilities
-must be assessed and addressed by the Deployment Manager.
+must be assessed and addressed by the Deployment Manager. However, there are exceptions to this. The ``/health`` endpoint responsible to get health check updates should be publicly accessible. This is because other systems would want to retrieve that information. Another exception is the ``/login`` endpoint, as the users are expected to be unauthenticated to use it.
 
 Capabilities of authenticated UI users
 --------------------------------------
@@ -121,9 +121,12 @@ They configure connections and potentially execute code on workers during DAG ex
 required to prevent misuse of these privileges. They have full access
 to sensitive credentials stored in connections and can modify them.
 Access to sensitive information through connection configuration
-should be trusted not to be abused. They also have the ability to
-create a Webserver Denial of Service situation and should be trusted
-not to misuse this capability.
+should be trusted not to be abused. They also have the ability to configure connections wrongly
+that might create a Webserver Denial of Service situations and specify insecure connection options
+which might create situations where executing DAGs will lead to arbitrary Remote Code Execution
+for some providers - either community released or custom ones.
+
+Those users should be highly trusted not to misuse this capability.
 
 Audit log users
 ...............

@@ -32,7 +32,7 @@ from airflow.providers.oracle.hooks.oracle import OracleHook
 class TestOracleHookConn:
     def setup_method(self):
         self.connection = Connection(
-            login="login", password="password", host="host", schema="schema", port=1521
+            login="login", password="password", host="host", port=1521, extra='{"service_name": "schema"}'
         )
 
         self.db_hook = OracleHook()
@@ -47,7 +47,7 @@ class TestOracleHookConn:
         assert args == ()
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
-        assert kwargs["dsn"] == "host:1521/schema"
+        assert kwargs["dsn"] == oracledb.makedsn("host", 1521, service_name="schema")
 
     @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
     def test_get_conn_host_alternative_port(self, mock_connect):
@@ -58,7 +58,7 @@ class TestOracleHookConn:
         assert args == ()
         assert kwargs["user"] == "login"
         assert kwargs["password"] == "password"
-        assert kwargs["dsn"] == "host:1522/schema"
+        assert kwargs["dsn"] == oracledb.makedsn("host", self.connection.port, service_name="schema")
 
     @mock.patch("airflow.providers.oracle.hooks.oracle.oracledb.connect")
     def test_get_conn_sid(self, mock_connect):
@@ -245,15 +245,15 @@ class TestOracleHookConn:
         assert oracledb.defaults.fetch_lobs is False
 
     def test_type_checking_thick_mode_lib_dir(self):
+        thick_mode_lib_dir_test = {"thick_mode": True, "thick_mode_lib_dir": 1}
+        self.connection.extra = json.dumps(thick_mode_lib_dir_test)
         with pytest.raises(TypeError, match=r"thick_mode_lib_dir expected str or None, got.*"):
-            thick_mode_lib_dir_test = {"thick_mode": True, "thick_mode_lib_dir": 1}
-            self.connection.extra = json.dumps(thick_mode_lib_dir_test)
             self.db_hook.get_conn()
 
     def test_type_checking_thick_mode_config_dir(self):
+        thick_mode_config_dir_test = {"thick_mode": True, "thick_mode_config_dir": 1}
+        self.connection.extra = json.dumps(thick_mode_config_dir_test)
         with pytest.raises(TypeError, match=r"thick_mode_config_dir expected str or None, got.*"):
-            thick_mode_config_dir_test = {"thick_mode": True, "thick_mode_config_dir": 1}
-            self.connection.extra = json.dumps(thick_mode_config_dir_test)
             self.db_hook.get_conn()
 
 

@@ -25,8 +25,10 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
         "down",
         "shell",
         "exec",
+        "compile-ui-assets",
         "compile-www-assets",
         "cleanup",
+        "generate-migration-file",
     ],
 }
 DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
@@ -62,6 +64,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "options": [
                 "--github-repository",
                 "--builder",
+                "--use-uv",
+                "--uv-http-timeout",
             ],
         },
         {
@@ -125,6 +129,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-tag",
                 "--github-repository",
                 "--builder",
+                "--use-uv",
+                "--uv-http-timeout",
             ],
         },
         {
@@ -142,12 +148,17 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-constraints-reference",
                 "--airflow-extras",
                 "--airflow-skip-constraints",
+                "--clean-airflow-installation",
+                "--excluded-providers",
+                "--force-lowest-dependencies",
+                "--install-airflow-with-constraints",
                 "--install-selected-providers",
                 "--package-format",
                 "--providers-constraints-location",
                 "--providers-constraints-mode",
                 "--providers-constraints-reference",
                 "--providers-skip-constraints",
+                "--test-type",
                 "--use-airflow-version",
                 "--use-packages-from-dist",
             ],
@@ -158,7 +169,6 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--upgrade-boto",
                 "--downgrade-sqlalchemy",
                 "--downgrade-pendulum",
-                "--pydantic",
             ],
         },
         {
@@ -174,12 +184,23 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--forward-credentials",
                 "--max-time",
                 "--verbose-commands",
+                "--keep-env-variables",
+                "--no-db-cleanup",
             ],
         },
     ],
     "breeze compile-www-assets": [
         {
             "name": "Compile www assets flag",
+            "options": [
+                "--dev",
+                "--force-clean",
+            ],
+        }
+    ],
+    "breeze compile-ui-assets": [
+        {
+            "name": "Compile ui assets flag",
             "options": [
                 "--dev",
                 "--force-clean",
@@ -238,6 +259,8 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--image-tag",
                 "--github-repository",
                 "--builder",
+                "--use-uv",
+                "--uv-http-timeout",
             ],
         },
         {
@@ -254,6 +277,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-constraints-reference",
                 "--airflow-extras",
                 "--airflow-skip-constraints",
+                "--clean-airflow-installation",
                 "--install-selected-providers",
                 "--package-format",
                 "--providers-constraints-location",
@@ -297,6 +321,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--include-removed-providers",
                 "--github-repository",
                 "--builder",
+                "--package-list",
             ],
         },
     ],
@@ -336,6 +361,16 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
             "name": "Cleanup flags",
             "options": [
                 "--all",
+            ],
+        },
+    ],
+    "breeze generate-migration-file": [
+        {
+            "name": "generate-migration-file flags",
+            "options": [
+                "--message",
+                "--github-repository",
+                "--builder",
             ],
         },
     ],

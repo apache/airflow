@@ -79,7 +79,7 @@ class DmsCreateTaskOperator(AwsBaseOperator[DmsHook]):
         table_mappings: dict,
         migration_type: str = "full-load",
         create_task_kwargs: dict | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -226,7 +226,7 @@ class DmsStartTaskOperator(AwsBaseOperator[DmsHook]):
         replication_task_arn: str,
         start_replication_task_type: str = "start-replication",
         start_task_kwargs: dict | None = None,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ):
         super().__init__(**kwargs)

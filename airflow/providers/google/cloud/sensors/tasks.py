@@ -16,11 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Task sensor."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
+from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -56,7 +58,7 @@ class TaskQueueEmptySensor(BaseSensorOperator):
         self,
         *,
         location: str,
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         queue_name: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: str | Sequence[str] | None = None,

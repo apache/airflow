@@ -28,7 +28,8 @@ from airflow.utils.types import NOTSET
 
 
 class _BashDecoratedOperator(DecoratedOperator, BashOperator):
-    """Wraps a Python callable and uses the callable return value as the Bash command to be executed.
+    """
+    Wraps a Python callable and uses the callable return value as the Bash command to be executed.
 
     :param python_callable: A reference to an object that is callable.
     :param op_kwargs: A dictionary of keyword arguments that will get unpacked
@@ -53,18 +54,19 @@ class _BashDecoratedOperator(DecoratedOperator, BashOperator):
         op_kwargs: Mapping[str, Any] | None = None,
         **kwargs,
     ) -> None:
-        if kwargs.get("multiple_outputs") is not None:
+        if kwargs.pop("multiple_outputs", None):
             warnings.warn(
-                f"`multiple_outputs` is not supported in {self.custom_operator_name} tasks. Ignoring.",
-                stacklevel=1,
+                f"`multiple_outputs=True` is not supported in {self.custom_operator_name} tasks. Ignoring.",
+                UserWarning,
+                stacklevel=3,
             )
-        kwargs.pop("multiple_outputs")
 
         super().__init__(
             python_callable=python_callable,
             op_args=op_args,
             op_kwargs=op_kwargs,
             bash_command=NOTSET,
+            multiple_outputs=False,
             **kwargs,
         )
 
@@ -84,7 +86,8 @@ def bash_task(
     python_callable: Callable | None = None,
     **kwargs,
 ) -> TaskDecorator:
-    """Wrap a function into a BashOperator.
+    """
+    Wrap a function into a BashOperator.
 
     Accepts kwargs for operator kwargs. Can be reused in a single DAG. This function is only used only used
     during type checking or auto-completion.

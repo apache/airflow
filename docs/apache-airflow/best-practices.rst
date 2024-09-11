@@ -82,7 +82,7 @@ it difficult to check the logs of that Task from the Webserver. If that is not d
 Communication
 --------------
 
-Airflow executes tasks of a DAG on different servers in case you are using :doc:`Kubernetes executor </core-concepts/executor/kubernetes>` or :doc:`Celery executor </core-concepts/executor/celery>`.
+Airflow executes tasks of a DAG on different servers in case you are using :doc:`Kubernetes executor <apache-airflow-providers-cncf-kubernetes:kubernetes_executor>` or :doc:`Celery executor <apache-airflow-providers-celery:celery_executor>`.
 Therefore, you should not store any file or config in the local filesystem as the next task is likely to run on a different server without access to it — for example, a task that downloads the data file that the next task processes.
 In the case of :class:`Local executor <airflow.executors.local_executor.LocalExecutor>`,
 storing a file on disk can make retries harder e.g., your task requires a config file that is deleted by another task in DAG.
@@ -383,7 +383,7 @@ Good example:
 
   @task
   def my_task():
-      var = Variable.get("foo")  # this is fine, because func my_task called only run task, not scan DAGs.
+      var = Variable.get("foo")  # This is ok since my_task is called only during task run, not during DAG scan.
       print(var)
 
 For security purpose, you're recommended to use the :ref:`Secrets Backend<secrets_backend_configuration>`
@@ -824,7 +824,7 @@ For connection, use :envvar:`AIRFLOW_CONN_{CONN_ID}`.
     )
     conn_uri = conn.get_uri()
     with mock.patch.dict("os.environ", AIRFLOW_CONN_MY_CONN=conn_uri):
-        assert "cat" == Connection.get("my_conn").login
+        assert "cat" == Connection.get_connection_from_secrets("my_conn").login
 
 Metadata DB maintenance
 ^^^^^^^^^^^^^^^^^^^^^^^

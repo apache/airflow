@@ -18,13 +18,14 @@
 """
 Example Airflow DAG to execute SQL in an Apache Drill environment using the `DrillOperator`.
 """
+
 from __future__ import annotations
 
 import os
 from datetime import datetime
 
 from airflow.models import DAG
-from airflow.providers.apache.drill.operators.drill import DrillOperator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_drill_dag"
@@ -37,7 +38,7 @@ with DAG(
     tags=["example"],
 ) as dag:
     # [START howto_operator_drill]
-    sql_task = DrillOperator(
+    sql_task = SQLExecuteQueryOperator(
         task_id="json_to_parquet_table",
         sql="""
         drop table if exists dfs.tmp.employee;

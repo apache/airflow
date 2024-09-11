@@ -22,15 +22,16 @@ import pytest
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models.dag import DagModel
-from airflow.models.errors import ImportError
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
+from tests.test_utils.compat import ParseImportError
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_import_errors
+from tests.test_utils.permissions import _resource_name
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 TEST_DAG_IDS = ["test_dag", "test_dag2"]
 
@@ -60,7 +61,12 @@ def configured_app(minimal_app_for_api):
         [
             {
                 "role": "TestSingleDAG",
-                "perms": [(permissions.ACTION_CAN_READ, permissions.resource_name_for_dag(TEST_DAG_IDS[0]))],
+                "perms": [
+                    (
+                        permissions.ACTION_CAN_READ,
+                        _resource_name(TEST_DAG_IDS[0], permissions.RESOURCE_DAG),
+                    )
+                ],
             }
         ]
     )
@@ -95,7 +101,7 @@ class TestBaseImportError:
 
 class TestGetImportErrorEndpoint(TestBaseImportError):
     def test_response_200(self, session):
-        import_error = ImportError(
+        import_error = ParseImportError(
             filename="Lorem_ipsum.py",
             stacktrace="Lorem ipsum",
             timestamp=timezone.parse(self.timestamp, timezone="UTC"),
@@ -128,7 +134,7 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         } == response.json
 
     def test_should_raises_401_unauthenticated(self, session):
-        import_error = ImportError(
+        import_error = ParseImportError(
             filename="Lorem_ipsum.py",
             stacktrace="Lorem ipsum",
             timestamp=timezone.parse(self.timestamp, timezone="UTC"),
@@ -147,7 +153,7 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         assert response.status_code == 403
 
     def test_should_raise_403_forbidden_without_dag_read(self, session):
-        import_error = ImportError(
+        import_error = ParseImportError(
             filename="Lorem_ipsum.py",
             stacktrace="Lorem ipsum",
             timestamp=timezone.parse(self.timestamp, timezone="UTC"),
@@ -164,7 +170,7 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
     def test_should_return_200_with_single_dag_read(self, session):
         dag_model = DagModel(dag_id=TEST_DAG_IDS[0], fileloc="Lorem_ipsum.py")
         session.add(dag_model)
-        import_error = ImportError(
+        import_error = ParseImportError(
             filename="Lorem_ipsum.py",
             stacktrace="Lorem ipsum",
             timestamp=timezone.parse(self.timestamp, timezone="UTC"),
@@ -190,7 +196,7 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
         for dag_id in TEST_DAG_IDS:
             dag_model = DagModel(dag_id=dag_id, fileloc="Lorem_ipsum.py")
             session.add(dag_model)
-        import_error = ImportError(
+        import_error = ParseImportError(
             filename="Lorem_ipsum.py",
             stacktrace="Lorem ipsum",
             timestamp=timezone.parse(self.timestamp, timezone="UTC"),
@@ -216,7 +222,7 @@ class TestGetImportErrorEndpoint(TestBaseImportError):
 class TestGetImportErrorsEndpoint(TestBaseImportError):
     def test_get_import_errors(self, session):
         import_error = [
-            ImportError(
+            ParseImportError(
                 filename="Lorem_ipsum.py",
                 stacktrace="Lorem ipsum",
                 timestamp=timezone.parse(self.timestamp, timezone="UTC"),
@@ -251,7 +257,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
 
     def test_get_import_errors_order_by(self, session):
         import_error = [
-            ImportError(
+            ParseImportError(
                 filename=f"Lorem_ipsum{i}.py",
                 stacktrace="Lorem ipsum",
                 timestamp=timezone.parse(self.timestamp, timezone="UTC") + timedelta(days=-i),
@@ -288,7 +294,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
 
     def test_order_by_raises_400_for_invalid_attr(self, session):
         import_error = [
-            ImportError(
+            ParseImportError(
                 filename="Lorem_ipsum.py",
                 stacktrace="Lorem ipsum",
                 timestamp=timezone.parse(self.timestamp, timezone="UTC"),
@@ -308,7 +314,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
 
     def test_should_raises_401_unauthenticated(self, session):
         import_error = [
-            ImportError(
+            ParseImportError(
                 filename="Lorem_ipsum.py",
                 stacktrace="Lorem ipsum",
                 timestamp=timezone.parse(self.timestamp, timezone="UTC"),
@@ -327,7 +333,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
             fake_filename = f"/tmp/{dag_id}.py"
             dag_model = DagModel(dag_id=dag_id, fileloc=fake_filename)
             session.add(dag_model)
-            importerror = ImportError(
+            importerror = ParseImportError(
                 filename=fake_filename,
                 stacktrace="Lorem ipsum",
                 timestamp=timezone.parse(self.timestamp, timezone="UTC"),
@@ -360,7 +366,7 @@ class TestGetImportErrorsEndpoint(TestBaseImportError):
             dag_model = DagModel(dag_id=dag_id, fileloc=fake_filename)
             session.add(dag_model)
 
-        importerror = ImportError(
+        importerror = ParseImportError(
             filename="/tmp/all_in_one.py",
             stacktrace="Lorem ipsum",
             timestamp=timezone.parse(self.timestamp, timezone="UTC"),
@@ -405,7 +411,7 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
     @provide_session
     def test_limit_and_offset(self, url, expected_import_error_ids, session):
         import_errors = [
-            ImportError(
+            ParseImportError(
                 filename=f"/tmp/file_{i}.py",
                 stacktrace="Lorem ipsum",
                 timestamp=timezone.parse(self.timestamp, timezone="UTC"),
@@ -423,7 +429,7 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
 
     def test_should_respect_page_size_limit_default(self, session):
         import_errors = [
-            ImportError(
+            ParseImportError(
                 filename=f"/tmp/file_{i}.py",
                 stacktrace="Lorem ipsum",
                 timestamp=timezone.parse(self.timestamp, timezone="UTC"),
@@ -439,7 +445,7 @@ class TestGetImportErrorsEndpointPagination(TestBaseImportError):
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self, session):
         import_errors = [
-            ImportError(
+            ParseImportError(
                 filename=f"/tmp/file_{i}.py",
                 stacktrace="Lorem ipsum",
                 timestamp=timezone.parse(self.timestamp, timezone="UTC"),

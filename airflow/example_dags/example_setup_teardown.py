@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Example DAG demonstrating the usage of setup and teardown tasks."""
+
 from __future__ import annotations
 
 import pendulum
@@ -26,6 +27,7 @@ from airflow.utils.task_group import TaskGroup
 
 with DAG(
     dag_id="example_setup_teardown",
+    schedule=None,
     start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],

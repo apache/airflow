@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module allows you to connect to the Google Discovery API Service and query it."""
+
 from __future__ import annotations
 
 from typing import Sequence

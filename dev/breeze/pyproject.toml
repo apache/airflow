@@ -49,8 +49,14 @@ dependencies = [
     "click>=8.1.7",
     "filelock>=3.13.0",
     "flit>=3.5.0",
+    "google-api-python-client>=2.142.0",
+    "google-auth-httplib2>=0.2.0",
+    "google-auth-oauthlib>=1.2.0",
     "gitpython>=3.1.40",
-    "hatch==1.9.1",
+    "hatch==1.9.4",
+    # Importib_resources 6.2.0-6.3.1 break pytest_rewrite
+    # see https://github.com/python/importlib_resources/issues/299
+    "importlib_resources>=5.2,!=6.2.0,!=6.3.0,!=6.3.1;python_version<\"3.9\"",
     "inputimeout>=1.0.4",
     "jinja2>=3.1.0",
     "jsonschema>=4.19.1",
@@ -60,9 +66,7 @@ dependencies = [
     "psutil>=5.9.6",
     "pygithub>=2.1.1",
     "pytest-xdist>=3.3.1",
-    # Temporary upper limmit to <8, not all dependencies at that moment ready to use 8.0
-    # Internal meta-task for track https://github.com/apache/airflow/issues/37156
-    "pytest>=7.4.4,<8.0",
+    "pytest>=8.2,<9",
     "pyyaml>=6.0.1",
     "requests>=2.31.0",
     "rich-click>=1.7.1",
@@ -81,7 +85,7 @@ name = "airflow_breeze"
 
 [tool.black]
 line-length = 110
-target-version = ['py37', 'py38', 'py39', 'py310']
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
 
 [tool.pytest.ini_options]
 addopts = "-rasl --verbosity=2 -p no:flaky -p no:nose -p no:legacypath"
@@ -98,6 +102,9 @@ python_files = [
 testpaths = [
     "tests",
 ]
+# Keep temporary directories (created by `tmp_path`) for 2 recent runs only failed tests.
+tmp_path_retention_count = "2"
+tmp_path_retention_policy = "failed"
 
 [tool.ruff]
 extend = "../../pyproject.toml"

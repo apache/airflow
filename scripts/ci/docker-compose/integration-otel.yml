@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 ---
-version: "3.8"
 services:
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.70.0
@@ -54,14 +53,32 @@ services:
       - ./grafana/volume/dashboards:/grafana/dashboards
       - ./grafana/volume/provisioning:/grafana/provisioning
 
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    container_name: "breeze-jaeger"
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
+      COLLLECTOR_ZIPKIN_HOST_PORT: 9411
+    ports:
+      - "36686:16686"
+      - "34317:4317"
+      - "34318:4318"
+      - "39422:9422"
+
   airflow:
     environment:
       - AIRFLOW__METRICS__OTEL_ON=True
       - AIRFLOW__METRICS__OTEL_HOST=breeze-otel-collector
       - AIRFLOW__METRICS__OTEL_PORT=4318
       - AIRFLOW__METRICS__OTEL_INTERVAL_MILLISECONDS=30000
+      - AIRFLOW__TRACES__OTEL_ON=True
+      - AIRFLOW__TRACES__OTEL_HOST=breeze-otel-collector
+      - AIRFLOW__TRACES__OTEL_PORT=4318
+      - AIRFLOW__TRACES__OTEL_DEBUGGING_ON=False
+      - AIRFLOW__TRACES__OTEL_TASK_LOG_EVENT=True
 
     depends_on:
       - otel-collector
       - prometheus
       - grafana
+      - jaeger

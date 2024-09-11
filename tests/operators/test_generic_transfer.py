@@ -39,7 +39,7 @@ TEST_DAG_ID = "unit_test_dag"
 class TestMySql:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG(TEST_DAG_ID, default_args=args)
+        dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
         self.dag = dag
 
     def teardown_method(self):
@@ -102,11 +102,6 @@ class TestMySql:
 
 @pytest.mark.backend("postgres")
 class TestPostgres:
-    def setup_method(self):
-        args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG(TEST_DAG_ID, default_args=args)
-        self.dag = dag
-
     def teardown_method(self):
         tables_to_drop = ["test_postgres_to_postgres", "test_airflow"]
         with PostgresHook().get_conn() as conn:
@@ -114,42 +109,44 @@ class TestPostgres:
                 for table in tables_to_drop:
                     cur.execute(f"DROP TABLE IF EXISTS {table}")
 
-    def test_postgres_to_postgres(self):
+    def test_postgres_to_postgres(self, dag_maker):
         sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
-        op = GenericTransfer(
-            task_id="test_p2p",
-            preoperator=[
-                "DROP TABLE IF EXISTS test_postgres_to_postgres",
-                "CREATE TABLE IF NOT EXISTS test_postgres_to_postgres (LIKE INFORMATION_SCHEMA.TABLES)",
-            ],
-            source_conn_id="postgres_default",
-            destination_conn_id="postgres_default",
-            destination_table="test_postgres_to_postgres",
-            sql=sql,
-            dag=self.dag,
-        )
+        with dag_maker(default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True):
+            op = GenericTransfer(
+                task_id="test_p2p",
+                preoperator=[
+                    "DROP TABLE IF EXISTS test_postgres_to_postgres",
+                    "CREATE TABLE IF NOT EXISTS test_postgres_to_postgres (LIKE INFORMATION_SCHEMA.TABLES)",
+                ],
+                source_conn_id="postgres_default",
+                destination_conn_id="postgres_default",
+                destination_table="test_postgres_to_postgres",
+                sql=sql,
+            )
+        dag_maker.create_dagrun()
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     @mock.patch("airflow.providers.common.sql.hooks.sql.DbApiHook.insert_rows")
-    def test_postgres_to_postgres_replace(self, mock_insert):
+    def test_postgres_to_postgres_replace(self, mock_insert, dag_maker):
         sql = "SELECT id, conn_id, conn_type FROM connection LIMIT 10;"
-        op = GenericTransfer(
-            task_id="test_p2p",
-            preoperator=[
-                "DROP TABLE IF EXISTS test_postgres_to_postgres",
-                "CREATE TABLE IF NOT EXISTS test_postgres_to_postgres (LIKE connection INCLUDING INDEXES)",
-            ],
-            source_conn_id="postgres_default",
-            destination_conn_id="postgres_default",
-            destination_table="test_postgres_to_postgres",
-            sql=sql,
-            dag=self.dag,
-            insert_args={
-                "replace": True,
-                "target_fields": ("id", "conn_id", "conn_type"),
-                "replace_index": "id",
-            },
-        )
+        with dag_maker(default_args={"owner": "airflow", "start_date": DEFAULT_DATE}, serialized=True):
+            op = GenericTransfer(
+                task_id="test_p2p",
+                preoperator=[
+                    "DROP TABLE IF EXISTS test_postgres_to_postgres",
+                    "CREATE TABLE IF NOT EXISTS test_postgres_to_postgres (LIKE connection INCLUDING INDEXES)",
+                ],
+                source_conn_id="postgres_default",
+                destination_conn_id="postgres_default",
+                destination_table="test_postgres_to_postgres",
+                sql=sql,
+                insert_args={
+                    "replace": True,
+                    "target_fields": ("id", "conn_id", "conn_type"),
+                    "replace_index": "id",
+                },
+            )
+        dag_maker.create_dagrun()
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         assert mock_insert.called
         _, kwargs = mock_insert.call_args

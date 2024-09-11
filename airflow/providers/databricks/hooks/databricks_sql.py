@@ -50,7 +50,8 @@ T = TypeVar("T")
 
 
 class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
-    """Hook to interact with Databricks SQL.
+    """
+    Hook to interact with Databricks SQL.
 
     :param databricks_conn_id: Reference to the
         :ref:`Databricks connection <howto/connection:databricks>`.
@@ -183,8 +184,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         handler: None = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> None:
-        ...
+    ) -> None: ...
 
     @overload
     def run(
@@ -195,8 +195,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
         return_last: bool = ...,
-    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None:
-        ...
+    ) -> tuple | list[tuple] | list[list[tuple] | tuple] | None: ...
 
     def run(
         self,

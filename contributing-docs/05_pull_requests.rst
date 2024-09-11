@@ -22,7 +22,7 @@ Pull Requests
 This document describes how you can create Pull Requests and describes coding standards we use when
 implementing them.
 
-.. contents:: :local:
+**The outline for this document in GitHub is available at top-right corner button (with 3-dots and 3 lines).**
 
 Pull Request guidelines
 -----------------------
@@ -97,7 +97,7 @@ these guidelines:
     versions. For that purpose we have ``airflow.compat`` package where we keep back-ported
     useful features from newer versions.
 
--   Adhere to guidelines for commit messages described in this `article <http://chris.beams.io/posts/git-commit/>`__.
+-   Adhere to guidelines for commit messages described in this `article <https://cbea.ms/git-commit/>`__.
     This makes the lives of those who come after you (and your future self) a lot easier.
 
 Experimental Requirement to resolve all conversations
@@ -274,7 +274,7 @@ In such cases we can usually do something like this
         self.my_field = my_field
 
 The reason for doing it is that we are working on a cleaning up our code to have
-`pre-commit hook <../scripts/ci/pre_commit/pre_commit_validate_operators_init.py>`__
+`pre-commit hook <../scripts/ci/pre_commit/validate_operators_init.py>`__
 that will make sure all the cases where logic (such as validation and complex conversion)
 is not done in the constructor are detected in PRs.
 

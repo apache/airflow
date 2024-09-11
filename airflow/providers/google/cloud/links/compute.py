@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Compute Engine links."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -48,7 +49,7 @@ class ComputeInstanceDetailsLink(BaseGoogleLink):
         context: Context,
         task_instance: BaseOperator,
         location_id: str,
-        resource_id: str,
+        resource_id: str | None,
         project_id: str | None,
     ):
         task_instance.xcom_push(
@@ -73,7 +74,7 @@ class ComputeInstanceTemplateDetailsLink(BaseGoogleLink):
     def persist(
         context: Context,
         task_instance: BaseOperator,
-        resource_id: str,
+        resource_id: str | None,
         project_id: str | None,
     ):
         task_instance.xcom_push(
@@ -98,7 +99,7 @@ class ComputeInstanceGroupManagerDetailsLink(BaseGoogleLink):
         context: Context,
         task_instance: BaseOperator,
         location_id: str,
-        resource_id: str,
+        resource_id: str | None,
         project_id: str | None,
     ):
         task_instance.xcom_push(

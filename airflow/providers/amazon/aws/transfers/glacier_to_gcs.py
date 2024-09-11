@@ -63,7 +63,7 @@ class GlacierToGCSOperator(BaseOperator):
     def __init__(
         self,
         *,
-        aws_conn_id: str = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         gcp_conn_id: str = "google_cloud_default",
         vault_name: str,
         bucket_name: str,

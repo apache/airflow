@@ -21,19 +21,18 @@
 
 import { getMetaValue } from "./utils";
 
-export function openDatasetModal(
-  dagId,
-  summary = "",
-  nextDatasets = [],
-  error = null
-) {
+export function openDatasetModal(dagId, summary, nextDatasets, error) {
+  const datasetEvents = nextDatasets.events || [];
+  const expression = nextDatasets.dataset_expression;
   const datasetsUrl = getMetaValue("datasets_url");
+  $("#dataset_expression").empty();
   $("#datasets_tbody").empty();
   $("#datasets_error").hide();
   $("#dag_id").text(dagId);
+  $("#dataset_expression").text(JSON.stringify(expression, null, 2));
   $("#datasetNextRunModal").modal({});
-  $("#next_run_summary").text(summary);
-  nextDatasets.forEach((d) => {
+  if (summary) $("#next_run_summary").text(summary);
+  datasetEvents.forEach((d) => {
     const row = document.createElement("tr");
 
     const uriCell = document.createElement("td");
@@ -63,11 +62,12 @@ export function getDatasetTooltipInfo(dagId, run, setNextDatasets) {
       nextRunUrl = nextRunUrl.replace("__DAG_ID__", dagId);
     }
     $.get(nextRunUrl)
-      .done((datasets) => {
+      .done((nextDatasets) => {
+        const datasetEvents = nextDatasets.events;
         let count = 0;
         let title = "<strong>Pending datasets:</strong><br>";
-        setNextDatasets(datasets);
-        datasets.forEach((d) => {
+        setNextDatasets(nextDatasets);
+        datasetEvents.forEach((d) => {
           if (!d.created_at) {
             if (count < 4) title += `${d.uri}<br>`;
             count += 1;

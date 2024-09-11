@@ -148,6 +148,22 @@ generated using the secret key has a short expiry time though - make sure that t
 that you run airflow components on is synchronized (for example using ntpd) otherwise you might get
 "forbidden" errors when the logs are accessed.
 
+Eviction configuration
+----------------------
+When running Airflow along with the `Kubernetes Cluster Autoscaler <https://github.com/kubernetes/autoscaler>`_, it is important to configure whether pods can be safely evicted.
+This setting can be configured in the Airflow chart at different levels:
+
+.. code-block:: yaml
+
+  workers:
+    safeToEvict: true
+  scheduler:
+    safeToEvict: true
+  webserver:
+    safeToEvict: true
+
+When using ``KubernetesExecutor``, ``workers.safeToEvict`` should be set to ``false`` to avoid them being removed before finishing.
+
 Extending and customizing Airflow Image
 ---------------------------------------
 

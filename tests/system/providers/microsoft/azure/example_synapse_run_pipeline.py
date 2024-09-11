@@ -20,12 +20,8 @@ import os
 from datetime import datetime
 
 from airflow.models import DAG
+from airflow.operators.empty import EmptyOperator
 from airflow.providers.microsoft.azure.operators.synapse import AzureSynapseRunPipelineOperator
-
-try:
-    from airflow.operators.empty import EmptyOperator
-except ModuleNotFoundError:
-    from airflow.operators.dummy import DummyOperator as EmptyOperator  # type: ignore
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 

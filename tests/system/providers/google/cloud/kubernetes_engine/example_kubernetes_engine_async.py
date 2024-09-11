@@ -18,6 +18,7 @@
 """
 Example Airflow DAG for asynchronous mode of Google Kubernetes Engine.
 """
+
 from __future__ import annotations
 
 import os
@@ -30,13 +31,17 @@ from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKEDeleteClusterOperator,
     GKEStartPodOperator,
 )
+from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "kubernetes_engine_async"
-GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
+GCP_PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
 GCP_LOCATION = "europe-north1-a"
-CLUSTER_NAME = f"example-cluster-defer-{ENV_ID}".replace("_", "-")
+CLUSTER_NAME_BASE = f"cluster-{DAG_ID}".replace("_", "-")
+CLUSTER_NAME_FULL = CLUSTER_NAME_BASE + f"-{ENV_ID}".replace("_", "-")
+CLUSTER_NAME = CLUSTER_NAME_BASE if len(CLUSTER_NAME_FULL) >= 33 else CLUSTER_NAME_FULL
 
 CLUSTER = {"name": CLUSTER_NAME, "initial_node_count": 1}
 
@@ -91,7 +96,7 @@ with DAG(
 
     # [START howto_operator_gke_xcom_result_async]
     pod_task_xcom_result = BashOperator(
-        bash_command="echo \"{{ task_instance.xcom_pull('pod_task_xcom')[0] }}\"",
+        bash_command="echo \"{{ task_instance.xcom_pull('pod_task_xcom_async')[0] }}\"",
         task_id="pod_task_xcom_result",
     )
     # [END howto_operator_gke_xcom_result_async]
@@ -105,9 +110,9 @@ with DAG(
         deferrable=True,
     )
     # [END howto_operator_gke_delete_cluster_async]
+    delete_cluster.trigger_rule = TriggerRule.ALL_DONE
 
-    create_cluster >> pod_task >> delete_cluster
-    create_cluster >> pod_task_xcom_async >> delete_cluster
+    create_cluster >> [pod_task, pod_task_xcom_async] >> delete_cluster
     pod_task_xcom_async >> pod_task_xcom_result
 
     from tests.system.utils.watcher import watcher

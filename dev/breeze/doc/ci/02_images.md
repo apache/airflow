@@ -126,14 +126,14 @@ By adding `--python <PYTHON_MAJOR_MINOR_VERSION>` parameter you can
 build the image version for the chosen Python version.
 
 The images are built with default extras - different extras for CI and
-production image and you can change the extras via the `--extras`
+production image and you can change the extras via the `--airflow-extras`
 parameters and add new ones with `--additional-airflow-extras`.
 
 For example if you want to build Python 3.8 version of production image
 with "all" extras installed you should run this command:
 
 ``` bash
-breeze prod-image build --python 3.8 --extras "all"
+breeze prod-image build --python 3.8 --airflow-extras "all"
 ```
 
 If you just want to add new extras you can add them like that:
@@ -428,6 +428,7 @@ can be used for CI images:
 | `DEPENDENCIES_EPOCH_NUMBER`       | `2`                                                                     | increasing this number will reinstall all apt dependencies                                                                                                 |
 | `ADDITIONAL_PIP_INSTALL_FLAGS`    |                                                                         | additional `pip` flags passed to the installation commands (except when reinstalling `pip` itself)                                                         |
 | `PIP_NO_CACHE_DIR`                | `true`                                                                  | if true, then no pip cache will be stored                                                                                                                  |
+| `UV_NO_CACHE`                     | `true`                                                                  | if true, then no uv cache will be stored                                                                                                                   |
 | `HOME`                            | `/root`                                                                 | Home directory of the root user (CI image has root user as default)                                                                                        |
 | `AIRFLOW_HOME`                    | `/root/airflow`                                                         | Airflow's HOME (that's where logs and sqlite databases are stored)                                                                                         |
 | `AIRFLOW_SOURCES`                 | `/opt/airflow`                                                          | Mounted sources of Airflow                                                                                                                                 |
@@ -437,7 +438,7 @@ can be used for CI images:
 | `AIRFLOW_CONSTRAINTS_LOCATION`    |                                                                         | If not empty, it will override the source of the constraints with the specified URL or file.                                                               |
 | `AIRFLOW_CONSTRAINTS_REFERENCE`   |                                                                         | reference (branch or tag) from GitHub repository from which constraints are used. By default it is set to `constraints-main` but can be `constraints-2-X`. |
 | `AIRFLOW_EXTRAS`                  | `all`                                                                   | extras to install                                                                                                                                          |
-| `UPGRADE_TO_NEWER_DEPENDENCIES`   | `false`                                                                 | If set to a value different than "false" the dependencies are upgraded to newer versions. In CI it is set to build id.                                     |
+| `UPGRADE_INVALIDATION_STRING`     |                                                                         | If set to any random value the dependencies are upgraded to newer versions. In CI it is set to build id.                                                   |
 | `AIRFLOW_PRE_CACHED_PIP_PACKAGES` | `true`                                                                  | Allows to pre-cache airflow PIP packages from the GitHub of Apache Airflow This allows to optimize iterations for Image builds and speeds up CI jobs.      |
 | `ADDITIONAL_AIRFLOW_EXTRAS`       |                                                                         | additional extras to install                                                                                                                               |
 | `ADDITIONAL_PYTHON_DEPS`          |                                                                         | additional Python dependencies to install                                                                                                                  |
@@ -447,6 +448,8 @@ can be used for CI images:
 | `ADDITIONAL_DEV_APT_DEPS`         |                                                                         | Additional apt dev dependencies installed in the first part of the image                                                                                   |
 | `ADDITIONAL_DEV_APT_ENV`          |                                                                         | Additional env variables defined when installing dev deps                                                                                                  |
 | `AIRFLOW_PIP_VERSION`             | `24.0`                                                                  | PIP version used.                                                                                                                                          |
+| `AIRFLOW_UV_VERSION`              | `0.1.10`                                                                | UV version used.                                                                                                                                           |
+| `AIRFLOW_USE_UV`                  | `true`                                                                  | Whether to use UV for installation.                                                                                                                        |
 | `PIP_PROGRESS_BAR`                | `on`                                                                    | Progress bar for PIP installation                                                                                                                          |
 
 Here are some examples of how CI images can built manually. CI is always
@@ -571,7 +574,7 @@ percent-encoded when you access them via UI (/ = %2F)
 
 - \<BRANCH\> might be either "main" or "v2-\*-test"
 - \<X.Y\> - Python version (Major + Minor).Should be one of \["3.8",
-  "3.9", "3.10", "3.11"\].
+  "3.9", "3.10", "3.11", "3.12" \].
 - \<COMMIT_SHA\> - full-length SHA of commit either from the tip of the
   branch (for pushes/schedule) or commit from the tip of the branch used
   for the PR.

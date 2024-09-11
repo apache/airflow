@@ -124,6 +124,7 @@ const DagRunBar = ({
           portalProps={{ containerRef }}
           placement="top"
           openDelay={hoverDelay}
+          maxW="md"
         >
           <Flex
             width="10px"

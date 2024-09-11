@@ -26,10 +26,12 @@ from airflow.providers.amazon.aws.utils.mixins import (
     aws_template_fields,
 )
 from airflow.sensors.base import BaseSensorOperator
+from airflow.utils.types import NOTSET, ArgNotSet
 
 
 class AwsBaseSensor(BaseSensorOperator, AwsBaseHookMixin[AwsHookType]):
-    """Base AWS (Amazon) Sensor Class for build sensors in top of AWS Hooks.
+    """
+    Base AWS (Amazon) Sensor Class for build sensors in top of AWS Hooks.
 
     .. warning::
         Only for internal usage, this class might be changed, renamed or removed in the future
@@ -84,10 +86,12 @@ class AwsBaseSensor(BaseSensorOperator, AwsBaseHookMixin[AwsHookType]):
         region_name: str | None = None,
         verify: bool | str | None = None,
         botocore_config: dict | None = None,
+        region: str | None | ArgNotSet = NOTSET,  # Required for `.partial` signature check
         **kwargs,
     ):
+        additional_params = {} if region is NOTSET else {"region": region}
         hook_params = AwsHookParams.from_constructor(
-            aws_conn_id, region_name, verify, botocore_config, additional_params=kwargs
+            aws_conn_id, region_name, verify, botocore_config, additional_params=additional_params
         )
         super().__init__(**kwargs)
         self.aws_conn_id = hook_params.aws_conn_id

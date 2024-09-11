@@ -25,6 +25,7 @@ import aiohttp
 import requests
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
+from requests.auth import HTTPBasicAuth
 
 from airflow.exceptions import AirflowException
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
@@ -39,8 +40,9 @@ class SnowflakeSqlApiHook(SnowflakeHook):
     poll to check the status of the execution of a statement. Fetch query results asynchronously.
 
     This hook requires the snowflake_conn_id connection. This hooks mainly uses account, schema, database,
-     warehouse, private_key_file or private_key_content field must be setup in the connection. Other inputs
-      can be defined in the connection or hook instantiation.
+    warehouse, and an authentication mechanism from one of below:
+    1. JWT Token generated from private_key_file or private_key_content. Other inputs can be defined in the connection or hook instantiation.
+    2. OAuth Token generated from the refresh_token, client_id and client_secret specified in the connection
 
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
@@ -80,6 +82,17 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         self.token_renewal_delta = token_renewal_delta
         super().__init__(snowflake_conn_id, *args, **kwargs)
         self.private_key: Any = None
+
+    @property
+    def account_identifier(self) -> str:
+        """Returns snowflake account identifier."""
+        conn_config = self._get_conn_params
+        account_identifier = f"https://{conn_config['account']}"
+
+        if conn_config["region"]:
+            account_identifier += f".{conn_config['region']}"
+
+        return account_identifier
 
     def get_private_key(self) -> None:
         """Get the private key from snowflake connection."""
@@ -134,13 +147,10 @@ class SnowflakeSqlApiHook(SnowflakeHook):
             When executing the statement, Snowflake replaces placeholders (? and :name) in
             the statement with these specified values.
         """
-        conn_config = self._get_conn_params()
+        conn_config = self._get_conn_params
 
         req_id = uuid.uuid4()
-        url = (
-            f"https://{conn_config['account']}.{conn_config['region']}"
-            f".snowflakecomputing.com/api/v2/statements"
-        )
+        url = f"{self.account_identifier}.snowflakecomputing.com/api/v2/statements"
         params: dict[str, Any] | None = {"requestId": str(req_id), "async": True, "pageSize": 10}
         headers = self.get_headers()
         if bindings is None:
@@ -148,10 +158,13 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         data = {
             "statement": sql,
             "resultSetMetaData": {"format": "json"},
-            "database": conn_config["database"],
-            "schema": conn_config["schema"],
-            "warehouse": conn_config["warehouse"],
-            "role": conn_config["role"],
+            # If database, schema, warehouse, role parameters have been provided set them accordingly
+            # If either of them has been not (Parent class initializes them to None in that case)
+            # set them to what in the Airflow connection configuration
+            "database": self.database or conn_config["database"],
+            "schema": self.schema or conn_config["schema"],
+            "warehouse": self.warehouse or conn_config["warehouse"],
+            "role": self.role or conn_config["role"],
             "bindings": bindings,
             "parameters": {
                 "MULTI_STATEMENT_COUNT": statement_count,
@@ -175,12 +188,27 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         return self.query_ids
 
     def get_headers(self) -> dict[str, Any]:
-        """Form JWT Token and header based on the private key, and connection details."""
+        """Form auth headers based on either OAuth token or JWT token from private key."""
+        conn_config = self._get_conn_params
+
+        # Use OAuth if refresh_token and client_id and client_secret are provided
+        if all(
+            [conn_config.get("refresh_token"), conn_config.get("client_id"), conn_config.get("client_secret")]
+        ):
+            oauth_token = self.get_oauth_token()
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {oauth_token}",
+                "Accept": "application/json",
+                "User-Agent": "snowflakeSQLAPI/1.0",
+                "X-Snowflake-Authorization-Token-Type": "OAUTH",
+            }
+            return headers
+
+        # Alternatively, get the JWT token from the connection details and the private key
         if not self.private_key:
             self.get_private_key()
-        conn_config = self._get_conn_params()
 
-        # Get the JWT token from the connection details and the private key
         token = JWTGenerator(
             conn_config["account"],  # type: ignore[arg-type]
             conn_config["user"],  # type: ignore[arg-type]
@@ -198,20 +226,41 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         }
         return headers
 
+    def get_oauth_token(self) -> str:
+        """Generate temporary OAuth access token using refresh token in connection details."""
+        conn_config = self._get_conn_params
+        url = f"{self.account_identifier}.snowflakecomputing.com/oauth/token-request"
+        data = {
+            "grant_type": "refresh_token",
+            "refresh_token": conn_config["refresh_token"],
+            "redirect_uri": conn_config.get("redirect_uri", "https://localhost.com"),
+        }
+        response = requests.post(
+            url,
+            data=data,
+            headers={
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            auth=HTTPBasicAuth(conn_config["client_id"], conn_config["client_secret"]),  # type: ignore[arg-type]
+        )
+
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError as e:  # pragma: no cover
+            msg = f"Response: {e.response.content.decode()} Status Code: {e.response.status_code}"
+            raise AirflowException(msg)
+        return response.json()["access_token"]
+
     def get_request_url_header_params(self, query_id: str) -> tuple[dict[str, Any], dict[str, Any], str]:
         """
         Build the request header Url with account name identifier and query id from the connection params.
 
         :param query_id: statement handles query ids for the individual statements.
         """
-        conn_config = self._get_conn_params()
         req_id = uuid.uuid4()
         header = self.get_headers()
         params = {"requestId": str(req_id)}
-        url = (
-            f"https://{conn_config['account']}.{conn_config['region']}"
-            f".snowflakecomputing.com/api/v2/statements/{query_id}"
-        )
+        url = f"{self.account_identifier}.snowflakecomputing.com/api/v2/statements/{query_id}"
         return header, params, url
 
     def check_query_output(self, query_ids: list[str]) -> None:
@@ -237,11 +286,12 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         elif status_code == 422:
             return {"status": "error", "message": resp["message"]}
         elif status_code == 200:
-            statement_handles = []
-            if "statementHandles" in resp and resp["statementHandles"]:
-                statement_handles = resp["statementHandles"]
-            elif "statementHandle" in resp and resp["statementHandle"]:
-                statement_handles.append(resp["statementHandle"])
+            if resp_statement_handles := resp.get("statementHandles"):
+                statement_handles = resp_statement_handles
+            elif resp_statement_handle := resp.get("statementHandle"):
+                statement_handles = [resp_statement_handle]
+            else:
+                statement_handles = []
             return {
                 "status": "success",
                 "message": resp["message"],

@@ -29,6 +29,7 @@ from airflow.models.baseoperator import BaseOperator
 # This is the class you derive to create a plugin
 from airflow.plugins_manager import AirflowPlugin
 from airflow.sensors.base import BaseSensorOperator
+from airflow.task.priority_strategy import PriorityWeightStrategy
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.interval import CronDataIntervalTimetable
 from tests.listeners import empty_listener
@@ -78,7 +79,12 @@ class PluginTestAppBuilderBaseView(AppBuilderBaseView):
 
 
 v_appbuilder_view = PluginTestAppBuilderBaseView()
-v_appbuilder_package = {"name": "Test View", "category": "Test Plugin", "view": v_appbuilder_view}
+v_appbuilder_package = {
+    "name": "Test View",
+    "category": "Test Plugin",
+    "view": v_appbuilder_view,
+    "label": "Test Label",
+}
 
 v_nomenu_appbuilder_package = {"view": v_appbuilder_view}
 
@@ -113,6 +119,11 @@ class CustomTestTriggerRule(BaseTIDep):
     pass
 
 
+class CustomPriorityWeightStrategy(PriorityWeightStrategy):
+    def get_weight(self, ti):
+        return 1
+
+
 # Defining the plugin class
 class AirflowTestPlugin(AirflowPlugin):
     name = "test_plugin"
@@ -132,6 +143,7 @@ class AirflowTestPlugin(AirflowPlugin):
     timetables = [CustomCronDataIntervalTimetable]
     listeners = [empty_listener, ClassBasedListener()]
     ti_deps = [CustomTestTriggerRule()]
+    priority_weight_strategies = [CustomPriorityWeightStrategy]
 
 
 class MockPluginA(AirflowPlugin):

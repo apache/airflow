@@ -24,6 +24,7 @@ from pathlib import Path
 
 import pytest
 import requests
+from python_on_whales import docker
 
 # isort:off (needed to workaround isort bug)
 from docker_tests.command_utils import run_command
@@ -32,6 +33,11 @@ from docker_tests.constants import SOURCE_ROOT
 # isort:on (needed to workaround isort bug)
 
 DOCKER_EXAMPLES_DIR = SOURCE_ROOT / "docs" / "docker-stack" / "docker-examples"
+QUARANTINED_DOCKER_EXAMPLES: dict[str, str] = {
+    # You could temporarily disable check for specific Dockerfile
+    # In this case you need to provide a relative path with the reason, e.g:
+    # "extending/add-build-essential-extend/Dockerfile": "https://github.com/apache/airflow/issues/XX",
+}
 
 
 @lru_cache(maxsize=None)
@@ -51,18 +57,36 @@ def test_shell_script_example(script_file):
     run_command(["bash", script_file])
 
 
-@pytest.mark.parametrize("dockerfile", glob.glob(f"{DOCKER_EXAMPLES_DIR}/**/Dockerfile", recursive=True))
-def test_dockerfile_example(dockerfile):
-    rel_dockerfile_path = Path(dockerfile).relative_to(DOCKER_EXAMPLES_DIR)
-    image_name = str(rel_dockerfile_path).lower().replace("/", "-")
+def docker_examples(directory: Path, xfails: dict[str, str] | None = None):
+    xfails = xfails or {}
+    result = []
+    for filepath in sorted(directory.rglob("**/Dockerfile")):
+        markers = []
+        rel_path = filepath.relative_to(directory).as_posix()
+        if xfail_reason := xfails.get(rel_path):
+            markers.append(pytest.mark.xfail(reason=xfail_reason))
+        result.append(pytest.param(filepath, rel_path, marks=markers, id=rel_path))
+    return result
+
+
+@pytest.mark.parametrize(
+    "dockerfile, relative_path",
+    docker_examples(DOCKER_EXAMPLES_DIR, xfails=QUARANTINED_DOCKER_EXAMPLES),
+)
+def test_dockerfile_example(dockerfile, relative_path, tmp_path):
+    image_name = relative_path.lower().replace("/", "-")
     content = Path(dockerfile).read_text()
     test_image = os.environ.get("TEST_IMAGE", get_latest_airflow_image())
-    new_content = re.sub(r"FROM apache/airflow:.*", rf"FROM {test_image}", content)
+
+    test_image_file = tmp_path / image_name
+    test_image_file.write_text(re.sub(r"FROM apache/airflow:.*", rf"FROM {test_image}", content))
     try:
-        run_command(
-            ["docker", "build", ".", "--tag", image_name, "-f", "-"],
-            cwd=str(Path(dockerfile).parent),
-            input=new_content.encode(),
+        image = docker.build(
+            context_path=Path(dockerfile).parent,
+            tags=image_name,
+            file=test_image_file,
+            load=True,  # Load image to docker daemon
         )
+        assert image
     finally:
-        run_command(["docker", "rmi", "--force", image_name])
+        docker.image.remove(image_name, force=True)

@@ -25,10 +25,10 @@ from airflow.providers.fab.auth_manager.models import Role, User
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
-from airflow.www.security import EXISTING_ROLES
+from airflow.www.security_manager import EXISTING_ROLES
 from tests.test_utils.api_connexion_utils import create_role, create_user, delete_role, delete_user
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 DEFAULT_TIME = "2020-06-11T18:00:00+00:00"
 
@@ -46,7 +46,7 @@ def _delete_user(**filters):
         session.delete(user)
 
 
-@pytest.fixture()
+@pytest.fixture
 def autoclean_user_payload(autoclean_username, autoclean_email):
     return {
         "username": autoclean_username,
@@ -57,7 +57,7 @@ def autoclean_user_payload(autoclean_username, autoclean_email):
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def autoclean_admin_user(configured_app, autoclean_user_payload):
     security_manager = configured_app.appbuilder.sm
     return security_manager.add_user(
@@ -66,14 +66,14 @@ def autoclean_admin_user(configured_app, autoclean_user_payload):
     )
 
 
-@pytest.fixture()
+@pytest.fixture
 def autoclean_username():
     _delete_user(username=EXAMPLE_USER_NAME)
     yield EXAMPLE_USER_NAME
     _delete_user(username=EXAMPLE_USER_NAME)
 
 
-@pytest.fixture()
+@pytest.fixture
 def autoclean_email():
     _delete_user(email=EXAMPLE_USER_EMAIL)
     yield EXAMPLE_USER_EMAIL

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Storage hook."""
+
 from __future__ import annotations
 
 import functools
@@ -44,7 +45,11 @@ from requests import Session
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
 from airflow.providers.google.common.consts import CLIENT_INFO
-from airflow.providers.google.common.hooks.base_google import GoogleBaseAsyncHook, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import (
+    PROVIDE_PROJECT_ID,
+    GoogleBaseAsyncHook,
+    GoogleBaseHook,
+)
 from airflow.typing_compat import ParamSpec
 from airflow.utils import timezone
 from airflow.version import version
@@ -279,8 +284,7 @@ class GCSHook(GoogleBaseHook):
         timeout: int | None = DEFAULT_TIMEOUT,
         num_max_attempts: int | None = 1,
         user_project: str | None = None,
-    ) -> bytes:
-        ...
+    ) -> bytes: ...
 
     @overload
     def download(
@@ -292,8 +296,7 @@ class GCSHook(GoogleBaseHook):
         timeout: int | None = DEFAULT_TIMEOUT,
         num_max_attempts: int | None = 1,
         user_project: str | None = None,
-    ) -> str:
-        ...
+    ) -> str: ...
 
     def download(
         self,
@@ -1007,6 +1010,27 @@ class GCSHook(GoogleBaseHook):
         self.log.info("The md5Hash of %s is %s", object_name, blob_md5hash)
         return blob_md5hash
 
+    def get_metadata(self, bucket_name: str, object_name: str) -> dict | None:
+        """
+        Get the metadata of an object in Google Cloud Storage.
+
+        :param bucket_name: Name of the Google Cloud Storage bucket where the object is.
+        :param object_name: The name of the object containing the desired metadata
+        :return: The metadata associated with the object
+        """
+        self.log.info("Retrieving the metadata dict of object (%s) in bucket (%s)", object_name, bucket_name)
+        client = self.get_conn()
+        bucket = client.bucket(bucket_name)
+        blob = bucket.get_blob(blob_name=object_name)
+        if blob is None:
+            raise ValueError("Object (%s) not found in bucket (%s)", object_name, bucket_name)
+        blob_metadata = blob.metadata
+        if blob_metadata:
+            self.log.info("Retrieved metadata of object (%s) with %s fields", object_name, len(blob_metadata))
+        else:
+            self.log.info("Metadata of object (%s) is empty or it does not exist", object_name)
+        return blob_metadata
+
     @GoogleBaseHook.fallback_to_default_project_id
     def create_bucket(
         self,
@@ -1014,7 +1038,7 @@ class GCSHook(GoogleBaseHook):
         resource: dict | None = None,
         storage_class: str = "MULTI_REGIONAL",
         location: str = "US",
-        project_id: str | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
         labels: dict | None = None,
     ) -> str:
         """
@@ -1338,7 +1362,15 @@ class GCSHook(GoogleBaseHook):
         for current_name in names_to_check:
             source_blob = source_names_index[current_name]
             destination_blob = destination_names_index[current_name]
-            # If the objects are different, save it
+            # If either object is CMEK-protected, use the Cloud Storage Objects Get API to retrieve them
+            # so that the crc32c is included
+            if source_blob.kms_key_name:
+                source_blob = source_bucket.get_blob(source_blob.name, generation=source_blob.generation)
+            if destination_blob.kms_key_name:
+                destination_blob = destination_bucket.get_blob(
+                    destination_blob.name, generation=destination_blob.generation
+                )
+            # if the objects are different, save it
             if source_blob.crc32c != destination_blob.crc32c:
                 to_rewrite_blobs.add(source_blob)
 

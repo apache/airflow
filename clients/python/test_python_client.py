@@ -49,7 +49,7 @@ from airflow_client.client.model.dag_run import DAGRun
 # configured also with the basic_auth as backend additionally to regular session backend needed
 # by the UI. In the `[api]` section of your `airflow.cfg` set:
 #
-# auth_backend = airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth
+# auth_backend = airflow.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
 #
 # Make sure that your user/name are configured properly - using the user/password that has admin
 # privileges in Airflow

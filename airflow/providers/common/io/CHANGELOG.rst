@@ -25,6 +25,71 @@
 Changelog
 ---------
 
+1.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``[AIP-62] Translate AIP-60 URI to OpenLineage (#40173)``
+* ``openlineage: add file dataset type support into common.io provider (#40817)``
+
+Misc
+~~~~
+
+* ``openlineage: migrate OpenLineage provider to V2 facets. (#39530)``
+* ``openlineage: add support for hook lineage for S3Hook (#40819)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave July 2024 (#40644)``
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
+1.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: OpenLineage in FileTransferOperator for Airflow 2.8 (#39755)``
+
+Misc
+~~~~
+
+* ``Faster 'airflow_version' imports (#39552)``
+* ``Simplify 'airflow_version' imports (#39497)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Reapply templates for all providers (#39554)``
+
+1.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix missing reverse quote in docs (#38275)``
+* ``Fix remaining D401 checks (#37434)``
+
+Misc
+~~~~
+
+* ``Improve XComObjectStorageBackend implementation (#38608)``
+* ``Rename to XComObjectStorageBackend (#38607)``
+* ``Turn common.io xcom exception into OptionalProviderFeatureException (#38543)``
+* ``Update ObjectStoragePath for universal_pathlib>=v0.2.2 (#37930)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix XComObjectStoreBackend config var in docs (#38142)``
+   * ``Revert ObjectStorage config variables name (#38415)``
+   * ``Update yanked versions in providers changelogs (#38262)``
+   * ``Revert "Update ObjectStoragePath for universal_pathlib>=v0.2.1 (#37524)" (#37567)``
+   * ``Update ObjectStoragePath for universal_pathlib>=v0.2.1 (#37524)``
+   * ``Add comment about versions updated by release manager (#37488)``
+
 1.3.0
 .....
 
@@ -62,16 +127,10 @@ Features
    * ``Use reproducible builds for provider packages (#35693)``
    * ``Fix and reapply templates for provider documentation (#35686)``
 
-1.0.1
-.....
+1.0.1 (YANKED)
+..............
 
-Breaking changes
-~~~~~~~~~~~~~~~~
-
-
-Features
-~~~~~~~~
-
+.. warning:: This release has been **yanked** with a reason: ``Used older interface from 2.8.0.dev0 versions``
 
 Bug Fixes
 ~~~~~~~~~
@@ -82,7 +141,9 @@ Bug Fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Improvements to airflow.io (#35478)``
 
-1.0.0
-.....
+1.0.0 (YANKED)
+..............
+
+.. warning:: This release has been **yanked** with a reason: ``Used older interface from 2.8.0.dev0 versions``
 
 Initial version of the provider.

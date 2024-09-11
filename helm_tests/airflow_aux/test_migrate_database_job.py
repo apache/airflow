@@ -60,6 +60,39 @@ class TestMigrateDatabaseJob:
         assert "fiz" in job_annotations
         assert "fuz" == job_annotations["fiz"]
 
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "migrateDatabaseJob": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        assert "test_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert jmespath.search("spec.template.metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    def test_should_merge_common_labels_and_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "labels": {"test_common_label": "test_common_label_value"},
+                "migrateDatabaseJob": {
+                    "labels": {"test_specific_label": "test_specific_label_value"},
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+        assert "test_common_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert (
+            jmespath.search("spec.template.metadata.labels", docs[0])["test_common_label"]
+            == "test_common_label_value"
+        )
+        assert "test_specific_label" in jmespath.search("spec.template.metadata.labels", docs[0])
+        assert (
+            jmespath.search("spec.template.metadata.labels", docs[0])["test_specific_label"]
+            == "test_specific_label_value"
+        )
+
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={
@@ -145,7 +178,7 @@ class TestMigrateDatabaseJob:
             values={
                 "migrateDatabaseJob": {
                     "extraContainers": [
-                        {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
+                        {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
                     ],
                 },
             },
@@ -153,9 +186,40 @@ class TestMigrateDatabaseJob:
         )
 
         assert {
-            "name": "test-container",
+            "name": "airflow",
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+
+    def test_should_add_extra_init_containers(self):
+        docs = render_chart(
+            values={
+                "migrateDatabaseJob": {
+                    "extraInitContainers": [
+                        {"name": "{{ .Chart.Name }}", "image": "test-registry/test-repo:test-tag"}
+                    ],
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert {
+            "name": "airflow",
+            "image": "test-registry/test-repo:test-tag",
+        } == jmespath.search("spec.template.spec.initContainers[0]", docs[0])
+
+    def test_should_template_extra_containers(self):
+        docs = render_chart(
+            values={
+                "migrateDatabaseJob": {
+                    "extraContainers": [{"name": "{{ .Release.Name }}-test-container"}],
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job.yaml"],
+        )
+
+        assert {"name": "release-name-test-container"} == jmespath.search(
+            "spec.template.spec.containers[-1]", docs[0]
+        )
 
     def test_set_resources(self):
         docs = render_chart(
@@ -339,6 +403,36 @@ class TestMigrateDatabaseJob:
 
 class TestMigrateDatabaseJobServiceAccount:
     """Tests migrate database job service account."""
+
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "migrateDatabaseJob": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job-serviceaccount.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
+    def test_should_merge_common_labels_and_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "labels": {"test_common_label": "test_common_label_value"},
+                "migrateDatabaseJob": {
+                    "labels": {"test_specific_label": "test_specific_label_value"},
+                },
+            },
+            show_only=["templates/jobs/migrate-database-job-serviceaccount.yaml"],
+        )
+        assert "test_common_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_common_label"] == "test_common_label_value"
+        assert "test_specific_label" in jmespath.search("metadata.labels", docs[0])
+        assert (
+            jmespath.search("metadata.labels", docs[0])["test_specific_label"] == "test_specific_label_value"
+        )
 
     def test_default_automount_service_account_token(self):
         docs = render_chart(

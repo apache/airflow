@@ -22,9 +22,19 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1707636119
+source-date-epoch: 1723968989
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 8.28.0
+  - 8.27.0
+  - 8.26.0
+  - 8.25.0
+  - 8.24.0
+  - 8.23.0
+  - 8.22.0
+  - 8.21.0
+  - 8.20.0
+  - 8.19.0
   - 8.18.0
   - 8.17.0
   - 8.16.0
@@ -80,33 +90,43 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.6.0
+  - apache-airflow>=2.8.0
+  - apache-airflow-providers-common-compat>=1.1.0
   - apache-airflow-providers-common-sql>=1.3.1
   - apache-airflow-providers-http
   # We should update minimum version of boto3 and here regularly to avoid `pip` backtracking with the number
   # of candidates to consider. Make sure to configure boto3 version here as well as in all the tools below
   # in the `devel-dependencies` section to be the same minimum version.
-  - boto3>=1.33.0
-  - botocore>=1.33.0
+  - boto3>=1.34.90
+  - botocore>=1.34.90
   - inflection>=0.5.1
   # Allow a wider range of watchtower versions for flexibility among users
-  - watchtower>=2.0.1,<4
+  - watchtower>=3.0.0,!=3.3.0,<4
   - jsonpath_ng>=1.5.3
   - redshift_connector>=2.0.918
   - sqlalchemy_redshift>=0.8.6
-  - asgiref
+  - asgiref>=2.3.0
   - PyAthena>=3.0.10
+  - jmespath>=0.7.0
+  - python3-saml>=1.16.0
 
 additional-extras:
   - name: pandas
     dependencies:
-      - pandas>=1.2.5
+      # In pandas 2.2 minimal version of the sqlalchemy is 2.0
+      # https://pandas.pydata.org/docs/whatsnew/v2.2.0.html#increased-minimum-versions-for-dependencies
+      # However Airflow not fully supports it yet: https://github.com/apache/airflow/issues/28723
+      # In addition FAB also limit sqlalchemy to < 2.0
+      - pandas>=2.1.2,<2.2;python_version>="3.9"
+      - pandas>=1.5.3,<2.2;python_version<"3.9"
+
+
   # There is conflict between boto3 and aiobotocore dependency botocore.
   # TODO: We can remove it once boto3 and aiobotocore both have compatible botocore version or
   # boto3 have native async support and we move away from aio aiobotocore
   - name: aiobotocore
     dependencies:
-      - aiobotocore[boto3]>=2.5.3
+      - aiobotocore[boto3]>=2.13.0
   - name: cncf.kubernetes
     dependencies:
       - apache-airflow-providers-cncf-kubernetes>=7.2.0
@@ -118,14 +138,16 @@ additional-extras:
       - python3-saml>=1.16.0
 
 devel-dependencies:
-  - aiobotocore>=2.7.0
+  - aiobotocore>=2.13.0
   - aws_xray_sdk>=2.12.0
   - moto[cloudformation,glue]>=5.0.0
-  - mypy-boto3-appflow>=1.33.0
-  - mypy-boto3-rds>=1.33.0
-  - mypy-boto3-redshift-data>=1.33.0
-  - mypy-boto3-s3>=1.33.0
+  - mypy-boto3-appflow>=1.34.0
+  - mypy-boto3-rds>=1.34.90
+  - mypy-boto3-redshift-data>=1.34.0
+  - mypy-boto3-s3>=1.34.90
   - s3fs>=2023.10.0
+  - openapi-schema-validator>=0.6.2
+  - openapi-spec-validator>=0.7.1
 
 integrations:
   - integration-name: Amazon Athena
@@ -134,6 +156,12 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/athena/athena_boto.rst
       - /docs/apache-airflow-providers-amazon/operators/athena/athena_sql.rst
+    tags: [aws]
+  - integration-name: Amazon Bedrock
+    external-doc-url: https://aws.amazon.com/bedrock/
+    logo: /integration-logos/aws/Amazon-Bedrock_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/bedrock.rst
     tags: [aws]
   - integration-name: Amazon Chime
     external-doc-url: https://aws.amazon.com/chime/
@@ -148,6 +176,12 @@ integrations:
   - integration-name: Amazon CloudWatch Logs
     external-doc-url: https://aws.amazon.com/cloudwatch/
     logo: /integration-logos/aws/Amazon-CloudWatch_light-bg@4x.png
+    tags: [aws]
+  - integration-name: Amazon Comprehend
+    external-doc-url: https://aws.amazon.com/comprehend/
+    logo: /integration-logos/aws/Amazon-Comprehend_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/comprehend.rst
     tags: [aws]
   - integration-name: Amazon DataSync
     external-doc-url: https://aws.amazon.com/datasync/
@@ -217,6 +251,18 @@ integrations:
   - integration-name: Amazon Kinesis Data Firehose
     external-doc-url: https://aws.amazon.com/kinesis/data-firehose/
     logo: /integration-logos/aws/Amazon-Kinesis-Data-Firehose_light-bg@4x.png
+    tags: [aws]
+  - integration-name: Amazon Managed Service for Apache Flink
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/kinesis_analytics.rst
+    external-doc-url: https://aws.amazon.com/managed-service-apache-flink/
+    logo: /integration-logos/aws/Amazon-Kinesis-Analytics_light-bg@4x.png
+    tags: [aws]
+  - integration-name: Amazon OpenSearch Serverless
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/opensearchserverless.rst
+    external-doc-url: https://aws.amazon.com/opensearchserverless/
+    logo: /integration-logos/aws/Amazon-OpenSearch_light-bg@4x.png
     tags: [aws]
   - integration-name: Amazon RDS
     external-doc-url: https://aws.amazon.com/rds/
@@ -356,9 +402,15 @@ operators:
   - integration-name: AWS Batch
     python-modules:
       - airflow.providers.amazon.aws.operators.batch
+  - integration-name: Amazon Bedrock
+    python-modules:
+      - airflow.providers.amazon.aws.operators.bedrock
   - integration-name: Amazon CloudFormation
     python-modules:
       - airflow.providers.amazon.aws.operators.cloud_formation
+  - integration-name: Amazon Comprehend
+    python-modules:
+      - airflow.providers.amazon.aws.operators.comprehend
   - integration-name: Amazon DataSync
     python-modules:
       - airflow.providers.amazon.aws.operators.datasync
@@ -393,6 +445,9 @@ operators:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.operators.lambda_function
+  - integration-name: Amazon Managed Service for Apache Flink
+    python-modules:
+      - airflow.providers.amazon.aws.operators.kinesis_analytics
   - integration-name: Amazon Simple Storage Service (S3)
     python-modules:
       - airflow.providers.amazon.aws.operators.s3
@@ -438,9 +493,15 @@ sensors:
   - integration-name: AWS Batch
     python-modules:
       - airflow.providers.amazon.aws.sensors.batch
+  - integration-name: Amazon Bedrock
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.bedrock
   - integration-name: Amazon CloudFormation
     python-modules:
       - airflow.providers.amazon.aws.sensors.cloud_formation
+  - integration-name: Amazon Comprehend
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.comprehend
   - integration-name: AWS Database Migration Service
     python-modules:
       - airflow.providers.amazon.aws.sensors.dms
@@ -473,6 +534,12 @@ sensors:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.sensors.lambda_function
+  - integration-name: Amazon Managed Service for Apache Flink
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.kinesis_analytics
+  - integration-name: Amazon OpenSearch Serverless
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.opensearch_serverless
   - integration-name: Amazon RDS
     python-modules:
       - airflow.providers.amazon.aws.sensors.rds
@@ -495,6 +562,12 @@ sensors:
     python-modules:
       - airflow.providers.amazon.aws.sensors.quicksight
 
+dataset-uris:
+  - schemes: [s3]
+    handler: airflow.providers.amazon.aws.datasets.s3.sanitize_uri
+    to_openlineage_converter: airflow.providers.amazon.aws.datasets.s3.convert_dataset_to_openlineage
+    factory: airflow.providers.amazon.aws.datasets.s3.create_dataset
+
 filesystems:
   - airflow.providers.amazon.aws.fs.s3
 
@@ -503,9 +576,15 @@ hooks:
     python-modules:
       - airflow.providers.amazon.aws.hooks.athena
       - airflow.providers.amazon.aws.hooks.athena_sql
+  - integration-name: Amazon Bedrock
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.bedrock
   - integration-name: Amazon Chime
     python-modules:
       - airflow.providers.amazon.aws.hooks.chime
+  - integration-name: Amazon Comprehend
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.comprehend
   - integration-name: Amazon DynamoDB
     python-modules:
       - airflow.providers.amazon.aws.hooks.dynamodb
@@ -563,9 +642,15 @@ hooks:
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.hooks.lambda_function
+  - integration-name: Amazon Managed Service for Apache Flink
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.kinesis_analytics
   - integration-name: Amazon CloudWatch Logs
     python-modules:
       - airflow.providers.amazon.aws.hooks.logs
+  - integration-name: Amazon OpenSearch Serverless
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.opensearch_serverless
   - integration-name: Amazon RDS
     python-modules:
       - airflow.providers.amazon.aws.hooks.rds
@@ -627,12 +712,24 @@ triggers:
   - integration-name: AWS Batch
     python-modules:
       - airflow.providers.amazon.aws.triggers.batch
+  - integration-name: Amazon Bedrock
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.bedrock
+  - integration-name: Amazon Comprehend
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.comprehend
   - integration-name: Amazon EC2
     python-modules:
       - airflow.providers.amazon.aws.triggers.ec2
   - integration-name: AWS Lambda
     python-modules:
       - airflow.providers.amazon.aws.triggers.lambda_function
+  - integration-name: Amazon Managed Service for Apache Flink
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.kinesis_analytics
+  - integration-name: Amazon OpenSearch Serverless
+    python-modules:
+      - airflow.providers.amazon.aws.triggers.opensearch_serverless
   - integration-name: Amazon Redshift
     python-modules:
       - airflow.providers.amazon.aws.triggers.redshift_cluster
@@ -755,6 +852,10 @@ transfers:
     target-integration-name: Amazon Simple Storage Service (S3)
     how-to-guide: /docs/apache-airflow-providers-amazon/transfer/azure_blob_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.azure_blob_to_s3
+  - source-integration-name: Amazon Simple Storage Service (S3)
+    target-integration-name: Amazon DynamoDB
+    how-to-guide: /docs/apache-airflow-providers-amazon/transfer/s3_to_dynamodb.rst
+    python-module: airflow.providers.amazon.aws.transfers.s3_to_dynamodb
 
 extra-links:
   - airflow.providers.amazon.aws.links.athena.AthenaQueryResultsLink
@@ -828,6 +929,79 @@ config:
         version_added: 8.7.2
         example: airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize
         default: airflow.providers.amazon.aws.log.cloudwatch_task_handler.json_serialize_legacy
+  aws_batch_executor:
+    description: |
+      This section only applies if you are using the AwsBatchExecutor in
+      Airflow's ``[core]`` configuration.
+      For more information on any of these execution parameters, see the link below:
+      https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch.html#Batch.Client.submit_job
+      For boto3 credential management, see
+      https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html
+    options:
+      conn_id:
+        description: |
+          The Airflow connection (i.e. credentials) used by the Batch executor to make API calls to AWS Batch.
+        version_added: "8.11"
+        type: string
+        example: "aws_default"
+        default: "aws_default"
+      region_name:
+        description: |
+          The name of the AWS Region where Amazon Batch is configured. Required.
+        version_added: "8.11"
+        type: string
+        example: "us-east-1"
+        default: ~
+      max_submit_job_attempts:
+        description: |
+          The maximum number of times the Batch Executor should attempt to run a Batch Job.
+        version_added: "8.11"
+        type: integer
+        example: "3"
+        default: "3"
+      check_health_on_startup:
+        description: |
+          Whether or not to check the Batch Executor health on startup.
+        version_added: "8.11"
+        type: boolean
+        example: "True"
+        default: "True"
+      job_name:
+        description: |
+          The name of the job submitted to AWS Batch. It can be up to 128 letters long.
+          The first character must be alphanumeric, can contain uppercase and lowercase
+          letters, numbers, hyphens (-), and underscores (_).
+        version_added: "8.11"
+        type: string
+        example: "airflow-batch-executor-job"
+        default: ~
+      job_queue:
+        description: |
+          The job queue where the job is submitted. You can specify either the name
+          or the Amazon Resource Name (ARN) of the queue.
+        version_added: "8.11"
+        type: string
+        example: "airflow-batch-executor-job-queue"
+        default: ~
+      job_definition:
+        description: |
+          The job definition used by the job. You can specify either the name
+          or the Amazon Resource Name (ARN) of the job definition with or
+          without the revision. If the revision is not specified, then the
+          latest active revision is used.
+        version_added: "8.11"
+        type: string
+        example: "airflow-batch-executor-job-definition"
+        default: ~
+      submit_job_kwargs:
+        description: |
+          Additional parameters to pass to the submit_job method of the
+          AWS Batch client.
+        version_added: "8.11"
+        type: string
+        example: '{"Tags": [{"Key": "key", "Value": "value"}]}'
+        default: ~
+
   aws_ecs_executor:
     description: |
       This section only applies if you are using the AwsEcsExecutor in
