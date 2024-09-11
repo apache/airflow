@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String
+from sqlalchemy.orm.session import Session
 
 from airflow.models.base import Base
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -21,7 +22,15 @@ class CrossDagComm(Base, LoggingMixin):
     target_task_id = Column(String(250))
     timestamp = Column(UtcDateTime, default=timezone.utcnow)
 
-    def __init__(self, type, key=None, source_dag_id=None, source_task_id=None, target_dag_id=None, target_task_id=None, **kwargs):
+    def __init__(
+        self, 
+        type: str, 
+        key: str=None, 
+        source_dag_id: str=None, 
+        source_task_id: str=None, 
+        target_dag_id: str=None, 
+        target_task_id: str=None, 
+    ):
         self.type = type
         self.key = key
         self.source_dag_id = source_dag_id
@@ -31,7 +40,16 @@ class CrossDagComm(Base, LoggingMixin):
     
     @classmethod
     @provide_session
-    def add(cls, type, key=None, source_dag_id=None, source_task_id=None, target_dag_id=None, target_task_id=None, session=None):
+    def add(
+        cls, 
+        type: str, 
+        key: str=None, 
+        source_dag_id: str=None, 
+        source_task_id: str=None, 
+        target_dag_id: str=None, 
+        target_task_id: str=None, 
+        session: Session=None
+    ):
         """
         Add a new entry to the cross_dag_communication table
         :param key: key of the entry
@@ -39,4 +57,3 @@ class CrossDagComm(Base, LoggingMixin):
         """
         session.add(cls(type, key, source_dag_id, source_task_id, target_dag_id, target_task_id))
         session.flush()
-
