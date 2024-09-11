@@ -89,7 +89,7 @@ Currently, **officially** using Airflow:
 1. [BlaBlaCar](https://www.blablacar.com) [[@puckel](https://github.com/puckel) & [@wmorin](https://github.com/wmorin)]
 1. [Blacklane](https://www.blacklane.com) [[@serkef](https://github.com/serkef)]
 1. [Bloc](https://www.bloc.io) [[@dpaola2](https://github.com/dpaola2)]
-1. [Bloomberg](https://www.techatbloomberg.com) [[@skandala23] (https://github.com/skandala23)]
+1. [Bloomberg](https://www.techatbloomberg.com) [[@skandala23] (https://github.com/skandala23) & [@vfeldsher](https://https://github.com/vfeldsher)]
 1. [Bloomreach](https://www.bloomreach.com/) [[@neelborooah](https://github.com/neelborooah) & [@debodirno](https://github.com/debodirno) & [@ayushmnnit](https://github.com/ayushmnnit)]
 1. [Blue Yonder](http://www.blue-yonder.com) [[@blue-yonder](https://github.com/blue-yonder)]
 1. [BlueApron](https://www.blueapron.com) [[@jasonjho](https://github.com/jasonjho) & [@matthewdavidhauser](https://github.com/matthewdavidhauser)]
