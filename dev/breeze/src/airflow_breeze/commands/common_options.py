@@ -29,7 +29,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_MOUNT_OPTIONS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
-    ALLOWED_PYDANTIC_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     ALLOWED_USE_AIRFLOW_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
@@ -117,6 +116,12 @@ option_builder = click.option(
     show_default=True,
     default="autodetect",
 )
+option_clean_airflow_installation = click.option(
+    "--clean-airflow-installation",
+    help="Clean the airflow installation before installing version specified by --use-airflow-version.",
+    is_flag=True,
+    envvar="CLEAN_AIRFLOW_INSTALLATION",
+)
 option_commit_sha = click.option(
     "--commit-sha",
     show_default=True,
@@ -173,6 +178,11 @@ option_dry_run = click.option(
 )
 option_forward_credentials = click.option(
     "-f", "--forward-credentials", help="Forward local credentials to container when running.", is_flag=True
+)
+option_excluded_providers = click.option(
+    "--excluded-providers",
+    help="JSON-string of dictionary containing excluded providers per python version ({'3.12': ['provider']})",
+    envvar="EXCLUDED_PROVIDERS",
 )
 option_force_lowest_dependencies = click.option(
     "--force-lowest-dependencies",
@@ -381,14 +391,6 @@ option_uv_http_timeout = click.option(
     default=DEFAULT_UV_HTTP_TIMEOUT,
     show_default=True,
     envvar="UV_HTTP_TIMEOUT",
-)
-option_pydantic = click.option(
-    "--pydantic",
-    help="Determines which pydantic should be used during tests.",
-    type=BetterChoice(ALLOWED_PYDANTIC_VERSIONS),
-    show_default=True,
-    default=ALLOWED_PYDANTIC_VERSIONS[0],
-    envvar="PYDANTIC",
 )
 option_use_airflow_version = click.option(
     "--use-airflow-version",

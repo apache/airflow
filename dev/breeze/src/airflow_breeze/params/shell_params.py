@@ -32,7 +32,6 @@ from airflow_breeze.global_constants import (
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
-    ALLOWED_PYDANTIC_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     APACHE_AIRFLOW_GITHUB_REPOSITORY,
     CELERY_BROKER_URLS_MAP,
@@ -40,6 +39,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     DRILL_HOST_PORT,
+    FASTAPI_API_HOST_PORT,
     FLOWER_HOST_PORT,
     MOUNT_ALL,
     MOUNT_PROVIDERS_AND_TESTS,
@@ -136,6 +136,7 @@ class ShellParams:
     celery_broker: str = DEFAULT_CELERY_BROKER
     celery_flower: bool = False
     chicken_egg_providers: str = ""
+    clean_airflow_installation: bool = False
     collect_only: bool = False
     database_isolation: bool = False
     db_reset: bool = False
@@ -146,6 +147,7 @@ class ShellParams:
     downgrade_pendulum: bool = False
     dry_run: bool = False
     enable_coverage: bool = False
+    excluded_providers: str = ""
     executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
     extra_args: tuple = ()
     force_build: bool = False
@@ -182,7 +184,6 @@ class ShellParams:
     providers_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
     providers_constraints_reference: str = ""
     providers_skip_constraints: bool = False
-    pydantic: str = ALLOWED_PYDANTIC_VERSIONS[0]
     python: str = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
     quiet: bool = False
     regenerate_missing_docs: bool = False
@@ -497,6 +498,7 @@ class ShellParams:
         _set_var(_env, "CELERY_BROKER_URLS_MAP", CELERY_BROKER_URLS_MAP)
         _set_var(_env, "CELERY_FLOWER", self.celery_flower)
         _set_var(_env, "CHICKEN_EGG_PROVIDERS", self.chicken_egg_providers)
+        _set_var(_env, "CLEAN_AIRFLOW_INSTALLATION", self.clean_airflow_installation)
         _set_var(_env, "CI", None, "false")
         _set_var(_env, "CI_BUILD_ID", None, "0")
         _set_var(_env, "CI_EVENT_TYPE", None, GithubEvents.PULL_REQUEST.value)
@@ -518,6 +520,7 @@ class ShellParams:
         _set_var(_env, "ENABLED_SYSTEMS", None, "")
         _set_var(_env, "ENABLE_COVERAGE", self.enable_coverage)
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
+        _set_var(_env, "EXCLUDED_PROVIDERS", self.excluded_providers)
         _set_var(_env, "FORCE_LOWEST_DEPENDENCIES", self.force_lowest_dependencies)
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
@@ -564,7 +567,6 @@ class ShellParams:
         _set_var(_env, "SYSTEM_TESTS_ENV_ID", None, "")
         _set_var(_env, "TEST_TYPE", self.test_type, "")
         _set_var(_env, "UPGRADE_BOTO", self.upgrade_boto)
-        _set_var(_env, "PYDANTIC", self.pydantic)
         _set_var(_env, "USE_AIRFLOW_VERSION", self.use_airflow_version, "")
         _set_var(_env, "USE_PACKAGES_FROM_DIST", self.use_packages_from_dist)
         _set_var(_env, "USE_UV", self.use_uv)
@@ -573,6 +575,7 @@ class ShellParams:
         _set_var(_env, "VERBOSE_COMMANDS", self.verbose_commands)
         _set_var(_env, "VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
         _set_var(_env, "WEBSERVER_HOST_PORT", None, WEBSERVER_HOST_PORT)
+        _set_var(_env, "FASTAPI_API_HOST_PORT", None, FASTAPI_API_HOST_PORT)
         _set_var(_env, "_AIRFLOW_RUN_DB_TESTS_ONLY", self.run_db_tests_only)
         _set_var(_env, "_AIRFLOW_SKIP_DB_TESTS", self.skip_db_tests)
         self._generate_env_for_docker_compose_file_if_needed(_env)

@@ -25,7 +25,6 @@ import os
 import sys
 import textwrap
 import traceback
-import warnings
 import zipfile
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -47,7 +46,7 @@ from airflow.exceptions import (
     AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowException,
-    RemovedInAirflow3Warning,
+    AirflowTaskTimeout,
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base
@@ -113,7 +112,6 @@ class DagBag(LoggingMixin):
         to filter python modules to scan for dags.
     :param read_dags_from_db: Read DAGs from DB if ``True`` is passed.
         If ``False`` DAGs are read from python files.
-    :param store_serialized_dags: deprecated parameter, same effect as `read_dags_from_db`
     :param load_op_links: Should the extra operator link be loaded via plugins when
         de-serializing the DAG? This flag is set to False in Scheduler so that Extra Operator links
         are not loaded to not run User code in Scheduler.
@@ -126,7 +124,6 @@ class DagBag(LoggingMixin):
         include_examples: bool | ArgNotSet = NOTSET,
         safe_mode: bool | ArgNotSet = NOTSET,
         read_dags_from_db: bool = False,
-        store_serialized_dags: bool | None = None,
         load_op_links: bool = True,
         collect_dags: bool = True,
     ):
@@ -142,15 +139,6 @@ class DagBag(LoggingMixin):
         safe_mode = (
             safe_mode if isinstance(safe_mode, bool) else conf.getboolean("core", "DAG_DISCOVERY_SAFE_MODE")
         )
-
-        if store_serialized_dags:
-            warnings.warn(
-                "The store_serialized_dags parameter has been deprecated. "
-                "You should pass the read_dags_from_db parameter.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            read_dags_from_db = store_serialized_dags
 
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.dag_folder = dag_folder
@@ -181,16 +169,6 @@ class DagBag(LoggingMixin):
     def size(self) -> int:
         """:return: the amount of dags contained in this dagbag"""
         return len(self.dags)
-
-    @property
-    def store_serialized_dags(self) -> bool:
-        """Whether to read dags from DB."""
-        warnings.warn(
-            "The store_serialized_dags property has been deprecated. Use read_dags_from_db instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        return self.read_dags_from_db
 
     @property
     def dag_ids(self) -> list[str]:
@@ -373,7 +351,7 @@ class DagBag(LoggingMixin):
                 sys.modules[spec.name] = new_module
                 loader.exec_module(new_module)
                 return [new_module]
-            except Exception as e:
+            except (Exception, AirflowTaskTimeout) as e:
                 DagContext.autoregistered_dags.clear()
                 self.log.exception("Failed to import: %s", filepath)
                 if self.dagbag_import_error_tracebacks:

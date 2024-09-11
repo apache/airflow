@@ -22,7 +22,7 @@ from unittest import mock
 import pytest
 from moto import mock_aws
 
-from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.providers.amazon.aws.sensors.glue_catalog_partition import GlueCatalogPartitionSensor
 
@@ -112,15 +112,11 @@ class TestGlueCatalogPartitionSensor:
         op.execute_complete(context={}, event=event)
         assert "Partition exists in the Glue Catalog" in caplog.messages
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
-    def test_fail_execute_complete(self, soft_fail, expected_exception):
+    def test_fail_execute_complete(self):
         op = GlueCatalogPartitionSensor(task_id=self.task_id, table_name="tbl", deferrable=True)
-        op.soft_fail = soft_fail
         event = {"status": "Failed"}
         message = f"Trigger error: event is {event}"
-        with pytest.raises(expected_exception, match=message):
+        with pytest.raises(AirflowException, match=message):
             op.execute_complete(context={}, event=event)
 
     def test_init(self):

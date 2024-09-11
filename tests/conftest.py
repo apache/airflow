@@ -815,7 +815,6 @@ def dag_maker(request):
     if serialized_marker:
         (want_serialized,) = serialized_marker.args or (True,)
 
-    from airflow.utils.helpers import NOTSET
     from airflow.utils.log.logging_mixin import LoggingMixin
 
     class DagFactory(LoggingMixin):
@@ -880,6 +879,10 @@ def dag_maker(request):
             from airflow.utils import timezone
             from airflow.utils.state import State
             from airflow.utils.types import DagRunType
+            from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+            if AIRFLOW_V_3_0_PLUS:
+                from airflow.utils.types import DagRunTriggeredByType
 
             dag = self.dag
             kwargs = {
@@ -907,6 +910,8 @@ def dag_maker(request):
                 else:
                     data_interval = dag.infer_automated_data_interval(logical_date)
                 kwargs["data_interval"] = data_interval
+            if AIRFLOW_V_3_0_PLUS and "triggered_by" not in kwargs:
+                kwargs["triggered_by"] = DagRunTriggeredByType.TEST
 
             self.dag_run = dag.create_dagrun(**kwargs)
             for ti in self.dag_run.task_instances:
@@ -928,7 +933,7 @@ def dag_maker(request):
         def __call__(
             self,
             dag_id="test_dag",
-            schedule=NOTSET,
+            schedule=timedelta(days=1),
             serialized=want_serialized,
             fileloc=None,
             processor_subdir=None,
@@ -959,11 +964,7 @@ def dag_maker(request):
             self.kwargs["start_date"] = self.start_date
             # Set schedule argument to explicitly set value, or a default if no
             # other scheduling arguments are set.
-            if schedule is not NOTSET:
-                self.kwargs["schedule"] = schedule
-            elif "timetable" not in self.kwargs and "schedule_interval" not in self.kwargs:
-                self.kwargs["schedule"] = timedelta(days=1)
-            self.dag = DAG(dag_id, **self.kwargs)
+            self.dag = DAG(dag_id, schedule=schedule, **self.kwargs)
             self.dag.fileloc = fileloc or request.module.__file__
             self.want_serialized = serialized
             self.processor_subdir = processor_subdir
@@ -1120,6 +1121,11 @@ def create_task_instance(dag_maker, create_dummy_dag):
         map_index=-1,
         **kwargs,
     ) -> TaskInstance:
+        from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+        if AIRFLOW_V_3_0_PLUS:
+            from airflow.utils.types import DagRunTriggeredByType
+
         if execution_date is None:
             from airflow.utils import timezone
 
@@ -1145,7 +1151,11 @@ def create_task_instance(dag_maker, create_dummy_dag):
                 **op_kwargs,
             )
 
-        dagrun_kwargs = {"execution_date": execution_date, "state": dagrun_state}
+        dagrun_kwargs = {
+            "execution_date": execution_date,
+            "state": dagrun_state,
+        }
+        dagrun_kwargs.update({"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {})
         if run_id is not None:
             dagrun_kwargs["run_id"] = run_id
         if run_type is not None:

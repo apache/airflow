@@ -237,7 +237,7 @@ class TestDataflowHook:
         py_requirements = ["pandas", "numpy"]
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_PY,
@@ -282,7 +282,7 @@ class TestDataflowHook:
         passed_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
         passed_variables["region"] = TEST_LOCATION
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=passed_variables,
@@ -326,7 +326,7 @@ class TestDataflowHook:
 
         passed_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=passed_variables,
@@ -371,7 +371,7 @@ class TestDataflowHook:
 
         passed_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=passed_variables,
@@ -416,7 +416,7 @@ class TestDataflowHook:
         passed_variables = copy.deepcopy(DATAFLOW_VARIABLES_PY)
         passed_variables["extra-package"] = ["a.whl", "b.whl"]
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=passed_variables,
@@ -459,7 +459,7 @@ class TestDataflowHook:
         on_new_job_id_callback = MagicMock()
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_PY,
@@ -513,7 +513,7 @@ class TestDataflowHook:
         on_new_job_id_callback = MagicMock()
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             self.dataflow_hook.start_python_dataflow(
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_PY,
@@ -553,7 +553,7 @@ class TestDataflowHook:
         mock_uuid.return_value = MOCK_UUID
         on_new_job_id_callback = MagicMock()
         with pytest.raises(AirflowException, match=r"Invalid method invocation\."):
-            with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
+            with pytest.warns(AirflowProviderDeprecationWarning):
                 self.dataflow_hook.start_python_dataflow(
                     job_name=JOB_NAME,
                     variables=DATAFLOW_VARIABLES_PY,
@@ -575,7 +575,7 @@ class TestDataflowHook:
         on_new_job_id_callback = MagicMock()
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             self.dataflow_hook.start_java_dataflow(
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_JAVA,
@@ -615,7 +615,7 @@ class TestDataflowHook:
         passed_variables: dict[str, Any] = copy.deepcopy(DATAFLOW_VARIABLES_JAVA)
         passed_variables["mock-option"] = ["a.whl", "b.whl"]
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             self.dataflow_hook.start_java_dataflow(
                 job_name=JOB_NAME,
                 variables=passed_variables,
@@ -655,7 +655,7 @@ class TestDataflowHook:
         passed_variables: dict[str, Any] = copy.deepcopy(DATAFLOW_VARIABLES_JAVA)
         passed_variables["region"] = TEST_LOCATION
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             self.dataflow_hook.start_java_dataflow(
                 job_name=JOB_NAME,
                 variables=passed_variables,
@@ -692,7 +692,7 @@ class TestDataflowHook:
         on_new_job_id_callback = MagicMock()
         job_name = f"{JOB_NAME}-{MOCK_UUID_PREFIX}"
 
-        with pytest.warns(AirflowProviderDeprecationWarning, match="This method is deprecated"):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             self.dataflow_hook.start_java_dataflow(
                 job_name=JOB_NAME,
                 variables=DATAFLOW_VARIABLES_JAVA,
@@ -2091,6 +2091,18 @@ INFO: To cancel the job using the 'gcloud' tool, run:
 > gcloud dataflow jobs --project=XXX cancel --region=europe-west3 {TEST_JOB_ID}
 """
 
+# using logback pattern: [%d] %-5level %msg \(%c\) \(%t\)%n
+APACHE_BEAM_V_2_58_1_JAVA_SDK_LOG = f""""\
+[2024-08-28 08:06:39,298] INFO  Dataflow SDK version: 2.58.1 (org.apache.beam.runners.dataflow.DataflowRunner) (main)
+[2024-08-28 08:06:40,305] INFO  To access the Dataflow monitoring console, please navigate to\
+https://console.cloud.google.com/dataflow/jobs/europe-west1/{TEST_JOB_ID}?project=XXXX\
+(org.apache.beam.runners.dataflow.DataflowRunner) (main)
+[2024-08-28 08:06:40,305] INFO  Submitted job: {TEST_JOB_ID} (org.apache.beam.runners.dataflow.DataflowRunner) (main)
+[2024-08-28 08:06:40,305] INFO  To cancel the job using the 'gcloud' tool, run:
+> gcloud dataflow jobs --project=gowish-develop cancel --region=europe-west1 {TEST_JOB_ID}\
+(org.apache.beam.runners.dataflow.DataflowRunner) (main)
+"""
+
 CLOUD_COMPOSER_CLOUD_LOGGING_APACHE_BEAM_V_2_56_0_JAVA_SDK_LOG = f"""\
 WARNING - {{"message":"org.apache.beam.runners.dataflow.DataflowRunner - Dataflow SDK version: 2.56.0",\
 "severity":"INFO"}}
@@ -2153,6 +2165,7 @@ class TestDataflow:
         [
             pytest.param(APACHE_BEAM_V_2_14_0_JAVA_SDK_LOG, id="apache-beam-2.14.0-JDK"),
             pytest.param(APACHE_BEAM_V_2_22_0_JAVA_SDK_LOG, id="apache-beam-2.22.0-JDK"),
+            pytest.param(APACHE_BEAM_V_2_58_1_JAVA_SDK_LOG, id="apache-beam-2.58.1-JDK"),
             pytest.param(
                 CLOUD_COMPOSER_CLOUD_LOGGING_APACHE_BEAM_V_2_56_0_JAVA_SDK_LOG,
                 id="cloud-composer-cloud-logging-apache-beam-2.56.0-JDK",

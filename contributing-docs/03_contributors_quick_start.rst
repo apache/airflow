@@ -335,6 +335,7 @@ Using Breeze
    Ports are forwarded to the running docker containers for webserver and database
      * 12322 -> forwarded to Airflow ssh server -> airflow:22
      * 28080 -> forwarded to Airflow webserver -> airflow:8080
+     * 29091 -> forwarded to Airflow FastAPI API -> airflow:9091
      * 25555 -> forwarded to Flower dashboard -> airflow:5555
      * 25433 -> forwarded to Postgres database -> postgres:5432
      * 23306 -> forwarded to MySQL database  -> mysql:3306
@@ -343,6 +344,7 @@ Using Breeze
    Here are links to those services that you can use on host:
      * ssh connection for remote debugging: ssh -p 12322 airflow@127.0.0.1 (password: airflow)
      * Webserver: http://127.0.0.1:28080
+     * FastAPI API:    http://127.0.0.1:29091
      * Flower:    http://127.0.0.1:25555
      * Postgres:  jdbc:postgresql://127.0.0.1:25433/airflow?user=postgres&password=airflow
      * Mysql:     jdbc:mysql://127.0.0.1:23306/airflow?user=root

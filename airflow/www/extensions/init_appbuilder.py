@@ -342,7 +342,12 @@ class AirflowAppBuilder:
         self.add_view_no_menu(self.indexview)
         self.add_view_no_menu(UtilView())
         self.bm.register_views()
-        self.sm.register_views()
+
+        try:
+            get_auth_manager().register_views()
+        except AttributeError:
+            # TODO: remove when min airflow version >= 3
+            self.sm.register_views()
 
     def _add_addon_views(self):
         """Register declared addons."""

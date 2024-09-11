@@ -49,7 +49,6 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTerminated,
-    RemovedInAirflow3Warning,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
@@ -76,6 +75,7 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.variable import Variable
 from airflow.models.xcom import LazyXComSelectSequence, XCom
+from airflow.notifications.basenotifier import BaseNotifier
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
@@ -100,9 +100,13 @@ from airflow.utils.types import DagRunType
 from airflow.utils.xcom import XCOM_RETURN_KEY
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
 from tests.test_utils import db
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_connections, clear_db_runs
 from tests.test_utils.mock_operators import MockOperator
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = [pytest.mark.db_test]
 
@@ -1743,7 +1747,13 @@ class TestTaskInstance:
         assert ti.xcom_pull(task_ids="test_xcom", key=key) == value
         ti.run()
         exec_date += datetime.timedelta(days=1)
-        dr = ti.task.dag.create_dagrun(run_id="test2", data_interval=(exec_date, exec_date), state=None)
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        dr = ti.task.dag.create_dagrun(
+            run_id="test2",
+            data_interval=(exec_date, exec_date),
+            state=None,
+            **triggered_by_kwargs,
+        )
         ti = TI(task=ti.task, run_id=dr.run_id)
         ti.run()
         # We have set a new execution date (and did not pass in
@@ -1984,12 +1994,14 @@ class TestTaskInstance:
         )
 
         execution_date = DEFAULT_DATE + datetime.timedelta(days=1)
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = ti1.task.dag.create_dagrun(
             execution_date=execution_date,
             state=None,
             run_id="2",
             session=session,
             data_interval=(execution_date, execution_date),
+            **triggered_by_kwargs,
         )
         assert ti1 in session
         ti2 = dr.task_instances[0]
@@ -3008,13 +3020,13 @@ class TestTaskInstance:
 
     @staticmethod
     def _test_previous_dates_setup(
-        schedule_interval: str | datetime.timedelta | None,
+        schedule: str | datetime.timedelta | None,
         catchup: bool,
         scenario: list[TaskInstanceState],
         dag_maker,
     ) -> list:
         dag_id = "test_previous_dates"
-        with dag_maker(dag_id=dag_id, schedule=schedule_interval, catchup=catchup, serialized=True):
+        with dag_maker(dag_id=dag_id, schedule=schedule, catchup=catchup, serialized=True):
             task = EmptyOperator(task_id="task")
 
         def get_test_ti(execution_date: pendulum.DateTime, state: str) -> TI:
@@ -3050,11 +3062,11 @@ class TestTaskInstance:
         pytest.param(datetime.timedelta(days=1), False, id="timedelta/no-catchup"),
     ]
 
-    @pytest.mark.parametrize("schedule_interval, catchup", _prev_dates_param_list)
-    def test_previous_ti(self, schedule_interval, catchup, dag_maker) -> None:
+    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
+    def test_previous_ti(self, schedule, catchup, dag_maker) -> None:
         scenario = [State.SUCCESS, State.FAILED, State.SUCCESS]
 
-        ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario, dag_maker)
+        ti_list = self._test_previous_dates_setup(schedule, catchup, scenario, dag_maker)
 
         assert ti_list[0].get_previous_ti() is None
 
@@ -3062,11 +3074,11 @@ class TestTaskInstance:
 
         assert ti_list[2].get_previous_ti().run_id != ti_list[0].run_id
 
-    @pytest.mark.parametrize("schedule_interval, catchup", _prev_dates_param_list)
-    def test_previous_ti_success(self, schedule_interval, catchup, dag_maker) -> None:
+    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
+    def test_previous_ti_success(self, schedule, catchup, dag_maker) -> None:
         scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
 
-        ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario, dag_maker)
+        ti_list = self._test_previous_dates_setup(schedule, catchup, scenario, dag_maker)
 
         assert ti_list[0].get_previous_ti(state=State.SUCCESS) is None
         assert ti_list[1].get_previous_ti(state=State.SUCCESS) is None
@@ -3075,11 +3087,11 @@ class TestTaskInstance:
 
         assert ti_list[3].get_previous_ti(state=State.SUCCESS).run_id != ti_list[2].run_id
 
-    @pytest.mark.parametrize("schedule_interval, catchup", _prev_dates_param_list)
-    def test_previous_execution_date_success(self, schedule_interval, catchup, dag_maker) -> None:
+    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
+    def test_previous_execution_date_success(self, schedule, catchup, dag_maker) -> None:
         scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
 
-        ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario, dag_maker)
+        ti_list = self._test_previous_dates_setup(schedule, catchup, scenario, dag_maker)
         # vivify
         for ti in ti_list:
             ti.execution_date
@@ -3090,11 +3102,11 @@ class TestTaskInstance:
         assert ti_list[3].get_previous_execution_date(state=State.SUCCESS) != ti_list[2].execution_date
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
-    @pytest.mark.parametrize("schedule_interval, catchup", _prev_dates_param_list)
-    def test_previous_start_date_success(self, schedule_interval, catchup, dag_maker) -> None:
+    @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)
+    def test_previous_start_date_success(self, schedule, catchup, dag_maker) -> None:
         scenario = [State.FAILED, State.SUCCESS, State.FAILED, State.SUCCESS]
 
-        ti_list = self._test_previous_dates_setup(schedule_interval, catchup, scenario, dag_maker)
+        ti_list = self._test_previous_dates_setup(schedule, catchup, scenario, dag_maker)
 
         assert ti_list[0].get_previous_start_date(state=State.SUCCESS) is None
         assert ti_list[1].get_previous_start_date(state=State.SUCCESS) is None
@@ -3110,6 +3122,7 @@ class TestTaskInstance:
 
         day_1 = DEFAULT_DATE
         day_2 = DEFAULT_DATE + datetime.timedelta(days=1)
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
 
         # Create a DagRun for day_1 and day_2. Calling ti_2.get_previous_start_date()
         # should return the start_date of ti_1 (which is None because ti_1 was not run).
@@ -3118,6 +3131,7 @@ class TestTaskInstance:
             execution_date=day_1,
             state=State.RUNNING,
             run_type=DagRunType.MANUAL,
+            **triggered_by_kwargs,
         )
 
         dagrun_2 = dag_maker.create_dagrun(
@@ -3125,6 +3139,7 @@ class TestTaskInstance:
             state=State.RUNNING,
             run_type=DagRunType.MANUAL,
             data_interval=(day_1, day_2),
+            **triggered_by_kwargs,
         )
 
         ti_1 = dagrun_1.get_task_instance(task.task_id)
@@ -3153,6 +3168,7 @@ class TestTaskInstance:
         session.commit()
 
         execution_date = timezone.utcnow()
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         # it's easier to fake a manual run here
         dag, task1 = create_dummy_dag(
             dag_id="test_triggering_dataset_events",
@@ -3169,6 +3185,7 @@ class TestTaskInstance:
             state=None,
             session=session,
             data_interval=(execution_date, execution_date),
+            **triggered_by_kwargs,
         )
         ds1_event = DatasetEvent(dataset_id=1)
         ds2_event_1 = DatasetEvent(dataset_id=2)
@@ -3367,17 +3384,13 @@ class TestTaskInstance:
         assert recorded_message[0].startswith(message_beginning)
 
     def test_template_with_custom_timetable_deprecated_context(self, create_task_instance, session):
-        with pytest.warns(
-            RemovedInAirflow3Warning,
-            match="Param `timetable` is deprecated and will be removed in a future release. Please use `schedule` instead.",
-        ):
-            ti = create_task_instance(
-                start_date=DEFAULT_DATE,
-                timetable=AfterWorkdayTimetable(),
-                run_type=DagRunType.SCHEDULED,
-                execution_date=timezone.datetime(2021, 9, 6),
-                data_interval=(timezone.datetime(2021, 9, 6), timezone.datetime(2021, 9, 7)),
-            )
+        ti = create_task_instance(
+            start_date=DEFAULT_DATE,
+            schedule=AfterWorkdayTimetable(),
+            run_type=DagRunType.SCHEDULED,
+            execution_date=timezone.datetime(2021, 9, 6),
+            data_interval=(timezone.datetime(2021, 9, 6), timezone.datetime(2021, 9, 7)),
+        )
         session.add(ti)
         session.commit()
         context = ti.get_template_context()
@@ -3421,7 +3434,9 @@ class TestTaskInstance:
             ti.refresh_from_db()
             assert ti.state == State.SUCCESS
 
-    def test_finished_callbacks_handle_and_log_exception(self, caplog):
+    def test_finished_callbacks_callable_handle_and_log_exception(self, caplog):
+        called = completed = False
+
         def on_finish_callable(context):
             nonlocal called, completed
             called = True
@@ -3437,8 +3452,32 @@ class TestTaskInstance:
             assert not completed
             callback_name = callback_input[0] if isinstance(callback_input, list) else callback_input
             callback_name = qualname(callback_name).split(".")[-1]
-            assert "Executing on_finish_callable callback" in caplog.text
-            assert "Error when executing on_finish_callable callback" in caplog.text
+            assert "Executing callback at index 0: on_finish_callable" in caplog.text
+            assert "Error in callback at index 0: on_finish_callable" in caplog.text
+
+    def test_finished_callbacks_notifier_handle_and_log_exception(self, caplog):
+        class OnFinishNotifier(BaseNotifier):
+            """
+            error captured by BaseNotifier
+            """
+
+            def __init__(self, error: bool):
+                super().__init__()
+                self.raise_error = error
+
+            def notify(self, context):
+                self.execute()
+
+            def execute(self) -> None:
+                if self.raise_error:
+                    raise KeyError
+
+        caplog.clear()
+        callbacks = [OnFinishNotifier(error=False), OnFinishNotifier(error=True)]
+        _run_finished_callback(callbacks=callbacks, context={})
+        assert "Executing callback at index 0: OnFinishNotifier" in caplog.text
+        assert "Executing callback at index 1: OnFinishNotifier" in caplog.text
+        assert "KeyError" in caplog.text
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @provide_session
@@ -3466,6 +3505,7 @@ class TestTaskInstance:
             session=session,
         )
         execution_date = timezone.utcnow()
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_id="test2",
             run_type=DagRunType.MANUAL,
@@ -3473,6 +3513,7 @@ class TestTaskInstance:
             state=None,
             session=session,
             data_interval=(execution_date, execution_date),
+            **triggered_by_kwargs,
         )
         ti1 = dr.get_task_instance(task1.task_id, session=session)
         ti1.task = task1
@@ -3615,6 +3656,7 @@ class TestTaskInstance:
             fail_stop=True,
         )
         execution_date = timezone.utcnow()
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_id="test_ff",
             run_type=DagRunType.MANUAL,
@@ -3622,6 +3664,7 @@ class TestTaskInstance:
             state=None,
             session=session,
             data_interval=(execution_date, execution_date),
+            **triggered_by_kwargs,
         )
 
         ti1 = dr.get_task_instance(task1.task_id, session=session)
@@ -4042,22 +4085,26 @@ class TestTaskInstance:
         def raise_skip_exception():
             raise AirflowSkipException
 
-        callback_function = mock.MagicMock()
-        callback_function.__name__ = "callback_function"
+        on_skipped_callback_function = mock.MagicMock()
+        on_skipped_callback_function.__name__ = "on_skipped_callback_function"
+
+        on_success_callback_function = mock.MagicMock()
+        on_success_callback_function.__name__ = "on_success_callback_function"
 
         with dag_maker(dag_id="test_skipped_task", serialized=True):
             task = PythonOperator(
                 task_id="test_skipped_task",
                 python_callable=raise_skip_exception,
-                on_skipped_callback=callback_function,
+                on_skipped_callback=on_skipped_callback_function,
+                on_success_callback=on_success_callback_function,
             )
-
         dr = dag_maker.create_dagrun(execution_date=timezone.utcnow())
         ti = dr.task_instances[0]
         ti.task = task
         ti.run()
         assert State.SKIPPED == ti.state
-        assert callback_function.called
+        on_skipped_callback_function.assert_called_once()
+        on_success_callback_function.assert_not_called()
 
     def test_task_instance_history_is_created_when_ti_goes_for_retry(self, dag_maker, session):
         with dag_maker(serialized=True):

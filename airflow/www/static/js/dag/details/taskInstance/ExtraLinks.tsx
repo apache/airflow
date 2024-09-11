@@ -53,6 +53,20 @@ const ExtraLinks = ({
   const isExternal = (url: string | null) =>
     url && /^(?:[a-z]+:)?\/\//.test(url);
 
+  const isSanitised = (url: string | null) => {
+    if (!url) {
+      return true;
+    }
+    const path = new URL(url, "http://localhost");
+    // Allow Absolute/Relative URL and prevent javascript:() from executing when passed as path.
+    // Example - `javascript:alert("Hi");`. Protocol for absolute and relative urls will either be `http:`/`https:`.
+    // Where as for javascript it will be `javascript:`.
+    if (path.protocol === "http:" || path.protocol === "https:") {
+      return true; // Absolute/Relative URLs are allowed
+    }
+    return false;
+  };
+
   return (
     <Box my={3}>
       <Text as="strong">Extra Links</Text>
@@ -63,7 +77,7 @@ const ExtraLinks = ({
             as={Link}
             colorScheme="blue"
             href={url}
-            isDisabled={!url}
+            isDisabled={!isSanitised(url)}
             target={isExternal(url) ? "_blank" : undefined}
             mr={2}
           >

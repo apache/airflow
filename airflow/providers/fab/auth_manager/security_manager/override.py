@@ -1073,6 +1073,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         dags = dagbag.dags.values()
 
         for dag in dags:
+            # TODO: Remove this when the minimum version of Airflow is bumped to 3.0
             root_dag_id = (getattr(dag, "parent_dag", None) or dag).dag_id
             for resource_name, resource_values in self.RESOURCE_DETAILS_MAP.items():
                 dag_resource_name = self._resource_name(root_dag_id, resource_name)
@@ -2828,6 +2829,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         ).all()
 
     def _get_root_dag_id(self, dag_id: str) -> str:
+        # TODO: The "root_dag_id" check can be remove when the minimum version of Airflow is bumped to 3.0
         if "." in dag_id and hasattr(DagModel, "root_dag_id"):
             dm = self.appbuilder.get_session.execute(
                 select(DagModel.dag_id, DagModel.root_dag_id).where(DagModel.dag_id == dag_id)

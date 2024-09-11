@@ -67,7 +67,7 @@ repos:
       - id: insert-license
         name: Add license for all CSS/JS/JSX/PUML/TS/TSX files
         files: \.(css|jsx?|puml|tsx?)$
-        exclude: ^\.github/.*$|^.*/.*_vendor/
+        exclude: ^\.github/.*$|^.*/.*_vendor/|^airflow/www/static/js/types/api-generated.ts$|ui/openapi-gen/
         args:
           - --comment-style
           - "/*!| *| */"
@@ -135,7 +135,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all YAML files except Helm templates
-        exclude: ^\.github/.*$|^.*/.*_vendor/|^chart/templates/.*|.*/reproducible_build.yaml$
+        exclude: ^\.github/.*$|^.*/.*_vendor/|^chart/templates/.*|.*/reproducible_build.yaml$|^airflow/api_fastapi/openapi/v1-generated.yaml$
         types: [yaml]
         files: \.ya?ml$
         args:
@@ -218,6 +218,13 @@ repos:
         files: ^airflow/models/taskinstance.py$|^airflow/models/taskinstancehistory.py$
         pass_filenames: false
         require_serial: true
+      - id: check-deferrable-default
+        name: Check and fix default value of default_deferrable
+        language: python
+        entry: ./scripts/ci/pre_commit/check_deferrable_default.py
+        pass_filenames: false
+        additional_dependencies: ["libcst>=1.1.0"]
+        files: ^airflow/.*/sensors/.*\.py$|^airflow/.*/operators/.*\.py$
   - repo: https://github.com/asottile/blacken-docs
     rev: 1.18.0
     hooks:
@@ -289,7 +296,7 @@ repos:
         name: Check YAML files with yamllint
         entry: yamllint -c yamllint-config.yml --strict
         types: [yaml]
-        exclude: ^.*airflow\.template\.yaml$|^.*init_git_sync\.template\.yaml$|^.*/.*_vendor/|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$|^.*/reproducible_build.yaml$
+        exclude: ^.*airflow\.template\.yaml$|^.*init_git_sync\.template\.yaml$|^.*/.*_vendor/|^chart/(?:templates|files)/.*\.yaml$|openapi/.*\.yaml$|^\.pre-commit-config\.yaml$|^.*/reproducible_build.yaml$|^.*pnpm-lock\.yaml$
   - repo: https://github.com/ikamensh/flynt
     rev: '1.0.1'
     hooks:
@@ -314,7 +321,7 @@ repos:
           The word(s) should be in lowercase." && exec codespell "$@"' --
         language: python
         types: [text]
-        exclude: ^.*/.*_vendor/|^airflow/www/static/css/material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$
+        exclude: ^.*/.*_vendor/|^airflow/www/static/css/material-icons\.css$|^images/.*$|^RELEASE_NOTES\.txt$|^.*package-lock\.json$|^.*/kinglear\.txt$|^.*pnpm-lock\.yaml$
         args:
           - --ignore-words=docs/spelling_wordlist.txt
           - --skip=airflow/providers/*/*.rst,airflow/www/*.log,docs/*/commits.rst,docs/apache-airflow/tutorial/pipeline_example.csv,*.min.js,*.lock,INTHEWILD.md
@@ -344,7 +351,7 @@ repos:
         args: [--fix]
         require_serial: true
         additional_dependencies: ["ruff==0.5.5"]
-        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py
+        exclude: ^.*/.*_vendor/|^tests/dags/test_imports.py|^performance/tests/test_.*.py
       - id: ruff-format
         name: Run 'ruff format' for extremely fast Python formatting
         description: "Run 'ruff format' for extremely fast Python formatting"
@@ -580,8 +587,10 @@ repos:
         exclude: >
           (?x)
           ^airflow/api_connexion/openapi/v1.yaml$|
-          ^airflow/cli/commands/webserver_command.py$|
+          ^airflow/ui/openapi-gen/|
           ^airflow/cli/commands/internal_api_command.py$|
+          ^airflow/cli/commands/fastapi_api_command.py$|
+          ^airflow/cli/commands/webserver_command.py$|
           ^airflow/config_templates/|
           ^airflow/models/baseoperator.py$|
           ^airflow/operators/__init__.py$|
@@ -608,6 +617,7 @@ repos:
           ^airflow/providers/opsgenie/hooks/opsgenie.py$|
           ^airflow/providers/redis/provider.yaml$|
           ^airflow/serialization/serialized_objects.py$|
+          ^airflow/ui/pnpm-lock.yaml$|
           ^airflow/utils/db.py$|
           ^airflow/utils/trigger_rule.py$|
           ^airflow/www/static/css/bootstrap-theme.css$|
@@ -627,6 +637,7 @@ repos:
           ^docs/apache-airflow-providers-cncf-kubernetes/operators.rst$|
           ^docs/conf.py$|
           ^docs/exts/removemarktransform.py$|
+          ^newsfragments/41761.significant.rst$|
           ^scripts/ci/pre_commit/vendor_k8s_json_schema.py$|
           ^tests/|
           ^.pre-commit-config\.yaml$|
@@ -823,6 +834,24 @@ repos:
         files: ^airflow/www/.*\.(css|sass|scss)$
         # Keep dependency versions in sync w/ airflow/www/package.json
         additional_dependencies: ['stylelint@13.3.1', 'stylelint-config-standard@20.0.0', 'stylelint-config-prettier@9.0.5']
+      - id: compile-ui-assets
+        name: Compile ui assets (manual)
+        language: node
+        stages: ['manual']
+        types_or: [javascript, ts, tsx]
+        files: ^airflow/ui/
+        entry: ./scripts/ci/pre_commit/compile_ui_assets.py
+        pass_filenames: false
+        additional_dependencies: ['pnpm@9.7.1']
+      - id: compile-ui-assets-dev
+        name: Compile ui assets in dev mode (manual)
+        language: node
+        stages: ['manual']
+        types_or: [javascript, ts, tsx]
+        files: ^airflow/ui/
+        entry: ./scripts/ci/pre_commit/compile_ui_assets_dev.py
+        pass_filenames: false
+        additional_dependencies: ['pnpm@9.7.1']
       - id: compile-www-assets
         name: Compile www assets (manual)
         language: node
@@ -1034,6 +1063,7 @@ repos:
         pass_filenames: true
         files: ^airflow/.*\.py$
         exclude: ^.*/.*_vendor/
+        additional_dependencies: ["rich>=12.4.4", "python-dateutil"]
       - id: lint-chart-schema
         name: Lint chart/values.schema.json file
         entry: ./scripts/ci/pre_commit/chart_schema.py
@@ -1117,8 +1147,16 @@ repos:
         language: node
         'types_or': [javascript, ts, tsx, yaml, css, json]
         files: ^airflow/www/static/(js|css)/|^airflow/api_connexion/openapi/v1\.yaml$
-        entry: ./scripts/ci/pre_commit/www_lint.py
+        entry: ./scripts/ci/pre_commit/lint_www.py
         additional_dependencies: ['yarn@1.22.21', "openapi-typescript@>=6.7.4"]
+        pass_filenames: false
+      - id: ts-compile-format-lint-ui
+        name: TS types generation / ESLint / Prettier new UI files
+        language: node
+        types_or: [javascript, ts, tsx, yaml, css, json]
+        files: ^airflow/ui/|^airflow/api_connexion/openapi/v1\.yaml$
+        entry: ./scripts/ci/pre_commit/lint_ui.py
+        additional_dependencies: ['pnpm@9.7.1']
         pass_filenames: false
       - id: check-tests-unittest-testcase
         name: Check that unit tests do not inherit from unittest.TestCase
@@ -1134,12 +1172,6 @@ repos:
         pass_filenames: true
         files: \.py$
         exclude: ^airflow/providers|^dev/.*\.py$|^scripts/.*\.py$|^tests/|^\w+_tests/|^docs/.*\.py$|^airflow/utils/helpers.py$|^hatch_build.py$
-      - id: check-deferrable-default-value
-        name: Check default value of deferrable attribute
-        language: python
-        entry: ./scripts/ci/pre_commit/check_deferrable_default.py
-        pass_filenames: false
-        files: ^airflow/.*/sensors/.*\.py$|^airflow/.*/operators/.*\.py$
       - id: check-provider-docs-valid
         name: Validate provider doc files
         entry: ./scripts/ci/pre_commit/check_provider_docs.py
@@ -1296,6 +1328,13 @@ repos:
         entry: ./scripts/ci/pre_commit/migration_reference.py
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
+        additional_dependencies: ['rich>=12.4.4']
+      - id: generate-openapi-spec
+        name: Generate the FastAPI API spec
+        language: python
+        entry: ./scripts/ci/pre_commit/update_fastapi_api_spec.py
+        pass_filenames: false
+        files: ^airflow/api_fastapi/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
       - id: update-er-diagram
         name: Update ER diagram
