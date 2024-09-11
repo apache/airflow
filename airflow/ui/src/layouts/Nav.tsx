@@ -19,18 +19,14 @@
 
 import {
   Box,
-  Button,
-  ButtonProps,
   Flex,
   Icon,
   Link,
-  Text,
   useColorMode,
   useColorModeValue,
   VStack,
 } from "@chakra-ui/react";
 import { motion } from "framer-motion";
-import { Link as RouterLink } from "react-router-dom";
 
 import { AirflowPin } from "../assets/AirflowPin";
 import {
@@ -44,32 +40,7 @@ import {
   FiSun,
 } from "react-icons/fi";
 import { DagIcon } from "../assets/DagIcon";
-import { ReactElement } from "react";
-
-type NavButtonProps = {
-  title?: string;
-  icon: ReactElement;
-  href?: string;
-  to?: string;
-} & ButtonProps;
-
-const NavButton = ({ icon, title, to, ...rest }: NavButtonProps) => (
-  <Button
-    as={RouterLink}
-    to={to}
-    variant="ghost"
-    borderRadius="none"
-    height={16}
-    alignItems="center"
-    flexDir="column"
-    whiteSpace="wrap"
-    width={24}
-    {...rest}
-  >
-    <Box alignSelf="center">{icon}</Box>
-    <Text fontSize="xs">{title}</Text>
-  </Button>
-);
+import { NavButton } from "./NavButton";
 
 export const Nav = () => {
   const { colorMode, toggleColorMode } = useColorMode();

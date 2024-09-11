@@ -17,18 +17,32 @@
  * under the License.
  */
 
-import { Box } from "@chakra-ui/react";
-import { Outlet } from "react-router-dom";
+import { ReactElement } from "react";
+import { Box, Button, ButtonProps, Text } from "@chakra-ui/react";
+import { Link as RouterLink } from "react-router-dom";
 
-import { Nav } from "./Nav";
+type NavButtonProps = {
+  title?: string;
+  icon: ReactElement;
+  href?: string;
+  to?: string;
+} & ButtonProps;
 
-export const BaseLayout = () => {
-  return (
-    <div>
-      <Nav />
-      <Box p={3} ml={24}>
-        <Outlet />
-      </Box>
-    </div>
-  );
-};
+export const NavButton = ({ icon, title, to, ...rest }: NavButtonProps) => (
+  <Button
+    as={RouterLink}
+    to={to}
+    variant="ghost"
+    borderRadius="none"
+    height={16}
+    alignItems="center"
+    flexDir="column"
+    whiteSpace="wrap"
+    width={24}
+    transition="0.2s background-color ease-in-out"
+    {...rest}
+  >
+    <Box alignSelf="center">{icon}</Box>
+    <Text fontSize="xs">{title}</Text>
+  </Button>
+);
