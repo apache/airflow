@@ -311,6 +311,7 @@ def with_row_locks(
     *,
     nowait: bool = False,
     skip_locked: bool = False,
+    key_share: bool = True,
     **kwargs,
 ) -> Query:
     """
@@ -328,6 +329,7 @@ def with_row_locks(
     :param session: ORM Session
     :param nowait: If set to True, will pass NOWAIT to supported database backends.
     :param skip_locked: If set to True, will pass SKIP LOCKED to supported database backends.
+    :param key_share: If true, will lock with FOR KEY SHARE UPDATE (at least on postgres).
     :param kwargs: Extra kwargs to pass to with_for_update (of, nowait, skip_locked, etc)
     :return: updated query
     """
@@ -342,7 +344,9 @@ def with_row_locks(
         kwargs["nowait"] = True
     if skip_locked:
         kwargs["skip_locked"] = True
-    return query.with_for_update(**kwargs, key_share=True)
+    if key_share:
+        kwargs["key_share"] = True
+    return query.with_for_update(**kwargs)
 
 
 @contextlib.contextmanager
