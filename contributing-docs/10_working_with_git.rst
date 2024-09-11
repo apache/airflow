@@ -191,7 +191,7 @@ Summary
 
 Useful when you understand the flow but don't remember the steps and want a quick reference.
 
-::
+.. code-block:: console
 
     git fetch --all
     git merge-base my-branch apache/main
