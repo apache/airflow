@@ -29,6 +29,7 @@ from airflow.providers.amazon.aws.operators.comprehend import (
     ComprehendStartPiiEntitiesDetectionJobOperator,
 )
 from airflow.utils.types import NOTSET
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
@@ -164,15 +165,7 @@ class TestComprehendStartPiiEntitiesDetectionJobOperator:
         assert self.operator.defer.call_count == deferrable
 
     def test_template_fields(self):
-        template_fields = list(self.operator.template_fields) + list(
-            self.operator.template_fields_renderers.keys()
-        )
-
-        class_fields = self.operator.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(self.operator)
 
 
 class TestComprehendCreateDocumentClassifierOperator:
@@ -272,12 +265,4 @@ class TestComprehendCreateDocumentClassifierOperator:
         assert self.operator.defer.call_count == deferrable
 
     def test_template_fields(self):
-        template_fields = list(self.operator.template_fields) + list(
-            self.operator.template_fields_renderers.keys()
-        )
-
-        class_fields = self.operator.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(self.operator)

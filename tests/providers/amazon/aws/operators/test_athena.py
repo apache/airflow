@@ -39,6 +39,7 @@ from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 TEST_DAG_ID = "unit_tests"
 DEFAULT_DATE = datetime(2018, 1, 1)
@@ -399,12 +400,4 @@ class TestAthenaOperator:
         assert op.get_openlineage_facets_on_complete(None) == expected_lineage
 
     def test_template_fields(self):
-        template_fields = list(self.athena.template_fields) + list(
-            self.athena.template_fields_renderers.keys()
-        )
-
-        class_fields = self.athena.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(self.athena)

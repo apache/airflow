@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrStartNotebookExecutionOperator,
     EmrStopNotebookExecutionOperator,
 )
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 from tests.providers.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 PARAMS = {
@@ -305,7 +306,6 @@ class TestStopEmrNotebookExecutionOperator:
         assert_expected_waiter_type(mock_waiter, "notebook_stopped")
 
     def test_template_fields(self):
-
         op = EmrStartNotebookExecutionOperator(
             task_id="test-id",
             editor_id=PARAMS["EditorId"],
@@ -320,10 +320,4 @@ class TestStopEmrNotebookExecutionOperator:
             wait_for_completion=True,
         )
 
-        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
-
-        class_fields = op.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(op)

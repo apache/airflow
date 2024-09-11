@@ -51,6 +51,7 @@ from tests.providers.amazon.aws.utils.eks_test_constants import (
     TASK_ID,
 )
 from tests.providers.amazon.aws.utils.eks_test_utils import convert_keys
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 from tests.providers.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 CLUSTER_NAME = "cluster1"
@@ -372,13 +373,7 @@ class TestEksCreateClusterOperator:
             compute="fargate",
         )
 
-        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
-
-        class_fields = op.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(op)
 
 
 class TestEksCreateFargateProfileOperator:
@@ -463,13 +458,7 @@ class TestEksCreateFargateProfileOperator:
     def test_template_fields(self):
         op = EksCreateFargateProfileOperator(task_id=TASK_ID, **self.create_fargate_profile_params)
 
-        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
-
-        class_fields = op.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(op)
 
 
 class TestEksCreateNodegroupOperator:
@@ -566,13 +555,7 @@ class TestEksCreateNodegroupOperator:
         op_kwargs = {**self.create_nodegroup_params}
         op = EksCreateNodegroupOperator(task_id=TASK_ID, **op_kwargs)
 
-        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
-
-        class_fields = op.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(op)
 
 
 class TestEksDeleteClusterOperator:
@@ -614,15 +597,8 @@ class TestEksDeleteClusterOperator:
             self.delete_cluster_operator.execute({})
 
     def test_template_fields(self):
-        template_fields = list(self.delete_cluster_operator.template_fields) + list(
-            self.delete_cluster_operator.template_fields_renderers.keys()
-        )
 
-        class_fields = self.delete_cluster_operator.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(self.delete_cluster_operator)
 
 
 class TestEksDeleteNodegroupOperator:
@@ -658,15 +634,7 @@ class TestEksDeleteNodegroupOperator:
         assert_expected_waiter_type(mock_waiter, "NodegroupDeleted")
 
     def test_template_fields(self):
-        template_fields = list(self.delete_nodegroup_operator.template_fields) + list(
-            self.delete_nodegroup_operator.template_fields_renderers.keys()
-        )
-
-        class_fields = self.delete_nodegroup_operator.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(self.delete_nodegroup_operator)
 
 
 class TestEksDeleteFargateProfileOperator:
@@ -717,15 +685,7 @@ class TestEksDeleteFargateProfileOperator:
         ), "Trigger is not a EksDeleteFargateProfileTrigger"
 
     def test_template_fields(self):
-        template_fields = list(self.delete_fargate_profile_operator.template_fields) + list(
-            self.delete_fargate_profile_operator.template_fields_renderers.keys()
-        )
-
-        class_fields = self.delete_fargate_profile_operator.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(self.delete_fargate_profile_operator)
 
 
 class TestEksPodOperator:
@@ -851,10 +811,4 @@ class TestEksPodOperator:
             on_finish_action="delete_pod",
         )
 
-        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
-
-        class_fields = op.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(op)

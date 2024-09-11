@@ -118,7 +118,7 @@ files_not_fully_covered = [
     "airflow/utils/entry_points.py",
     "airflow/utils/file.py",
     "airflow/utils/hashlib_wrapper.py",
-    "airflow/utils/helpers.py",
+    "airflow/utils/test_template_fields.py",
     "airflow/utils/json.py",
     "airflow/utils/log/action_logger.py",
     "airflow/utils/log/colored_log.py",

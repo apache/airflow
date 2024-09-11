@@ -24,6 +24,7 @@ import pytest
 from airflow.exceptions import TaskDeferred
 from airflow.providers.amazon.aws.operators.emr import EmrTerminateJobFlowOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrTerminateJobFlowTrigger
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 TERMINATE_SUCCESS_RETURN = {"ResponseMetadata": {"HTTPStatusCode": 200}}
 
@@ -59,7 +60,6 @@ class TestEmrTerminateJobFlowOperator:
         ), "Trigger is not a EmrTerminateJobFlowTrigger"
 
     def test_template_fields(self):
-
         operator = EmrTerminateJobFlowOperator(
             task_id="test_task",
             job_flow_id="j-8989898989",
@@ -67,10 +67,4 @@ class TestEmrTerminateJobFlowOperator:
             deferrable=True,
         )
 
-        template_fields = list(operator.template_fields) + list(operator.template_fields_renderers.keys())
-
-        class_fields = operator.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(operator)

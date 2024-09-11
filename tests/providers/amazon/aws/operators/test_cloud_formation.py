@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.operators.cloud_formation import (
     CloudFormationDeleteStackOperator,
 )
 from airflow.utils import timezone
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 DEFAULT_DATE = timezone.datetime(2019, 1, 1)
 DEFAULT_ARGS = {"owner": "airflow", "start_date": DEFAULT_DATE}
@@ -99,13 +100,7 @@ class TestCloudFormationCreateStackOperator:
             botocore_config={"read_timeout": 42},
         )
 
-        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
-
-        class_fields = op.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(op)
 
 
 class TestCloudFormationDeleteStackOperator:
@@ -157,10 +152,4 @@ class TestCloudFormationDeleteStackOperator:
             botocore_config={"read_timeout": 42},
         )
 
-        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
-
-        class_fields = op.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(op)

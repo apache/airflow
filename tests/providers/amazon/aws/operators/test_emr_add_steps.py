@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.operators.emr import EmrAddStepsOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -282,11 +283,4 @@ class TestEmrAddStepsOperator:
             aws_conn_id="aws_default",
             steps=self._config,
         )
-
-        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
-
-        class_fields = op.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(op)

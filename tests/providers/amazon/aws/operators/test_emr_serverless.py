@@ -32,6 +32,7 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessStopApplicationOperator,
 )
 from airflow.utils.types import NOTSET
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -394,7 +395,6 @@ class TestEmrServerlessCreateApplicationOperator:
             operator.execute(None)
 
     def test_template_fields(self):
-
         operator = EmrServerlessCreateApplicationOperator(
             task_id=task_id,
             release_label=release_label,
@@ -1184,7 +1184,6 @@ class TestEmrServerlessStartJobOperator:
         )
 
     def test_template_fields(self):
-
         operator = EmrServerlessStartJobOperator(
             task_id=task_id,
             client_request_token=client_request_token,
@@ -1317,7 +1316,6 @@ class TestEmrServerlessDeleteOperator:
             operator.execute(None)
 
     def test_template_fields(self):
-
         operator = EmrServerlessDeleteApplicationOperator(
             task_id=task_id, application_id=application_id_delete_operator
         )
@@ -1399,15 +1397,8 @@ class TestEmrServerlessStopOperator:
         assert "no running jobs found with application ID test" in caplog.messages
 
     def test_template_fields(self):
-
         operator = EmrServerlessStopApplicationOperator(
             task_id=task_id, application_id="test", deferrable=True, force_stop=True
         )
 
-        template_fields = list(operator.template_fields) + list(operator.template_fields_renderers.keys())
-
-        class_fields = operator.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(operator)

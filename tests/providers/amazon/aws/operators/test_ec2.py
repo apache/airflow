@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.operators.ec2 import (
     EC2StopInstanceOperator,
     EC2TerminateInstanceOperator,
 )
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 
 class BaseEc2TestClass:
@@ -92,16 +93,7 @@ class TestEC2CreateInstanceOperator(BaseEc2TestClass):
             task_id="test_create_instance",
             image_id="test_image_id",
         )
-
-        template_fields = list(ec2_operator.template_fields) + list(
-            ec2_operator.template_fields_renderers.keys()
-        )
-
-        class_fields = ec2_operator.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(ec2_operator)
 
 
 class TestEC2TerminateInstanceOperator(BaseEc2TestClass):
@@ -161,16 +153,7 @@ class TestEC2TerminateInstanceOperator(BaseEc2TestClass):
             task_id="test_terminate_instance",
             instance_ids="test_image_id",
         )
-
-        template_fields = list(ec2_operator.template_fields) + list(
-            ec2_operator.template_fields_renderers.keys()
-        )
-
-        class_fields = ec2_operator.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(ec2_operator)
 
 
 class TestEC2StartInstanceOperator(BaseEc2TestClass):
@@ -216,15 +199,7 @@ class TestEC2StartInstanceOperator(BaseEc2TestClass):
             check_interval=3,
         )
 
-        template_fields = list(ec2_operator.template_fields) + list(
-            ec2_operator.template_fields_renderers.keys()
-        )
-
-        class_fields = ec2_operator.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(ec2_operator)
 
 
 class TestEC2StopInstanceOperator(BaseEc2TestClass):
@@ -270,15 +245,7 @@ class TestEC2StopInstanceOperator(BaseEc2TestClass):
             check_interval=3,
         )
 
-        template_fields = list(ec2_operator.template_fields) + list(
-            ec2_operator.template_fields_renderers.keys()
-        )
-
-        class_fields = ec2_operator.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(ec2_operator)
 
 
 class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
@@ -397,16 +364,7 @@ class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
             task_id="task_test",
             instance_ids="i-123abc",
         )
-
-        template_fields = list(ec2_operator.template_fields) + list(
-            ec2_operator.template_fields_renderers.keys()
-        )
-
-        class_fields = ec2_operator.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(ec2_operator)
 
 
 class TestEC2RebootInstanceOperator(BaseEc2TestClass):
@@ -464,13 +422,4 @@ class TestEC2RebootInstanceOperator(BaseEc2TestClass):
             task_id="task_test",
             instance_ids="i-123abc",
         )
-
-        template_fields = list(ec2_operator.template_fields) + list(
-            ec2_operator.template_fields_renderers.keys()
-        )
-
-        class_fields = ec2_operator.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(ec2_operator)

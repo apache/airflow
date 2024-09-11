@@ -32,6 +32,7 @@ from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 from tests.providers.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 
@@ -205,11 +206,4 @@ class TestEmrCreateJobFlowOperator:
         ), "Trigger is not a EmrCreateJobFlowTrigger"
 
     def test_template_fields(self):
-
-        template_fields = list(self.operator.template_fields) + list(self.operator.template_fields_renderers.keys())
-
-        class_fields = self.operator.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(self.operator)

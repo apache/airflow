@@ -25,6 +25,7 @@ from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
 from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator, EmrEksCreateClusterOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrContainerTrigger
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 SUBMIT_JOB_SUCCESS_RETURN = {
     "ResponseMetadata": {"HTTPStatusCode": 200},
@@ -196,11 +197,5 @@ class TestEmrEksCreateClusterOperator:
         assert expected_exception_msg in str(ctx.value)
 
     def test_template_fields(self):
+        validate_template_fields(self.emr_container)
 
-        template_fields = list(self.emr_container.template_fields) + list(self.emr_container.template_fields_renderers.keys())
-
-        class_fields = self.emr_container.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"

@@ -34,6 +34,7 @@ from airflow.providers.amazon.aws.operators.dms import (
 )
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 TASK_ARN = "test_arn"
 
@@ -125,20 +126,13 @@ class TestDmsCreateTaskOperator:
         op = DmsCreateTaskOperator(
             task_id="create_task",
             **self.TASK_DATA,
-            # Generic hooks parameters
             aws_conn_id="fake-conn-id",
             region_name="ca-west-1",
             verify=True,
             botocore_config={"read_timeout": 42},
         )
 
-        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
-
-        class_fields = op.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(op)
 
 
 class TestDmsDeleteTaskOperator:
@@ -204,13 +198,7 @@ class TestDmsDeleteTaskOperator:
             botocore_config={"read_timeout": 42},
         )
 
-        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
-
-        class_fields = op.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(op)
 
 
 class TestDmsDescribeTasksOperator:
@@ -315,6 +303,7 @@ class TestDmsDescribeTasksOperator:
             verify="/foo/bar/spam.egg",
             botocore_config={"read_timeout": 42},
         )
+        validate_template_fields(op)
 
 
 class TestDmsStartTaskOperator:
@@ -384,13 +373,7 @@ class TestDmsStartTaskOperator:
             botocore_config={"read_timeout": 42},
         )
 
-        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
-
-        class_fields = op.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(op)
 
 
 class TestDmsStopTaskOperator:
@@ -456,10 +439,4 @@ class TestDmsStopTaskOperator:
             botocore_config={"read_timeout": 42},
         )
 
-        template_fields = list(op.template_fields) + list(op.template_fields_renderers.keys())
-
-        class_fields = op.__dict__
-
-        missing_fields = [field for field in template_fields if field not in class_fields]
-
-        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+        validate_template_fields(op)
