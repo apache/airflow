@@ -18,7 +18,17 @@
  */
 
 import React, { useEffect, useState } from "react";
-import { Text, Flex, Table, Tbody, Tr, Td, Code, Box } from "@chakra-ui/react";
+import {
+  Text,
+  Flex,
+  Table,
+  Tbody,
+  Tr,
+  Td,
+  Code,
+  Box,
+  useTheme,
+} from "@chakra-ui/react";
 import { snakeCase } from "lodash";
 
 import { useTIHistory } from "src/api";
@@ -26,7 +36,9 @@ import { getGroupAndMapSummary, getMetaValue } from "src/utils";
 import { getDuration, formatDuration } from "src/datetime_utils";
 import { SimpleStatus } from "src/dag/StatusBox";
 import Time from "src/components/Time";
-import { ClipboardText } from "src/components/Clipboard";
+import { ClipboardText, ClipboardButton } from "src/components/Clipboard";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 import type {
   API,
   Task,
@@ -35,6 +47,19 @@ import type {
 } from "src/types";
 import RenderedJsonField from "src/components/RenderedJsonField";
 import TrySelector from "./TrySelector";
+
+const languageMapping: Record<string, string> = {
+  bash: "bash",
+  doc: "plaintext",
+  hql: "sql",
+  html: "html",
+  jinja: "django",
+  json: "json",
+  md: "markdown",
+  python: "python",
+  sql: "sql",
+  yaml: "yaml",
+};
 
 interface Props {
   gridInstance?: GridTaskInstance;
@@ -47,6 +72,7 @@ const dagId = getMetaValue("dag_id");
 const Details = ({ gridInstance, taskInstance, group }: Props) => {
   const isGroup = !!group?.children;
   const summary: React.ReactNode[] = [];
+  const theme = useTheme();
 
   const { runId, taskId } = gridInstance || {};
 
@@ -327,22 +353,58 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
               {Object.keys(instance.renderedFields).map((key) => {
                 const renderedFields = instance.renderedFields as Record<
                   string,
-                  unknown
+                  Record<string, string | null>
                 >;
-                let field = renderedFields[key];
+
+                const templateFieldsRenderers =
+                  instance.templateFieldsRenderers as Record<string, string>;
+
+                const field = renderedFields[key];
+                let validJSON = false;
+                let fieldString = field as unknown as string;
+                const renderer = templateFieldsRenderers[key] || null;
+                const language: string = renderer
+                  ? languageMapping[renderer] ?? "plaintext"
+                  : "plaintext";
+
                 if (field) {
                   if (typeof field !== "string") {
                     try {
-                      field = JSON.stringify(field);
+                      fieldString = JSON.stringify(field, null, 4);
+                      validJSON = true;
                     } catch (e) {
                       // skip
                     }
                   }
+
                   return (
                     <Tr key={key}>
                       <Td>{key}</Td>
                       <Td>
-                        <RenderedJsonField content={field as string} />
+                        {validJSON && (
+                          <RenderedJsonField content={fieldString} />
+                        )}
+                        {!validJSON && (
+                          <Flex alignItems="right">
+                            <SyntaxHighlighter
+                              customStyle={{
+                                fontSize: theme.fontSizes.md,
+                                font: theme.fonts.mono,
+                              }}
+                              language={language}
+                              style={oneLight}
+                              wrapLongLines
+                            >
+                              {fieldString}
+                            </SyntaxHighlighter>
+                            <ClipboardButton
+                              ml={2}
+                              mt={2}
+                              iconOnly
+                              value={fieldString}
+                            />
+                          </Flex>
+                        )}
                       </Td>
                     </Tr>
                   );

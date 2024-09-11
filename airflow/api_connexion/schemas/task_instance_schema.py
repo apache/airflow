@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, NamedTuple
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 from marshmallow.utils import get_value
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
+from sqlalchemy import inspect
 
 from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.common_schema import JsonObjectField
@@ -30,8 +31,10 @@ from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
 from airflow.api_connexion.schemas.trigger_schema import TriggerSchema
 from airflow.models import TaskInstance
 from airflow.models.taskinstancehistory import TaskInstanceHistory
+from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.helpers import exactly_one
 from airflow.utils.state import TaskInstanceState
+from airflow.www.views import get_key_paths, get_value_from_path
 
 if TYPE_CHECKING:
     from airflow.models import SlaMiss
@@ -72,8 +75,22 @@ class TaskInstanceSchema(SQLAlchemySchema):
     sla_miss = fields.Nested(SlaMissSchema, dump_default=None)
     rendered_map_index = auto_field()
     rendered_fields = JsonObjectField(dump_default={})
+    template_fields_renderers = JsonObjectField(dump_default={})
     trigger = fields.Nested(TriggerSchema)
     triggerer_job = fields.Nested(JobSchema)
+
+    def _get_task(self, task_instance):
+        session = inspect(task_instance).session
+        dag = get_airflow_app().dag_bag.get_dag(task_instance.dag_id, session=session)
+        task = None
+
+        if dag:
+            try:
+                task = dag.get_task(task_instance.task_id)
+            except Exception:
+                pass
+
+        return task
 
     def get_attribute(self, obj, attr, default):
         if attr == "sla_miss":
@@ -82,8 +99,36 @@ class TaskInstanceSchema(SQLAlchemySchema):
             # corresponding to the attr.
             slamiss_instance = {"sla_miss": obj[1]}
             return get_value(slamiss_instance, attr, default)
+        elif attr == "template_fields_renderers":
+            task = self._get_task(obj[0])
+            template_fields_renderers = {}
+
+            if task and isinstance(getattr(task, "template_fields_renderers", None), dict):
+                template_fields_renderers = task.template_fields_renderers
+
+            return template_fields_renderers
         elif attr == "rendered_fields":
-            return get_value(obj[0], "rendered_task_instance_fields.rendered_fields", default)
+            task_instance = obj[0]
+            rendered_value = get_value(
+                task_instance, "rendered_task_instance_fields.rendered_fields", default
+            )
+            task = self._get_task(task_instance)
+
+            if task and task.template_fields_renderers and rendered_value is not default:
+                task_instance.refresh_from_task(task)
+
+                for template_field in task.template_fields:
+                    content = rendered_value[template_field]
+
+                    if isinstance(content, dict):
+                        for dict_keys in get_key_paths(content):
+                            template_path = f"{template_field}.{dict_keys}"
+                            if template_path in task.template_fields_renderers:
+                                nested_value = get_value_from_path(dict_keys, content)
+                                rendered_value[template_path] = nested_value
+
+            return rendered_value
+
         return get_value(obj[0], attr, default)
 
 
