@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-10T19:39:18.851590
+# This constraints file was automatically generated on 2024-09-11T22:13:31.338428
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -33,7 +33,7 @@ SQLAlchemy-Utils==0.41.2
 SQLAlchemy==1.4.54
 WTForms==3.1.2
 Werkzeug==2.2.3
-aiobotocore==2.14.0
+aiobotocore==2.15.0
 aiohappyeyeballs==2.4.0
 aiohttp==3.10.5
 aioitertools==0.12.0
@@ -49,10 +49,11 @@ async-timeout==4.0.3
 atlasclient==1.0.0
 attrs==24.2.0
 babel==2.16.0
+backoff==2.2.1
 backports.zoneinfo==0.2.1
 bcrypt==4.2.0
 blinker==1.8.2
-botocore==1.35.7
+botocore==1.35.16
 cachelib==0.9.0
 certifi==2024.8.30
 cffi==1.17.1
@@ -77,7 +78,7 @@ email_validator==2.2.0
 eventlet==0.36.1
 exceptiongroup==1.2.2
 fastapi-cli==0.0.5
-fastapi==0.114.0
+fastapi==0.114.1
 fastavro==1.9.7
 filelock==3.16.0
 frozenlist==1.4.1
@@ -96,7 +97,7 @@ httpcore==1.0.5
 httptools==0.6.1
 httpx==0.27.2
 idna==3.8
-importlib_metadata==8.4.0
+importlib_metadata==8.5.0
 importlib_resources==6.4.5
 inflection==0.5.1
 itsdangerous==2.2.0
@@ -120,15 +121,14 @@ methodtools==0.4.7
 more-itertools==10.5.0
 multidict==6.1.0
 numpy==1.24.4
-opentelemetry-api==1.27.0
-opentelemetry-exporter-otlp-proto-common==1.27.0
-opentelemetry-exporter-otlp-proto-grpc==1.27.0
-opentelemetry-exporter-otlp-proto-http==1.27.0
-opentelemetry-exporter-otlp==1.27.0
-opentelemetry-exporter-prometheus==0.48b0
-opentelemetry-proto==1.27.0
-opentelemetry-sdk==1.27.0
-opentelemetry-semantic-conventions==0.48b0
+opentelemetry-api==1.16.0
+opentelemetry-exporter-otlp-proto-grpc==1.16.0
+opentelemetry-exporter-otlp-proto-http==1.16.0
+opentelemetry-exporter-otlp==1.16.0
+opentelemetry-exporter-prometheus==0.41b0
+opentelemetry-proto==1.16.0
+opentelemetry-sdk==1.16.0
+opentelemetry-semantic-conventions==0.37b0
 ordered-set==4.1.0
 packaging==24.1
 pandas==2.0.3
@@ -143,8 +143,8 @@ prometheus_client==0.20.0
 protobuf==4.25.4
 psutil==6.0.0
 pure-sasl==0.6.2
-pyasn1==0.6.0
-pyasn1_modules==0.4.0
+pyasn1==0.6.1
+pyasn1_modules==0.4.1
 pycparser==2.22
 pydantic==2.9.1
 pydantic_core==2.23.3
@@ -157,7 +157,7 @@ python-ldap==3.4.4
 python-multipart==0.0.9
 python-nvd3==0.16.0
 python-slugify==8.0.4
-pytz==2024.1
+pytz==2024.2
 referencing==0.35.1
 requests-kerberos==0.15.0
 requests-toolbelt==1.0.0
