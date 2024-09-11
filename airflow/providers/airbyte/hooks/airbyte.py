@@ -71,7 +71,7 @@ class AirbyteHook(BaseHook):
         credentials = SchemeClientCredentials(
             client_id=self.conn["client_id"],
             client_secret=self.conn["client_secret"],
-            TOKEN_URL=self.conn["token_url"],
+            token_url=self.conn["token_url"],
         )
 
         return AirbyteAPI(
