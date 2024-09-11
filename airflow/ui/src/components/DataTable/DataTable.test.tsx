@@ -20,14 +20,14 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { DataTable } from "./DataTable.tsx";
-import { ColumnDef, PaginationState } from "@tanstack/react-table";
+import type { ColumnDef, PaginationState } from "@tanstack/react-table";
 import "@testing-library/jest-dom";
 
-const columns: ColumnDef<{ name: string }>[] = [
+const columns: Array<ColumnDef<{ name: string }>> = [
   {
     accessorKey: "name",
-    header: "Name",
     cell: (info) => info.getValue(),
+    header: "Name",
   },
 ];
 
@@ -40,11 +40,11 @@ describe("DataTable", () => {
   it("renders table with data", () => {
     render(
       <DataTable
-        data={data}
-        total={2}
         columns={columns}
+        data={data}
         initialState={{ pagination, sorting: [] }}
         onStateChange={onStateChange}
+        total={2}
       />
     );
 
@@ -55,11 +55,11 @@ describe("DataTable", () => {
   it("disables previous page button on first page", () => {
     render(
       <DataTable
-        data={data}
-        total={2}
         columns={columns}
+        data={data}
         initialState={{ pagination, sorting: [] }}
         onStateChange={onStateChange}
+        total={2}
       />
     );
 
@@ -70,14 +70,14 @@ describe("DataTable", () => {
   it("disables next button when on last page", () => {
     render(
       <DataTable
-        data={data}
-        total={2}
         columns={columns}
+        data={data}
         initialState={{
           pagination: { pageIndex: 1, pageSize: 10 },
           sorting: [],
         }}
         onStateChange={onStateChange}
+        total={2}
       />
     );
 

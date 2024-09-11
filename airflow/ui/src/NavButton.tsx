@@ -17,9 +17,27 @@
  * under the License.
  */
 
-import type { PaginationState, SortingState } from "@tanstack/react-table";
+import { Box, Button, type ButtonProps, Text } from "@chakra-ui/react";
 
-export type TableState = {
-  pagination: PaginationState;
-  sorting: SortingState;
-}
+import type { ReactElement } from "react";
+
+type NavButtonProps = {
+  readonly href?: string;
+  readonly icon: ReactElement;
+  readonly title?: string;
+} & ButtonProps;
+
+export const NavButton = ({ icon, title, ...rest }: NavButtonProps) => (
+  <Button
+    alignItems="center"
+    borderRadius="none"
+    flexDir="column"
+    height={16}
+    variant="ghost"
+    whiteSpace="wrap"
+    {...rest}
+  >
+    <Box alignSelf="center">{icon}</Box>
+    <Text fontSize="xs">{title}</Text>
+  </Button>
+);

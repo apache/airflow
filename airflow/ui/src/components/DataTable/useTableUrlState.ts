@@ -53,7 +53,7 @@ export const useTableURLState = (defaultState?: Partial<TableState>) => {
   );
 
   return {
-    tableURLState,
     setTableURLState: handleStateChange,
+    tableURLState,
   };
 };

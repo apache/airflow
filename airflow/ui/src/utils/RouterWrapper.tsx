@@ -17,9 +17,9 @@
  * under the License.
  */
 
-import type { PaginationState, SortingState } from "@tanstack/react-table";
+import type { PropsWithChildren } from "react";
+import { MemoryRouter } from "react-router-dom";
 
-export type TableState = {
-  pagination: PaginationState;
-  sorting: SortingState;
-}
+export const RouterWrapper = ({ children }: PropsWithChildren) => (
+  <MemoryRouter>{children}</MemoryRouter>
+);

@@ -17,14 +17,15 @@
  * under the License.
  */
 
-import { afterEach, beforeEach, describe, it, vi } from "vitest";
-import { App, AppSimple } from "./app";
 import { render } from "@testing-library/react";
+import { afterEach, beforeEach, describe, it, vi } from "vitest";
+import { App } from "./app";
+import { AppSimple } from "./AppSimple";
 
+import type { QueryObserverSuccessResult } from "@tanstack/react-query";
 import * as openapiQueriesModule from "openapi/queries";
-import { Wrapper } from "./utils/test";
-import { DAGCollection } from "openapi/requests/types.gen";
-import { QueryObserverSuccessResult } from "@tanstack/react-query";
+import type { DAGCollection } from "openapi/requests/types.gen";
+import { Wrapper } from "./utils/Wrapper";
 
 const mockListDags: DAGCollection = {
   dags: [
@@ -94,13 +95,15 @@ const mockListDags: DAGCollection = {
   ],
   total_entries: 2,
 };
+
 beforeEach(() => {
   const returnValue = {
     data: mockListDags,
     isLoading: false,
   } as QueryObserverSuccessResult<DAGCollection, unknown>;
+
   vi.spyOn(openapiQueriesModule, "useDagServiceGetDags").mockImplementation(
-    () => returnValue
+    () => returnValue,
   );
 });
 

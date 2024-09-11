@@ -17,9 +17,4 @@
  * under the License.
  */
 
-import type { PaginationState, SortingState } from "@tanstack/react-table";
-
-export type TableState = {
-  pagination: PaginationState;
-  sorting: SortingState;
-}
+export const AppSimple = () => <div>Something</div>;

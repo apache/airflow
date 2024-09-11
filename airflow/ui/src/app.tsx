@@ -19,17 +19,13 @@
 
 import { Box } from "@chakra-ui/react";
 import { DagsList } from "src/dagsList";
-import { Nav } from "src/nav";
+import { Nav } from "src/Nav";
 
-export const App = () => {
-  return (
-    <div>
-      <Nav />
-      <Box p={3} ml={24}>
-        <DagsList />
-      </Box>
-    </div>
-  );
-};
-
-export const AppSimple = () => <div>Something</div>;
+export const App = () => (
+  <div>
+    <Nav />
+    <Box ml={24} p={3}>
+      <DagsList />
+    </Box>
+  </div>
+);

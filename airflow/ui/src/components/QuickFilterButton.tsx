@@ -17,9 +17,16 @@
  * under the License.
  */
 
-import type { PaginationState, SortingState } from "@tanstack/react-table";
+import { Button, type ButtonProps } from "@chakra-ui/react";
 
-export type TableState = {
-  pagination: PaginationState;
-  sorting: SortingState;
-}
+export const QuickFilterButton = ({ children, ...rest }: ButtonProps) => (
+  <Button
+    borderRadius={20}
+    colorScheme="blue"
+    fontWeight="normal"
+    variant="outline"
+    {...rest}
+  >
+    {children}
+  </Button>
+);
