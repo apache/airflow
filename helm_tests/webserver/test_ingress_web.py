@@ -200,3 +200,21 @@ class TestIngressWeb:
             "cc.example.com",
             "dd.example.com",
         ] == jmespath.search("spec.rules[*].host", docs[0])
+
+    def test_backend_service_name(self):
+        docs = render_chart(
+            values={"ingress": {"web": {"enabled": True}}},
+            show_only=["templates/webserver/webserver-ingress.yaml"],
+        )
+
+        assert "release-name-webserver" == jmespath.search("spec.rules[0].http.paths[0].backend.service.name", docs[0])
+
+    def test_backend_service_name_with_fullname_override(self):
+        docs = render_chart(
+            values={"fullnameOverride": "test-basic",
+                    "ingress": {"web": {"enabled": True}}},
+            show_only=["templates/webserver/webserver-ingress.yaml"],
+
+        )
+
+        assert "test-basic-webserver" == jmespath.search("spec.rules[0].http.paths[0].backend.service.name", docs[0])
