@@ -218,8 +218,6 @@ class KubernetesExecutor(BaseExecutor):
                 criteria.append(TaskInstance.executor == KUBERNETES_EXECUTOR)
             query = select(TaskInstance).where(*criteria)
 
-            self.log.info("Query %s", query)
-
             queued_tis: list[TaskInstance] = session.scalars(query).all()
             self.log.info("Found %s queued task instances", len(queued_tis))
 
