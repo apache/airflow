@@ -15,16 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 
 def validate_template_fields(operator):
-    template_fields = list(operator.template_fields) + list(
-        operator.template_fields_renderers.keys()
-    )
+    template_fields = list(operator.template_fields) + list(operator.template_fields_renderers.keys())
 
     class_fields = operator.__dict__
 
     missing_fields = [field for field in template_fields if field not in class_fields]
 
     assert not missing_fields, f"Templated fields are not available {missing_fields}"
-
-

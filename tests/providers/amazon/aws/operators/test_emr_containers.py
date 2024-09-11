@@ -198,4 +198,3 @@ class TestEmrEksCreateClusterOperator:
 
     def test_template_fields(self):
         validate_template_fields(self.emr_container)
-

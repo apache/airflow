@@ -597,7 +597,6 @@ class TestEksDeleteClusterOperator:
             self.delete_cluster_operator.execute({})
 
     def test_template_fields(self):
-
         validate_template_fields(self.delete_cluster_operator)
 
 
