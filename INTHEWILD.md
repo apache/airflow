@@ -105,6 +105,7 @@ Currently, **officially** using Airflow:
 1. [Braintree](https://www.braintreepayments.com) [[@coopergillan](https://github.com/coopergillan), [@curiousjazz77](https://github.com/curiousjazz77), [@raymondberg](https://github.com/raymondberg)]
 1. [Branch](https://branch.io) [[@sdebarshi](https://github.com/sdebarshi), [@dmitrig01](https://github.com/dmitrig01)]
 1. [Breezeline (formerly Atlantic Broadband)](https://www.breezeline.com/) [[@IanDoarn](https://github.com/IanDoarn), [@willsims14](https://github.com/willsims14)]
+1. [BTIG](https://www.btig.com/) [[@hikaruhk](https://github.com/hikaruhk)]
 1. [BWGI](https://www.bwgi.com.br/) [[@jgmarcel](https://github.com/jgmarcel)]
 1. [Bwtech](https://www.bwtech.com/) [[@wolvery](https://github.com/wolvery)]
 1. [C2FO](https://www.c2fo.com/)
@@ -168,6 +169,7 @@ Currently, **officially** using Airflow:
 1. [dataroots](https://dataroots.io/) [[@datarootsio]](https://github.com/datarootsio)
 1. [DataSprints](https://datasprints.com/) [[@lopesdiego12](https://github.com/lopesdiego12) & [@rafaelsantanaep](https://github.com/rafaelsantanaep)]
 1. [Datatonic](https://datatonic.com/) [[@teamdatatonic](https://github.com/teamdatatonic)]
+1. [Datavant](https://datavant.com)/) [@althati(https://github.com/althati)]
 1. [Datumo](https://datumo.io) [[@michalmisiewicz](https://github.com/michalmisiewicz)]
 1. [Dcard](https://www.dcard.tw/) [[@damon09273](https://github.com/damon09273) & [@bruce3557](https://github.com/bruce3557) & [@kevin1kevin1k](http://github.com/kevin1kevin1k)]
 1. [Delft University of Technology](https://www.tudelft.nl/en/) [[@saveriogzz](https://github.com/saveriogzz)]
@@ -195,6 +197,7 @@ Currently, **officially** using Airflow:
 1. [ENECHANGE Ltd.](https://enechange.co.jp/) [[@enechange](https://github.com/enechange)]
 1. [Energy Solutions](https://www.energy-solution.com) [[@energy-solution](https://github.com/energy-solution/)]
 1. [Enigma](https://www.enigma.com) [[@hydrosquall](https://github.com/hydrosquall)]
+1. [EnterpriseDB](https://www.Enterprisedb.com) [[@kaydee-edb](https://github.com/kaydee-edb)]
 1. [Ericsson](https://www.ericsson.com) [[@khalidzohaib](https://github.com/khalidzohaib)]
 1. [Estrategia Educacional](https://github.com/estrategiahq) [[@jonasrla](https://github.com/jonasrla)]
 1. [Etsy](https://www.etsy.com) [[@mchalek](https://github.com/mchalek)]
