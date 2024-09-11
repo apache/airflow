@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-10T22:49:19.933604
+# This constraints file was automatically generated on 2024-09-11T19:23:32.043834
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -242,7 +242,7 @@ botocore==1.35.16
 cachelib==0.9.0
 cachetools==5.5.0
 cassandra-driver==3.29.2
-cattrs==24.1.0
+cattrs==24.1.1
 celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
@@ -322,7 +322,7 @@ google-api-python-client==2.145.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.34.0
-google-cloud-aiplatform==1.65.0
+google-cloud-aiplatform==1.66.0
 google-cloud-appengine-logging==1.4.5
 google-cloud-audit-log==0.3.0
 google-cloud-automl==2.13.5
@@ -430,7 +430,7 @@ jsonschema==4.23.0
 jupyter_client==8.6.2
 jupyter_core==5.7.2
 keyring==25.3.0
-kombu==5.4.0
+kombu==5.4.1
 krb5==0.6.0
 kubernetes==30.1.0
 kubernetes_asyncio==30.1.0
@@ -440,7 +440,7 @@ ldap3==2.9.1
 limits==3.13.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
-looker-sdk==24.14.0
+looker-sdk==24.16.0
 lxml==5.3.0
 lz4==4.3.3
 markdown-it-py==3.0.0
@@ -456,7 +456,7 @@ microsoft-kiota-abstractions==1.3.3
 microsoft-kiota-authentication-azure==1.1.0
 microsoft-kiota-http==1.3.3
 mmh3==4.1.0
-mongomock==4.1.2
+mongomock==4.2.0.post1
 more-itertools==10.5.0
 moto==5.0.11
 mpmath==1.3.0
@@ -551,7 +551,7 @@ py4j==0.10.9.7
 pyOpenSSL==24.2.1
 pyarrow-hotfix==0.6
 pyarrow==14.0.2
-pyasn1==0.6.0
+pyasn1==0.6.1
 pyasn1_modules==0.4.0
 pycountry==24.6.1
 pycparser==2.22
@@ -595,7 +595,7 @@ python-nvd3==0.16.0
 python-slugify==8.0.4
 python-telegram-bot==21.5
 python3-saml==1.16.0
-pytz==2024.1
+pytz==2024.2
 pywinrm==0.5.0
 pyzmq==26.2.0
 qdrant-client==1.11.1
@@ -604,7 +604,7 @@ readme_renderer==43.0
 redis==5.0.8
 redshift-connector==2.1.3
 referencing==0.35.1
-regex==2024.7.24
+regex==2024.9.11
 requests-file==2.1.0
 requests-kerberos==0.15.0
 requests-mock==1.12.1
@@ -742,7 +742,7 @@ yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.316.0
 yarl==1.11.1
-ydb==3.17.0
+ydb==3.17.1
 zeep==4.2.1
 zenpy==2.0.52
 zipp==3.20.1
