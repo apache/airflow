@@ -26,13 +26,15 @@ from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import Session, reconstructor, synonym
 
 from airflow.configuration import ensure_secrets_loaded
-from airflow.exceptions import AirflowFailException
+from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.models.base import ID_LEN, Base
+from airflow.models.crossdagcommunication import CrossDagComm
 from airflow.models.crypto import get_fernet
 from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.session import provide_session
+from airflow.operators.python import get_current_context
 
 log = logging.getLogger(__name__)
 
@@ -131,6 +133,18 @@ class Variable(Base, LoggingMixin):
         :param default_var: Default value of the Variable if the Variable doesn't exist
         :param deserialize_json: Deserialize the value to a Python dict
         """
+        try:
+            context = get_current_context()
+            ti = context["ti"]
+            CrossDagComm.add(
+                type="variable",
+                key=key,
+                target_dag_id=ti.dag_id,
+                target_task_id=ti.task_id,
+            )
+        except AirflowException:
+            log.warning("Variable.get() called outside of task context.")
+
         var_val = Variable.get_variable_from_secrets(key=key)
         if var_val is None:
             if default_var is not cls.__NO_DEFAULT_SENTINEL:
@@ -168,6 +182,18 @@ class Variable(Base, LoggingMixin):
         :param session: SQL Alchemy Sessions
         :param is_multi_cluster_enabled: is set wrapped by lyft-etl sync_variable_writes_multicluster
         """
+        try:
+            context = get_current_context()
+            ti = context["ti"]
+            CrossDagComm.add(
+                type="variable",
+                key=key,
+                source_dag_id=ti.dag_id,
+                source_task_id=ti.task_id,
+            )
+        except AirflowException:
+            log.warning("Variable.set() called outside of task context.")
+        
         # check if the secret exists in the custom secrets backend.
         cls.check_for_write_conflict(key)
         if serialize_json:
