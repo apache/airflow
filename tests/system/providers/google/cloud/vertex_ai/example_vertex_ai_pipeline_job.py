@@ -26,6 +26,10 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
+from google.cloud.aiplatform import schema
+from google.protobuf.json_format import ParseDict
+from google.protobuf.struct_pb2 import Value
+
 from airflow.models.dag import DAG
 from airflow.providers.google.cloud.operators.gcs import (
     GCSCreateBucketOperator,
@@ -34,6 +38,7 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSListObjectsOperator,
     GCSSynchronizeBucketsOperator,
 )
+from airflow.providers.google.cloud.operators.vertex_ai.dataset import CreateDatasetOperator
 from airflow.providers.google.cloud.operators.vertex_ai.pipeline_job import (
     DeletePipelineJobOperator,
     GetPipelineJobOperator,
@@ -50,22 +55,25 @@ DISPLAY_NAME = f"pipeline-job-{ENV_ID}"
 
 RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
 DATA_SAMPLE_GCS_BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}".replace("_", "-")
-TEMPLATE_PATH = "https://us-kfp.pkg.dev/ml-pipeline/google-cloud-registry/automl-tabular/sha256:85e4218fc6604ee82353c9d2ebba20289eb1b71930798c0bb8ce32d8a10de146"
+TEMPLATE_PATH = "https://us-kfp.pkg.dev/ml-pipeline/google-cloud-registry/get-vertex-dataset/sha256:f4eb4a2b0aab482c487c1cd62b3c735baaf914be8fa8c4687c06077c1d815a5d"
 OUTPUT_BUCKET = f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}"
 
 PARAMETER_VALUES = {
-    "train_budget_milli_node_hours": 2000,
-    "optimization_objective": "minimize-log-loss",
-    "project": PROJECT_ID,
-    "location": REGION,
-    "root_dir": OUTPUT_BUCKET,
-    "target_column": "Adopted",
-    "training_fraction": 0.8,
-    "validation_fraction": 0.1,
-    "test_fraction": 0.1,
-    "prediction_type": "classification",
-    "data_source_csv_filenames": f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/vertex-ai/tabular-dataset.csv",
-    "transformations": f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/vertex-ai/column_transformations.json",
+    "dataset_resource_name": f"projects/{PROJECT_ID}/locations/{REGION}/datasets/tabular-dataset-{ENV_ID}",
+}
+
+DATA_SAMPLE_GCS_OBJECT_NAME = "vertex-ai/california_housing_train.csv"
+TABULAR_DATASET = {
+    "display_name": f"tabular-dataset-{ENV_ID}",
+    "metadata_schema_uri": schema.dataset.metadata.tabular,
+    "metadata": ParseDict(
+        {
+            "input_config": {
+                "gcs_source": {"uri": [f"gs://{DATA_SAMPLE_GCS_BUCKET_NAME}/{DATA_SAMPLE_GCS_OBJECT_NAME}"]}
+            }
+        },
+        Value(),
+    ),
 }
 
 
@@ -83,13 +91,20 @@ with DAG(
         location=REGION,
     )
 
-    move_pipeline_files = GCSSynchronizeBucketsOperator(
-        task_id="move_files_to_bucket",
+    move_dataset_files = GCSSynchronizeBucketsOperator(
+        task_id="move_dataset_files_to_bucket",
         source_bucket=RESOURCE_DATA_BUCKET,
-        source_object="vertex-ai/pipeline",
+        source_object="vertex-ai/california-housing-data",
         destination_bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
         destination_object="vertex-ai",
         recursive=True,
+    )
+
+    create_dataset = CreateDatasetOperator(
+        task_id="tabular_dataset",
+        dataset=TABULAR_DATASET,
+        region=REGION,
+        project_id=PROJECT_ID,
     )
 
     # [START how_to_cloud_vertex_ai_run_pipeline_job_operator]
@@ -147,7 +162,8 @@ with DAG(
     (
         # TEST SETUP
         create_bucket
-        >> move_pipeline_files
+        >> move_dataset_files
+        >> create_dataset
         # TEST BODY
         >> run_pipeline_job
         >> get_pipeline_job

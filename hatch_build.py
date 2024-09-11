@@ -124,10 +124,6 @@ CORE_EXTRAS: dict[str, list[str]] = {
         # which can have a conflict with boto3 as mentioned in aiobotocore extra
         "s3fs>=2023.10.0",
     ],
-    "saml": [
-        # This is required for support of SAML which might be used by some providers (e.g. Amazon)
-        "python3-saml>=1.16.0",
-    ],
     "sentry": [
         "blinker>=1.1",
         # Sentry SDK 1.33 is broken when greenlets are installed and fails to import

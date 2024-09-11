@@ -17,40 +17,16 @@
  * under the License.
  */
 
-import { useState } from "react";
-import { Box, Spinner } from "@chakra-ui/react";
-import { PaginationState } from "@tanstack/react-table";
-
-import { useDagServiceGetDags } from "openapi/queries";
+import { Box } from "@chakra-ui/react";
 import { DagsList } from "src/dagsList";
 import { Nav } from "src/nav";
 
 export const App = () => {
-  // TODO: Change this to be taken from airflow.cfg
-  const pageSize = 50;
-  const [pagination, setPagination] = useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: pageSize,
-  });
-
-  const { data, isLoading } = useDagServiceGetDags({
-    limit: pagination.pageSize,
-    offset: pagination.pageIndex * pagination.pageSize,
-  });
-
   return (
     <div>
       <Nav />
       <Box p={3} ml={24}>
-        {isLoading && <Spinner />}
-        {!isLoading && !!data?.dags && (
-          <DagsList
-            data={data.dags}
-            total={data.total_entries}
-            pagination={pagination}
-            setPagination={setPagination}
-          />
-        )}
+        <DagsList />
       </Box>
     </div>
   );
