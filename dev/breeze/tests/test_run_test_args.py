@@ -102,16 +102,16 @@ def test_irregular_provider_with_extra_ignore_should_be_valid_cmd(mock_run_comma
 def test_skip_when_primary_test_arg_is_excluded_by_extra_pytest_arg(mock_run_command):
     test_provider = "http"  # "Providers[<id>]" scans the source tree so we need to use a real provider id
 
-    with pytest.raises(SystemExit, match="1"):
-        _run_test(
-            shell_params=ShellParams(test_type=f"Providers[{test_provider}]"),
-            extra_pytest_args=(f"--ignore=tests/providers/{test_provider}",),
-            python_version="3.8",
-            output=None,
-            test_timeout=60,
-            skip_docker_compose_down=True,
-        )
+    result = _run_test(
+        shell_params=ShellParams(test_type=f"Providers[{test_provider}]"),
+        extra_pytest_args=(f"--ignore=tests/providers/{test_provider}",),
+        python_version="3.8",
+        output=None,
+        test_timeout=60,
+        skip_docker_compose_down=True,
+    )
 
+    assert result == (1, f"Test: Providers[{test_provider}] blocked from running due to ambiguous arguments")
     mock_run_command.assert_not_called()
 
 
@@ -121,14 +121,14 @@ def test_skip_when_primary_test_arg_is_excluded_by_excluded_provider(
     test_provider = "http"  # "Providers[<id>]" scans the source tree so we need to use a real provider id
     mock_get_excluded_provider_folders.return_value = [test_provider]
 
-    with pytest.raises(SystemExit, match="1"):
-        _run_test(
-            shell_params=ShellParams(test_type=f"Providers[{test_provider}]"),
-            extra_pytest_args=(),
-            python_version="3.8",
-            output=None,
-            test_timeout=60,
-            skip_docker_compose_down=True,
-        )
+    result = _run_test(
+        shell_params=ShellParams(test_type=f"Providers[{test_provider}]"),
+        extra_pytest_args=(),
+        python_version="3.8",
+        output=None,
+        test_timeout=60,
+        skip_docker_compose_down=True,
+    )
 
+    assert result == (1, f"Test: Providers[{test_provider}] blocked from running due to ambiguous arguments")
     mock_run_command.assert_not_called()
