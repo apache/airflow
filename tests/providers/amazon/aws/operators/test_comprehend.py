@@ -29,6 +29,7 @@ from airflow.providers.amazon.aws.operators.comprehend import (
     ComprehendStartPiiEntitiesDetectionJobOperator,
 )
 from airflow.utils.types import NOTSET
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
@@ -163,6 +164,9 @@ class TestComprehendStartPiiEntitiesDetectionJobOperator:
         assert comprehend_hook.get_waiter.call_count == wait_for_completion
         assert self.operator.defer.call_count == deferrable
 
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
 
 class TestComprehendCreateDocumentClassifierOperator:
     CLASSIFIER_ARN = (
@@ -259,3 +263,6 @@ class TestComprehendCreateDocumentClassifierOperator:
         assert response == self.CLASSIFIER_ARN
         assert comprehend_hook.get_waiter.call_count == wait_for_completion
         assert self.operator.defer.call_count == deferrable
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
