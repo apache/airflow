@@ -25,6 +25,7 @@ from moto import mock_aws
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
 from airflow.providers.amazon.aws.operators.glue_crawler import GlueCrawlerOperator
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
@@ -173,3 +174,6 @@ class TestGlueCrawlerOperator:
         assert response == mock_crawler_name
         assert crawler_hook.get_waiter.call_count == wait_for_completion
         assert self.op.defer.call_count == deferrable
+
+    def test_template_fields(self):
+        validate_template_fields(self.op)

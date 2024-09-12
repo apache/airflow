@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.triggers.sagemaker import (
 )
 from airflow.providers.common.compat.openlineage.facet import Dataset
 from airflow.providers.openlineage.extractors import OperatorLineage
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 EXPECTED_INTEGER_FIELDS: list[list[str]] = [
     ["ResourceConfig", "InstanceCount"],
@@ -235,3 +236,6 @@ class TestSageMakerTrainingOperator:
             inputs=[Dataset(namespace="s3://input-bucket", name="input-path")],
             outputs=[Dataset(namespace="s3://model-bucket", name="model-path")],
         )
+
+    def test_template_fields(self):
+        validate_template_fields(self.sagemaker)

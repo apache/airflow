@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
 from airflow.providers.common.compat.openlineage.facet import Dataset
 from airflow.providers.openlineage.extractors import OperatorLineage
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 CREATE_PROCESSING_PARAMS: dict = {
     "AppSpecification": {
@@ -345,3 +346,10 @@ class TestSageMakerProcessingOperator:
             inputs=[Dataset(namespace="s3://input-bucket", name="input-path")],
             outputs=[Dataset(namespace="s3://output-bucket", name="output-path")],
         )
+
+    def test_template_fields(self):
+        operator = SageMakerProcessingOperator(
+            **self.processing_config_kwargs,
+            config=CREATE_PROCESSING_PARAMS,
+        )
+        validate_template_fields(operator)

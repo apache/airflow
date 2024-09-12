@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerTuningOperator
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 EXPECTED_INTEGER_FIELDS: list[list[str]] = [
     ["HyperParameterTuningJobConfig", "ResourceLimits", "MaxNumberOfTrainingJobs"],
@@ -120,3 +121,6 @@ class TestSageMakerTuningOperator:
         assert isinstance(defer.value.trigger, SageMakerTrigger)
         assert defer.value.trigger.job_name == "job_name"
         assert defer.value.trigger.job_type == "tuning"
+
+    def test_template_fields(self):
+        validate_template_fields(self.sagemaker)

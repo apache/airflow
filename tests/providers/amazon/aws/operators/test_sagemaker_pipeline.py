@@ -29,6 +29,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerStopPipelineOperator,
 )
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerPipelineTrigger
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -71,6 +72,13 @@ class TestSageMakerStartPipelineOperator:
         assert isinstance(defer.value.trigger, SageMakerPipelineTrigger)
         assert defer.value.trigger.waiter_type == SageMakerPipelineTrigger.Type.COMPLETE
 
+    def test_template_fields(self):
+        operator = SageMakerStartPipelineOperator(
+            task_id="test_sagemaker_operator",
+            pipeline_name="my_pipeline",
+        )
+        validate_template_fields(operator)
+
 
 class TestSageMakerStopPipelineOperator:
     @mock.patch.object(SageMakerHook, "stop_pipeline")
@@ -100,3 +108,11 @@ class TestSageMakerStopPipelineOperator:
 
         assert isinstance(defer.value.trigger, SageMakerPipelineTrigger)
         assert defer.value.trigger.waiter_type == SageMakerPipelineTrigger.Type.STOPPED
+
+    def test_template_fields(self):
+        operator = SageMakerStopPipelineOperator(
+            task_id="test_sagemaker_operator",
+            pipeline_exec_arn="my_pipeline_arn",
+            deferrable=True,
+        )
+        validate_template_fields(operator)

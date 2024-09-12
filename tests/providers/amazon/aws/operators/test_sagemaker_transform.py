@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import SageMakerTransformO
 from airflow.providers.amazon.aws.triggers.sagemaker import SageMakerTrigger
 from airflow.providers.common.compat.openlineage.facet import Dataset
 from airflow.providers.openlineage.extractors import OperatorLineage
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 EXPECTED_INTEGER_FIELDS: list[list[str]] = [
     ["Transform", "TransformResources", "InstanceCount"],
@@ -377,3 +378,6 @@ class TestSageMakerTransformOperator:
             ],
             outputs=[Dataset(namespace="s3://output-bucket", name="output-path")],
         )
+
+    def test_template_fields(self):
+        validate_template_fields(self.sagemaker)

@@ -21,6 +21,7 @@ from unittest import mock
 
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
 from airflow.providers.amazon.aws.operators.quicksight import QuickSightCreateIngestionOperator
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 DATA_SET_ID = "DemoDataSet"
 INGESTION_ID = "DemoDataSet_Ingestion"
@@ -80,3 +81,7 @@ class TestQuickSightCreateIngestionOperator:
             wait_for_completion=True,
             check_interval=30,
         )
+
+    def test_template_fields(self):
+        operator = QuickSightCreateIngestionOperator(**self.default_op_kwargs)
+        validate_template_fields(operator)

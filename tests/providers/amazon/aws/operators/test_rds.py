@@ -44,6 +44,7 @@ from airflow.providers.amazon.aws.operators.rds import (
 )
 from airflow.providers.amazon.aws.triggers.rds import RdsDbAvailableTrigger, RdsDbStoppedTrigger
 from airflow.utils import timezone
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
@@ -265,6 +266,16 @@ class TestRdsCreateDbSnapshotOperator:
         assert len(cluster_snapshots) == 1
         mock_wait.assert_not_called()
 
+    def test_template_fields(self):
+        operator = RdsCreateDbSnapshotOperator(
+            task_id="test_instance_",
+            db_type="instance",
+            db_snapshot_identifier=DB_INSTANCE_SNAPSHOT,
+            db_identifier=DB_INSTANCE_NAME,
+            aws_conn_id=AWS_CONN,
+        )
+        validate_template_fields(operator)
+
 
 class TestRdsCopyDbSnapshotOperator:
     @classmethod
@@ -375,6 +386,16 @@ class TestRdsCopyDbSnapshotOperator:
         assert len(cluster_snapshots) == 1
         mock_await_status.assert_not_called()
 
+    def test_template_fields(self):
+        operator = RdsCopyDbSnapshotOperator(
+            task_id="test_cluster_no_wait",
+            db_type="cluster",
+            source_db_snapshot_identifier=DB_CLUSTER_SNAPSHOT,
+            target_db_snapshot_identifier=DB_CLUSTER_SNAPSHOT_COPY,
+            aws_conn_id=AWS_CONN,
+        )
+        validate_template_fields(operator)
+
 
 class TestRdsDeleteDbSnapshotOperator:
     @classmethod
@@ -482,6 +503,16 @@ class TestRdsDeleteDbSnapshotOperator:
         with pytest.raises(self.hook.conn.exceptions.ClientError):
             self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT)
 
+    def test_template_fields(self):
+        operator = RdsDeleteDbSnapshotOperator(
+            task_id="test_delete_db_cluster_snapshot_no_wait",
+            db_type="cluster",
+            db_snapshot_identifier=DB_CLUSTER_SNAPSHOT,
+            aws_conn_id=AWS_CONN,
+            wait_for_completion=False,
+        )
+        validate_template_fields(operator)
+
 
 class TestRdsStartExportTaskOperator:
     @classmethod
@@ -552,6 +583,19 @@ class TestRdsStartExportTaskOperator:
         assert export_tasks[0]["Status"] == "complete"
         mock_await_status.assert_not_called()
 
+    def test_template_fields(self):
+        operator = RdsStartExportTaskOperator(
+            task_id="test_start_no_wait",
+            export_task_identifier=EXPORT_TASK_NAME,
+            source_arn=EXPORT_TASK_SOURCE,
+            iam_role_arn=EXPORT_TASK_ROLE_ARN,
+            kms_key_id=EXPORT_TASK_KMS,
+            s3_bucket_name=EXPORT_TASK_BUCKET,
+            aws_conn_id=AWS_CONN,
+            wait_for_completion=False,
+        )
+        validate_template_fields(operator)
+
 
 class TestRdsCancelExportTaskOperator:
     @classmethod
@@ -615,6 +659,14 @@ class TestRdsCancelExportTaskOperator:
         assert len(export_tasks) == 1
         assert export_tasks[0]["Status"] == "canceled"
         mock_await_status.assert_not_called()
+
+    def test_template_fields(self):
+        operator = RdsCancelExportTaskOperator(
+            task_id="test_cancel",
+            export_task_identifier=EXPORT_TASK_NAME,
+            aws_conn_id=AWS_CONN,
+        )
+        validate_template_fields(operator)
 
 
 class TestRdsCreateEventSubscriptionOperator:
@@ -682,6 +734,17 @@ class TestRdsCreateEventSubscriptionOperator:
         assert subscriptions[0]["Status"] == "active"
         mock_await_status.assert_not_called()
 
+    def test_template_fields(self):
+        operator = RdsCreateEventSubscriptionOperator(
+            task_id="test_create",
+            subscription_name=SUBSCRIPTION_NAME,
+            sns_topic_arn=SUBSCRIPTION_TOPIC,
+            source_type="db-instance",
+            source_ids=[DB_INSTANCE_NAME],
+            aws_conn_id=AWS_CONN,
+        )
+        validate_template_fields(operator)
+
 
 class TestRdsDeleteEventSubscriptionOperator:
     @classmethod
@@ -714,6 +777,14 @@ class TestRdsDeleteEventSubscriptionOperator:
 
         with pytest.raises(self.hook.conn.exceptions.ClientError):
             self.hook.conn.describe_event_subscriptions(SubscriptionName=EXPORT_TASK_NAME)
+
+    def test_template_fields(self):
+        operator = RdsDeleteEventSubscriptionOperator(
+            task_id="test_delete",
+            subscription_name=SUBSCRIPTION_NAME,
+            aws_conn_id=AWS_CONN,
+        )
+        validate_template_fields(operator)
 
 
 class TestRdsCreateDbInstanceOperator:
@@ -781,6 +852,19 @@ class TestRdsCreateDbInstanceOperator:
         assert db_instances[0]["DBInstanceStatus"] == "available"
         mock_await_status.assert_not_called()
 
+    def test_template_fields(self):
+        operator = RdsCreateDbInstanceOperator(
+            task_id="test_create_db_instance",
+            db_instance_identifier=DB_INSTANCE_NAME,
+            db_instance_class="db.m5.large",
+            engine="postgres",
+            rds_kwargs={
+                "DBName": DB_INSTANCE_NAME,
+            },
+            aws_conn_id=AWS_CONN,
+        )
+        validate_template_fields(operator)
+
 
 class TestRdsDeleteDbInstanceOperator:
     @classmethod
@@ -838,6 +922,18 @@ class TestRdsDeleteDbInstanceOperator:
         with pytest.raises(self.hook.conn.exceptions.ClientError):
             self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
         mock_await_status.assert_not_called()
+
+    def test_template_fields(self):
+        operator = RdsDeleteDbInstanceOperator(
+            task_id="test_delete_db_instance_no_wait",
+            db_instance_identifier=DB_INSTANCE_NAME,
+            rds_kwargs={
+                "SkipFinalSnapshot": True,
+            },
+            aws_conn_id=AWS_CONN,
+            wait_for_completion=False,
+        )
+        validate_template_fields(operator)
 
 
 class TestRdsStopDbOperator:
@@ -943,6 +1039,15 @@ class TestRdsStopDbOperator:
         )
         assert warning_message in caplog.text
 
+    def test_template_fields(self):
+        operator = RdsStopDbOperator(
+            task_id="test_stop_db_cluster",
+            db_identifier=DB_CLUSTER_NAME,
+            db_type="cluster",
+            db_snapshot_identifier=DB_CLUSTER_SNAPSHOT,
+        )
+        validate_template_fields(operator)
+
 
 class TestRdsStartDbOperator:
     @classmethod
@@ -1008,3 +1113,9 @@ class TestRdsStartDbOperator:
             op.execute({})
 
         assert isinstance(defer.value.trigger, RdsDbAvailableTrigger)
+
+    def test_template_fields(self):
+        operator = RdsStartDbOperator(
+            task_id="test_start_db_cluster", db_identifier=DB_CLUSTER_NAME, db_type="cluster"
+        )
+        validate_template_fields(operator)
