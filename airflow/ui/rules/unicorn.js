@@ -584,27 +584,27 @@ export const unicornRules =
        * ```typescript
        * // ❌ Incorrect
        * switch (foo) {
-       * 	case 1:
-       * 	default:
-       * 		handleDefaultCase();
-       * 		break;
+       *   case 1:
+       *   default:
+       *     handleDefaultCase();
+       *     break;
        * }
        *
        * // ✅ Correct
        * switch (foo) {
-       * 	case 1:
-       * 	case 2:
-       * 		handleDefaultCase();
-       * 		break;
+       *   case 1:
+       *   case 2:
+       *     handleDefaultCase();
+       *     break;
        * }
        *
        *
        * switch (foo) {
-       * 	case 1:
-       * 		handleCase1();
-       * 	default:
-       * 		handleDefaultCase();
-       * 		break;
+       *   case 1:
+       *     handleCase1();
+       *   default:
+       *     handleDefaultCase();
+       *     break;
        * }
        * ```
        * @see [unicorn/numeric-separators-style](https://github.com/sindresorhus/eslint-plugin-unicorn/blob/main/docs/rules/numeric-separators-style.md)
@@ -781,7 +781,7 @@ export const unicornRules =
        * ```typescript
        * // ❌ Incorrect
        * function abc(foo) {
-       * 	foo ||= "bar";
+       *   foo ||= "bar";
        * }
        *
        * // ✅ Correct
@@ -932,12 +932,12 @@ export const unicornRules =
        * ```typescript
        * // ❌ Incorrect
        * window.addEventListener("keydown", event => {
-       * 	console.log(event.keyCode);
+       *   console.log(event.keyCode);
        * });
        *
        * // ✅ Correct
        * window.addEventListener("click", event => {
-       * 	console.log(event.key);
+       *   console.log(event.key);
        * });
        * ```
        * @see [unicorn/prefer-keyboard-event-key](https://github.com/sindresorhus/eslint-plugin-unicorn/blob/main/docs/rules/prefer-keyboard-event-key.md)
@@ -1009,8 +1009,8 @@ export const unicornRules =
        * ```typescript
        * // ❌ Incorrect
        * const object = pairs.reduce(
-       * 	(object, [key, value]) => ({...object, [key]: value}),
-       * 	{}
+       *   (object, [key, value]) => ({...object, [key]: value}),
+       *   {}
        * );
        * const object = _.fromPairs(pairs);
        *
@@ -1035,7 +1035,7 @@ export const unicornRules =
        * try {} catch {}
        *
        * try {} catch (error) {
-       * 	console.error(error);
+       *   console.error(error);
        * }
        * ```
        * @see [unicorn/prefer-optional-catch-binding](https://github.com/sindresorhus/eslint-plugin-unicorn/blob/main/docs/rules/prefer-optional-catch-binding.md)
@@ -1169,41 +1169,41 @@ export const unicornRules =
        * ```typescript
        * // ❌ Incorrect
        * const unicorn = () => {
-       * 	if (test) {
-       * 		return a;
-       * 	} else {
-       * 		return b;
-       * 	}
+       *   if (test) {
+       *     return a;
+       *   } else {
+       *     return b;
+       *   }
        * };
        *
        *
        * const unicorn = function* () {
-       * 	if (test) {
-       * 		yield a;
-       * 	} else {
-       * 		yield b;
-       * 	}
+       *   if (test) {
+       *     yield a;
+       *   } else {
+       *     yield b;
+       *   }
        * };
        *
        * const unicorn = async () => {
-       * 	if (test) {
-       * 		await a();
-       * 	} else {
-       * 		await b();
-       * 	}
+       *   if (test) {
+       *     await a();
+       *   } else {
+       *     await b();
+       *   }
        * };
        *
        * if (test) {
-       * 	throw new Error("foo");
+       *   throw new Error("foo");
        * } else {
-       * 	throw new Error("bar");
+       *   throw new Error("bar");
        * }
        *
        * let foo;
        * if (test) {
-       * 	foo = 1;
+       *   foo = 1;
        * } else {
-       * 	foo = 2;
+       *   foo = 2;
        * }
        *
        * // ✅ Correct
@@ -1211,11 +1211,11 @@ export const unicornRules =
        *
        *
        * const unicorn = function* () {
-       * 	yield (test ? a : b);
+       *   yield (test ? a : b);
        * };
        *
        * const unicorn = async () => {
-       * 	await (test ? a : b)();
+       *   await (test ? a : b)();
        * };
        *
        * throw new Error(test ? "foo" : "bar");
@@ -1233,12 +1233,12 @@ export const unicornRules =
        * ```typescript
        * // ❌ Incorrect
        * if (Array.isArray(foo) === false) {
-       * 	throw new Error("Array expected");
+       *   throw new Error("Array expected");
        * }
        *
        * // ✅ Correct
        * if (Array.isArray(foo) === false) {
-       * 	throw new TypeError("Array expected");
+       *   throw new TypeError("Array expected");
        * }
        * ```
        * @see [unicorn/prefer-type-error](https://github.com/sindresorhus/eslint-plugin-unicorn/blob/main/docs/rules/prefer-type-error.md)

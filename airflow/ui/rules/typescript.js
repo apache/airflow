@@ -80,18 +80,18 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * type Foo = {
-       * 	foo(s: string): void;
-       * 	foo(n: number): void;
-       * 	bar(): void;
-       * 	foo(sn: string | number): void;
+       *   foo(s: string): void;
+       *   foo(n: number): void;
+       *   bar(): void;
+       *   foo(sn: string | number): void;
        * };
        *
        * // ✅ Correct
        * type Foo = {
-       * 	foo(s: string): void;
-       * 	foo(n: number): void;
-       * 	foo(sn: string | number): void;
-       * 	bar(): void;
+       *   foo(s: string): void;
+       *   foo(n: number): void;
+       *   foo(sn: string | number): void;
+       *   bar(): void;
        * };
        * ```
        * @see [@typescript-eslint/adjacent-overload-signatures](https://typescript-eslint.io/rules/adjacent-overload-signatures/)
@@ -158,26 +158,26 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * class Example {
-       * 	readonly myField1 = 1;
-       * 	readonly myField2 = `hello world`;
-       * 	private readonly myField3 = 'hello world';
+       *   readonly myField1 = 1;
+       *   readonly myField2 = `hello world`;
+       *   private readonly myField3 = 'hello world';
        * }
        *
        * // ✅ Correct
        * class Example {
-       * 	// no readonly modifier
-       * 	public myField1 = 'hello';
+       *   // no readonly modifier
+       *   public myField1 = 'hello';
        *
-       * 	// not a literal
-       * 	public readonly myField2 = [1, 2, 3];
+       *   // not a literal
+       *   public readonly myField2 = [1, 2, 3];
        *
-       * 	public static get myField3() {
-       * 		return 1;
-       * 	}
+       *   public static get myField3() {
+       *     return 1;
+       *   }
        *
-       * 	private get ['myField4']() {
-       * 		return 'hello world';
-       * 	}
+       *   private get ['myField4']() {
+       *     return 'hello world';
+       *   }
        * }
        * ```
        * @see [@typescript-eslint/class-literal-property-style](https://typescript-eslint.io/rules/class-literal-property-style/)
@@ -194,23 +194,23 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * class Example {
-       * 	private message = "Hello, world!";
-       * 	public log() {
-       * 		console.log(this.message);
-       * 	}
-       * 	public goodbye() {
-       * 		console.log("Goodbye, world!");
-       * 	}
+       *   private message = "Hello, world!";
+       *   public log() {
+       *     console.log(this.message);
+       *   }
+       *   public goodbye() {
+       *     console.log("Goodbye, world!");
+       *   }
        * }
        *
        * // ✅ Correct
        * const goodbye = () => console.log("Goodbye, world!");
        *
        * class Example {
-       * 	private message = "Hello, world!";
-       * 	public log() {
-       * 		console.log(this.message);
-       * 	}
+       *   private message = "Hello, world!";
+       *   public log() {
+       *     console.log(this.message);
+       *   }
        * }
        * ```
        * @see [@typescript-eslint/class-methods-use-this](https://typescript-eslint.io/rules/class-methods-use-this/)
@@ -267,31 +267,31 @@ export const typescriptRules =
        * // ❌ Incorrect
        * const foo = (): undefined => {}
        * const bar = (flag: boolean): undefined => {
-       * 	if (flag) {
-       * 		return foo()
-       * 	}
-       * 	return;
+       *   if (flag) {
+       *     return foo()
+       *   }
+       *   return;
        * }
        * const baz = async (flag: boolean): Promise<undefined> {
-       * 	if (flag) {
-       * 		return;
+       *   if (flag) {
+       *     return;
        *  }
-       * 	return foo();
+       *   return foo();
        * }
        *
        * // ✅ Correct
        * const foo = (): void => {}
        * const bar = (flag: boolean): void => {
-       * 	if (flag) {
-       * 		return foo()
-       * 	}
-       * 	return;
+       *   if (flag) {
+       *     return foo()
+       *   }
+       *   return;
        * }
        * const baz = async (flag: boolean): Promise<void | number> {
-       * 	if (flag) {
-       * 		return 42;
+       *   if (flag) {
+       *     return 42;
        *  }
-       * 	return;
+       *   return;
        * }
        * ```
        * @see [@typescript-eslint/consistent-return](https://typescript-eslint.io/rules/consistent-return)
@@ -428,12 +428,12 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * class Foo {
-       * 	constructor() {}
+       *   constructor() {}
        * }
        *
        * // ✅ Correct
        * class Foo {
-       * 	public constructor() {}
+       *   public constructor() {}
        * }
        * @see [@typescript-eslint/explicit-member-accessibility](https://typescript-eslint.io/rules/explicit-member-accessibility/)
        */
@@ -487,14 +487,14 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * class Foo {
-       * 	public bar() {
-       * 		return "baz";
-       * 	}
+       *   public bar() {
+       *     return "baz";
+       *   }
        * }
        *
        * // ✅ Correct
        * class Foo {
-       * 	public bar = () => "baz";
+       *   public bar = () => "baz";
        * }
        * ```
        * @see [@typescript-eslint/method-signature-style](https://typescript-eslint.io/rules/method-signature-style/)
@@ -615,14 +615,14 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * const enum E {
-       * 	A = 0,
-       * 	B = 0,
+       *   A = 0,
+       *   B = 0,
        * }
        *
        * // ✅ Correct
        * const enum E {
-       * 	A = 0,
-       * 	B = 1,
+       *   A = 0,
+       *   B = 1,
        * }
        * ```
        * @see [@typescript-eslint/no-duplicate-enum-values](https://typescript-eslint.io/rules/no-duplicate-enum-values/)
@@ -684,7 +684,7 @@ export const typescriptRules =
        * let fooValue: object;
        * interface FooInterface {}
        * interface FooInterface {
-       * 	bar: string;
+       *   bar: string;
        * };
        * type FooType = object;
        * ```
@@ -706,12 +706,12 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * class Foo {
-       * 	public static bar = "baz";
+       *   public static bar = "baz";
        * }
        *
        * // ✅ Correct
        * const Foo = {
-       * 	bar: "baz",
+       *   bar: "baz",
        * };
        * @see [@typescript-eslint/no-extraneous-class](https://typescript-eslint.io/rules/no-extraneous-class/)
        */
@@ -742,14 +742,14 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * for (const key in foo) {
-       * 	console.log(key);
+       *   console.log(key);
        * }
        *
        * // ✅ Correct
        * Object.keys(foo).forEach(console.log);
        *
        * for (const key of Object.keys(foo)) {
-       * 	console.log(key);
+       *   console.log(key);
        * }
        * ```
        * @see [@typescript-eslint/no-for-in-array](https://typescript-eslint.io/rules/no-for-in-array/)
@@ -802,14 +802,14 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * function foo() {
-       * 	console.log(this);
+       *   console.log(this);
        * }
        *
        * // ✅ Correct
        * class Foo {
-       * 	public bar() {
-       * 		console.log(this);
-       * 	}
+       *   public bar() {
+       *     console.log(this);
+       *   }
        * }
        * ```
        * @see [@typescript-eslint/no-invalid-this](https://typescript-eslint.io/rules/no-invalid-this/)
@@ -838,15 +838,15 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * for (const i = 0; i < 10; i++) {
-       * 		const add2 = (n: number) => n + 2;
-       * 		console.log(add2(i));
+       *     const add2 = (n: number) => n + 2;
+       *     console.log(add2(i));
        * }
        *
        * // ✅ Correct
        * const add2 = (n: number) => n + 2;
        *
        * for (const i = 0; i < 10; i++) {
-       * 		console.log(add2(i));
+       *     console.log(add2(i));
        * }
        * ```
        * @see [@typescript-eslint/no-loop-func](https://typescript-eslint.io/rules/no-loop-func/)
@@ -875,12 +875,12 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * declare class Foo {
-       * 	new(): Foo;
+       *   new(): Foo;
        * }
        *
        * // ✅ Correct
        * declare class Foo {
-       * 	constructor();
+       *   constructor();
        * }
        * ```
        * @see [@typescript-eslint/no-misused-new](https://typescript-eslint.io/rules/no-misused-new/)
@@ -913,16 +913,16 @@ export const typescriptRules =
        *
        * // ❌ Incorrect
        * const enum Status {
-       * 	Unknown,
-       * 	Closed = 1,
-       * 	Open = 'open',
+       *   Unknown,
+       *   Closed = 1,
+       *   Open = 'open',
        * }
        *
        * // ✅ Correct
        * const enum Status {
-       * 	Unknown = 0,
-       * 	Closed = 2,
-       * 	Open = 4,
+       *   Unknown = 0,
+       *   Closed = 2,
+       *   Open = 4,
        * }
        * ```
        * @see [@typescript-eslint/no-mixed-enums](https://typescript-eslint.io/rules/no-mixed-enums/)
@@ -1050,15 +1050,15 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * const foo = function () {
-       * 	const that = this;
-       * 	return function() {
-       * 		return that;
-       * 	};
+       *   const that = this;
+       *   return function() {
+       *     return that;
+       *   };
        * }
        *
        * // ✅ Correct
        * const foo = function() {
-       * 	return () => this;
+       *   return () => this;
        * };
        * ```
        * @see [@typescript-eslint/no-this-alias](https://typescript-eslint.io/rules/no-this-alias/)
@@ -1087,12 +1087,12 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * const check = (value: "foo" | "bar") => {
-       * 	if (value) // value will never be falsy
+       *   if (value) // value will never be falsy
        * }
        *
        * // ✅ Correct
        * const check = (value: string) => {
-       * 	if (value) // Necessary, since value might be ""
+       *   if (value) // Necessary, since value might be ""
        * }
        * ```
        * @see [@typescript-eslint/no-unnecessary-condition](https://typescript-eslint.io/rules/no-unnecessary-condition/)
@@ -1106,14 +1106,14 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * class Foo {
-       * 	constructor(public bar: string) {
-       * 		this.bar = bar;
-       * 	}
+       *   constructor(public bar: string) {
+       *     this.bar = bar;
+       *   }
        * }
        *
        * // ✅ Correct
        * class Foo {
-       * 	constructor(public bar: string) {}
+       *   constructor(public bar: string) {}
        * }
        * ```
        * @see [@typescript-eslint/no-unnecessary-parameter-property-assignment](https://typescript-eslint.io/rules/no-unnecessary-parameter-property-assignment/)
@@ -1128,14 +1128,14 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * enum A {
-       * 	B,
-       * 	C = A.B,
+       *   B,
+       *   C = A.B,
        * }
        *
        * // ✅ Correct
        * enum A {
-       * 	B,
-       * 	C = B,
+       *   B,
+       *   C = B,
        * }
        * ```
        * @see [@typescript-eslint/no-unnecessary-qualifier](https://typescript-eslint.io/rules/no-unnecessary-qualifier/)
@@ -1249,7 +1249,7 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * const enum Fruit {
-       * 	Apple = 0,
+       *   Apple = 0,
        * }
        *
        * declare let fruit: Fruit;
@@ -1258,7 +1258,7 @@ export const typescriptRules =
        *
        * // ✅ Correct
        * const enum Fruit {
-       * 	Apple = 0,
+       *   Apple = 0,
        * }
        *
        * declare let fruit: Fruit;
@@ -1388,15 +1388,15 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * class Example {
-       * 	constructor (private name: string) {}
+       *   constructor (private name: string) {}
        * }
        *
        * // ✅ Correct
        * class Example {
-       * 	private name: string;
-       * 	constructor (name: string) {
-       * 		this.name = name;
-       * 	}
+       *   private name: string;
+       *   constructor (name: string) {
+       *     this.name = name;
+       *   }
        * }
        * ```
        * @see [@typescript-eslint/parameter-properties](https://typescript-eslint.io/rules/parameter-properties/)
@@ -1446,24 +1446,24 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * const enum Status {
-       * 	Open = 1,
-       * 	Close,
+       *   Open = 1,
+       *   Close,
        * }
        *
        * const enum Direction {
-       * 	Up,
-       * 	Down,
+       *   Up,
+       *   Down,
        * }
        *
        * // ✅ Correct
        * const enum Status {
-       * 	Open = 0,
-       * 	Close = 1,
+       *   Open = 0,
+       *   Close = 1,
        * }
        *
        * const enum Direction {
-       * 	Up = 0,
-       * 	Down = 1,
+       *   Up = 0,
+       *   Down = 1,
        * }
        * ```
        * @see [@typescript-eslint/prefer-enum-initializers](https://typescript-eslint.io/rules/prefer-enum-initializers/)
@@ -1492,12 +1492,12 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * for (let i = 0; i < foo.length; i++) {
-       * 	console.log(foo[i]);
+       *   console.log(foo[i]);
        * }
        *
        * // ✅ Correct
        * for (const value of foo) {
-       * 	console.log(value);
+       *   console.log(value);
        * }
        * ```
        * @see [@typescript-eslint/prefer-for-of](https://typescript-eslint.io/rules/prefer-for-of/)
@@ -1511,7 +1511,7 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * interface Foo {
-       * 	(): string;
+       *   (): string;
        * }
        *
        * // ✅ Correct
@@ -1544,20 +1544,20 @@ export const typescriptRules =
        * // ❌ Incorrect
        * const str = "Test";
        * const enum Invalid {
-       * 	A = str, // Variable assignment
-       * 	B = {}, // Object assignment
-       * 	C = `A template literal string`, // Template literal
-       * 	D = new Set(1, 2, 3), // Constructor in assignment
-       * 	E = 2 + 2, // Expression assignment
+       *   A = str, // Variable assignment
+       *   B = {}, // Object assignment
+       *   C = `A template literal string`, // Template literal
+       *   D = new Set(1, 2, 3), // Constructor in assignment
+       *   E = 2 + 2, // Expression assignment
        * }
        *
        * // ✅ Correct
        * const enum Valid {
-       * 	A,
-       * 	B = "TestStr", // A regular string
-       * 	C = 4, // A number
-       * 	D = null,
-       * 	E = /some_regex/,
+       *   A,
+       *   B = "TestStr", // A regular string
+       *   C = 4, // A number
+       *   D = null,
+       *   E = /some_regex/,
        * }
        * ```
        * @see [@typescript-eslint/prefer-includes](https://typescript-eslint.io/rules/prefer-includes/)
@@ -1617,12 +1617,12 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * class Foo {
-       * 	private neverModified = "bar";
+       *   private neverModified = "bar";
        * }
        *
        * // ✅ Correct
        * class Foo {
-       * 	private readonly neverModified = "bar";
+       *   private readonly neverModified = "bar";
        * }
        * ```
        * @see [@typescript-eslint/prefer-readonly](https://typescript-eslint.io/rules/prefer-readonly/)
@@ -1668,16 +1668,16 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * class Example {
-       * 	someMethod(): Example {
-       * 		return this;
-       * 	}
+       *   someMethod(): Example {
+       *     return this;
+       *   }
        * }
        *
        * // ✅ Correct
        * class Example {
-       * 	someMethod(): this {
-       * 		return this;
-       * 	}
+       *   someMethod(): this {
+       *     return this;
+       *   }
        * }
        * ```
        * @see [@typescript-eslint/prefer-return-this-type](https://typescript-eslint.io/rules/prefer-return-this-type)
@@ -1856,20 +1856,20 @@ export const typescriptRules =
        * ```typescript
        * // ❌ Incorrect
        * Promise.reject(new Error('I will reject!')).catch(error => {
-       * 	console.log(error);
+       *   console.log(error);
        * });
        *
        * Promise.reject(new Error('I will reject!')).catch((error: any) => {
-       * 	console.log(error);
+       *   console.log(error);
        * });
        *
        * Promise.reject(new Error('I will reject!')).catch((error: Error) => {
-       * 	console.log(error);
+       *   console.log(error);
        * });
        *
        * // ✅ Correct
        * Promise.reject(new Error('I will reject!')).catch((error: unknown) => {
-       * 	console.log(error);
+       *   console.log(error);
        * });
        * ```
        * @see [@typescript-eslint/use-unknown-in-catch-callback-variable](https://typescript-eslint.io/rules/use-unknown-in-catch-callback-variable/)

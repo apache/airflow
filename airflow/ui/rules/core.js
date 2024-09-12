@@ -38,19 +38,19 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * ```typescript
      * // ❌ Incorrect
      * const example = {
-     * 	set foo(value) {
-     * 		this.foo = value;
-     * 	}
+     *   set foo(value) {
+     *     this.foo = value;
+     *   }
      * }
      *
      * // ✅ Correct
      * const example = {
-     * 	get foo() {
-     * 		return this.foo;
-     * 	}
-     * 	set foo(value) {
-     * 		this.foo = value;
-     * 	}
+     *   get foo() {
+     *     return this.foo;
+     *   }
+     *   set foo(value) {
+     *     this.foo = value;
+     *   }
      * }
      * ```
      * @see [accessor-pairs](https://eslint.org/docs/latest/rules/accessor-pairs)
@@ -64,7 +64,7 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * ```typescript
      * // ❌ Incorrect
      * const mapped = [1, 2, 3].map(item => {
-     * 	console.log(item * 2);
+     *   console.log(item * 2);
      * });
      *
      * // ✅ Correct
@@ -81,7 +81,7 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * ```typescript
      * // ❌ Incorrect
      * const arrow = () => {
-     * 	return 1;
+     *   return 1;
      * };
      *
      * // ✅ Correct
@@ -108,7 +108,7 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      *
      * // ✅ Correct
      * if (true) {
-     * 	console.log("Hello, world!");
+     *   console.log("Hello, world!");
      * }
      * ```
      * @see [curly](https://eslint.org/docs/latest/rules/curly)
@@ -187,18 +187,18 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * ```typescript
      * // ❌ Incorrect
      * const example = {
-     * 	get value() { return this._value; },
-     * 	get other() { return this._other; },
-     * 	set value(value) { this._value = value; },
-     * 	set other(value) { this._other = value; },
+     *   get value() { return this._value; },
+     *   get other() { return this._other; },
+     *   set value(value) { this._value = value; },
+     *   set other(value) { this._other = value; },
      * };
      *
      * // ✅ Correct
      * const example = {
-     * 	get value() { return this._value; },
-     * 	set value(value) { this._value = value; },
-     * 	get other() { return this._other; },
-     * 	set other(value) { this._other = value; },
+     *   get value() { return this._value; },
+     *   set value(value) { this._value = value; },
+     *   get other() { return this._other; },
+     *   set other(value) { this._other = value; },
      * };
      * ```
      * @see [grouped-accessor-pairs](https://eslint.org/docs/latest/rules/grouped-accessor-pairs)
@@ -212,14 +212,14 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * ```typescript
      * // ❌ Incorrect
      * for (const key in object) {
-     * 	console.log(key);
+     *   console.log(key);
      * }
      *
      * // ✅ Correct
      * for (const key in object) {
-     * 	if (Object.hasOwn(object, key)) {
-     * 		console.log(key);
-     * 	}
+     *   if (Object.hasOwn(object, key)) {
+     *     console.log(key);
+     *   }
      * }
      * ```
      * @see [guard-for-in](https://eslint.org/docs/latest/rules/guard-for-in)
@@ -379,9 +379,9 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * ```typescript
      * // ❌ Incorrect
      * class Example {
-     * 	constructor() {
-     * 		return "Hello, world!";
-     * 	}
+     *   constructor() {
+     *     return "Hello, world!";
+     *   }
      * }
      * ```
      * @see [no-constructor-return](https://eslint.org/docs/latest/rules/no-constructor-return)
@@ -432,18 +432,18 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * ```typescript
      * // ❌ Incorrect
      * switch (example) {
-     * 	case 1: break;
-     * 	case 2: break;
-     * 	case 1: break; // duplicate test expression
-     * 	default break;
+     *   case 1: break;
+     *   case 2: break;
+     *   case 1: break; // duplicate test expression
+     *   default break;
      * }
      *
      * // ✅ Correct
      * switch (example) {
-     * 	case 1: break;
-     * 	case 2: break;
-     * 	case 3: break;
-     * 	default break;
+     *   case 1: break;
+     *   case 2: break;
+     *   case 3: break;
+     *   default break;
      * }
      * ```
      * @see [no-duplicate-case](https://eslint.org/docs/latest/rules/no-duplicate-case)
@@ -460,7 +460,7 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      *
      * // ✅ Correct
      * if (example) {
-     * 	// At least this one has a comment
+     *   // At least this one has a comment
      * }
      * ```
      * @see [no-empty](https://eslint.org/docs/latest/rules/no-empty)
@@ -492,7 +492,7 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      *
      * // ✅ Correct
      * const foo = () {
-     * 	// At least this one has a comment
+     *   // At least this one has a comment
      * }
      * ```
      * @see [no-empty-function](https://eslint.org/docs/latest/rules/no-empty-function)
@@ -521,14 +521,14 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * ```typescript
      * // ❌ Incorrect
      * class Example {
-     * 	static {}
+     *   static {}
      * }
      *
      * // ✅ Correct
      * class Example {
-     * 	static {
-     * 		// At least this one has a comment
-     * 	}
+     *   static {
+     *     // At least this one has a comment
+     *   }
      * }
      * ```
      * @see [no-empty-static-block](https://eslint.org/docs/latest/rules/no-empty-static-block)
@@ -564,16 +564,16 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * ```typescript
      * // ❌ Incorrect
      * try {
-     * 	// something
+     *   // something
      * } catch (error) {
-     * 	error = "Why would you ever want to do this?";
+     *   error = "Why would you ever want to do this?";
      * }
      *
      * // ✅ Correct
      * try {
-     * 	// something
+     *   // something
      * } catch (error) {
-     * 	const message = "This is better";
+     *   const message = "This is better";
      * }
      * ```
      * @see [no-ex-assign](https://eslint.org/docs/latest/rules/no-ex-assign)
@@ -646,7 +646,7 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * ```typescript
      * // ❌ Incorrect
      * Foo.prototype.__iterator__ = function() {
-     * 	return new FooIterator(this);
+     *   return new FooIterator(this);
      * };
      * ```
      * @see [no-iterator](https://eslint.org/docs/latest/rules/no-iterator)
@@ -693,11 +693,11 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * ```typescript
      * // ❌ Incorrect
      * const string = "Hello, \
-     * 	world!";
+     *   world!";
      *
      * // ✅ Correct
      * const string = `Hello,
-     * 	world!`;
+     *   world!`;
      * ```
      * @see [no-multi-str](https://eslint.org/docs/latest/rules/no-multi-str)
      */
@@ -813,12 +813,12 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * ```typescript
      * // ❌ Incorrect
      * const example = (value) => {
-     * 	value = value * 2;
+     *   value = value * 2;
      * };
      *
      * // ✅ Correct
      * const example = (value) => {
-     * 	const newValue = value * 2;
+     *   const newValue = value * 2;
      * };
      * ```
      * @see [no-param-reassign](https://eslint.org/docs/latest/rules/no-param-reassign)
@@ -901,14 +901,14 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * ```typescript
      * // ❌ Incorrect
      * function doSomething() {
-     * 	return foo = bar + 2;
+     *   return foo = bar + 2;
      * }
      *
      * // ✅ Correct
      * function doSomething() {
-     * 	const foo = bar + 2;
+     *   const foo = bar + 2;
      *
-     * 	return foo;
+     *   return foo;
      * }
      * ```
      * @see [no-return-assign](https://eslint.org/docs/latest/rules/no-return-assign)
@@ -989,13 +989,13 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * ```typescript
      * // ❌ Incorrect
      * while (node) {
-     * 	someFunction(node);
+     *   someFunction(node);
      * }
      *
      * // ✅ Correct
      * while (node) {
-     * 	someFunction(node);
-     * 	node = node.next;
+     *   someFunction(node);
+     *   node = node.next;
      * }
      * ```
      * @see [no-unmodified-loop-condition](https://eslint.org/docs/latest/rules/no-unmodified-loop-condition)
@@ -1016,16 +1016,16 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * ```typescript
      * // ❌ Incorrect
      * for (let i = 0; i < 100; i++) {
-     * 	if (logic) // …
-     * 	break; // Will always break on first loop
+     *   if (logic) // …
+     *   break; // Will always break on first loop
      * }
      *
      * // ✅ Correct
      * for (let i = 0; i < 100; i++) {
-     * 	if (logic) {
-     * 		// …
-     * 		break;
-     * 	}
+     *   if (logic) {
+     *     // …
+     *     break;
+     *   }
      * }
      * ```
      * @see [no-unreachable-loop](https://eslint.org/docs/latest/rules/no-unreachable-loop)
@@ -1039,24 +1039,24 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * ```typescript
      * // ❌ Incorrect
      * (() => {
-     * 	try {
-     * 		return 1; // 1 is returned but suspended until finally block ends
-     * 	} catch {
-     * 		return 2;
-     * 	} finally {
-     * 		return 3; // 3 is returned before 1, which we did not expect
-     * 	}
+     *   try {
+     *     return 1; // 1 is returned but suspended until finally block ends
+     *   } catch {
+     *     return 2;
+     *   } finally {
+     *     return 3; // 3 is returned before 1, which we did not expect
+     *   }
      * })();
      *
      * // ✅ Correct
      * (() => {
-     * 	try {
-     * 		return 1;
-     * 	} catch {
-     * 		return 2;
-     * 	} finally {
-     * 		console.log("Done!");
-     * 	}
+     *   try {
+     *     return 1;
+     *   } catch {
+     *     return 2;
+     *   } finally {
+     *     console.log("Done!");
+     *   }
      * })();
      * ```
      * @see [no-unsafe-finally](https://eslint.org/docs/latest/rules/no-unsafe-finally)
@@ -1070,16 +1070,16 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * ```typescript
      * // ❌ Incorrect
      * const function1 = () => {
-     * 	let v = 'used';
-     * 	doSomething(v);
-     * 	v = 'unused';
+     *   let v = 'used';
+     *   doSomething(v);
+     *   v = 'unused';
      * }
      *
      * // ✅ Correct
      * const function1 = () => {
-     * 	let v = 'used';
-     * 	doSomething(v);
-     * 	v = 'unused';
+     *   let v = 'used';
+     *   doSomething(v);
+     *   v = 'unused';
      * }
      * ```
      * @see [no-useless-assignment](https://eslint.org/docs/latest/rules/no-useless-assignment)
@@ -1100,17 +1100,17 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * ```typescript
      * // ❌ Incorrect
      * try {
-     * 	doSomethingThatMightThrow();
+     *   doSomethingThatMightThrow();
      * } catch (error) {
-     * 	throw error;
+     *   throw error;
      * }
      *
      * // ✅ Correct
      * try {
-     * 	doSomethingThatMightThrow();
+     *   doSomethingThatMightThrow();
      * } catch (error) {
-     * 	doSomethingBeforeRethrow();
-     * 	throw error;
+     *   doSomethingBeforeRethrow();
+     *   throw error;
      * }
      * ```
      * @see [no-useless-catch](https://eslint.org/docs/latest/rules/no-useless-catch)
@@ -1201,8 +1201,8 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * ```typescript
      * // ❌ Incorrect
      * const example = () => {
-     * 	console.log("Hello, world!");
-     * 	return;
+     *   console.log("Hello, world!");
+     *   return;
      * };
      *
      * // ✅ Correct
@@ -1294,7 +1294,7 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * ```typescript
      * // ❌ Incorrect
      * [1, 2, 3].map(function (value) {
-     * 	return value * 2;
+     *   return value * 2;
      * });
      *
      * // ✅ Correct
@@ -1429,13 +1429,13 @@ export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
      * ```typescript
      * // ❌ Incorrect
      * function* foo() {
-     * 	return 13;
+     *   return 13;
      * }
      *
      * // ✅ Correct
      * function* foo() {
-     * 	yield 10;
-     * 	return 13;
+     *   yield 10;
+     *   return 13;
      * }
      * ```
      * @see [require-yield](https://eslint.org/docs/latest/rules/require-yield)
