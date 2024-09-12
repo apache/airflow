@@ -39,6 +39,7 @@ from airflow.providers.amazon.aws.triggers.ecs import TaskDoneTrigger
 from airflow.providers.amazon.aws.utils.task_log_fetcher import AwsTaskLogFetcher
 from airflow.utils.task_instance_session import set_current_task_instance_session
 from airflow.utils.types import NOTSET
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 CLUSTER_NAME = "test_cluster"
 CONTAINER_NAME = "e1ed7aac-d9b2-4315-8726-d2432bf11868"
@@ -172,6 +173,7 @@ class TestEcsRunTaskOperator(EcsBaseTestCase):
             "overrides",
             "launch_type",
             "capacity_provider_strategy",
+            "volume_configurations",
             "group",
             "placement_constraints",
             "placement_strategy",
@@ -793,6 +795,17 @@ class TestEcsCreateClusterOperator(EcsBaseTestCase):
         patch_hook_waiters.assert_not_called()
         assert result is not None
 
+    def test_template_fields(self):
+        op = EcsCreateClusterOperator(
+            task_id="task",
+            cluster_name=CLUSTER_NAME,
+            deferrable=True,
+            waiter_delay=12,
+            waiter_max_attempts=34,
+        )
+
+        validate_template_fields(op)
+
 
 class TestEcsDeleteClusterOperator(EcsBaseTestCase):
     @pytest.mark.parametrize("waiter_delay, waiter_max_attempts", WAITERS_TEST_CASES)
@@ -857,6 +870,17 @@ class TestEcsDeleteClusterOperator(EcsBaseTestCase):
         patch_hook_waiters.assert_not_called()
         assert result is not None
 
+    def test_template_fields(self):
+        op = EcsDeleteClusterOperator(
+            task_id="task",
+            cluster_name=CLUSTER_NAME,
+            deferrable=True,
+            waiter_delay=12,
+            waiter_max_attempts=34,
+        )
+
+        validate_template_fields(op)
+
 
 class TestEcsDeregisterTaskDefinitionOperator(EcsBaseTestCase):
     warn_message = "'wait_for_completion' and waiter related params have no effect"
@@ -912,6 +936,11 @@ class TestEcsDeregisterTaskDefinitionOperator(EcsBaseTestCase):
                 assert not hasattr(ti.task, "wait_for_completion")
                 assert not hasattr(ti.task, "waiter_delay")
                 assert not hasattr(ti.task, "waiter_max_attempts")
+
+    def test_template_fields(self):
+        op = EcsDeregisterTaskDefinitionOperator(task_id="task", task_definition=TASK_DEFINITION_NAME)
+
+        validate_template_fields(op)
 
 
 class TestEcsRegisterTaskDefinitionOperator(EcsBaseTestCase):
@@ -990,3 +1019,8 @@ class TestEcsRegisterTaskDefinitionOperator(EcsBaseTestCase):
                 assert not hasattr(ti.task, "wait_for_completion")
                 assert not hasattr(ti.task, "waiter_delay")
                 assert not hasattr(ti.task, "waiter_max_attempts")
+
+    def test_template_fields(self):
+        op = EcsRegisterTaskDefinitionOperator(task_id="task", **TASK_DEFINITION_CONFIG)
+
+        validate_template_fields(op)

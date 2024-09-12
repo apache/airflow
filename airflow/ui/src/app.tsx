@@ -17,23 +17,18 @@
  * under the License.
  */
 
-import { Box, Spinner } from "@chakra-ui/react";
-
-import { useDagServiceGetDags } from "openapi/queries";
+import { Box } from "@chakra-ui/react";
 import { DagsList } from "src/dagsList";
 import { Nav } from "src/nav";
 
 export const App = () => {
-  const { data, isLoading } = useDagServiceGetDags();
-
   return (
-    <Box maxWidth="100vw">
+    <div>
       <Nav />
-      <Box p={3}>
-        {isLoading && <Spinner />}
-        {!isLoading && !!data?.dags && <DagsList data={data.dags} />}
+      <Box p={3} ml={24}>
+        <DagsList />
       </Box>
-    </Box>
+    </div>
   );
 };
 

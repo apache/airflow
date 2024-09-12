@@ -1,0 +1,68 @@
+openapi: 3.1.0
+info:
+  title: FastAPI
+  description: Airflow API. All endpoints located under ``/public`` can be used safely,
+    are stable and backward compatible. Endpoints located under ``/ui`` are dedicated
+    to the UI and are subject to breaking change depending on the need of the frontend.
+    Users should not rely on those but use the public ones instead.
+  version: 0.1.0
+paths:
+  /ui/next_run_datasets/{dag_id}:
+    get:
+      tags:
+      - Dataset
+      summary: Next Run Datasets
+      operationId: next_run_datasets_ui_next_run_datasets__dag_id__get
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: object
+                title: Response Next Run Datasets Ui Next Run Datasets  Dag Id  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

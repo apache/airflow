@@ -17,8 +17,8 @@
 from __future__ import annotations
 
 import datetime as dt
-import threading
 import uuid
+from concurrent.futures import Future
 from contextlib import suppress
 from typing import Callable
 from unittest import mock
@@ -38,8 +38,11 @@ from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
 from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
 from airflow.utils.state import DagRunState, State
-from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 from tests.test_utils.config import conf_vars
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -85,7 +88,12 @@ def test_listener_does_not_change_task_instance(render_mock, xcom_push_mock):
     )
     t = TemplateOperator(task_id="template_op", dag=dag, do_xcom_push=True, df=dag.param("df"))
     run_id = str(uuid.uuid1())
-    dag.create_dagrun(state=State.NONE, run_id=run_id)
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    dag.create_dagrun(
+        state=State.NONE,
+        run_id=run_id,
+        **triggered_by_kwargs,
+    )
     ti = TaskInstance(t, run_id=run_id)
     ti.check_and_change_state_before_execution()  # make listener hook on running event
     ti._run_raw_task()
@@ -155,7 +163,12 @@ def _create_test_dag_and_task(python_callable: Callable, scenario_name: str) -> 
     )
     t = PythonOperator(task_id=f"test_task_{scenario_name}", dag=dag, python_callable=python_callable)
     run_id = str(uuid.uuid1())
-    dagrun = dag.create_dagrun(state=State.NONE, run_id=run_id)  # type: ignore
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    dagrun = dag.create_dagrun(
+        state=State.NONE,  # type: ignore
+        run_id=run_id,
+        **triggered_by_kwargs,  # type: ignore
+    )
     task_instance = TaskInstance(t, run_id=run_id)
     return dagrun, task_instance
 
@@ -595,23 +608,31 @@ def test_listener_on_dag_run_state_changes_configure_process_pool_size(mock_exec
 
 def test_listener_logs_failed_serialization():
     listener = OpenLineageListener()
+    callback_future = Future()
+
+    def set_result(*args, **kwargs):
+        callback_future.set_result(True)
+
     listener.log = MagicMock()
+    listener.log.warning = MagicMock(side_effect=set_result)
     listener.adapter = OpenLineageAdapter(
         client=OpenLineageClient(transport=ConsoleTransport(config=ConsoleConfig()))
     )
     event_time = dt.datetime.now()
-
     fut = listener.submit_callable(
         listener.adapter.dag_failed,
         dag_id="",
         run_id="",
         end_date=event_time,
-        execution_date=threading.Thread(),
+        execution_date=callback_future,
         dag_run_state=DagRunState.FAILED,
         task_ids=["task_id"],
         msg="",
     )
     assert fut.exception(10)
+    callback_future.result(10)
+    assert callback_future.done()
+    listener.log.debug.assert_not_called()
     listener.log.warning.assert_called_once()
 
 
@@ -633,7 +654,12 @@ class TestOpenLineageSelectiveEnable:
             task_id="test_task_selective_enable_2", dag=self.dag, python_callable=simple_callable
         )
         run_id = str(uuid.uuid1())
-        self.dagrun = self.dag.create_dagrun(state=State.NONE, run_id=run_id)  # type: ignore
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        self.dagrun = self.dag.create_dagrun(
+            state=State.NONE,
+            run_id=run_id,
+            **triggered_by_kwargs,
+        )  # type: ignore
         self.task_instance_1 = TaskInstance(self.task_1, run_id=run_id)
         self.task_instance_2 = TaskInstance(self.task_2, run_id=run_id)
         self.task_instance_1.dag_run = self.task_instance_2.dag_run = self.dagrun

@@ -45,7 +45,7 @@ from airflow.utils import timezone
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 XCOM_LOGICAL_DATE_ISO = "trigger_logical_date_iso"
 XCOM_RUN_ID = "trigger_run_id"
@@ -197,6 +197,7 @@ class TriggerDagRunOperator(BaseOperator):
                 conf=self.conf,
                 execution_date=parsed_logical_date,
                 replace_microseconds=False,
+                triggered_by=DagRunTriggeredByType.OPERATOR,
             )
 
         except DagRunAlreadyExists as e:
@@ -223,9 +224,7 @@ class TriggerDagRunOperator(BaseOperator):
             raise RuntimeError("The dag_run should be set here!")
         # Store the run id from the dag run (either created or found above) to
         # be used when creating the extra link on the webserver.
-        # TODO: Logical date as xcom stored only for backwards compatibility. Remove in Airflow 3.0
         ti = context["task_instance"]
-        ti.xcom_push(key=XCOM_LOGICAL_DATE_ISO, value=dag_run.logical_date.isoformat())
         ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id)
 
         if self.wait_for_completion:

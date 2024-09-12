@@ -87,12 +87,11 @@ TABULAR_DATASET = {
 
 CONTAINER_URI = "gcr.io/cloud-aiplatform/training/tf-cpu.2-2:latest"
 
-# VERTEX_AI_LOCAL_TRAINING_SCRIPT_PATH should be set for Airflow which is running on distributed system.
+# LOCAL_TRAINING_SCRIPT_PATH should be set for Airflow which is running on distributed system.
 # For example in Composer the correct path is `gcs/data/california_housing_training_script.py`.
 # Because `gcs/data/` is shared folder for Airflow's workers.
-LOCAL_TRAINING_SCRIPT_PATH = os.environ.get(
-    "VERTEX_AI_LOCAL_TRAINING_SCRIPT_PATH", "california_housing_training_script.py"
-)
+IS_COMPOSER = bool(os.environ.get("COMPOSER_ENVIRONMENT", ""))
+LOCAL_TRAINING_SCRIPT_PATH = "gcs/data/california_housing_training_script.py" if IS_COMPOSER else ""
 
 MODEL_OUTPUT_CONFIG = {
     "artifact_destination": {
@@ -231,6 +230,13 @@ with DAG(
         model=MODEL_OBJ,
     )
     # [END how_to_cloud_vertex_ai_upload_model_operator]
+    upload_model_with_parent_model = UploadModelOperator(
+        task_id="upload_model_with_parent_model",
+        region=REGION,
+        project_id=PROJECT_ID,
+        model=MODEL_OBJ,
+        parent_model=MODEL_DISPLAY_NAME,
+    )
 
     # [START how_to_cloud_vertex_ai_export_model_operator]
     export_model = ExportModelOperator(
@@ -251,6 +257,13 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END how_to_cloud_vertex_ai_delete_model_operator]
+    delete_model_with_parent_model = DeleteModelOperator(
+        task_id="delete_model_with_parent_model",
+        project_id=PROJECT_ID,
+        region=REGION,
+        model_id=upload_model_with_parent_model.output["model_id"],
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
 
     # [START how_to_cloud_vertex_ai_list_models_operator]
     list_models = ListModelsOperator(
@@ -317,8 +330,10 @@ with DAG(
         >> set_default_version
         >> add_version_alias
         >> upload_model
+        >> upload_model_with_parent_model
         >> export_model
         >> delete_model
+        >> delete_model_with_parent_model
         >> list_models
         # TEST TEARDOWN
         >> delete_version_alias

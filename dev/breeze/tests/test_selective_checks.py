@@ -184,7 +184,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("airflow/api_ui/file.py",),
+                ("airflow/api_fastapi/file.py",),
                 {
                     "all-python-versions": "['3.8']",
                     "all-python-versions-list-as-string": "3.8",
@@ -840,6 +840,22 @@ def test_hatch_build_py_changes():
         {
             "full-tests-needed": "true",
             "all-versions": "true",
+        },
+        str(stderr),
+    )
+
+
+def test_excluded_providers():
+    stderr = SelectiveChecks(
+        files=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    assert_outputs_are_printed(
+        {
+            "excluded-providers-as-string": json.dumps(
+                {"3.8": ["cloudant"], "3.9": ["cloudant"], "3.12": ["apache.beam"]}
+            ),
         },
         str(stderr),
     )

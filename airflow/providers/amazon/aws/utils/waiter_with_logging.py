@@ -71,11 +71,21 @@ def wait(
         try:
             waiter.wait(**args, WaiterConfig={"MaxAttempts": 1})
         except WaiterError as error:
-            if "terminal failure" in str(error):
-                log.error("%s: %s", failure_message, _LazyStatusFormatter(status_args, error.last_response))
+            error_reason = str(error)
+            last_response = error.last_response
+
+            if "terminal failure" in error_reason:
+                log.error("%s: %s", failure_message, _LazyStatusFormatter(status_args, last_response))
                 raise AirflowException(f"{failure_message}: {error}")
 
-            log.info("%s: %s", status_message, _LazyStatusFormatter(status_args, error.last_response))
+            if (
+                "An error occurred" in error_reason
+                and isinstance(last_response.get("Error"), dict)
+                and "Code" in last_response.get("Error")
+            ):
+                raise AirflowException(f"{failure_message}: {error}")
+
+            log.info("%s: %s", status_message, _LazyStatusFormatter(status_args, last_response))
         else:
             break
     else:
@@ -122,11 +132,21 @@ async def async_wait(
         try:
             await waiter.wait(**args, WaiterConfig={"MaxAttempts": 1})
         except WaiterError as error:
-            if "terminal failure" in str(error):
-                log.error("%s: %s", failure_message, _LazyStatusFormatter(status_args, error.last_response))
+            error_reason = str(error)
+            last_response = error.last_response
+
+            if "terminal failure" in error_reason:
+                log.error("%s: %s", failure_message, _LazyStatusFormatter(status_args, last_response))
                 raise AirflowException(f"{failure_message}: {error}")
 
-            log.info("%s: %s", status_message, _LazyStatusFormatter(status_args, error.last_response))
+            if (
+                "An error occurred" in error_reason
+                and isinstance(last_response.get("Error"), dict)
+                and "Code" in last_response.get("Error")
+            ):
+                raise AirflowException(f"{failure_message}: {error}")
+
+            log.info("%s: %s", status_message, _LazyStatusFormatter(status_args, last_response))
         else:
             break
     else:
