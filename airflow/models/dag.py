@@ -356,7 +356,7 @@ DAG_ARGS_EXPECTED_TYPES = {
     "doc_md": str,
     "is_paused_upon_creation": bool,
     "render_template_as_native_obj": bool,
-    "tags": Collection[str],
+    "tags": Collection,
     "auto_register": bool,
     "fail_stop": bool,
     "dag_display_name": str,
