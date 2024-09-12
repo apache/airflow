@@ -18,7 +18,7 @@
  */
 
 import { Box } from "@chakra-ui/react";
-import { DagsList } from "src/dagsList";
+import { DagsList } from "src/DagsList";
 import { Nav } from "src/Nav";
 
 export const App = () => (
