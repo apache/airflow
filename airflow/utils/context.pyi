@@ -63,12 +63,12 @@ class OutletEventAccessor:
         *,
         extra: dict[str, Any],
         raw_key: str | Dataset | DatasetAlias,
-        dataset_alias_event: DatasetAliasEvent | None = None,
+        dataset_alias_events: list[DatasetAliasEvent],
     ) -> None: ...
     def add(self, dataset: Dataset | str, extra: dict[str, Any] | None = None) -> None: ...
     extra: dict[str, Any]
     raw_key: str | Dataset | DatasetAlias
-    dataset_alias_event: DatasetAliasEvent | None
+    dataset_alias_events: list[DatasetAliasEvent]
 
 class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
     def __iter__(self) -> Iterator[str]: ...
