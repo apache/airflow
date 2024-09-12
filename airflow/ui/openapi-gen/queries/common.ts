@@ -1,6 +1,6 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.0
-
 import { UseQueryResult } from "@tanstack/react-query";
+
 import {
   ConfigService,
   ConnectionService,
@@ -22,6 +22,7 @@ import {
   VariableService,
   XcomService,
 } from "../requests/services.gen";
+
 export type ConnectionServiceGetConnectionsDefaultResponse = Awaited<
   ReturnType<typeof ConnectionService.getConnections>
 >;
@@ -41,7 +42,7 @@ export const UseConnectionServiceGetConnectionsKeyFn = (
     offset?: number;
     orderBy?: string;
   } = {},
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useConnectionServiceGetConnectionsKey,
   ...(queryKey ?? [{ limit, offset, orderBy }]),
@@ -61,7 +62,7 @@ export const UseConnectionServiceGetConnectionKeyFn = (
   }: {
     connectionId: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useConnectionServiceGetConnectionKey,
   ...(queryKey ?? [{ connectionId }]),
@@ -94,7 +95,7 @@ export const UseDagServiceGetDagsKeyFn = (
     paused?: boolean;
     tags?: string[];
   } = {},
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useDagServiceGetDagsKey,
   ...(queryKey ?? [
@@ -117,7 +118,7 @@ export const UseDagServiceGetDagKeyFn = (
     dagId: string;
     fields?: string[];
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [useDagServiceGetDagKey, ...(queryKey ?? [{ dagId, fields }])];
 export type DagServiceGetDagDetailsDefaultResponse = Awaited<
   ReturnType<typeof DagService.getDagDetails>
@@ -135,7 +136,7 @@ export const UseDagServiceGetDagDetailsKeyFn = (
     dagId: string;
     fields?: string[];
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [useDagServiceGetDagDetailsKey, ...(queryKey ?? [{ dagId, fields }])];
 export type DagServiceGetTasksDefaultResponse = Awaited<
   ReturnType<typeof DagService.getTasks>
@@ -153,7 +154,7 @@ export const UseDagServiceGetTasksKeyFn = (
     dagId: string;
     orderBy?: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [useDagServiceGetTasksKey, ...(queryKey ?? [{ dagId, orderBy }])];
 export type DagServiceGetTaskDefaultResponse = Awaited<
   ReturnType<typeof DagService.getTask>
@@ -171,7 +172,7 @@ export const UseDagServiceGetTaskKeyFn = (
     dagId: string;
     taskId: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [useDagServiceGetTaskKey, ...(queryKey ?? [{ dagId, taskId }])];
 export type DagServiceGetDagSourceDefaultResponse = Awaited<
   ReturnType<typeof DagService.getDagSource>
@@ -187,7 +188,7 @@ export const UseDagServiceGetDagSourceKeyFn = (
   }: {
     fileToken: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [useDagServiceGetDagSourceKey, ...(queryKey ?? [{ fileToken }])];
 export type TaskInstanceServiceGetTaskInstanceDependenciesDefaultResponse =
   Awaited<ReturnType<typeof TaskInstanceService.getTaskInstanceDependencies>>;
@@ -207,7 +208,7 @@ export const UseTaskInstanceServiceGetTaskInstanceDependenciesKeyFn = (
     dagRunId: string;
     taskId: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useTaskInstanceServiceGetTaskInstanceDependenciesKey,
   ...(queryKey ?? [{ dagId, dagRunId, taskId }]),
@@ -234,7 +235,7 @@ export const UseTaskInstanceServiceGetMappedTaskInstanceDependenciesKeyFn = (
     mapIndex: number;
     taskId: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useTaskInstanceServiceGetMappedTaskInstanceDependenciesKey,
   ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId }]),
@@ -290,7 +291,7 @@ export const UseTaskInstanceServiceGetTaskInstancesKeyFn = (
     updatedAtGte?: string;
     updatedAtLte?: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useTaskInstanceServiceGetTaskInstancesKey,
   ...(queryKey ?? [
@@ -336,7 +337,7 @@ export const UseTaskInstanceServiceGetTaskInstanceKeyFn = (
     dagRunId: string;
     taskId: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useTaskInstanceServiceGetTaskInstanceKey,
   ...(queryKey ?? [{ dagId, dagRunId, taskId }]),
@@ -362,7 +363,7 @@ export const UseTaskInstanceServiceGetMappedTaskInstanceKeyFn = (
     mapIndex: number;
     taskId: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useTaskInstanceServiceGetMappedTaskInstanceKey,
   ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId }]),
@@ -420,7 +421,7 @@ export const UseTaskInstanceServiceGetMappedTaskInstancesKeyFn = (
     updatedAtGte?: string;
     updatedAtLte?: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useTaskInstanceServiceGetMappedTaskInstancesKey,
   ...(queryKey ?? [
@@ -468,7 +469,7 @@ export const UseTaskInstanceServiceGetTaskInstanceTryDetailsKeyFn = (
     taskId: string;
     taskTryNumber: number;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useTaskInstanceServiceGetTaskInstanceTryDetailsKey,
   ...(queryKey ?? [{ dagId, dagRunId, taskId, taskTryNumber }]),
@@ -498,7 +499,7 @@ export const UseTaskInstanceServiceGetTaskInstanceTriesKeyFn = (
     orderBy?: string;
     taskId: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useTaskInstanceServiceGetTaskInstanceTriesKey,
   ...(queryKey ?? [{ dagId, dagRunId, limit, offset, orderBy, taskId }]),
@@ -529,7 +530,7 @@ export const UseTaskInstanceServiceGetMappedTaskInstanceTriesKeyFn = (
     orderBy?: string;
     taskId: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useTaskInstanceServiceGetMappedTaskInstanceTriesKey,
   ...(queryKey ?? [
@@ -560,7 +561,7 @@ export const UseTaskInstanceServiceGetMappedTaskInstanceTryDetailsKeyFn = (
     taskId: string;
     taskTryNumber: number;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useTaskInstanceServiceGetMappedTaskInstanceTryDetailsKey,
   ...(queryKey ?? [{ dagId, dagRunId, mapIndex, taskId, taskTryNumber }]),
@@ -584,7 +585,7 @@ export const UseTaskInstanceServiceGetExtraLinksKeyFn = (
     dagRunId: string;
     taskId: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useTaskInstanceServiceGetExtraLinksKey,
   ...(queryKey ?? [{ dagId, dagRunId, taskId }]),
@@ -615,7 +616,7 @@ export const UseTaskInstanceServiceGetLogKeyFn = (
     taskTryNumber: number;
     token?: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useTaskInstanceServiceGetLogKey,
   ...(queryKey ?? [
@@ -662,7 +663,7 @@ export const UseDagRunServiceGetDagRunsKeyFn = (
     updatedAtGte?: string;
     updatedAtLte?: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useDagRunServiceGetDagRunsKey,
   ...(queryKey ?? [
@@ -702,7 +703,7 @@ export const UseDagRunServiceGetDagRunKeyFn = (
     dagRunId: string;
     fields?: string[];
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useDagRunServiceGetDagRunKey,
   ...(queryKey ?? [{ dagId, dagRunId, fields }]),
@@ -724,7 +725,7 @@ export const UseDagRunServiceGetUpstreamDatasetEventsKeyFn = (
     dagId: string;
     dagRunId: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useDagRunServiceGetUpstreamDatasetEventsKey,
   ...(queryKey ?? [{ dagId, dagRunId }]),
@@ -746,7 +747,7 @@ export const UseDatasetServiceGetUpstreamDatasetEventsKeyFn = (
     dagId: string;
     dagRunId: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useDatasetServiceGetUpstreamDatasetEventsKey,
   ...(queryKey ?? [{ dagId, dagRunId }]),
@@ -770,7 +771,7 @@ export const UseDatasetServiceGetDagDatasetQueuedEventKeyFn = (
     dagId: string;
     uri: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useDatasetServiceGetDagDatasetQueuedEventKey,
   ...(queryKey ?? [{ before, dagId, uri }]),
@@ -792,7 +793,7 @@ export const UseDatasetServiceGetDagDatasetQueuedEventsKeyFn = (
     before?: string;
     dagId: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useDatasetServiceGetDagDatasetQueuedEventsKey,
   ...(queryKey ?? [{ before, dagId }]),
@@ -814,7 +815,7 @@ export const UseDatasetServiceGetDatasetQueuedEventsKeyFn = (
     before?: string;
     uri: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useDatasetServiceGetDatasetQueuedEventsKey,
   ...(queryKey ?? [{ before, uri }]),
@@ -841,7 +842,7 @@ export const UseDatasetServiceGetDatasetsKeyFn = (
     orderBy?: string;
     uriPattern?: string;
   } = {},
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useDatasetServiceGetDatasetsKey,
   ...(queryKey ?? [{ dagIds, limit, offset, orderBy, uriPattern }]),
@@ -860,7 +861,7 @@ export const UseDatasetServiceGetDatasetKeyFn = (
   }: {
     uri: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [useDatasetServiceGetDatasetKey, ...(queryKey ?? [{ uri }])];
 export type DatasetServiceGetDatasetEventsDefaultResponse = Awaited<
   ReturnType<typeof DatasetService.getDatasetEvents>
@@ -891,7 +892,7 @@ export const UseDatasetServiceGetDatasetEventsKeyFn = (
     sourceRunId?: string;
     sourceTaskId?: string;
   } = {},
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useDatasetServiceGetDatasetEventsKey,
   ...(queryKey ?? [
@@ -947,7 +948,7 @@ export const UseEventLogServiceGetEventLogsKeyFn = (
     taskId?: string;
     tryNumber?: number;
   } = {},
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useEventLogServiceGetEventLogsKey,
   ...(queryKey ?? [
@@ -983,7 +984,7 @@ export const UseEventLogServiceGetEventLogKeyFn = (
   }: {
     eventLogId: number;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [useEventLogServiceGetEventLogKey, ...(queryKey ?? [{ eventLogId }])];
 export type ImportErrorServiceGetImportErrorsDefaultResponse = Awaited<
   ReturnType<typeof ImportErrorService.getImportErrors>
@@ -1004,7 +1005,7 @@ export const UseImportErrorServiceGetImportErrorsKeyFn = (
     offset?: number;
     orderBy?: string;
   } = {},
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useImportErrorServiceGetImportErrorsKey,
   ...(queryKey ?? [{ limit, offset, orderBy }]),
@@ -1024,7 +1025,7 @@ export const UseImportErrorServiceGetImportErrorKeyFn = (
   }: {
     importErrorId: number;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useImportErrorServiceGetImportErrorKey,
   ...(queryKey ?? [{ importErrorId }]),
@@ -1047,7 +1048,7 @@ export const UsePoolServiceGetPoolsKeyFn = (
     offset?: number;
     orderBy?: string;
   } = {},
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [usePoolServiceGetPoolsKey, ...(queryKey ?? [{ limit, offset, orderBy }])];
 export type PoolServiceGetPoolDefaultResponse = Awaited<
   ReturnType<typeof PoolService.getPool>
@@ -1063,7 +1064,7 @@ export const UsePoolServiceGetPoolKeyFn = (
   }: {
     poolName: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [usePoolServiceGetPoolKey, ...(queryKey ?? [{ poolName }])];
 export type ProviderServiceGetProvidersDefaultResponse = Awaited<
   ReturnType<typeof ProviderService.getProviders>
@@ -1074,7 +1075,7 @@ export type ProviderServiceGetProvidersQueryResult<
 > = UseQueryResult<TData, TError>;
 export const useProviderServiceGetProvidersKey = "ProviderServiceGetProviders";
 export const UseProviderServiceGetProvidersKeyFn = (
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [useProviderServiceGetProvidersKey, ...(queryKey ?? [])];
 export type VariableServiceGetVariablesDefaultResponse = Awaited<
   ReturnType<typeof VariableService.getVariables>
@@ -1094,7 +1095,7 @@ export const UseVariableServiceGetVariablesKeyFn = (
     offset?: number;
     orderBy?: string;
   } = {},
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useVariableServiceGetVariablesKey,
   ...(queryKey ?? [{ limit, offset, orderBy }]),
@@ -1113,7 +1114,7 @@ export const UseVariableServiceGetVariableKeyFn = (
   }: {
     variableKey: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [useVariableServiceGetVariableKey, ...(queryKey ?? [{ variableKey }])];
 export type XcomServiceGetXcomEntriesDefaultResponse = Awaited<
   ReturnType<typeof XcomService.getXcomEntries>
@@ -1141,7 +1142,7 @@ export const UseXcomServiceGetXcomEntriesKeyFn = (
     taskId: string;
     xcomKey?: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useXcomServiceGetXcomEntriesKey,
   ...(queryKey ?? [
@@ -1174,7 +1175,7 @@ export const UseXcomServiceGetXcomEntryKeyFn = (
     taskId: string;
     xcomKey: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useXcomServiceGetXcomEntryKey,
   ...(queryKey ?? [
@@ -1195,7 +1196,7 @@ export const UseDagStatsServiceGetDagStatsKeyFn = (
   }: {
     dagIds: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [useDagStatsServiceGetDagStatsKey, ...(queryKey ?? [{ dagIds }])];
 export type DagWarningServiceGetDagWarningsDefaultResponse = Awaited<
   ReturnType<typeof DagWarningService.getDagWarnings>
@@ -1220,7 +1221,7 @@ export const UseDagWarningServiceGetDagWarningsKeyFn = (
     orderBy?: string;
     warningType?: string;
   } = {},
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   useDagWarningServiceGetDagWarningsKey,
   ...(queryKey ?? [{ dagId, limit, offset, orderBy, warningType }]),
@@ -1239,7 +1240,7 @@ export const UseConfigServiceGetConfigKeyFn = (
   }: {
     section?: string;
   } = {},
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [useConfigServiceGetConfigKey, ...(queryKey ?? [{ section }])];
 export type ConfigServiceGetValueDefaultResponse = Awaited<
   ReturnType<typeof ConfigService.getValue>
@@ -1257,7 +1258,7 @@ export const UseConfigServiceGetValueKeyFn = (
     option: string;
     section: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [useConfigServiceGetValueKey, ...(queryKey ?? [{ option, section }])];
 export type MonitoringServiceGetHealthDefaultResponse = Awaited<
   ReturnType<typeof MonitoringService.getHealth>
@@ -1268,7 +1269,7 @@ export type MonitoringServiceGetHealthQueryResult<
 > = UseQueryResult<TData, TError>;
 export const useMonitoringServiceGetHealthKey = "MonitoringServiceGetHealth";
 export const UseMonitoringServiceGetHealthKeyFn = (
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [useMonitoringServiceGetHealthKey, ...(queryKey ?? [])];
 export type MonitoringServiceGetVersionDefaultResponse = Awaited<
   ReturnType<typeof MonitoringService.getVersion>
@@ -1279,7 +1280,7 @@ export type MonitoringServiceGetVersionQueryResult<
 > = UseQueryResult<TData, TError>;
 export const useMonitoringServiceGetVersionKey = "MonitoringServiceGetVersion";
 export const UseMonitoringServiceGetVersionKeyFn = (
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [useMonitoringServiceGetVersionKey, ...(queryKey ?? [])];
 export type PluginServiceGetPluginsDefaultResponse = Awaited<
   ReturnType<typeof PluginService.getPlugins>
@@ -1297,7 +1298,7 @@ export const UsePluginServiceGetPluginsKeyFn = (
     limit?: number;
     offset?: number;
   } = {},
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [usePluginServiceGetPluginsKey, ...(queryKey ?? [{ limit, offset }])];
 export type RoleServiceGetRolesDefaultResponse = Awaited<
   ReturnType<typeof RoleService.getRoles>
@@ -1317,7 +1318,7 @@ export const UseRoleServiceGetRolesKeyFn = (
     offset?: number;
     orderBy?: string;
   } = {},
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [useRoleServiceGetRolesKey, ...(queryKey ?? [{ limit, offset, orderBy }])];
 export type RoleServiceGetRoleDefaultResponse = Awaited<
   ReturnType<typeof RoleService.getRole>
@@ -1333,7 +1334,7 @@ export const UseRoleServiceGetRoleKeyFn = (
   }: {
     roleName: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [useRoleServiceGetRoleKey, ...(queryKey ?? [{ roleName }])];
 export type PermissionServiceGetPermissionsDefaultResponse = Awaited<
   ReturnType<typeof PermissionService.getPermissions>
@@ -1352,7 +1353,7 @@ export const UsePermissionServiceGetPermissionsKeyFn = (
     limit?: number;
     offset?: number;
   } = {},
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [
   usePermissionServiceGetPermissionsKey,
   ...(queryKey ?? [{ limit, offset }]),
@@ -1375,7 +1376,7 @@ export const UseUserServiceGetUsersKeyFn = (
     offset?: number;
     orderBy?: string;
   } = {},
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [useUserServiceGetUsersKey, ...(queryKey ?? [{ limit, offset, orderBy }])];
 export type UserServiceGetUserDefaultResponse = Awaited<
   ReturnType<typeof UserService.getUser>
@@ -1391,7 +1392,7 @@ export const UseUserServiceGetUserKeyFn = (
   }: {
     username: string;
   },
-  queryKey?: Array<unknown>
+  queryKey?: Array<unknown>,
 ) => [useUserServiceGetUserKey, ...(queryKey ?? [{ username }])];
 export type ConnectionServicePostConnectionMutationResult = Awaited<
   ReturnType<typeof ConnectionService.postConnection>
