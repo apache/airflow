@@ -24,11 +24,11 @@ import { Nav } from "./Nav";
 
 export const BaseLayout = () => {
   return (
-    <div>
+    <>
       <Nav />
       <Box p={3} ml={24}>
         <Outlet />
       </Box>
-    </div>
+    </>
   );
 };

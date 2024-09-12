@@ -18,7 +18,7 @@
  */
 
 import { ReactElement } from "react";
-import { Box, Button, ButtonProps, Text } from "@chakra-ui/react";
+import { Box, Button, ButtonProps } from "@chakra-ui/react";
 import { Link as RouterLink } from "react-router-dom";
 
 type NavButtonProps = {
@@ -43,6 +43,6 @@ export const NavButton = ({ icon, title, to, ...rest }: NavButtonProps) => (
     {...rest}
   >
     <Box alignSelf="center">{icon}</Box>
-    <Text fontSize="xs">{title}</Text>
+    <Box fontSize="xs">{title}</Box>
   </Button>
 );
