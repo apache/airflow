@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-11T19:23:44.810538
+# This constraints file was automatically generated on 2024-09-12T00:15:59.829809
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -613,7 +613,7 @@ smbprotocol==1.14.0
 smmap==5.0.1
 sniffio==1.3.1
 snowballstemmer==2.2.0
-snowflake-connector-python==3.12.1
+snowflake-connector-python==3.12.2
 snowflake-sqlalchemy==1.6.1
 sortedcontainers==2.4.0
 soupsieve==2.6
