@@ -21,6 +21,7 @@
  * @import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
  */
 import perfectionist from "eslint-plugin-perfectionist";
+
 import { ERROR } from "./levels.js";
 import { off } from "./off.js";
 

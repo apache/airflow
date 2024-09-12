@@ -16,13 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import { ChakraProvider } from "@chakra-ui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import axios, { type AxiosError, type AxiosResponse } from "axios";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+
 import { App } from "src/app.tsx";
+
 import theme from "./theme";
 
 const queryClient = new QueryClient({

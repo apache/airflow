@@ -16,12 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
-import { DataTable } from "./DataTable.tsx";
 import type { ColumnDef, PaginationState } from "@tanstack/react-table";
 import "@testing-library/jest-dom";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
+import { DataTable } from "./DataTable.tsx";
 
 const columns: Array<ColumnDef<{ name: string }>> = [
   {
@@ -45,7 +45,7 @@ describe("DataTable", () => {
         initialState={{ pagination, sorting: [] }}
         onStateChange={onStateChange}
         total={2}
-      />
+      />,
     );
 
     expect(screen.getByText("John Doe")).toBeInTheDocument();
@@ -60,7 +60,7 @@ describe("DataTable", () => {
         initialState={{ pagination, sorting: [] }}
         onStateChange={onStateChange}
         total={2}
-      />
+      />,
     );
 
     expect(screen.getByText("<<")).toBeDisabled();
@@ -78,7 +78,7 @@ describe("DataTable", () => {
         }}
         onStateChange={onStateChange}
         total={2}
-      />
+      />,
     );
 
     expect(screen.getByText(">>")).toBeDisabled();

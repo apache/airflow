@@ -21,6 +21,7 @@
  * @import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
  */
 import prettier from "eslint-plugin-prettier";
+
 import { off } from "./off.js";
 
 /**

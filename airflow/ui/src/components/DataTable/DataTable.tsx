@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import {
   Table as ChakraTable,
   TableContainer,
@@ -46,6 +45,7 @@ import {
   TiArrowSortedUp,
   TiArrowUnsorted,
 } from "react-icons/ti";
+
 import { TablePaginator } from "./TablePaginator";
 import type { TableState } from "./types";
 

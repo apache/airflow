@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import { Button, type ButtonProps } from "@chakra-ui/react";
 
 export const QuickFilterButton = ({ children, ...rest }: ButtonProps) => (

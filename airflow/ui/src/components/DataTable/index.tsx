@@ -17,8 +17,4 @@
  * under the License.
  */
 
-
-
-
-
-export {DataTable} from "./DataTable";
+export { DataTable } from "./DataTable";

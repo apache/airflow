@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import { createIcon } from "@chakra-ui/react";
 
 export const DagIcon = createIcon({

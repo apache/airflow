@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import {
   Box,
   Flex,
@@ -27,7 +26,6 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { motion } from "framer-motion";
-
 import {
   FiBarChart2,
   FiCornerUpLeft,
@@ -38,9 +36,10 @@ import {
   FiSettings,
   FiSun,
 } from "react-icons/fi";
+
+import { NavButton } from "./NavButton";
 import { AirflowPin } from "./assets/AirflowPin";
 import { DagIcon } from "./assets/DagIcon";
-import { NavButton } from "./NavButton";
 
 export const Nav = () => {
   const { colorMode, toggleColorMode } = useColorMode();

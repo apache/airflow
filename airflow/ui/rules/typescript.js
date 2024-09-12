@@ -22,6 +22,7 @@
  */
 import typescript from "@typescript-eslint/eslint-plugin";
 import typescriptParser from "@typescript-eslint/parser";
+
 import { ERROR, OFF, WARN } from "./levels.js";
 import { off } from "./off.js";
 

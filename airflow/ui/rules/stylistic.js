@@ -21,6 +21,7 @@
  * @import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
  */
 import stylistic from "@stylistic/eslint-plugin";
+
 import { ERROR } from "./levels.js";
 
 /**

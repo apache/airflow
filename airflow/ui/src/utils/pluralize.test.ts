@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import { describe, expect, it } from "vitest";
 
 import { pluralize } from "./pluralize";

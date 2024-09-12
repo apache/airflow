@@ -16,9 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import { Box, Button, type ButtonProps, Text } from "@chakra-ui/react";
-
 import type { ReactElement } from "react";
 
 type NavButtonProps = {

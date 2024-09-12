@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import {
   Badge,
   Checkbox,
@@ -28,11 +27,12 @@ import {
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Select as ReactSelect } from "chakra-react-select";
+import { useCallback, type ChangeEventHandler } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useDagServiceGetDags } from "openapi/queries";
 import type { DAG } from "openapi/requests/types.gen";
-import { useCallback, type ChangeEventHandler } from "react";
+
 import { DataTable } from "./components/DataTable";
 import { useTableURLState } from "./components/DataTable/useTableUrlState";
 import { QuickFilterButton } from "./components/QuickFilterButton";

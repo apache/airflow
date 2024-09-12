@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import { tableAnatomy } from "@chakra-ui/anatomy";
 import { createMultiStyleConfigHelpers, extendTheme } from "@chakra-ui/react";
 

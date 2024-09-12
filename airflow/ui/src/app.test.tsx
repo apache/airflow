@@ -16,15 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
+import type { QueryObserverSuccessResult } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, it, vi } from "vitest";
-import { App } from "./app";
-import { AppSimple } from "./AppSimple";
 
-import type { QueryObserverSuccessResult } from "@tanstack/react-query";
 import * as openapiQueriesModule from "openapi/queries";
 import type { DAGCollection } from "openapi/requests/types.gen";
+
+import { AppSimple } from "./AppSimple";
+import { App } from "./app";
 import { Wrapper } from "./utils/Wrapper";
 
 const mockListDags: DAGCollection = {

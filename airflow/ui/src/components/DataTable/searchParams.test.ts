@@ -16,10 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import { describe, expect, it } from "vitest";
-import type { TableState } from "./types";
+
 import { searchParamsToState, stateToSearchParams } from "./searchParams";
+import type { TableState } from "./types";
 
 describe("searchParams", () => {
   describe("stateToSearchParams", () => {
@@ -33,7 +33,7 @@ describe("searchParams", () => {
       };
 
       expect(stateToSearchParams(state).toString()).toEqual(
-        "limit=20&offset=1&sort=name"
+        "limit=20&offset=1&sort=name",
       );
     });
   });
@@ -48,8 +48,8 @@ describe("searchParams", () => {
               pageSize: 5,
             },
             sorting: [],
-          }
-        )
+          },
+        ),
       ).toEqual({
         pagination: {
           pageIndex: 0,

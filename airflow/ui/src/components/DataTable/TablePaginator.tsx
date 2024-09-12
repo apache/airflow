@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import { Box, Button } from "@chakra-ui/react";
 import type { Table as TanStackTable } from "@tanstack/react-table";
 import { useCallback } from "react";

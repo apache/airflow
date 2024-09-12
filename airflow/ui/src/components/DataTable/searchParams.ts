@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import type { SortingState } from "@tanstack/react-table";
 
 import type { TableState } from "./types";

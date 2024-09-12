@@ -21,6 +21,7 @@
  * @import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
  */
 import unicorn from "eslint-plugin-unicorn";
+
 import { ERROR, WARN } from "./levels.js";
 
 /**

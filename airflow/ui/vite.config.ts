@@ -16,9 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-import { defineConfig } from "vitest/config";
 import react from "@vitejs/plugin-react-swc";
+import { defineConfig } from "vitest/config";
 
 // Replace the directory to work with the flask plugin generation
 const transformUrlSrc = () => {
