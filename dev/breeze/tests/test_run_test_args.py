@@ -99,7 +99,6 @@ def test_irregular_provider_with_extra_ignore_should_be_valid_cmd(mock_run_comma
     assert match_pattern.search(arg_str)
 
 
-@pytest.mark.skip
 def test_skip_when_primary_test_arg_is_excluded_by_extra_pytest_arg(mock_run_command):
     test_provider = "http"  # "Providers[<id>]" scans the source tree so we need to use a real provider id
 
@@ -116,7 +115,6 @@ def test_skip_when_primary_test_arg_is_excluded_by_extra_pytest_arg(mock_run_com
     mock_run_command.assert_not_called()
 
 
-@pytest.mark.skip
 def test_skip_when_primary_test_arg_is_excluded_by_excluded_provider(
     mock_run_command, mock_get_excluded_provider_folders
 ):

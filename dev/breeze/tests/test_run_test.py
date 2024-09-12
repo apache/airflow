@@ -145,7 +145,6 @@ def test_calls_docker_run_with_expected_args(mock_run_command, mock_generate_arg
     ]
 
 
-@pytest.mark.skip
 def test_raises_when_one_test_directory_is_also_ignored(mock_run_command, mock_generate_args_for_pytest):
     test_mocked_pytest_args = ["tests/providers/alpha", "tests/providers/beta"]
     test_extra_pytest_args = ("--ignore=tests/providers/alpha", "--verbose")
@@ -164,7 +163,6 @@ def test_raises_when_one_test_directory_is_also_ignored(mock_run_command, mock_g
     mock_run_command.assert_not_called()
 
 
-@pytest.mark.skip
 def test_raises_when_all_test_directories_are_also_ignored(mock_run_command, mock_generate_args_for_pytest):
     test_mocked_pytest_args = ["tests/providers/alpha"]
     test_extra_pytest_args = ("--ignore=tests/providers/alpha",)

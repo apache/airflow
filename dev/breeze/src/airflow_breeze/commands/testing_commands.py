@@ -152,6 +152,58 @@ TEST_PROGRESS_REGEXP = r"tests/.*|.*=====.*"
 PERCENT_TEST_PROGRESS_REGEXP = r"^tests/.*\[[ \d%]*\].*|^\..*\[[ \d%]*\].*"
 
 
+def docker_down_command(compose_project_name):
+    return [
+        "docker",
+        "compose",
+        "--project-name",
+        compose_project_name,
+        "down",
+        "--remove-orphans",
+        "--volumes",
+    ]
+
+
+def docker_run_command(compose_project_name):
+    return [
+        "docker",
+        "compose",
+        "--project-name",
+        compose_project_name,
+        "run",
+        "-T",
+        "--service-ports",
+        "--rm",
+        "airflow",
+    ]
+
+
+def pytest_command(shell_params, python_version, test_timeout):
+    return generate_args_for_pytest(
+        test_type=shell_params.test_type,
+        test_timeout=test_timeout,
+        skip_provider_tests=shell_params.skip_provider_tests,
+        skip_db_tests=shell_params.skip_db_tests,
+        run_db_tests_only=shell_params.run_db_tests_only,
+        backend=shell_params.backend,
+        use_xdist=shell_params.use_xdist,
+        enable_coverage=shell_params.enable_coverage,
+        collect_only=shell_params.collect_only,
+        parallelism=shell_params.parallelism,
+        python_version=python_version,
+        parallel_test_types_list=shell_params.parallel_test_types_list,
+        helm_test_package=None,
+        keep_env_variables=shell_params.keep_env_variables,
+        no_db_cleanup=shell_params.no_db_cleanup,
+    )
+
+
+def find_specified_and_ignored_pytest_directories(run_cmd) -> list[str]:
+    # Find any "FOLDER" argument where "--ignore=FOLDER" is also passed as an argument
+    # Which might be the case if we are ignoring some providers during compatibility checks
+    return [arg for arg in run_cmd if f"--ignore={arg}" in run_cmd]
+
+
 def _run_test(
     shell_params: ShellParams,
     extra_pytest_args: tuple,
@@ -166,57 +218,35 @@ def _run_test(
             "[error]Only 'Providers' test type can specify actual tests with \\[\\][/]"
         )
         sys.exit(1)
+
     project_name = file_name_from_test_type(shell_params.test_type)
     compose_project_name = f"airflow-test-{project_name}"
     env = shell_params.env_variables_for_docker_commands
-    down_cmd = [
-        "docker",
-        "compose",
-        "--project-name",
-        compose_project_name,
-        "down",
-        "--remove-orphans",
-        "--volumes",
-    ]
-    run_command(down_cmd, output=output, check=False, env=env)
-    run_cmd = [
-        "docker",
-        "compose",
-        "--project-name",
-        compose_project_name,
-        "run",
-        "-T",
-        "--service-ports",
-        "--rm",
-        "airflow",
-    ]
-    run_cmd.extend(
-        generate_args_for_pytest(
-            test_type=shell_params.test_type,
-            test_timeout=test_timeout,
-            skip_provider_tests=shell_params.skip_provider_tests,
-            skip_db_tests=shell_params.skip_db_tests,
-            run_db_tests_only=shell_params.run_db_tests_only,
-            backend=shell_params.backend,
-            use_xdist=shell_params.use_xdist,
-            enable_coverage=shell_params.enable_coverage,
-            collect_only=shell_params.collect_only,
-            parallelism=shell_params.parallelism,
-            python_version=python_version,
-            parallel_test_types_list=shell_params.parallel_test_types_list,
-            helm_test_package=None,
-            keep_env_variables=shell_params.keep_env_variables,
-            no_db_cleanup=shell_params.no_db_cleanup,
+
+    # build the docker down command args
+    down_args = docker_down_command(compose_project_name)
+
+    # build the docker run command args
+    run_docker_args = docker_run_command(compose_project_name)
+
+    pytest_args = []
+    pytest_args.extend(pytest_command(shell_params, python_version, test_timeout))
+    pytest_args.extend(list(extra_pytest_args))
+
+    specified_and_ignored_pytest_args = find_specified_and_ignored_pytest_directories(pytest_args)
+    if specified_and_ignored_pytest_args:
+        get_console(output=output).print(
+            f"[error]Aborting test as pytest args contained directories that were also specified to be ignored: {specified_and_ignored_pytest_args}\n"
         )
-    )
-    run_cmd.extend(list(extra_pytest_args))
-    # Skip "FOLDER" in case "--ignore=FOLDER" is passed as an argument
-    # Which might be the case if we are ignoring some providers during compatibility checks
-    run_cmd = [arg for arg in run_cmd if f"--ignore={arg}" not in run_cmd]
+        sys.exit(1)
+
+    run_args = [*run_docker_args, *pytest_args]
+
+    run_command(down_args, output=output, check=False, env=env)
     try:
         remove_docker_networks(networks=[f"{compose_project_name}_default"])
         result = run_command(
-            run_cmd,
+            run_args,
             output=output,
             check=False,
             output_outside_the_group=output_outside_the_group,
@@ -788,7 +818,7 @@ def _run_test_command(
     perform_environment_checks()
     if skip_providers:
         ignored_path_list = [
-            f"--ignore=tests/providers/{provider_id.replace('.','/')}"
+            f"--ignore=tests/providers/{provider_id.replace('.', '/')}"
             for provider_id in skip_providers.split(" ")
         ]
         extra_pytest_args = (*extra_pytest_args, *ignored_path_list)
