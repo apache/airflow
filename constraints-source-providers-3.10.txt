@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-11T22:13:19.459712
+# This constraints file was automatically generated on 2024-09-12T07:43:04.281286
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -75,7 +75,7 @@ annotated-types==0.7.0
 ansicolors==1.1.8
 anyascii==0.3.2
 anyio==4.4.0
-apache-beam==2.56.0
+apache-beam==2.59.0
 apispec==6.6.1
 apprise==1.9.0
 argcomplete==3.5.0
@@ -166,7 +166,7 @@ db-dtypes==1.3.0
 debugpy==1.8.5
 decorator==5.1.1
 defusedxml==0.7.1
-deltalake==0.18.2
+deltalake==0.19.2
 diagrams==0.23.4
 dill==0.3.1.1
 distlib==0.3.8
@@ -183,7 +183,7 @@ email_validator==2.2.0
 entrypoints==0.4
 eralchemy2==1.4.1
 et-xmlfile==1.1.0
-eventlet==0.36.1
+eventlet==0.37.0
 exceptiongroup==1.2.2
 execnet==2.1.1
 executing==2.1.0
@@ -446,7 +446,7 @@ py-partiql-parser==0.5.6
 py4j==0.10.9.7
 pyOpenSSL==24.2.1
 pyarrow-hotfix==0.6
-pyarrow==14.0.2
+pyarrow==16.1.0
 pyasn1==0.6.1
 pyasn1_modules==0.4.0
 pycountry==24.6.1
@@ -537,7 +537,7 @@ smbprotocol==1.14.0
 smmap==5.0.1
 sniffio==1.3.1
 snowballstemmer==2.2.0
-snowflake-connector-python==3.12.1
+snowflake-connector-python==3.12.2
 snowflake-sqlalchemy==1.6.1
 sortedcontainers==2.4.0
 soupsieve==2.6
