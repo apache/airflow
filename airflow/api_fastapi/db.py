@@ -29,7 +29,7 @@ async def get_session() -> Session:
     """
     Dependency for providing a session.
 
-    For non route function please use the use the :class:`airflow.utils.session.provide_session` decorator.
+    For non route function please use the :class:`airflow.utils.session.provide_session` decorator.
 
     Example usage:
 
