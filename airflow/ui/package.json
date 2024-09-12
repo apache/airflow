@@ -36,6 +36,7 @@
     "@tanstack/eslint-plugin-query": "^5.52.0",
     "@testing-library/jest-dom": "^6.4.8",
     "@testing-library/react": "^16.0.0",
+    "@trivago/prettier-plugin-sort-imports": "^4.3.0",
     "@types/node": "^22.5.4",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
