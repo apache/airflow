@@ -22,13 +22,13 @@ import { useSearchParams } from "react-router-dom";
 import { searchParamsToState, stateToSearchParams } from "./searchParams";
 import type { TableState } from "./types";
 
-export const defaultTableState: TableState = {
+export const defaultTableState = {
   pagination: {
     pageIndex: 0,
     pageSize: 50,
   },
   sorting: [],
-};
+} as const satisfies TableState;
 
 export const useTableURLState = (defaultState?: Partial<TableState>) => {
   const [searchParams, setSearchParams] = useSearchParams();

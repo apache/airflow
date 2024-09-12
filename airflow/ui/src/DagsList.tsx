@@ -91,7 +91,7 @@ export const DagsList = ({ cardView = false }) => {
 
   // TODO: update API to accept multiple orderBy params
   const [sort] = sorting;
-  const orderBy = `${sort.desc ? "-" : ""}${sort.id}`;
+  const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
 
   const { data, isLoading } = useDagServiceGetDags({
     limit: pagination.pageSize,
