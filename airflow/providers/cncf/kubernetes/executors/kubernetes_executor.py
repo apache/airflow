@@ -204,19 +204,21 @@ class KubernetesExecutor(BaseExecutor):
         with Stats.timer("kubernetes_executor.clear_not_launched_queued_tasks.duration"):
             self.log.debug("Clearing tasks that have not been launched")
 
-            criteria = [
+            query = select(TaskInstance).where(
                 TaskInstance.state == TaskInstanceState.QUEUED,
                 TaskInstance.queued_by_job_id == self.job_id,
-            ]
+            )
             if self.kubernetes_queue:
-                criteria.append(TaskInstance.queue == self.kubernetes_queue)
+                query = query.where(TaskInstance.queue == self.kubernetes_queue)
             elif KUBERNETES_EXECUTOR == default_executor:
-                criteria.append(
-                    or_(TaskInstance.executor == KUBERNETES_EXECUTOR, TaskInstance.executor.is_(None))
+                query = query.where(
+                    or_(
+                        TaskInstance.executor == KUBERNETES_EXECUTOR,
+                        TaskInstance.executor.is_(None),
+                    ),
                 )
             else:
-                criteria.append(TaskInstance.executor == KUBERNETES_EXECUTOR)
-            query = select(TaskInstance).where(*criteria)
+                query = query.where(TaskInstance.executor == KUBERNETES_EXECUTOR)
 
             queued_tis: list[TaskInstance] = session.scalars(query).all()
             self.log.info("Found %s queued task instances", len(queued_tis))
