@@ -193,8 +193,7 @@ class OutletEventAccessor:
         event = DatasetAliasEvent(
             source_alias_name=dataset_alias_name, dest_dataset_uri=dataset_uri, extra=extra or {}
         )
-        if event not in self.dataset_alias_events:
-            self.dataset_alias_events.append(event)
+        self.dataset_alias_events.append(event)
 
 
 class OutletEventAccessors(Mapping[str, OutletEventAccessor]):
