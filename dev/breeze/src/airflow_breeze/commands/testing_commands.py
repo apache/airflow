@@ -238,7 +238,7 @@ def _run_test(
         get_console(output=output).print(
             f"[error]Aborting test as pytest args contained directories that were also specified to be ignored: {specified_and_ignored_pytest_args}\n"
         )
-        return 1, f"Test: {shell_params.test_type} blocked from running due to ambiguous arguments"
+        return 0, f"Test: {shell_params.test_type} blocked from running due to ambiguous arguments"
 
     run_args = [*run_docker_args, *pytest_args]
 

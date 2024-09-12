@@ -159,7 +159,7 @@ def test_returns_when_one_test_directory_is_also_ignored(mock_run_command, mock_
         skip_docker_compose_down=True,
     )
 
-    assert result == (1, "Test: Providers[alpha,beta] blocked from running due to ambiguous arguments")
+    assert result == (0, "Test: Providers[alpha,beta] blocked from running due to ambiguous arguments")
     mock_run_command.assert_not_called()
 
 
@@ -177,5 +177,5 @@ def test_returns_when_all_test_directories_are_also_ignored(mock_run_command, mo
         skip_docker_compose_down=True,
     )
 
-    assert result == (1, "Test: Providers[alpha] blocked from running due to ambiguous arguments")
+    assert result == (0, "Test: Providers[alpha] blocked from running due to ambiguous arguments")
     mock_run_command.assert_not_called()

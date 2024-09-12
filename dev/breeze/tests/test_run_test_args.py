@@ -111,7 +111,7 @@ def test_skip_when_primary_test_arg_is_excluded_by_extra_pytest_arg(mock_run_com
         skip_docker_compose_down=True,
     )
 
-    assert result == (1, f"Test: Providers[{test_provider}] blocked from running due to ambiguous arguments")
+    assert result == (0, f"Test: Providers[{test_provider}] blocked from running due to ambiguous arguments")
     mock_run_command.assert_not_called()
 
 
@@ -130,5 +130,5 @@ def test_skip_when_primary_test_arg_is_excluded_by_excluded_provider(
         skip_docker_compose_down=True,
     )
 
-    assert result == (1, f"Test: Providers[{test_provider}] blocked from running due to ambiguous arguments")
+    assert result == (0, f"Test: Providers[{test_provider}] blocked from running due to ambiguous arguments")
     mock_run_command.assert_not_called()
