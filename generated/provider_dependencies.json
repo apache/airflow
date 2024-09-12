@@ -1,7 +1,7 @@
 {
   "airbyte": {
     "deps": [
-      "airbyte-api>=0.51.0",
+      "airbyte-api>=0.52.0",
       "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
@@ -519,6 +519,17 @@
     "cross-providers-deps": [],
     "excluded-python-versions": [],
     "state": "ready"
+  },
+  "edge": {
+    "deps": [
+      "apache-airflow>=2.10.0",
+      "pydantic>=2.3.0"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "not-ready"
   },
   "elasticsearch": {
     "deps": [

@@ -32,6 +32,7 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessStopApplicationOperator,
 )
 from airflow.utils.types import NOTSET
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -392,6 +393,25 @@ class TestEmrServerlessCreateApplicationOperator:
 
         with pytest.raises(TaskDeferred):
             operator.execute(None)
+
+    def test_template_fields(self):
+        operator = EmrServerlessCreateApplicationOperator(
+            task_id=task_id,
+            release_label=release_label,
+            job_type=job_type,
+            client_request_token=client_request_token,
+            config=config,
+            waiter_max_attempts=3,
+            waiter_delay=0,
+        )
+
+        template_fields = list(operator.template_fields) + list(operator.template_fields_renderers.keys())
+
+        class_fields = operator.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
 
 
 class TestEmrServerlessStartJobOperator:
@@ -1163,6 +1183,24 @@ class TestEmrServerlessStartJobOperator:
             job_run_id=job_run_id,
         )
 
+    def test_template_fields(self):
+        operator = EmrServerlessStartJobOperator(
+            task_id=task_id,
+            client_request_token=client_request_token,
+            application_id=application_id,
+            execution_role_arn=execution_role_arn,
+            job_driver=job_driver,
+            configuration_overrides=configuration_overrides,
+        )
+
+        template_fields = list(operator.template_fields) + list(operator.template_fields_renderers.keys())
+
+        class_fields = operator.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+
 
 class TestEmrServerlessDeleteOperator:
     @mock.patch.object(EmrServerlessHook, "get_waiter")
@@ -1277,6 +1315,19 @@ class TestEmrServerlessDeleteOperator:
         with pytest.raises(TaskDeferred):
             operator.execute(None)
 
+    def test_template_fields(self):
+        operator = EmrServerlessDeleteApplicationOperator(
+            task_id=task_id, application_id=application_id_delete_operator
+        )
+
+        template_fields = list(operator.template_fields) + list(operator.template_fields_renderers.keys())
+
+        class_fields = operator.__dict__
+
+        missing_fields = [field for field in template_fields if field not in class_fields]
+
+        assert not missing_fields, f"Templated fields are not available {missing_fields}"
+
 
 class TestEmrServerlessStopOperator:
     @mock.patch.object(EmrServerlessHook, "get_waiter")
@@ -1344,3 +1395,10 @@ class TestEmrServerlessStopOperator:
             operator.execute({})
 
         assert "no running jobs found with application ID test" in caplog.messages
+
+    def test_template_fields(self):
+        operator = EmrServerlessStopApplicationOperator(
+            task_id=task_id, application_id="test", deferrable=True, force_stop=True
+        )
+
+        validate_template_fields(operator)

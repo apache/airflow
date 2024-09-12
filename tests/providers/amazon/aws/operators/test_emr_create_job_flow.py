@@ -32,6 +32,7 @@ from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 from tests.providers.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 
@@ -203,3 +204,6 @@ class TestEmrCreateJobFlowOperator:
         assert isinstance(
             exc.value.trigger, EmrCreateJobFlowTrigger
         ), "Trigger is not a EmrCreateJobFlowTrigger"
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)

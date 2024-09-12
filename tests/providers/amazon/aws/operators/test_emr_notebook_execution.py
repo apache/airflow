@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.operators.emr import (
     EmrStartNotebookExecutionOperator,
     EmrStopNotebookExecutionOperator,
 )
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 from tests.providers.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 PARAMS = {
@@ -303,3 +304,20 @@ class TestStopEmrNotebookExecutionOperator:
             WaiterConfig={"Delay": delay, "MaxAttempts": waiter_max_attempts},
         )
         assert_expected_waiter_type(mock_waiter, "notebook_stopped")
+
+    def test_template_fields(self):
+        op = EmrStartNotebookExecutionOperator(
+            task_id="test-id",
+            editor_id=PARAMS["EditorId"],
+            relative_path=PARAMS["RelativePath"],
+            cluster_id=PARAMS["ExecutionEngine"]["Id"],
+            service_role=PARAMS["ServiceRole"],
+            notebook_execution_name=PARAMS["NotebookExecutionName"],
+            notebook_params=PARAMS["NotebookParams"],
+            notebook_instance_security_group_id=PARAMS["NotebookInstanceSecurityGroupId"],
+            master_instance_security_group_id=PARAMS["ExecutionEngine"]["MasterInstanceSecurityGroupId"],
+            tags=PARAMS["Tags"],
+            wait_for_completion=True,
+        )
+
+        validate_template_fields(op)
