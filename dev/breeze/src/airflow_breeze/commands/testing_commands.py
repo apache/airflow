@@ -238,7 +238,7 @@ def _run_test(
         get_console(output=output).print(
             f"[error]Aborting test as pytest args contained directories that were also specified to be ignored: {specified_and_ignored_pytest_args}\n"
         )
-        sys.exit(1)
+        return 1, f"Test blocked from running: {shell_params.test_type}"
 
     run_args = [*run_docker_args, *pytest_args]
 
