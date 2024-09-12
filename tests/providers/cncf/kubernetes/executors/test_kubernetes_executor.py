@@ -30,7 +30,7 @@ from urllib3 import HTTPResponse
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.executors.executor_constants import CELERY_KUBERNETES_EXECUTOR, KUBERNETES_EXECUTOR
-from airflow.executors.executor_loader import ExecutorLoader
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskinstancekey import TaskInstanceKey
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
@@ -1251,7 +1251,10 @@ class TestKubernetesExecutor:
         mock_kube_dynamic_client.return_value.get.return_value.items = []
 
         # This is hack to use overridden conf vars as it seems executors loaded before conf override.
-        ExecutorLoader.get_executor_names().clear()
+        if hasattr(TaskInstance, "executor"):
+            from airflow.executors.executor_loader import ExecutorLoader
+
+            ExecutorLoader.get_executor_names().clear()
         create_dummy_dag(dag_id="test_clear", task_id="task1", with_dagrun_type=None)
         dag_run = dag_maker.create_dagrun()
 
@@ -1312,7 +1315,10 @@ class TestKubernetesExecutor:
         )
 
         # This is hack to use overridden conf vars as it seems executors loaded before conf override.
-        ExecutorLoader.get_executor_names().clear()
+        if hasattr(TaskInstance, "executor"):
+            from airflow.executors.executor_loader import ExecutorLoader
+
+            ExecutorLoader.get_executor_names().clear()
         create_dummy_dag(dag_id="test_clear", task_id="task1", with_dagrun_type=None)
         dag_run = dag_maker.create_dagrun()
 
@@ -1369,7 +1375,10 @@ class TestKubernetesExecutor:
         mock_kube_dynamic_client.return_value.get.side_effect = get
 
         # This is hack to use overridden conf vars as it seems executors loaded before conf override.
-        ExecutorLoader.get_executor_names().clear()
+        if hasattr(TaskInstance, "executor"):
+            from airflow.executors.executor_loader import ExecutorLoader
+
+            ExecutorLoader.get_executor_names().clear()
         with dag_maker(dag_id="test_clear"):
             op = BashOperator.partial(task_id="bash").expand(bash_command=["echo 0", "echo 1"])
 
@@ -1412,7 +1421,10 @@ class TestKubernetesExecutor:
         mock_kube_client.list_namespaced_pod.return_value = k8s.V1PodList(items=[])
 
         # This is hack to use overridden conf vars as it seems executors loaded before conf override.
-        ExecutorLoader.get_executor_names().clear()
+        if hasattr(TaskInstance, "executor"):
+            from airflow.executors.executor_loader import ExecutorLoader
+
+            ExecutorLoader.get_executor_names().clear()
         create_dummy_dag(dag_id="test_clear", task_id="task1", with_dagrun_type=None)
         dag_run = dag_maker.create_dagrun()
 
@@ -1433,6 +1445,9 @@ class TestKubernetesExecutor:
         assert mock_kube_client.list_namespaced_pod.call_count == 0
 
     @pytest.mark.db_test
+    @pytest.mark.skipif(
+        not hasattr(TaskInstance, "executor"), reason="Hybrid executor added in later version"
+    )
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
     @conf_vars({("core", "executor"): KUBERNETES_EXECUTOR})
     def test_clear_not_launched_queued_tasks_not_launched_other_executor(
@@ -1446,7 +1461,10 @@ class TestKubernetesExecutor:
         mock_kube_dynamic_client.return_value.get.return_value.items = []
 
         # This is hack to use overridden conf vars as it seems executors loaded before conf override.
-        ExecutorLoader.get_executor_names().clear()
+        if hasattr(TaskInstance, "executor"):
+            from airflow.executors.executor_loader import ExecutorLoader
+
+            ExecutorLoader.get_executor_names().clear()
         create_dummy_dag(dag_id="test_clear", task_id="task1", with_dagrun_type=None)
         dag_run = dag_maker.create_dagrun()
 
@@ -1468,6 +1486,9 @@ class TestKubernetesExecutor:
         assert mock_kube_client.list_namespaced_pod.call_count == 0
 
     @pytest.mark.db_test
+    @pytest.mark.skipif(
+        not hasattr(TaskInstance, "executor"), reason="Hybrid executor added in later version"
+    )
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
     @conf_vars({("core", "executor"): KUBERNETES_EXECUTOR})
     def test_clear_not_launched_queued_tasks_launched_none_executor(
@@ -1481,7 +1502,10 @@ class TestKubernetesExecutor:
         mock_kube_dynamic_client.return_value.get.return_value.items = []
 
         # This is hack to use overridden conf vars as it seems executors loaded before conf override.
-        ExecutorLoader.get_executor_names().clear()
+        if hasattr(TaskInstance, "executor"):
+            from airflow.executors.executor_loader import ExecutorLoader
+
+            ExecutorLoader.get_executor_names().clear()
         create_dummy_dag(dag_id="test_clear", task_id="task1", with_dagrun_type=None)
         dag_run = dag_maker.create_dagrun()
 
@@ -1501,6 +1525,9 @@ class TestKubernetesExecutor:
         assert mock_kube_dynamic_client.return_value.get.call_count == 1
 
     @pytest.mark.db_test
+    @pytest.mark.skipif(
+        not hasattr(TaskInstance, "executor"), reason="Hybrid executor added in later version"
+    )
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor.DynamicClient")
     @conf_vars({("core", "executor"): KUBERNETES_EXECUTOR})
     def test_clear_not_launched_queued_tasks_launched_kubernetes_executor(
@@ -1514,7 +1541,10 @@ class TestKubernetesExecutor:
         mock_kube_dynamic_client.return_value.get.return_value.items = []
 
         # This is hack to use overridden conf vars as it seems executors loaded before conf override.
-        ExecutorLoader.get_executor_names().clear()
+        if hasattr(TaskInstance, "executor"):
+            from airflow.executors.executor_loader import ExecutorLoader
+
+            ExecutorLoader.get_executor_names().clear()
         create_dummy_dag(dag_id="test_clear", task_id="task1", with_dagrun_type=None)
         dag_run = dag_maker.create_dagrun()
 
@@ -1546,7 +1576,10 @@ class TestKubernetesExecutor:
         mock_kube_dynamic_client.return_value.get.return_value = k8s.V1PodList(items=[])
 
         # This is hack to use overridden conf vars as it seems executors loaded before conf override.
-        ExecutorLoader.get_executor_names().clear()
+        if hasattr(TaskInstance, "executor"):
+            from airflow.executors.executor_loader import ExecutorLoader
+
+            ExecutorLoader.get_executor_names().clear()
         create_dummy_dag(dag_id="test_clear_0", task_id="task0", with_dagrun_type=None)
         dag_run = dag_maker.create_dagrun()
 

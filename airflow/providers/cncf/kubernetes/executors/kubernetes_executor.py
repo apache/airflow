@@ -53,7 +53,6 @@ from airflow.cli.cli_config import (
 from airflow.configuration import conf
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import KUBERNETES_EXECUTOR
-from airflow.executors.executor_loader import ExecutorLoader
 from airflow.providers.cncf.kubernetes.executors.kubernetes_executor_types import (
     ADOPTED,
     POD_EXECUTOR_DONE_KEY,
@@ -199,7 +198,12 @@ class KubernetesExecutor(BaseExecutor):
             assert self.kube_client
         from airflow.models.taskinstance import TaskInstance
 
-        default_executor = str(ExecutorLoader.get_default_executor_name())
+        has_executor = hasattr(TaskInstance, "executor")
+        default_executor = None
+        if has_executor:
+            from airflow.executors.executor_loader import ExecutorLoader
+
+            default_executor = str(ExecutorLoader.get_default_executor_name())
 
         with Stats.timer("kubernetes_executor.clear_not_launched_queued_tasks.duration"):
             self.log.debug("Clearing tasks that have not been launched")
@@ -210,14 +214,14 @@ class KubernetesExecutor(BaseExecutor):
             )
             if self.kubernetes_queue:
                 query = query.where(TaskInstance.queue == self.kubernetes_queue)
-            elif KUBERNETES_EXECUTOR == default_executor:
+            elif has_executor and KUBERNETES_EXECUTOR == default_executor:
                 query = query.where(
                     or_(
                         TaskInstance.executor == KUBERNETES_EXECUTOR,
                         TaskInstance.executor.is_(None),
                     ),
                 )
-            else:
+            elif has_executor:
                 query = query.where(TaskInstance.executor == KUBERNETES_EXECUTOR)
 
             queued_tis: list[TaskInstance] = session.scalars(query).all()
