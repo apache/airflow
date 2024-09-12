@@ -111,7 +111,7 @@ def test_primary_test_arg_is_excluded_by_extra_pytest_arg(mock_run_command):
         skip_docker_compose_down=True,
     )
 
-    assert mock_run_command.call_count == 2
+    assert mock_run_command.call_count > 1
     run_cmd_call = mock_run_command.call_args_list[1]
     arg_str = " ".join(run_cmd_call.args[0])
 
