@@ -14,12 +14,30 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-from fastapi import APIRouter
+from typing import TYPE_CHECKING
 
-from airflow.api_fastapi.views.ui.datasets import datasets_router
+from airflow.utils.session import create_session
 
-ui_router = APIRouter(prefix="/ui")
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
 
-ui_router.include_router(datasets_router)
+
+async def get_session() -> Session:
+    """
+    Dependency for providing a session.
+
+    For non route function please use the :class:`airflow.utils.session.provide_session` decorator.
+
+    Example usage:
+
+    .. code:: python
+
+        @router.get("/your_path")
+        def your_route(session: Annotated[Session, Depends(get_session)]):
+            pass
+    """
+    with create_session() as session:
+        yield session

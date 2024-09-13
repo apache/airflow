@@ -424,6 +424,9 @@ DEPENDENCIES = [
     "cryptography>=41.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
+    # Required for python 3.8 and 3.9 to work with new annotations styles. Check package
+    # description on PyPI for more details: https://pypi.org/project/eval-type-backport/
+    "eval-type-backport>=0.2.0",
     "fastapi[standard]>=0.112.2",
     "flask-caching>=2.0.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
@@ -462,7 +465,7 @@ DEPENDENCIES = [
     'pendulum>=3.0.0,<4.0;python_version>="3.12"',
     "pluggy>=1.5.0",
     "psutil>=5.8.0",
-    "pydantic>=2.3.0",
+    "pydantic>=2.6.0",
     "pygments>=2.0.1",
     "pyjwt>=2.0.0",
     "python-daemon>=3.0.0",
