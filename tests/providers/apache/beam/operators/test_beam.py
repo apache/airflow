@@ -257,7 +257,9 @@ class TestBeamRunPythonPipelineOperator:
         op.dataflow_job_id = JOB_ID
         op.on_kill()
 
-        dataflow_cancel_job.assert_called_once_with(job_id=JOB_ID, project_id=op.dataflow_config.project_id, location=op.dataflow_config.location)
+        dataflow_cancel_job.assert_called_once_with(
+            job_id=JOB_ID, project_id=op.dataflow_config.project_id, location=op.dataflow_config.location
+        )
 
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
@@ -465,7 +467,9 @@ class TestBeamRunJavaPipelineOperator:
         op.dataflow_job_id = JOB_ID
         op.on_kill()
 
-        dataflow_cancel_job.assert_called_once_with(job_id=JOB_ID, project_id=op.dataflow_config.project_id, location=op.dataflow_config.location)
+        dataflow_cancel_job.assert_called_once_with(
+            job_id=JOB_ID, project_id=op.dataflow_config.project_id, location=op.dataflow_config.location
+        )
 
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
@@ -859,7 +863,9 @@ class TestBeamRunGoPipelineOperator:
         op.dataflow_job_id = JOB_ID
         op.on_kill()
 
-        dataflow_cancel_job.assert_called_once_with(job_id=JOB_ID, project_id=op.dataflow_config.project_id, location=op.dataflow_config.location)
+        dataflow_cancel_job.assert_called_once_with(
+            job_id=JOB_ID, project_id=op.dataflow_config.project_id, location=op.dataflow_config.location
+        )
 
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
@@ -989,7 +995,9 @@ class TestBeamRunPythonPipelineOperatorAsync:
             op.execute(context=mock.MagicMock())
         op.dataflow_job_id = JOB_ID
         op.on_kill()
-        dataflow_cancel_job.assert_called_once_with(job_id=JOB_ID, project_id=op.dataflow_config.project_id, location=op.dataflow_config.location)
+        dataflow_cancel_job.assert_called_once_with(
+            job_id=JOB_ID, project_id=op.dataflow_config.project_id, location=op.dataflow_config.location
+        )
 
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
@@ -1108,7 +1116,9 @@ class TestBeamRunJavaPipelineOperatorAsync:
             op.execute(context=mock.MagicMock())
         op.dataflow_job_id = JOB_ID
         op.on_kill()
-        dataflow_cancel_job.assert_called_once_with(job_id=JOB_ID, project_id=op.dataflow_config.project_id, location=op.dataflow_config.location)
+        dataflow_cancel_job.assert_called_once_with(
+            job_id=JOB_ID, project_id=op.dataflow_config.project_id, location=op.dataflow_config.location
+        )
 
     @mock.patch(BEAM_OPERATOR_PATH.format("BeamHook"))
     @mock.patch(BEAM_OPERATOR_PATH.format("DataflowHook"))
