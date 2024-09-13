@@ -773,57 +773,58 @@ class TestDagProcessorJobRunner:
         def get_dag_string(filename) -> str:
             return open(TEST_DAG_FOLDER / filename).read()
 
-        def add_dag_to_db(file_path, dag_id, processor_subdir):
-            dagbag = DagBag(file_path, read_dags_from_db=False)
-            dag = dagbag.get_dag(dag_id)
-            dag.fileloc = file_path
-            dag.last_parsed_time = timezone.utcnow()
-            dag.sync_to_db(processor_subdir=processor_subdir)
-
-        def create_dag_folder(dag_id):
-            dag_home = tempfile.mkdtemp(dir=tmpdir)
-            dag_file = tempfile.NamedTemporaryFile(dir=dag_home, suffix=".py")
-            dag_file.write(get_dag_string(dag_id).encode())
-            dag_file.flush()
-            return dag_home, dag_file
-
         with tempfile.TemporaryDirectory() as tmpdir:
-            old_dag_home, old_dag_file = create_dag_folder("test_example_bash_operator.py")
-            new_dag_home, new_dag_file = create_dag_folder("test_scheduler_dags.py")
-            example_dag_home, example_dag_file = create_dag_folder("test_dag_warnings.py")
+            old_dag_home = tempfile.mkdtemp(dir=tmpdir)
+            old_dag_file = tempfile.NamedTemporaryFile(dir=old_dag_home, suffix=".py")
+            old_dag_file.write(get_dag_string("test_example_bash_operator.py").encode())
+            old_dag_file.flush()
+            new_dag_home = tempfile.mkdtemp(dir=tmpdir)
+            new_dag_file = tempfile.NamedTemporaryFile(dir=new_dag_home, suffix=".py")
+            new_dag_file.write(get_dag_string("test_scheduler_dags.py").encode())
+            new_dag_file.flush()
 
-            with mock.patch("airflow.dag_processing.manager.example_dag_folder", example_dag_home):
-                manager = DagProcessorJobRunner(
-                    job=Job(),
-                    processor=DagFileProcessorManager(
-                        dag_directory=new_dag_home,
-                        max_runs=1,
-                        processor_timeout=timedelta(minutes=10),
-                        signal_conn=MagicMock(),
-                        dag_ids=[],
-                        pickle_dags=False,
-                        async_mode=True,
-                    ),
+            manager = DagProcessorJobRunner(
+                job=Job(),
+                processor=DagFileProcessorManager(
+                    dag_directory=new_dag_home,
+                    max_runs=1,
+                    processor_timeout=timedelta(minutes=10),
+                    signal_conn=MagicMock(),
+                    dag_ids=[],
+                    pickle_dags=False,
+                    async_mode=True,
+                ),
+            )
+
+            dagbag = DagBag(old_dag_file.name, read_dags_from_db=False)
+            other_dagbag = DagBag(new_dag_file.name, read_dags_from_db=False)
+
+            with create_session() as session:
+                # Add DAG from old dah home to the DB
+                dag = dagbag.get_dag("test_example_bash_operator")
+                dag.fileloc = old_dag_file.name
+                dag.last_parsed_time = timezone.utcnow()
+                dag.sync_to_db(processor_subdir=old_dag_home)
+
+                # Add DAG from new DAG home to the DB
+                other_dag = other_dagbag.get_dag("test_start_date_scheduling")
+                other_dag.fileloc = new_dag_file.name
+                other_dag.last_parsed_time = timezone.utcnow()
+                other_dag.sync_to_db(processor_subdir=new_dag_home)
+
+                manager.processor._file_paths = [new_dag_file]
+
+                active_dag_count = (
+                    session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
                 )
+                assert active_dag_count == 2
 
-                with create_session() as session:
-                    add_dag_to_db(old_dag_file.name, "test_example_bash_operator", old_dag_home)
-                    add_dag_to_db(new_dag_file.name, "test_start_date_scheduling", new_dag_home)
-                    add_dag_to_db(example_dag_file.name, "test_dag_warnings", example_dag_home)
+                manager.processor._scan_stale_dags()
 
-                    manager.processor._file_paths = [new_dag_file, example_dag_file]
-
-                    active_dag_count = (
-                        session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
-                    )
-                    assert active_dag_count == 3
-
-                    manager.processor._scan_stale_dags()
-
-                    active_dag_count = (
-                        session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
-                    )
-                    assert active_dag_count == 2
+                active_dag_count = (
+                    session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
+                )
+                assert active_dag_count == 1
 
     @mock.patch(
         "airflow.dag_processing.processor.DagFileProcessorProcess.waitable_handle", new_callable=PropertyMock
