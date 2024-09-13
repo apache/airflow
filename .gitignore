@@ -169,6 +169,7 @@ pnpm-debug.log*
 !.vscode/extensions.json
 /.vite/
 .pnpm-store
+*.tsbuildinfo
 
 # Airflow log files when airflow is run locally
 airflow-*.err
