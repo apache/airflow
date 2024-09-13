@@ -16,16 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import { DagsList } from "src/pages/DagsList";
-import { Navigate, Route, Routes } from "react-router-dom";
-import { BaseLayout } from "./layouts/BaseLayout";
 
-// Note: When changing routes, make sure to update init_react_ui.py too
-export const App = () => (
-  <Routes>
-    <Route path="/" element={<BaseLayout />}>
-      <Route index element={<Navigate to="dags" />} />
-      <Route path="dags" element={<DagsList />} />
-    </Route>
-  </Routes>
+import { ReactElement } from "react";
+import { Box, Button, ButtonProps } from "@chakra-ui/react";
+import { Link as RouterLink } from "react-router-dom";
+
+type NavButtonProps = {
+  title?: string;
+  icon: ReactElement;
+  href?: string;
+  to?: string;
+} & ButtonProps;
+
+export const NavButton = ({ icon, title, to, ...rest }: NavButtonProps) => (
+  <Button
+    as={RouterLink}
+    to={to}
+    variant="ghost"
+    borderRadius="none"
+    height={16}
+    alignItems="center"
+    flexDir="column"
+    whiteSpace="wrap"
+    width={24}
+    transition="0.2s background-color ease-in-out"
+    {...rest}
+  >
+    <Box alignSelf="center">{icon}</Box>
+    <Box fontSize="xs">{title}</Box>
+  </Button>
 );

@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,10 +17,12 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import APIRouter
 
-from airflow.api_fastapi.views.ui.datasets import datasets_router
+def validate_template_fields(operator):
+    template_fields = list(operator.template_fields) + list(operator.template_fields_renderers.keys())
 
-ui_router = APIRouter(prefix="/ui")
+    class_fields = operator.__dict__
 
-ui_router.include_router(datasets_router)
+    missing_fields = [field for field in template_fields if field not in class_fields]
+
+    assert not missing_fields, f"Templated fields are not available {missing_fields}"

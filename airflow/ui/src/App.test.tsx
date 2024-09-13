@@ -16,16 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import type { QueryObserverSuccessResult } from "@tanstack/react-query";
-import { render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, it, vi } from "vitest";
+import { QueryObserverSuccessResult } from "@tanstack/react-query";
+import { render } from "@testing-library/react";
 
 import * as openapiQueriesModule from "openapi/queries";
-import type { DAGCollection } from "openapi/requests/types.gen";
+import { DAGCollection } from "openapi/requests/types.gen";
 
-import { AppSimple } from "./AppSimple";
+import { Wrapper } from "./utils/test";
 import { App } from "./App";
-import { Wrapper } from "./utils/Wrapper";
 
 const mockListDags: DAGCollection = {
   dags: [
@@ -101,9 +100,8 @@ beforeEach(() => {
     data: mockListDags,
     isLoading: false,
   } as QueryObserverSuccessResult<DAGCollection, unknown>;
-
   vi.spyOn(openapiQueriesModule, "useDagServiceGetDags").mockImplementation(
-    () => returnValue,
+    () => returnValue
   );
 });
 
@@ -114,9 +112,5 @@ afterEach(() => {
 describe("App", () => {
   it("App component should render", () => {
     render(<App />, { wrapper: Wrapper });
-  });
-
-  it("AppSimple", () => {
-    render(<AppSimple />);
   });
 });
