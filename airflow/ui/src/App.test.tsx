@@ -18,13 +18,14 @@
  */
 
 import { afterEach, beforeEach, describe, it, vi } from "vitest";
-import { App, AppSimple } from "./app";
+import { QueryObserverSuccessResult } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
 
 import * as openapiQueriesModule from "openapi/queries";
-import { Wrapper } from "./utils/test";
 import { DAGCollection } from "openapi/requests/types.gen";
-import { QueryObserverSuccessResult } from "@tanstack/react-query";
+
+import { Wrapper } from "./utils/test";
+import { App } from "./App";
 
 const mockListDags: DAGCollection = {
   dags: [
@@ -111,9 +112,5 @@ afterEach(() => {
 describe("App", () => {
   it("App component should render", () => {
     render(<App />, { wrapper: Wrapper });
-  });
-
-  it("AppSimple", () => {
-    render(<AppSimple />);
   });
 });

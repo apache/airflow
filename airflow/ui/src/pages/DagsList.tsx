@@ -41,9 +41,9 @@ import { FiSearch } from "react-icons/fi";
 
 import { DAG } from "openapi/requests/types.gen";
 import { useDagServiceGetDags } from "openapi/queries";
-import { DataTable } from "./components/DataTable";
-import { pluralize } from "./utils/pluralize";
-import { useTableURLState } from "./components/DataTable/useTableUrlState";
+import { DataTable } from "../components/DataTable";
+import { pluralize } from "../utils/pluralize";
+import { useTableURLState } from "../components/DataTable/useTableUrlState";
 
 const SearchBar = ({
   groupProps,
