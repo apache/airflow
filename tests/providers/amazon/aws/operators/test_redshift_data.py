@@ -25,7 +25,6 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.providers.amazon.aws.hooks.redshift_data import QueryExecutionOutput
 from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
 from airflow.providers.amazon.aws.triggers.redshift_data import RedshiftDataTrigger
-from tests.providers.fab.auth_manager.test_security import session
 
 CONN_ID = "aws_conn_test"
 TASK_ID = "task_id"
@@ -177,7 +176,6 @@ class TestRedshiftDataOperator:
             session_keep_alive_seconds=None,
         )
 
-
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
     def test_execute_new_session(self, mock_exec_query):
         cluster_identifier = "cluster_identifier"
@@ -227,7 +225,6 @@ class TestRedshiftDataOperator:
             key="session_id",
             value=SESSION_ID,
         )
-
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
     def test_on_kill_without_query(self, mock_conn):

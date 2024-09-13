@@ -66,16 +66,16 @@ class TestRedshiftDataHook:
     @pytest.mark.parametrize(
         "cluster_identifier, workgroup_name, session_id",
         [
-            (None, None,None),
-            ("some_cluster", "some_workgroup",None),
-            (None, "some_workgroup",None),
-            ("some_cluster", None,None),
-            (None, None,"some_session_id"),
+            (None, None, None),
+            ("some_cluster", "some_workgroup", None),
+            (None, "some_workgroup", None),
+            ("some_cluster", None, None),
+            (None, None, "some_session_id"),
         ],
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
     def test_execute_requires_one_of_cluster_identifier_or_workgroup_name_or_session_id(
-        self, mock_conn, cluster_identifier, workgroup_name,session_id
+        self, mock_conn, cluster_identifier, workgroup_name, session_id
     ):
         mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
         cluster_identifier = "cluster_identifier"
@@ -94,16 +94,16 @@ class TestRedshiftDataHook:
     @pytest.mark.parametrize(
         "cluster_identifier, workgroup_name, session_id",
         [
-            (None, None,None),
-            ("some_cluster", "some_workgroup",None),
-            (None, "some_workgroup",None),
-            ("some_cluster", None,None),
-            (None, None,"some_session_id"),
+            (None, None, None),
+            ("some_cluster", "some_workgroup", None),
+            (None, "some_workgroup", None),
+            ("some_cluster", None, None),
+            (None, None, "some_session_id"),
         ],
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
     def test_execute_session_keep_alive_seconds_valid(
-        self, mock_conn, cluster_identifier, workgroup_name,session_id
+        self, mock_conn, cluster_identifier, workgroup_name, session_id
     ):
         mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
         cluster_identifier = "cluster_identifier"
@@ -120,9 +120,7 @@ class TestRedshiftDataHook:
             )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
-    def test_execute_session_id_valid(
-        self, mock_conn
-    ):
+    def test_execute_session_id_valid(self, mock_conn):
         mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
         cluster_identifier = "cluster_identifier"
         workgroup_name = "workgroup_name"
@@ -218,7 +216,7 @@ class TestRedshiftDataHook:
         mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
 
         hook = RedshiftDataHook()
-        output=hook.execute_query(
+        output = hook.execute_query(
             sql=SQL,
             database=DATABASE,
             cluster_identifier=cluster_identifier,
@@ -253,8 +251,8 @@ class TestRedshiftDataHook:
         mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID, "SessionId": "session_id"}
         mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
         hook = RedshiftDataHook()
-        session_id=str(uuid4())
-        output=hook.execute_query(
+        session_id = str(uuid4())
+        output = hook.execute_query(
             database=None,
             sql=SQL,
             statement_name=statement_name,
