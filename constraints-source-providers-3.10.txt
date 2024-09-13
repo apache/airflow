@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-13T07:59:58.109643
+# This constraints file was automatically generated on 2024-09-13T16:44:02.895950
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -632,7 +632,7 @@ yarl==1.11.1
 ydb==3.17.1
 zeep==4.2.1
 zenpy==2.0.53
-zipp==3.20.1
+zipp==3.20.2
 zope.event==5.0
 zope.interface==7.0.3
 zstandard==0.23.0
