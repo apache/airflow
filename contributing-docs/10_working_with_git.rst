@@ -215,7 +215,6 @@ Useful when you understand the flow but don't remember the steps and want a quic
     git rebase HASH --onto apache/main
     git push --force-with-lease
 
-
 -------
 
 Now, once you know it all you can read more about how Airflow repository is a monorepo containing both airflow package and
