@@ -21,6 +21,43 @@
 
 .. towncrier release notes start
 
+Airflow 2.10.2 (2024-09-18)
+---------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+"""""""""
+- Revert "Fix: DAGs are not marked as stale if the dags folder change" (#42220, #42217)
+- Add missing open telemetry span and correct scheduled slots documentation (#41985)
+- Fix require_confirmation_dag_change (#42063) (#42211)
+- Only treat null/undefined as falsy when rendering XComEntry (#42199) (#42213)
+- Add extra and ``renderedTemplates`` as keys to skip ``camelCasing`` (#42206) (#42208)
+- Do not ``camelcase`` xcom entries (#42182) (#42187)
+- Fix task_instance and dag_run links from list views (#42138) (#42143)
+- Support multi-line input for Params of type string in trigger UI form (#40414) (#42139)
+- Fix details tab log url detection (#42104) (#42114)
+- Add new type of exception to catch timeout (#42064) (#42078)
+- Rewrite how DAG to dataset / dataset alias are stored (#41987) (#42055)
+- Allow dataset alias to add more than one dataset events (#42189) (#42247)
+
+Miscellaneous
+"""""""""""""
+- Limit universal-pathlib below ``0.2.4`` as it breaks our integration (#42101)
+- Auto-fix default deferrable with ``LibCST`` (#42089)
+- Deprecate ``--tree`` flag for ``tasks list`` cli command (#41965)
+
+Doc Only Changes
+""""""""""""""""
+- Update ``security_model.rst`` to clear unauthenticated endpoints exceptions (#42085)
+- Add note about dataclasses and attrs to XComs page (#42056)
+- Improve docs on markdown docs in DAGs (#42013)
+- Add warning that listeners can be dangerous (#41968)
+
+
 Airflow 2.10.1 (2024-09-05)
 ---------------------------
 
@@ -38,7 +75,7 @@ Bug Fixes
 - Fix compatibility with FAB provider versions <1.3.0 (#41809)
 - Don't Fail LocalTaskJob on heartbeat (#41810)
 - Remove deprecation warning for cgitb in Plugins Manager (#41793)
-- Fix log for notifier(instance) without __name__ (#41699)
+- Fix log for notifier(instance) without ``__name__`` (#41699)
 - Splitting syspath preparation into stages (#41694)
 - Adding url sanitization for extra links (#41680)
 - Fix InletEventsAccessors type stub (#41607)
@@ -62,6 +99,7 @@ Doc Only Changes
 """"""""""""""""
 - Remove Debian bullseye support (#41569)
 - Add an example for auth with ``keycloak`` (#41791)
+
 
 Airflow 2.10.0 (2024-08-15)
 ---------------------------
