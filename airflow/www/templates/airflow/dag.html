@@ -129,7 +129,7 @@
           {% endif %}
           <label class="switch-label{{' disabled' if not can_edit_dag else ''  }} js-tooltip" title="{{ switch_tooltip }}">
             <input class="switch-input" id="pause_resume" data-dag-id="{{ dag.dag_id }}"
-                   data-require-confirmation="{{ appbuilder.require_confirmation_dag_change }}"
+                   {{ "data-require-confirmation" if appbuilder.require_confirmation_dag_change else "" }}
                    type="checkbox"{{ " checked" if not dag_is_paused else "" }}
                    {{ " disabled" if not can_edit_dag else "" }}>
             <span class="switch" aria-hidden="true"></span>
