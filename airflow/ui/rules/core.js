@@ -29,7 +29,8 @@ const allExtensions = "*.{j,t}s{x,}";
  * @see [ESLint core rules](https://eslint.org/docs/latest/rules)
  */
 export const coreRules = /** @type {const} @satisfies {FlatConfig.Config} */ ({
-  files: [`{rules,src}/**/${allExtensions}`, `/${allExtensions}`],
+  files: [`{rules,src}/**/${allExtensions}`, `./${allExtensions}`],
+  ignores: ["**/dist/**/*"],
   rules: {
     /**
      * Enforce getter and setter pairs in objects and classes.

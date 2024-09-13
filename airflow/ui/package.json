@@ -6,7 +6,7 @@
   "homepage": "/ui",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
     "lint": "eslint --quiet && tsc --p tsconfig.app.json",
     "lint:fix": "eslint --fix && tsc --p tsconfig.app.json",
     "format": "pnpm prettier --write .",
