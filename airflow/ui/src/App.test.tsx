@@ -21,12 +21,12 @@ import { render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, it, vi } from "vitest";
 
 import * as openapiQueriesModule from "openapi/queries";
-import type { DAGCollection } from "openapi/requests/types.gen";
 
 import { App } from "./App";
 import { Wrapper } from "./utils/Wrapper";
+import { DAGCollectionResponse } from "openapi/requests/types.gen";
 
-const mockListDags: DAGCollection = {
+const mockListDags: DAGCollectionResponse = {
   dags: [
     {
       dag_display_name: "nested_groups",
@@ -55,6 +55,7 @@ const mockListDags: DAGCollection = {
       scheduler_lock: null,
       tags: [],
       timetable_description: "",
+      timetable_summary: "",
     },
     {
       dag_display_name: "simple_bash_operator",
@@ -83,13 +84,16 @@ const mockListDags: DAGCollection = {
       scheduler_lock: null,
       tags: [
         {
+          dag_id: "dag",
           name: "example2",
         },
         {
+          dag_id: "dag",
           name: "example",
         },
       ],
       timetable_description: "At 00:00",
+      timetable_summary: "sum",
     },
   ],
   total_entries: 2,
@@ -99,11 +103,12 @@ beforeEach(() => {
   const returnValue = {
     data: mockListDags,
     isLoading: false,
-  } as QueryObserverSuccessResult<DAGCollection, unknown>;
+  } as QueryObserverSuccessResult<DAGCollectionResponse, unknown>;
 
-  vi.spyOn(openapiQueriesModule, "useDagServiceGetDags").mockImplementation(
-    () => returnValue,
-  );
+  vi.spyOn(
+    openapiQueriesModule,
+    "useDagServiceGetDagsPublicDagsGet"
+  ).mockImplementation(() => returnValue);
 });
 
 afterEach(() => {

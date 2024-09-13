@@ -43,14 +43,13 @@ const queryClient = new QueryClient({
   },
 });
 
+axios.defaults.baseURL = "http://localhost:29091";
+
 // redirect to login page if the API responds with unauthorized or forbidden errors
 axios.interceptors.response.use(
   (response: AxiosResponse) => response,
-  (error: AxiosError) => {
-    if (
-      (error.response?.status === 403 || error.response?.status === 401) &&
-      (error.config?.url?.startsWith("/api/v1/") ?? false)
-    ) {
+  (error) => {
+    if (error.response.status === 403 || error.response.status === 401) {
       const params = new URLSearchParams();
 
       params.set("next", globalThis.location.href);

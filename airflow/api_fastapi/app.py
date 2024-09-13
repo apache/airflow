@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from airflow.www.extensions.init_dagbag import get_dag_bag
 
@@ -42,6 +43,18 @@ def create_app() -> FastAPI:
     init_dag_bag(app)
 
     init_views(app)
+
+    origins = [
+        "http://localhost:28080",
+        "http://localhost:8080",
+    ]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     return app
 
