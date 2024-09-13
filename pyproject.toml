@@ -30,7 +30,7 @@ requires = [
     "pluggy==1.5.0",
     "smmap==5.0.1",
     "tomli==2.0.1; python_version < '3.11'",
-    "trove-classifiers==2024.7.2",
+    "trove-classifiers==2024.9.12",
 ]
 build-backend = "hatchling.build"
 
@@ -359,6 +359,11 @@ combine-as-imports = true
 # when __future__.annotations is used so we need to skip them from upgrading
 # Pydantic also require models to be imported during execution
 "airflow/serialization/pydantic/*.py" = ["I002", "UP007", "TCH001"]
+
+# Failing to detect types and functions used in `Annotated[...]` syntax as required at runtime.
+# Annotated is central for FastAPI dependency injection, skipping rules for FastAPI folders.
+"airflow/api_fastapi/*" = ["TCH001", "TCH002"]
+"tests/api_fastapi/*" = ["TCH001", "TCH002"]
 
 # Ignore pydoc style from these
 "*.pyi" = ["D"]
