@@ -212,6 +212,7 @@ class TestIngressWeb:
     def test_backend_service_name_with_fullname_override(self):
         docs = render_chart(
             values={"fullnameOverride": "test-basic",
+                    "useStandardNaming": True,
                     "ingress": {"web": {"enabled": True}}},
             show_only=["templates/webserver/webserver-ingress.yaml"],
 

@@ -232,6 +232,7 @@ class TestIngressFlower:
     def test_backend_service_name_with_fullname_override(self):
         docs = render_chart(
             values={"fullnameOverride": "test-basic",
+                    "useStandardNaming": True,
                     "ingress": {"enabled": True}, "flower": {"enabled": True}},
             show_only=["templates/flower/flower-ingress.yaml"],
 
