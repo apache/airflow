@@ -205,13 +205,16 @@ Summary
 
 Useful when you understand the flow but don't remember the steps and want a quick reference.
 
-``git fetch --all``
-``git add .``
-``git commit``
-``git merge-base my-branch apache/main``
-``git checkout my-branch``
-``git rebase HASH --onto apache/main``
-``git push --force-with-lease``
+.. code-block:: console
+
+    git fetch --all
+    git add .
+    git commit
+    git merge-base my-branch apache/main
+    git checkout my-branch
+    git rebase HASH --onto apache/main
+    git push --force-with-lease
+
 
 -------
 

@@ -1,0 +1,1 @@
+Removed ``is_active`` property from ``BaseUser``. This property is longer used.

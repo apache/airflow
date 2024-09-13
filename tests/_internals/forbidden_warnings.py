@@ -62,6 +62,11 @@ class ForbiddenWarningsPlugin:
             # Add marker at the beginning of the markers list. In this case, it does not conflict with
             # filterwarnings markers, which are set explicitly in the test suite.
             item.add_marker(pytest.mark.filterwarnings(f"error::{fw}"), append=False)
+        item.add_marker(
+            pytest.mark.filterwarnings(
+                "ignore:Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.:DeprecationWarning"
+            )
+        )
 
     @pytest.hookimpl(hookwrapper=True, trylast=True)
     def pytest_sessionfinish(self, session: pytest.Session, exitstatus: int):
