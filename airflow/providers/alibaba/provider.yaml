@@ -69,7 +69,7 @@ integrations:
       - /docs/apache-airflow-providers-alibaba/operators/analyticdb_spark.rst
     tags: [alibaba]
   - integration-name: Alibaba Cloud EMR Serverless Spark
-    external-doc-url: https://api.alibabacloud.com/document/emr-serverless-spark/2023-08-08/StartJobRun
+    external-doc-url: https://www.alibabacloud.com/help/en/emr/emr-serverless-spark
     how-to-guide:
       - /docs/apache-airflow-providers-alibaba/operators/emr.rst
     tags: [alibaba]
