@@ -763,7 +763,6 @@ class TestDagProcessorJobRunner:
             active_dag_count = session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
             assert active_dag_count == 1
 
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_scan_stale_dags_when_dag_folder_change(self):
         """
         Ensure dags from old dag_folder is marked as stale when dag processor
