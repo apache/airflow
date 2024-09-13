@@ -62,7 +62,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
-    :param verify: Whether or not to verify SSL certificates. See:
+    :param verify: Whether to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param botocore_config: Configuration dictionary (key-values) for botocore client. See:
         https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
@@ -77,6 +77,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         "parameters",
         "statement_name",
         "workgroup_name",
+        "session_id",
     )
     template_ext = (".sql",)
     template_fields_renderers = {"sql": "sql"}
@@ -84,8 +85,8 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
 
     def __init__(
         self,
-        database: str,
         sql: str | list,
+        database: str | None=None,
         cluster_identifier: str | None = None,
         db_user: str | None = None,
         parameters: list | None = None,
@@ -97,6 +98,8 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         return_sql_result: bool = False,
         workgroup_name: str | None = None,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
+        session_id: str | None = None,
+        session_keep_alive_seconds: int | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -120,6 +123,8 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         self.return_sql_result = return_sql_result
         self.statement_id: str | None = None
         self.deferrable = deferrable
+        self.session_id = session_id
+        self.session_keep_alive_seconds = session_keep_alive_seconds
 
     def execute(self, context: Context) -> GetStatementResultResponseTypeDef | str:
         """Execute a statement against Amazon Redshift."""
@@ -130,7 +135,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
         if self.deferrable:
             wait_for_completion = False
 
-        self.statement_id = self.hook.execute_query(
+        query_execution_output = self.hook.execute_query(
             database=self.database,
             sql=self.sql,
             cluster_identifier=self.cluster_identifier,
@@ -142,7 +147,14 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
             with_event=self.with_event,
             wait_for_completion=wait_for_completion,
             poll_interval=self.poll_interval,
+            session_id=self.session_id ,
+            session_keep_alive_seconds=self.session_keep_alive_seconds,
         )
+
+        self.statement_id = query_execution_output.statement_id
+
+        if query_execution_output.session_id:
+            self.xcom_push(context,key="session_id", value=query_execution_output.session_id)
 
         if self.deferrable and self.wait_for_completion:
             is_finished = self.hook.check_query_is_finished(self.statement_id)
