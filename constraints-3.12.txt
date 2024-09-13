@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-12T19:46:20.889284
+# This constraints file was automatically generated on 2024-09-13T19:46:28.944889
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -201,7 +201,7 @@ aws-sam-translator==1.91.0
 aws-xray-sdk==2.14.0
 azure-batch==14.2.0
 azure-common==1.1.28
-azure-core==1.30.2
+azure-core==1.31.0
 azure-cosmos==4.7.0
 azure-datalake-store==0.0.53
 azure-identity==1.17.1
@@ -242,7 +242,7 @@ celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.12.4
+cfn-lint==1.13.0
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -291,6 +291,7 @@ email_validator==2.2.0
 entrypoints==0.4
 eralchemy2==1.4.1
 et-xmlfile==1.1.0
+eval_type_backport==0.2.0
 eventlet==0.37.0
 execnet==2.1.1
 executing==2.1.0
@@ -403,7 +404,7 @@ importlib_resources==6.4.5
 impyla==0.19.0
 incremental==24.7.2
 inflection==0.5.1
-influxdb-client==1.45.0
+influxdb-client==1.46.0
 iniconfig==2.0.0
 ipdb==0.13.13
 ipykernel==6.29.5
@@ -469,7 +470,7 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.1.0
 mypy-boto3-appflow==1.35.0
-mypy-boto3-rds==1.35.0
+mypy-boto3-rds==1.35.18
 mypy-boto3-redshift-data==1.35.10
 mypy-boto3-s3==1.35.16
 mypy-extensions==1.0.0
@@ -521,7 +522,7 @@ pendulum==3.0.0
 pexpect==4.9.0
 pgvector==0.3.3
 pinecone-client==5.0.1
-pinecone-plugin-inference==1.0.3
+pinecone-plugin-inference==1.1.0
 pinecone-plugin-interface==0.0.7
 pinotdb==5.6.0
 pipdeptree==2.23.3
@@ -580,7 +581,7 @@ pytest-rerunfailures==14.0
 pytest-timeouts==1.2.1
 pytest-xdist==3.6.1
 pytest==8.3.3
-python-arango==8.1.0
+python-arango==8.1.1
 python-daemon==3.0.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
@@ -690,7 +691,7 @@ towncrier==24.8.0
 tqdm==4.66.5
 traitlets==5.14.3
 trino==0.329.0
-trove-classifiers==2024.7.2
+trove-classifiers==2024.9.12
 twine==5.1.1
 typed_ast==1.5.5
 typer==0.12.5
@@ -708,7 +709,7 @@ types-protobuf==5.27.0.20240907
 types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20240906
 types-python-slugify==8.0.2.20240310
-types-pytz==2024.1.0.20240417
+types-pytz==2024.2.0.20240913
 types-redis==4.6.0.20240903
 types-requests==2.32.0.20240907
 types-setuptools==74.1.0.20240907
@@ -750,7 +751,7 @@ yarl==1.11.1
 ydb==3.17.1
 zeep==4.2.1
 zenpy==2.0.53
-zipp==3.20.1
+zipp==3.20.2
 zope.event==5.0
 zope.interface==7.0.3
 zstandard==0.23.0
