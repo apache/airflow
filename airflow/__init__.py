@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-__version__ = "2.10.1"
+__version__ = "2.10.2"
 
 import os
 import sys
