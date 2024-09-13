@@ -24,7 +24,7 @@ import * as openapiQueriesModule from "openapi/queries";
 import type { DAGCollection } from "openapi/requests/types.gen";
 
 import { AppSimple } from "./AppSimple";
-import { App } from "./app";
+import { App } from "./App";
 import { Wrapper } from "./utils/Wrapper";
 
 const mockListDags: DAGCollection = {

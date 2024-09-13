@@ -22,7 +22,7 @@ import axios, { type AxiosError, type AxiosResponse } from "axios";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 
-import { App } from "src/app.tsx";
+import { App } from "src/App";
 
 import theme from "./theme";
 
