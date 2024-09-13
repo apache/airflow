@@ -25,7 +25,6 @@ from uuid import UUID
 
 from pendulum import duration
 
-
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils import trim_none_values
 
@@ -39,9 +38,11 @@ ABORTED_STATE = "ABORTED"
 FAILURE_STATES = {FAILED_STATE, ABORTED_STATE}
 RUNNING_STATES = {"PICKED", "STARTED", "SUBMITTED"}
 
+
 @dataclass
 class QueryExecutionOutput:
     """Describes the output of a query execution."""
+
     statement_id: str
     session_id: str | None
 
@@ -125,18 +126,22 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
             "SessionKeepAliveSeconds": session_keep_alive_seconds,
         }
 
-        if sum(x is not None for x in (cluster_identifier,workgroup_name,session_id)) != 1:
-            raise ValueError("Exactly one of cluster_identifier, workgroup_name, or session_id must be provided")
+        if sum(x is not None for x in (cluster_identifier, workgroup_name, session_id)) != 1:
+            raise ValueError(
+                "Exactly one of cluster_identifier, workgroup_name, or session_id must be provided"
+            )
 
-        if session_id is not None :
-            msg="session_id must be a valid UUID4"
+        if session_id is not None:
+            msg = "session_id must be a valid UUID4"
             try:
                 if UUID(session_id).version != 4:
                     raise ValueError(msg)
             except ValueError:
                 raise ValueError(msg)
 
-        if session_keep_alive_seconds is not None and (session_keep_alive_seconds < 0 or duration(seconds=session_keep_alive_seconds).hours > 24):
+        if session_keep_alive_seconds is not None and (
+            session_keep_alive_seconds < 0 or duration(seconds=session_keep_alive_seconds).hours > 24
+        ):
             raise ValueError("Session keep alive duration must be between 0 and 86400 seconds.")
 
         if isinstance(sql, list):

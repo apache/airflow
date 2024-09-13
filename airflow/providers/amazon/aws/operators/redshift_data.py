@@ -86,7 +86,7 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
     def __init__(
         self,
         sql: str | list,
-        database: str | None=None,
+        database: str | None = None,
         cluster_identifier: str | None = None,
         db_user: str | None = None,
         parameters: list | None = None,
@@ -147,14 +147,14 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
             with_event=self.with_event,
             wait_for_completion=wait_for_completion,
             poll_interval=self.poll_interval,
-            session_id=self.session_id ,
+            session_id=self.session_id,
             session_keep_alive_seconds=self.session_keep_alive_seconds,
         )
 
         self.statement_id = query_execution_output.statement_id
 
         if query_execution_output.session_id:
-            self.xcom_push(context,key="session_id", value=query_execution_output.session_id)
+            self.xcom_push(context, key="session_id", value=query_execution_output.session_id)
 
         if self.deferrable and self.wait_for_completion:
             is_finished = self.hook.check_query_is_finished(self.statement_id)
