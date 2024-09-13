@@ -2470,7 +2470,7 @@ class TaskInstance(Base, LoggingMixin):
                     type="xcom", 
                     key=key, 
                     source_dag_id=dag_id, 
-                    source_task_id=", ".join(task_ids), 
+                    source_task_id=str(task_ids), 
                     target_dag_id=self.dag_id, 
                     target_task_id=self.task_id
                     )
