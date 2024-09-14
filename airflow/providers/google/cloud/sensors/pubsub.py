@@ -183,8 +183,8 @@ class PubSubPullSensor(BaseSensorOperator):
         if event["status"] == "success":
             self.log.info("Sensor pulls messages: %s", event["message"])
             if self.messages_callback:
-                message = self._convert_to_received_message(event["message"])
-                message_callback_response = self.messages_callback(message, context)
+                received_message_fmt = self._convert_to_received_message(event["message"])
+                message_callback_response = self.messages_callback(received_message_fmt, context)
 
                 return message_callback_response
 
