@@ -22,21 +22,26 @@ import inspect
 import itertools
 import pathlib
 import sys
+import warnings
 
 import yaml
 from rich.console import Console
-from yaml import SafeLoader
+
+try:
+    from yaml import CSafeLoader as SafeLoader
+except ImportError:
+    from yaml import SafeLoader  # type: ignore
 
 console = Console(width=400, color_system="standard")
 ROOT_DIR = pathlib.Path(__file__).resolve().parents[2]
 
 provider_files_pattern = pathlib.Path(ROOT_DIR, "airflow", "providers").rglob("provider.yaml")
-errors = []
+errors: list[str] = []
 
-OPERATORS = ["sensors", "operators"]
-CLASS_IDENTIFIERS = ["sensor", "operator"]
+OPERATORS: list[str] = ["sensors", "operators"]
+CLASS_IDENTIFIERS: list[str] = ["sensor", "operator"]
 
-TEMPLATE_TYPES = ["template_fields"]
+TEMPLATE_TYPES: list[str] = ["template_fields"]
 
 
 class InstanceFieldExtractor(ast.NodeVisitor):
@@ -130,8 +135,9 @@ def get_eligible_classes(all_classes):
 
 
 def iter_check_template_fields(module: str):
-    imported_module = importlib.import_module(module)
-    classes = inspect.getmembers(imported_module, inspect.isclass)
+    with warnings.catch_warnings(record=True):
+        imported_module = importlib.import_module(module)
+        classes = inspect.getmembers(imported_module, inspect.isclass)
     op_classes = get_eligible_classes(classes)
 
     for op_class_name, cls in op_classes:
