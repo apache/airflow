@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-14T02:04:27.494658
+# This constraints file was automatically generated on 2024-09-14T07:38:50.638659
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -283,7 +283,7 @@ ibm-cloud-sdk-core==3.20.3
 ibmcloudant==0.9.1
 icdiff==2.0.7
 identify==2.6.0
-idna==3.8
+idna==3.9
 ijson==3.3.0
 imagesize==1.4.1
 immutabledict==4.2.0
@@ -599,7 +599,7 @@ types-python-dateutil==2.9.0.20240906
 types-python-slugify==8.0.2.20240310
 types-pytz==2024.2.0.20240913
 types-redis==4.6.0.20240903
-types-requests==2.32.0.20240907
+types-requests==2.32.0.20240914
 types-setuptools==74.1.0.20240907
 types-tabulate==0.9.0.20240106
 types-termcolor==1.1.6.2
