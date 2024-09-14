@@ -227,15 +227,21 @@ class TestIngressFlower:
             show_only=["templates/flower/flower-ingress.yaml"],
         )
 
-        assert "release-name-flower" == jmespath.search("spec.rules[0].http.paths[0].backend.service.name", docs[0])
+        assert "release-name-flower" == jmespath.search(
+            "spec.rules[0].http.paths[0].backend.service.name", docs[0]
+        )
 
     def test_backend_service_name_with_fullname_override(self):
         docs = render_chart(
-            values={"fullnameOverride": "test-basic",
-                    "useStandardNaming": True,
-                    "ingress": {"enabled": True}, "flower": {"enabled": True}},
+            values={
+                "fullnameOverride": "test-basic",
+                "useStandardNaming": True,
+                "ingress": {"enabled": True},
+                "flower": {"enabled": True},
+            },
             show_only=["templates/flower/flower-ingress.yaml"],
-
         )
 
-        assert "test-basic-flower" == jmespath.search("spec.rules[0].http.paths[0].backend.service.name", docs[0])
+        assert "test-basic-flower" == jmespath.search(
+            "spec.rules[0].http.paths[0].backend.service.name", docs[0]
+        )

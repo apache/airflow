@@ -207,15 +207,20 @@ class TestIngressWeb:
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )
 
-        assert "release-name-webserver" == jmespath.search("spec.rules[0].http.paths[0].backend.service.name", docs[0])
+        assert "release-name-webserver" == jmespath.search(
+            "spec.rules[0].http.paths[0].backend.service.name", docs[0]
+        )
 
     def test_backend_service_name_with_fullname_override(self):
         docs = render_chart(
-            values={"fullnameOverride": "test-basic",
-                    "useStandardNaming": True,
-                    "ingress": {"web": {"enabled": True}}},
+            values={
+                "fullnameOverride": "test-basic",
+                "useStandardNaming": True,
+                "ingress": {"web": {"enabled": True}},
+            },
             show_only=["templates/webserver/webserver-ingress.yaml"],
-
         )
 
-        assert "test-basic-webserver" == jmespath.search("spec.rules[0].http.paths[0].backend.service.name", docs[0])
+        assert "test-basic-webserver" == jmespath.search(
+            "spec.rules[0].http.paths[0].backend.service.name", docs[0]
+        )
