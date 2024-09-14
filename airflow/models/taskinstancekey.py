@@ -54,3 +54,8 @@ class TaskInstanceKey(NamedTuple):
         Returns self
         """
         return self
+
+    @classmethod
+    def from_dict(cls, dictionary):
+        """Create TaskInstanceKey from dictionary."""
+        return cls(**dictionary)

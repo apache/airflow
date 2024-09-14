@@ -33,7 +33,7 @@ class InitializationAction:
     """Data for initialization action to be run at start of DataProc cluster."""
 
     uri: str  # Uri of the executable file
-    args: Sequence[str]  # Arguments to the initialization action
+    args: Iterable[str]  # Arguments to the initialization action
     timeout: int  # Execution timeout
 
 
@@ -143,6 +143,12 @@ class DataprocCreateClusterOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if ssh_public_keys is None:
+            ssh_public_keys = []
+
+        if services is None:
+            services = []
+
         self.folder_id = folder_id
         self.yandex_conn_id = connection_id
         self.cluster_name = cluster_name
@@ -186,7 +192,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.hook = DataprocHook(
             yandex_conn_id=self.yandex_conn_id,
         )
-        operation_result = self.hook.client.create_cluster(
+        operation_result = self.hook.dataproc_client.create_cluster(
             folder_id=self.folder_id,
             cluster_name=self.cluster_name,
             cluster_description=self.cluster_description,
@@ -221,15 +227,16 @@ class DataprocCreateClusterOperator(BaseOperator):
             security_group_ids=self.security_group_ids,
             log_group_id=self.log_group_id,
             labels=self.labels,
-            initialization_actions=self.initialization_actions
-            and [
+            initialization_actions=[
                 self.hook.sdk.wrappers.InitializationAction(
                     uri=init_action.uri,
                     args=init_action.args,
                     timeout=init_action.timeout,
                 )
                 for init_action in self.initialization_actions
-            ],
+            ]
+            if self.initialization_actions
+            else None,
         )
         cluster_id = operation_result.response.id
 
@@ -290,7 +297,7 @@ class DataprocDeleteClusterOperator(DataprocBaseOperator):
 
     def execute(self, context: Context) -> None:
         hook = self._setup(context)
-        hook.client.delete_cluster(self.cluster_id)
+        hook.dataproc_client.delete_cluster(self.cluster_id)
 
 
 class DataprocCreateHiveJobOperator(DataprocBaseOperator):
@@ -331,7 +338,7 @@ class DataprocCreateHiveJobOperator(DataprocBaseOperator):
 
     def execute(self, context: Context) -> None:
         hook = self._setup(context)
-        hook.client.create_hive_job(
+        hook.dataproc_client.create_hive_job(
             query=self.query,
             query_file_uri=self.query_file_uri,
             script_variables=self.script_variables,
@@ -387,7 +394,7 @@ class DataprocCreateMapReduceJobOperator(DataprocBaseOperator):
 
     def execute(self, context: Context) -> None:
         hook = self._setup(context)
-        hook.client.create_mapreduce_job(
+        hook.dataproc_client.create_mapreduce_job(
             main_class=self.main_class,
             main_jar_file_uri=self.main_jar_file_uri,
             jar_file_uris=self.jar_file_uris,
@@ -455,7 +462,7 @@ class DataprocCreateSparkJobOperator(DataprocBaseOperator):
 
     def execute(self, context: Context) -> None:
         hook = self._setup(context)
-        hook.client.create_spark_job(
+        hook.dataproc_client.create_spark_job(
             main_class=self.main_class,
             main_jar_file_uri=self.main_jar_file_uri,
             jar_file_uris=self.jar_file_uris,
@@ -526,7 +533,7 @@ class DataprocCreatePysparkJobOperator(DataprocBaseOperator):
 
     def execute(self, context: Context) -> None:
         hook = self._setup(context)
-        hook.client.create_pyspark_job(
+        hook.dataproc_client.create_pyspark_job(
             main_python_file_uri=self.main_python_file_uri,
             python_file_uris=self.python_file_uris,
             jar_file_uris=self.jar_file_uris,

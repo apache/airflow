@@ -41,7 +41,7 @@ LOG_RESPONSE = {"total": 3, "log": ["first_line", "second_line", "third_line"]}
 class TestLivyOperator:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
         db.merge_conn(
             Connection(
                 conn_id="livyunittest", conn_type="livy", host="localhost:8998", port="8998", schema="http"
@@ -425,7 +425,7 @@ class TestLivyOperator:
 
 
 @pytest.mark.db_test
-def test_spark_params_templating(create_task_instance_of_operator):
+def test_spark_params_templating(create_task_instance_of_operator, session):
     ti = create_task_instance_of_operator(
         LivyOperator,
         # Templated fields
@@ -450,6 +450,8 @@ def test_spark_params_templating(create_task_instance_of_operator):
         task_id="test_template_body_templating_task",
         execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
     )
+    session.add(ti)
+    session.commit()
     ti.render_templates()
     task: LivyOperator = ti.task
     assert task.spark_params == {

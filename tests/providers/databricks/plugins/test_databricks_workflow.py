@@ -39,13 +39,11 @@ from airflow.providers.databricks.plugins.databricks_workflow import (
     get_launch_task_id,
     get_task_instance,
 )
-from airflow.utils.dates import days_ago
 from airflow.www.app import create_app
 
 DAG_ID = "test_dag"
 TASK_ID = "test_task"
 RUN_ID = "test_run_1"
-DAG_RUN_DATE = days_ago(1)
 TASK_INSTANCE_KEY = TaskInstanceKey(dag_id=DAG_ID, task_id=TASK_ID, run_id=RUN_ID, try_number=1)
 DATABRICKS_CONN_ID = "databricks_default"
 DATABRICKS_RUN_ID = 12345

@@ -166,6 +166,11 @@ g.node text {
   background-color: #fcecd4;
 }
 
+.legend-item.dataset-alias {
+  float: left;
+  background-color: #e8cfe4;
+}
+
 g.node.dag rect {
   fill: #e8f7e4;
 }
@@ -180,4 +185,8 @@ g.node.sensor rect {
 
 g.node.dataset rect {
   fill: #fcecd4;
+}
+
+g.node.dataset-alias rect {
+  fill: #e8cfe4;
 }

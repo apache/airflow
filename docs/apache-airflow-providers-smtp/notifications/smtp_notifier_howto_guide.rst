@@ -40,7 +40,7 @@ Example Code:
 
     with DAG(
         dag_id="smtp_notifier",
-        schedule_interval=None,
+        schedule=None,
         start_date=datetime(2023, 1, 1),
         catchup=False,
         on_failure_callback=[

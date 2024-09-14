@@ -20,7 +20,7 @@ import inspect
 import itertools
 import textwrap
 import warnings
-from functools import cached_property
+from functools import cached_property, update_wrapper
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -334,6 +334,9 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
     is_teardown: bool = False
     on_failure_fail_dagrun: bool = False
 
+    # This is set in __attrs_post_init__ by update_wrapper. Provided here for type hints.
+    __wrapped__: Callable[FParams, FReturn] = attr.ib(init=False)
+
     @multiple_outputs.default
     def _infer_multiple_outputs(self):
         if "return" not in self.function.__annotations__:
@@ -363,6 +366,7 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         if "self" in self.function_signature.parameters:
             raise TypeError(f"@{self.decorator_name} does not support methods")
         self.kwargs.setdefault("task_id", self.function.__name__)
+        update_wrapper(self, self.function)
 
     def __call__(self, *args: FParams.args, **kwargs: FParams.kwargs) -> XComArg:
         if self.is_teardown:
@@ -385,10 +389,6 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         if self.function.__doc__ and not any(op_doc_attrs):
             op.doc_md = self.function.__doc__
         return XComArg(op)
-
-    @property
-    def __wrapped__(self) -> Callable[FParams, FReturn]:
-        return self.function
 
     def _validate_arg_names(self, func: ValidationSource, kwargs: dict[str, Any]):
         # Ensure that context variables are not shadowed.

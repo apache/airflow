@@ -105,6 +105,10 @@ class DatasetAliasModel(Base):
     )
 
     __tablename__ = "dataset_alias"
+    __table_args__ = (
+        Index("idx_name_unique", name, unique=True),
+        {"sqlite_autoincrement": True},  # ensures PK values not reused
+    )
 
     datasets = relationship(
         "DatasetModel",
@@ -116,6 +120,7 @@ class DatasetAliasModel(Base):
         secondary=dataset_alias_dataset_event_assocation_table,
         back_populates="source_aliases",
     )
+    consuming_dags = relationship("DagScheduleDatasetAliasReference", back_populates="dataset_alias")
 
     @classmethod
     def from_public(cls, obj: DatasetAlias) -> DatasetAliasModel:
@@ -123,6 +128,15 @@ class DatasetAliasModel(Base):
 
     def __repr__(self):
         return f"{self.__class__.__name__}(name={self.name!r})"
+
+    def __hash__(self):
+        return hash(self.name)
+
+    def __eq__(self, other):
+        if isinstance(other, (self.__class__, DatasetAlias)):
+            return self.name == other.name
+        else:
+            return NotImplemented
 
 
 class DatasetModel(Base):
@@ -185,6 +199,50 @@ class DatasetModel(Base):
 
     def __repr__(self):
         return f"{self.__class__.__name__}(uri={self.uri!r}, extra={self.extra!r})"
+
+
+class DagScheduleDatasetAliasReference(Base):
+    """References from a DAG to a dataset alias of which it is a consumer."""
+
+    alias_id = Column(Integer, primary_key=True, nullable=False)
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+
+    dataset_alias = relationship("DatasetAliasModel", back_populates="consuming_dags")
+    dag = relationship("DagModel", back_populates="schedule_dataset_alias_references")
+
+    __tablename__ = "dag_schedule_dataset_alias_reference"
+    __table_args__ = (
+        PrimaryKeyConstraint(alias_id, dag_id, name="dsdar_pkey"),
+        ForeignKeyConstraint(
+            (alias_id,),
+            ["dataset_alias.id"],
+            name="dsdar_dataset_alias_fkey",
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            columns=(dag_id,),
+            refcolumns=["dag.dag_id"],
+            name="dsdar_dag_fkey",
+            ondelete="CASCADE",
+        ),
+        Index("idx_dag_schedule_dataset_alias_reference_dag_id", dag_id),
+    )
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.alias_id == other.alias_id and self.dag_id == other.dag_id
+        return NotImplemented
+
+    def __hash__(self):
+        return hash(self.__mapper__.primary_key)
+
+    def __repr__(self):
+        args = []
+        for attr in [x.name for x in self.__mapper__.primary_key]:
+            args.append(f"{attr}={getattr(self, attr)!r}")
+        return f"{self.__class__.__name__}({', '.join(args)})"
 
 
 class DagScheduleDatasetReference(Base):

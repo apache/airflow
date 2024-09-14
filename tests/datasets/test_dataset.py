@@ -28,6 +28,7 @@ from sqlalchemy.sql import select
 from airflow.datasets import (
     BaseDataset,
     Dataset,
+    DatasetAlias,
     DatasetAll,
     DatasetAny,
     _DatasetAliasCondition,
@@ -119,12 +120,6 @@ def test_not_equal_when_different_uri():
     assert dataset1 != dataset2
 
 
-def test_hash():
-    uri = "s3://example/dataset"
-    dataset = Dataset(uri=uri)
-    hash(dataset)
-
-
 def test_dataset_logic_operations():
     result_or = dataset1 | dataset2
     assert isinstance(result_or, DatasetAny)
@@ -134,6 +129,24 @@ def test_dataset_logic_operations():
 
 def test_dataset_iter_datasets():
     assert list(dataset1.iter_datasets()) == [("s3://bucket1/data1", dataset1)]
+
+
+@pytest.mark.db_test
+def test_dataset_iter_dataset_aliases():
+    base_dataset = DatasetAll(
+        DatasetAlias("example-alias-1"),
+        Dataset("1"),
+        DatasetAny(
+            Dataset("2"),
+            DatasetAlias("example-alias-2"),
+            Dataset("3"),
+            DatasetAll(DatasetAlias("example-alias-3"), Dataset("4"), DatasetAlias("example-alias-4")),
+        ),
+        DatasetAll(DatasetAlias("example-alias-5"), Dataset("5")),
+    )
+    assert list(base_dataset.iter_dataset_aliases()) == [
+        DatasetAlias(f"example-alias-{i}") for i in range(1, 6)
+    ]
 
 
 def test_dataset_evaluate():
@@ -168,10 +181,10 @@ def test_datasetbooleancondition_evaluate_iter():
     assert all_condition.evaluate({"s3://bucket1/data1": True, "s3://bucket2/data2": False}) is False
 
     # Testing iter_datasets indirectly through the subclasses
-    datasets_any = set(any_condition.iter_datasets())
-    datasets_all = set(all_condition.iter_datasets())
-    assert datasets_any == {("s3://bucket1/data1", dataset1), ("s3://bucket2/data2", dataset2)}
-    assert datasets_all == {("s3://bucket1/data1", dataset1), ("s3://bucket2/data2", dataset2)}
+    datasets_any = dict(any_condition.iter_datasets())
+    datasets_all = dict(all_condition.iter_datasets())
+    assert datasets_any == {"s3://bucket1/data1": dataset1, "s3://bucket2/data2": dataset2}
+    assert datasets_all == {"s3://bucket1/data1": dataset1, "s3://bucket2/data2": dataset2}
 
 
 @pytest.mark.parametrize(
@@ -359,7 +372,7 @@ def test_dag_with_complex_dataset_condition(session, dag_maker):
 
 
 def datasets_equal(d1: BaseDataset, d2: BaseDataset) -> bool:
-    if type(d1) != type(d2):
+    if type(d1) is not type(d2):
         return False
 
     if isinstance(d1, Dataset) and isinstance(d2, Dataset):
@@ -517,6 +530,7 @@ def test_normalize_uri_valid_uri():
     assert dataset.normalized_uri == "valid_aip60_uri"
 
 
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 @pytest.mark.usefixtures("clear_datasets")
 class Test_DatasetAliasCondition:

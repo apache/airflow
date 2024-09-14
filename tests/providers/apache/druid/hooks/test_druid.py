@@ -26,6 +26,9 @@ from airflow.exceptions import AirflowException
 from airflow.providers.apache.druid.hooks.druid import DruidDbApiHook, DruidHook, IngestionType
 
 
+# This test mocks the requests library to avoid making actual HTTP requests so database isolation mode
+# will not work for it
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 class TestDruidSubmitHook:
     def setup_method(self):

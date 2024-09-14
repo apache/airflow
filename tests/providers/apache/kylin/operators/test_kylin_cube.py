@@ -27,6 +27,7 @@ from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.providers.apache.kylin.operators.kylin_cube import KylinCubeOperator
 from airflow.utils import timezone
+from airflow.utils.types import DagRunType
 
 DEFAULT_DATE = timezone.datetime(2020, 1, 1)
 
@@ -60,7 +61,7 @@ class TestKylinCubeOperator:
 
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     @patch("airflow.providers.apache.kylin.operators.kylin_cube.KylinHook")
     def test_execute(self, mock_hook):
@@ -148,7 +149,7 @@ class TestKylinCubeOperator:
             operator.execute(None)
 
     @pytest.mark.db_test
-    def test_render_template(self):
+    def test_render_template(self, session):
         operator = KylinCubeOperator(
             task_id="kylin_build_1",
             kylin_conn_id="kylin_default",
@@ -168,7 +169,14 @@ class TestKylinCubeOperator:
             },
         )
         ti = TaskInstance(operator, run_id="kylin_test")
-        ti.dag_run = DagRun(dag_id=self.dag.dag_id, run_id="kylin_test", execution_date=DEFAULT_DATE)
+        ti.dag_run = DagRun(
+            dag_id=self.dag.dag_id,
+            run_id="kylin_test",
+            execution_date=DEFAULT_DATE,
+            run_type=DagRunType.MANUAL,
+        )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         assert "learn_kylin" == getattr(operator, "project")
         assert "kylin_sales_cube" == getattr(operator, "cube")

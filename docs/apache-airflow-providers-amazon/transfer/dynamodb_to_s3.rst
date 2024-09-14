@@ -63,13 +63,23 @@ To parallelize the replication, users can create multiple ``DynamoDBToS3Operator
     :start-after: [START howto_transfer_dynamodb_to_s3_segmented]
     :end-before: [END howto_transfer_dynamodb_to_s3_segmented]
 
-Users can also pass in ``export_time`` param to ``DynamoDBToS3Operator`` to recover data from a point in time.
+Users can also pass in ``point_in_time_export`` boolean param to ``DynamoDBToS3Operator`` to recover data from a point in time.
+
+Full export example usage:
 
 .. exampleinclude:: /../../tests/system/providers/amazon/aws/example_dynamodb_to_s3.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_transfer_dynamodb_to_s3_in_some_point_in_time]
-    :end-before: [END howto_transfer_dynamodb_to_s3_in_some_point_in_time]
+    :start-after: [START howto_transfer_dynamodb_to_s3_in_some_point_in_time_full_export]
+    :end-before: [END howto_transfer_dynamodb_to_s3_in_some_point_in_time_full_export]
+
+Incremental export example usage:
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_dynamodb_to_s3.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_transfer_dynamodb_to_s3_in_some_point_in_time_incremental_export]
+    :end-before: [END howto_transfer_dynamodb_to_s3_in_some_point_in_time_incremental_export]
 
 Reference
 ---------

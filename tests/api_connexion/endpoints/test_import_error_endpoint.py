@@ -29,8 +29,9 @@ from tests.test_utils.api_connexion_utils import assert_401, create_user, delete
 from tests.test_utils.compat import ParseImportError
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_import_errors
+from tests.test_utils.permissions import _resource_name
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 TEST_DAG_IDS = ["test_dag", "test_dag2"]
 
@@ -60,7 +61,12 @@ def configured_app(minimal_app_for_api):
         [
             {
                 "role": "TestSingleDAG",
-                "perms": [(permissions.ACTION_CAN_READ, permissions.resource_name_for_dag(TEST_DAG_IDS[0]))],
+                "perms": [
+                    (
+                        permissions.ACTION_CAN_READ,
+                        _resource_name(TEST_DAG_IDS[0], permissions.RESOURCE_DAG),
+                    )
+                ],
             }
         ]
     )

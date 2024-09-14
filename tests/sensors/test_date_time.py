@@ -32,7 +32,7 @@ class TestDateTimeSensor:
     @classmethod
     def setup_class(cls):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        cls.dag = DAG("test_dag", default_args=args)
+        cls.dag = DAG("test_dag", schedule=None, default_args=args)
 
     @pytest.mark.parametrize(
         "task_id, target_time, expected",

@@ -20,7 +20,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, AlertIcon, Box, Divider, Text } from "@chakra-ui/react";
 
-import useSelection from "src/dag/useSelection";
 import { useGridData } from "src/api";
 import Time from "src/components/Time";
 import { getDuration } from "src/datetime_utils";
@@ -28,19 +27,27 @@ import { getDuration } from "src/datetime_utils";
 import Row from "./Row";
 
 interface Props {
+  runId: string | null;
+  taskId: string | null;
   openGroupIds: string[];
   gridScrollRef: React.RefObject<HTMLDivElement>;
   ganttScrollRef: React.RefObject<HTMLDivElement>;
 }
 
-const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
+const Gantt = ({
+  runId,
+  taskId,
+  openGroupIds,
+  gridScrollRef,
+  ganttScrollRef,
+}: Props) => {
   const ganttRef = useRef<HTMLDivElement>(null);
   const [top, setTop] = useState(0);
   const [width, setWidth] = useState(500);
   const [height, setHeight] = useState("100%");
-  const {
-    selected: { runId, taskId },
-  } = useSelection();
+  const [startDate, setStartDate] = useState<string | null | undefined>();
+  const [endDate, setEndDate] = useState<string | null | undefined>();
+
   const {
     data: { dagRuns, groups },
   } = useGridData();
@@ -106,33 +113,51 @@ const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
 
   const dagRun = dagRuns.find((dr) => dr.runId === runId);
 
-  let startDate = dagRun?.queuedAt || dagRun?.startDate;
-  // @ts-ignore
-  let endDate = dagRun?.endDate ?? moment().add(1, "s").toString();
-
   // Check if any task instance dates are outside the bounds of the dag run dates and update our min start and max end
-  groups.children?.forEach((task) => {
-    const taskInstance = task.instances.find((ti) => ti.runId === runId);
-    if (
-      taskInstance?.queuedDttm &&
-      (!startDate ||
-        Date.parse(taskInstance.queuedDttm) < Date.parse(startDate))
-    ) {
-      startDate = taskInstance.queuedDttm;
-    } else if (
-      taskInstance?.startDate &&
-      (!startDate || Date.parse(taskInstance.startDate) < Date.parse(startDate))
-    ) {
-      startDate = taskInstance.startDate;
-    }
+  const setGanttDuration = useCallback(
+    (
+      queued: string | null | undefined,
+      start: string | null | undefined,
+      end: string | null | undefined
+    ) => {
+      if (
+        queued &&
+        (!startDate || Date.parse(queued) < Date.parse(startDate))
+      ) {
+        setStartDate(queued);
+      } else if (
+        start &&
+        (!startDate || Date.parse(start) < Date.parse(startDate))
+      ) {
+        setStartDate(start);
+      }
 
-    if (
-      taskInstance?.endDate &&
-      (!endDate || Date.parse(taskInstance.endDate) > Date.parse(endDate))
-    ) {
-      endDate = taskInstance.endDate;
+      if (end && (!endDate || Date.parse(end) > Date.parse(endDate))) {
+        setEndDate(end);
+      } else if (!end) {
+        // @ts-ignore
+        setEndDate(moment().add(1, "s").toString());
+      }
+    },
+    [startDate, endDate, setStartDate, setEndDate]
+  );
+
+  // Reset state when the dagrun changes
+  useEffect(() => {
+    if (startDate !== dagRun?.queuedAt && startDate !== dagRun?.startDate) {
+      setStartDate(dagRun?.queuedAt || dagRun?.startDate);
     }
-  });
+    if (!endDate || endDate !== dagRun?.endDate) {
+      // @ts-ignore
+      setEndDate(dagRun?.endDate ?? moment().add(1, "s").toString());
+    }
+  }, [
+    dagRun?.queuedAt,
+    dagRun?.startDate,
+    dagRun?.endDate,
+    startDate,
+    endDate,
+  ]);
 
   const numBars = Math.round(width / 100);
   const runDuration = getDuration(startDate, endDate);
@@ -195,6 +220,7 @@ const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
                 task={c}
                 ganttStartDate={startDate}
                 ganttEndDate={endDate}
+                setGanttDuration={setGanttDuration}
                 key={`gantt-${c.id}`}
               />
             ))}

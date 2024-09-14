@@ -79,9 +79,6 @@ CORE_EXTRAS: dict[str, list[str]] = {
     "cloudpickle": [
         "cloudpickle",
     ],
-    "deprecated-api": [
-        "requests>=2.27.0,<3",
-    ],
     "github-enterprise": [
         "apache-airflow[fab]",
         "authlib>=1.0.0",
@@ -119,9 +116,6 @@ CORE_EXTRAS: dict[str, list[str]] = {
         "bcrypt>=2.0.0",
         "flask-bcrypt>=0.7.1",
     ],
-    "pydantic": [
-        "pydantic>=2.3.0",
-    ],
     "rabbitmq": [
         "amqp",
     ],
@@ -129,10 +123,6 @@ CORE_EXTRAS: dict[str, list[str]] = {
         # This is required for support of S3 file system which uses aiobotocore
         # which can have a conflict with boto3 as mentioned in aiobotocore extra
         "s3fs>=2023.10.0",
-    ],
-    "saml": [
-        # This is required for support of SAML which might be used by some providers (e.g. Amazon)
-        "python3-saml>=1.16.0",
     ],
     "sentry": [
         "blinker>=1.1",
@@ -201,9 +191,8 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "click>=8.0",
         "gitpython>=3.1.40",
         "hatch>=1.9.1",
-        # Incremental 24.7.0 has broken `python -m virtualenv` command when run in /opt/airflow directory
-        # This limit should be removed after fixing https://github.com/twisted/incremental/issues/106
-        "incremental<=22.10.0",
+        # Incremental 24.7.0, 24.7.1 has broken `python -m virtualenv` command when run in /opt/airflow directory
+        "incremental!=24.7.0,!=24.7.1,>=22.10.0",
         "pipdeptree>=2.13.1",
         "pygithub>=2.1.1",
         "restructuredtext-lint>=1.4.0",
@@ -252,7 +241,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
     "devel-static-checks": [
         "black>=23.12.0",
         "pre-commit>=3.5.0",
-        "ruff==0.4.5",
+        "ruff==0.5.5",
         "yamllint>=1.33.0",
     ],
     "devel-tests": [
@@ -274,6 +263,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "pytest-xdist>=3.5.0",
         "pytest>=8.2,<9",
         "requests_mock>=1.11.0",
+        "semver>=3.0.2",
         "time-machine>=2.13.0",
         "wheel>=0.42.0",
     ],
@@ -434,6 +424,10 @@ DEPENDENCIES = [
     "cryptography>=41.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
+    # Required for python 3.8 and 3.9 to work with new annotations styles. Check package
+    # description on PyPI for more details: https://pypi.org/project/eval-type-backport/
+    "eval-type-backport>=0.2.0",
+    "fastapi[standard]>=0.112.2",
     "flask-caching>=2.0.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
     # all parameters now are mandatory which make AirflowDatabaseSessionInterface incopatible with this version.
@@ -471,6 +465,7 @@ DEPENDENCIES = [
     'pendulum>=3.0.0,<4.0;python_version>="3.12"',
     "pluggy>=1.5.0",
     "psutil>=5.8.0",
+    "pydantic>=2.6.0",
     "pygments>=2.0.1",
     "pyjwt>=2.0.0",
     "python-daemon>=3.0.0",
@@ -498,8 +493,9 @@ DEPENDENCIES = [
     # See https://github.com/apache/airflow/pull/31693
     # We should also remove "3rd-party-licenses/LICENSE-unicodecsv.txt" file when we remove this dependency
     "unicodecsv>=0.14.1",
-    # The Universal Pathlib provides  Pathlib-like interface for FSSPEC
-    "universal-pathlib>=0.2.2",
+    # Universal Pathlib 0.2.4 adds extra validation for Paths and our integration with local file paths
+    # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
+    "universal-pathlib>=0.2.2,!=0.2.4",
     # Werkzug 3 breaks Flask-Login 0.6.2, also connexion needs to be updated to >= 3.0
     # we should remove this limitation when FAB supports Flask 2.3 and we migrate connexion to 3+
     "werkzeug>=2.0,<3",

@@ -24,9 +24,10 @@ description: |
   <https://docs.microsoft.com/openspecs/windows_protocols/ms-psrp/>`__.
 
 state: ready
-source-date-epoch: 1716288139
+source-date-epoch: 1723970427
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 2.8.0
   - 2.7.1
   - 2.7.0
   - 2.6.1
@@ -48,7 +49,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.7.0
+  - apache-airflow>=2.8.0
   - pypsrp>=0.8.0
 
 integrations:

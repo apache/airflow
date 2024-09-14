@@ -23,7 +23,7 @@ from urllib.parse import urlsplit
 
 from deprecated.classic import deprecated
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -73,23 +73,17 @@ class OSSKeySensor(BaseSensorOperator):
         parsed_url = urlsplit(self.bucket_key)
         if self.bucket_name is None:
             if parsed_url.netloc == "":
-                # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
                 message = "If key is a relative path from root, please provide a bucket_name"
-                if self.soft_fail:
-                    raise AirflowSkipException(message)
                 raise AirflowException(message)
             self.bucket_name = parsed_url.netloc
             self.bucket_key = parsed_url.path.lstrip("/")
         else:
             if parsed_url.scheme != "" or parsed_url.netloc != "":
-                # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
                 message = (
                     "If bucket_name is provided, bucket_key"
                     " should be relative path from root"
                     " level, rather than a full oss:// url"
                 )
-                if self.soft_fail:
-                    raise AirflowSkipException(message)
                 raise AirflowException(message)
 
         self.log.info("Poking for key : oss://%s/%s", self.bucket_name, self.bucket_key)

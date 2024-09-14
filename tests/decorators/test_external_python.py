@@ -80,8 +80,9 @@ class TestExternalPythonDecorator:
             import cloudpickle  # noqa: F401
             import dill  # noqa: F401
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             ret = f()
+        dag_maker.create_dagrun()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -104,8 +105,9 @@ class TestExternalPythonDecorator:
             import cloudpickle  # noqa: F401
             import dill  # noqa: F401
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             ret = f()
+        dag_maker.create_dagrun()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -121,8 +123,9 @@ class TestExternalPythonDecorator:
         def f():
             pass
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             ret = f()
+        dag_maker.create_dagrun()
 
         with pytest.raises(CalledProcessError):
             ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -132,8 +135,9 @@ class TestExternalPythonDecorator:
         def f():
             raise Exception
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             ret = f()
+        dag_maker.create_dagrun()
 
         with pytest.raises(CalledProcessError):
             ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -155,8 +159,9 @@ class TestExternalPythonDecorator:
             else:
                 raise Exception
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             ret = f(0, 1, c=True)
+        dag_maker.create_dagrun()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -174,8 +179,9 @@ class TestExternalPythonDecorator:
         def f():
             return None
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             ret = f()
+        dag_maker.create_dagrun()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -193,8 +199,9 @@ class TestExternalPythonDecorator:
         def f(_):
             return None
 
-        with dag_maker():
+        with dag_maker(serialized=True):
             ret = f(datetime.datetime.now(tz=datetime.timezone.utc))
+        dag_maker.create_dagrun()
 
         ret.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
@@ -215,8 +222,9 @@ class TestExternalPythonDecorator:
         def f():
             return 1
 
-        with dag_maker() as dag:
+        with dag_maker(serialized=True) as dag:
             ret = f()
+        dag_maker.create_dagrun()
 
         assert len(dag.task_group.children) == 1
         setup_task = dag.task_group.children["f"]
@@ -240,8 +248,9 @@ class TestExternalPythonDecorator:
         def f():
             return 1
 
-        with dag_maker() as dag:
+        with dag_maker(serialized=True) as dag:
             ret = f()
+        dag_maker.create_dagrun()
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]
@@ -266,8 +275,9 @@ class TestExternalPythonDecorator:
         def f():
             return 1
 
-        with dag_maker() as dag:
+        with dag_maker(serialized=True) as dag:
             ret = f()
+        dag_maker.create_dagrun()
 
         assert len(dag.task_group.children) == 1
         teardown_task = dag.task_group.children["f"]

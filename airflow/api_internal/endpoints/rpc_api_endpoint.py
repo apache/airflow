@@ -35,6 +35,7 @@ from jwt import (
 
 from airflow.api_connexion.exceptions import PermissionDenied
 from airflow.configuration import conf
+from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job, most_recent_job
 from airflow.models.dagcode import DagCode
 from airflow.models.taskinstance import _record_task_map_for_downstreams
@@ -52,9 +53,11 @@ log = logging.getLogger(__name__)
 
 @functools.lru_cache
 def initialize_method_map() -> dict[str, Callable]:
+    from airflow.api.common.trigger_dag import trigger_dag
     from airflow.cli.commands.task_command import _get_ti_db_access
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
+    from airflow.datasets import expand_alias_to_datasets
     from airflow.datasets.manager import DatasetManager
     from airflow.models import Trigger, Variable, XCom
     from airflow.models.dag import DAG, DagModel
@@ -90,6 +93,7 @@ def initialize_method_map() -> dict[str, Callable]:
         _add_log,
         _xcom_pull,
         _record_task_map_for_downstreams,
+        trigger_dag,
         DagCode.remove_deleted_code,
         DagModel.deactivate_deleted_dags,
         DagModel.get_paused_dag_ids,
@@ -106,6 +110,7 @@ def initialize_method_map() -> dict[str, Callable]:
         DagFileProcessorManager.clear_nonexistent_import_errors,
         DagFileProcessorManager.deactivate_stale_dags,
         DagWarning.purge_inactive_dag_warnings,
+        expand_alias_to_datasets,
         DatasetManager.register_dataset_change,
         FileTaskHandler._render_filename_db_access,
         Job._add_to_db,
@@ -118,12 +123,12 @@ def initialize_method_map() -> dict[str, Callable]:
         MetastoreBackend._fetch_variable,
         XCom.get_value,
         XCom.get_one,
-        XCom.get_many,
+        # XCom.get_many, # Not supported because it returns query
         XCom.clear,
         XCom.set,
-        Variable.set,
-        Variable.update,
-        Variable.delete,
+        Variable._set,
+        Variable._update,
+        Variable._delete,
         DAG.fetch_callback,
         DAG.fetch_dagrun,
         DagRun.fetch_task_instances,
@@ -232,5 +237,11 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
             response = json.dumps(output_json) if output_json is not None else None
             log.info("Sending response: %s", response)
             return Response(response=response, headers={"Content-Type": "application/json"})
+    # In case of AirflowException or other selective known types, transport the exception class back to caller
+    except (KeyError, AttributeError, AirflowException) as e:
+        exception_json = BaseSerialization.serialize(e, use_pydantic_models=True)
+        response = json.dumps(exception_json)
+        log.info("Sending exception response: %s", response)
+        return Response(response=response, headers={"Content-Type": "application/json"})
     except Exception:
         return log_and_build_error_response(message=f"Error executing method '{method_name}'.", status=500)

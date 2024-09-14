@@ -33,6 +33,8 @@ from airflow.providers.amazon.aws.operators.dms import (
     DmsStopTaskOperator,
 )
 from airflow.utils import timezone
+from airflow.utils.types import DagRunType
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 TASK_ARN = "test_arn"
 
@@ -120,6 +122,18 @@ class TestDmsCreateTaskOperator:
 
         assert dms_hook.get_task_status(TASK_ARN) == "ready"
 
+    def test_template_fields(self):
+        op = DmsCreateTaskOperator(
+            task_id="create_task",
+            **self.TASK_DATA,
+            aws_conn_id="fake-conn-id",
+            region_name="ca-west-1",
+            verify=True,
+            botocore_config={"read_timeout": 42},
+        )
+
+        validate_template_fields(op)
+
 
 class TestDmsDeleteTaskOperator:
     TASK_DATA = {
@@ -172,6 +186,19 @@ class TestDmsDeleteTaskOperator:
         mock_delete_replication_task.assert_called_once_with(replication_task_arn=TASK_ARN)
 
         assert dms_hook.get_task_status(TASK_ARN) == "deleting"
+
+    def test_template_fields(self):
+        op = DmsDeleteTaskOperator(
+            task_id="delete_task",
+            replication_task_arn=TASK_ARN,
+            # Generic hooks parameters
+            aws_conn_id="fake-conn-id",
+            region_name="us-east-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+
+        validate_template_fields(op)
 
 
 class TestDmsDescribeTasksOperator:
@@ -246,18 +273,37 @@ class TestDmsDescribeTasksOperator:
     @pytest.mark.db_test
     @mock.patch.object(DmsHook, "describe_replication_tasks", return_value=(None, MOCK_RESPONSE))
     @mock.patch.object(DmsHook, "get_conn")
-    def test_describe_tasks_return_value(self, mock_conn, mock_describe_replication_tasks):
+    def test_describe_tasks_return_value(self, mock_conn, mock_describe_replication_tasks, session):
         describe_task = DmsDescribeTasksOperator(
             task_id="describe_tasks", dag=self.dag, describe_tasks_kwargs={"Filters": [self.FILTER]}
         )
 
-        dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=timezone.utcnow(), run_id="test")
+        dag_run = DagRun(
+            dag_id=self.dag.dag_id,
+            execution_date=timezone.utcnow(),
+            run_id="test",
+            run_type=DagRunType.MANUAL,
+        )
         ti = TaskInstance(task=describe_task)
         ti.dag_run = dag_run
+        session.add(ti)
+        session.commit()
         marker, response = describe_task.execute(ti.get_template_context())
 
         assert marker is None
         assert response == self.MOCK_RESPONSE
+
+    def test_template_fields(self):
+        op = DmsDescribeTasksOperator(
+            task_id="describe_tasks",
+            describe_tasks_kwargs={"Filters": [self.FILTER]},
+            # Generic hooks parameters
+            aws_conn_id="fake-conn-id",
+            region_name="eu-west-2",
+            verify="/foo/bar/spam.egg",
+            botocore_config={"read_timeout": 42},
+        )
+        validate_template_fields(op)
 
 
 class TestDmsStartTaskOperator:
@@ -316,6 +362,19 @@ class TestDmsStartTaskOperator:
 
         assert dms_hook.get_task_status(TASK_ARN) == "starting"
 
+    def test_template_fields(self):
+        op = DmsStartTaskOperator(
+            task_id="start_task",
+            replication_task_arn=TASK_ARN,
+            # Generic hooks parameters
+            aws_conn_id="fake-conn-id",
+            region_name="us-west-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+
+        validate_template_fields(op)
+
 
 class TestDmsStopTaskOperator:
     TASK_DATA = {
@@ -368,3 +427,16 @@ class TestDmsStopTaskOperator:
         mock_stop_replication_task.assert_called_once_with(replication_task_arn=TASK_ARN)
 
         assert dms_hook.get_task_status(TASK_ARN) == "stopping"
+
+    def test_template_fields(self):
+        op = DmsStopTaskOperator(
+            task_id="stop_task",
+            replication_task_arn=TASK_ARN,
+            # Generic hooks parameters
+            aws_conn_id="fake-conn-id",
+            region_name="eu-west-1",
+            verify=True,
+            botocore_config={"read_timeout": 42},
+        )
+
+        validate_template_fields(op)

@@ -18,10 +18,15 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.xcom import XCom
 from airflow.providers.yandex.links.yq import YQLink
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.mock_operators import MockOperator
+
+yandexcloud = pytest.importorskip("yandexcloud")
 
 
 def test_persist():
@@ -30,11 +35,13 @@ def test_persist():
     YQLink.persist(context=mock_context, task_instance=MockOperator(task_id="test_task_id"), web_link="g.com")
 
     ti = mock_context["ti"]
-    ti.xcom_push.assert_called_once_with(
-        execution_date=None,
-        key="web_link",
-        value="g.com",
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        ti.xcom_push.assert_called_once_with(
+            key="web_link",
+            value="g.com",
+        )
+    else:
+        ti.xcom_push.assert_called_once_with(key="web_link", value="g.com", execution_date=None)
 
 
 def test_default_link():

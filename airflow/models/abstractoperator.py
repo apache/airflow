@@ -466,11 +466,11 @@ class AbstractOperator(Templater, DAGNode):
             _UpstreamPriorityWeightStrategy,
         )
 
-        if type(self.weight_rule) == _AbsolutePriorityWeightStrategy:
+        if isinstance(self.weight_rule, _AbsolutePriorityWeightStrategy):
             return self.priority_weight
-        elif type(self.weight_rule) == _DownstreamPriorityWeightStrategy:
+        elif isinstance(self.weight_rule, _DownstreamPriorityWeightStrategy):
             upstream = False
-        elif type(self.weight_rule) == _UpstreamPriorityWeightStrategy:
+        elif isinstance(self.weight_rule, _UpstreamPriorityWeightStrategy):
             upstream = True
         else:
             upstream = False

@@ -100,8 +100,7 @@ class YQHook(YandexCloudBaseHook):
         return self.client.compose_query_web_link(query_id)
 
     def _get_iam_token(self) -> str:
-        iam_token = self.credentials.get("token")
-        if iam_token is not None:
-            return iam_token
+        if "token" in self.credentials:
+            return self.credentials["token"]
 
         return yc_auth.get_auth_token(service_account_key=self.credentials.get("service_account_key"))

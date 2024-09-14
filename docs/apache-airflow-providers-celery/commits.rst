@@ -35,6 +35,44 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.8.1
+.....
+
+Latest change: 2024-08-20
+
+=================================================================================================  ===========  ======================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ======================================================================================================
+`5cb582b51f <https://github.com/apache/airflow/commit/5cb582b51fb17a7724d22ed2eeca80b1a50610f3>`_  2024-08-20   ``fix: Missing 'slots_occupied' in 'CeleryKubernetesExecutor' and 'LocalKubernetesExecutor' (#41602)``
+=================================================================================================  ===========  ======================================================================================================
+
+3.8.0
+.....
+
+Latest change: 2024-08-19
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`75fb7acbac <https://github.com/apache/airflow/commit/75fb7acbaca09a040067f0a5a37637ff44eb9e14>`_  2024-08-19   ``Prepare docs for Aug 2nd wave of providers (#41559)``
+`6570c6d1bb <https://github.com/apache/airflow/commit/6570c6d1bb620c6a952a16743c7168c775f6ad70>`_  2024-08-13   ``Remove deprecated SubDags (#41390)``
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+=================================================================================================  ===========  =======================================================================
+
+3.7.3
+.....
+
+Latest change: 2024-08-03
+
+=================================================================================================  ===========  ===========================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
+`42a96412b4 <https://github.com/apache/airflow/commit/42a96412b4cbe309c5c9f0f298a5514de838e9d7>`_  2024-07-19   ``Increase broker's visibility timeout to 24hrs (#40879)``
+`09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``
+`a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+=================================================================================================  ===========  ===========================================================
+
 3.7.2
 .....
 
@@ -43,6 +81,7 @@ Latest change: 2024-06-07
 =================================================================================================  ===========  ======================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ======================================================================================
+`35bece7dc3 <https://github.com/apache/airflow/commit/35bece7dc33537eefa328aeef6fbfb206567e8e5>`_  2024-06-07   ``Prepare docs 1st wave June 2024 (#40057)``
 `80522b91bb <https://github.com/apache/airflow/commit/80522b91bb9802a6de6546ca9796a46cc1894f07>`_  2024-06-07   ``catch sentry flush if exception happens in _execute_in_fork finally block (#40060)``
 `73d02e0f21 <https://github.com/apache/airflow/commit/73d02e0f219216910297548d6ec8bd13f523865c>`_  2024-06-05   ``Add PID and return code to _execute_in_fork logging (#40058)``
 `f4c90f71b9 <https://github.com/apache/airflow/commit/f4c90f71b9c709e4bff80d2d0e184fb90f1a288f>`_  2024-06-04   ``Fixing exception types to include TypeError, which is what is raised in (#40012)``

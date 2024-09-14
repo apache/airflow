@@ -29,7 +29,10 @@ database schema that you have made. To generate a new migration file, run the fo
 .. code-block:: bash
 
     # starting at the root of the project
-    $ breeze generate-migration-file -m "add new field to db"
+    $ breeze --backend postgres
+    $ cd airflow
+    $ alembic revision -m "add new field to db" --autogenerate
+
        Generating
     ~/airflow/airflow/migrations/versions/a1e23c41f123_add_new_field_to_db.py
 

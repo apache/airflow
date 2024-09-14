@@ -31,6 +31,8 @@ from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger
 from airflow.utils import timezone
+from airflow.utils.types import DagRunType
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 from tests.providers.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 
@@ -80,6 +82,7 @@ class TestEmrCreateJobFlowOperator:
             region_name="ap-southeast-2",
             dag=DAG(
                 TEST_DAG_ID,
+                schedule=None,
                 default_args=args,
                 template_searchpath=TEMPLATE_SEARCHPATH,
                 template_undefined=StrictUndefined,
@@ -93,11 +96,18 @@ class TestEmrCreateJobFlowOperator:
         assert self.operator.region_name == "ap-southeast-2"
 
     @pytest.mark.db_test
-    def test_render_template(self):
+    def test_render_template(self, session, clean_dags_and_dagruns):
         self.operator.job_flow_overrides = self._config
-        dag_run = DagRun(dag_id=self.operator.dag_id, execution_date=DEFAULT_DATE, run_id="test")
+        dag_run = DagRun(
+            dag_id=self.operator.dag_id,
+            execution_date=DEFAULT_DATE,
+            run_id="test",
+            run_type=DagRunType.MANUAL,
+        )
         ti = TaskInstance(task=self.operator)
         ti.dag_run = dag_run
+        session.add(ti)
+        session.commit()
         ti.render_templates()
 
         expected_args = {
@@ -122,13 +132,20 @@ class TestEmrCreateJobFlowOperator:
         assert self.operator.job_flow_overrides == expected_args
 
     @pytest.mark.db_test
-    def test_render_template_from_file(self, mocked_hook_client):
+    def test_render_template_from_file(self, mocked_hook_client, session, clean_dags_and_dagruns):
         self.operator.job_flow_overrides = "job.j2.json"
         self.operator.params = {"releaseLabel": "5.11.0"}
 
-        dag_run = DagRun(dag_id=self.operator.dag_id, execution_date=DEFAULT_DATE, run_id="test")
+        dag_run = DagRun(
+            dag_id=self.operator.dag_id,
+            execution_date=DEFAULT_DATE,
+            run_id="test",
+            run_type=DagRunType.MANUAL,
+        )
         ti = TaskInstance(task=self.operator)
         ti.dag_run = dag_run
+        session.add(ti)
+        session.commit()
         ti.render_templates()
 
         mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
@@ -187,3 +204,6 @@ class TestEmrCreateJobFlowOperator:
         assert isinstance(
             exc.value.trigger, EmrCreateJobFlowTrigger
         ), "Trigger is not a EmrCreateJobFlowTrigger"
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)

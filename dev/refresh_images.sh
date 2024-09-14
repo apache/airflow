@@ -22,6 +22,7 @@ rm -rf docker-context-files/*.tar.gz
 export ANSWER="yes"
 export CI="true"
 export GITHUB_TOKEN=""
+export PLATFORM=${PLATFORM:="linux/amd64,linux/arm64"}
 
 breeze setup self-upgrade --use-current-airflow-sources
 
@@ -31,7 +32,7 @@ do
          --builder airflow_cache \
          --run-in-parallel \
          --prepare-buildx-cache \
-         --platform linux/amd64,linux/arm64 \
+         --platform "${PLATFORM}" \
          --python ${PYTHON} \
          --verbose
 done
@@ -54,7 +55,7 @@ do
          --run-in-parallel \
          --install-packages-from-context \
          --prepare-buildx-cache \
-         --platform linux/amd64,linux/arm64 \
+         --platform "${PLATFORM}" \
          --python ${PYTHON} \
          --verbose
 done

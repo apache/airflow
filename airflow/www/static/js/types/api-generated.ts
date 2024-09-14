@@ -1,22 +1,3 @@
-/*!
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
-
 /* eslint-disable */
 import type { CamelCasedPropertiesDeep } from "type-fest";
 /**
@@ -737,6 +718,9 @@ export interface paths {
       };
     };
   };
+  "/dagStats": {
+    get: operations["get_dag_stats"];
+  };
   "/dagSources/{file_token}": {
     /** Get a source code using file token. */
     get: operations["get_dag_source"];
@@ -1028,8 +1012,6 @@ export interface components {
        * *New in version 2.9.0*
        */
       dag_display_name?: string;
-      /** @description If the DAG is SubDAG then it is the top level DAG identifier. Otherwise, null. */
-      root_dag_id?: string | null;
       /** @description Whether the DAG is paused. */
       is_paused?: boolean | null;
       /**
@@ -1040,8 +1022,6 @@ export interface components {
        * *Changed in version 2.2.0*&#58; Field is read-only.
        */
       is_active?: boolean | null;
-      /** @description Whether the DAG is SubDAG. */
-      is_subdag?: boolean;
       /**
        * Format: date-time
        * @description The last time the DAG was parsed.
@@ -1089,9 +1069,14 @@ export interface components {
       owners?: string[];
       /** @description User-provided DAG description, which can consist of several sentences or paragraphs that describe DAG contents. */
       description?: string | null;
-      schedule_interval?: components["schemas"]["ScheduleInterval"];
       /**
-       * @description Timetable/Schedule Interval description.
+       * @description Timetable summary.
+       *
+       * *New in version 3.0.0*
+       */
+      timetable_summary?: string | null;
+      /**
+       * @description Timetable description.
        *
        * *New in version 2.3.0*
        */
@@ -1264,6 +1249,23 @@ export interface components {
     DAGRunCollection: {
       dag_runs?: components["schemas"]["DAGRun"][];
     } & components["schemas"]["CollectionInfo"];
+    /** @description Collection of Dag statistics. */
+    DagStatsCollectionSchema: {
+      dags?: components["schemas"]["DagStatsCollectionItem"][];
+    } & components["schemas"]["CollectionInfo"];
+    /** @description DagStats entry collection item. */
+    DagStatsCollectionItem: {
+      /** @description The DAG ID. */
+      dag_id?: string;
+      stats?: components["schemas"]["DagStatsStateCollectionItem"][] | null;
+    };
+    /** @description DagStatsState entry collection item. */
+    DagStatsStateCollectionItem: {
+      /** @description The DAG state. */
+      state?: string;
+      /** @description The DAG state count. */
+      count?: number;
+    };
     DagWarning: {
       /** @description The dag_id. */
       dag_id?: string;
@@ -1642,7 +1644,7 @@ export interface components {
         Partial<number> &
         Partial<boolean> &
         Partial<unknown[]> &
-        Partial<{ [key: string]: unknown }>;
+        Partial<{ [key: string]: unknown } | null>;
     };
     /**
      * @description DAG details.
@@ -2070,10 +2072,6 @@ export interface components {
        * @default false
        */
       only_running?: boolean;
-      /** @description Clear tasks in subdags and clear external tasks indicated by ExternalTaskMarker. */
-      include_subdags?: boolean;
-      /** @description Clear tasks in the parent dag of the subdag. */
-      include_parentdag?: boolean;
       /** @description Set state of DAG runs to RUNNING. */
       reset_dag_runs?: boolean;
       /** @description The DagRun ID for this task instance */
@@ -2292,16 +2290,17 @@ export interface components {
       queue?: string[];
       /** @description The value can be repeated to retrieve multiple matching values (OR condition). */
       executor?: string[];
+      /**
+       * @description The name of the field to order the results by. Prefix a field name
+       * with `-` to reverse the sort order. `order_by` defaults to
+       * `map_index` when unspecified.
+       * Supported field names: `state`, `duration`, `start_date`, `end_date`
+       * and `map_index`.
+       *
+       * *New in version 3.0.0*
+       */
+      order_by?: string;
     };
-    /**
-     * @description Schedule interval. Defines how often DAG runs, this object gets added to your latest task instance's
-     * execution_date to figure out the next schedule.
-     */
-    ScheduleInterval:
-      | (Partial<components["schemas"]["TimeDelta"]> &
-          Partial<components["schemas"]["RelativeDelta"]> &
-          Partial<components["schemas"]["CronExpression"]>)
-      | null;
     /** @description Time delta */
     TimeDelta: {
       __type: string;
@@ -2642,6 +2641,16 @@ export interface components {
     FilterMapIndex: number;
     /** @description Filter on try_number for task instance. */
     FilterTryNumber: number;
+    /**
+     * @description The name of the field to order the results by. Prefix a field name
+     * with `-` to reverse the sort order. `order_by` defaults to
+     * `map_index` when unspecified.
+     * Supported field names: `state`, `duration`, `start_date`, `end_date`
+     * and `map_index`.
+     *
+     * *New in version 3.0.0*
+     */
+    TaskInstanceOrderBy: string;
     /**
      * @description The name of the field to order the results by.
      * Prefix a field name with `-` to reverse the sort order.
@@ -4037,6 +4046,16 @@ export interface operations {
         limit?: components["parameters"]["PageLimit"];
         /** The number of items to skip before starting to collect the result set. */
         offset?: components["parameters"]["PageOffset"];
+        /**
+         * The name of the field to order the results by. Prefix a field name
+         * with `-` to reverse the sort order. `order_by` defaults to
+         * `map_index` when unspecified.
+         * Supported field names: `state`, `duration`, `start_date`, `end_date`
+         * and `map_index`.
+         *
+         * *New in version 3.0.0*
+         */
+        order_by?: components["parameters"]["TaskInstanceOrderBy"];
       };
     };
     responses: {
@@ -4264,12 +4283,15 @@ export interface operations {
         /** The value can be repeated to retrieve multiple matching values (OR condition). */
         executor?: components["parameters"]["FilterExecutor"];
         /**
-         * The name of the field to order the results by.
-         * Prefix a field name with `-` to reverse the sort order.
+         * The name of the field to order the results by. Prefix a field name
+         * with `-` to reverse the sort order. `order_by` defaults to
+         * `map_index` when unspecified.
+         * Supported field names: `state`, `duration`, `start_date`, `end_date`
+         * and `map_index`.
          *
-         * *New in version 2.1.0*
+         * *New in version 3.0.0*
          */
-        order_by?: components["parameters"]["OrderBy"];
+        order_by?: components["parameters"]["TaskInstanceOrderBy"];
       };
     };
     responses: {
@@ -4818,6 +4840,24 @@ export interface operations {
       401: components["responses"]["Unauthenticated"];
       403: components["responses"]["PermissionDenied"];
       404: components["responses"]["NotFound"];
+    };
+  };
+  get_dag_stats: {
+    parameters: {
+      query: {
+        /** One or more DAG IDs separated by commas to filter relevant Dags. */
+        dag_ids: string;
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["DagStatsCollectionSchema"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
     };
   };
   /** Get a source code using file token. */
@@ -5433,6 +5473,15 @@ export type UpdateDagRunState = CamelCasedPropertiesDeep<
 export type DAGRunCollection = CamelCasedPropertiesDeep<
   components["schemas"]["DAGRunCollection"]
 >;
+export type DagStatsCollectionSchema = CamelCasedPropertiesDeep<
+  components["schemas"]["DagStatsCollectionSchema"]
+>;
+export type DagStatsCollectionItem = CamelCasedPropertiesDeep<
+  components["schemas"]["DagStatsCollectionItem"]
+>;
+export type DagStatsStateCollectionItem = CamelCasedPropertiesDeep<
+  components["schemas"]["DagStatsStateCollectionItem"]
+>;
 export type DagWarning = CamelCasedPropertiesDeep<
   components["schemas"]["DagWarning"]
 >;
@@ -5613,9 +5662,6 @@ export type ListDagRunsForm = CamelCasedPropertiesDeep<
 >;
 export type ListTaskInstanceForm = CamelCasedPropertiesDeep<
   components["schemas"]["ListTaskInstanceForm"]
->;
-export type ScheduleInterval = CamelCasedPropertiesDeep<
-  components["schemas"]["ScheduleInterval"]
 >;
 export type TimeDelta = CamelCasedPropertiesDeep<
   components["schemas"]["TimeDelta"]
@@ -5893,6 +5939,9 @@ export type GetTasksVariables = CamelCasedPropertiesDeep<
 >;
 export type GetTaskVariables = CamelCasedPropertiesDeep<
   operations["get_task"]["parameters"]["path"]
+>;
+export type GetDagStatsVariables = CamelCasedPropertiesDeep<
+  operations["get_dag_stats"]["parameters"]["query"]
 >;
 export type GetDagSourceVariables = CamelCasedPropertiesDeep<
   operations["get_dag_source"]["parameters"]["path"]

@@ -69,7 +69,7 @@ def commit_changes(version_branch):
         if DRY_RUN:
             console_print("Skipping below command on CI")
         run_command(
-            ["git", "commit", "-m", f"Update default branches for {version_branch}"],
+            ["git", "commit", "-m", f"Update default branches for {version_branch}", "--no-verify"],
             dry_run_override=DRY_RUN,
             check=True,
         )

@@ -36,11 +36,11 @@ Example Code:
 
     with DAG(
         dag_id="apprise_notifier_testing",
-        schedule_interval=None,
-        start_date=datetime(2023, 1, 1),
+        schedule=None,
+        start_date=datetime(2024, 1, 1),
         catchup=False,
         on_success_callback=[
-            send_apprise_notification(body="The dag {{ dag.dag_id }} failed", notify_type=NotifyType.FAILURE)
+            send_apprise_notification(body="The dag {{ dag.dag_id }} succeeded", notify_type=NotifyType.SUCCESS)
         ],
     ):
         BashOperator(

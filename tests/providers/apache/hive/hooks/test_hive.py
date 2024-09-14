@@ -591,7 +591,7 @@ class TestHiveServer2Hook:
     def setup_method(self):
         self._upload_dataframe()
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
         self.database = "airflow"
         self.table = "hive_server_hook"
 

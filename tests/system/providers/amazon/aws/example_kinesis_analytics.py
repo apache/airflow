@@ -120,6 +120,8 @@ def kinesis_analytics_v2_workflow():
     )
     # [END howto_operator_stop_application]
     stop_application.wait_for_completion = False
+    # With the default `force=False` the test fails  because the data retention policy is blocking the deletion.
+    stop_application.force = True
 
     # [START howto_sensor_stop_application]
     await_stop_application = KinesisAnalyticsV2StopApplicationCompletedSensor(

@@ -326,7 +326,7 @@ Create an ECR Repository
 
 This script should be run on the host(s) running the Airflow Scheduler and Webserver, before those processes are started.
 
-The script sets environment variables that configure Airflow to use the Batch Executor and provide necessary information for task execution. Any other configuration changes made (such as for remote logging) should be added to this example script to keep configuration consistent across the Airflow environment.
+The script sets environment variables that configure Airflow to use the |executorName| Executor and provide necessary information for task execution. Any other configuration changes made (such as for remote logging) should be added to this example script to keep configuration consistent across the Airflow environment.
 
 Initialize the Airflow DB
 ~~~~~~~~~~~~~~~~~~~~~~~~~

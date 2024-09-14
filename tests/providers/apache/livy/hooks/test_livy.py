@@ -22,6 +22,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import multidict
 import pytest
+import requests
 from aiohttp import ClientResponseError, RequestInfo
 from requests.exceptions import RequestException
 
@@ -30,6 +31,8 @@ from airflow.models import Connection
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyAsyncHook, LivyHook
 from airflow.utils import db
 from tests.test_utils.db import clear_db_connections
+
+pytestmark = pytest.mark.skip_if_database_isolation_mode
 
 LIVY_CONN_ID = LivyHook.default_conn_name
 DEFAULT_CONN_ID = LivyHook.default_conn_name
@@ -285,6 +288,26 @@ class TestLivyDbHook:
         )
         with pytest.raises(AirflowException):
             LivyHook().get_batch(BATCH_ID)
+
+    @patch("airflow.providers.apache.livy.hooks.livy.LivyHook.run_method")
+    @patch("airflow.providers.apache.livy.hooks.livy.LivyHook.get_conn")
+    def test_post_batch_calls_get_conn_if_no_batch_id(self, mock_get_conn, mock_run_method):
+        # mock run_method to get rid of call get_conn in it
+        mock_response = MagicMock(resp=requests.Response)
+        mock_response.json.return_value = {"id": BATCH_ID, "state": BatchState.STARTING.value, "log": []}
+        mock_run_method.return_value = mock_response
+
+        hook = LivyHook()
+
+        # base_url is not set
+        hook.post_batch(file="sparkapp")
+        mock_get_conn.assert_called_once()
+
+        # base_url is set
+        mock_get_conn.reset_mock()
+        hook.base_url = "//livy:8998"
+        hook.post_batch(file="sparkapp")
+        mock_get_conn.assert_not_called()
 
     def test_invalid_uri(self):
         with pytest.raises(RequestException):

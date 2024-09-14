@@ -25,6 +25,36 @@
 Changelog
 ---------
 
+1.2.0
+.....
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add method to common.compat to not force hooks to try/except every 2.10 hook lineage call (#40812)``
+
+Misc
+~~~~
+
+* ``Migrate OpenLineage provider to V2 facets. (#39530)``
+* ``Add support for hook lineage for S3Hook (#40819)``
+
 1.0.0
 .....
 

@@ -22,7 +22,6 @@ from __future__ import annotations
 import inspect
 import logging
 import os
-import warnings
 from contextlib import suppress
 from enum import Enum
 from functools import cached_property
@@ -34,7 +33,7 @@ import pendulum
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
@@ -133,12 +132,12 @@ def _interleave_logs(*logs):
     for log in logs:
         records.extend(_parse_timestamps_in_log_file(log.splitlines()))
     last = None
-    for _, _, v in sorted(
+    for timestamp, _, line in sorted(
         records, key=lambda x: (x[0], x[1]) if x[0] else (pendulum.datetime(2000, 1, 1), x[1])
     ):
-        if v != last:  # dedupe
-            yield v
-        last = v
+        if line != last or not timestamp:  # dedupe
+            yield line
+        last = line
 
 
 def _ensure_ti(ti: TaskInstanceKey | TaskInstance | TaskInstancePydantic, session) -> TaskInstance:
@@ -175,7 +174,6 @@ class FileTaskHandler(logging.Handler):
     instance context.  It reads logs from task instance's host machine.
 
     :param base_log_folder: Base log folder to place logs.
-    :param filename_template: template filename string
     :param max_bytes: max bytes size for the log file
     :param backup_count: backup file count for the log file
     :param delay:  default False -> StreamHandler, True -> Handler
@@ -189,7 +187,6 @@ class FileTaskHandler(logging.Handler):
     def __init__(
         self,
         base_log_folder: str,
-        filename_template: str | None = None,
         max_bytes: int = 0,
         backup_count: int = 0,
         delay: bool = False,
@@ -197,14 +194,6 @@ class FileTaskHandler(logging.Handler):
         super().__init__()
         self.handler: logging.Handler | None = None
         self.local_base = base_log_folder
-        if filename_template is not None:
-            warnings.warn(
-                "Passing filename_template to a log handler is deprecated and has no effect",
-                RemovedInAirflow3Warning,
-                # We want to reference the stack that actually instantiates the
-                # handler, not the one that calls super()__init__.
-                stacklevel=(2 if type(self) == FileTaskHandler else 3),
-            )
         self.maintain_propagate: bool = False
         self.max_bytes = max_bytes
         self.backup_count = backup_count
@@ -381,28 +370,23 @@ class FileTaskHandler(logging.Handler):
         executor_messages: list[str] = []
         executor_logs: list[str] = []
         served_logs: list[str] = []
-        is_in_running_or_deferred = ti.state in (
-            TaskInstanceState.RUNNING,
-            TaskInstanceState.DEFERRED,
-        )
-        is_up_for_retry = ti.state == TaskInstanceState.UP_FOR_RETRY
         with suppress(NotImplementedError):
             remote_messages, remote_logs = self._read_remote_logs(ti, try_number, metadata)
             messages_list.extend(remote_messages)
+        has_k8s_exec_pod = False
         if ti.state == TaskInstanceState.RUNNING:
             response = self._executor_get_task_log(ti, try_number)
             if response:
                 executor_messages, executor_logs = response
             if executor_messages:
                 messages_list.extend(executor_messages)
+                has_k8s_exec_pod = True
         if not (remote_logs and ti.state not in State.unfinished):
             # when finished, if we have remote logs, no need to check local
             worker_log_full_path = Path(self.local_base, worker_log_rel_path)
             local_messages, local_logs = self._read_from_local(worker_log_full_path)
             messages_list.extend(local_messages)
-        if (is_in_running_or_deferred or is_up_for_retry) and not executor_messages and not remote_logs:
-            # While task instance is still running and we don't have either executor nor remote logs, look for served logs
-            # This is for cases when users have not setup remote logging nor shared drive for logs
+        if ti.state in (TaskInstanceState.RUNNING, TaskInstanceState.DEFERRED) and not has_k8s_exec_pod:
             served_messages, served_logs = self._read_from_logs_server(ti, worker_log_rel_path)
             messages_list.extend(served_messages)
         elif ti.state not in State.unfinished and not (local_logs or remote_logs):
@@ -422,7 +406,10 @@ class FileTaskHandler(logging.Handler):
         )
         log_pos = len(logs)
         messages = "".join([f"*** {x}\n" for x in messages_list])
-        end_of_log = ti.try_number != try_number or not is_in_running_or_deferred
+        end_of_log = ti.try_number != try_number or ti.state not in (
+            TaskInstanceState.RUNNING,
+            TaskInstanceState.DEFERRED,
+        )
         if metadata and "log_pos" in metadata:
             previous_chars = metadata["log_pos"]
             logs = logs[previous_chars:]  # Cut off previously passed log test as new tail
@@ -475,7 +462,7 @@ class FileTaskHandler(logging.Handler):
         # try number gets incremented in DB, i.e logs produced the time
         # after cli run and before try_number + 1 in DB will not be displayed.
         if try_number is None:
-            next_try = task_instance.next_try_number
+            next_try = task_instance.try_number + 1
             try_numbers = list(range(1, next_try))
         elif try_number < 1:
             logs = [

@@ -97,59 +97,6 @@ When writing a deferrable operators these are the main points to consider:
             return
 
 
-Exiting deferred task from Triggers
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
- .. versionadded:: 2.10.0
-
-If you want to exit your task directly from the triggerer without going into the worker, you can specify the instance level attribute ``end_from_trigger`` with the attributes of your deferrable operator, as discussed above. This can save some resources needed to start a new worker.
-
-Triggers can have two options: they can either send execution back to the worker or end the task instance directly. If the trigger ends the task instance itself, the ``method_name`` does not matter and can be ``None``. Otherwise, provide ``method_name`` that should be used when resuming execution in the task.
-
-.. code-block:: python
-
-    class WaitFiveHourSensorAsync(BaseSensorOperator):
-        # this sensor always exits from trigger.
-        def __init__(self, **kwargs) -> None:
-            super().__init__(**kwargs)
-            self.end_from_trigger = True
-
-        def execute(self, context: Context) -> NoReturn:
-            self.defer(
-                method_name=None,
-                trigger=WaitFiveHourTrigger(duration=timedelta(hours=5), end_from_trigger=self.end_from_trigger),
-            )
-
-
-``TaskSuccessEvent`` and ``TaskFailureEvent`` are the two events that can be used to end the task instance directly. This marks the task with the state ``task_instance_state`` and optionally pushes xcom if applicable. Here's an example of how to use these events:
-
-.. code-block:: python
-
-
-    class WaitFiveHourTrigger(BaseTrigger):
-        def __init__(self, duration: timedelta, *, end_from_trigger: bool = False):
-            super().__init__()
-            self.duration = duration
-            self.end_from_trigger = end_from_trigger
-
-        def serialize(self) -> tuple[str, dict[str, Any]]:
-            return (
-                "your_module.WaitFiveHourTrigger",
-                {"duration": self.duration, "end_from_trigger": self.end_from_trigger},
-            )
-
-        async def run(self) -> AsyncIterator[TriggerEvent]:
-            await asyncio.sleep(self.duration.total_seconds())
-            if self.end_from_trigger:
-                yield TaskSuccessEvent()
-            else:
-                yield TriggerEvent({"duration": self.duration})
-
-In the above example, the trigger will end the task instance directly if ``end_from_trigger`` is set to ``True`` by yielding ``TaskSuccessEvent``. Otherwise, it will resume the task instance with the method specified in the operator.
-
-.. note::
-    Exiting from the trigger works only when listeners are not integrated for the deferrable operator. Currently, when deferrable operator has the ``end_from_trigger`` attribute set to ``True`` and listeners are integrated it raises an exception during parsing to indicate this limitation. While writing the custom trigger, ensure that the trigger is not set to end the task instance directly if the listeners are added from plugins. If the ``end_from_trigger`` attribute is changed to different attribute by author of trigger, the DAG parsing would not raise any exception and the listeners dependent on this task would not work. This limitation will be addressed in future releases.
-
 Writing Triggers
 ~~~~~~~~~~~~~~~~
 
@@ -224,12 +171,16 @@ Here's a basic example of how a sensor might trigger deferral:
 
 .. code-block:: python
 
+    from __future__ import annotations
+
     from datetime import timedelta
-    from typing import Any
+    from typing import TYPE_CHECKING, Any
 
     from airflow.sensors.base import BaseSensorOperator
     from airflow.triggers.temporal import TimeDeltaTrigger
-    from airflow.utils.context import Context
+
+    if TYPE_CHECKING:
+        from airflow.utils.context import Context
 
 
     class WaitOneHourSensor(BaseSensorOperator):
@@ -239,6 +190,7 @@ Here's a basic example of how a sensor might trigger deferral:
         def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
             # We have no more work to do here. Mark as complete.
             return
+
 
 When you opt to defer, your operator will stop executing at that point and be removed from its current worker. No state will persist, such as local variables or attributes set on ``self``. When your operator resumes, it resumes as a new instance of it. The only way you can pass state from the old instance of the operator to the new one is with ``method_name`` and ``kwargs``.
 
@@ -262,47 +214,31 @@ Triggering Deferral from Task Start
 If you want to defer your task directly to the triggerer without going into the worker, you can set class level attribute ``start_from_trigger`` to ``True`` and add a class level attribute ``start_trigger_args`` with an ``StartTriggerArgs`` object with the following 4 attributes to your deferrable operator:
 
 * ``trigger_cls``: An importable path to your trigger class.
-* ``trigger_kwargs``: Keyword arguments to pass to the ``trigger_cls`` when it's initialized. **Note that all the arguments need to be serializable. It's the main limitation of this feature.**
+* ``trigger_kwargs``: Keyword arguments to pass to the ``trigger_cls`` when it's initialized. **Note that all the arguments need to be serializable by Airflow. It's the main limitation of this feature.**
 * ``next_method``: The method name on your operator that you want Airflow to call when it resumes.
 * ``next_kwargs``: Additional keyword arguments to pass to the ``next_method`` when it is called.
 * ``timeout``: (Optional) A timedelta that specifies a timeout after which this deferral will fail, and fail the task instance. Defaults to ``None``, which means no timeout.
 
-This is particularly useful when deferring is the only thing the ``execute`` method does. Here's a basic refinement of the previous example. In the previous example, we used ``DateTimeTrigger`` which takes an argument ``delta`` with type ``datetime.timedelta`` which is not serializable. Thus, we need to create a new trigger with serializable arguments.
+In the sensor part, we'll need to provide the path to ``TimeDeltaTrigger`` as ``trigger_cls``.
 
 .. code-block:: python
 
     from __future__ import annotations
 
-    import datetime
-
-    from airflow.triggers.temporal import DateTimeTrigger
-    from airflow.utils import timezone
-
-
-    class HourDeltaTrigger(DateTimeTrigger):
-        def __init__(self, hours: int):
-            moment = timezone.utcnow() + datetime.timedelta(hours=hours)
-            super().__init__(moment=moment)
-
-
-In the sensor part, we'll need to provide the path to ``HourDeltaTrigger`` as ``trigger_cls``.
-
-.. code-block:: python
-
-    from __future__ import annotations
-
-    from typing import Any
+    from datetime import timedelta
+    from typing import TYPE_CHECKING, Any
 
     from airflow.sensors.base import BaseSensorOperator
     from airflow.triggers.base import StartTriggerArgs
-    from airflow.utils.context import Context
+
+    if TYPE_CHECKING:
+        from airflow.utils.context import Context
 
 
     class WaitOneHourSensor(BaseSensorOperator):
-        # You'll need to change trigger_cls to the actual path to HourDeltaTrigger.
         start_trigger_args = StartTriggerArgs(
-            trigger_cls="airflow.triggers.temporal.HourDeltaTrigger",
-            trigger_kwargs={"hours": 1},
+            trigger_cls="airflow.triggers.temporal.TimeDeltaTrigger",
+            trigger_kwargs={"moment": timedelta(hours=1)},
             next_method="execute_complete",
             next_kwargs=None,
             timeout=None,
@@ -318,23 +254,27 @@ In the sensor part, we'll need to provide the path to ``HourDeltaTrigger`` as ``
 
 .. code-block:: python
 
+    from __future__ import annotations
+
     from datetime import timedelta
-    from typing import Any
+    from typing import TYPE_CHECKING, Any
 
     from airflow.sensors.base import BaseSensorOperator
-    from airflow.triggers.temporal import TimeDeltaTrigger
-    from airflow.utils.context import Context
+    from airflow.triggers.base import StartTriggerArgs
+
+    if TYPE_CHECKING:
+        from airflow.utils.context import Context
 
 
-    class WaitTwoHourSensor(BaseSensorOperator):
-        # You'll need to change trigger_cls to the actual path to HourDeltaTrigger.
+    class WaitHoursSensor(BaseSensorOperator):
         start_trigger_args = StartTriggerArgs(
-            trigger_cls="airflow.triggers.temporal.HourDeltaTrigger",
-            trigger_kwargs={"hours": 1},
+            trigger_cls="airflow.triggers.temporal.TimeDeltaTrigger",
+            trigger_kwargs={"moment": timedelta(hours=1)},
             next_method="execute_complete",
             next_kwargs=None,
             timeout=None,
         )
+        start_from_trigger = True
 
         def __init__(self, *args: list[Any], **kwargs: dict[str, Any]) -> None:
             super().__init__(*args, **kwargs)
@@ -345,27 +285,35 @@ In the sensor part, we'll need to provide the path to ``HourDeltaTrigger`` as ``
             # We have no more work to do here. Mark as complete.
             return
 
-To enable Dynamic Task Mapping support, you can define ``start_from_trigger`` and ``trigger_kwargs`` in the parameter of "__init__". **Note that you don't need to define both of them to use this feature, but you do need to use the exact same parameter name.** For example, if you define an argument as ``t_kwargs`` and assign this value to ``self.start_trigger_args.trigger_kwargs``, it will not work. Also, this works different from mapping an operator without ``start_from_trigger`` support. The whole ``__init__`` method will be skipped when mapping an operator whose ``start_from_trigger`` is set to True. Only argument ``trigger_kwargs`` is used and passed into ``trigger_cls``.
+
+The initialization stage of mapped tasks occurs after the scheduler submits them to the executor. Thus, this feature offers limited dynamic task mapping support and its usage differs from standard practices. To enable dynamic task mapping support, you need to define ``start_from_trigger`` and ``trigger_kwargs`` in the ``__init__`` method. **Note that you don't need to define both of them to use this feature, but you need to use the exact same parameter name.** For example, if you define an argument as ``t_kwargs`` and assign this value to ``self.start_trigger_args.trigger_kwargs``, it will not have any effect. The entire ``__init__`` method will be skipped when mapping a task whose ``start_from_trigger`` is set to True. The scheduler will use the provided ``start_from_trigger`` and ``trigger_kwargs`` from ``partial`` and ``expand`` (fallbacks to the ones from class attributes if not provided) to determine whether and how to submit tasks to the executor or the triggerer. Note that XCom values won't be resolved at this stage.
+
+After the trigger has finished executing, the task may be sent back to the worker to execute the ``next_method``, or the task instance may end directly. (Refer to :ref:`Exiting deferred task from Triggers<deferring/exiting_from_trigger>`) If the task is sent back to the worker, the arguments in the ``__init__`` method will still take effect before the ``next_method`` is executed, but they will not affect the execution of the trigger.
+
 
 .. code-block:: python
 
+    from __future__ import annotations
+
     from datetime import timedelta
-    from typing import Any
+    from typing import TYPE_CHECKING, Any
 
     from airflow.sensors.base import BaseSensorOperator
-    from airflow.triggers.temporal import TimeDeltaTrigger
-    from airflow.utils.context import Context
+    from airflow.triggers.base import StartTriggerArgs
+
+    if TYPE_CHECKING:
+        from airflow.utils.context import Context
 
 
     class WaitHoursSensor(BaseSensorOperator):
-        # You'll need to change trigger_cls to the actual path to HourDeltaTrigger.
         start_trigger_args = StartTriggerArgs(
-            trigger_cls="airflow.triggers.temporal.HourDeltaTrigger",
-            trigger_kwargs={"hours": 1},
+            trigger_cls="airflow.triggers.temporal.TimeDeltaTrigger",
+            trigger_kwargs={"moment": timedelta(hours=1)},
             next_method="execute_complete",
             next_kwargs=None,
             timeout=None,
         )
+        start_from_trigger = True
 
         def __init__(
             self,
@@ -384,13 +332,71 @@ To enable Dynamic Task Mapping support, you can define ``start_from_trigger`` an
             # We have no more work to do here. Mark as complete.
             return
 
-These parameters can be mapped using the ``expand`` and ``partial`` methods. Note that XCom values won't be resolved at this stage.
+
+This will be expanded into 2 tasks, with their "hours" arguments set to 1 and 2 respectively.
 
 .. code-block:: python
 
     WaitHoursSensor.partial(task_id="wait_for_n_hours", start_from_trigger=True).expand(
         trigger_kwargs=[{"hours": 1}, {"hours": 2}]
     )
+
+
+.. _deferring/exiting_from_trigger:
+
+Exiting deferred task from Triggers
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+ .. versionadded:: 2.10.0
+
+If you want to exit your task directly from the triggerer without going into the worker, you can specify the instance level attribute ``end_from_trigger`` with the attributes of your deferrable operator, as discussed above. This can save some resources needed to start a new worker.
+
+Triggers can have two options: they can either send execution back to the worker or end the task instance directly. If the trigger ends the task instance itself, the ``method_name`` does not matter and can be ``None``. Otherwise, provide ``method_name`` that should be used when resuming execution in the task.
+
+.. code-block:: python
+
+    class WaitFiveHourSensorAsync(BaseSensorOperator):
+        # this sensor always exits from trigger.
+        def __init__(self, **kwargs) -> None:
+            super().__init__(**kwargs)
+            self.end_from_trigger = True
+
+        def execute(self, context: Context) -> NoReturn:
+            self.defer(
+                method_name=None,
+                trigger=WaitFiveHourTrigger(duration=timedelta(hours=5), end_from_trigger=self.end_from_trigger),
+            )
+
+
+``TaskSuccessEvent`` and ``TaskFailureEvent`` are the two events that can be used to end the task instance directly. This marks the task with the state ``task_instance_state`` and optionally pushes xcom if applicable. Here's an example of how to use these events:
+
+.. code-block:: python
+
+
+    class WaitFiveHourTrigger(BaseTrigger):
+        def __init__(self, duration: timedelta, *, end_from_trigger: bool = False):
+            super().__init__()
+            self.duration = duration
+            self.end_from_trigger = end_from_trigger
+
+        def serialize(self) -> tuple[str, dict[str, Any]]:
+            return (
+                "your_module.WaitFiveHourTrigger",
+                {"duration": self.duration, "end_from_trigger": self.end_from_trigger},
+            )
+
+        async def run(self) -> AsyncIterator[TriggerEvent]:
+            await asyncio.sleep(self.duration.total_seconds())
+            if self.end_from_trigger:
+                yield TaskSuccessEvent()
+            else:
+                yield TriggerEvent({"duration": self.duration})
+
+In the above example, the trigger will end the task instance directly if ``end_from_trigger`` is set to ``True`` by yielding ``TaskSuccessEvent``. Otherwise, it will resume the task instance with the method specified in the operator.
+
+.. note::
+    Exiting from the trigger works only when listeners are not integrated for the deferrable operator. Currently, when deferrable operator has the ``end_from_trigger`` attribute set to ``True`` and listeners are integrated it raises an exception during parsing to indicate this limitation. While writing the custom trigger, ensure that the trigger is not set to end the task instance directly if the listeners are added from plugins. If the ``end_from_trigger`` attribute is changed to different attribute by author of trigger, the DAG parsing would not raise any exception and the listeners dependent on this task would not work. This limitation will be addressed in future releases.
+
 
 High Availability
 -----------------

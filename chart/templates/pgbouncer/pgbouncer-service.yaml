@@ -42,6 +42,9 @@ metadata:
     {{- end }}
 spec:
   type: ClusterIP
+  {{- if .Values.pgbouncer.service.clusterIp }}
+  clusterIP: {{ .Values.pgbouncer.service.clusterIp }}
+  {{- end }}
   selector:
     tier: airflow
     component: pgbouncer

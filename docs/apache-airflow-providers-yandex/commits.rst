@@ -37,14 +37,30 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.12.0
+......
+
+Latest change: 2024-08-12
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+`2daa5bd01a <https://github.com/apache/airflow/commit/2daa5bd01a65b6062ec3a38aa71dc462c805ba28>`_  2024-08-04   ``providers/yandex: fix typing (#40997)``
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
+`09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``
+`a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+=================================================================================================  ===========  =======================================================================
+
 3.11.2
 ......
 
-Latest change: 2024-06-17
+Latest change: 2024-06-22
 
 =================================================================================================  ===========  =========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =========================================================================
+`6e5ae26382 <https://github.com/apache/airflow/commit/6e5ae26382b328e88907e8301d4b2352ef8524c5>`_  2024-06-22   ``Prepare docs 2nd wave June 2024 (#40273)``
 `0d5bb60981 <https://github.com/apache/airflow/commit/0d5bb60981b79f67d6ea5b813a88d09b366ee2d3>`_  2024-06-17   ``Fix typos in Providers docs and Yandex hook (#40277)``
 `53e6739e67 <https://github.com/apache/airflow/commit/53e6739e67886e3326cfca0face7e9ce116ce4ab>`_  2024-06-01   ``Limit yandex provider to avoid mypy errors (#39990)``
 `8173693a70 <https://github.com/apache/airflow/commit/8173693a706f09e0f6c53bd0f4e22b2ba6586bc6>`_  2024-05-31   ``Remove upper-binding in yandex after dataproc issue is fixed (#39974)``

@@ -177,7 +177,7 @@ def mock_databricks_workflow_operator():
 
 def test_task_group_initialization():
     """Test that DatabricksWorkflowTaskGroup initializes correctly."""
-    with DAG(dag_id="example_databricks_workflow_dag", start_date=DEFAULT_DATE) as example_dag:
+    with DAG(dag_id="example_databricks_workflow_dag", schedule=None, start_date=DEFAULT_DATE) as example_dag:
         with DatabricksWorkflowTaskGroup(
             group_id="test_databricks_workflow", databricks_conn_id="databricks_conn"
         ) as task_group:
@@ -190,7 +190,7 @@ def test_task_group_initialization():
 
 def test_task_group_exit_creates_operator(mock_databricks_workflow_operator):
     """Test that DatabricksWorkflowTaskGroup creates a _CreateDatabricksWorkflowOperator on exit."""
-    with DAG(dag_id="example_databricks_workflow_dag", start_date=DEFAULT_DATE) as example_dag:
+    with DAG(dag_id="example_databricks_workflow_dag", schedule=None, start_date=DEFAULT_DATE) as example_dag:
         with DatabricksWorkflowTaskGroup(
             group_id="test_databricks_workflow",
             databricks_conn_id="databricks_conn",
@@ -220,7 +220,7 @@ def test_task_group_exit_creates_operator(mock_databricks_workflow_operator):
 
 def test_task_group_root_tasks_set_upstream_to_operator(mock_databricks_workflow_operator):
     """Test that tasks added to a DatabricksWorkflowTaskGroup are set upstream to the operator."""
-    with DAG(dag_id="example_databricks_workflow_dag", start_date=DEFAULT_DATE):
+    with DAG(dag_id="example_databricks_workflow_dag", schedule=None, start_date=DEFAULT_DATE):
         with DatabricksWorkflowTaskGroup(
             group_id="test_databricks_workflow1",
             databricks_conn_id="databricks_conn",

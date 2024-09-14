@@ -25,6 +25,27 @@
 Changelog
 ---------
 
+1.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``[AIP-62] Translate AIP-60 URI to OpenLineage (#40173)``
+* ``openlineage: add file dataset type support into common.io provider (#40817)``
+
+Misc
+~~~~
+
+* ``openlineage: migrate OpenLineage provider to V2 facets. (#39530)``
+* ``openlineage: add support for hook lineage for S3Hook (#40819)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs 1st wave July 2024 (#40644)``
+   * ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``
+
 1.3.2
 .....
 

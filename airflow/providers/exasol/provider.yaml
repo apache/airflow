@@ -22,9 +22,11 @@ description: |
     `Exasol <https://www.exasol.com/>`__
 
 state: ready
-source-date-epoch: 1718604316
+source-date-epoch: 1723970121
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.6.0
+  - 4.5.3
   - 4.5.2
   - 4.5.1
   - 4.5.0
@@ -58,7 +60,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.7.0
+  - apache-airflow>=2.8.0
   - apache-airflow-providers-common-sql>=1.14.1
   - pyexasol>=0.5.1
   # In pandas 2.2 minimal version of the sqlalchemy is 2.0

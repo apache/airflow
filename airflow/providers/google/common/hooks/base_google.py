@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import datetime
 import functools
 import json
@@ -35,8 +36,7 @@ import google_auth_httplib2
 import requests
 import tenacity
 from asgiref.sync import sync_to_async
-from deprecated import deprecated
-from gcloud.aio.auth.token import Token
+from gcloud.aio.auth.token import Token, TokenResponse
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
 from google.auth import _cloud_sdk, compute_engine  # type: ignore[attr-defined]
 from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
@@ -56,6 +56,7 @@ from airflow.providers.google.cloud.utils.credentials_provider import (
     get_credentials_and_project_id,
 )
 from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.utils.process_utils import patch_environ
 
 if TYPE_CHECKING:
@@ -450,7 +451,8 @@ class GoogleBaseHook(BaseHook):
 
     @property
     @deprecated(
-        reason="Please use `airflow.providers.google.common.consts.CLIENT_INFO`.",
+        planned_removal_date="March 01, 2025",
+        use_instead="airflow.providers.google.common.consts.CLIENT_INFO",
         category=AirflowProviderDeprecationWarning,
     )
     def client_info(self) -> ClientInfo:
@@ -745,16 +747,40 @@ class _CredentialsToken(Token):
     async def get_project(self) -> str | None:
         return self.project
 
-    async def acquire_access_token(self, timeout: int = 10) -> None:
+    async def refresh(self, *, timeout: int) -> TokenResponse:
         await sync_to_async(self.credentials.refresh)(google.auth.transport.requests.Request())
 
         self.access_token = cast(str, self.credentials.token)
         self.access_token_duration = 3600
-        # access_token_acquired_at is specific to gcloud-aio's Token. On subsequent calls of `get` it will be used
-        # with `datetime.datetime.utcnow()`. Therefore we have to use an offset-naive datetime.
-        # https://github.com/talkiq/gcloud-aio/blob/f1132b005ba35d8059229a9ca88b90f31f77456d/auth/gcloud/aio/auth/token.py#L204
-        self.access_token_acquired_at = datetime.datetime.now(tz=datetime.timezone.utc).replace(tzinfo=None)
+        self.access_token_acquired_at = self._now()
+        return TokenResponse(value=self.access_token, expires_in=self.access_token_duration)
+
+    async def acquire_access_token(self, timeout: int = 10) -> None:
+        await self.refresh(timeout=timeout)
         self.acquiring = None
+
+    async def ensure_token(self) -> None:
+        if self.acquiring and not self.acquiring.done():
+            await self.acquiring
+            return
+
+        if self.access_token:
+            delta = (self._now() - self.access_token_acquired_at).total_seconds()
+            if delta <= self.access_token_duration / 2:
+                return
+
+        self.acquiring = asyncio.ensure_future(  # pylint: disable=used-before-assignment
+            self.acquire_access_token()
+        )
+        await self.acquiring
+
+    @staticmethod
+    def _now():
+        # access_token_acquired_at is specific to gcloud-aio's Token.
+        # On subsequent calls of `get` it will be used with `datetime.datetime.utcnow()`.
+        # Therefore we have to use an offset-naive datetime.
+        # https://github.com/talkiq/gcloud-aio/blob/f1132b005ba35d8059229a9ca88b90f31f77456d/auth/gcloud/aio/auth/token.py#L204
+        return datetime.datetime.now(tz=datetime.timezone.utc).replace(tzinfo=None)
 
 
 class GoogleBaseAsyncHook(BaseHook):

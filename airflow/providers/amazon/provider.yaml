@@ -22,9 +22,10 @@ description: |
   Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 state: ready
-source-date-epoch: 1722145222
+source-date-epoch: 1723968989
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 8.28.0
   - 8.27.0
   - 8.26.0
   - 8.25.0
@@ -89,11 +90,10 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.7.0
+  - apache-airflow>=2.8.0
   - apache-airflow-providers-common-compat>=1.1.0
   - apache-airflow-providers-common-sql>=1.3.1
   - apache-airflow-providers-http
-  - apache-airflow-providers-common-compat>=1.1.0
   # We should update minimum version of boto3 and here regularly to avoid `pip` backtracking with the number
   # of candidates to consider. Make sure to configure boto3 version here as well as in all the tools below
   # in the `devel-dependencies` section to be the same minimum version.
@@ -101,13 +101,14 @@ dependencies:
   - botocore>=1.34.90
   - inflection>=0.5.1
   # Allow a wider range of watchtower versions for flexibility among users
-  - watchtower>=3.0.0,<4
+  - watchtower>=3.0.0,!=3.3.0,<4
   - jsonpath_ng>=1.5.3
   - redshift_connector>=2.0.918
   - sqlalchemy_redshift>=0.8.6
   - asgiref>=2.3.0
   - PyAthena>=3.0.10
   - jmespath>=0.7.0
+  - python3-saml>=1.16.0
 
 additional-extras:
   - name: pandas

@@ -33,7 +33,7 @@ from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import _set_task_deferred_context_var
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.net import get_hostname
-from airflow.utils.platform import IS_WINDOWS
+from airflow.utils.platform import IS_WINDOWS, getuser
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
@@ -208,9 +208,14 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
 
                     if span.is_recording():
                         span.add_event(name="perform_heartbeat")
-                    perform_heartbeat(
-                        job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=False
-                    )
+                    try:
+                        perform_heartbeat(
+                            job=self.job, heartbeat_callback=self.heartbeat_callback, only_if_necessary=False
+                        )
+                    except Exception as e:
+                        # Failing the heartbeat should never kill the localtaskjob
+                        # If it repeatedly can't heartbeat, it will be marked as a zombie anyhow
+                        self.log.warning("Heartbeat failed with Exception: %s", e)
 
                     # If it's been too long since we've heartbeat, then it's possible that
                     # the scheduler rescheduled this task, so kill launched processes.
@@ -295,7 +300,11 @@ class LocalTaskJobRunner(BaseJobRunner, LoggingMixin):
             recorded_pid = ti.pid
             same_process = recorded_pid == current_pid
 
-            if recorded_pid is not None and (ti.run_as_user or self.task_runner.run_as_user):
+            is_child_process = (ti.run_as_user and (ti.run_as_user != getuser())) or (
+                self.task_runner.run_as_user and (self.task_runner != getuser())
+            )
+
+            if recorded_pid is not None and is_child_process:
                 # when running as another user, compare the task runner pid to the parent of
                 # the recorded pid because user delegation becomes an extra process level.
                 # However, if recorded_pid is None, pass that through as it signals the task

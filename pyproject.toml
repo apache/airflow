@@ -30,7 +30,7 @@ requires = [
     "pluggy==1.5.0",
     "smmap==5.0.1",
     "tomli==2.0.1; python_version < '3.11'",
-    "trove-classifiers==2024.7.2",
+    "trove-classifiers==2024.9.12",
 ]
 build-backend = "hatchling.build"
 
@@ -78,9 +78,9 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 #
 # START CORE EXTRAS HERE
 #
-# aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, deprecated-api, github-
-# enterprise, google-auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, pydantic,
-# rabbitmq, s3fs, saml, sentry, statsd, uv, virtualenv
+# aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, github-enterprise, google-
+# auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, sentry, statsd, uv,
+# virtualenv
 #
 # END CORE EXTRAS HERE
 #
@@ -135,12 +135,12 @@ dynamic = ["version", "optional-dependencies", "dependencies"]
 # apache.hdfs, apache.hive, apache.iceberg, apache.impala, apache.kafka, apache.kylin, apache.livy,
 # apache.pig, apache.pinot, apache.spark, apprise, arangodb, asana, atlassian.jira, celery, cloudant,
 # cncf.kubernetes, cohere, common.compat, common.io, common.sql, databricks, datadog, dbt.cloud,
-# dingding, discord, docker, elasticsearch, exasol, fab, facebook, ftp, github, google, grpc,
+# dingding, discord, docker, edge, elasticsearch, exasol, fab, facebook, ftp, github, google, grpc,
 # hashicorp, http, imap, influxdb, jdbc, jenkins, microsoft.azure, microsoft.mssql, microsoft.psrp,
 # microsoft.winrm, mongo, mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie,
 # oracle, pagerduty, papermill, pgvector, pinecone, postgres, presto, qdrant, redis, salesforce,
-# samba, segment, sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, tableau, tabular,
-# telegram, teradata, trino, vertica, weaviate, yandex, ydb, zendesk
+# samba, segment, sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, tableau, telegram,
+# teradata, trino, vertica, weaviate, yandex, ydb, zendesk
 #
 # END PROVIDER EXTRAS HERE
 
@@ -360,6 +360,11 @@ combine-as-imports = true
 # Pydantic also require models to be imported during execution
 "airflow/serialization/pydantic/*.py" = ["I002", "UP007", "TCH001"]
 
+# Failing to detect types and functions used in `Annotated[...]` syntax as required at runtime.
+# Annotated is central for FastAPI dependency injection, skipping rules for FastAPI folders.
+"airflow/api_fastapi/*" = ["TCH001", "TCH002"]
+"tests/api_fastapi/*" = ["TCH001", "TCH002"]
+
 # Ignore pydoc style from these
 "*.pyi" = ["D"]
 "scripts/*" = ["D", "PT"]  # In addition ignore pytest specific rules
@@ -386,6 +391,7 @@ combine-as-imports = true
 "airflow/api/auth/backend/kerberos_auth.py" = ["E402"]
 "airflow/security/kerberos.py" = ["E402"]
 "airflow/security/utils.py" = ["E402"]
+"tests/providers/amazon/aws/auth_manager/security_manager/test_aws_security_manager_override.py" = ["E402"]
 "tests/providers/common/io/xcom/test_backend.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/__init__.py" = ["E402"]
 "tests/providers/elasticsearch/log/elasticmock/utilities/__init__.py" = ["E402"]
@@ -406,9 +412,14 @@ combine-as-imports = true
 "tests/providers/google/cloud/triggers/test_vertex_ai.py" = ["E402"]
 "tests/providers/openai/hooks/test_openai.py" = ["E402"]
 "tests/providers/openai/operators/test_openai.py" = ["E402"]
+"tests/providers/openai/triggers/test_openai.py" = ["E402"]
+"tests/providers/opensearch/conftest.py" = ["E402"]
+"tests/providers/opensearch/hooks/test_opensearch.py" = ["E402"]
+"tests/providers/opensearch/operators/test_opensearch.py" = ["E402"]
 "tests/providers/qdrant/hooks/test_qdrant.py" = ["E402"]
 "tests/providers/qdrant/operators/test_qdrant.py" = ["E402"]
 "tests/providers/snowflake/operators/test_snowflake_sql.py" = ["E402"]
+"tests/providers/yandex/*/*.py" = ["E402"]
 
 # All the modules which do not follow B028 yet: https://docs.astral.sh/ruff/rules/no-explicit-stacklevel/
 "helm_tests/airflow_aux/test_basic_helm_chart.py" = ["B028"]

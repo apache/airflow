@@ -51,15 +51,18 @@ const DatasetNode = ({
 }: NodeProps<CustomNodeProps>) => {
   const containerRef = useContainerRef();
 
-  const { fromRestApi } = (datasetEvent?.extra || {}) as Record<string, string>;
+  const { from_rest_api: fromRestApi } = (datasetEvent?.extra || {}) as Record<
+    string,
+    string
+  >;
 
   return (
     <Popover>
       <PopoverTrigger>
         <Box
           borderRadius={isZoomedOut ? 10 : 5}
-          borderWidth={1}
-          borderColor="gray.400"
+          borderWidth={datasetEvent ? 2 : 1}
+          borderColor={datasetEvent ? "green" : "gray.400"}
           bg="white"
           height={`${height}px`}
           width={`${width}px`}

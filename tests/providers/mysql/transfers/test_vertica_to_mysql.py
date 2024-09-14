@@ -48,7 +48,7 @@ def mock_get_conn():
 class TestVerticaToMySqlTransfer:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     @mock.patch(
         "airflow.providers.mysql.transfers.vertica_to_mysql.VerticaHook.get_conn", side_effect=mock_get_conn

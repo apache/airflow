@@ -55,9 +55,11 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
   const { data: tiHistory } = useTIHistory({
     dagId,
     taskId: taskId || "",
-    runId: runId || "",
+    dagRunId: runId || "",
     mapIndex: taskInstance?.mapIndex || -1,
-    enabled: !!(finalTryNumber && finalTryNumber > 1) && !!taskId, // Only try to look up task tries if try number > 1
+    options: {
+      enabled: !!(finalTryNumber && finalTryNumber > 1) && !!taskId, // Only try to look up task tries if try number > 1
+    },
   });
 
   const [selectedTryNumber, setSelectedTryNumber] = useState(
@@ -69,7 +71,7 @@ const Details = ({ gridInstance, taskInstance, group }: Props) => {
     if (finalTryNumber) setSelectedTryNumber(finalTryNumber);
   }, [finalTryNumber]);
 
-  const tryInstance = tiHistory?.find(
+  const tryInstance = tiHistory?.taskInstances?.find(
     (ti) => ti.tryNumber === selectedTryNumber
   );
 

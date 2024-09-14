@@ -34,7 +34,7 @@ from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_task_fail
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 
@@ -144,6 +144,7 @@ class TestCore:
         task.run(start_date=execution_date, end_date=execution_date)
 
         ti = TI(task=task, run_id=dr.run_id)
+        ti.refresh_from_db()
         context = ti.get_template_context()
 
         # next_ds should be the execution date for manually triggered runs
@@ -178,6 +179,8 @@ class TestCore:
         task2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         ti1 = TI(task=task1, run_id=dr.run_id)
         ti2 = TI(task=task2, run_id=dr.run_id)
+        ti1.refresh_from_db()
+        ti2.refresh_from_db()
         context1 = ti1.get_template_context()
         context2 = ti2.get_template_context()
 

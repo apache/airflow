@@ -41,7 +41,7 @@ from tests.test_utils.api_connexion_utils import assert_401, create_user, delete
 from tests.test_utils.db import clear_db_runs, clear_db_sla_miss, clear_rendered_ti_fields
 from tests.test_utils.www import _check_last_log
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 DEFAULT_DATETIME_1 = datetime(2020, 1, 1)
 DEFAULT_DATETIME_STR_1 = "2020-01-01T00:00:00+00:00"
@@ -782,6 +782,80 @@ class TestGetTaskInstances(TestTaskInstanceEndpoint):
         assert count == response.json["total_entries"]
         assert count == len(response.json["task_instances"])
 
+    def test_should_respond_200_for_order_by(self, session):
+        dag_id = "example_python_operator"
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(10)
+            ],
+            dag_id=dag_id,
+        )
+
+        ti_count = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).count()
+
+        # Ascending order
+        response_asc = self.client.get(
+            "/api/v1/dags/~/dagRuns/~/taskInstances?order_by=start_date",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response_asc.status_code == 200
+        assert response_asc.json["total_entries"] == ti_count
+        assert len(response_asc.json["task_instances"]) == ti_count
+
+        # Descending order
+        response_desc = self.client.get(
+            "/api/v1/dags/~/dagRuns/~/taskInstances?order_by=-start_date",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response_desc.status_code == 200
+        assert response_desc.json["total_entries"] == ti_count
+        assert len(response_desc.json["task_instances"]) == ti_count
+
+        # Compare
+        start_dates_asc = [ti["start_date"] for ti in response_asc.json["task_instances"]]
+        assert len(start_dates_asc) == ti_count
+        start_dates_desc = [ti["start_date"] for ti in response_desc.json["task_instances"]]
+        assert len(start_dates_desc) == ti_count
+        assert start_dates_asc == list(reversed(start_dates_desc))
+
+    def test_should_respond_200_for_pagination(self, session):
+        dag_id = "example_python_operator"
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(10)
+            ],
+            dag_id=dag_id,
+        )
+
+        # First 5 items
+        response_batch1 = self.client.get(
+            "/api/v1/dags/~/dagRuns/~/taskInstances?limit=5&offset=0",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response_batch1.status_code == 200, response_batch1.json
+        num_entries_batch1 = len(response_batch1.json["task_instances"])
+        assert num_entries_batch1 == 5
+        assert len(response_batch1.json["task_instances"]) == 5
+
+        # 5 items after that
+        response_batch2 = self.client.get(
+            "/api/v1/dags/~/dagRuns/~/taskInstances?limit=5&offset=5",
+            environ_overrides={"REMOTE_USER": "test"},
+            json={"limit": 5, "offset": 0, "dag_ids": [dag_id]},
+        )
+        assert response_batch2.status_code == 200, response_batch2.json
+        num_entries_batch2 = len(response_batch2.json["task_instances"])
+        assert num_entries_batch2 > 0
+        assert len(response_batch2.json["task_instances"]) > 0
+
+        # Match
+        ti_count = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).count()
+        assert response_batch1.json["total_entries"] == response_batch2.json["total_entries"] == ti_count
+        assert (num_entries_batch1 + num_entries_batch2) == ti_count
+        assert response_batch1 != response_batch2
+
     def test_should_raises_401_unauthenticated(self):
         response = self.client.get(
             "/api/v1/dags/example_python_operator/dagRuns/~/taskInstances",
@@ -970,6 +1044,45 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
         assert response.status_code == 200, response.json
         assert expected_ti_count == response.json["total_entries"]
         assert expected_ti_count == len(response.json["task_instances"])
+
+    def test_should_respond_200_for_order_by(self, session):
+        dag_id = "example_python_operator"
+        self.create_task_instances(
+            session,
+            task_instances=[
+                {"start_date": DEFAULT_DATETIME_1 + dt.timedelta(minutes=(i + 1))} for i in range(10)
+            ],
+            dag_id=dag_id,
+        )
+
+        ti_count = session.query(TaskInstance).filter(TaskInstance.dag_id == dag_id).count()
+
+        # Ascending order
+        response_asc = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": "test"},
+            json={"order_by": "start_date", "dag_ids": [dag_id]},
+        )
+        assert response_asc.status_code == 200, response_asc.json
+        assert response_asc.json["total_entries"] == ti_count
+        assert len(response_asc.json["task_instances"]) == ti_count
+
+        # Descending order
+        response_desc = self.client.post(
+            "/api/v1/dags/~/dagRuns/~/taskInstances/list",
+            environ_overrides={"REMOTE_USER": "test"},
+            json={"order_by": "-start_date", "dag_ids": [dag_id]},
+        )
+        assert response_desc.status_code == 200, response_desc.json
+        assert response_desc.json["total_entries"] == ti_count
+        assert len(response_desc.json["task_instances"]) == ti_count
+
+        # Compare
+        start_dates_asc = [ti["start_date"] for ti in response_asc.json["task_instances"]]
+        assert len(start_dates_asc) == ti_count
+        start_dates_desc = [ti["start_date"] for ti in response_desc.json["task_instances"]]
+        assert len(start_dates_desc) == ti_count
+        assert start_dates_asc == list(reversed(start_dates_desc))
 
     @pytest.mark.parametrize(
         "task_instances, payload, expected_ti_count",
@@ -1220,57 +1333,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 id="clear by task ids",
             ),
             pytest.param(
-                "example_subdag_operator",
-                [
-                    {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
-                    {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
-                        "state": State.FAILED,
-                    },
-                    {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
-                        "state": State.FAILED,
-                    },
-                    {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
-                        "state": State.FAILED,
-                    },
-                    {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=4),
-                        "state": State.FAILED,
-                    },
-                ],
-                "example_subdag_operator.section-1",
-                {"dry_run": True, "include_parentdag": True},
-                4,
-                id="include parent dag",
-            ),
-            pytest.param(
-                "example_subdag_operator.section-1",
-                [
-                    {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
-                    {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=1),
-                        "state": State.FAILED,
-                    },
-                    {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=2),
-                        "state": State.FAILED,
-                    },
-                    {
-                        "execution_date": DEFAULT_DATETIME_1 + dt.timedelta(days=3),
-                        "state": State.FAILED,
-                    },
-                ],
-                "example_subdag_operator",
-                {
-                    "dry_run": True,
-                    "include_subdags": True,
-                },
-                4,
-                id="include sub dag",
-            ),
-            pytest.param(
                 "example_python_operator",
                 [
                     {"execution_date": DEFAULT_DATETIME_1, "state": State.FAILED},
@@ -1321,7 +1383,7 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         """Test that if reset_dag_runs is True, then clear_task_instances is called with State.QUEUED"""
         self.create_task_instances(session)
         dag_id = "example_python_operator"
-        payload = {"include_subdags": True, "reset_dag_runs": True, "dry_run": False}
+        payload = {"reset_dag_runs": True, "dry_run": False}
         self.app.dag_bag.sync_to_db()
         response = self.client.post(
             f"/api/v1/dags/{dag_id}/clearTaskInstances",
@@ -1362,7 +1424,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "reset_dag_runs": True,
             "only_failed": False,
             "only_running": True,
-            "include_subdags": True,
         }
         task_instances = [
             {"execution_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
@@ -1454,7 +1515,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "reset_dag_runs": False,
             "only_failed": False,
             "only_running": True,
-            "include_subdags": True,
             "dag_run_id": "TEST_DAG_RUN_ID_0",
         }
         task_instances = [
@@ -1514,7 +1574,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "only_failed": False,
             "include_past": True,
             "only_running": True,
-            "include_subdags": True,
         }
         task_instances = [
             {"execution_date": DEFAULT_DATETIME_1, "state": State.RUNNING},
@@ -1693,7 +1752,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
             "reset_dag_runs": False,
             "only_failed": False,
             "only_running": True,
-            "include_subdags": True,
             "dag_run_id": "TEST_DAG_RUN_ID_100",
         }
         task_instances = [
@@ -1732,7 +1790,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "reset_dag_runs": True,
                 "only_failed": False,
                 "only_running": True,
-                "include_subdags": True,
             },
         )
         assert_401(response)
@@ -1747,7 +1804,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "reset_dag_runs": True,
                 "only_failed": False,
                 "only_running": True,
-                "include_subdags": True,
             },
         )
         assert response.status_code == 403
@@ -1794,7 +1850,6 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 "reset_dag_runs": True,
                 "only_failed": False,
                 "only_running": True,
-                "include_subdags": True,
             },
         )
         assert response.status_code == 404

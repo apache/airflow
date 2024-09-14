@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.bedrock import BedrockAgentHook, BedrockHook
 from airflow.providers.amazon.aws.sensors.bedrock import (
     BedrockCustomizeModelCompletedSensor,
@@ -75,19 +75,12 @@ class TestBedrockCustomizeModelCompletedSensor:
         mock_conn.get_model_customization_job.return_value = {"status": state}
         assert self.sensor.poke({}) is False
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        [
-            pytest.param(False, AirflowException, id="not-soft-fail"),
-            pytest.param(True, AirflowSkipException, id="soft-fail"),
-        ],
-    )
     @pytest.mark.parametrize("state", SENSOR.FAILURE_STATES)
     @mock.patch.object(BedrockHook, "conn")
-    def test_poke_failure_states(self, mock_conn, state, soft_fail, expected_exception):
+    def test_poke_failure_states(self, mock_conn, state):
         mock_conn.get_model_customization_job.return_value = {"status": state}
-        sensor = self.SENSOR(**self.default_op_kwargs, aws_conn_id=None, soft_fail=soft_fail)
-        with pytest.raises(expected_exception, match=sensor.FAILURE_MESSAGE):
+        sensor = self.SENSOR(**self.default_op_kwargs, aws_conn_id=None)
+        with pytest.raises(AirflowException, match=sensor.FAILURE_MESSAGE):
             sensor.poke({})
 
 
@@ -135,20 +128,13 @@ class TestBedrockProvisionModelThroughputCompletedSensor:
         mock_conn.get_provisioned_model_throughput.return_value = {"status": state}
         assert self.sensor.poke({}) is False
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        [
-            pytest.param(False, AirflowException, id="not-soft-fail"),
-            pytest.param(True, AirflowSkipException, id="soft-fail"),
-        ],
-    )
     @pytest.mark.parametrize("state", SENSOR.FAILURE_STATES)
     @mock.patch.object(BedrockHook, "conn")
-    def test_poke_failure_states(self, mock_conn, state, soft_fail, expected_exception):
+    def test_poke_failure_states(self, mock_conn, state):
         mock_conn.get_provisioned_model_throughput.return_value = {"status": state}
-        sensor = self.SENSOR(**self.default_op_kwargs, aws_conn_id=None, soft_fail=soft_fail)
+        sensor = self.SENSOR(**self.default_op_kwargs, aws_conn_id=None)
 
-        with pytest.raises(expected_exception, match=sensor.FAILURE_MESSAGE):
+        with pytest.raises(AirflowException, match=sensor.FAILURE_MESSAGE):
             sensor.poke({})
 
 
@@ -196,19 +182,12 @@ class TestBedrockKnowledgeBaseActiveSensor:
         mock_conn.get_knowledge_base.return_value = {"knowledgeBase": {"status": state}}
         assert self.sensor.poke({}) is False
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        [
-            pytest.param(False, AirflowException, id="not-soft-fail"),
-            pytest.param(True, AirflowSkipException, id="soft-fail"),
-        ],
-    )
     @pytest.mark.parametrize("state", SENSOR.FAILURE_STATES)
     @mock.patch.object(BedrockAgentHook, "conn")
-    def test_poke_failure_states(self, mock_conn, state, soft_fail, expected_exception):
+    def test_poke_failure_states(self, mock_conn, state):
         mock_conn.get_knowledge_base.return_value = {"knowledgeBase": {"status": state}}
-        sensor = self.SENSOR(**self.default_op_kwargs, aws_conn_id=None, soft_fail=soft_fail)
-        with pytest.raises(expected_exception, match=sensor.FAILURE_MESSAGE):
+        sensor = self.SENSOR(**self.default_op_kwargs, aws_conn_id=None)
+        with pytest.raises(AirflowException, match=sensor.FAILURE_MESSAGE):
             sensor.poke({})
 
 
@@ -258,17 +237,10 @@ class TestBedrockIngestionJobSensor:
         mock_conn.get_ingestion_job.return_value = {"ingestionJob": {"status": state}}
         assert self.sensor.poke({}) is False
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        [
-            pytest.param(False, AirflowException, id="not-soft-fail"),
-            pytest.param(True, AirflowSkipException, id="soft-fail"),
-        ],
-    )
     @pytest.mark.parametrize("state", SENSOR.FAILURE_STATES)
     @mock.patch.object(BedrockAgentHook, "conn")
-    def test_poke_failure_states(self, mock_conn, state, soft_fail, expected_exception):
+    def test_poke_failure_states(self, mock_conn, state):
         mock_conn.get_ingestion_job.return_value = {"ingestionJob": {"status": state}}
-        sensor = self.SENSOR(**self.default_op_kwargs, aws_conn_id=None, soft_fail=soft_fail)
-        with pytest.raises(expected_exception, match=sensor.FAILURE_MESSAGE):
+        sensor = self.SENSOR(**self.default_op_kwargs, aws_conn_id=None)
+        with pytest.raises(AirflowException, match=sensor.FAILURE_MESSAGE):
             sensor.poke({})

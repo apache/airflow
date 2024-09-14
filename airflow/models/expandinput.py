@@ -168,8 +168,12 @@ class DictOfListsExpandInput(NamedTuple):
     def _expand_mapped_field(
         self, key: str, value: Any, context: Context, *, session: Session, include_xcom: bool
     ) -> Any:
-        if include_xcom and _needs_run_time_resolution(value):
-            value = value.resolve(context, session=session, include_xcom=include_xcom)
+        if _needs_run_time_resolution(value):
+            value = (
+                value.resolve(context, session=session, include_xcom=include_xcom)
+                if include_xcom
+                else str(value)
+            )
         map_index = context["ti"].map_index
         if map_index < 0:
             raise RuntimeError("can't resolve task-mapping argument without expanding")
@@ -301,7 +305,7 @@ def get_map_type_key(expand_input: ExpandInput | _ExpandInputRef) -> str:
 
     if isinstance(expand_input, _ExpandInputRef):
         return expand_input.key
-    return next(k for k, v in _EXPAND_INPUT_TYPES.items() if v == type(expand_input))
+    return next(k for k, v in _EXPAND_INPUT_TYPES.items() if isinstance(expand_input, v))
 
 
 def create_expand_input(kind: str, value: Any) -> ExpandInput:

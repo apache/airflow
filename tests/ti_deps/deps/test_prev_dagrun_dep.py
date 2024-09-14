@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest.mock import ANY, Mock, patch
 
 import pytest
@@ -28,9 +29,15 @@ from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.timezone import convert_to_utc, datetime
 from airflow.utils.types import DagRunType
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.db import clear_db_runs
 
-pytestmark = pytest.mark.db_test
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
+
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+
+START_DATE = convert_to_utc(datetime(2016, 1, 1))
 
 
 class TestPrevDagrunDep:
@@ -42,12 +49,13 @@ class TestPrevDagrunDep:
         The first task run of a new task in an old DAG should pass if the task has
         ignore_first_depends_on_past set to True.
         """
-        dag = DAG("test_dag")
+        dag = DAG("test_dag", schedule=timedelta(days=1), start_date=START_DATE)
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         old_task = BaseOperator(
             task_id="test_task",
             dag=dag,
             depends_on_past=True,
-            start_date=convert_to_utc(datetime(2016, 1, 1)),
+            start_date=START_DATE,
             wait_for_downstream=False,
         )
         # Old DAG run will include only TaskInstance of old_task
@@ -57,6 +65,7 @@ class TestPrevDagrunDep:
             execution_date=old_task.start_date,
             run_type=DagRunType.SCHEDULED,
             data_interval=(old_task.start_date, old_task.start_date),
+            **triggered_by_kwargs,
         )
 
         new_task = BaseOperator(
@@ -75,6 +84,7 @@ class TestPrevDagrunDep:
             execution_date=execution_date,
             run_type=DagRunType.SCHEDULED,
             data_interval=(execution_date, execution_date),
+            **triggered_by_kwargs,
         )
 
         ti = dr.get_task_instance(new_task.task_id)
@@ -220,7 +230,7 @@ def test_dagrun_dep(
 ):
     task = BaseOperator(
         task_id="test_task",
-        dag=DAG("test_dag"),
+        dag=DAG("test_dag", schedule=timedelta(days=1), start_date=datetime(2016, 1, 1)),
         depends_on_past=depends_on_past,
         start_date=datetime(2016, 1, 1),
         wait_for_downstream=wait_for_downstream,

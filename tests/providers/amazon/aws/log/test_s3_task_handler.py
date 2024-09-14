@@ -31,7 +31,6 @@ from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
-from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
@@ -47,7 +46,7 @@ def s3mock():
 class TestS3TaskHandler:
     @conf_vars({("logging", "remote_log_conn_id"): "aws_default"})
     @pytest.fixture(autouse=True)
-    def setup_tests(self, create_log_template, tmp_path_factory):
+    def setup_tests(self, create_log_template, tmp_path_factory, session):
         self.remote_log_base = "s3://bucket/remote/log/location"
         self.remote_log_location = "s3://bucket/remote/log/location/1.log"
         self.remote_log_key = "remote/log/location/1.log"
@@ -58,29 +57,27 @@ class TestS3TaskHandler:
         assert self.s3_task_handler.hook is not None
 
         date = datetime(2016, 1, 1)
-        self.dag = DAG("dag_for_testing_s3_task_handler", start_date=date)
+        self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test", run_type="manual")
-        with create_session() as session:
-            session.add(dag_run)
-            session.commit()
-            session.refresh(dag_run)
+        session.add(dag_run)
+        session.commit()
+        session.refresh(dag_run)
 
         self.ti = TaskInstance(task=task, run_id=dag_run.run_id)
         self.ti.dag_run = dag_run
         self.ti.try_number = 1
         self.ti.state = State.RUNNING
+        session.add(self.ti)
+        session.commit()
 
         self.conn = boto3.client("s3")
         self.conn.create_bucket(Bucket="bucket")
-
         yield
 
         self.dag.clear()
 
-        with create_session() as session:
-            session.query(DagRun).delete()
-
+        session.query(DagRun).delete()
         if self.s3_task_handler.handler:
             with contextlib.suppress(Exception):
                 os.remove(self.s3_task_handler.handler.baseFilename)
@@ -224,3 +221,7 @@ class TestS3TaskHandler:
 
         handler.close()
         assert os.path.exists(handler.handler.baseFilename) == expected_existence_of_local_copy
+
+    def test_filename_template_for_backward_compatibility(self):
+        # filename_template arg support for running the latest provider on airflow 2
+        S3TaskHandler(self.local_log_location, self.remote_log_base, filename_template=None)

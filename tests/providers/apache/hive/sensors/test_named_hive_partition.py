@@ -39,7 +39,7 @@ pytestmark = pytest.mark.db_test
 class TestNamedHivePartitionSensor:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
         self.next_day = (DEFAULT_DATE + timedelta(days=1)).isoformat()[:10]
         self.database = "airflow"
         self.partition_by = "ds"

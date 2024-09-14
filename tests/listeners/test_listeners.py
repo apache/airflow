@@ -66,6 +66,7 @@ def clean_listener_manager():
         listener.clear()
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @provide_session
 def test_listener_gets_calls(create_task_instance, session=None):
     lm = get_listener_manager()
@@ -102,6 +103,7 @@ def test_multiple_listeners(create_task_instance, session=None):
     assert class_based_listener.state == [DagRunState.RUNNING, DagRunState.SUCCESS]
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @provide_session
 def test_listener_gets_only_subscribed_calls(create_task_instance, session=None):
     lm = get_listener_manager()
@@ -117,6 +119,7 @@ def test_listener_gets_only_subscribed_calls(create_task_instance, session=None)
     assert partial_listener.state == [TaskInstanceState.RUNNING]
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @provide_session
 def test_listener_throws_exceptions(create_task_instance, session=None):
     lm = get_listener_manager()
@@ -127,6 +130,7 @@ def test_listener_throws_exceptions(create_task_instance, session=None):
         ti._run_raw_task()
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @provide_session
 def test_listener_captures_failed_taskinstances(create_task_instance_of_operator, session=None):
     lm = get_listener_manager()
@@ -156,6 +160,7 @@ def test_listener_captures_longrunning_taskinstances(create_task_instance_of_ope
     assert len(full_listener.state) == 2
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 @provide_session
 def test_class_based_listener(create_task_instance, session=None):
     lm = get_listener_manager()

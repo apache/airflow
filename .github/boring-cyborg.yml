@@ -170,6 +170,11 @@ labelPRBasedOnFilePath:
     - tests/providers/cohere/**/*
     - tests/system/providers/cohere/**/*
 
+  provider:common-compat:
+    - airflow/providers/common/compat/**/*
+    - docs/apache-airflow-providers-common-compat/**/*
+    - tests/providers/common/compat/**/*
+
   provider:common-io:
     - airflow/providers/common/io/**/*
     - docs/apache-airflow-providers-common-io/**/*
@@ -483,11 +488,6 @@ labelPRBasedOnFilePath:
     - tests/providers/tableau/**/*
     - tests/system/providers/tableau/**/*
 
-  provider:tabular:
-    - airflow/providers/tabular/**/*
-    - docs/apache-airflow-providers-tabular/**/*
-    - tests/providers/tabular/**/*
-
   provider:telegram:
     - airflow/providers/telegram/**/*
     - docs/apache-airflow-providers-telegram/**/*
@@ -544,12 +544,9 @@ labelPRBasedOnFilePath:
   area:API:
     - airflow/api/**/*
     - airflow/api_connexion/**/*
-    - airflow/www/api/**/*
     - clients/**/*
-    - docs/apache-airflow/deprecated-rest-api-ref.rst
     - docs/apache-airflow/stable-rest-api-ref.rst
     - tests/api_connexion/**/*
-    - tests/www/api/**/*
 
   area:dev-tools:
     - scripts/**/*
@@ -595,6 +592,7 @@ labelPRBasedOnFilePath:
     - airflow/www/webpack.config.js
     - airflow/www/yarn.lock
     - docs/apache-airflow/ui.rst
+    - airflow/ui/**/*
 
   area:CLI:
     - airflow/cli/**/*.py

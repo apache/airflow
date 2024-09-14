@@ -29,7 +29,7 @@ from airflow.utils.session import create_session
 from airflow.version import version
 from tests.models import DEFAULT_DATE
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
@@ -117,7 +117,7 @@ def test_get_rendered_k8s_spec(render_k8s_pod_yaml, rtif_get_k8s_pod_yaml, creat
 @mock.patch.dict(os.environ, {"AIRFLOW_IS_K8S_EXECUTOR_POD": "True"})
 @mock.patch("airflow.utils.log.secrets_masker.redact", autospec=True, side_effect=lambda d, _=None: d)
 @mock.patch("airflow.providers.cncf.kubernetes.template_rendering.render_k8s_pod_yaml")
-def test_get_k8s_pod_yaml(render_k8s_pod_yaml, redact, dag_maker):
+def test_get_k8s_pod_yaml(render_k8s_pod_yaml, redact, dag_maker, session):
     """
     Test that k8s_pod_yaml is rendered correctly, stored in the Database,
     and are correctly fetched using RTIF.get_k8s_pod_yaml

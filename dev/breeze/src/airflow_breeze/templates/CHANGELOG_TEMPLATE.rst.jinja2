@@ -40,7 +40,7 @@ Features
 {%- endif %}
 
 
-{%- if classified_changes.fixes %}
+{%- if classified_changes and classified_changes.fixes %}
 
 Bug Fixes
 ~~~~~~~~~
@@ -50,7 +50,7 @@ Bug Fixes
 {%- endif %}
 
 
-{%- if classified_changes.misc %}
+{%- if classified_changes and classified_changes.misc %}
 
 Misc
 ~~~~
@@ -62,7 +62,7 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
-{%- if classified_changes.other %}
+{%- if classified_changes and classified_changes.other %}
    {%- for other in classified_changes.other %}
    * ``{{ other.message_without_backticks | safe }}``
    {%- endfor %}

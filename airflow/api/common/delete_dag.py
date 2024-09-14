@@ -22,11 +22,11 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from sqlalchemy import and_, delete, or_, select
+from sqlalchemy import delete, select
 
 from airflow import models
 from airflow.exceptions import AirflowException, DagNotFound
-from airflow.models import DagModel, TaskFail
+from airflow.models import DagModel
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils.db import get_sqla_model_classes
@@ -64,18 +64,6 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
     if dag is None:
         raise DagNotFound(f"Dag id {dag_id} not found")
 
-    # deleting a DAG should also delete all of its subdags
-    dags_to_delete_query = session.execute(
-        select(DagModel.dag_id).where(
-            or_(
-                DagModel.dag_id == dag_id,
-                and_(DagModel.dag_id.like(f"{dag_id}.%"), DagModel.is_subdag),
-            )
-        )
-    )
-
-    dags_to_delete = [dag_id for (dag_id,) in dags_to_delete_query]
-
     # Scheduler removes DAGs without files from serialized_dag table every dag_dir_list_interval.
     # There may be a lag, so explicitly removes serialized DAG here.
     if SerializedDagModel.has_dag(dag_id=dag_id, session=session):
@@ -86,15 +74,7 @@ def delete_dag(dag_id: str, keep_records_in_log: bool = True, session: Session =
     for model in get_sqla_model_classes():
         if hasattr(model, "dag_id") and (not keep_records_in_log or model.__name__ != "Log"):
             count += session.execute(
-                delete(model)
-                .where(model.dag_id.in_(dags_to_delete))
-                .execution_options(synchronize_session="fetch")
-            ).rowcount
-    if dag.is_subdag:
-        parent_dag_id, task_id = dag_id.rsplit(".", 1)
-        for model in TaskFail, models.TaskInstance:
-            count += session.execute(
-                delete(model).where(model.dag_id == parent_dag_id, model.task_id == task_id)
+                delete(model).where(model.dag_id == dag_id).execution_options(synchronize_session="fetch")
             ).rowcount
 
     # Delete entries in Import Errors table for a deleted DAG

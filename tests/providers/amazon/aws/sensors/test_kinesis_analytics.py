@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.kinesis_analytics import KinesisAnalyticsV2Hook
 from airflow.providers.amazon.aws.sensors.kinesis_analytics import (
     KinesisAnalyticsV2StartApplicationCompletedSensor,
@@ -78,24 +78,17 @@ class TestKinesisAnalyticsV2StartApplicationCompletedSensor:
         }
         assert self.sensor.poke({}) is False
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        [
-            pytest.param(False, AirflowException, id="not-soft-fail"),
-            pytest.param(True, AirflowSkipException, id="soft-fail"),
-        ],
-    )
     @pytest.mark.parametrize("state", SENSOR.FAILURE_STATES)
     @mock.patch.object(KinesisAnalyticsV2Hook, "conn")
-    def test_poke_failure_states(self, mock_conn, state, soft_fail, expected_exception):
+    def test_poke_failure_states(self, mock_conn, state):
         mock_conn.describe_application.return_value = {
             "ApplicationDetail": {"ApplicationARN": self.APPLICATION_ARN, "ApplicationStatus": state}
         }
 
-        sensor = self.SENSOR(**self.default_op_kwargs, aws_conn_id=None, soft_fail=soft_fail)
+        sensor = self.SENSOR(**self.default_op_kwargs, aws_conn_id=None)
 
         with pytest.raises(
-            expected_exception, match="AWS Managed Service for Apache Flink application start failed"
+            AirflowException, match="AWS Managed Service for Apache Flink application start failed"
         ):
             sensor.poke({})
 
@@ -150,23 +143,16 @@ class TestKinesisAnalyticsV2StopApplicationCompletedSensor:
         }
         assert self.sensor.poke({}) is False
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        [
-            pytest.param(False, AirflowException, id="not-soft-fail"),
-            pytest.param(True, AirflowSkipException, id="soft-fail"),
-        ],
-    )
     @pytest.mark.parametrize("state", SENSOR.FAILURE_STATES)
     @mock.patch.object(KinesisAnalyticsV2Hook, "conn")
-    def test_poke_failure_states(self, mock_conn, state, soft_fail, expected_exception):
+    def test_poke_failure_states(self, mock_conn, state):
         mock_conn.describe_application.return_value = {
             "ApplicationDetail": {"ApplicationARN": self.APPLICATION_ARN, "ApplicationStatus": state}
         }
 
-        sensor = self.SENSOR(**self.default_op_kwargs, aws_conn_id=None, soft_fail=soft_fail)
+        sensor = self.SENSOR(**self.default_op_kwargs, aws_conn_id=None)
 
         with pytest.raises(
-            expected_exception, match="AWS Managed Service for Apache Flink application stop failed"
+            AirflowException, match="AWS Managed Service for Apache Flink application stop failed"
         ):
             sensor.poke({})

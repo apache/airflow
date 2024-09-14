@@ -41,7 +41,7 @@ class TestAsanaHook:
         ):
             hook = AsanaHook()
         client = hook.get_conn()
-        assert type(client) == Client
+        assert isinstance(client, Client)
 
     def test_missing_password_raises(self):
         """

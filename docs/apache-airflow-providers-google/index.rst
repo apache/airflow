@@ -87,7 +87,7 @@ Google services including:
   - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 
-Release: 10.21.1
+Release: 10.22.0
 
 Provider package
 ----------------
@@ -105,17 +105,17 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
 ==========================================  =========================================
 PIP package                                 Version required
 ==========================================  =========================================
-``apache-airflow``                          ``>=2.7.0``
+``apache-airflow``                          ``>=2.8.0``
 ``apache-airflow-providers-common-compat``  ``>=1.1.0``
 ``apache-airflow-providers-common-sql``     ``>=1.7.2``
 ``asgiref``                                 ``>=3.5.2``
 ``dill``                                    ``>=0.2.3``
-``gcloud-aio-auth``                         ``>=4.0.0,<5.0.0``
+``gcloud-aio-auth``                         ``>=5.2.0``
 ``gcloud-aio-bigquery``                     ``>=6.1.2``
 ``gcloud-aio-storage``                      ``>=9.0.0``
 ``gcsfs``                                   ``>=2023.10.0``
@@ -219,5 +219,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-google 10.21.1 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.21.1.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.21.1.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.21.1.tar.gz.sha512>`__)
-* `The apache-airflow-providers-google 10.21.1 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.21.1-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.21.1-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.21.1-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-google 10.22.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.22.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.22.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.22.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-google 10.22.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.22.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.22.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-10.22.0-py3-none-any.whl.sha512>`__)

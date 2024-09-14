@@ -55,7 +55,7 @@ try:
 except ImportError:
     pytest.skip("MySQL not available", allow_module_level=True)
 
-DAG_ID = "example_mysql_to_gcs"
+DAG_ID = "mysql_to_gcs"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "example-project")
 
@@ -97,7 +97,7 @@ GCE_INSTANCE_BODY = {
             "initialize_params": {
                 "disk_size_gb": "10",
                 "disk_type": f"zones/{ZONE}/diskTypes/pd-balanced",
-                "source_image": "projects/debian-cloud/global/images/debian-11-bullseye-v20220621",
+                "source_image": "projects/debian-cloud/global/images/debian-12-bookworm-v20240611",
             },
         }
     ],
@@ -109,13 +109,13 @@ GCE_INSTANCE_BODY = {
         }
     ],
 }
-FIREWALL_RULE_NAME = f"allow-http-{DB_PORT}"
+FIREWALL_RULE_NAME = f"allow-http-{DB_PORT}-{DAG_ID}-{ENV_ID}".replace("_", "-")
 CREATE_FIREWALL_RULE_COMMAND = f"""
 if [ $AIRFLOW__API__GOOGLE_KEY_PATH ]; then \
  gcloud auth activate-service-account --key-file=$AIRFLOW__API__GOOGLE_KEY_PATH; \
 fi;
 
-if [ -z gcloud compute firewall-rules list --filter=name:{FIREWALL_RULE_NAME} --format="value(name)" ]; then \
+if [ -z $(gcloud compute firewall-rules list --filter=name:{FIREWALL_RULE_NAME} --format="value(name)" --project={PROJECT_ID}) ]; then \
     gcloud compute firewall-rules create {FIREWALL_RULE_NAME} \
       --project={PROJECT_ID} \
       --direction=INGRESS \
@@ -132,7 +132,7 @@ DELETE_FIREWALL_RULE_COMMAND = f"""
 if [ $AIRFLOW__API__GOOGLE_KEY_PATH ]; then \
  gcloud auth activate-service-account --key-file=$AIRFLOW__API__GOOGLE_KEY_PATH; \
 fi; \
-if [ gcloud compute firewall-rules list --filter=name:{FIREWALL_RULE_NAME} --format="value(name)" ]; then \
+if [ $(gcloud compute firewall-rules list --filter=name:{FIREWALL_RULE_NAME} --format="value(name)" --project={PROJECT_ID}) ]; then \
     gcloud compute firewall-rules delete {FIREWALL_RULE_NAME} --project={PROJECT_ID} --quiet; \
 fi;
 """
@@ -191,9 +191,9 @@ with DAG(
     get_public_ip_task = get_public_ip()
 
     @task
-    def setup_connection(ip_address: str) -> None:
+    def create_connection(connection_id: str, ip_address: str) -> None:
         connection = Connection(
-            conn_id=CONNECTION_ID,
+            conn_id=connection_id,
             description="Example connection",
             conn_type=CONNECTION_TYPE,
             host=ip_address,
@@ -202,15 +202,15 @@ with DAG(
             port=DB_PORT,
         )
         session = Session()
-        log.info("Removing connection %s if it exists", CONNECTION_ID)
-        query = session.query(Connection).filter(Connection.conn_id == CONNECTION_ID)
+        log.info("Removing connection %s if it exists", connection_id)
+        query = session.query(Connection).filter(Connection.conn_id == connection_id)
         query.delete()
 
         session.add(connection)
         session.commit()
-        log.info("Connection %s created", CONNECTION_ID)
+        log.info("Connection %s created", connection_id)
 
-    setup_connection_task = setup_connection(get_public_ip_task)
+    create_connection_task = create_connection(connection_id=CONNECTION_ID, ip_address=get_public_ip_task)
 
     create_sql_table = SQLExecuteQueryOperator(
         task_id="create_sql_table",
@@ -267,25 +267,32 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    delete_connection = BashOperator(
-        task_id="delete_connection",
-        bash_command=f"airflow connections delete {CONNECTION_ID}",
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
+    @task(task_id="delete_connection")
+    def delete_connection(connection_id: str) -> None:
+        session = Session()
+        log.info("Removing connection %s", connection_id)
+        query = session.query(Connection).filter(Connection.conn_id == connection_id)
+        query.delete()
+        session.commit()
 
-    # TEST SETUP
-    create_gce_instance >> setup_mysql
-    create_gce_instance >> get_public_ip_task >> setup_connection_task
-    [setup_mysql, setup_connection_task, create_firewall_rule] >> create_sql_table >> insert_sql_data
+    delete_connection_task = delete_connection(connection_id=CONNECTION_ID)
 
     (
-        [create_gcs_bucket, insert_sql_data]
+        # TEST SETUP
+        create_gce_instance
+        >> setup_mysql
+        >> create_firewall_rule
+        >> get_public_ip_task
+        >> create_connection_task
+        >> create_sql_table
+        >> insert_sql_data
+        >> create_gcs_bucket
         # TEST BODY
         >> mysql_to_gcs
     )
 
     # TEST TEARDOWN
-    mysql_to_gcs >> [delete_gcs_bucket, delete_firewall_rule, delete_gce_instance, delete_connection]
+    mysql_to_gcs >> [delete_gcs_bucket, delete_firewall_rule, delete_gce_instance, delete_connection_task]
     delete_gce_instance >> delete_persistent_disk
 
     from tests.system.utils.watcher import watcher

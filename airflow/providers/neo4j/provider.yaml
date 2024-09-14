@@ -22,9 +22,10 @@ description: |
     `Neo4j <https://neo4j.com/>`__
 
 state: ready
-source-date-epoch: 1716288178
+source-date-epoch: 1723970444
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 3.7.0
   - 3.6.1
   - 3.6.0
   - 3.5.0
@@ -48,7 +49,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.7.0
+  - apache-airflow>=2.8.0
   - neo4j>=4.2.1
 
 integrations:

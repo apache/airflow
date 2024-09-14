@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React, { useCallback, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Flex,
   Divider,
@@ -28,7 +28,9 @@ import {
   Tab,
   Text,
   Button,
+  Checkbox,
 } from "@chakra-ui/react";
+import InfoTooltip from "src/components/InfoTooltip";
 import { useSearchParams } from "react-router-dom";
 
 import useSelection from "src/dag/useSelection";
@@ -64,6 +66,7 @@ import MarkRunAs from "./dagRun/MarkRunAs";
 import ClearInstance from "./taskInstance/taskActions/ClearInstance";
 import MarkInstanceAs from "./taskInstance/taskActions/MarkInstanceAs";
 import XcomCollection from "./taskInstance/Xcom";
+import AllTaskDuration from "./task/AllTaskDuration";
 import TaskDetails from "./task";
 import EventLog from "./EventLog";
 import RunDuration from "./dag/RunDuration";
@@ -98,8 +101,9 @@ const tabToIndex = (tab?: string) => {
     case "run_duration":
       return 5;
     case "xcom":
-    case "calendar":
+    case "task_duration":
       return 6;
+    case "calendar":
     case "rendered_k8s":
       return 7;
     case "details":
@@ -138,10 +142,11 @@ const indexToTab = (
       if (!runId && !taskId) return "run_duration";
       return undefined;
     case 6:
-      if (!runId && !taskId) return "calendar";
+      if (!runId && !taskId) return "task_duration";
       if (isTaskInstance) return "xcom";
       return undefined;
     case 7:
+      if (!runId && !taskId) return "calendar";
       if (isTaskInstance && isK8sExecutor) return "rendered_k8s";
       return undefined;
     default:
@@ -172,6 +177,7 @@ const Details = ({
   const children = group?.children;
   const isMapped = group?.isMapped;
   const isGroup = !!children;
+  const [showBar, setShowBar] = useState(false);
 
   const isMappedTaskSummary = !!(
     taskId &&
@@ -341,6 +347,14 @@ const Details = ({
           )}
           {isDag && (
             <Tab>
+              <MdHourglassBottom size={16} />
+              <Text as="strong" ml={1}>
+                Task Duration
+              </Text>
+            </Tab>
+          )}
+          {isDag && (
+            <Tab>
               <MdEvent size={16} />
               <Text as="strong" ml={1}>
                 Calendar
@@ -435,6 +449,8 @@ const Details = ({
               openGroupIds={openGroupIds}
               gridScrollRef={gridScrollRef}
               ganttScrollRef={ganttScrollRef}
+              taskId={taskId}
+              runId={runId}
             />
           </TabPanel>
           <TabPanel height="100%">
@@ -450,6 +466,21 @@ const Details = ({
           {isDag && (
             <TabPanel height="100%">
               <RunDuration />
+            </TabPanel>
+          )}
+          {isDag && (
+            <TabPanel height="80%">
+              <Flex justifyContent="right" pr="30px">
+                <Checkbox
+                  isChecked={showBar}
+                  onChange={() => setShowBar(!showBar)}
+                  size="lg"
+                >
+                  Show Bar Chart
+                </Checkbox>
+                <InfoTooltip label="Show bar chart" size={16} />
+              </Flex>
+              <AllTaskDuration showBar={showBar} />
             </TabPanel>
           )}
           {isDag && (

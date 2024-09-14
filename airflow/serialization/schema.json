@@ -140,14 +140,6 @@
         "_dag_id": { "type": "string" },
         "tasks": {  "$ref": "#/definitions/tasks" },
         "timezone": { "$ref": "#/definitions/timezone" },
-        "schedule_interval": {
-          "anyOf": [
-            { "type": "null" },
-            { "type": "string" },
-            { "$ref": "#/definitions/typed_timedelta" },
-            { "$ref": "#/definitions/typed_relativedelta" }
-          ]
-        },
         "owner_links": { "type": "object" },
         "timetable": {
           "type": "object",
@@ -157,7 +149,6 @@
           }
         },
         "catchup": { "type": "boolean" },
-        "is_subdag": { "type": "boolean" },
         "fileloc": { "type" : "string"},
         "_processor_dags_folder": {
             "anyOf": [

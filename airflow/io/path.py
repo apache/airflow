@@ -54,7 +54,7 @@ class TrackingFileWrapper(LoggingMixin):
         if callable(attr):
             # If the attribute is a method, wrap it in another method to intercept the call
             def wrapper(*args, **kwargs):
-                self.log.error("Calling method: %s", name)
+                self.log.debug("Calling method: %s", name)
                 if name == "read":
                     get_hook_lineage_collector().add_input_dataset(context=self._path, uri=str(self._path))
                 elif name == "write":
@@ -198,7 +198,7 @@ class ObjectStoragePath(CloudPath):
 
         Returns the new Path instance pointing to the target path.
         """
-        return self.rename(target, overwrite=True)
+        return self.rename(target)
 
     @classmethod
     def cwd(cls):

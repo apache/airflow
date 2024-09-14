@@ -25,6 +25,43 @@
 Changelog
 ---------
 
+1.17.0
+......
+
+Features
+~~~~~~~~
+
+* ``Connection in DB Hook is now cached to avoid multiple lookups when properties from extras have to be resolved``
+
+1.16.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: rm deprecated import (#41461)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+
+1.15.0
+......
+
+Features
+~~~~~~~~
+
+* ``Create SQLAlchemy engine from connection in DB Hook and added autocommit param to insert_rows method (#40669)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.14.2
 ......
 

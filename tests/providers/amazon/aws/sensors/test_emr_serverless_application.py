@@ -21,7 +21,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.emr import EmrServerlessApplicationSensor
 
 
@@ -75,16 +75,3 @@ class TestPokeRaisesAirflowException(TestEmrServerlessApplicationSensor):
 
         assert exception_msg == str(ctx.value)
         self.assert_get_application_was_called_once_with_app_id()
-
-
-class TestPokeRaisesAirflowSkipException(TestEmrServerlessApplicationSensor):
-    def test_when_state_is_failed_and_soft_fail_is_true_poke_should_raise_skip_exception(self):
-        self.sensor.soft_fail = True
-        self.set_get_application_return_value(
-            {"application": {"state": "STOPPED", "stateDetails": "mock stopped"}}
-        )
-        with pytest.raises(AirflowSkipException) as ctx:
-            self.sensor.poke(None)
-        assert "EMR Serverless application failed: mock stopped" == str(ctx.value)
-        self.assert_get_application_was_called_once_with_app_id()
-        self.sensor.soft_fail = False

@@ -176,7 +176,7 @@ info:
     `airflow config get-value api auth_backends` command as in the example below.
     ```bash
     $ airflow config get-value api auth_backends
-    airflow.api.auth.backend.basic_auth
+    airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
     ```
     The default is to deny all requests.
 
@@ -1517,6 +1517,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PageLimit"
         - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/TaskInstanceOrderBy"
       responses:
         "200":
           description: Success.
@@ -1675,7 +1676,7 @@ paths:
         - $ref: "#/components/parameters/FilterPool"
         - $ref: "#/components/parameters/FilterQueue"
         - $ref: "#/components/parameters/FilterExecutor"
-        - $ref: "#/components/parameters/OrderBy"
+        - $ref: "#/components/parameters/TaskInstanceOrderBy"
       responses:
         "200":
           description: Success.
@@ -2224,6 +2225,32 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
+
+  /dagStats:
+    get:
+      summary: List Dag statistics
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_stats_endpoint
+      operationId: get_dag_stats
+      tags: [DagStats]
+      parameters:
+        - name: dag_ids
+          in: query
+          schema:
+            type: string
+          required: true
+          description: |
+            One or more DAG IDs separated by commas to filter relevant Dags.
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DagStatsCollectionSchema"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
 
   /dagSources/{file_token}:
     parameters:
@@ -3080,11 +3107,6 @@ components:
             Human centric display text for the DAG.
 
             *New in version 2.9.0*
-        root_dag_id:
-          type: string
-          readOnly: true
-          nullable: true
-          description: If the DAG is SubDAG then it is the top level DAG identifier. Otherwise, null.
         is_paused:
           type: boolean
           nullable: true
@@ -3099,10 +3121,6 @@ components:
           nullable: true
           readOnly: true
           type: boolean
-        is_subdag:
-          description: Whether the DAG is SubDAG.
-          type: boolean
-          readOnly: true
         last_parsed_time:
           type: string
           format: date-time
@@ -3178,14 +3196,20 @@ components:
           description: >
             User-provided DAG description, which can consist of several sentences or paragraphs that
             describe DAG contents.
-        schedule_interval:
-          $ref: "#/components/schemas/ScheduleInterval"
+        timetable_summary:
+          type: string
+          readOnly: true
+          nullable: true
+          description: |
+            Timetable summary.
+
+            *New in version 3.0.0*
         timetable_description:
           type: string
           readOnly: true
           nullable: true
           description: |
-            Timetable/Schedule Interval description.
+            Timetable description.
 
             *New in version 2.3.0*
         tags:
@@ -3423,6 +3447,46 @@ components:
               items:
                 $ref: "#/components/schemas/DAGRun"
         - $ref: "#/components/schemas/CollectionInfo"
+
+    DagStatsCollectionSchema:
+      type: object
+      description: |
+        Collection of Dag statistics.
+
+      allOf:
+        - type: object
+          properties:
+            dags:
+              type: array
+              items:
+                $ref: "#/components/schemas/DagStatsCollectionItem"
+        - $ref: "#/components/schemas/CollectionInfo"
+
+    DagStatsCollectionItem:
+      description: DagStats entry collection item.
+
+      type: object
+      properties:
+        dag_id:
+          type: string
+          description: The DAG ID.
+        stats:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/DagStatsStateCollectionItem"
+
+    DagStatsStateCollectionItem:
+      description: DagStatsState entry collection item.
+
+      type: object
+      properties:
+        state:
+          type: string
+          description: The DAG state.
+        count:
+          type: integer
+          description: The DAG state count.
 
     DagWarning:
       type: object
@@ -4077,6 +4141,7 @@ components:
                 - type: array
                   items: {}
                 - type: object
+                  nullable: true
               description: The value(s),
 
     # Python objects
@@ -4837,14 +4902,6 @@ components:
           type: boolean
           default: false
 
-        include_subdags:
-          description: Clear tasks in subdags and clear external tasks indicated by ExternalTaskMarker.
-          type: boolean
-
-        include_parentdag:
-          description: Clear tasks in the parent dag of the subdag.
-          type: boolean
-
         reset_dag_runs:
           description: Set state of DAG runs to RUNNING.
           type: boolean
@@ -5127,21 +5184,18 @@ components:
           items:
             type: string
           description: The value can be repeated to retrieve multiple matching values (OR condition).
+        order_by:
+          type: string
+          description: |
+            The name of the field to order the results by. Prefix a field name
+            with `-` to reverse the sort order. `order_by` defaults to
+            `map_index` when unspecified.
+            Supported field names: `state`, `duration`, `start_date`, `end_date`
+            and `map_index`.
+
+            *New in version 3.0.0*
 
     # Common data type
-    ScheduleInterval:
-      description: |
-        Schedule interval. Defines how often DAG runs, this object gets added to your latest task instance's
-        execution_date to figure out the next schedule.
-      nullable: true
-      readOnly: true
-      anyOf:
-        - $ref: "#/components/schemas/TimeDelta"
-        - $ref: "#/components/schemas/RelativeDelta"
-        - $ref: "#/components/schemas/CronExpression"
-      discriminator:
-        propertyName: __type
-
     TimeDelta:
       description: Time delta
       type: object
@@ -5751,6 +5805,21 @@ components:
       schema:
         type: integer
       description: Filter on try_number for task instance.
+
+    TaskInstanceOrderBy:
+      in: query
+      name: order_by
+      schema:
+        type: string
+      required: false
+      description: |
+        The name of the field to order the results by. Prefix a field name
+        with `-` to reverse the sort order. `order_by` defaults to
+        `map_index` when unspecified.
+        Supported field names: `state`, `duration`, `start_date`, `end_date`
+        and `map_index`.
+
+        *New in version 3.0.0*
 
     OrderBy:
       in: query

@@ -32,7 +32,7 @@ from airflow.utils.file import open_maybe_zipped
 from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_dag_code
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 def make_example_dags(module):
@@ -105,8 +105,6 @@ class TestDagCode:
     def _compare_example_dags(self, example_dags):
         with create_session() as session:
             for dag in example_dags.values():
-                if dag.is_subdag:
-                    dag.fileloc = dag.parent_dag.fileloc
                 assert DagCode.has_dag(dag.fileloc)
                 dag_fileloc_hash = DagCode.dag_fileloc_hash(dag.fileloc)
                 result = (

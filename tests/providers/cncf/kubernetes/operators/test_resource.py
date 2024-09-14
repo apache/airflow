@@ -91,7 +91,7 @@ class TestKubernetesXResourceOperator:
 
     def setup_method(self):
         args = {"owner": "airflow", "start_date": timezone.datetime(2020, 2, 1)}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     @patch("kubernetes.config.load_kube_config")
     @patch("kubernetes.client.api.CoreV1Api.create_namespaced_persistent_volume_claim")

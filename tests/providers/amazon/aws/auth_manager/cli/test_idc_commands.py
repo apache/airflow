@@ -28,7 +28,10 @@ from tests.test_utils.config import conf_vars
 
 mock_boto3 = Mock()
 
-pytestmark = pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Test requires Airflow 2.8+")
+pytestmark = [
+    pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="Test requires Airflow 2.8+"),
+    pytest.mark.skip_if_database_isolation_mode,
+]
 
 
 @pytest.mark.db_test

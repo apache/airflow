@@ -35,14 +35,39 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.28.0
+......
+
+Latest change: 2024-08-17
+
+=================================================================================================  ===========  ====================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================================================
+`e92cf81805 <https://github.com/apache/airflow/commit/e92cf8180574f1b6b5f1954013ab9ddbd95961f4>`_  2024-08-17   ``Fix 'AwsTaskLogFetcher' missing logs (#41515)``
+`f2b7bb8803 <https://github.com/apache/airflow/commit/f2b7bb880345aeaaebdbb5ef48a6ef3bb87d821e>`_  2024-08-16   ``Partial fix for example_dynamodb_to_s3.py (#41517)``
+`a70ee7209c <https://github.com/apache/airflow/commit/a70ee7209cd8d4dabb8bc1b1057d79ff25a99bae>`_  2024-08-15   ``Add incremental export and cross account export functionality in 'DynamoDBToS3Operator' (#41304)``
+`c8fc0ade09 <https://github.com/apache/airflow/commit/c8fc0ade0901ff7f08c45545f56caeb1a7d96bd1>`_  2024-08-15   ``Remove deprecated code is AWS provider (#41407)``
+`fb378bdf2e <https://github.com/apache/airflow/commit/fb378bdf2e27f68a287d7b43748fb67d474f80f2>`_  2024-08-14   ``Issue-41243 Fix the Exception name and unpin dependency (#41256)``
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+`ce1163a713 <https://github.com/apache/airflow/commit/ce1163a71397655fc30650936609def476fa70cd>`_  2024-08-11   ``typo (#41381)``
+`4d45c005b7 <https://github.com/apache/airflow/commit/4d45c005b70e8a73a8f9e8810d534ee299104ad2>`_  2024-08-09   ``EKS Overrides for AWS Batch submit_job (#40718)``
+`454b5bbf52 <https://github.com/apache/airflow/commit/454b5bbf529ea2a9b0b69a871803ff8920af0bb5>`_  2024-08-07   ``Fix RedshiftDataOperator not running in deferred mode when it should (#41206)``
+`181c1c3a63 <https://github.com/apache/airflow/commit/181c1c3a63d999d1bcbe71c9bce4e46eaa6c1b36>`_  2024-08-03   ``Limit moto temporarily - 5.0.12 is breaking our tests (#41244)``
+=================================================================================================  ===========  ====================================================================================================
+
 8.27.0
 ......
 
-Latest change: 2024-07-26
+Latest change: 2024-08-03
 
 =================================================================================================  ===========  =================================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================================================================
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
+`7fe573317e <https://github.com/apache/airflow/commit/7fe573317eb630c2d176329c599d6fbbb30f4378>`_  2024-08-01   ``Fix AWS Redshift operators and sensors (#41191)``
+`ab0cf2eb25 <https://github.com/apache/airflow/commit/ab0cf2eb251e6a769df31f471091ee43dc370aff>`_  2024-07-31   ``Deprecate 'SageMakerTrainingPrintLogTrigger' (#41158)``
+`97c4fdce71 <https://github.com/apache/airflow/commit/97c4fdce71e0665997b7c3a8f78324af616c91b4>`_  2024-07-29   ``Fix 'EmrServerlessStartJobOperator' (#41103)``
+`7126678e87 <https://github.com/apache/airflow/commit/7126678e87c11665c06ec29595472cfaa0c7fdd6>`_  2024-07-28   ``Prepare Providers docs ad hoc release (#41074)``
 `c519920661 <https://github.com/apache/airflow/commit/c519920661133a06e917a781e73caeac111b26f5>`_  2024-07-26   ``Make EMR Container Trigger max attempts retries match the Operator (#41008)``
 `83ca61a501 <https://github.com/apache/airflow/commit/83ca61a501d755669fc83b1ad9038d0ca9d600ad>`_  2024-07-26   ``Fix 'RdsStopDbOperator' operator in deferrable mode (#41059)``
 `68b3159210 <https://github.com/apache/airflow/commit/68b3159210fc4bb1dc0a18fb99ae610ffd0a7b2a>`_  2024-07-24   ``Add RedriveExecution support to 'StepFunctionStartExecutionOperator' (#40976)``

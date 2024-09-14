@@ -32,7 +32,7 @@ DAG_ID = "example_telegram"
 CONN_ID = "telegram_conn_id"
 CHAT_ID = "-3222103937"
 
-with DAG(DAG_ID, start_date=datetime(2021, 1, 1), tags=["example"]) as dag:
+with DAG(DAG_ID, start_date=datetime(2021, 1, 1), schedule=None, tags=["example"]) as dag:
     # [START howto_operator_telegram]
 
     send_message_telegram_task = TelegramOperator(

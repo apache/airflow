@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
 from airflow.providers.amazon.aws.sensors.opensearch_serverless import (
     OpenSearchServerlessCollectionActiveSensor,
@@ -95,19 +95,10 @@ class TestOpenSearchServerlessCollectionActiveSensor:
         mock_conn.batch_get_collection.return_value = {"collectionDetails": [{"status": state}]}
         assert self.sensor.poke({}) is False
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        [
-            pytest.param(False, AirflowException, id="not-soft-fail"),
-            pytest.param(True, AirflowSkipException, id="soft-fail"),
-        ],
-    )
     @pytest.mark.parametrize("state", list(OpenSearchServerlessCollectionActiveSensor.FAILURE_STATES))
     @mock.patch.object(OpenSearchServerlessHook, "conn")
-    def test_poke_failure_states(self, mock_conn, state, soft_fail, expected_exception):
+    def test_poke_failure_states(self, mock_conn, state):
         mock_conn.batch_get_collection.return_value = {"collectionDetails": [{"status": state}]}
-        sensor = OpenSearchServerlessCollectionActiveSensor(
-            **self.default_op_kwargs, aws_conn_id=None, soft_fail=soft_fail
-        )
-        with pytest.raises(expected_exception, match=sensor.FAILURE_MESSAGE):
+        sensor = OpenSearchServerlessCollectionActiveSensor(**self.default_op_kwargs, aws_conn_id=None)
+        with pytest.raises(AirflowException, match=sensor.FAILURE_MESSAGE):
             sensor.poke({})

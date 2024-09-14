@@ -24,6 +24,7 @@ import pytest
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.transfers.mongo_to_s3 import MongoToS3Operator
 from airflow.utils import timezone
+from airflow.utils.types import DagRunType
 
 TASK_ID = "test_mongo_to_s3_operator"
 MONGO_CONN_ID = "default_mongo"
@@ -45,7 +46,7 @@ class TestMongoToS3Operator:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
 
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
         self.mock_operator = MongoToS3Operator(
             task_id=TASK_ID,
@@ -78,10 +79,17 @@ class TestMongoToS3Operator:
         )
 
     @pytest.mark.db_test
-    def test_render_template(self):
-        dag_run = DagRun(dag_id=self.mock_operator.dag_id, execution_date=DEFAULT_DATE, run_id="test")
+    def test_render_template(self, session):
+        dag_run = DagRun(
+            dag_id=self.mock_operator.dag_id,
+            execution_date=DEFAULT_DATE,
+            run_id="test",
+            run_type=DagRunType.MANUAL,
+        )
         ti = TaskInstance(task=self.mock_operator)
         ti.dag_run = dag_run
+        session.add(ti)
+        session.commit()
         ti.render_templates()
 
         expected_rendered_template = {"$lt": "2017-01-01T00:00:00+00:00Z"}

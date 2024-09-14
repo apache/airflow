@@ -166,7 +166,7 @@ TEST_APPLICATION_DICT = {
 
 
 def create_context(task):
-    dag = DAG(dag_id="dag")
+    dag = DAG(dag_id="dag", schedule=None)
     tzinfo = pendulum.timezone("Europe/Amsterdam")
     execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
     dag_run = DagRun(
@@ -187,6 +187,7 @@ def create_context(task):
     }
 
 
+@pytest.mark.db_test
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_requested_container_logs")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
 @patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_start")
@@ -197,7 +198,7 @@ def create_context(task):
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object_status")
 @patch("kubernetes.client.api.custom_objects_api.CustomObjectsApi.create_namespaced_custom_object")
 class TestSparkKubernetesOperator:
-    def setUp(self):
+    def setup_method(self):
         db.merge_conn(
             Connection(conn_id="kubernetes_default_kube_config", conn_type="kubernetes", extra=json.dumps({}))
         )
@@ -209,7 +210,7 @@ class TestSparkKubernetesOperator:
             )
         )
         args = {"owner": "airflow", "start_date": timezone.datetime(2020, 2, 1)}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     def execute_operator(self, task_name, mock_create_job_name, job_spec):
         mock_create_job_name.return_value = task_name
@@ -547,28 +548,33 @@ class TestSparkKubernetesOperator:
 
 
 @pytest.mark.db_test
-def test_template_body_templating(create_task_instance_of_operator):
+def test_template_body_templating(create_task_instance_of_operator, session):
     ti = create_task_instance_of_operator(
         SparkKubernetesOperator,
         template_spec={"foo": "{{ ds }}", "bar": "{{ dag_run.dag_id }}"},
         kubernetes_conn_id="kubernetes_default_kube_config",
         dag_id="test_template_body_templating_dag",
         task_id="test_template_body_templating_task",
+        session=session,
         execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
     )
+    session.add(ti)
+    session.commit()
     ti.render_templates()
     task: SparkKubernetesOperator = ti.task
     assert task.template_body == {"spark": {"foo": "2024-02-01", "bar": "test_template_body_templating_dag"}}
 
 
 @pytest.mark.db_test
-def test_resolve_application_file_template_file(dag_maker, tmp_path):
+def test_resolve_application_file_template_file(dag_maker, tmp_path, session):
     execution_date = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
     filename = "test-application-file.yml"
     (tmp_path / filename).write_text("foo: {{ ds }}\nbar: {{ dag_run.dag_id }}\nspam: egg")
 
     with dag_maker(
-        dag_id="test_resolve_application_file_template_file", template_searchpath=tmp_path.as_posix()
+        dag_id="test_resolve_application_file_template_file",
+        template_searchpath=tmp_path.as_posix(),
+        session=session,
     ):
         SparkKubernetesOperator(
             application_file=filename,
@@ -577,6 +583,8 @@ def test_resolve_application_file_template_file(dag_maker, tmp_path):
         )
 
     ti = dag_maker.create_dagrun(execution_date=execution_date).task_instances[0]
+    session.add(ti)
+    session.commit()
     ti.render_templates()
     task: SparkKubernetesOperator = ti.task
     assert task.template_body == {
@@ -598,14 +606,16 @@ def test_resolve_application_file_template_file(dag_maker, tmp_path):
         pytest.param(None, id="none"),
     ],
 )
-def test_resolve_application_file_template_non_dictionary(dag_maker, tmp_path, body):
+def test_resolve_application_file_template_non_dictionary(dag_maker, tmp_path, body, session):
     execution_date = timezone.datetime(2024, 2, 1, tzinfo=timezone.utc)
     filename = "test-application-file.yml"
     with open((tmp_path / filename), "w") as fp:
         yaml.safe_dump(body, fp)
 
     with dag_maker(
-        dag_id="test_resolve_application_file_template_nondictionary", template_searchpath=tmp_path.as_posix()
+        dag_id="test_resolve_application_file_template_nondictionary",
+        template_searchpath=tmp_path.as_posix(),
+        session=session,
     ):
         SparkKubernetesOperator(
             application_file=filename,
@@ -614,6 +624,8 @@ def test_resolve_application_file_template_non_dictionary(dag_maker, tmp_path, b
         )
 
     ti = dag_maker.create_dagrun(execution_date=execution_date).task_instances[0]
+    session.add(ti)
+    session.commit()
     ti.render_templates()
     task: SparkKubernetesOperator = ti.task
     with pytest.raises(TypeError, match="application_file body can't transformed into the dictionary"):
@@ -627,7 +639,9 @@ def test_resolve_application_file_template_non_dictionary(dag_maker, tmp_path, b
 @pytest.mark.skipif(
     not AIRFLOW_V_2_8_PLUS, reason="Skipping tests that require LiteralValue for Airflow < 2.8.0"
 )
-def test_resolve_application_file_real_file(create_task_instance_of_operator, tmp_path, use_literal_value):
+def test_resolve_application_file_real_file(
+    create_task_instance_of_operator, tmp_path, use_literal_value, session
+):
     application_file = tmp_path / "test-application-file.yml"
     application_file.write_text("foo: bar\nspam: egg")
 
@@ -646,7 +660,10 @@ def test_resolve_application_file_real_file(create_task_instance_of_operator, tm
         kubernetes_conn_id="kubernetes_default_kube_config",
         dag_id="test_resolve_application_file_real_file",
         task_id="test_template_body_templating_task",
+        session=session,
     )
+    session.add(ti)
+    session.commit()
     ti.render_templates()
     task: SparkKubernetesOperator = ti.task
 
@@ -657,7 +674,7 @@ def test_resolve_application_file_real_file(create_task_instance_of_operator, tm
 @pytest.mark.skipif(
     not AIRFLOW_V_2_8_PLUS, reason="Skipping tests that require LiteralValue for Airflow < 2.8.0"
 )
-def test_resolve_application_file_real_file_not_exists(create_task_instance_of_operator, tmp_path):
+def test_resolve_application_file_real_file_not_exists(create_task_instance_of_operator, tmp_path, session):
     application_file = (tmp_path / "test-application-file.yml").resolve().as_posix()
     from airflow.template.templater import LiteralValue
 
@@ -667,7 +684,10 @@ def test_resolve_application_file_real_file_not_exists(create_task_instance_of_o
         kubernetes_conn_id="kubernetes_default_kube_config",
         dag_id="test_resolve_application_file_real_file_not_exists",
         task_id="test_template_body_templating_task",
+        session=session,
     )
+    session.add(ti)
+    session.commit()
     ti.render_templates()
     task: SparkKubernetesOperator = ti.task
     with pytest.raises(TypeError, match="application_file body can't transformed into the dictionary"):

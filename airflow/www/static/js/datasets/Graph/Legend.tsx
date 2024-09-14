@@ -21,6 +21,7 @@ import React from "react";
 import { Flex, Box, Text } from "@chakra-ui/react";
 import { MdOutlineAccountTree } from "react-icons/md";
 import { HiDatabase } from "react-icons/hi";
+import { PiRectangleDashed } from "react-icons/pi";
 
 const Legend = () => (
   <Box
@@ -35,9 +36,13 @@ const Legend = () => (
         <MdOutlineAccountTree size="14px" />
         <Text ml={1}>DAG</Text>
       </Flex>
-      <Flex alignItems="center">
+      <Flex alignItems="center" mr={2}>
         <HiDatabase size="14px" />
         <Text ml={1}>Dataset</Text>
+      </Flex>
+      <Flex alignItems="center">
+        <PiRectangleDashed size="14px" />
+        <Text ml={1}>Dataset Alias</Text>
       </Flex>
     </Flex>
   </Box>

@@ -31,7 +31,7 @@ from airflow.models import Variable
 from airflow.utils.session import create_session
 from tests.test_utils.db import clear_db_variables
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestCliVariables:

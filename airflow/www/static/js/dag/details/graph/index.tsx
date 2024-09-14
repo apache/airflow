@@ -18,7 +18,7 @@
  */
 
 import React, { useRef, useState, useEffect, useMemo } from "react";
-import { Box, useTheme, Select, Text } from "@chakra-ui/react";
+import { Box, useTheme, Select, Text, Switch, Flex } from "@chakra-ui/react";
 import ReactFlow, {
   ReactFlowProvider,
   Controls,
@@ -31,6 +31,7 @@ import ReactFlow, {
 } from "reactflow";
 
 import {
+  useDagDetails,
   useDatasetEvents,
   useDatasets,
   useGraphData,
@@ -57,6 +58,79 @@ interface Props {
 
 const dagId = getMetaValue("dag_id");
 
+type DatasetExpression = {
+  all?: (string | DatasetExpression)[];
+  any?: (string | DatasetExpression)[];
+};
+
+const getUpstreamDatasets = (
+  datasetExpression: DatasetExpression,
+  firstChildId: string,
+  level = 0
+) => {
+  let edges: WebserverEdge[] = [];
+  let nodes: DepNode[] = [];
+  let type: DepNode["value"]["class"] | undefined;
+  const datasetIds: string[] = [];
+  let nestedExpression: DatasetExpression | undefined;
+  if (datasetExpression?.any) {
+    type = "or-gate";
+    datasetExpression.any.forEach((de) => {
+      if (typeof de === "string") datasetIds.push(de);
+      else nestedExpression = de;
+    });
+  } else if (datasetExpression?.all) {
+    type = "and-gate";
+    datasetExpression.all.forEach((de) => {
+      if (typeof de === "string") datasetIds.push(de);
+      else nestedExpression = de;
+    });
+  }
+
+  if (type && datasetIds.length) {
+    edges.push({
+      sourceId: `${type}-${level}`,
+      // Point upstream datasets to the first task
+      targetId: firstChildId,
+      isSourceDataset: level === 0,
+    });
+    nodes.push({
+      id: `${type}-${level}`,
+      value: {
+        class: type,
+        label: "",
+      },
+    });
+    datasetIds.forEach((d: string) => {
+      nodes.push({
+        id: d,
+        value: {
+          class: "dataset",
+          label: d,
+        },
+      });
+      edges.push({
+        sourceId: d,
+        targetId: `${type}-${level}`,
+      });
+    });
+
+    if (nestedExpression) {
+      const data = getUpstreamDatasets(
+        nestedExpression,
+        `${type}-${level}`,
+        (level += 1)
+      );
+      edges = [...edges, ...data.edges];
+      nodes = [...nodes, ...data.nodes];
+    }
+  }
+  return {
+    nodes,
+    edges,
+  };
+};
+
 const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const graphRef = useRef(null);
   const { data } = useGraphData();
@@ -64,10 +138,13 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   const [hasRendered, setHasRendered] = useState(false);
   const [isZoomedOut, setIsZoomedOut] = useState(false);
   const { selected } = useSelection();
+  const [showDatasets, setShowDatasets] = useState(true);
 
   const {
     data: { dagRuns, groups },
   } = useGridData();
+
+  const { data: dagDetails } = useDagDetails();
 
   useEffect(() => {
     setArrange(data?.arrange || "LR");
@@ -77,16 +154,24 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     dagIds: [dagId],
   });
 
-  const enabledDatasets = !!(
-    selected.runId && datasetsCollection?.datasets?.length
-  );
+  let datasetNodes: DepNode[] = [];
+  let datasetEdges: WebserverEdge[] = [];
+
+  const { nodes: upstreamDatasetNodes, edges: upstreamDatasetEdges } =
+    getUpstreamDatasets(
+      dagDetails.datasetExpression as DatasetExpression,
+      data?.nodes?.children?.[0]?.id ?? ""
+    );
 
   const {
     data: { datasetEvents: upstreamDatasetEvents = [] },
   } = useUpstreamDatasetEvents({
     dagId,
     dagRunId: selected.runId || "",
-    options: { enabled: enabledDatasets },
+    options: {
+      enabled:
+        !!upstreamDatasetNodes.length && !!selected.runId && showDatasets,
+    },
   });
 
   const {
@@ -94,60 +179,64 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   } = useDatasetEvents({
     sourceDagId: dagId,
     sourceRunId: selected.runId || undefined,
-    options: { enabled: enabledDatasets },
+    options: { enabled: !!selected.runId && showDatasets },
   });
 
-  const datasetEdges: WebserverEdge[] = [];
-  const rawNodes =
-    data?.nodes && datasetsCollection?.datasets?.length
-      ? {
-          ...data.nodes,
-          children: [
-            ...(data.nodes.children || []),
-            ...(datasetsCollection?.datasets || []).map(
-              (dataset) =>
-                ({
-                  id: dataset?.id?.toString() || "",
-                  value: {
-                    class: "dataset",
-                    label: dataset.uri,
-                  },
-                } as DepNode)
-            ),
-          ],
+  if (showDatasets) {
+    datasetNodes = [...upstreamDatasetNodes];
+    datasetEdges = [...upstreamDatasetEdges];
+    datasetsCollection?.datasets?.forEach((dataset) => {
+      const producingTask = dataset?.producingTasks?.find(
+        (t) => t.dagId === dagId
+      );
+      if (dataset.uri) {
+        // check that the task is in the graph
+        if (
+          producingTask?.taskId &&
+          getTask({ taskId: producingTask?.taskId, task: groups })
+        ) {
+          datasetEdges.push({
+            sourceId: producingTask.taskId,
+            targetId: dataset.uri,
+          });
+          datasetNodes.push({
+            id: dataset.uri,
+            value: {
+              class: "dataset",
+              label: dataset.uri,
+            },
+          });
         }
-      : data?.nodes;
+      }
+    });
 
-  datasetsCollection?.datasets?.forEach((dataset) => {
-    const producingTask = dataset?.producingTasks?.find(
-      (t) => t.dagId === dagId
-    );
-    const consumingDag = dataset?.consumingDags?.find((d) => d.dagId === dagId);
-    if (dataset.id) {
-      // check that the task is in the graph
-      if (
-        producingTask?.taskId &&
-        getTask({ taskId: producingTask?.taskId, task: groups })
-      ) {
+    // Check if there is a dataset event even though we did not find a dataset
+    downstreamDatasetEvents.forEach((de) => {
+      const hasNode = datasetNodes.find((node) => node.id === de.datasetUri);
+      if (!hasNode && de.sourceTaskId && de.datasetUri) {
         datasetEdges.push({
-          sourceId: producingTask.taskId,
-          targetId: dataset.id.toString(),
+          sourceId: de.sourceTaskId,
+          targetId: de.datasetUri,
+        });
+        datasetNodes.push({
+          id: de.datasetUri,
+          value: {
+            class: "dataset",
+            label: de.datasetUri,
+          },
         });
       }
-      if (consumingDag && data?.nodes?.children?.length) {
-        datasetEdges.push({
-          sourceId: dataset.id.toString(),
-          // Point upstream datasets to the first task
-          targetId: data.nodes?.children[0].id,
-          isSourceDataset: true,
-        });
-      }
-    }
-  });
+    });
+  }
 
   const { data: graphData } = useGraphLayout({
     edges: [...(data?.edges || []), ...datasetEdges],
-    nodes: rawNodes,
+    nodes: data?.nodes
+      ? {
+          ...data.nodes,
+          children: [...(data?.nodes.children || []), ...datasetNodes],
+        }
+      : data?.nodes,
     openGroupIds,
     arrange,
   });
@@ -245,11 +334,25 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
           }}
         >
           <Panel position="top-right">
-            <Box bg="#ffffffdd" p={1}>
-              <Text>Layout:</Text>
+            <Box bg={colors.whiteAlpha[800]} p={1}>
+              {!!datasetsCollection?.datasets?.length && (
+                <Flex display="flex" alignItems="center">
+                  <Text fontSize="sm" mr={1}>
+                    Show datasets:
+                  </Text>
+                  <Switch
+                    id="show-datasets"
+                    isChecked={showDatasets}
+                    onChange={() => setShowDatasets(!showDatasets)}
+                  />
+                </Flex>
+              )}
+              <Text fontSize="sm">Layout:</Text>
               <Select
                 value={arrange}
                 onChange={(e) => setArrange(e.target.value)}
+                fontSize="sm"
+                size="sm"
               >
                 <option value="LR">Left -&gt; Right</option>
                 <option value="RL">Right -&gt; Left</option>

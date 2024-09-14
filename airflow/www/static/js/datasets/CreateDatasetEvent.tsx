@@ -34,13 +34,12 @@ import {
 } from "@chakra-ui/react";
 
 import { useContainerRef } from "src/context/containerRef";
-import { useCreateDatasetEvent } from "src/api";
-import type { Dataset } from "src/types/api-generated";
+import { useCreateDatasetEvent, useDataset } from "src/api";
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  dataset: Dataset;
+  uri: string;
 }
 
 function checkJsonString(str: string) {
@@ -52,22 +51,25 @@ function checkJsonString(str: string) {
   return true;
 }
 
-const CreateDatasetEventModal = ({ dataset, isOpen, onClose }: Props) => {
+const CreateDatasetEventModal = ({ uri, isOpen, onClose }: Props) => {
   const containerRef = useContainerRef();
   const [extra, setExtra] = useState("");
+  const { data: dataset } = useDataset({ uri });
 
   const isJson = checkJsonString(extra);
   const isDisabled = !!extra && !isJson;
 
   const { mutate: createDatasetEvent, isLoading } = useCreateDatasetEvent({
-    datasetId: dataset.id,
-    uri: dataset.uri,
+    datasetId: dataset?.id,
+    uri: dataset?.uri,
   });
 
   const onSubmit = () => {
     createDatasetEvent(extra ? JSON.parse(extra) : undefined);
     onClose();
   };
+
+  if (!dataset) return null;
 
   return (
     <Modal
@@ -78,7 +80,7 @@ const CreateDatasetEventModal = ({ dataset, isOpen, onClose }: Props) => {
     >
       <ModalOverlay />
       <ModalContent>
-        <ModalHeader>Manually create event for {dataset.uri}</ModalHeader>
+        <ModalHeader>Manually create event for {dataset?.uri}</ModalHeader>
         <ModalCloseButton />
         <ModalBody>
           <FormControl isInvalid={isDisabled}>

@@ -32,7 +32,7 @@ from airflow.utils.dates import parse_execution_date
 from airflow.utils.session import create_session
 from tests.test_utils.config import conf_vars
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 @pytest.fixture(scope="module", autouse=True)

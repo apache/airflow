@@ -19,6 +19,10 @@ from __future__ import annotations
 import datetime
 from unittest.mock import MagicMock, call, patch
 
+import pytest
+
+yandexcloud = pytest.importorskip("yandexcloud")
+
 from airflow.models.dag import DAG
 from airflow.providers.yandex.operators.dataproc import (
     DataprocCreateClusterOperator,

@@ -153,22 +153,6 @@ class BaseSQLOperator(BaseOperator):
         conn = BaseHook.get_connection(conn_id)
         hook = conn.get_hook(hook_params=self.hook_params)
         if not isinstance(hook, DbApiHook):
-            from airflow.hooks.dbapi_hook import DbApiHook as _DbApiHook
-
-            if isinstance(hook, _DbApiHook):
-                # This case might happen if user installed common.sql provider but did not upgrade the
-                # Other provider's versions to a version that supports common.sql provider
-                class_module = hook.__class__.__module__
-                match = _PROVIDERS_MATCHER.match(class_module)
-                if match:
-                    provider = match.group(1)
-                    min_version = _MIN_SUPPORTED_PROVIDERS_VERSION.get(provider)
-                    if min_version:
-                        raise AirflowException(
-                            f"You are trying to use common-sql with {hook.__class__.__name__},"
-                            f" but the Hook class comes from provider {provider} that does not support it."
-                            f" Please upgrade provider {provider} to at least {min_version}."
-                        )
             raise AirflowException(
                 f"You are trying to use `common-sql` with {hook.__class__.__name__},"
                 " but its provider does not support it. Please upgrade the provider to a version that"

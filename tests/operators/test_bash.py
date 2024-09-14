@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 import os
 import signal
 from datetime import datetime, timedelta
@@ -27,11 +28,14 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
-from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 END_DATE = datetime(2016, 1, 2, tzinfo=timezone.utc)
@@ -64,7 +68,9 @@ class TestBashOperator:
             (True, {"AIRFLOW_HOME": "OVERRIDDEN_AIRFLOW_HOME"}, "OVERRIDDEN_AIRFLOW_HOME"),
         ],
     )
-    def test_echo_env_variables(self, append_env, user_defined_env, expected_airflow_home, tmp_path):
+    def test_echo_env_variables(
+        self, append_env, user_defined_env, expected_airflow_home, dag_maker, tmp_path
+    ):
         """
         Test that env variables are exported correctly to the task bash environment.
         """
@@ -78,35 +84,36 @@ class TestBashOperator:
             f"manual__{utc_now.isoformat()}\n"
         )
 
-        dag = DAG(
-            dag_id="bash_op_test",
+        with dag_maker(
+            "bash_op_test",
             default_args={"owner": "airflow", "retries": 100, "start_date": DEFAULT_DATE},
             schedule="@daily",
             dagrun_timeout=timedelta(minutes=60),
-        )
+            serialized=True,
+        ):
+            tmp_file = tmp_path / "testfile"
+            task = BashOperator(
+                task_id="echo_env_vars",
+                bash_command=f"echo $AIRFLOW_HOME>> {tmp_file};"
+                f"echo $PYTHONPATH>> {tmp_file};"
+                f"echo $AIRFLOW_CTX_DAG_ID >> {tmp_file};"
+                f"echo $AIRFLOW_CTX_TASK_ID>> {tmp_file};"
+                f"echo $AIRFLOW_CTX_EXECUTION_DATE>> {tmp_file};"
+                f"echo $AIRFLOW_CTX_DAG_RUN_ID>> {tmp_file};",
+                append_env=append_env,
+                env=user_defined_env,
+            )
 
         execution_date = utc_now
-        dag.create_dagrun(
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
             execution_date=execution_date,
             start_date=utc_now,
             state=State.RUNNING,
             external_trigger=False,
             data_interval=(execution_date, execution_date),
-        )
-
-        tmp_file = tmp_path / "testfile"
-        task = BashOperator(
-            task_id="echo_env_vars",
-            dag=dag,
-            bash_command=f"echo $AIRFLOW_HOME>> {tmp_file};"
-            f"echo $PYTHONPATH>> {tmp_file};"
-            f"echo $AIRFLOW_CTX_DAG_ID >> {tmp_file};"
-            f"echo $AIRFLOW_CTX_TASK_ID>> {tmp_file};"
-            f"echo $AIRFLOW_CTX_EXECUTION_DATE>> {tmp_file};"
-            f"echo $AIRFLOW_CTX_DAG_RUN_ID>> {tmp_file};",
-            append_env=append_env,
-            env=user_defined_env,
+            **triggered_by_kwargs,
         )
 
         with mock.patch.dict(
@@ -228,17 +235,28 @@ class TestBashOperator:
         )
         op.execute(context)
 
+    def test_bash_operator_output_processor(self, context):
+        json_string = '{"AAD_BASIC": "Azure Active Directory Basic"}'
+        op = BashOperator(
+            task_id="test_bash_operator_output_processor",
+            bash_command=f"echo '{json_string}'",
+            output_processor=lambda output: json.loads(output),
+        )
+        result = op.execute(context)
+        assert result == json.loads(json_string)
+
     @pytest.mark.db_test
     def test_bash_operator_kill(self, dag_maker):
         import psutil
 
         sleep_time = f"100{os.getpid()}"
-        with dag_maker():
+        with dag_maker(serialized=True):
             op = BashOperator(
                 task_id="test_bash_operator_kill",
                 execution_timeout=timedelta(microseconds=25),
                 bash_command=f"/bin/bash -c 'sleep {sleep_time}'",
             )
+        dag_maker.create_dagrun()
         with pytest.raises(AirflowTaskTimeout):
             op.run()
         sleep(2)

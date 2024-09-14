@@ -17,12 +17,13 @@
 from __future__ import annotations
 
 import logging
+from importlib.util import find_spec
 from io import StringIO as StringBuffer
 
 import pytest
 
 from airflow.decorators import setup, task, teardown
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.models import TaskInstance
 from airflow.models.dag import DAG
 from airflow.utils import timezone
@@ -32,6 +33,10 @@ pytestmark = pytest.mark.db_test
 
 
 DEFAULT_DATE = timezone.datetime(2021, 9, 1)
+DILL_INSTALLED = find_spec("dill") is not None
+DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not installed")
+CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
+CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
 
 
 class TestDockerDecorator:
@@ -117,7 +122,7 @@ class TestDockerDecorator:
         def do_run():
             return 4
 
-        with DAG("test", start_date=DEFAULT_DATE) as dag:
+        with DAG("test", schedule=None, start_date=DEFAULT_DATE) as dag:
             do_run()
             for _ in range(20):
                 do_run()
@@ -207,13 +212,21 @@ class TestDockerDecorator:
         assert teardown_task.is_teardown
         assert teardown_task.on_failure_fail_dagrun is on_failure_fail_dagrun
 
-    @pytest.mark.parametrize("use_dill", [True, False])
-    def test_deepcopy_with_python_operator(self, dag_maker, use_dill):
+    @pytest.mark.parametrize(
+        "serializer",
+        [
+            pytest.param("pickle", id="pickle"),
+            pytest.param("dill", marks=DILL_MARKER, id="dill"),
+            pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+            pytest.param(None, id="default"),
+        ],
+    )
+    def test_deepcopy_with_python_operator(self, dag_maker, serializer):
         import copy
 
         from airflow.providers.docker.decorators.docker import _DockerDecoratedOperator
 
-        @task.docker(image="python:3.9-slim", auto_remove="force", use_dill=use_dill)
+        @task.docker(image="python:3.9-slim", auto_remove="force", serializer=serializer)
         def f():
             import logging
 
@@ -247,6 +260,7 @@ class TestDockerDecorator:
         assert isinstance(clone_of_docker_operator, _DockerDecoratedOperator)
         assert some_task.command == clone_of_docker_operator.command
         assert some_task.expect_airflow == clone_of_docker_operator.expect_airflow
+        assert some_task.serializer == clone_of_docker_operator.serializer
         assert some_task.use_dill == clone_of_docker_operator.use_dill
         assert some_task.pickling_library is clone_of_docker_operator.pickling_library
 
@@ -317,3 +331,98 @@ class TestDockerDecorator:
         assert 'with open(sys.argv[4], "w") as file:' not in log_content
         last_line_of_docker_operator_log = log_content.splitlines()[-1]
         assert "ValueError: This task is expected to fail" in last_line_of_docker_operator_log
+
+    @pytest.mark.parametrize(
+        "serializer",
+        [
+            pytest.param("pickle", id="pickle"),
+            pytest.param("dill", marks=DILL_MARKER, id="dill"),
+            pytest.param("cloudpickle", marks=CLOUDPICKLE_MARKER, id="cloudpickle"),
+        ],
+    )
+    def test_ambiguous_serializer(self, dag_maker, serializer):
+        @task.docker(image="python:3.9-slim", auto_remove="force", use_dill=True, serializer=serializer)
+        def f():
+            pass
+
+        with dag_maker():
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match="`use_dill` is deprecated and will be removed"
+            ):
+                with pytest.raises(
+                    AirflowException, match="Both 'use_dill' and 'serializer' parameters are set"
+                ):
+                    f()
+
+    def test_invalid_serializer(self, dag_maker):
+        @task.docker(image="python:3.9-slim", auto_remove="force", serializer="airflow")
+        def f():
+            """Ensure dill is correctly installed."""
+            import dill  # noqa: F401
+
+        with dag_maker():
+            with pytest.raises(AirflowException, match="Unsupported serializer 'airflow'"):
+                f()
+
+    @pytest.mark.parametrize(
+        "serializer",
+        [
+            pytest.param(
+                "dill",
+                marks=pytest.mark.skipif(
+                    DILL_INSTALLED, reason="For this test case `dill` shouldn't be installed"
+                ),
+                id="dill",
+            ),
+            pytest.param(
+                "cloudpickle",
+                marks=pytest.mark.skipif(
+                    CLOUDPICKLE_INSTALLED, reason="For this test case `cloudpickle` shouldn't be installed"
+                ),
+                id="cloudpickle",
+            ),
+        ],
+    )
+    def test_advanced_serializer_not_installed(self, dag_maker, serializer, caplog):
+        """Test case for check raising an error if dill/cloudpickle is not installed."""
+
+        @task.docker(image="python:3.9-slim", auto_remove="force", serializer=serializer)
+        def f(): ...
+
+        with dag_maker():
+            with pytest.raises(ModuleNotFoundError):
+                f()
+        assert f"Unable to import `{serializer}` module." in caplog.text
+
+    @CLOUDPICKLE_MARKER
+    def test_add_cloudpickle(self, dag_maker):
+        @task.docker(image="python:3.9-slim", auto_remove="force", serializer="cloudpickle")
+        def f():
+            """Ensure cloudpickle is correctly installed."""
+            import cloudpickle  # noqa: F401
+
+        with dag_maker():
+            f()
+
+    @DILL_MARKER
+    def test_add_dill(self, dag_maker):
+        @task.docker(image="python:3.9-slim", auto_remove="force", serializer="dill")
+        def f():
+            """Ensure dill is correctly installed."""
+            import dill  # noqa: F401
+
+        with dag_maker():
+            f()
+
+    @DILL_MARKER
+    def test_add_dill_use_dill(self, dag_maker):
+        @task.docker(image="python:3.9-slim", auto_remove="force", use_dill=True)
+        def f():
+            """Ensure dill is correctly installed."""
+            import dill  # noqa: F401
+
+        with dag_maker():
+            with pytest.warns(
+                AirflowProviderDeprecationWarning, match="`use_dill` is deprecated and will be removed"
+            ):
+                f()

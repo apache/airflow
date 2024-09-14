@@ -32,7 +32,7 @@ from airflow.models import Connection
 from airflow.utils.session import create_session, provide_session
 from tests.test_utils.db import clear_db_connections
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestConnectionCollectionItemSchema:

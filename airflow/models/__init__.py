@@ -65,32 +65,18 @@ def import_all_models():
     import airflow.models.serialized_dag
     import airflow.models.taskinstancehistory
     import airflow.models.tasklog
+    import airflow.providers.fab.auth_manager.models
 
 
 def __getattr__(name):
     # PEP-562: Lazy loaded attributes on python modules
-    if name != "ImportError":
-        path = __lazy_imports.get(name)
-        if not path:
-            raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    path = __lazy_imports.get(name)
+    if not path:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
-        from airflow.utils.module_loading import import_string
+    from airflow.utils.module_loading import import_string
 
-        val = import_string(f"{path}.{name}")
-    else:
-        import warnings
-
-        from airflow.exceptions import RemovedInAirflow3Warning
-        from airflow.models.errors import ParseImportError
-
-        warnings.warn(
-            f"Import '{__name__}.ImportError' is deprecated due to shadowing with builtin exception "
-            f"ImportError and will be removed in the future. "
-            f"Please consider to use '{ParseImportError.__module__}.ParseImportError' instead.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        val = ParseImportError
+    val = import_string(f"{path}.{name}")
 
     # Store for next time
     globals()[name] = val

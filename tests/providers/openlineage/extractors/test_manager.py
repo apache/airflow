@@ -17,26 +17,47 @@
 # under the License.
 from __future__ import annotations
 
+import tempfile
+from typing import TYPE_CHECKING, Any
+from unittest.mock import MagicMock
+
 import pytest
-from openlineage.client.event_v2 import Dataset
+from openlineage.client.event_v2 import Dataset as OpenLineageDataset
 from openlineage.client.facet_v2 import documentation_dataset, ownership_dataset, schema_dataset
 
+from airflow.datasets import Dataset
+from airflow.io.path import ObjectStoragePath
 from airflow.lineage.entities import Column, File, Table, User
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.taskinstance import TaskInstance
+from airflow.operators.python import PythonOperator
+from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
+from airflow.utils.state import State
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 @pytest.mark.parametrize(
     ("uri", "dataset"),
     (
-        ("s3://bucket1/dir1/file1", Dataset(namespace="s3://bucket1", name="dir1/file1")),
-        ("gs://bucket2/dir2/file2", Dataset(namespace="gs://bucket2", name="dir2/file2")),
-        ("gcs://bucket3/dir3/file3", Dataset(namespace="gs://bucket3", name="dir3/file3")),
-        ("hdfs://namenodehost:8020/file1", Dataset(namespace="hdfs://namenodehost:8020", name="file1")),
-        ("hdfs://namenodehost/file2", Dataset(namespace="hdfs://namenodehost", name="file2")),
-        ("file://localhost/etc/fstab", Dataset(namespace="file://localhost", name="etc/fstab")),
-        ("file:///etc/fstab", Dataset(namespace="file://", name="etc/fstab")),
-        ("https://test.com", Dataset(namespace="https", name="test.com")),
-        ("https://test.com?param1=test1&param2=test2", Dataset(namespace="https", name="test.com")),
+        ("s3://bucket1/dir1/file1", OpenLineageDataset(namespace="s3://bucket1", name="dir1/file1")),
+        ("gs://bucket2/dir2/file2", OpenLineageDataset(namespace="gs://bucket2", name="dir2/file2")),
+        ("gcs://bucket3/dir3/file3", OpenLineageDataset(namespace="gs://bucket3", name="dir3/file3")),
+        (
+            "hdfs://namenodehost:8020/file1",
+            OpenLineageDataset(namespace="hdfs://namenodehost:8020", name="file1"),
+        ),
+        ("hdfs://namenodehost/file2", OpenLineageDataset(namespace="hdfs://namenodehost", name="file2")),
+        ("file://localhost/etc/fstab", OpenLineageDataset(namespace="file://localhost", name="etc/fstab")),
+        ("file:///etc/fstab", OpenLineageDataset(namespace="file://", name="etc/fstab")),
+        ("https://test.com", OpenLineageDataset(namespace="https", name="test.com")),
+        (
+            "https://test.com?param1=test1&param2=test2",
+            OpenLineageDataset(namespace="https", name="test.com"),
+        ),
         ("file:test.csv", None),
         ("not_an_url", None),
     ),
@@ -50,21 +71,36 @@ def test_convert_to_ol_dataset_from_object_storage_uri(uri, dataset):
     ("obj", "dataset"),
     (
         (
-            Dataset(namespace="n1", name="f1"),
-            Dataset(namespace="n1", name="f1"),
+            OpenLineageDataset(namespace="n1", name="f1"),
+            OpenLineageDataset(namespace="n1", name="f1"),
         ),
-        (File(url="s3://bucket1/dir1/file1"), Dataset(namespace="s3://bucket1", name="dir1/file1")),
-        (File(url="gs://bucket2/dir2/file2"), Dataset(namespace="gs://bucket2", name="dir2/file2")),
-        (File(url="gcs://bucket3/dir3/file3"), Dataset(namespace="gs://bucket3", name="dir3/file3")),
+        (
+            File(url="s3://bucket1/dir1/file1"),
+            OpenLineageDataset(namespace="s3://bucket1", name="dir1/file1"),
+        ),
+        (
+            File(url="gs://bucket2/dir2/file2"),
+            OpenLineageDataset(namespace="gs://bucket2", name="dir2/file2"),
+        ),
+        (
+            File(url="gcs://bucket3/dir3/file3"),
+            OpenLineageDataset(namespace="gs://bucket3", name="dir3/file3"),
+        ),
         (
             File(url="hdfs://namenodehost:8020/file1"),
-            Dataset(namespace="hdfs://namenodehost:8020", name="file1"),
+            OpenLineageDataset(namespace="hdfs://namenodehost:8020", name="file1"),
         ),
-        (File(url="hdfs://namenodehost/file2"), Dataset(namespace="hdfs://namenodehost", name="file2")),
-        (File(url="file://localhost/etc/fstab"), Dataset(namespace="file://localhost", name="etc/fstab")),
-        (File(url="file:///etc/fstab"), Dataset(namespace="file://", name="etc/fstab")),
-        (File(url="https://test.com"), Dataset(namespace="https", name="test.com")),
-        (Table(cluster="c1", database="d1", name="t1"), Dataset(namespace="c1", name="d1.t1")),
+        (
+            File(url="hdfs://namenodehost/file2"),
+            OpenLineageDataset(namespace="hdfs://namenodehost", name="file2"),
+        ),
+        (
+            File(url="file://localhost/etc/fstab"),
+            OpenLineageDataset(namespace="file://localhost", name="etc/fstab"),
+        ),
+        (File(url="file:///etc/fstab"), OpenLineageDataset(namespace="file://", name="etc/fstab")),
+        (File(url="https://test.com"), OpenLineageDataset(namespace="https", name="test.com")),
+        (Table(cluster="c1", database="d1", name="t1"), OpenLineageDataset(namespace="c1", name="d1.t1")),
         ("gs://bucket2/dir2/file2", None),
         ("not_an_url", None),
     ),
@@ -167,3 +203,73 @@ def test_convert_to_ol_dataset_table():
     assert result.namespace == "c1"
     assert result.name == "d1.t1"
     assert result.facets == expected_facets
+
+
+@pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+def test_extractor_manager_uses_hook_level_lineage(hook_lineage_collector):
+    dagrun = MagicMock()
+    task = MagicMock()
+    del task.get_openlineage_facets_on_start
+    del task.get_openlineage_facets_on_complete
+    ti = MagicMock()
+
+    hook_lineage_collector.add_input_dataset(None, uri="s3://bucket/input_key")
+    hook_lineage_collector.add_output_dataset(None, uri="s3://bucket/output_key")
+    extractor_manager = ExtractorManager()
+    metadata = extractor_manager.extract_metadata(dagrun=dagrun, task=task, complete=True, task_instance=ti)
+
+    assert metadata.inputs == [OpenLineageDataset(namespace="s3://bucket", name="input_key")]
+    assert metadata.outputs == [OpenLineageDataset(namespace="s3://bucket", name="output_key")]
+
+
+@pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+def test_extractor_manager_does_not_use_hook_level_lineage_when_operator(hook_lineage_collector):
+    class FakeSupportedOperator(BaseOperator):
+        def execute(self, context: Context) -> Any:
+            pass
+
+        def get_openlineage_facets_on_start(self):
+            return OperatorLineage(
+                inputs=[OpenLineageDataset(namespace="s3://bucket", name="proper_input_key")]
+            )
+
+    dagrun = MagicMock()
+    task = FakeSupportedOperator(task_id="test_task_extractor")
+    ti = MagicMock()
+    hook_lineage_collector.add_input_dataset(None, uri="s3://bucket/input_key")
+
+    extractor_manager = ExtractorManager()
+    metadata = extractor_manager.extract_metadata(dagrun=dagrun, task=task, complete=True, task_instance=ti)
+
+    # s3://bucket/input_key not here - use data from operator
+    assert metadata.inputs == [OpenLineageDataset(namespace="s3://bucket", name="proper_input_key")]
+    assert metadata.outputs == []
+
+
+@pytest.mark.db_test
+@pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+def test_extractor_manager_gets_data_from_pythonoperator(session, dag_maker, hook_lineage_collector):
+    path = None
+    with tempfile.NamedTemporaryFile() as f:
+        path = f.name
+        with dag_maker():
+
+            def use_read():
+                storage_path = ObjectStoragePath(path)
+                with storage_path.open("w") as out:
+                    out.write("test")
+
+            task = PythonOperator(task_id="test_task_extractor_pythonoperator", python_callable=use_read)
+
+    dr = dag_maker.create_dagrun()
+    ti = TaskInstance(task=task, run_id=dr.run_id)
+    ti.state = State.QUEUED
+    session.merge(ti)
+    session.commit()
+
+    ti.run()
+
+    datasets = hook_lineage_collector.collected_datasets
+
+    assert len(datasets.outputs) == 1
+    assert datasets.outputs[0].dataset == Dataset(uri=path)

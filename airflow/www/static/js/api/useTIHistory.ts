@@ -17,48 +17,46 @@
  * under the License.
  */
 
-import axios, { AxiosResponse } from "axios";
-import { useQuery } from "react-query";
+import axios from "axios";
+import { useQuery, UseQueryOptions } from "react-query";
 import { useAutoRefresh } from "src/context/autorefresh";
-import type { TaskInstance } from "src/types/api-generated";
+import type {
+  GetTaskInstanceTriesVariables,
+  TaskInstanceCollection,
+} from "src/types/api-generated";
 
 import { getMetaValue } from "src/utils";
 
-interface Props {
-  dagId: string;
-  runId: string;
-  taskId: string;
+interface Props extends GetTaskInstanceTriesVariables {
   mapIndex?: number;
-  enabled?: boolean;
+  options?: UseQueryOptions<TaskInstanceCollection>;
 }
 
 export default function useTIHistory({
   dagId,
-  runId,
+  dagRunId,
   taskId,
-  mapIndex = -1,
-  enabled,
+  mapIndex,
+  options,
 }: Props) {
   const { isRefreshOn } = useAutoRefresh();
-  return useQuery(
-    ["tiHistory", dagId, runId, taskId, mapIndex],
+  return useQuery<TaskInstanceCollection>(
+    ["tiHistory", dagId, dagRunId, taskId, mapIndex],
     () => {
-      const tiHistoryUrl = getMetaValue("ti_history_url");
+      const tiHistoryUrl = getMetaValue("task_tries_api")
+        .replace("_DAG_ID_", dagId)
+        .replace("_DAG_RUN_ID_", dagRunId)
+        .replace("_TASK_ID_", taskId);
 
-      const params = {
-        dag_id: dagId,
-        run_id: runId,
-        task_id: taskId,
-        map_index: mapIndex,
-      };
+      if (mapIndex && mapIndex > -1) {
+        tiHistoryUrl.replace("/tries", `/${mapIndex}/tries`);
+      }
 
-      return axios.get<AxiosResponse, Partial<TaskInstance>[]>(tiHistoryUrl, {
-        params,
-      });
+      return axios.get(tiHistoryUrl);
     },
     {
-      enabled,
       refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000,
+      ...options,
     }
   );
 }

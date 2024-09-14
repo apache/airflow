@@ -119,7 +119,7 @@ class TestAutoMLTrainModelOperator:
         mock_hook.assert_not_called()
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         ti = create_task_instance_of_operator(
             AutoMLTrainModelOperator,
             # Templated fields
@@ -131,6 +131,8 @@ class TestAutoMLTrainModelOperator:
             task_id="test_template_body_templating_task",
             execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: AutoMLTrainModelOperator = ti.task
         assert task.model == "model"
@@ -207,7 +209,7 @@ class TestAutoMLBatchPredictOperator:
         mock_hook.return_value.batch_predict.assert_not_called()
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         ti = create_task_instance_of_operator(
             AutoMLBatchPredictOperator,
             # Templated fields
@@ -222,6 +224,8 @@ class TestAutoMLBatchPredictOperator:
             task_id="test_template_body_templating_task",
             execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: AutoMLBatchPredictOperator = ti.task
         assert task.model_id == "model"
@@ -265,7 +269,7 @@ class TestAutoMLPredictOperator:
         )
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         ti = create_task_instance_of_operator(
             AutoMLPredictOperator,
             # Templated fields
@@ -279,6 +283,8 @@ class TestAutoMLPredictOperator:
             execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
             payload={},
         )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: AutoMLPredictOperator = ti.task
         assert task.model_id == "model-id"
@@ -372,7 +378,7 @@ class TestAutoMLCreateImportOperator:
         mock_hook.return_value.create_dataset.assert_not_called()
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         ti = create_task_instance_of_operator(
             AutoMLCreateDatasetOperator,
             # Templated fields
@@ -385,6 +391,8 @@ class TestAutoMLCreateImportOperator:
             task_id="test_template_body_templating_task",
             execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: AutoMLCreateDatasetOperator = ti.task
         assert task.dataset == "dataset"
@@ -530,7 +538,7 @@ class TestAutoMLGetModelOperator:
         )
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         ti = create_task_instance_of_operator(
             AutoMLGetModelOperator,
             # Templated fields
@@ -543,6 +551,8 @@ class TestAutoMLGetModelOperator:
             task_id="test_template_body_templating_task",
             execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: AutoMLGetModelOperator = ti.task
         assert task.model_id == "model-id"
@@ -599,7 +609,7 @@ class TestAutoMLDeleteModelOperator:
         mock_hook.return_value.delete_model.assert_not_called()
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         ti = create_task_instance_of_operator(
             AutoMLDeleteModelOperator,
             # Templated fields
@@ -612,6 +622,8 @@ class TestAutoMLDeleteModelOperator:
             task_id="test_template_body_templating_task",
             execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: AutoMLDeleteModelOperator = ti.task
         assert task.model_id == "model-id"
@@ -712,7 +724,7 @@ class TestAutoMLDatasetImportOperator:
         mock_hook.return_value.import_data.assert_not_called()
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         ti = create_task_instance_of_operator(
             AutoMLImportDataOperator,
             # Templated fields
@@ -726,6 +738,8 @@ class TestAutoMLDatasetImportOperator:
             task_id="test_template_body_templating_task",
             execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: AutoMLImportDataOperator = ti.task
         assert task.dataset_id == "dataset-id"
@@ -811,7 +825,7 @@ class TestAutoMLDatasetListOperator:
         )
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         ti = create_task_instance_of_operator(
             AutoMLListDatasetOperator,
             # Templated fields
@@ -823,6 +837,8 @@ class TestAutoMLDatasetListOperator:
             task_id="test_template_body_templating_task",
             execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: AutoMLListDatasetOperator = ti.task
         assert task.location == "location"
@@ -878,7 +894,7 @@ class TestAutoMLDatasetDeleteOperator:
         mock_hook.return_value.delete_dataset.assert_not_called()
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         ti = create_task_instance_of_operator(
             AutoMLDeleteDatasetOperator,
             # Templated fields
@@ -891,6 +907,8 @@ class TestAutoMLDatasetDeleteOperator:
             task_id="test_template_body_templating_task",
             execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: AutoMLDeleteDatasetOperator = ti.task
         assert task.dataset_id == "dataset-id"

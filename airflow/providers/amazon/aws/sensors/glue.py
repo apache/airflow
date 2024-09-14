@@ -21,7 +21,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue import GlueDataQualityHook, GlueJobHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.glue import (
@@ -86,9 +86,6 @@ class GlueJobSensor(BaseSensorOperator):
             elif job_state in self.errored_states:
                 job_error_message = "Exiting Job %s Run State: %s", self.run_id, job_state
                 self.log.info(job_error_message)
-                # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
-                if self.soft_fail:
-                    raise AirflowSkipException(job_error_message)
                 raise AirflowException(job_error_message)
             else:
                 return False
@@ -180,8 +177,6 @@ class GlueDataQualityRuleSetEvaluationRunSensor(AwsBaseSensor[GlueDataQualityHoo
 
         if event["status"] != "success":
             message = f"Error: AWS Glue data quality ruleset evaluation run: {event}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
 
         self.hook.validate_evaluation_run_results(
@@ -223,9 +218,6 @@ class GlueDataQualityRuleSetEvaluationRunSensor(AwsBaseSensor[GlueDataQualityHoo
                 f": {response.get('ErrorString')}"
             )
             self.log.info(job_error_message)
-            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
-            if self.soft_fail:
-                raise AirflowSkipException(job_error_message)
             raise AirflowException(job_error_message)
         else:
             return False
@@ -306,8 +298,6 @@ class GlueDataQualityRuleRecommendationRunSensor(AwsBaseSensor[GlueDataQualityHo
 
         if event["status"] != "success":
             message = f"Error: AWS Glue data quality recommendation run: {event}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
 
         if self.show_results:
@@ -343,9 +333,6 @@ class GlueDataQualityRuleRecommendationRunSensor(AwsBaseSensor[GlueDataQualityHo
                 f": {response.get('ErrorString')}"
             )
             self.log.info(job_error_message)
-            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
-            if self.soft_fail:
-                raise AirflowSkipException(job_error_message)
             raise AirflowException(job_error_message)
         else:
             return False

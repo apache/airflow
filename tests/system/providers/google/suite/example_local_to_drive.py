@@ -33,13 +33,12 @@ from pathlib import Path
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 from airflow.providers.google.suite.transfers.local_to_drive import LocalFilesystemToGoogleDriveOperator
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 
-DAG_ID = "example_local_to_drive"
+DAG_ID = "local_to_drive"
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 
 FILE_NAME_1 = "test1"
@@ -65,22 +64,24 @@ with DAG(
 ) as dag:
 
     @task
-    def create_temp_gcp_connection():
+    def create_connection(connection_id: str):
         conn = Connection(
-            conn_id=CONNECTION_ID,
+            conn_id=connection_id,
             conn_type="google_cloud_platform",
         )
         conn_extra_json = json.dumps({"scope": "https://www.googleapis.com/auth/drive"})
         conn.set_extra(conn_extra_json)
 
         session = Session()
-        if session.query(Connection).filter(Connection.conn_id == CONNECTION_ID).first():
-            log.warning("Connection %s already exists", CONNECTION_ID)
-            return None
+        log.info("Removing connection %s if it exists", connection_id)
+        query = session.query(Connection).filter(Connection.conn_id == connection_id)
+        query.delete()
+
         session.add(conn)
         session.commit()
+        log.info("Connection created: '%s'", connection_id)
 
-    create_temp_gcp_connection_task = create_temp_gcp_connection()
+    create_connection_task = create_connection(connection_id=CONNECTION_ID)
 
     # [START howto_operator_local_to_drive_upload_single_file]
     upload_single_file = LocalFilesystemToGoogleDriveOperator(
@@ -119,21 +120,25 @@ with DAG(
 
     remove_files_from_drive_task = remove_files_from_drive()
 
-    delete_temp_gcp_connection_task = BashOperator(
-        task_id="delete_temp_gcp_connection",
-        bash_command=f"airflow connections delete {CONNECTION_ID}",
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
+    @task(task_id="delete_connection")
+    def delete_connection(connection_id: str) -> None:
+        session = Session()
+        log.info("Removing connection %s", connection_id)
+        query = session.query(Connection).filter(Connection.conn_id == connection_id)
+        query.delete()
+        session.commit()
+
+    delete_connection_task = delete_connection(connection_id=CONNECTION_ID)
 
     (
         # TEST SETUP
-        create_temp_gcp_connection_task
+        create_connection_task
         # TEST BODY
         >> upload_single_file
         >> upload_multiple_files
         # TEST TEARDOWN
         >> remove_files_from_drive_task
-        >> delete_temp_gcp_connection_task
+        >> delete_connection_task
     )
 
     from tests.system.utils.watcher import watcher

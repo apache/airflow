@@ -19,9 +19,15 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
+from airbyte_api.models import JobCreateRequest, JobResponse, JobStatusEnum, JobTypeEnum
+
+from airflow.models import Connection
 from airflow.providers.airbyte.operators.airbyte import AirbyteTriggerSyncOperator
+from airflow.utils import db
 
 
+@pytest.mark.db_test
 class TestAirbyteTriggerSyncOp:
     """
     Test execute function from Airbyte Operator
@@ -33,12 +39,20 @@ class TestAirbyteTriggerSyncOp:
     wait_seconds = 0
     timeout = 360
 
-    @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.submit_sync_connection")
+    @mock.patch("airbyte_api.jobs.Jobs.create_job")
     @mock.patch("airflow.providers.airbyte.hooks.airbyte.AirbyteHook.wait_for_job", return_value=None)
     def test_execute(self, mock_wait_for_job, mock_submit_sync_connection):
-        mock_submit_sync_connection.return_value = mock.Mock(
-            **{"json.return_value": {"job": {"id": self.job_id, "status": "running"}}}
+        conn = Connection(conn_id=self.airbyte_conn_id, conn_type="airbyte", host="airbyte.com")
+        db.merge_conn(conn)
+        mock_response = mock.Mock()
+        mock_response.job_response = JobResponse(
+            connection_id="connection-mock",
+            job_id=1,
+            start_time="today",
+            job_type=JobTypeEnum.SYNC,
+            status=JobStatusEnum.RUNNING,
         )
+        mock_submit_sync_connection.return_value = mock_response
 
         op = AirbyteTriggerSyncOperator(
             task_id="test_Airbyte_op",
@@ -49,7 +63,9 @@ class TestAirbyteTriggerSyncOp:
         )
         op.execute({})
 
-        mock_submit_sync_connection.assert_called_once_with(connection_id=self.connection_id)
+        mock_submit_sync_connection.assert_called_once_with(
+            request=JobCreateRequest(connection_id=self.connection_id, job_type=JobTypeEnum.SYNC)
+        )
         mock_wait_for_job.assert_called_once_with(
             job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout
         )

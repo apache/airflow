@@ -204,3 +204,13 @@ class TestWasbTaskHandler:
 
         handler.close()
         assert os.path.exists(handler.handler.baseFilename) == expected_existence_of_local_copy
+
+    def test_filename_template_for_backward_compatibility(self):
+        # filename_template arg support for running the latest provider on airflow 2
+        WasbTaskHandler(
+            base_log_folder=self.local_log_location,
+            wasb_log_folder=self.wasb_log_folder,
+            wasb_container=self.container_name,
+            delete_local_copy=True,
+            filename_template=None,
+        )

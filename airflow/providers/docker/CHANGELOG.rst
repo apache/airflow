@@ -27,6 +27,35 @@
 Changelog
 ---------
 
+3.13.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Misc
+~~~~
+
+* ``feat(docker): Replace 'use_dill' with 'serializer' (#41356)``
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.12.3
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``DockerSwarmOperator: Support line breaks in service logs (#40705)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.12.2
 ......
 

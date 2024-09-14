@@ -29,6 +29,8 @@ from airflow.utils.retries import retry_db_transaction
 if TYPE_CHECKING:
     from sqlalchemy.exc import DBAPIError
 
+pytestmark = pytest.mark.skip_if_database_isolation_mode
+
 
 class TestRetries:
     def test_retry_db_transaction_with_passing_retries(self):

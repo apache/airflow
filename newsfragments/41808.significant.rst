@@ -1,0 +1,8 @@
+Removed deprecations in ``airflow.models.taskreschedule``.
+
+Removed methods:
+
+- ``query_for_task_instance()``
+- ``find_for_task_instance()``
+
+Note: there are no replacements, if data is needed, you need to query via sqlalchemy.

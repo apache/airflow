@@ -19,11 +19,8 @@ from __future__ import annotations
 import logging
 from importlib import import_module
 
-from flask import redirect, request
-
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 log = logging.getLogger(__name__)
 
@@ -47,7 +44,7 @@ def init_xframe_protection(app):
     app.after_request(apply_caching)
 
 
-def init_api_experimental_auth(app):
+def init_api_auth(app):
     """Load authentication backends."""
     auth_backends = "airflow.api.auth.backend.default"
     try:
@@ -73,13 +70,3 @@ def init_cache_control(app):
         return response
 
     app.after_request(apply_cache_control)
-
-
-def init_check_user_active(app):
-    @app.before_request
-    def check_user_active():
-        url_logout = get_auth_manager().get_url_logout()
-        if request.path == url_logout:
-            return
-        if get_auth_manager().is_logged_in() and not get_auth_manager().get_user().is_active:
-            return redirect(url_logout)

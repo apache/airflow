@@ -24,7 +24,7 @@ import pytest
 from airflow.models import TaskInstance
 from airflow.ti_deps.deps.dag_unpaused_dep import DagUnpausedDep
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 
 class TestDagUnpausedDep:
@@ -34,7 +34,7 @@ class TestDagUnpausedDep:
         """
         dag = Mock(**{"get_is_paused.return_value": True})
         task = Mock(dag=dag)
-        ti = TaskInstance(task=task, execution_date=None)
+        ti = TaskInstance(task=task)
 
         assert not DagUnpausedDep().is_met(ti=ti)
 
@@ -44,6 +44,6 @@ class TestDagUnpausedDep:
         """
         dag = Mock(**{"get_is_paused.return_value": False})
         task = Mock(dag=dag)
-        ti = TaskInstance(task=task, execution_date=None)
+        ti = TaskInstance(task=task)
 
         assert DagUnpausedDep().is_met(ti=ti)

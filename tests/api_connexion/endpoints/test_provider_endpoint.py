@@ -24,7 +24,7 @@ from airflow.providers_manager import ProviderInfo
 from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import create_user, delete_user
 
-pytestmark = pytest.mark.db_test
+pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
 MOCK_PROVIDERS = {
     "apache-airflow-providers-amazon": ProviderInfo(

@@ -27,7 +27,7 @@ from airflow.decorators.python import _PythonDecoratedOperator
 from airflow.jobs.job import Job
 from airflow.jobs.local_task_job_runner import LocalTaskJobRunner
 from airflow.models import MappedOperator
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DAG, DagModel, create_timetable
 from airflow.models.dataset import (
     DagScheduleDatasetReference,
     DatasetEvent,
@@ -40,11 +40,15 @@ from airflow.serialization.pydantic.dataset import DatasetEventPydantic
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
 from airflow.serialization.serialized_objects import BaseSerialization
-from airflow.settings import _ENABLE_AIP_44
+from airflow.settings import _ENABLE_AIP_44, TracebackSessionForTests
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import AttributeRemoved, DagRunType
 from tests.models import DEFAULT_DATE
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -166,7 +170,7 @@ def test_serializing_pydantic_dagrun(session, create_task_instance):
 
 
 @pytest.mark.parametrize(
-    "schedule_interval",
+    "schedule",
     [
         None,
         "*/10 * * *",
@@ -174,11 +178,13 @@ def test_serializing_pydantic_dagrun(session, create_task_instance):
         relativedelta.relativedelta(days=+12),
     ],
 )
-def test_serializing_pydantic_dagmodel(schedule_interval):
+def test_serializing_pydantic_dagmodel(schedule):
+    timetable = create_timetable(schedule, timezone.utc)
     dag_model = DagModel(
         dag_id="test-dag",
         fileloc="/tmp/dag_1.py",
-        schedule_interval=schedule_interval,
+        timetable_summary=timetable.summary,
+        timetable_description=timetable.description,
         is_active=True,
         is_paused=False,
     )
@@ -189,7 +195,8 @@ def test_serializing_pydantic_dagmodel(schedule_interval):
     deserialized_model = DagModelPydantic.model_validate_json(json_string)
     assert deserialized_model.dag_id == "test-dag"
     assert deserialized_model.fileloc == "/tmp/dag_1.py"
-    assert deserialized_model.schedule_interval == schedule_interval
+    assert deserialized_model.timetable_summary == timetable.summary
+    assert deserialized_model.timetable_description == timetable.description
     assert deserialized_model.is_active is True
     assert deserialized_model.is_paused is False
 
@@ -211,6 +218,8 @@ def test_serializing_pydantic_local_task_job(session, create_task_instance):
     assert deserialized_model.state == State.RUNNING
 
 
+# This test should not be run in DB isolation mode as it accesses the database directly - deliberately
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is disabled")
 def test_serializing_pydantic_dataset_event(session, create_task_instance, create_dummy_dag):
     ds1 = DatasetModel(id=1, uri="one", extra={"foo": "bar"})
@@ -229,6 +238,9 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
         session=session,
     )
     execution_date = timezone.utcnow()
+    TracebackSessionForTests.set_allow_db_access(session, True)
+
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dr = dag.create_dagrun(
         run_id="test2",
         run_type=DagRunType.DATASET_TRIGGERED,
@@ -236,6 +248,7 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
         state=None,
         session=session,
         data_interval=(execution_date, execution_date),
+        **triggered_by_kwargs,
     )
     ds1_event = DatasetEvent(dataset_id=1)
     ds2_event_1 = DatasetEvent(dataset_id=2)
@@ -252,6 +265,7 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
     dr.consumed_dataset_events.append(ds2_event_1)
     dr.consumed_dataset_events.append(ds2_event_2)
     session.commit()
+    TracebackSessionForTests.set_allow_db_access(session, False)
 
     print(ds2_event_2.dataset.consuming_dags)
     pydantic_dse1 = DatasetEventPydantic.model_validate(ds1_event)

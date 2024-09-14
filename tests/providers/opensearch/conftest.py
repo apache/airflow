@@ -19,11 +19,18 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from opensearchpy import OpenSearch
 
+from airflow.hooks.base import BaseHook
 from airflow.models import Connection
-from airflow.providers.opensearch.hooks.opensearch import OpenSearchHook
 from airflow.utils import db
+
+try:
+    from opensearchpy import OpenSearch
+
+    from airflow.providers.opensearch.hooks.opensearch import OpenSearchHook
+except ImportError:
+    OpenSearch = None  # type: ignore[assignment, misc]
+    OpenSearchHook = BaseHook  # type: ignore[assignment,misc]
 
 # TODO: FIXME - those Mocks have overrides that are not used but they also do not make Mypy Happy
 # mypy: disable-error-code="override"

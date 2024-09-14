@@ -24,7 +24,12 @@ import pytest
 
 from airflow import __version__ as airflow_version
 from airflow.configuration import conf
-from airflow.utils.usage_data_collection import get_database_version, usage_data_collection
+from airflow.utils.usage_data_collection import (
+    get_database_version,
+    get_python_version,
+    to_bucket,
+    usage_data_collection,
+)
 
 
 @pytest.mark.parametrize("is_enabled, is_prerelease", [(False, True), (True, True)])
@@ -51,7 +56,7 @@ def test_scarf_analytics(
 ):
     platform_sys = platform.system()
     platform_machine = platform.machine()
-    python_version = platform.python_version()
+    python_version = get_python_version()
     executor = conf.get("core", "EXECUTOR")
     scarf_endpoint = "https://apacheairflow.gateway.scarf.sh/scheduler"
     usage_data_collection()
@@ -69,16 +74,47 @@ def test_scarf_analytics(
     mock_get.assert_called_once_with(expected_scarf_url, timeout=5.0)
 
 
+@pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 @pytest.mark.parametrize(
     "version_info, expected_version",
     [
-        ((1, 2, 3), "1.2.3"),  # Normal version tuple
+        ((1, 2, 3), "1.2"),  # Normal version tuple
         (None, "None"),  # No version info available
         ((1,), "1"),  # Single element version tuple
-        ((1, 2, 3, "beta", 4), "1.2.3.beta.4"),  # Complex version tuple with strings
+        ((1, 2, 3, "beta", 4), "1.2"),  # Complex version tuple with strings
     ],
 )
 def test_get_database_version(version_info, expected_version):
     with mock.patch("airflow.settings.engine.dialect.server_version_info", new=version_info):
         assert get_database_version() == expected_version
+
+
+@pytest.mark.parametrize(
+    "version_info, expected_version",
+    [
+        ("1.2.3", "1.2"),  # Normal version
+        ("4", "4"),  # Single element version
+        ("1.2.3.beta4", "1.2"),  # Complex version tuple with strings
+    ],
+)
+def test_get_python_version(version_info, expected_version):
+    with mock.patch("platform.python_version", return_value=version_info):
+        assert get_python_version() == expected_version
+
+
+@pytest.mark.parametrize(
+    "counter, expected_bucket",
+    [
+        (0, "0"),
+        (1, "1-5"),
+        (5, "1-5"),
+        (6, "6-10"),
+        (11, "11-20"),
+        (20, "11-20"),
+        (21, "21-50"),
+        (10000, "2000+"),
+    ],
+)
+def test_to_bucket(counter, expected_bucket):
+    assert to_bucket(counter) == expected_bucket

@@ -36,7 +36,7 @@ import semver
 from rich.syntax import Syntax
 
 from airflow_breeze.utils.black_utils import black_format
-from airflow_breeze.utils.confirm import Answer, user_confirm
+from airflow_breeze.utils.confirm import Answer, confirm_action, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.packages import (
     HTTPS_REMOTE,
@@ -179,9 +179,10 @@ class PrepareReleaseDocsUserQuitException(Exception):
 TYPE_OF_CHANGE_DESCRIPTION = {
     TypeOfChange.DOCUMENTATION: "Documentation only changes - no version change needed, "
     "only documentation needs to be updated",
-    TypeOfChange.BUGFIX: "Bugfix/Misc changes only - bump in PATCHLEVEL version needed",
+    TypeOfChange.BUGFIX: "Bugfix changes only - bump in PATCHLEVEL version needed",
     TypeOfChange.FEATURE: "Feature changes - bump in MINOR version needed",
     TypeOfChange.BREAKING_CHANGE: "Breaking changes - bump in MAJOR version needed",
+    TypeOfChange.MISC: "Miscellaneous changes - bump in PATCHLEVEL version needed",
 }
 
 
@@ -486,6 +487,8 @@ def _update_version_in_provider_yaml(
         maybe_with_new_features = True
     elif type_of_change == TypeOfChange.BUGFIX:
         v = v.bump_patch()
+    elif type_of_change == TypeOfChange.MISC:
+        v = v.bump_patch()
     provider_yaml_path = get_source_package_path(provider_package_id) / "provider.yaml"
     original_provider_yaml_content = provider_yaml_path.read_text()
     new_provider_yaml_content = re.sub(
@@ -733,7 +736,7 @@ def update_release_notes(
             )
             raise PrepareReleaseDocsNoChangesException()
         else:
-            answer = user_confirm(
+            answer = confirm_action(
                 f"Does the provider: {provider_package_id} have any changes apart from 'doc-only'?"
             )
             if answer == Answer.NO:
@@ -771,7 +774,12 @@ def update_release_notes(
                 f"[special]{TYPE_OF_CHANGE_DESCRIPTION[type_of_change]}"
             )
             get_console().print()
-            if type_of_change in [TypeOfChange.BUGFIX, TypeOfChange.FEATURE, TypeOfChange.BREAKING_CHANGE]:
+            if type_of_change in [
+                TypeOfChange.BUGFIX,
+                TypeOfChange.FEATURE,
+                TypeOfChange.BREAKING_CHANGE,
+                TypeOfChange.MISC,
+            ]:
                 with_breaking_changes, maybe_with_new_features, original_provider_yaml_content = (
                     _update_version_in_provider_yaml(
                         provider_package_id=provider_package_id, type_of_change=type_of_change
@@ -815,7 +823,12 @@ def update_release_notes(
         get_console().print()
         if type_of_change == TypeOfChange.DOCUMENTATION:
             _mark_latest_changes_as_documentation_only(provider_package_id, list_of_list_of_changes)
-        elif type_of_change in [TypeOfChange.BUGFIX, TypeOfChange.FEATURE, TypeOfChange.BREAKING_CHANGE]:
+        elif type_of_change in [
+            TypeOfChange.BUGFIX,
+            TypeOfChange.FEATURE,
+            TypeOfChange.BREAKING_CHANGE,
+            TypeOfChange.MISC,
+        ]:
             with_breaking_changes, maybe_with_new_features, _ = _update_version_in_provider_yaml(
                 provider_package_id=provider_package_id,
                 type_of_change=type_of_change,

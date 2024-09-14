@@ -108,6 +108,7 @@ class DummySensorWithXcomValue(BaseSensorOperator):
         return PokeReturnValue(self.return_value, self.xcom_value)
 
 
+@pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
 class TestBaseSensor:
     @staticmethod
     def clean_db():

@@ -494,7 +494,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
 
 
 Setup and teardown
-------------------
+~~~~~~~~~~~~~~~~~~
 
 In data workflows it's common to create a resource (such as a compute resource), use it to do some work, and then tear it down. Airflow provides setup and teardown tasks to support this need.
 
@@ -543,7 +543,7 @@ TaskGroups
 
 A TaskGroup can be used to organize tasks into hierarchical groups in Graph view. It is useful for creating repeating patterns and cutting down visual clutter.
 
-Unlike :ref:`concepts:subdags`, TaskGroups are purely a UI grouping concept. Tasks in TaskGroups live on the same original DAG, and honor all the DAG settings and pool configurations.
+Tasks in TaskGroups live on the same original DAG, and honor all the DAG settings and pool configurations.
 
 .. image:: /img/task_group.gif
 
@@ -653,8 +653,8 @@ doc_md      markdown
 doc_rst     reStructuredText
 ==========  ================
 
-Please note that for DAGs, ``doc_md`` is the only attribute interpreted. For DAGs it can contain a string or the reference to a template file. Template references are recognized by str ending in ``.md``.
-If a relative path is supplied it will start from the folder of the DAG file. Also the template file must exist or Airflow will throw a ``jinja2.exceptions.TemplateNotFound`` exception.
+Please note that for DAGs, ``doc_md`` is the only attribute interpreted. For DAGs it can contain a string or the reference to a markdown file. Markdown files are recognized by str ending in ``.md``.
+If a relative path is supplied it will be loaded from the path relative to which the Airflow Scheduler or DAG parser was started. If the markdown file does not exist, the passed filename will be used as text, no exception will be displayed. Note that the markdown file is loaded during DAG parsing, changes to the markdown content take one DAG parsing cycle to have changes be displayed.
 
 This is especially useful if your tasks are built dynamically from configuration files, as it allows you to expose the configuration that led to the related tasks in Airflow:
 
@@ -678,96 +678,6 @@ This is especially useful if your tasks are built dynamically from configuration
     #Title"
     Here's a [url](www.airbnb.com)
     """
-
-
-.. _concepts:subdags:
-
-SubDAGs
--------
-
-.. note::
-
-    SubDAG is deprecated hence TaskGroup is always the preferred choice.
-
-
-Sometimes, you will find that you are regularly adding exactly the same set of tasks to every DAG, or you want to group a lot of tasks into a single, logical unit. This is what SubDAGs are for.
-
-For example, here's a DAG that has a lot of parallel tasks in two sections:
-
-.. image:: /img/subdag_before.png
-
-We can combine all of the parallel ``task-*`` operators into a single SubDAG, so that the resulting DAG resembles the following:
-
-.. image:: /img/subdag_after.png
-
-Note that SubDAG operators should contain a factory method that returns a DAG object. This will prevent the SubDAG from being treated like a separate DAG in the main UI - remember, if Airflow sees a DAG at the top level of a Python file, it will :ref:`load it as its own DAG <concepts-dag-loading>`. For example:
-
-.. exampleinclude:: /../../airflow/example_dags/subdags/subdag.py
-    :language: python
-    :start-after: [START subdag]
-    :end-before: [END subdag]
-
-This SubDAG can then be referenced in your main DAG file:
-
-.. exampleinclude:: /../../airflow/example_dags/example_subdag_operator.py
-    :language: python
-    :dedent: 4
-    :start-after: [START example_subdag_operator]
-    :end-before: [END example_subdag_operator]
-
-You can zoom into a :class:`~airflow.operators.subdag.SubDagOperator` from the graph view of the main DAG to show the tasks contained within the SubDAG:
-
-.. image:: /img/subdag_zoom.png
-
-Some other tips when using SubDAGs:
-
--  By convention, a SubDAG's ``dag_id`` should be prefixed by the name of its parent DAG and a dot (``parent.child``)
--  You should share arguments between the main DAG and the SubDAG by passing arguments to the SubDAG operator (as demonstrated above)
--  SubDAGs must have a schedule and be enabled. If the SubDAG's schedule is set to ``None`` or ``@once``, the SubDAG will succeed without having done anything.
--  Clearing a :class:`~airflow.operators.subdag.SubDagOperator` also clears the state of the tasks within it.
--  Marking success on a :class:`~airflow.operators.subdag.SubDagOperator` does not affect the state of the tasks within it.
--  Refrain from using :ref:`concepts:depends-on-past` in tasks within the SubDAG as this can be confusing.
--  You can specify an executor for the SubDAG. It is common to use the SequentialExecutor if you want to run the SubDAG in-process and effectively limit its parallelism to one. Using LocalExecutor can be problematic as it may over-subscribe your worker, running multiple tasks in a single slot.
-
-See ``airflow/example_dags`` for a demonstration.
-
-
-.. note::
-
-    Parallelism is *not honored* by :class:`~airflow.operators.subdag.SubDagOperator`, and so resources could be consumed by SubdagOperators beyond any limits you may have set.
-
-
-
-TaskGroups vs SubDAGs
-----------------------
-
-SubDAGs, while serving a similar purpose as TaskGroups, introduces both performance and functional issues due to its implementation.
-
-* The SubDagOperator starts a BackfillJob, which ignores existing parallelism configurations potentially oversubscribing the worker environment.
-* SubDAGs have their own DAG attributes. When the SubDAG DAG attributes are inconsistent with its parent DAG, unexpected behavior can occur.
-* Unable to see the "full" DAG in one view as SubDAGs exists as a full fledged DAG.
-* SubDAGs introduces all sorts of edge cases and caveats. This can disrupt user experience and expectation.
-
-TaskGroups, on the other hand, is a better option given that it is purely a UI grouping concept. All tasks within the TaskGroup still behave as any other tasks outside of the TaskGroup.
-
-You can see the core differences between these two constructs.
-
-+--------------------------------------------------------+--------------------------------------------------------+
-| TaskGroup                                              | SubDAG                                                 |
-+========================================================+========================================================+
-| Repeating patterns as part of the same DAG             |  Repeating patterns as a separate DAG                  |
-+--------------------------------------------------------+--------------------------------------------------------+
-| One set of views and statistics for the DAG            |  Separate set of views and statistics between parent   |
-|                                                        |  and child DAGs                                        |
-+--------------------------------------------------------+--------------------------------------------------------+
-| One set of DAG configuration                           |  Several sets of DAG configurations                    |
-+--------------------------------------------------------+--------------------------------------------------------+
-| Honors parallelism configurations through existing     |  Does not honor parallelism configurations due to      |
-| SchedulerJob                                           |  newly spawned BackfillJob                             |
-+--------------------------------------------------------+--------------------------------------------------------+
-| Simple construct declaration with context manager      |  Complex DAG factory with naming restrictions          |
-+--------------------------------------------------------+--------------------------------------------------------+
-
 
 
 Packaging DAGs

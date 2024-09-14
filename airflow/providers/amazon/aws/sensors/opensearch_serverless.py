@@ -19,7 +19,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.opensearch_serverless import OpenSearchServerlessHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.opensearch_serverless import (
@@ -104,9 +104,6 @@ class OpenSearchServerlessCollectionActiveSensor(AwsBaseSensor[OpenSearchServerl
         state = self.hook.conn.batch_get_collection(**call_args)["collectionDetails"][0]["status"]
 
         if state in self.FAILURE_STATES:
-            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
-            if self.soft_fail:
-                raise AirflowSkipException(self.FAILURE_MESSAGE)
             raise AirflowException(self.FAILURE_MESSAGE)
 
         if state in self.INTERMEDIATE_STATES:

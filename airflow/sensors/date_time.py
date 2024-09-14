@@ -21,6 +21,7 @@ import datetime
 from typing import TYPE_CHECKING, Any, NoReturn, Sequence
 
 from airflow.sensors.base import BaseSensorOperator
+from airflow.triggers.base import StartTriggerArgs
 from airflow.triggers.temporal import DateTimeTrigger
 from airflow.utils import timezone
 
@@ -85,18 +86,45 @@ class DateTimeSensorAsync(DateTimeSensor):
     It is a drop-in replacement for DateTimeSensor.
 
     :param target_time: datetime after which the job succeeds. (templated)
+    :param start_from_trigger: Start the task directly from the triggerer without going into the worker.
+    :param trigger_kwargs: The keyword arguments passed to the trigger when start_from_trigger is set to True
+        during dynamic task mapping. This argument is not used in standard usage.
     :param end_from_trigger: End the task directly from the triggerer without going into the worker.
     """
 
-    def __init__(self, *, end_from_trigger: bool = False, **kwargs) -> None:
+    start_trigger_args = StartTriggerArgs(
+        trigger_cls="airflow.triggers.temporal.DateTimeTrigger",
+        trigger_kwargs={"moment": "", "end_from_trigger": False},
+        next_method="execute_complete",
+        next_kwargs=None,
+        timeout=None,
+    )
+    start_from_trigger = False
+
+    def __init__(
+        self,
+        *,
+        start_from_trigger: bool = False,
+        end_from_trigger: bool = False,
+        trigger_kwargs: dict[str, Any] | None = None,
+        **kwargs,
+    ) -> None:
         super().__init__(**kwargs)
         self.end_from_trigger = end_from_trigger
+
+        self.start_from_trigger = start_from_trigger
+        if self.start_from_trigger:
+            self.start_trigger_args.trigger_kwargs = dict(
+                moment=timezone.parse(self.target_time),
+                end_from_trigger=self.end_from_trigger,
+            )
 
     def execute(self, context: Context) -> NoReturn:
         self.defer(
             method_name="execute_complete",
             trigger=DateTimeTrigger(
-                moment=timezone.parse(self.target_time), end_from_trigger=self.end_from_trigger
+                moment=timezone.parse(self.target_time),
+                end_from_trigger=self.end_from_trigger,
             ),
         )
 

@@ -61,7 +61,6 @@ from airflow.security.permissions import (
     RESOURCE_DAG,
     RESOURCE_DAG_CODE,
     RESOURCE_DAG_DEPENDENCIES,
-    RESOURCE_DAG_PREFIX,
     RESOURCE_DAG_RUN,
     RESOURCE_DAG_WARNING,
     RESOURCE_DATASET,
@@ -180,7 +179,8 @@ class FabAuthManager(BaseAuthManager):
 
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
-        return not self.get_user().is_anonymous
+        user = self.get_user()
+        return not user.is_anonymous and user.is_active
 
     def is_authorized_configuration(
         self,
@@ -242,6 +242,8 @@ class FabAuthManager(BaseAuthManager):
 
             return all(
                 self._is_authorized(method=method, resource_type=resource_type, user=user)
+                if resource_type != RESOURCE_DAG_RUN or not hasattr(permissions, "resource_name")
+                else self._is_authorized_dag_run(method=method, details=details, user=user)
                 for resource_type in resource_types
             )
 
@@ -367,6 +369,9 @@ class FabAuthManager(BaseAuthManager):
             return None
         return url_for(f"{self.security_manager.user_view.endpoint}.userinfo")
 
+    def register_views(self) -> None:
+        self.security_manager.register_views()
+
     def _is_authorized(
         self,
         *,
@@ -412,7 +417,33 @@ class FabAuthManager(BaseAuthManager):
 
         if details and details.id:
             # Check whether the user has permissions to access a specific DAG
-            resource_dag_name = self._resource_name_for_dag(details.id)
+            resource_dag_name = self._resource_name(details.id, RESOURCE_DAG)
+            return self._is_authorized(method=method, resource_type=resource_dag_name, user=user)
+
+        return False
+
+    def _is_authorized_dag_run(
+        self,
+        method: ResourceMethod,
+        details: DagDetails | None = None,
+        user: BaseUser | None = None,
+    ) -> bool:
+        """
+        Return whether the user is authorized to perform a given action on a DAG Run.
+
+        :param method: the method to perform
+        :param details: optional, details about the DAG
+        :param user: optional, the user to perform the action on. If not provided, it uses the current user
+
+        :meta private:
+        """
+        is_global_authorized = self._is_authorized(method=method, resource_type=RESOURCE_DAG_RUN, user=user)
+        if is_global_authorized:
+            return True
+
+        if details and details.id:
+            # Check whether the user has permissions to access a specific DAG Run permission on a DAG Level
+            resource_dag_name = self._resource_name(details.id, RESOURCE_DAG_RUN)
             return self._is_authorized(method=method, resource_type=resource_dag_name, user=user)
 
         return False
@@ -444,7 +475,7 @@ class FabAuthManager(BaseAuthManager):
             raise AirflowException(f"Unknown DAG access entity: {dag_access_entity}")
         return _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE[dag_access_entity]
 
-    def _resource_name_for_dag(self, dag_id: str) -> str:
+    def _resource_name(self, dag_id: str, resource_type: str) -> str:
         """
         Return the FAB resource name for a DAG id.
 
@@ -453,11 +484,9 @@ class FabAuthManager(BaseAuthManager):
         :meta private:
         """
         root_dag_id = self._get_root_dag_id(dag_id)
-        if root_dag_id == RESOURCE_DAG:
-            return root_dag_id
-        if root_dag_id.startswith(RESOURCE_DAG_PREFIX):
-            return root_dag_id
-        return f"{RESOURCE_DAG_PREFIX}{root_dag_id}"
+        if hasattr(permissions, "resource_name"):
+            return getattr(permissions, "resource_name")(root_dag_id, resource_type)
+        return getattr(permissions, "resource_name_for_dag")(root_dag_id)
 
     @staticmethod
     def _get_user_permissions(user: BaseUser):
@@ -478,7 +507,7 @@ class FabAuthManager(BaseAuthManager):
 
         :meta private:
         """
-        if "." in dag_id:
+        if "." in dag_id and hasattr(DagModel, "root_dag_id"):
             return self.appbuilder.get_session.scalar(
                 select(DagModel.dag_id, DagModel.root_dag_id).where(DagModel.dag_id == dag_id).limit(1)
             )

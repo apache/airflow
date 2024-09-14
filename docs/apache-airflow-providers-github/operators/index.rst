@@ -51,7 +51,7 @@ An example of Listing Tags in a Repository, **client.get_repo(full_name_or_id='a
 
 
 Sensors
-=======
+========
 
 You can build your own sensor  using :class:`~airflow.providers.github.sensors.GithubSensor`,
 

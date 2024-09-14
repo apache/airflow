@@ -20,7 +20,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
 from airflow.providers.amazon.aws.sensors.dms import DmsTaskCompletedSensor
 
@@ -87,27 +87,13 @@ class TestDmsTaskCompletedSensor:
             "testing",
         ],
     )
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        [
-            pytest.param(True, AirflowSkipException, id="soft-fail"),
-            pytest.param(False, AirflowException, id="non-soft-fail"),
-        ],
-    )
-    def test_poke_terminated_status(self, mocked_get_task_status, status, soft_fail, expected_exception):
+    def test_poke_terminated_status(self, mocked_get_task_status, status):
         mocked_get_task_status.return_value = status
         error_message = f"Unexpected status: {status}"
         with pytest.raises(AirflowException, match=error_message):
-            DmsTaskCompletedSensor(**self.default_op_kwargs, soft_fail=soft_fail).poke({})
+            DmsTaskCompletedSensor(**self.default_op_kwargs).poke({})
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        [
-            pytest.param(True, AirflowSkipException, id="soft-fail"),
-            pytest.param(False, AirflowException, id="non-soft-fail"),
-        ],
-    )
-    def test_poke_none_status(self, mocked_get_task_status, soft_fail, expected_exception):
+    def test_poke_none_status(self, mocked_get_task_status):
         mocked_get_task_status.return_value = None
         with pytest.raises(AirflowException, match="task with ARN .* not found"):
-            DmsTaskCompletedSensor(**self.default_op_kwargs, soft_fail=soft_fail).poke({})
+            DmsTaskCompletedSensor(**self.default_op_kwargs).poke({})

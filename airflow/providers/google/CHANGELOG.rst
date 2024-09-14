@@ -27,6 +27,34 @@
 Changelog
 ---------
 
+10.22.0
+.......
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add 'CloudRunServiceHook' and 'CloudRunCreateServiceOperator' (#40008)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/google): add missing sync_hook_class to CloudDataTransferServiceAsyncHook (#41417)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+* ``Refactor 'DataprocCreateBatchOperator' (#41527)``
+* ``Upgrade package gcloud-aio-auth>=5.2.0 (#41262)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 10.21.1
 .......
 
@@ -37,6 +65,7 @@ Bug Fixes
 * ``Move sensitive information to the secret manager for the system test google_analytics_admin (#40951)``
 * ``Fix Custom Training Job operators to accept results without managed model (#40685)``
 * ``Fix behavior for reattach_state parameter in BigQueryInsertJobOperator (#40664)``
+* ``Fix CloudSQLDatabaseHook temp file handling (#41092)``
 
 Misc
 ~~~~
@@ -49,6 +78,7 @@ Misc
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare Providers docs ad hoc release (#41074)``
 
 10.21.0
 .......

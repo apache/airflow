@@ -24,6 +24,10 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining default runner used for the build."
         required: true
         type: string
+      runs-on-as-json-docs-build:
+        description: "The array of labels (in json form) determining the labels used for docs build."
+        required: true
+        type: string
       image-tag:
         description: "Tag to set for the image"
         required: true
@@ -175,7 +179,7 @@ jobs:
           INCLUDE_MYPY_VOLUME: "false"
 
   build-docs:
-    timeout-minutes: 60
+    timeout-minutes: 150
     name: "Build documentation"
     runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     strategy:
@@ -214,41 +218,82 @@ jobs:
       - name: "Building docs with ${{ matrix.flag }} flag"
         run: >
           breeze build-docs ${{ inputs.docs-list-as-string }} ${{ matrix.flag }}
-      #      - name: "Clone airflow-site"
-      #        run: >
-      #          git clone https://github.com/apache/airflow-site.git ${GITHUB_WORKSPACE}/airflow-site &&
-      #          echo "AIRFLOW_SITE_DIRECTORY=${GITHUB_WORKSPACE}/airflow-site" >> "$GITHUB_ENV"
-      #        if: inputs.canary-run == 'true' && matrix.flag == '--docs-only'
-      #      - name: "Publish docs"
-      #        run: >
-      #          breeze release-management publish-docs --override-versioned --run-in-parallel
-      #          ${{ inputs.docs-list-as-string }}
-      #        if: inputs.canary-run == 'true' && matrix.flag == '--docs-only'
-      #      - name: "Generate back references for providers"
-      #        run: breeze release-management add-back-references all-providers
-      #        if: inputs.canary-run == 'true' && matrix.flag == '--docs-only'
-      #      - name: "Generate back references for apache-airflow"
-      #        run: breeze release-management add-back-references apache-airflow
-      #        if: inputs.canary-run == 'true' && matrix.flag == '--docs-only'
-      #      - name: "Generate back references for docker-stack"
-      #        run: breeze release-management add-back-references docker-stack
-      #        if: inputs.canary-run == 'true' && matrix.flag == '--docs-only'
-      #      - name: "Generate back references for helm-chart"
-      #        run: breeze release-management add-back-references helm-chart
-      #        if: inputs.canary-run == 'true' && matrix.flag == '--docs-only'
-      #      - name: Configure AWS credentials
-      #        uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a  # v4.0.1
-      #        if: >
-      #          inputs.canary-run == 'true' &&
-      #          inputs.branch == 'main' &&
-      #          matrix.flag == '--docs-only'
-      #        with:
-      #          aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
-      #          aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
-      #          aws-region: eu-central-1
-      #      - name: "Upload documentation to AWS S3"
-      #        if: >
-      #          inputs.canary-run == 'true' &&
-      #          inputs.branch == 'main' &&
-      #          matrix.flag == '--docs-only'
-      #        run: aws s3 sync --delete ./files/documentation s3://apache-airflow-docs
+      - name: "Upload build docs"
+        uses: actions/upload-artifact@v4
+        with:
+          name: airflow-docs
+          path: './docs/_build'
+          retention-days: 7
+          if-no-files-found: error
+        if: matrix.flag == '--docs-only'
+
+  publish-docs:
+    timeout-minutes: 150
+    name: "Publish documentation"
+    needs: build-docs
+    # For canary runs we need to push documentation to AWS S3 and preparing it takes a lot of space
+    # So we should use self-hosted ASF runners for this
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-docs-build) }}
+    env:
+      GITHUB_REPOSITORY: ${{ github.repository }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_USERNAME: ${{ github.actor }}
+      IMAGE_TAG: "${{ inputs.image-tag }}"
+      INCLUDE_NOT_READY_PROVIDERS: "true"
+      INCLUDE_SUCCESS_OUTPUTS: "${{ inputs.include-success-outputs }}"
+      PYTHON_MAJOR_MINOR_VERSION: "${{ inputs.default-python-version }}"
+      VERBOSE: "true"
+      # Temporary disabled it until self-hosted ASF runners will be working again
+    if: false
+    # if: inputs.canary-run == 'true' && inputs.branch == 'main'
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
+      - name: "Download docs prepared as artifacts"
+        uses: actions/download-artifact@v4
+        with:
+          name: airflow-docs
+          path: './docs/_build'
+      - name: "Clone airflow-site"
+        run: >
+          git clone https://github.com/apache/airflow-site.git ${GITHUB_WORKSPACE}/airflow-site &&
+          echo "AIRFLOW_SITE_DIRECTORY=${GITHUB_WORKSPACE}/airflow-site" >> "$GITHUB_ENV"
+      - name: "Prepare breeze & CI image: ${{ inputs.default-python-version }}:${{ inputs.image-tag }}"
+        uses: ./.github/actions/prepare_breeze_and_image
+      - name: "Publish docs"
+        run: >
+          breeze release-management publish-docs --override-versioned --run-in-parallel
+          ${{ inputs.docs-list-as-string }}
+      - name: "Generate back references for providers"
+        run: breeze release-management add-back-references all-providers
+      - name: "Generate back references for apache-airflow"
+        run: breeze release-management add-back-references apache-airflow
+      - name: "Generate back references for docker-stack"
+        run: breeze release-management add-back-references docker-stack
+      - name: "Generate back references for helm-chart"
+        run: breeze release-management add-back-references helm-chart
+      - name: Install AWS CLI v2
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+          unzip -q /tmp/awscliv2.zip -d /tmp
+          rm /tmp/awscliv2.zip
+          sudo /tmp/aws/install --update
+          rm -rf /tmp/aws/
+        if: inputs.branch == 'main'
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a  # v4.0.1
+        if: inputs.branch == 'main'
+        with:
+          aws-access-key-id: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+      - name: "Upload documentation to AWS S3"
+        if: inputs.branch == 'main'
+        run: aws s3 sync --delete ./docs/_build s3://apache-airflow-docs

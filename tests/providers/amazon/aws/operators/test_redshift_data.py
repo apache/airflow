@@ -51,7 +51,7 @@ def deferrable_operator():
         secret_arn=secret_arn,
         statement_name=statement_name,
         parameters=parameters,
-        wait_for_completion=False,
+        wait_for_completion=True,
         poll_interval=poll_interval,
         deferrable=True,
     )
@@ -276,7 +276,6 @@ class TestRedshiftDataOperator:
             poll_interval=poll_interval,
         )
 
-    # @mock.patch("airflow.providers.amazon.aws.operators.redshift_data.RedshiftDataOperator.defer")
     @mock.patch(
         "airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.check_query_is_finished",
         return_value=False,
@@ -315,3 +314,38 @@ class TestRedshiftDataOperator:
                 == "uuid"
             )
         mock_log_info.assert_called_with("%s completed successfully.", TASK_ID)
+
+    @mock.patch("airflow.providers.amazon.aws.operators.redshift_data.RedshiftDataOperator.defer")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.check_query_is_finished")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
+    def test_no_wait_for_completion(self, mock_exec_query, mock_check_query_is_finished, mock_defer):
+        """Tests that the operator does not check for completion nor defers when wait_for_completion is False,
+        no matter the value of deferrable"""
+        cluster_identifier = "cluster_identifier"
+        db_user = "db_user"
+        secret_arn = "secret_arn"
+        statement_name = "statement_name"
+        parameters = [{"name": "id", "value": "1"}]
+        poll_interval = 5
+
+        wait_for_completion = False
+
+        for deferrable in [True, False]:
+            operator = RedshiftDataOperator(
+                aws_conn_id=CONN_ID,
+                task_id=TASK_ID,
+                sql=SQL,
+                database=DATABASE,
+                cluster_identifier=cluster_identifier,
+                db_user=db_user,
+                secret_arn=secret_arn,
+                statement_name=statement_name,
+                parameters=parameters,
+                wait_for_completion=wait_for_completion,
+                poll_interval=poll_interval,
+                deferrable=deferrable,
+            )
+            operator.execute(None)
+
+            assert not mock_check_query_is_finished.called
+            assert not mock_defer.called

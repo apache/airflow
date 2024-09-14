@@ -103,6 +103,7 @@ class BatchProtocol(Protocol):
         parameters: dict,
         containerOverrides: dict,
         ecsPropertiesOverride: dict,
+        eksPropertiesOverride: dict,
         tags: dict,
     ) -> dict:
         """
@@ -121,6 +122,8 @@ class BatchProtocol(Protocol):
         :param containerOverrides: the same parameter that boto3 will receive
 
         :param ecsPropertiesOverride: the same parameter that boto3 will receive
+
+        :param eksPropertiesOverride: the same parameter that boto3 will receive
 
         :param tags: the same parameter that boto3 will receive
 

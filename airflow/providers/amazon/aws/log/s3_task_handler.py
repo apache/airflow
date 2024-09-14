@@ -42,10 +42,8 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
 
     trigger_should_wrap = True
 
-    def __init__(
-        self, base_log_folder: str, s3_log_folder: str, filename_template: str | None = None, **kwargs
-    ):
-        super().__init__(base_log_folder, filename_template)
+    def __init__(self, base_log_folder: str, s3_log_folder: str, **kwargs):
+        super().__init__(base_log_folder)
         self.handler: logging.FileHandler | None = None
         self.remote_base = s3_log_folder
         self.log_relative_path = ""

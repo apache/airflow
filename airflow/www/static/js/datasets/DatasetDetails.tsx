@@ -21,24 +21,18 @@ import React from "react";
 import {
   Spinner,
   Flex,
-  IconButton,
-  useDisclosure,
   Grid,
   GridItem,
   Heading,
   Link,
   Box,
 } from "@chakra-ui/react";
-import { MdPlayArrow } from "react-icons/md";
 import { isEmpty } from "lodash";
 
 import { useDataset } from "src/api";
-import { useContainerRef } from "src/context/containerRef";
-import Tooltip from "src/components/Tooltip";
 import { getMetaValue } from "src/utils";
 import RenderedJsonField from "src/components/RenderedJsonField";
 
-import CreateDatasetEventModal from "./CreateDatasetEvent";
 import Events from "./DatasetEvents";
 
 const gridUrl = getMetaValue("grid_url");
@@ -49,8 +43,6 @@ interface Props {
 
 const DatasetDetails = ({ uri }: Props) => {
   const { data: dataset, isLoading } = useDataset({ uri });
-  const { isOpen, onToggle, onClose } = useDisclosure();
-  const containerRef = useContainerRef();
 
   const hasProducingTasks = !!dataset?.producingTasks?.length;
   const hasConsumingDags = !!dataset?.consumingDags?.length;
@@ -100,22 +92,6 @@ const DatasetDetails = ({ uri }: Props) => {
             })}
           </GridItem>
         )}
-        <GridItem colSpan={1} display="flex" justifyContent="flex-end">
-          <Tooltip
-            label="Manually create dataset event"
-            hasArrow
-            portalProps={{ containerRef }}
-          >
-            <IconButton
-              variant="outline"
-              colorScheme="blue"
-              aria-label="Manually create dataset event"
-              onClick={onToggle}
-            >
-              <MdPlayArrow />
-            </IconButton>
-          </Tooltip>
-        </GridItem>
       </Grid>
       {dataset?.extra && !isEmpty(dataset?.extra) && (
         <RenderedJsonField
@@ -128,13 +104,6 @@ const DatasetDetails = ({ uri }: Props) => {
       <Box mt={2}>
         {dataset && dataset.id && <Events datasetId={dataset.id} showLabel />}
       </Box>
-      {dataset && (
-        <CreateDatasetEventModal
-          isOpen={isOpen}
-          onClose={onClose}
-          dataset={dataset}
-        />
-      )}
     </Flex>
   );
 };

@@ -47,7 +47,6 @@ from google.cloud.exceptions import NotFound
 from airflow.decorators import task
 from airflow.models import Connection
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.hooks.secret_manager import GoogleCloudSecretManagerHook
 from airflow.providers.google.marketing_platform.operators.analytics_admin import (
     GoogleAnalyticsAdminCreateDataStreamOperator,
@@ -90,9 +89,9 @@ with DAG(
 ) as dag:
 
     @task
-    def setup_connection(**kwargs) -> None:
+    def create_connection(connection_id: str) -> None:
         connection = Connection(
-            conn_id=CONNECTION_ID,
+            conn_id=connection_id,
             conn_type="google_cloud_platform",
         )
         conn_extra_json = json.dumps(
@@ -104,14 +103,15 @@ with DAG(
         connection.set_extra(conn_extra_json)
 
         session = Session()
-        if session.query(Connection).filter(Connection.conn_id == CONNECTION_ID).first():
-            log.warning("Connection %s already exists", CONNECTION_ID)
-            return None
+        log.info("Removing connection %s if it exists", connection_id)
+        query = session.query(Connection).filter(Connection.conn_id == connection_id)
+        query.delete()
 
         session.add(connection)
         session.commit()
+        log.info("Connection %s created", CONNECTION_ID)
 
-    setup_connection_task = setup_connection()
+    create_connection_task = create_connection(connection_id=CONNECTION_ID)
 
     @task
     def get_google_analytics_account_id():
@@ -195,15 +195,19 @@ with DAG(
     )
     # [END howto_marketing_platform_get_google_ad_link]
 
-    delete_connection = BashOperator(
-        task_id="delete_connection",
-        bash_command=f"airflow connections delete {CONNECTION_ID}",
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
+    @task(task_id="delete_connection")
+    def delete_connection(connection_id: str) -> None:
+        session = Session()
+        log.info("Removing connection %s", connection_id)
+        query = session.query(Connection).filter(Connection.conn_id == connection_id)
+        query.delete()
+        session.commit()
+
+    delete_connection_task = delete_connection(connection_id=CONNECTION_ID)
 
     (
         # TEST SETUP
-        [setup_connection_task, get_google_analytics_account_id_task, get_google_ads_property_id_task]
+        [create_connection_task, get_google_analytics_account_id_task, get_google_ads_property_id_task]
         # TEST BODY
         >> list_accounts
         >> create_property
@@ -213,7 +217,7 @@ with DAG(
         >> list_google_ads_links
         >> get_ad_link
         # TEST TEARDOWN
-        >> delete_connection
+        >> delete_connection_task
     )
     from tests.system.utils.watcher import watcher
 

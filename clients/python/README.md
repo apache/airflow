@@ -182,7 +182,7 @@ If you want to check which auth backend is currently set, you can use
 
 ```bash
 $ airflow config get-value api auth_backends
-airflow.api.auth.backend.basic_auth
+airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
 ```
 
 The default is to deny all requests.
@@ -534,11 +534,11 @@ that uses the API to run the tests. To do that, you need to:
 
 ```ini
 [api]
-auth_backend = airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth
+auth_backend = airflow.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
 ```
 
 You can also set it by env variable:
-`export AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth`
+`export AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.session,airflow.providers.fab.auth_manager.api.auth.backend.basic_auth`
 
 * configure your airflow webserver to load example dags
   In the `[core]` section of your `airflow.cfg` set:

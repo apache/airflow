@@ -1216,7 +1216,7 @@ class TestVertexAIDeleteCustomTrainingJobOperator:
         )
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         ti = create_task_instance_of_operator(
             DeleteCustomTrainingJobOperator,
             # Templated fields
@@ -1230,6 +1230,8 @@ class TestVertexAIDeleteCustomTrainingJobOperator:
             task_id="test_template_body_templating_task",
             execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: DeleteCustomTrainingJobOperator = ti.task
         assert task.training_pipeline_id == "training-pipeline-id"
@@ -2032,7 +2034,7 @@ class TestVertexAIDeleteAutoMLTrainingJobOperator:
         )
 
     @pytest.mark.db_test
-    def test_templating(self, create_task_instance_of_operator):
+    def test_templating(self, create_task_instance_of_operator, session):
         ti = create_task_instance_of_operator(
             DeleteAutoMLTrainingJobOperator,
             # Templated fields
@@ -2045,6 +2047,8 @@ class TestVertexAIDeleteAutoMLTrainingJobOperator:
             task_id="test_template_body_templating_task",
             execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
         )
+        session.add(ti)
+        session.commit()
         ti.render_templates()
         task: DeleteAutoMLTrainingJobOperator = ti.task
         assert task.training_pipeline_id == "training-pipeline-id"
@@ -2845,6 +2849,34 @@ class TestVertexAIUploadModelOperator:
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             model=TEST_MODEL_OBJ,
+            parent_model=None,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(VERTEX_AI_PATH.format("model_service.model_service.UploadModelResponse.to_dict"))
+    @mock.patch(VERTEX_AI_PATH.format("model_service.ModelServiceHook"))
+    def test_execute_with_parent_model(self, mock_hook, to_dict_mock):
+        op = UploadModelOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            model=TEST_MODEL_OBJ,
+            parent_model=TEST_PARENT_MODEL,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.upload_model.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            model=TEST_MODEL_OBJ,
+            parent_model=TEST_PARENT_MODEL,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
