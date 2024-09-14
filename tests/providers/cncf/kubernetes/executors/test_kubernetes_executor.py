@@ -413,7 +413,7 @@ class TestKubernetesExecutor:
         mock_api_client.sanitize_for_serialization.return_value = {}
         mock_kube_client.api_client = mock_api_client
         config = {
-            ("kubernetes", "pod_template_file"): template_file,
+            ("kubernetes_executor", "pod_template_file"): template_file,
         }
         with conf_vars(config):
             kubernetes_executor = self.kubernetes_executor
@@ -513,7 +513,7 @@ class TestKubernetesExecutor:
         mock_api_client = mock.MagicMock()
         mock_api_client.sanitize_for_serialization.return_value = {}
         mock_kube_client.api_client = mock_api_client
-        config = {("kubernetes", "pod_template_file"): template_file}
+        config = {("kubernetes_executor", "pod_template_file"): template_file}
         with conf_vars(config):
             kubernetes_executor = self.kubernetes_executor
             kubernetes_executor.start()
@@ -597,7 +597,7 @@ class TestKubernetesExecutor:
         mock_kube_client = mock.patch("kubernetes.client.CoreV1Api", autospec=True)
         mock_get_kube_client.return_value = mock_kube_client
 
-        with conf_vars({("kubernetes", "pod_template_file"): None}):
+        with conf_vars({("kubernetes_executor", "pod_template_file"): None}):
             executor = self.kubernetes_executor
             executor.start()
             try:
@@ -1525,7 +1525,7 @@ class TestKubernetesExecutor:
         }
         get_logs_task_metadata.cache_clear()
         try:
-            with conf_vars({("kubernetes", "logs_task_metadata"): "False"}):
+            with conf_vars({("kubernetes_executor", "logs_task_metadata"): "False"}):
                 expected_annotations = "<omitted>"
                 annotations_actual = annotations_for_logging_task_metadata(annotations_test)
                 assert annotations_actual == expected_annotations
