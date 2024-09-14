@@ -1322,6 +1322,13 @@ repos:
         files: ^airflow/providers/.*/provider\.yaml$
         additional_dependencies: ['rich>=12.4.4']
         require_serial: true
+      - id: check-template-fields-valid
+        name: Check all templated fields mapped in operators/sensors
+        language: python
+        entry: ./scripts/ci/pre_commit/check_template_fields.py
+        pass_filenames: true
+        files: ^airflow/.*/sensors/.*\.py$|^airflow/.*/operators/.*\.py$
+        additional_dependencies: [ 'rich>=12.4.4' ]
       - id: update-migration-references
         name: Update migration ref doc
         language: python

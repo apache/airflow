@@ -236,6 +236,8 @@ require Breeze Docker image to be built locally.
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-template-context-variable-in-sync                   | Check all template context variable references are in sync   |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
+| check-template-fields-valid                               | Check all templated fields mapped in operators/sensors       | *       |
++-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-tests-in-the-right-folders                          | Check if tests are in the right folders                      |         |
 +-----------------------------------------------------------+--------------------------------------------------------------+---------+
 | check-tests-unittest-testcase                             | Check that unit tests do not inherit from unittest.TestCase  |         |

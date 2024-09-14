@@ -24,8 +24,10 @@ import pathlib
 import sys
 
 import yaml
+from rich.console import Console
 from yaml import SafeLoader
 
+console = Console(width=400, color_system="standard")
 ROOT_DIR = pathlib.Path(__file__).resolve().parents[2]
 
 provider_files_pattern = pathlib.Path(ROOT_DIR, "airflow", "providers").rglob("provider.yaml")
@@ -141,17 +143,23 @@ def iter_check_template_fields(module: str):
                     errors.append(f"{module}: {op_class_name}: {field}")
 
 
-def main():
-    modules = get_providers_modules()
-
-    [iter_check_template_fields(module) for module in modules]
-    if errors:
-        print("Invalid template fields found:")
-        for error in errors:
-            print(error)
-
-    return len(errors)
-
-
 if __name__ == "__main__":
-    sys.exit(main())
+    provider_modules = get_providers_modules()
+
+    if len(sys.argv) > 1:
+        py_files = sorted(sys.argv[1:])
+        modules_to_validate = [
+            module_name
+            for pyfile in py_files
+            if (module_name := pyfile.rstrip(".py").replace("/", ".")) in provider_modules
+        ]
+    else:
+        modules_to_validate = provider_modules
+
+    [iter_check_template_fields(module) for module in modules_to_validate]
+    if errors:
+        console.print("[red]Found Invalid template fields:")
+        for error in errors:
+            console.print(f"[red]Error:[/] {error}")
+
+    sys.exit(len(errors))
