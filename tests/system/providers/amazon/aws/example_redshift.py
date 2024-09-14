@@ -175,6 +175,40 @@ with DAG(
         wait_for_completion=True,
     )
 
+    # [START howto_operator_redshift_data_session_reuse]
+    create_tmp_table_data_api = RedshiftDataOperator(
+        task_id="create_tmp_table_data_api",
+        cluster_identifier=redshift_cluster_identifier,
+        database=DB_NAME,
+        db_user=DB_LOGIN,
+        sql="""
+            CREATE TEMPORARY TABLE tmp_people (
+            id INTEGER,
+            first_name VARCHAR(100),
+            age INTEGER
+            );
+        """,
+        poll_interval=POLL_INTERVAL,
+        wait_for_completion=True,
+        session_keep_alive_seconds=600,
+    )
+
+    insert_data_reuse_session = RedshiftDataOperator(
+        task_id="insert_data_reuse_session",
+        cluster_identifier=redshift_cluster_identifier,
+        database=DB_NAME,
+        db_user=DB_LOGIN,
+        sql="""
+            INSERT INTO tmp_people VALUES ( 1, 'Bob', 30);
+            INSERT INTO tmp_people VALUES ( 2, 'Alice', 35);
+            INSERT INTO tmp_people VALUES ( 3, 'Charlie', 40);
+        """,
+        poll_interval=POLL_INTERVAL,
+        wait_for_completion=True,
+        session_id="{{ task_instance.xcom_pull(task_ids='create_tmp_table_data_api', key='session_id') }}",
+    )
+    # [END howto_operator_redshift_data_session_reuse]
+
     # [START howto_operator_redshift_delete_cluster]
     delete_cluster = RedshiftDeleteClusterOperator(
         task_id="delete_cluster",
@@ -205,6 +239,8 @@ with DAG(
         wait_cluster_available_after_resume,
         create_table_redshift_data,
         insert_data,
+        create_tmp_table_data_api,
+        insert_data_reuse_session,
         delete_cluster_snapshot,
         delete_cluster,
     )
