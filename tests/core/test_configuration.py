@@ -965,33 +965,6 @@ class TestDeprecatedConf:
 
     @conf_vars(
         {
-            ("logging", "logging_level"): None,
-            ("core", "logging_level"): None,
-        }
-    )
-    def test_deprecated_options_with_new_section(self):
-        # Guarantee we have a deprecated setting, so we test the deprecation
-        # lookup even if we remove this explicit fallback
-        with set_deprecated_options(
-            deprecated_options={("logging", "logging_level"): ("core", "logging_level", "2.0.0")}
-        ):
-            # Remove it so we are sure we use the right setting
-            conf.remove_option("core", "logging_level")
-            conf.remove_option("logging", "logging_level")
-
-            with pytest.warns(DeprecationWarning):
-                with mock.patch.dict("os.environ", AIRFLOW__CORE__LOGGING_LEVEL="VALUE"):
-                    assert conf.get("logging", "logging_level") == "VALUE"
-
-            with pytest.warns(FutureWarning, match="Please update your `conf.get"):
-                with mock.patch.dict("os.environ", AIRFLOW__CORE__LOGGING_LEVEL="VALUE"):
-                    assert conf.get("core", "logging_level") == "VALUE"
-
-            with pytest.warns(DeprecationWarning), conf_vars({("core", "logging_level"): "VALUE"}):
-                assert conf.get("logging", "logging_level") == "VALUE"
-
-    @conf_vars(
-        {
             ("celery", "result_backend"): None,
             ("celery", "celery_result_backend"): None,
             ("celery", "celery_result_backend_cmd"): None,

@@ -1,7 +1,7 @@
 {
   "airbyte": {
     "deps": [
-      "airbyte-api>=0.51.0",
+      "airbyte-api>=0.52.0",
       "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
@@ -36,6 +36,7 @@
       "inflection>=0.5.1",
       "jmespath>=0.7.0",
       "jsonpath_ng>=1.5.3",
+      "python3-saml>=1.16.0",
       "redshift_connector>=2.0.918",
       "sqlalchemy_redshift>=0.8.6",
       "watchtower>=3.0.0,!=3.3.0,<4"
@@ -518,6 +519,17 @@
     "cross-providers-deps": [],
     "excluded-python-versions": [],
     "state": "ready"
+  },
+  "edge": {
+    "deps": [
+      "apache-airflow>=2.10.0",
+      "pydantic>=2.3.0"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "not-ready"
   },
   "elasticsearch": {
     "deps": [
@@ -1014,7 +1026,6 @@
       "pandas>=1.5.3,<2.2;python_version<\"3.9\"",
       "pandas>=2.1.2,<2.2;python_version>=\"3.9\"",
       "papermill[all]>=2.6.0",
-      "python3-saml>=1.16.0",
       "scrapbook[all]"
     ],
     "devel-deps": [],
