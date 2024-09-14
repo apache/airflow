@@ -118,29 +118,27 @@ def is_class_eligible(name: str) -> bool:
 
 
 def get_eligible_classes(all_classes):
+    """
+    Filter the results to include only classes that end with `Sensor` or `Operator`.
+
+    """
+
     eligible_classes = [(name, cls) for name, cls in all_classes if is_class_eligible(name)]
     return eligible_classes
 
 
 def iter_check_template_fields(module: str):
-    current_module_classes = []
     imported_module = importlib.import_module(module)
     classes = inspect.getmembers(imported_module, inspect.isclass)
-    eligible_classes = get_eligible_classes(classes)
+    op_classes = get_eligible_classes(classes)
 
-    for class_name, cls in eligible_classes:
+    for op_class_name, cls in op_classes:
         if cls.__module__ == module:
-            current_module_classes.append(class_name)
+            templated_fields, class_instance_fields = get_template_fields_and_class_instance_fields(cls)
 
-    for class_name in current_module_classes:
-        print(f"Validating template fields in {module} {class_name}")
-        current_cls = getattr(imported_module, class_name)
-        templated_fields, class_instance_fields = get_template_fields_and_class_instance_fields(current_cls)
-
-        if templated_fields:
             for field in templated_fields:
                 if field not in class_instance_fields:
-                    errors.append(f"{module}: {class_name}: {field}")
+                    errors.append(f"{module}: {op_class_name}: {field}")
 
 
 def main():
