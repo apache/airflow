@@ -74,6 +74,11 @@ class InstanceFieldExtractor(ast.NodeVisitor):
 
 
 def get_template_fields_and_class_instance_fields(cls):
+    """
+    1.This method retrieves the operator class and obtains all its parent classes using the method resolution order (MRO).
+    2. It then gathers the templated fields declared in both the operator class and its parent classes.
+    3. Finally, it retrieves the instance fields of the operator class, specifically the self.fields attributes.
+    """
     all_template_fields = []
     class_instance_fields = []
 
@@ -95,6 +100,9 @@ def get_template_fields_and_class_instance_fields(cls):
 
 
 def load_yaml_data() -> dict:
+    """
+    It loads all the provider YAML files and retrieves the module referenced within each YAML file.
+    """
     package_paths = sorted(str(path) for path in provider_files_pattern)
     result = {}
     for provider_yaml_path in package_paths:
@@ -135,6 +143,11 @@ def get_eligible_classes(all_classes):
 
 
 def iter_check_template_fields(module: str):
+    """
+    1. This method imports the providers module and retrieves all the classes defined within it.
+    2. It then filters and selects classes related to operators or sensors by checking if the class name ends with "Operator" or "Sensor."
+    3. For each operator class, it validates the template fields by inspecting the class instance fields.
+    """
     with warnings.catch_warnings(record=True):
         imported_module = importlib.import_module(module)
         classes = inspect.getmembers(imported_module, inspect.isclass)
