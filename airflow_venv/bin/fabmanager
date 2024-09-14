@@ -1,0 +1,8 @@
+#!/home/devz/Rust69/OpenSource/airflow/airflow_venv/bin/python3
+# -*- coding: utf-8 -*-
+import re
+import sys
+from flask_appbuilder.console import cli
+if __name__ == '__main__':
+    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
+    sys.exit(cli())

@@ -1,0 +1,18 @@
+#!/bin/sh
+ICDIFF_OPTIONS=$(git config --get icdiff.options)
+ICDIFF_OPTIONS="${ICDIFF_OPTIONS} --is-git-diff"
+GITPAGER=$(git config --get icdiff.pager)
+
+if [ -z "$GITPAGER" ]; then
+  GITPAGER=$(git config --get core.pager)
+fi
+
+if [ -z "$GITPAGER" ]; then
+  GITPAGER="${PAGER:-less}"
+fi
+
+if [ "${GITPAGER%% *}" = "more" ] || [ "${GITPAGER%% *}" = "less" ]; then
+  GITPAGER="$GITPAGER -R"
+fi
+
+git difftool --no-prompt --extcmd="icdiff $ICDIFF_OPTIONS" "$@" | $GITPAGER
