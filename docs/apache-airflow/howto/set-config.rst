@@ -181,7 +181,6 @@ in the ``$AIRFLOW_HOME/config`` folder. (Airflow adds ``$AIRFLOW_HOME/config`` t
 Airflow is initialized)
 Starting from Airflow 2.10.1, the $AIRFLOW_HOME/dags folder is no longer included in sys.path at initialization, so any local settings in that folder will not be imported. Ensure that airflow_local_settings.py is located in a path that is part of sys.path during initialization, like $AIRFLOW_HOME/config.
 
-
 You can see the example of such local settings here:
 
 .. py:module:: airflow.config_templates.airflow_local_settings
