@@ -181,7 +181,7 @@ class KubernetesExecutor(BaseExecutor):
         """
         List the worker pods owned by this scheduler and create a map containing pod combined labels search str -> pod.
 
-        For every pod, it creates two below entries in the map
+        An entry is created in the map for each pod.
         dag_id={dag_id},task_id={task_id},airflow-worker={airflow_worker},<map_index={map_index}>,run_id={run_id}
         """
         # airflow worker label selector batch call
