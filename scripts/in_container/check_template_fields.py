@@ -42,25 +42,28 @@ class InstanceFieldExtractor(ast.NodeVisitor):
         self.current_class = None
         self.instance_fields = []
 
-    def visit_FunctionDef(self, node):
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
         if node.name == "__init__":
             for body in node.body:
                 if isinstance(body, ast.Assign):
                     self.visit_Assign(body)
                 elif isinstance(body, ast.AnnAssign):
                     self.visit_AnnAssign(body)
+        return node
 
-    def visit_Assign(self, node):
+    def visit_Assign(self, node: ast.Assign) -> ast.Assign:
         fields = []
         for target in node.targets:
             if isinstance(target, ast.Attribute):
                 fields.append(target.attr)
         if fields:
             self.instance_fields.extend(fields)
+        return node
 
-    def visit_AnnAssign(self, node):
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> ast.AnnAssign:
         if isinstance(node.target, ast.Attribute):
             self.instance_fields.append(node.target.attr)
+        return node
 
 
 def get_template_fields_and_class_instance_fields(cls):
@@ -70,9 +73,9 @@ def get_template_fields_and_class_instance_fields(cls):
     all_classes = cls.__mro__
     for current_class in all_classes:
         if current_class.__init__ is not object.__init__:
+            cls_attr = current_class.__dict__
             for template_type in TEMPLATE_TYPES:
-                values = current_class.__dict__
-                fields = values.get(template_type)
+                fields = cls_attr.get(template_type)
                 if fields:
                     all_template_fields.extend(fields)
 
@@ -84,7 +87,7 @@ def get_template_fields_and_class_instance_fields(cls):
     return all_template_fields, class_instance_fields
 
 
-def load_yaml_data():
+def load_yaml_data() -> dict:
     package_paths = sorted(str(path) for path in provider_files_pattern)
     result = {}
     for provider_yaml_path in package_paths:
@@ -95,7 +98,7 @@ def load_yaml_data():
     return result
 
 
-def get_providers_modules():
+def get_providers_modules() -> list[str]:
     modules_container = []
     result = load_yaml_data()
 
@@ -107,7 +110,7 @@ def get_providers_modules():
     return modules_container
 
 
-def is_class_eligible(name):
+def is_class_eligible(name: str) -> bool:
     for op in CLASS_IDENTIFIERS:
         if name.lower().endswith(op):
             return True
@@ -119,11 +122,10 @@ def get_eligible_classes(all_classes):
     return eligible_classes
 
 
-def iter_check_template_fields(module):
+def iter_check_template_fields(module: str):
     current_module_classes = []
     imported_module = importlib.import_module(module)
     classes = inspect.getmembers(imported_module, inspect.isclass)
-
     eligible_classes = get_eligible_classes(classes)
 
     for class_name, cls in eligible_classes:
