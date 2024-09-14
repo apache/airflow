@@ -176,10 +176,8 @@ Some Airflow configuration is configured via local setting, because they require
 code that is executed when Airflow is initialized. Usually it is mentioned in the detailed documentation
 where you can configure such local settings - This is usually done in the ``airflow_local_settings.py`` file.
 
-You should create a ``airflow_local_settings.py`` file and put it in a directory in ``sys.path`` or
-in the ``$AIRFLOW_HOME/config`` folder. (Airflow adds ``$AIRFLOW_HOME/config`` to ``sys.path`` when
-Airflow is initialized).
-Note that starting from Airflow 2.10.1, the ``dags/`` folder is no longer included in ``sys.path`` during initialization, so local settings placed in ``$AIRFLOW_HOME/dags`` will not be imported automatically. Ensure that ``airflow_local_settings.py`` is in a location that is part of ``sys.path`` when Airflow is initialized, like ``$AIRFLOW_HOME/config``.
+You should create an airflow_local_settings.py file and place it in a directory that is part of sys.path, such as the $AIRFLOW_HOME/config folder (which Airflow automatically adds to sys.path during initialization). 
+Starting from Airflow 2.10.1, the $AIRFLOW_HOME/dags folder is no longer included in sys.path at initialization, so any local settings in that folder will not be imported. Ensure that airflow_local_settings.py is located in a path that is part of sys.path during initialization, like $AIRFLOW_HOME/config.
 
 
 You can see the example of such local settings here:
