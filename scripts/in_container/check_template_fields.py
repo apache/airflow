@@ -20,14 +20,14 @@ import ast
 import importlib.util
 import inspect
 import itertools
-import os
 import pathlib
 import sys
 
 import yaml
 from yaml import SafeLoader
 
-ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir, os.pardir, os.pardir))
+ROOT_DIR = pathlib.Path(__file__).resolve().parents[2]
+
 provider_files_pattern = pathlib.Path(ROOT_DIR, "airflow", "providers").rglob("provider.yaml")
 errors = []
 
