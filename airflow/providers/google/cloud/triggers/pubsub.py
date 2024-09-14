@@ -19,15 +19,12 @@
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, AsyncIterator, Callable, Sequence
+from typing import Any, AsyncIterator, Sequence
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
 from airflow.providers.google.cloud.hooks.pubsub import PubSubAsyncHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class PubsubPullTrigger(BaseTrigger):
@@ -41,11 +38,6 @@ class PubsubPullTrigger(BaseTrigger):
     :param ack_messages: If True, each message will be acknowledged
         immediately rather than by any downstream tasks
     :param gcp_conn_id: Reference to google cloud connection id
-    :param messages_callback: (Optional) Callback to process received messages.
-        Its return value will be saved to XCom.
-        If you are pulling large messages, you probably want to provide a custom callback.
-        If not provided, the default implementation will convert `ReceivedMessage` objects
-        into JSON-serializable dicts using `google.protobuf.json_format.MessageToDict` function.
     :param poke_interval: polling period in seconds to check for the status
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
@@ -64,7 +56,6 @@ class PubsubPullTrigger(BaseTrigger):
         max_messages: int,
         ack_messages: bool,
         gcp_conn_id: str,
-        messages_callback: Callable[[list[ReceivedMessage], Context], Any] | None = None,
         poke_interval: float = 10.0,
         impersonation_chain: str | Sequence[str] | None = None,
     ):
@@ -73,7 +64,6 @@ class PubsubPullTrigger(BaseTrigger):
         self.subscription = subscription
         self.max_messages = max_messages
         self.ack_messages = ack_messages
-        self.messages_callback = messages_callback
         self.poke_interval = poke_interval
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
@@ -88,7 +78,6 @@ class PubsubPullTrigger(BaseTrigger):
                 "subscription": self.subscription,
                 "max_messages": self.max_messages,
                 "ack_messages": self.ack_messages,
-                "messages_callback": self.messages_callback,
                 "poke_interval": self.poke_interval,
                 "gcp_conn_id": self.gcp_conn_id,
                 "impersonation_chain": self.impersonation_chain,

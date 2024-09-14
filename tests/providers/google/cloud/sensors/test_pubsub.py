@@ -21,6 +21,7 @@ from typing import Any
 from unittest import mock
 
 import pytest
+from google.cloud import pubsub_v1
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
 from airflow.exceptions import AirflowException, TaskDeferred
@@ -197,3 +198,53 @@ class TestPubSubPullSensor:
         with mock.patch.object(operator.log, "info") as mock_log_info:
             operator.execute_complete(context={}, event={"status": "success", "message": test_message})
         mock_log_info.assert_called_with("Sensor pulls messages: %s", test_message)
+
+    @mock.patch("airflow.providers.google.cloud.sensors.pubsub.PubSubHook")
+    def test_pubsub_pull_sensor_async_execute_complete_use_message_callback(self, mock_hook):
+        test_message = [
+            {
+                "ack_id": "UAYWLF1GSFE3GQhoUQ5PXiM_NSAoRRIJB08CKF15MU0sQVhwaFENGXJ9YHxrUxsDV0ECel1RGQdoTm11H4GglfRLQ1RrWBIHB01Vel5TEwxoX11wBnm4vPO6v8vgfwk9OpX-8tltO6ywsP9GZiM9XhJLLD5-LzlFQV5AEkwkDERJUytDCypYEU4EISE-MD5FU0Q",
+                "message": {
+                    "data": "aGkgZnJvbSBjbG91ZCBjb25zb2xlIQ==",
+                    "message_id": "12165864188103151",
+                    "publish_time": "2024-08-28T11:49:50.962Z",
+                    "attributes": {},
+                    "ordering_key": "",
+                },
+                "delivery_attempt": 0,
+            }
+        ]
+        received_message_format = []
+        for msg in test_message:
+            received_message_format.append(pubsub_v1.types.ReceivedMessage(msg))
+
+        messages_callback_return_value = "custom_message_from_callback"
+
+        def messages_callback(
+            pulled_messages: list[ReceivedMessage],
+            context: dict[str, Any],
+        ):
+            assert pulled_messages == received_message_format
+
+            assert isinstance(context, dict)
+            for key in context.keys():
+                assert isinstance(key, str)
+
+            return messages_callback_return_value
+
+        messages_callback = mock.Mock(side_effect=messages_callback)
+
+        operator = PubSubPullSensor(
+            task_id="test_task",
+            ack_messages=True,
+            project_id=TEST_PROJECT,
+            subscription=TEST_SUBSCRIPTION,
+            deferrable=True,
+            messages_callback=messages_callback,
+        )
+        mock_hook.return_value.pull.return_value = received_message_format
+
+        with mock.patch.object(operator.log, "info") as mock_log_info:
+            resp = operator.execute_complete(context={}, event={"status": "success", "message": test_message})
+        mock_log_info.assert_called_with("Sensor pulls messages: %s", test_message)
+        assert resp == messages_callback_return_value
