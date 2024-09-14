@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-13T19:46:17.746697
+# This constraints file was automatically generated on 2024-09-14T02:11:37.077577
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -303,7 +303,7 @@ execnet==2.1.1
 executing==2.1.0
 facebook_business==20.0.2
 fastapi-cli==0.0.5
-fastapi==0.114.1
+fastapi==0.114.2
 fastavro==1.9.7
 fasteners==0.19
 fastjsonschema==2.20.0
@@ -538,7 +538,7 @@ pinotdb==5.6.0
 pipdeptree==2.23.3
 pipx==1.7.1
 pkginfo==1.10.0
-platformdirs==4.3.2
+platformdirs==4.3.3
 pluggy==1.5.0
 ply==3.11
 plyvel==1.5.1
