@@ -509,7 +509,7 @@ BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.8",
         "airflow-version": "2.8.4",
-        "remove-providers": ["fab", "standard"],
+        "remove-providers": ["fab"],
         "run-tests": "true",
     },
     {

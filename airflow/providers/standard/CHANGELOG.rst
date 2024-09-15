@@ -36,4 +36,7 @@ Changelog
 1.0.0
 .....
 
-Initial version of the provider.
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``In BranchDayOfWeekOperator, DayOfWeekSensor, BranchDateTimeOperator parameter use_task_execution_date has been removed. Please use use_task_logical_date.``

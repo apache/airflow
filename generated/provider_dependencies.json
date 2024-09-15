@@ -1263,7 +1263,7 @@
   },
   "standard": {
     "deps": [
-      "apache-airflow>=2.10.0"
+      "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
     "plugins": [],
