@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-15T07:38:00.063857
+# This constraints file was automatically generated on 2024-09-15T19:38:52.810792
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -287,7 +287,7 @@ ibm-cloud-sdk-core==3.20.3
 ibmcloudant==0.9.1
 icdiff==2.0.7
 identify==2.6.1
-idna==3.9
+idna==3.10
 ijson==3.3.0
 imagesize==1.4.1
 immutabledict==4.2.0
