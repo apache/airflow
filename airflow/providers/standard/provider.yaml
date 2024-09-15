@@ -28,7 +28,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.10.0
+  - apache-airflow>=2.8.0
 
 integrations:
   - integration-name: Standard
