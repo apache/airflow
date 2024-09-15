@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-14T07:46:13.703944
+# This constraints file was automatically generated on 2024-09-15T07:45:27.551307
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -399,7 +399,7 @@ hyperlink==21.0.0
 ibm-cloud-sdk-core==3.20.3
 ibmcloudant==0.9.1
 icdiff==2.0.7
-identify==2.6.0
+identify==2.6.1
 idna==3.9
 ijson==3.3.0
 imagesize==1.4.1
@@ -448,7 +448,7 @@ ldap3==2.9.1
 limits==3.13.0
 linkify-it-py==2.0.3
 lockfile==0.12.2
-looker-sdk==24.16.0
+looker-sdk==24.16.1
 lxml==5.3.0
 lz4==4.3.3
 markdown-it-py==3.0.0
@@ -670,7 +670,7 @@ sphinxcontrib-qthelp==2.0.0
 sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib-spelling==8.0.0
-spython==0.3.13
+spython==0.3.14
 sqlalchemy-bigquery==1.11.0
 sqlalchemy-redshift==0.8.14
 sqlalchemy-spanner==1.7.0
