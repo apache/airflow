@@ -416,7 +416,7 @@ class BaseDatabricksHook(BaseHook):
 
             for attempt in self._get_retry_object():
                 with attempt:
-                    # This only works in an AKS Cluster given the following environment variables:
+                    # This only works in an Azure Kubernetes Service Cluster given the following environment variables:
                     # AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_FEDERATED_TOKEN_FILE
                     #
                     # While there is a WorkloadIdentityCredential class, the below class is advised by Microsoft
@@ -461,7 +461,7 @@ class BaseDatabricksHook(BaseHook):
 
             for attempt in self._get_retry_object():
                 with attempt:
-                    # This only works in an AKS Cluster given the following environment variables:
+                    # This only works in an Azure Kubernetes Service Cluster given the following environment variables:
                     # AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_FEDERATED_TOKEN_FILE
                     #
                     # While there is a WorkloadIdentityCredential class, the below class is advised by Microsoft
