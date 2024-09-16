@@ -27,41 +27,44 @@ from airflow.utils.context import OutletEventAccessor, OutletEventAccessors
 
 class TestOutletEventAccessor:
     @pytest.mark.parametrize(
-        "raw_key, dataset_alias_event",
+        "raw_key, dataset_alias_events",
         (
             (
                 DatasetAlias("test_alias"),
-                DatasetAliasEvent(source_alias_name="test_alias", dest_dataset_uri="test_uri"),
+                [DatasetAliasEvent(source_alias_name="test_alias", dest_dataset_uri="test_uri", extra={})],
             ),
-            (Dataset("test_uri"), None),
+            (Dataset("test_uri"), []),
         ),
     )
-    def test_add(self, raw_key, dataset_alias_event):
+    def test_add(self, raw_key, dataset_alias_events):
         outlet_event_accessor = OutletEventAccessor(raw_key=raw_key, extra={})
         outlet_event_accessor.add(Dataset("test_uri"))
-        assert outlet_event_accessor.dataset_alias_event == dataset_alias_event
+        assert outlet_event_accessor.dataset_alias_events == dataset_alias_events
 
     @pytest.mark.db_test
     @pytest.mark.parametrize(
-        "raw_key, dataset_alias_event",
+        "raw_key, dataset_alias_events",
         (
             (
                 DatasetAlias("test_alias"),
-                DatasetAliasEvent(source_alias_name="test_alias", dest_dataset_uri="test_uri"),
+                [DatasetAliasEvent(source_alias_name="test_alias", dest_dataset_uri="test_uri", extra={})],
             ),
-            ("test_alias", DatasetAliasEvent(source_alias_name="test_alias", dest_dataset_uri="test_uri")),
-            (Dataset("test_uri"), None),
+            (
+                "test_alias",
+                [DatasetAliasEvent(source_alias_name="test_alias", dest_dataset_uri="test_uri", extra={})],
+            ),
+            (Dataset("test_uri"), []),
         ),
     )
-    def test_add_with_db(self, raw_key, dataset_alias_event, session):
+    def test_add_with_db(self, raw_key, dataset_alias_events, session):
         dsm = DatasetModel(uri="test_uri")
         dsam = DatasetAliasModel(name="test_alias")
         session.add_all([dsm, dsam])
         session.flush()
 
-        outlet_event_accessor = OutletEventAccessor(raw_key=raw_key, extra={})
-        outlet_event_accessor.add("test_uri")
-        assert outlet_event_accessor.dataset_alias_event == dataset_alias_event
+        outlet_event_accessor = OutletEventAccessor(raw_key=raw_key, extra={"not": ""})
+        outlet_event_accessor.add("test_uri", extra={})
+        assert outlet_event_accessor.dataset_alias_events == dataset_alias_events
 
 
 class TestOutletEventAccessors:
