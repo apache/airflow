@@ -124,10 +124,6 @@ CORE_EXTRAS: dict[str, list[str]] = {
         # which can have a conflict with boto3 as mentioned in aiobotocore extra
         "s3fs>=2023.10.0",
     ],
-    "saml": [
-        # This is required for support of SAML which might be used by some providers (e.g. Amazon)
-        "python3-saml>=1.16.0",
-    ],
     "sentry": [
         "blinker>=1.1",
         # Sentry SDK 1.33 is broken when greenlets are installed and fails to import
@@ -428,6 +424,9 @@ DEPENDENCIES = [
     "cryptography>=41.0.0",
     "deprecated>=1.2.13",
     "dill>=0.2.2",
+    # Required for python 3.8 and 3.9 to work with new annotations styles. Check package
+    # description on PyPI for more details: https://pypi.org/project/eval-type-backport/
+    "eval-type-backport>=0.2.0",
     "fastapi[standard]>=0.112.2",
     "flask-caching>=2.0.0",
     # Flask-Session 0.6 add new arguments into the SqlAlchemySessionInterface constructor as well as
@@ -466,7 +465,7 @@ DEPENDENCIES = [
     'pendulum>=3.0.0,<4.0;python_version>="3.12"',
     "pluggy>=1.5.0",
     "psutil>=5.8.0",
-    "pydantic>=2.3.0",
+    "pydantic>=2.6.0",
     "pygments>=2.0.1",
     "pyjwt>=2.0.0",
     "python-daemon>=3.0.0",
@@ -494,7 +493,9 @@ DEPENDENCIES = [
     # See https://github.com/apache/airflow/pull/31693
     # We should also remove "3rd-party-licenses/LICENSE-unicodecsv.txt" file when we remove this dependency
     "unicodecsv>=0.14.1",
-    "universal-pathlib>=0.2.2",
+    # Universal Pathlib 0.2.4 adds extra validation for Paths and our integration with local file paths
+    # Does not work with it Tracked in https://github.com/fsspec/universal_pathlib/issues/276
+    "universal-pathlib>=0.2.2,!=0.2.4",
     # Werkzug 3 breaks Flask-Login 0.6.2, also connexion needs to be updated to >= 3.0
     # we should remove this limitation when FAB supports Flask 2.3 and we migrate connexion to 3+
     "werkzeug>=2.0,<3",

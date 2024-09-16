@@ -232,7 +232,7 @@ The following features are supported in the Trigger UI Form:
           - Example
 
         * - ``string``
-          - Generates a single-line text box to edit text.
+          - Generates a single-line text box or a text area to edit text.
           - * ``minLength``: Minimum text length
             * ``maxLength``: Maximum text length
             * | ``format="date"``: Generate a date-picker
@@ -240,6 +240,7 @@ The following features are supported in the Trigger UI Form:
             * | ``format="date-time"``: Generate a date and
               | time-picker with calendar pop-up
             * ``format="time"``: Generate a time-picker
+            * ``format="multiline"``: Generate a multi-line textarea
             * | ``enum=["a", "b", "c"]``: Generates a
               | drop-down select list for scalar values.
               | As of JSON validation, a value must be

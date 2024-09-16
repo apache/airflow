@@ -39,6 +39,7 @@ from airflow_breeze.global_constants import (
     DEFAULT_UV_HTTP_TIMEOUT,
     DOCKER_DEFAULT_PLATFORM,
     DRILL_HOST_PORT,
+    FASTAPI_API_HOST_PORT,
     FLOWER_HOST_PORT,
     MOUNT_ALL,
     MOUNT_PROVIDERS_AND_TESTS,
@@ -52,7 +53,6 @@ from airflow_breeze.global_constants import (
     SSH_PORT,
     START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
     TESTABLE_INTEGRATIONS,
-    UI_API_HOST_PORT,
     USE_AIRFLOW_MOUNT_SOURCES,
     WEBSERVER_HOST_PORT,
     GithubEvents,
@@ -147,6 +147,7 @@ class ShellParams:
     downgrade_pendulum: bool = False
     dry_run: bool = False
     enable_coverage: bool = False
+    excluded_providers: str = ""
     executor: str = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
     extra_args: tuple = ()
     force_build: bool = False
@@ -519,6 +520,7 @@ class ShellParams:
         _set_var(_env, "ENABLED_SYSTEMS", None, "")
         _set_var(_env, "ENABLE_COVERAGE", self.enable_coverage)
         _set_var(_env, "FLOWER_HOST_PORT", None, FLOWER_HOST_PORT)
+        _set_var(_env, "EXCLUDED_PROVIDERS", self.excluded_providers)
         _set_var(_env, "FORCE_LOWEST_DEPENDENCIES", self.force_lowest_dependencies)
         _set_var(_env, "SQLALCHEMY_WARN_20", self.force_sa_warnings)
         _set_var(_env, "GITHUB_ACTIONS", self.github_actions)
@@ -573,7 +575,7 @@ class ShellParams:
         _set_var(_env, "VERBOSE_COMMANDS", self.verbose_commands)
         _set_var(_env, "VERSION_SUFFIX_FOR_PYPI", self.version_suffix_for_pypi)
         _set_var(_env, "WEBSERVER_HOST_PORT", None, WEBSERVER_HOST_PORT)
-        _set_var(_env, "UI_API_HOST_PORT", None, UI_API_HOST_PORT)
+        _set_var(_env, "FASTAPI_API_HOST_PORT", None, FASTAPI_API_HOST_PORT)
         _set_var(_env, "_AIRFLOW_RUN_DB_TESTS_ONLY", self.run_db_tests_only)
         _set_var(_env, "_AIRFLOW_SKIP_DB_TESTS", self.skip_db_tests)
         self._generate_env_for_docker_compose_file_if_needed(_env)

@@ -74,6 +74,7 @@ from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
+    AirflowProviderDeprecationWarning,
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
@@ -167,6 +168,14 @@ if TYPE_CHECKING:
 
 
 PAST_DEPENDS_MET = "past_depends_met"
+
+metrics_consistency_on = conf.getboolean("metrics", "metrics_consistency_on", fallback=True)
+if not metrics_consistency_on:
+    warnings.warn(
+        "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
+        AirflowProviderDeprecationWarning,
+        stacklevel=2,
+    )
 
 
 class TaskReturnCode(Enum):
@@ -2809,7 +2818,10 @@ class TaskInstance(Base, LoggingMixin):
                     self.task_id,
                 )
                 return
-            timing = timezone.utcnow() - self.queued_dttm
+            if metrics_consistency_on:
+                timing = timezone.utcnow() - self.queued_dttm
+            else:
+                timing = (timezone.utcnow() - self.queued_dttm).total_seconds()
         elif new_state == TaskInstanceState.QUEUED:
             metric_name = "scheduled_duration"
             if self.start_date is None:
@@ -2822,7 +2834,10 @@ class TaskInstance(Base, LoggingMixin):
                     self.task_id,
                 )
                 return
-            timing = timezone.utcnow() - self.start_date
+            if metrics_consistency_on:
+                timing = timezone.utcnow() - self.start_date
+            else:
+                timing = (timezone.utcnow() - self.start_date).total_seconds()
         else:
             raise NotImplementedError("no metric emission setup for state %s", new_state)
 
@@ -2890,11 +2905,11 @@ class TaskInstance(Base, LoggingMixin):
                     session=session,
                 )
             elif isinstance(obj, DatasetAlias):
-                if dataset_alias_event := events[obj].dataset_alias_event:
-                    dataset_uri = dataset_alias_event["dest_dataset_uri"]
-                    extra = events[obj].extra
-                    frozen_extra = frozenset(extra.items())
+                for dataset_alias_event in events[obj].dataset_alias_events:
                     dataset_alias_name = dataset_alias_event["source_alias_name"]
+                    dataset_uri = dataset_alias_event["dest_dataset_uri"]
+                    extra = dataset_alias_event["extra"]
+                    frozen_extra = frozenset(extra.items())
 
                     dataset_tuple_to_alias_names_mapping[(dataset_uri, frozen_extra)].add(dataset_alias_name)
 

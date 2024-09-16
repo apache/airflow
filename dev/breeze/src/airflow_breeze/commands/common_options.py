@@ -179,6 +179,11 @@ option_dry_run = click.option(
 option_forward_credentials = click.option(
     "-f", "--forward-credentials", help="Forward local credentials to container when running.", is_flag=True
 )
+option_excluded_providers = click.option(
+    "--excluded-providers",
+    help="JSON-string of dictionary containing excluded providers per python version ({'3.12': ['provider']})",
+    envvar="EXCLUDED_PROVIDERS",
+)
 option_force_lowest_dependencies = click.option(
     "--force-lowest-dependencies",
     help="Run tests for the lowest direct dependencies of Airflow or selected provider if "

@@ -22,7 +22,7 @@ from flask import Blueprint
 
 
 def init_react_ui(app):
-    dev_mode = bool(os.environ.get("DEV_MODE", ""))
+    dev_mode = os.environ.get("DEV_MODE", False) == "true"
 
     bp = Blueprint(
         "ui",
@@ -32,8 +32,9 @@ def init_react_ui(app):
         static_url_path="/ui",
     )
 
-    @bp.route("/ui")
-    def index():
+    @bp.route("/ui", defaults={"page": ""})
+    @bp.route("/ui/<page>")
+    def index(page):
         return bp.send_static_file("index.html")
 
     app.register_blueprint(bp)

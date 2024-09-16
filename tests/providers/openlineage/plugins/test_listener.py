@@ -17,8 +17,8 @@
 from __future__ import annotations
 
 import datetime as dt
-import threading
 import uuid
+from concurrent.futures import Future
 from contextlib import suppress
 from typing import Callable
 from unittest import mock
@@ -608,23 +608,31 @@ def test_listener_on_dag_run_state_changes_configure_process_pool_size(mock_exec
 
 def test_listener_logs_failed_serialization():
     listener = OpenLineageListener()
+    callback_future = Future()
+
+    def set_result(*args, **kwargs):
+        callback_future.set_result(True)
+
     listener.log = MagicMock()
+    listener.log.warning = MagicMock(side_effect=set_result)
     listener.adapter = OpenLineageAdapter(
         client=OpenLineageClient(transport=ConsoleTransport(config=ConsoleConfig()))
     )
     event_time = dt.datetime.now()
-
     fut = listener.submit_callable(
         listener.adapter.dag_failed,
         dag_id="",
         run_id="",
         end_date=event_time,
-        execution_date=threading.Thread(),
+        execution_date=callback_future,
         dag_run_state=DagRunState.FAILED,
         task_ids=["task_id"],
         msg="",
     )
     assert fut.exception(10)
+    callback_future.result(10)
+    assert callback_future.done()
+    listener.log.debug.assert_not_called()
     listener.log.warning.assert_called_once()
 
 

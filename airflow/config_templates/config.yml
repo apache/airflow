@@ -1106,6 +1106,17 @@ metrics:
       example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
         or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
+    metrics_consistency_on:
+      description: |
+        Enables metrics consistency across all metrics loggers (ex: timer and timing metrics).
+
+        .. warning::
+
+          It is enabled by default from Airflow 3.
+      version_added: 2.10.0
+      type: string
+      example: ~
+      default: "True"
     statsd_on:
       description: |
         Enables sending metrics to StatsD.
