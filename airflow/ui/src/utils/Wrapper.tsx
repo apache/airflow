@@ -16,9 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import * as matchers from "@testing-library/jest-dom/matchers";
-import "@testing-library/jest-dom/vitest";
-import { expect } from "vitest";
+import { ChakraProvider } from "@chakra-ui/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { PropsWithChildren } from "react";
+import { MemoryRouter } from "react-router-dom";
 
-// extends vitest matchers with react-testing-library's ones
-expect.extend(matchers);
+export const Wrapper = ({ children }: PropsWithChildren) => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: Infinity,
+      },
+    },
+  });
+
+  return (
+    <ChakraProvider>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>{children}</MemoryRouter>
+      </QueryClientProvider>
+    </ChakraProvider>
+  );
+};
