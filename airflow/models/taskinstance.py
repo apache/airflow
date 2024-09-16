@@ -2905,11 +2905,11 @@ class TaskInstance(Base, LoggingMixin):
                     session=session,
                 )
             elif isinstance(obj, DatasetAlias):
-                if dataset_alias_event := events[obj].dataset_alias_event:
-                    dataset_uri = dataset_alias_event["dest_dataset_uri"]
-                    extra = events[obj].extra
-                    frozen_extra = frozenset(extra.items())
+                for dataset_alias_event in events[obj].dataset_alias_events:
                     dataset_alias_name = dataset_alias_event["source_alias_name"]
+                    dataset_uri = dataset_alias_event["dest_dataset_uri"]
+                    extra = dataset_alias_event["extra"]
+                    frozen_extra = frozenset(extra.items())
 
                     dataset_tuple_to_alias_names_mapping[(dataset_uri, frozen_extra)].add(dataset_alias_name)
 
