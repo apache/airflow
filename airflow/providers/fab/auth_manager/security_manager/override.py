@@ -30,7 +30,7 @@ import jwt
 import packaging.version
 import re2
 from deprecated import deprecated
-from flask import flash, g, has_request_context, session
+from flask import Flask, flash, g, has_request_context, session
 from flask_appbuilder import const
 from flask_appbuilder.const import (
     AUTH_DB,
@@ -64,6 +64,8 @@ from flask_appbuilder.security.views import (
 from flask_appbuilder.views import expose
 from flask_babel import lazy_gettext
 from flask_jwt_extended import JWTManager, current_user as current_user_jwt
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_login import LoginManager
 from itsdangerous import want_bytes
 from markupsafe import Markup
@@ -1462,6 +1464,13 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         for action_name, resource_name in perms:
             self.create_resource(resource_name)
             self.create_permission(action_name, resource_name)
+
+    def create_limiter(self, app: Flask) -> Limiter:
+        limiter = Limiter(
+            key_func=app.config.get("RATELIMIT_KEY_FUNC", get_remote_address)
+        )
+        limiter.init_app(app)
+        return limiter
 
     """
     -----------
