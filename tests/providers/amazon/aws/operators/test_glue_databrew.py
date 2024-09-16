@@ -26,6 +26,7 @@ from moto import mock_aws
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.glue_databrew import GlueDataBrewHook
 from airflow.providers.amazon.aws.operators.glue_databrew import GlueDataBrewStartJobOperator
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 JOB_NAME = "test_job"
 
@@ -101,3 +102,7 @@ class TestGlueDataBrewOperator:
         assert operator.waiter_delay == 15
         operator.execute(None)
         mock_hook_get_waiter.assert_not_called()
+
+    def test_template_fields(self):
+        operator = GlueDataBrewStartJobOperator(task_id="fake_task_id", job_name=JOB_NAME)
+        validate_template_fields(operator)

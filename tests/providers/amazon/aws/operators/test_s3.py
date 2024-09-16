@@ -52,6 +52,7 @@ from airflow.providers.common.compat.openlineage.facet import (
 )
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils.timezone import datetime, utcnow
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "test-airflow-bucket")
 S3_KEY = "test-airflow-key"
@@ -85,6 +86,9 @@ class TestS3CreateBucketOperator:
         mock_check_for_bucket.assert_called_once_with(BUCKET_NAME)
         mock_create_bucket.assert_called_once_with(bucket_name=BUCKET_NAME, region_name=None)
 
+    def test_template_fields(self):
+        validate_template_fields(self.create_bucket_operator)
+
 
 class TestS3DeleteBucketOperator:
     def setup_method(self):
@@ -113,6 +117,9 @@ class TestS3DeleteBucketOperator:
         mock_check_for_bucket.assert_called_once_with(BUCKET_NAME)
         mock_delete_bucket.assert_not_called()
 
+    def test_template_fields(self):
+        validate_template_fields(self.delete_bucket_operator)
+
 
 class TestS3GetBucketTaggingOperator:
     def setup_method(self):
@@ -140,6 +147,9 @@ class TestS3GetBucketTaggingOperator:
         self.get_bucket_tagging_operator.execute({})
         mock_check_for_bucket.assert_called_once_with(BUCKET_NAME)
         get_bucket_tagging.assert_not_called()
+
+    def test_template_fields(self):
+        validate_template_fields(self.get_bucket_tagging_operator)
 
 
 class TestS3PutBucketTaggingOperator:
@@ -172,6 +182,9 @@ class TestS3PutBucketTaggingOperator:
         mock_check_for_bucket.assert_called_once_with(BUCKET_NAME)
         put_bucket_tagging.assert_not_called()
 
+    def test_template_fields(self):
+        validate_template_fields(self.put_bucket_tagging_operator)
+
 
 class TestS3DeleteBucketTaggingOperator:
     def setup_method(self):
@@ -199,6 +212,9 @@ class TestS3DeleteBucketTaggingOperator:
         self.delete_bucket_tagging_operator.execute({})
         mock_check_for_bucket.assert_called_once_with(BUCKET_NAME)
         delete_bucket_tagging.assert_not_called()
+
+    def test_template_fields(self):
+        validate_template_fields(self.delete_bucket_tagging_operator)
 
 
 class TestS3FileTransformOperator:
@@ -381,6 +397,16 @@ class TestS3FileTransformOperator:
 
         return input_path, output_path
 
+    def test_template_fields(self):
+        operator = S3FileTransformOperator(
+            source_s3_key="test/key",
+            dest_s3_key="test/key",
+            transform_script=self.transform_script,
+            replace=True,
+            task_id="task_id",
+        )
+        validate_template_fields(operator)
+
 
 class TestS3ListOperator:
     @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
@@ -404,6 +430,15 @@ class TestS3ListOperator:
         )
         assert sorted(files) == sorted(["TEST1.csv", "TEST2.csv", "TEST3.csv"])
 
+    def test_template_fields(self):
+        operator = S3ListOperator(
+            task_id="test-s3-list-operator",
+            bucket=BUCKET_NAME,
+            prefix="TEST",
+            delimiter=".csv",
+        )
+        validate_template_fields(operator)
+
 
 class TestS3ListPrefixesOperator:
     @mock.patch("airflow.providers.amazon.aws.operators.s3.S3Hook")
@@ -420,6 +455,12 @@ class TestS3ListPrefixesOperator:
             bucket_name=BUCKET_NAME, prefix="test/", delimiter="/"
         )
         assert subfolders == ["test/"]
+
+    def test_template_fields(self):
+        operator = S3ListPrefixesOperator(
+            task_id="test-s3-list-prefixes-operator", bucket=BUCKET_NAME, prefix="test/", delimiter="/"
+        )
+        validate_template_fields(operator)
 
 
 class TestS3CopyObjectOperator:
@@ -527,6 +568,16 @@ class TestS3CopyObjectOperator:
         assert len(lineage.outputs) == 1
         assert lineage.inputs[0] == expected_input
         assert lineage.outputs[0] == expected_output
+
+    def test_template_fields(self):
+        operator = S3CopyObjectOperator(
+            task_id="test_task_s3_copy_object",
+            source_bucket_key=self.source_key,
+            source_bucket_name=self.source_bucket,
+            dest_bucket_key=self.dest_key,
+            dest_bucket_name=self.dest_bucket,
+        )
+        validate_template_fields(operator)
 
 
 @mock_aws
@@ -839,6 +890,12 @@ class TestS3DeleteObjectsOperator:
         lineage = op.get_openlineage_facets_on_complete(None)
         assert lineage == OperatorLineage()
 
+    def test_template_fields(self):
+        operator = S3DeleteObjectsOperator(
+            task_id="test_task_s3_delete_single_object", bucket="test-bucket", keys="test/file.csv"
+        )
+        validate_template_fields(operator)
+
 
 class TestS3CreateObjectOperator:
     @mock.patch.object(S3Hook, "load_string")
@@ -892,3 +949,7 @@ class TestS3CreateObjectOperator:
         assert len(lineage.inputs) == 0
         assert len(lineage.outputs) == 1
         assert lineage.outputs[0] == expected_output
+
+    def test_template_fields(self):
+        operator = S3CreateObjectOperator(task_id="test", s3_bucket="bucket", s3_key="key", data="test")
+        validate_template_fields(operator)

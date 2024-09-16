@@ -41,7 +41,6 @@ from sqlalchemy import delete, select, update
 from tabulate import tabulate
 
 import airflow.models
-from airflow import example_dags
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.callbacks.callback_requests import CallbackRequest, SlaCallbackRequest
 from airflow.configuration import conf
@@ -69,8 +68,6 @@ from airflow.utils.process_utils import (
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, with_row_locks
-
-example_dag_folder = next(iter(example_dags.__path__))
 
 if TYPE_CHECKING:
     from multiprocessing.connection import Connection as MultiprocessingConnection
@@ -529,22 +526,14 @@ class DagFileProcessorManager(LoggingMixin):
         dags_parsed = session.execute(query)
 
         for dag in dags_parsed:
-            # When the DAG processor runs as part of the scheduler, and the user changes the DAGs folder,
-            # DAGs from the previous DAGs folder will be marked as stale. We also need to handle example dags
-            # differently. Note that this change has no impact on standalone DAG processors.
-            dag_not_in_current_dag_folder = (
-                not os.path.commonpath([dag.fileloc, example_dag_folder]) == example_dag_folder
-            ) and (os.path.commonpath([dag.fileloc, dag_directory]) != dag_directory)
             # The largest valid difference between a DagFileStat's last_finished_time and a DAG's
             # last_parsed_time is the processor_timeout. Longer than that indicates that the DAG is
             # no longer present in the file. We have a stale_dag_threshold configured to prevent a
             # significant delay in deactivation of stale dags when a large timeout is configured
-            dag_removed_from_dag_folder_or_file = (
+            if (
                 dag.fileloc in last_parsed
                 and (dag.last_parsed_time + timedelta(seconds=stale_dag_threshold)) < last_parsed[dag.fileloc]
-            )
-
-            if dag_not_in_current_dag_folder or dag_removed_from_dag_folder_or_file:
+            ):
                 cls.logger().info("DAG %s is missing and will be deactivated.", dag.dag_id)
                 to_deactivate.add(dag.dag_id)
 

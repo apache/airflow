@@ -20,9 +20,10 @@
 import { createRoot } from "react-dom/client";
 import { ChakraProvider } from "@chakra-ui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { App } from "src/app.tsx";
-import axios, { AxiosResponse } from "axios";
 import { BrowserRouter } from "react-router-dom";
+import axios, { AxiosResponse } from "axios";
+
+import { App } from "src/App";
 import theme from "./theme";
 
 const queryClient = new QueryClient({
@@ -59,11 +60,11 @@ axios.interceptors.response.use(
 
 const root = createRoot(document.getElementById("root")!);
 root.render(
-  <ChakraProvider theme={theme}>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+  <BrowserRouter basename="/ui">
+    <ChakraProvider theme={theme}>
+      <QueryClientProvider client={queryClient}>
         <App />
-      </BrowserRouter>
-    </QueryClientProvider>
-  </ChakraProvider>
+      </QueryClientProvider>
+    </ChakraProvider>
+  </BrowserRouter>
 );

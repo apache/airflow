@@ -25,6 +25,7 @@ from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.operators import sagemaker
 from airflow.providers.amazon.aws.operators.sagemaker import SageMakerEndpointConfigOperator
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 CREATE_ENDPOINT_CONFIG_PARAMS: dict = {
     "EndpointConfigName": "config_name",
@@ -81,3 +82,6 @@ class TestSageMakerEndpointConfigOperator:
         }
         with pytest.raises(AirflowException):
             self.sagemaker.execute(None)
+
+    def test_template_fields(self):
+        validate_template_fields(self.sagemaker)

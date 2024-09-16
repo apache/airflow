@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.operators.ec2 import (
     EC2StopInstanceOperator,
     EC2TerminateInstanceOperator,
 )
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 
 class BaseEc2TestClass:
@@ -87,6 +88,13 @@ class TestEC2CreateInstanceOperator(BaseEc2TestClass):
         for id in instance_ids:
             assert ec2_hook.get_instance_state(instance_id=id) == "running"
 
+    def test_template_fields(self):
+        ec2_operator = EC2CreateInstanceOperator(
+            task_id="test_create_instance",
+            image_id="test_image_id",
+        )
+        validate_template_fields(ec2_operator)
+
 
 class TestEC2TerminateInstanceOperator(BaseEc2TestClass):
     def test_init(self):
@@ -140,6 +148,13 @@ class TestEC2TerminateInstanceOperator(BaseEc2TestClass):
         for id in instance_ids:
             assert ec2_hook.get_instance_state(instance_id=id) == "terminated"
 
+    def test_template_fields(self):
+        ec2_operator = EC2TerminateInstanceOperator(
+            task_id="test_terminate_instance",
+            instance_ids="test_image_id",
+        )
+        validate_template_fields(ec2_operator)
+
 
 class TestEC2StartInstanceOperator(BaseEc2TestClass):
     def test_init(self):
@@ -175,6 +190,17 @@ class TestEC2StartInstanceOperator(BaseEc2TestClass):
         # assert instance state is running
         assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "running"
 
+    def test_template_fields(self):
+        ec2_operator = EC2StartInstanceOperator(
+            task_id="task_test",
+            instance_id="i-123abc",
+            aws_conn_id="aws_conn_test",
+            region_name="region-test",
+            check_interval=3,
+        )
+
+        validate_template_fields(ec2_operator)
+
 
 class TestEC2StopInstanceOperator(BaseEc2TestClass):
     def test_init(self):
@@ -209,6 +235,17 @@ class TestEC2StopInstanceOperator(BaseEc2TestClass):
         stop_test.execute(None)
         # assert instance state is running
         assert ec2_hook.get_instance_state(instance_id=instance_id[0]) == "stopped"
+
+    def test_template_fields(self):
+        ec2_operator = EC2StopInstanceOperator(
+            task_id="task_test",
+            instance_id="i-123abc",
+            aws_conn_id="aws_conn_test",
+            region_name="region-test",
+            check_interval=3,
+        )
+
+        validate_template_fields(ec2_operator)
 
 
 class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
@@ -322,6 +359,13 @@ class TestEC2HibernateInstanceOperator(BaseEc2TestClass):
         for id in instance_ids:
             assert ec2_hook.get_instance_state(instance_id=id) == "running"
 
+    def test_template_fields(self):
+        ec2_operator = EC2HibernateInstanceOperator(
+            task_id="task_test",
+            instance_ids="i-123abc",
+        )
+        validate_template_fields(ec2_operator)
+
 
 class TestEC2RebootInstanceOperator(BaseEc2TestClass):
     def test_init(self):
@@ -372,3 +416,10 @@ class TestEC2RebootInstanceOperator(BaseEc2TestClass):
         terminate_instance.execute(None)
         for id in instance_ids:
             assert ec2_hook.get_instance_state(instance_id=id) == "running"
+
+    def test_template_fields(self):
+        ec2_operator = EC2RebootInstanceOperator(
+            task_id="task_test",
+            instance_ids="i-123abc",
+        )
+        validate_template_fields(ec2_operator)

@@ -39,6 +39,7 @@ from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 TEST_DAG_ID = "unit_tests"
 DEFAULT_DATE = datetime(2018, 1, 1)
@@ -397,3 +398,6 @@ class TestAthenaOperator:
             run_facets={"externalQuery": ExternalQueryRunFacet(externalQueryId="12345", source="awsathena")},
         )
         assert op.get_openlineage_facets_on_complete(None) == expected_lineage
+
+    def test_template_fields(self):
+        validate_template_fields(self.athena)

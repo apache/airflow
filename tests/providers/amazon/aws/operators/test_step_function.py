@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.operators.step_function import (
     StepFunctionGetExecutionOutputOperator,
     StepFunctionStartExecutionOperator,
 )
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 EXECUTION_ARN = (
     "arn:aws:states:us-east-1:123456789012:execution:"
@@ -101,6 +102,14 @@ class TestStepFunctionGetExecutionOutputOperator:
             region_name=mock.ANY,
             execution_arn=EXECUTION_ARN,
         )
+
+    def test_template_fields(self):
+        operator = StepFunctionGetExecutionOutputOperator(
+            task_id=self.TASK_ID,
+            execution_arn=EXECUTION_ARN,
+            aws_conn_id=None,
+        )
+        validate_template_fields(operator)
 
 
 class TestStepFunctionStartExecutionOperator:
@@ -232,3 +241,14 @@ class TestStepFunctionStartExecutionOperator:
             region_name=mock.ANY,
             execution_arn=EXECUTION_ARN,
         )
+
+    def test_template_fields(self):
+        operator = StepFunctionStartExecutionOperator(
+            task_id=self.TASK_ID,
+            state_machine_arn=STATE_MACHINE_ARN,
+            name=NAME,
+            is_redrive_execution=True,
+            state_machine_input=None,
+            aws_conn_id=None,
+        )
+        validate_template_fields(operator)

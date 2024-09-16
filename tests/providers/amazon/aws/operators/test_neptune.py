@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.operators.neptune import (
     NeptuneStartDbClusterOperator,
     NeptuneStopDbClusterOperator,
 )
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 CLUSTER_ID = "test_cluster"
 
@@ -201,6 +202,16 @@ class TestNeptuneStartClusterOperator:
         # mock_defer.assert_has_calls(calls)
         assert mock_defer.call_count == 2
 
+    def test_template_fields(self):
+        operator = NeptuneStartDbClusterOperator(
+            task_id="task_test",
+            db_cluster_id=CLUSTER_ID,
+            deferrable=True,
+            wait_for_completion=False,
+            aws_conn_id="aws_default",
+        )
+        validate_template_fields(operator)
+
 
 class TestNeptuneStopClusterOperator:
     @mock.patch.object(NeptuneHook, "conn")
@@ -368,3 +379,13 @@ class TestNeptuneStopClusterOperator:
 
         with pytest.raises(TaskDeferred):
             operator.execute(None)
+
+    def test_template_fields(self):
+        operator = NeptuneStopDbClusterOperator(
+            task_id="task_test",
+            db_cluster_id=CLUSTER_ID,
+            deferrable=True,
+            wait_for_completion=False,
+            aws_conn_id="aws_default",
+        )
+        validate_template_fields(operator)

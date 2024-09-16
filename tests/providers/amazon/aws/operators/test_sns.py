@@ -22,6 +22,7 @@ from unittest import mock
 import pytest
 
 from airflow.providers.amazon.aws.operators.sns import SnsPublishOperator
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 TASK_ID = "sns_publish_job"
 AWS_CONN_ID = "custom_aws_conn"
@@ -76,3 +77,7 @@ class TestSnsPublishOperator:
             subject=SUBJECT,
             target_arn=TARGET_ARN,
         )
+
+    def test_template_fields(self):
+        operator = SnsPublishOperator(**self.default_op_kwargs)
+        validate_template_fields(operator)

@@ -38,6 +38,7 @@ from airflow.providers.amazon.aws.triggers.redshift_cluster import (
     RedshiftPauseClusterTrigger,
     RedshiftResumeClusterTrigger,
 )
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 
 class TestRedshiftCreateClusterOperator:
@@ -137,6 +138,18 @@ class TestRedshiftCreateClusterOperator:
         with pytest.raises(TaskDeferred):
             redshift_operator.execute(None)
 
+    def test_template_fields(self):
+        operator = RedshiftCreateClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test-cluster",
+            node_type="dc2.large",
+            master_username="adminuser",
+            master_user_password="Test123$",
+            cluster_type="single-node",
+            deferrable=True,
+        )
+        validate_template_fields(operator)
+
 
 class TestRedshiftCreateClusterSnapshotOperator:
     @mock.patch.object(RedshiftHook, "cluster_status")
@@ -214,6 +227,15 @@ class TestRedshiftCreateClusterSnapshotOperator:
             exc.value.trigger, RedshiftCreateClusterSnapshotTrigger
         ), "Trigger is not a RedshiftCreateClusterSnapshotTrigger"
 
+    def test_template_fields(self):
+        operator = RedshiftCreateClusterSnapshotOperator(
+            task_id="test_snapshot",
+            cluster_identifier="test_cluster",
+            snapshot_identifier="test_snapshot",
+            wait_for_completion=True,
+        )
+        validate_template_fields(operator)
+
 
 class TestRedshiftDeleteClusterSnapshotOperator:
     @mock.patch(
@@ -255,6 +277,15 @@ class TestRedshiftDeleteClusterSnapshotOperator:
         )
 
         mock_get_cluster_snapshot_status.assert_not_called()
+
+    def test_template_fields(self):
+        operator = RedshiftDeleteClusterSnapshotOperator(
+            task_id="test_snapshot",
+            cluster_identifier="test_cluster",
+            snapshot_identifier="test_snapshot",
+            wait_for_completion=False,
+        )
+        validate_template_fields(operator)
 
 
 class TestResumeClusterOperator:
@@ -386,6 +417,14 @@ class TestResumeClusterOperator:
                 context=None, event={"status": "error", "message": "test failure message"}
             )
 
+    def test_template_fields(self):
+        operator = RedshiftResumeClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
+        )
+        validate_template_fields(operator)
+
 
 class TestPauseClusterOperator:
     def test_init(self):
@@ -510,6 +549,13 @@ class TestPauseClusterOperator:
             redshift_operator.execute_complete(
                 context=None, event={"status": "error", "message": "test failure message"}
             )
+
+    def test_template_fields(self):
+        operator = RedshiftPauseClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+        )
+        validate_template_fields(operator)
 
 
 class TestDeleteClusterOperator:
@@ -648,3 +694,10 @@ class TestDeleteClusterOperator:
             redshift_operator.execute_complete(
                 context=None, event={"status": "error", "message": "test failure message"}
             )
+
+    def test_template_fields(self):
+        operator = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+        )
+        validate_template_fields(operator)

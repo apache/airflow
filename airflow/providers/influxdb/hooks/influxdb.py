@@ -58,7 +58,7 @@ class InfluxDBHook(BaseHook):
         super().__init__(*args, **kwargs)
         self.influxdb_conn_id = conn_id
         self.connection = kwargs.pop("connection", None)
-        self.client = None
+        self.client: InfluxDBClient | None = None
         self.extras: dict = {}
         self.uri = None
 
@@ -78,7 +78,7 @@ class InfluxDBHook(BaseHook):
             ),
         }
 
-    def get_client(self, uri, kwargs):
+    def get_client(self, uri, kwargs) -> InfluxDBClient:
         return InfluxDBClient(url=uri, **kwargs)
 
     def get_uri(self, conn: Connection):

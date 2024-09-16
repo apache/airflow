@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerModelOperator,
     SageMakerRegisterModelVersionOperator,
 )
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 CREATE_MODEL_PARAMS: dict = {
     "ModelName": "model_name",
@@ -73,6 +74,12 @@ class TestSageMakerDeleteModelOperator:
         )
         op.execute(None)
         delete_model.assert_called_once_with(model_name="model_name")
+
+    def test_template_fields(self):
+        op = SageMakerDeleteModelOperator(
+            task_id="test_sagemaker_operator", config={"ModelName": "model_name"}
+        )
+        validate_template_fields(op)
 
 
 class TestSageMakerRegisterModelVersionOperator:
@@ -144,3 +151,14 @@ class TestSageMakerRegisterModelVersionOperator:
         conn_mock().create_model_package.assert_called_once()
         args_dict = conn_mock().create_model_package.call_args.kwargs
         assert args_dict["InferenceSpecification"]["SupportedResponseMIMETypes"] == response_type
+
+    def test_template_fields(self):
+        response_type = ["test/test"]
+        op = SageMakerRegisterModelVersionOperator(
+            task_id="test",
+            image_uri="257758044811.dkr.ecr.us-east-2.amazonaws.com/sagemaker-xgboost:1.2-1",
+            model_url="s3://your-bucket-name/model.tar.gz",
+            package_group_name="group-name",
+            extras={"InferenceSpecification": {"SupportedResponseMIMETypes": response_type}},
+        )
+        validate_template_fields(op)

@@ -26,6 +26,7 @@ from airflow.providers.amazon.aws.operators.glacier import (
     GlacierCreateJobOperator,
     GlacierUploadArchiveOperator,
 )
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
@@ -78,6 +79,10 @@ class TestGlacierCreateJobOperator(BaseGlacierOperatorsTests):
         op.execute(mock.MagicMock())
         hook_mock.return_value.retrieve_inventory.assert_called_once_with(vault_name=VAULT_NAME)
 
+    def test_template_fields(self):
+        operator = self.op_class(**self.default_op_kwargs)
+        validate_template_fields(operator)
+
 
 class TestGlacierUploadArchiveOperator(BaseGlacierOperatorsTests):
     op_class = GlacierUploadArchiveOperator
@@ -97,3 +102,7 @@ class TestGlacierUploadArchiveOperator(BaseGlacierOperatorsTests):
                 body=b"Test Data",
                 checksum=None,
             )
+
+    def test_template_fields(self):
+        operator = self.op_class(**self.default_op_kwargs)
+        validate_template_fields(operator)

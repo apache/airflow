@@ -25,6 +25,7 @@ from moto import mock_aws
 
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.aws.operators.sqs import SqsPublishOperator
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 REGION_NAME = "eu-west-1"
 QUEUE_NAME = "test-queue"
@@ -119,3 +120,9 @@ class TestSqsPublishOperator:
         assert message["Messages"][0]["MessageId"] == result["MessageId"]
         assert message["Messages"][0]["Body"] == "hello"
         assert message["Messages"][0]["Attributes"]["MessageGroupId"] == "abc"
+
+    def test_template_fields(self):
+        operator = SqsPublishOperator(
+            **self.default_op_kwargs, sqs_queue=FIFO_QUEUE_NAME, message_group_id="abc"
+        )
+        validate_template_fields(operator)

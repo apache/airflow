@@ -25,6 +25,7 @@ from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
 from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator, EmrEksCreateClusterOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrContainerTrigger
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 SUBMIT_JOB_SUCCESS_RETURN = {
     "ResponseMetadata": {"HTTPStatusCode": 200},
@@ -194,3 +195,6 @@ class TestEmrEksCreateClusterOperator:
         with pytest.raises(AirflowException) as ctx:
             self.emr_container.execute(None)
         assert expected_exception_msg in str(ctx.value)
+
+    def test_template_fields(self):
+        validate_template_fields(self.emr_container)

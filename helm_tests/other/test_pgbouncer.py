@@ -62,7 +62,7 @@ class TestPgbouncer:
         assert {"name": "pgbouncer", "protocol": "TCP", "port": 6543} in jmespath.search(
             "spec.ports", docs[0]
         )
-        assert {"name": "pgbouncer-metrics", "protocol": "TCP", "port": 9127} in jmespath.search(
+        assert {"name": "pgb-metrics", "protocol": "TCP", "port": 9127} in jmespath.search(
             "spec.ports", docs[0]
         )
 
@@ -80,7 +80,7 @@ class TestPgbouncer:
         assert {"name": "pgbouncer", "protocol": "TCP", "port": 1111} in jmespath.search(
             "spec.ports", docs[0]
         )
-        assert {"name": "pgbouncer-metrics", "protocol": "TCP", "port": 2222} in jmespath.search(
+        assert {"name": "pgb-metrics", "protocol": "TCP", "port": 2222} in jmespath.search(
             "spec.ports", docs[0]
         )
 
@@ -837,3 +837,34 @@ class TestPgbouncerNetworkPolicy:
         )
 
         assert expected_selector == jmespath.search("spec.ingress[0].from[1:]", docs[0])
+
+
+class TestPgbouncerIngress:
+    """Tests PgBouncer Ingress."""
+
+    def test_pgbouncer_ingress(self):
+        docs = render_chart(
+            values={
+                "pgbouncer": {"enabled": True},
+                "ingress": {
+                    "pgbouncer": {
+                        "enabled": True,
+                        "hosts": [
+                            {"name": "some-host", "tls": {"enabled": True, "secretName": "some-secret"}}
+                        ],
+                        "ingressClassName": "ingress-class",
+                    }
+                },
+            },
+            show_only=["templates/pgbouncer/pgbouncer-ingress.yaml"],
+        )
+
+        assert {"name": "release-name-pgbouncer", "port": {"name": "pgb-metrics"}} == jmespath.search(
+            "spec.rules[0].http.paths[0].backend.service", docs[0]
+        )
+        assert "/metrics" == jmespath.search("spec.rules[0].http.paths[0].path", docs[0])
+        assert "some-host" == jmespath.search("spec.rules[0].host", docs[0])
+        assert {"hosts": ["some-host"], "secretName": "some-secret"} == jmespath.search(
+            "spec.tls[0]", docs[0]
+        )
+        assert "ingress-class" == jmespath.search("spec.ingressClassName", docs[0])
