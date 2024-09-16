@@ -33,6 +33,8 @@ import { unicornRules } from "./rules/unicorn.js";
  * @see [ESLint configuration](https://eslint.org/docs/latest/use/configure/)
  */
 export default /** @type {const} @satisfies {ReadonlyArray<FlatConfig.Config>} */ ([
+  // Global ignore of dist directory
+  { ignores: ["**/dist/"] },
   // Base rules
   coreRules,
   typescriptRules,
