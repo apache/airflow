@@ -239,6 +239,7 @@ class DatasetAliasEvent(TypedDict):
 
     source_alias_name: str
     dest_dataset_uri: str
+    extra: dict[str, Any]
 
 
 @attr.define()
