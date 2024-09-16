@@ -53,6 +53,13 @@ from tests.utils.test_config import (
 
 HOME_DIR = os.path.expanduser("~")
 
+# The conf has been updated with deactivate_stale_dags_interval to test the functionality of deprecated options support.
+conf.deprecated_options[("scheduler", "parsing_cleanup_interval")] = (
+    "scheduler",
+    "deactivate_stale_dags_interval",
+    "2.5.0",
+)
+
 
 @pytest.fixture(scope="module", autouse=True)
 def restore_env():
@@ -1002,14 +1009,6 @@ sql_alchemy_conn=sqlite://test
     @pytest.mark.parametrize(
         "old, new",
         [
-            (
-                ("api", "auth_backend", "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"),
-                (
-                    "api",
-                    "auth_backends",
-                    "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth,airflow.api.auth.backend.session",
-                ),
-            ),
             (
                 ("core", "sql_alchemy_conn", "postgres+psycopg2://localhost/postgres"),
                 ("database", "sql_alchemy_conn", "postgresql://localhost/postgres"),
