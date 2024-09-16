@@ -16,9 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import * as matchers from "@testing-library/jest-dom/matchers";
-import "@testing-library/jest-dom/vitest";
-import { expect } from "vitest";
 
-// extends vitest matchers with react-testing-library's ones
-expect.extend(matchers);
+/**
+ * @import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
+ */
+import prettier from "eslint-plugin-prettier";
+
+import { off } from "./off.js";
+
+/**
+ * ESLint TypeScript namespace.
+ */
+export const prettierNamespace = "prettier";
+
+/**
+ * ESLint Prettier rules.
+ * @see [eslint-plugin-prettier](https://github.com/prettier/eslint-plugin-prettier)
+ */
+export const prettierRules =
+  /** @type {const} @satisfies {FlatConfig.Config} */ ({
+    plugins: { [prettierNamespace]: prettier },
+    rules: off("no-irregular-whitespace", "no-unexpected-multiline"),
+  });

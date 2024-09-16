@@ -16,9 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import * as matchers from "@testing-library/jest-dom/matchers";
-import "@testing-library/jest-dom/vitest";
-import { expect } from "vitest";
+import { OFF } from "./levels.js";
 
-// extends vitest matchers with react-testing-library's ones
-expect.extend(matchers);
+/**
+ * Generates an object with all the given rules set to {@link OFF}.
+ *
+ * @template {string} Rule
+ * @param {ReadonlyArray<Rule>} rules Array of rules to turn off.
+ * @returns Object with rules set to {@link OFF}.
+ */
+export const off = (...rules) =>
+  /** @type {Readonly<Record<Rule, typeof OFF>>} */ (
+    Object.fromEntries(rules.map((rule) => [rule, OFF]))
+  );

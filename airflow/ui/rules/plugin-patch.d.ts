@@ -16,9 +16,34 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import * as matchers from "@testing-library/jest-dom/matchers";
-import "@testing-library/jest-dom/vitest";
-import { expect } from "vitest";
 
-// extends vitest matchers with react-testing-library's ones
-expect.extend(matchers);
+declare module "eslint-plugin-local-patch" {
+  import type { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
+
+  /**
+   * @deprecated This type was patched because it's currently broken.
+   */
+  const plugin: FlatConfig.Plugin;
+
+  export default plugin;
+}
+
+declare module "@stylistic/eslint-plugin" {
+  export { default } from "eslint-plugin-local-patch";
+}
+
+declare module "eslint-plugin-jsx-a11y" {
+  export { default } from "eslint-plugin-local-patch";
+}
+
+declare module "eslint-plugin-react" {
+  export { default } from "eslint-plugin-local-patch";
+}
+
+declare module "eslint-plugin-react-hooks" {
+  export { default } from "eslint-plugin-local-patch";
+}
+
+declare module "eslint-plugin-react-refresh" {
+  export { default } from "eslint-plugin-local-patch";
+}
