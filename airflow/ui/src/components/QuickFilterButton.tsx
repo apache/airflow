@@ -16,9 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import * as matchers from "@testing-library/jest-dom/matchers";
-import "@testing-library/jest-dom/vitest";
-import { expect } from "vitest";
+import { Button, type ButtonProps } from "@chakra-ui/react";
 
-// extends vitest matchers with react-testing-library's ones
-expect.extend(matchers);
+export const QuickFilterButton = ({ children, ...rest }: ButtonProps) => (
+  <Button
+    borderRadius={20}
+    colorScheme="blue"
+    fontWeight="normal"
+    variant="outline"
+    {...rest}
+  >
+    {children}
+  </Button>
+);
