@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-16T02:08:15.559833
+# This constraints file was automatically generated on 2024-09-16T13:43:14.655232
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -87,7 +87,7 @@ asttokens==2.4.1
 async-timeout==4.0.3
 asyncssh==2.17.0
 atlasclient==1.0.0
-atlassian-python-api==3.41.15
+atlassian-python-api==3.41.16
 attrs==24.2.0
 aws-sam-translator==1.91.0
 aws-xray-sdk==2.14.0
