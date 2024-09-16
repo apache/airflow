@@ -356,6 +356,14 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         # Assume that spark-submit is present in the path to the executing user
         return [self._connection["spark_binary"]]
 
+    def _get_principal(self) -> str | None:
+        # for the case where the principal is not set in the broken connection
+        return self._connection["principal"] or self._principal
+
+    def _get_keytab(self) -> str | None:
+        # for the case where the keytab is not set in the broken connection
+        return self._connection["keytab"] or self._keytab
+
     def _mask_cmd(self, connection_cmd: str | list[str]) -> str:
         # Mask any password related fields in application args with key value pair
         # where key contains password (case insensitive), e.g. HivePassword='abc'
@@ -440,10 +448,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             connection_cmd += ["--executor-memory", self._executor_memory]
         if self._driver_memory:
             connection_cmd += ["--driver-memory", self._driver_memory]
-        if self._connection["keytab"]:
-            connection_cmd += ["--keytab", self._connection["keytab"]]
-        if self._connection["principal"]:
-            connection_cmd += ["--principal", self._connection["principal"]]
+        keytab = self._get_keytab()
+        if keytab:
+            connection_cmd += ["--keytab", keytab]
+        principal = self._get_principal()
+        if principal:
+            connection_cmd += ["--principal", principal]
         if self._use_krb5ccache:
             if not os.getenv("KRB5CCNAME"):
                 raise AirflowException(
@@ -778,8 +788,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             if self._yarn_application_id:
                 kill_cmd = f"yarn application -kill {self._yarn_application_id}".split()
                 env = {**os.environ, **(self._env or {})}
-                principal = self._connection["principal"]
-                keytab = self._connection["keytab"]
+                principal = self._get_principal()
+                keytab = self._get_keytab()
                 if keytab is not None and principal is not None:
                     # we are ignoring renewal failures from renew_from_kt
                     # here as the failure could just be due to a non-renewable ticket,
