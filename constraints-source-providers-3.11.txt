@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-15T19:38:52.810792
+# This constraints file was automatically generated on 2024-09-16T02:08:15.813006
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -407,7 +407,7 @@ pandas-gbq==0.23.1
 pandas-stubs==2.2.2.240909
 pandas==2.1.4
 papermill==2.6.0
-paramiko==3.4.1
+paramiko==3.5.0
 parso==0.8.4
 pathable==0.4.3
 pathspec==0.12.1
