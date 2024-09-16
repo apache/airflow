@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.operators.kinesis_analytics import (
     KinesisAnalyticsV2StartApplicationOperator,
     KinesisAnalyticsV2StopApplicationOperator,
 )
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
@@ -158,6 +159,15 @@ class TestKinesisAnalyticsV2CreateApplicationOperator:
 
         with pytest.raises(AirflowException, match=error_message):
             operator.execute({})
+
+    def test_template_fields(self):
+        operator = KinesisAnalyticsV2CreateApplicationOperator(
+            task_id="create_application_operator",
+            application_name="demo",
+            runtime_environment="FLINK_18_9",
+            service_execution_role="arn",
+        )
+        validate_template_fields(operator)
 
 
 class TestKinesisAnalyticsV2StartApplicationOperator:
@@ -327,6 +337,9 @@ class TestKinesisAnalyticsV2StartApplicationOperator:
         ):
             self.operator.execute_complete(context=None, event=event)
 
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
 
 class TestKinesisAnalyticsV2StopApplicationOperator:
     APPLICATION_ARN = "arn:aws:kinesisanalytics:us-east-1:123456789012:application/demo"
@@ -483,3 +496,6 @@ class TestKinesisAnalyticsV2StopApplicationOperator:
             AirflowException, match="Error while stopping AWS Managed Service for Apache Flink application"
         ):
             self.operator.execute_complete(context=None, event=event)
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)

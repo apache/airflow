@@ -1135,7 +1135,8 @@ class DagFileProcessorManager(LoggingMixin):
             while not processor.done:
                 time.sleep(0.1)
 
-    def _collect_results_from_processor(self, processor) -> None:
+    @provide_session
+    def _collect_results_from_processor(self, processor, session: Session = NEW_SESSION) -> None:
         self.log.debug("Processor for %s finished", processor.file_path)
         Stats.decr("dag_processing.processes", tags={"file_path": processor.file_path, "action": "finish"})
         last_finish_time = timezone.utcnow()
@@ -1176,6 +1177,19 @@ class DagFileProcessorManager(LoggingMixin):
             span.set_attribute("import_errors", count_import_errors)
             if count_import_errors > 0:
                 span.set_attribute("error", True)
+                import_errors = session.scalars(
+                    select(ParseImportError).where(ParseImportError.filename == processor.file_path)
+                ).all()
+                for import_error in import_errors:
+                    span.add_event(
+                        name="exception",
+                        attributes={
+                            "filename": import_error.filename,
+                            "exception.type": "ParseImportError",
+                            "exception.name": "Import error when processing DAG file",
+                            "exception.stacktrace": import_error.stacktrace,
+                        },
+                    )
 
         span.end(end_time=datetime_to_nano(last_finish_time))
 

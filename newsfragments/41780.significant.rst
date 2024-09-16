@@ -1,0 +1,1 @@
+Remove deprecated support for passing ``execution_date`` to ``airflow.models.skipmixin.SkipMixin.skip()``.

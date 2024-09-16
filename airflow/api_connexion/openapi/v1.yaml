@@ -3196,14 +3196,20 @@ components:
           description: >
             User-provided DAG description, which can consist of several sentences or paragraphs that
             describe DAG contents.
-        schedule_interval:
-          $ref: "#/components/schemas/ScheduleInterval"
+        timetable_summary:
+          type: string
+          readOnly: true
+          nullable: true
+          description: |
+            Timetable summary.
+
+            *New in version 3.0.0*
         timetable_description:
           type: string
           readOnly: true
           nullable: true
           description: |
-            Timetable/Schedule Interval description.
+            Timetable description.
 
             *New in version 2.3.0*
         tags:
@@ -5190,19 +5196,6 @@ components:
             *New in version 3.0.0*
 
     # Common data type
-    ScheduleInterval:
-      description: |
-        Schedule interval. Defines how often DAG runs, this object gets added to your latest task instance's
-        execution_date to figure out the next schedule.
-      nullable: true
-      readOnly: true
-      anyOf:
-        - $ref: "#/components/schemas/TimeDelta"
-        - $ref: "#/components/schemas/RelativeDelta"
-        - $ref: "#/components/schemas/CronExpression"
-      discriminator:
-        propertyName: __type
-
     TimeDelta:
       description: Time delta
       type: object

@@ -93,15 +93,16 @@ Requirements
 
 The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
-=======================================  ==================
-PIP package                              Version required
-=======================================  ==================
-``apache-airflow``                       ``>=2.8.0``
-``apache-airflow-providers-common-sql``  ``>=1.6.0``
-``attrs``                                ``>=22.2``
-``openlineage-integration-common``       ``>=1.16.0``
-``openlineage-python``                   ``>=1.16.0``
-=======================================  ==================
+==========================================  ==================
+PIP package                                 Version required
+==========================================  ==================
+``apache-airflow``                          ``>=2.8.0``
+``apache-airflow-providers-common-sql``     ``>=1.6.0``
+``apache-airflow-providers-common-compat``  ``>=1.2.0``
+``attrs``                                   ``>=22.2``
+``openlineage-integration-common``          ``>=1.16.0``
+``openlineage-python``                      ``>=1.16.0``
+==========================================  ==================
 
 Cross provider package dependencies
 -----------------------------------

@@ -21,6 +21,50 @@
 
 .. towncrier release notes start
 
+Airflow 2.10.1 (2024-09-05)
+---------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+
+No significant changes.
+
+Bug Fixes
+"""""""""
+- Handle Example dags case when checking for missing files (#41874)
+- Fix logout link in "no roles" error page (#41845)
+- Set end_date and duration for triggers completed with end_from_trigger as True. (#41834)
+- DAGs are not marked as stale if the dags folder change (#41829)
+- Fix compatibility with FAB provider versions <1.3.0 (#41809)
+- Don't Fail LocalTaskJob on heartbeat (#41810)
+- Remove deprecation warning for cgitb in Plugins Manager (#41793)
+- Fix log for notifier(instance) without __name__ (#41699)
+- Splitting syspath preparation into stages (#41694)
+- Adding url sanitization for extra links (#41680)
+- Fix InletEventsAccessors type stub (#41607)
+- Fix UI rendering when XCom is INT, FLOAT, BOOL or NULL (#41605)
+- Fix try selector refresh (#41503)
+- Incorrect try number subtraction producing invalid span id for OTEL airflow (#41535)
+- Add WebEncoder for trigger page rendering to avoid render failure (#41485)
+- Adding ``tojson`` filter to example_inlet_event_extra example dag (#41890)
+- Add backward compatibility check for executors that don't inherit BaseExecutor (#41927)
+
+Miscellaneous
+"""""""""""""
+- Bump webpack from 5.76.0 to 5.94.0 in /airflow/www (#41879)
+- Adding rel property to hyperlinks in logs (#41783)
+- Field Deletion Warning when editing Connections (#41504)
+- Make Scarf usage reporting in major+minor versions and counters in buckets (#41900)
+- Lower down universal-pathlib minimum to 0.2.2 (#41943)
+- Protect against None components of universal pathlib xcom backend (#41938)
+
+Doc Only Changes
+""""""""""""""""
+- Remove Debian bullseye support (#41569)
+- Add an example for auth with ``keycloak`` (#41791)
+
+
+
 Airflow 2.10.0 (2024-08-15)
 ---------------------------
 

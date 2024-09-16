@@ -23,10 +23,10 @@ import time
 from typing import Sequence
 
 import google.api_core.path_template
-from deprecated import deprecated
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 # Time to sleep between active checks of the operation results
@@ -34,12 +34,10 @@ TIME_TO_SLEEP_IN_SECONDS = 5
 
 
 @deprecated(
-    reason=(
-        "This hook is deprecated. Consider using "
-        "Google Cloud Batch Operators' hook instead. "
-        "The Life Sciences API (beta) will be discontinued "
-        "on July 8, 2025 in favor of Google Cloud Batch."
-    ),
+    planned_removal_date="March 01, 2025",
+    use_instead="Google Cloud Batch Operators' hook",
+    reason="The Life Sciences API (beta) will be discontinued on July 8, 2025 "
+    "in favor of Google Cloud Batch.",
     category=AirflowProviderDeprecationWarning,
 )
 class LifeSciencesHook(GoogleBaseHook):

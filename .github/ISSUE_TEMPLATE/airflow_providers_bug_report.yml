@@ -58,6 +58,7 @@ body:
         - dingding
         - discord
         - docker
+        - edge
         - elasticsearch
         - exasol
         - fab
@@ -106,7 +107,6 @@ body:
         - sqlite
         - ssh
         - tableau
-        - tabular
         - telegram
         - teradata
         - trino

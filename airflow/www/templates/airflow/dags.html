@@ -284,7 +284,7 @@
               <a class="label label-default schedule"
                  href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}"
                  data-dag-id="{{ dag.dag_id }}">
-                {{ dag.schedule_interval }}
+                {{ dag.timetable_summary }}
               </a>
               {% if dag is defined and dag.timetable_description %}
                 <span class="material-icons text-muted js-tooltip" aria-hidden="true"

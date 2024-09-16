@@ -134,18 +134,23 @@ def test_get_airflow_dag_run_facet():
     dagrun_mock.start_date = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
 
     result = get_airflow_dag_run_facet(dagrun_mock)
+
+    expected_dag_info = {
+        "dag_id": "dag",
+        "description": None,
+        "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+        "owner": "airflow",
+        "timetable": {},
+        "start_date": "2024-06-01T00:00:00+00:00",
+        "tags": "['test']",
+    }
+    if hasattr(dag, "schedule_interval"):  # Airflow 2 compat.
+        expected_dag_info["schedule_interval"] = "@once"
+    else:  # Airflow 3 and up.
+        expected_dag_info["timetable_summary"] = "@once"
     assert result == {
         "airflowDagRun": AirflowDagRunFacet(
-            dag={
-                "dag_id": "dag",
-                "description": None,
-                "fileloc": pathlib.Path(__file__).resolve().as_posix(),
-                "owner": "airflow",
-                "timetable": {},
-                "schedule_interval": "@once",
-                "start_date": "2024-06-01T00:00:00+00:00",
-                "tags": ["test"],
-            },
+            dag=expected_dag_info,
             dagRun={
                 "conf": {},
                 "dag_id": "dag",

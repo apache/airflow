@@ -19,6 +19,7 @@
 .rat-excludes
 .stylelintignore
 .stylelintrc
+.venv
 requirements
 requirements.txt
 .*log
@@ -162,3 +163,8 @@ PKG-INFO
 # Openapi files
 .openapi-generator-ignore
 version.txt
+v1-generated.yaml
+
+# Front end generated files
+api-generated.ts
+openapi-gen

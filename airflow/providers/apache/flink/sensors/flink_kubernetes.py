@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Sequence
 
 from kubernetes import client
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -125,10 +125,7 @@ class FlinkKubernetesSensor(BaseSensorOperator):
         if self.attach_log and application_state in self.FAILURE_STATES + self.SUCCESS_STATES:
             self._log_driver(application_state, response)
         if application_state in self.FAILURE_STATES:
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Flink application failed with state: {application_state}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
         elif application_state in self.SUCCESS_STATES:
             self.log.info("Flink application ended successfully")

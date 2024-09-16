@@ -30,6 +30,10 @@ from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -74,12 +78,14 @@ class TestBranchDateTimeOperator:
             self.branch_1.set_upstream(self.branch_op)
             self.branch_2.set_upstream(self.branch_op)
 
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         self.dr = dag_maker.create_dagrun(
             run_id="manual__",
             start_date=DEFAULT_DATE,
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
 
     def teardown_method(self):
@@ -234,12 +240,14 @@ class TestBranchDateTimeOperator:
         """Check if BranchDateTimeOperator uses task execution date"""
         in_between_date = timezone.datetime(2020, 7, 7, 10, 30, 0)
         self.branch_op.use_task_logical_date = True
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         self.dr = dag_maker.create_dagrun(
             run_id="manual_exec_date__",
             start_date=in_between_date,
             execution_date=in_between_date,
             state=State.RUNNING,
             data_interval=(in_between_date, in_between_date),
+            **triggered_by_kwargs,
         )
 
         self.branch_op.target_lower = target_lower
@@ -253,19 +261,3 @@ class TestBranchDateTimeOperator:
                 "branch_2": State.SKIPPED,
             }
         )
-
-    def test_deprecation_warning(self):
-        warning_message = (
-            """Parameter ``use_task_execution_date`` is deprecated. Use ``use_task_logical_date``."""
-        )
-        with pytest.warns(DeprecationWarning) as warnings:
-            BranchDateTimeOperator(
-                task_id="warning",
-                follow_task_ids_if_true="branch_1",
-                follow_task_ids_if_false="branch_2",
-                target_upper=timezone.datetime(2020, 7, 7, 10, 30, 0),
-                target_lower=timezone.datetime(2020, 7, 7, 10, 30, 0),
-                use_task_execution_date=True,
-                dag=self.dag,
-            )
-        assert warning_message == str(warnings[0].message)

@@ -39,7 +39,6 @@ from pygments.formatters import HtmlFormatter
 from sqlalchemy import delete, func, select, types
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.errors import ParseImportError
@@ -186,6 +185,7 @@ def encode_dag_run(
             "conf": dag_run_conf,
             "conf_is_json": conf_is_json,
             "note": dag_run.note,
+            "triggered_by": dag_run.triggered_by.value,
         }
     except ValueError as e:
         logger.error("Error while encoding the DAG Run!", exc_info=e)
@@ -215,34 +215,6 @@ def check_dag_warnings(dag_id, session):
     if dag_warnings:
         for dag_warning in dag_warnings:
             flash(dag_warning.message, "warning")
-
-
-def get_sensitive_variables_fields():
-    import warnings
-
-    from airflow.utils.log.secrets_masker import get_sensitive_variables_fields
-
-    warnings.warn(
-        "This function is deprecated. Please use "
-        "`airflow.utils.log.secrets_masker.get_sensitive_variables_fields`",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    return get_sensitive_variables_fields()
-
-
-def should_hide_value_for_key(key_name):
-    import warnings
-
-    from airflow.utils.log.secrets_masker import should_hide_value_for_key
-
-    warnings.warn(
-        "This function is deprecated. Please use "
-        "`airflow.utils.log.secrets_masker.should_hide_value_for_key`",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    return should_hide_value_for_key(key_name)
 
 
 def get_params(**kwargs):
@@ -431,6 +403,8 @@ def task_instance_link(attr):
     task_id = attr.get("task_id")
     run_id = attr.get("run_id")
     map_index = attr.get("map_index", None)
+    execution_date = attr.get("execution_date") or attr.get("dag_run.execution_date")
+
     if map_index == -1:
         map_index = None
 
@@ -440,6 +414,7 @@ def task_instance_link(attr):
         task_id=task_id,
         dag_run_id=run_id,
         map_index=map_index,
+        execution_date=execution_date,
         tab="graph",
     )
     url_root = url_for(
@@ -449,6 +424,7 @@ def task_instance_link(attr):
         root=task_id,
         dag_run_id=run_id,
         map_index=map_index,
+        execution_date=execution_date,
         tab="graph",
     )
     return Markup(
@@ -528,10 +504,10 @@ def json_f(attr_name):
 def dag_link(attr):
     """Generate a URL to the Graph view for a Dag."""
     dag_id = attr.get("dag_id")
-    execution_date = attr.get("execution_date")
+    execution_date = attr.get("execution_date") or attr.get("dag_run.execution_date")
     if not dag_id:
         return Markup("None")
-    url = url_for("Airflow.graph", dag_id=dag_id, execution_date=execution_date)
+    url = url_for("Airflow.grid", dag_id=dag_id, execution_date=execution_date)
     return Markup('<a href="{}">{}</a>').format(url, dag_id)
 
 
@@ -539,10 +515,15 @@ def dag_run_link(attr):
     """Generate a URL to the Graph view for a DagRun."""
     dag_id = attr.get("dag_id")
     run_id = attr.get("run_id")
+    execution_date = attr.get("execution_date") or attr.get("dag_run.execution_date")
+
+    if not dag_id:
+        return Markup("None")
 
     url = url_for(
         "Airflow.grid",
         dag_id=dag_id,
+        execution_date=execution_date,
         dag_run_id=run_id,
         tab="graph",
     )
@@ -550,7 +531,7 @@ def dag_run_link(attr):
 
 
 def _get_run_ordering_expr(name: str) -> ColumnOperators:
-    expr = DagRun.__table__.columns[name]
+    expr = DagRun.__mapper__.columns[name]
     # Data interval columns are NULL for runs created before 2.3, but SQL's
     # NULL-sorting logic would make those old runs always appear first. In a
     # perfect world we'd want to sort by ``get_run_data_interval()``, but that's

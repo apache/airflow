@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
@@ -25,11 +26,12 @@ from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.microsoft.azure.hooks.powerbi import (
     PowerBIDatasetRefreshFields,
     PowerBIDatasetRefreshStatus,
-    PowerBIHook,
 )
 from airflow.providers.microsoft.azure.operators.powerbi import PowerBIDatasetRefreshOperator
 from airflow.providers.microsoft.azure.triggers.powerbi import PowerBITrigger
 from airflow.utils import timezone
+from tests.providers.microsoft.azure.base import Base
+from tests.providers.microsoft.conftest import get_airflow_connection, mock_context
 
 DEFAULT_CONNECTION_CLIENT_SECRET = "powerbi_conn_id"
 TASK_ID = "run_powerbi_operator"
@@ -72,86 +74,77 @@ IN_PROGRESS_REFRESH_DETAILS = {
 }
 
 
-@pytest.fixture
-def mock_powerbi_hook():
-    hook = PowerBIHook()
-    return hook
+class TestPowerBIDatasetRefreshOperator(Base):
+    @mock.patch("airflow.hooks.base.BaseHook.get_connection", side_effect=get_airflow_connection)
+    def test_execute_wait_for_termination_with_deferrable(self, connection):
+        operator = PowerBIDatasetRefreshOperator(
+            **CONFIG,
+        )
+        context = mock_context(task=operator)
 
+        with pytest.raises(TaskDeferred) as exc:
+            operator.execute(context)
 
-def test_execute_wait_for_termination_with_Deferrable(mock_powerbi_hook):
-    operator = PowerBIDatasetRefreshOperator(
-        **CONFIG,
-    )
-    operator.hook = mock_powerbi_hook
-    context = {"ti": MagicMock()}
+        assert isinstance(exc.value.trigger, PowerBITrigger)
 
-    with pytest.raises(TaskDeferred) as exc:
-        operator.execute(context)
-
-    assert isinstance(exc.value.trigger, PowerBITrigger)
-
-
-def test_powerbi_operator_async_execute_complete_success():
-    """Assert that execute_complete log success message"""
-    operator = PowerBIDatasetRefreshOperator(
-        **CONFIG,
-    )
-    context = {"ti": MagicMock()}
-    operator.execute_complete(
-        context=context,
-        event=SUCCESS_TRIGGER_EVENT,
-    )
-    assert context["ti"].xcom_push.call_count == 2
-
-
-def test_powerbi_operator_async_execute_complete_fail():
-    """Assert that execute_complete raise exception on error"""
-    operator = PowerBIDatasetRefreshOperator(
-        **CONFIG,
-    )
-    context = {"ti": MagicMock()}
-    with pytest.raises(AirflowException):
+    def test_powerbi_operator_async_execute_complete_success(self):
+        """Assert that execute_complete log success message"""
+        operator = PowerBIDatasetRefreshOperator(
+            **CONFIG,
+        )
+        context = {"ti": MagicMock()}
         operator.execute_complete(
             context=context,
-            event={"status": "error", "message": "error", "dataset_refresh_id": "1234"},
+            event=SUCCESS_TRIGGER_EVENT,
         )
-    assert context["ti"].xcom_push.call_count == 0
+        assert context["ti"].xcom_push.call_count == 2
 
+    def test_powerbi_operator_async_execute_complete_fail(self):
+        """Assert that execute_complete raise exception on error"""
+        operator = PowerBIDatasetRefreshOperator(
+            **CONFIG,
+        )
+        context = {"ti": MagicMock()}
+        with pytest.raises(AirflowException):
+            operator.execute_complete(
+                context=context,
+                event={"status": "error", "message": "error", "dataset_refresh_id": "1234"},
+            )
+        assert context["ti"].xcom_push.call_count == 0
 
-def test_execute_complete_no_event():
-    """Test execute_complete when event is None or empty."""
-    operator = PowerBIDatasetRefreshOperator(
-        **CONFIG,
-    )
-    context = {"ti": MagicMock()}
-    operator.execute_complete(
-        context=context,
-        event=None,
-    )
-    assert context["ti"].xcom_push.call_count == 0
+    def test_execute_complete_no_event(self):
+        """Test execute_complete when event is None or empty."""
+        operator = PowerBIDatasetRefreshOperator(
+            **CONFIG,
+        )
+        context = {"ti": MagicMock()}
+        operator.execute_complete(
+            context=context,
+            event=None,
+        )
+        assert context["ti"].xcom_push.call_count == 0
 
+    @pytest.mark.db_test
+    def test_powerbi_link(self, create_task_instance_of_operator):
+        """Assert Power BI Extra link matches the expected URL."""
+        ti = create_task_instance_of_operator(
+            PowerBIDatasetRefreshOperator,
+            dag_id="test_powerbi_refresh_op_link",
+            execution_date=DEFAULT_DATE,
+            task_id=TASK_ID,
+            conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
+            group_id=GROUP_ID,
+            dataset_id=DATASET_ID,
+            check_interval=1,
+            timeout=3,
+        )
 
-@pytest.mark.db_test
-def test_powerbilink(create_task_instance_of_operator):
-    """Assert Power BI Extra link matches the expected URL."""
-    ti = create_task_instance_of_operator(
-        PowerBIDatasetRefreshOperator,
-        dag_id="test_powerbi_refresh_op_link",
-        execution_date=DEFAULT_DATE,
-        task_id=TASK_ID,
-        conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
-        group_id=GROUP_ID,
-        dataset_id=DATASET_ID,
-        check_interval=1,
-        timeout=3,
-    )
+        ti.xcom_push(key="powerbi_dataset_refresh_id", value=NEW_REFRESH_REQUEST_ID)
+        url = ti.task.get_extra_links(ti, "Monitor PowerBI Dataset")
+        EXPECTED_ITEM_RUN_OP_EXTRA_LINK = (
+            "https://app.powerbi.com"  # type: ignore[attr-defined]
+            f"/groups/{GROUP_ID}/datasets/{DATASET_ID}"  # type: ignore[attr-defined]
+            "/details?experience=power-bi"
+        )
 
-    ti.xcom_push(key="powerbi_dataset_refresh_id", value=NEW_REFRESH_REQUEST_ID)
-    url = ti.task.get_extra_links(ti, "Monitor PowerBI Dataset")
-    EXPECTED_ITEM_RUN_OP_EXTRA_LINK = (
-        "https://app.powerbi.com"  # type: ignore[attr-defined]
-        f"/groups/{GROUP_ID}/datasets/{DATASET_ID}"  # type: ignore[attr-defined]
-        "/details?experience=power-bi"
-    )
-
-    assert url == EXPECTED_ITEM_RUN_OP_EXTRA_LINK
+        assert url == EXPECTED_ITEM_RUN_OP_EXTRA_LINK
