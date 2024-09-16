@@ -35,11 +35,13 @@ class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
     Views to authenticate using the simple auth manager.
 
     :param users: the list of users defined in the config
+    :param passwords: dict associating a username to its password
     """
 
-    def __init__(self, users: list):
+    def __init__(self, users: list, passwords: dict[str, str]):
         super().__init__()
         self.users = users
+        self.passwords = passwords
 
     @expose("/login")
     def login(self):
@@ -69,8 +71,13 @@ class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
         username = request.form.get("username")
         password = request.form.get("password")
 
+        print("TESTTTTTTTT")
+        print(self.passwords)
+
         found_users = [
-            user for user in self.users if user["username"] == username and user["password"] == password
+            user
+            for user in self.users
+            if user["username"] == username and self.passwords[user["username"]] == password
         ]
 
         if not username or not password or len(found_users) == 0:

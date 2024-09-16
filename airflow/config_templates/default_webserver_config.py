@@ -139,7 +139,11 @@ AUTH_TYPE = AUTH_DB
 # Example:
 # [{
 #     "username": "admin",
-#     "password": "admin",
 #     "role": "admin",
 # }]
-SIMPLE_AUTH_MANAGER_USERS = []
+SIMPLE_AUTH_MANAGER_USERS = [
+    {
+        "username": "admin",
+        "role": "admin",
+    }
+]

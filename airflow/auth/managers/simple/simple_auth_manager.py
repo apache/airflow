@@ -17,14 +17,19 @@
 # under the License.
 from __future__ import annotations
 
+import json
+import os
+import random
 from collections import namedtuple
 from enum import Enum
 from typing import TYPE_CHECKING
 
 from flask import session, url_for
+from termcolor import colored
 
 from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
 from airflow.auth.managers.simple.views.auth import SimpleAuthManagerAuthenticationViews
+from hatch_build import AIRFLOW_ROOT_PATH
 
 if TYPE_CHECKING:
     from airflow.auth.managers.models.base_user import BaseUser
@@ -72,6 +77,40 @@ class SimpleAuthManager(BaseAuthManager):
 
     :param appbuilder: the flask app builder
     """
+
+    # File that contains the generated passwords
+    GENERATED_PASSWORDS_FILE = (
+        AIRFLOW_ROOT_PATH / "generated" / "simple_auth_manager_passwords.json.generated"
+    )
+
+    # Cache containing the password associated to a username
+    passwords: dict[str, str] = {}
+
+    def init(self) -> None:
+        user_passwords_from_file = {}
+
+        # Read passwords from file
+        if os.path.isfile(self.GENERATED_PASSWORDS_FILE):
+            with open(self.GENERATED_PASSWORDS_FILE) as file:
+                passwords_str = file.read().strip()
+                user_passwords_from_file = json.loads(passwords_str)
+
+        users = self.appbuilder.get_app.config.get("SIMPLE_AUTH_MANAGER_USERS", [])
+        usernames = {user["username"] for user in users}
+        self.passwords = {
+            username: password
+            for username, password in user_passwords_from_file.items()
+            if username in usernames
+        }
+        for user in users:
+            if user["username"] not in self.passwords:
+                # User dot not exist in the file, adding it
+                self.passwords[user["username"]] = self._generate_password()
+
+            self._print_output(f"Password for user '{user['username']}': {self.passwords[user['username']]}")
+
+        with open(self.GENERATED_PASSWORDS_FILE, "w") as file:
+            file.write(json.dumps(self.passwords))
 
     def is_logged_in(self) -> bool:
         return "user" in session
@@ -151,7 +190,8 @@ class SimpleAuthManager(BaseAuthManager):
     def register_views(self) -> None:
         self.appbuilder.add_view_no_menu(
             SimpleAuthManagerAuthenticationViews(
-                users=self.appbuilder.get_app.config.get("SIMPLE_AUTH_MANAGER_USERS", [])
+                users=self.appbuilder.get_app.config.get("SIMPLE_AUTH_MANAGER_USERS", []),
+                passwords=self.passwords,
             )
         )
 
@@ -174,7 +214,7 @@ class SimpleAuthManager(BaseAuthManager):
         user = self.get_user()
         if not user:
             return False
-        role_str = user.get_role()
+        role_str = user.get_role().upper()
         role = SimpleAuthManagerRole[role_str]
         if role == SimpleAuthManagerRole.ADMIN:
             return True
@@ -185,3 +225,14 @@ class SimpleAuthManager(BaseAuthManager):
         if method == "GET":
             return role.order >= allow_get_role.order
         return role.order >= allow_role.order
+
+    @staticmethod
+    def _generate_password() -> str:
+        return "".join(random.choices("abcdefghkmnpqrstuvwxyzABCDEFGHKMNPQRSTUVWXYZ23456789", k=16))
+
+    @staticmethod
+    def _print_output(output: str):
+        name = "Simple auth manager"
+        colorized_name = colored(f"{name:10}", "white")
+        for line in output.splitlines():
+            print(f"{colorized_name} | {line.strip()}")
