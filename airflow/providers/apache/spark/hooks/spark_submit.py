@@ -258,8 +258,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             "deploy_mode": None,
             "spark_binary": self.spark_binary or DEFAULT_SPARK_BINARY,
             "namespace": None,
-            "principal": None,
-            "keytab": None,
+            "principal": self._principal,
+            "keytab": self._keytab,
         }
 
         try:
@@ -292,14 +292,14 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                 )
             conn_data["spark_binary"] = self.spark_binary
             conn_data["namespace"] = extra.get("namespace")
-            conn_data["principal"] = self._principal or extra.get("principal")
-            base64_keytab = extra.get("keytab")
-            if self._keytab is not None:
-                conn_data["keytab"] = self._keytab
-            elif base64_keytab is not None:
-                conn_data["keytab"] = self._create_keytab_path_from_base64_keytab(
-                    base64_keytab, conn_data["principal"]
-                )
+            if conn_data["principal"] is None:
+                conn_data["principal"] = extra.get("principal")
+            if conn_data["keytab"] is None:
+                base64_keytab = extra.get("keytab")
+                if base64_keytab is not None:
+                    conn_data["keytab"] = self._create_keytab_path_from_base64_keytab(
+                        base64_keytab, conn_data["principal"]
+                    )
         except AirflowException:
             self.log.info(
                 "Could not load connection string %s, defaulting to %s", self._conn_id, conn_data["master"]
@@ -355,14 +355,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     def _get_spark_binary_path(self) -> list[str]:
         # Assume that spark-submit is present in the path to the executing user
         return [self._connection["spark_binary"]]
-
-    def _get_principal(self) -> str | None:
-        # for the case where the principal is not set in the broken connection
-        return self._connection["principal"] or self._principal
-
-    def _get_keytab(self) -> str | None:
-        # for the case where the keytab is not set in the broken connection
-        return self._connection["keytab"] or self._keytab
 
     def _mask_cmd(self, connection_cmd: str | list[str]) -> str:
         # Mask any password related fields in application args with key value pair
@@ -448,12 +440,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             connection_cmd += ["--executor-memory", self._executor_memory]
         if self._driver_memory:
             connection_cmd += ["--driver-memory", self._driver_memory]
-        keytab = self._get_keytab()
-        if keytab:
-            connection_cmd += ["--keytab", keytab]
-        principal = self._get_principal()
-        if principal:
-            connection_cmd += ["--principal", principal]
+        if self._connection["keytab"]:
+            connection_cmd += ["--keytab", self._connection["keytab"]]
+        if self._connection["principal"]:
+            connection_cmd += ["--principal", self._connection["principal"]]
         if self._use_krb5ccache:
             if not os.getenv("KRB5CCNAME"):
                 raise AirflowException(
@@ -788,13 +778,13 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             if self._yarn_application_id:
                 kill_cmd = f"yarn application -kill {self._yarn_application_id}".split()
                 env = {**os.environ, **(self._env or {})}
-                principal = self._get_principal()
-                keytab = self._get_keytab()
-                if keytab is not None and principal is not None:
+                if self._connection["keytab"] is not None and self._connection["principal"] is not None:
                     # we are ignoring renewal failures from renew_from_kt
                     # here as the failure could just be due to a non-renewable ticket,
                     # we still attempt to kill the yarn application
-                    renew_from_kt(principal, keytab, exit_on_fail=False)
+                    renew_from_kt(
+                        self._connection["principal"], self._connection["keytab"], exit_on_fail=False
+                    )
                     env = os.environ.copy()
                     ccacche = airflow_conf.get_mandatory_value("kerberos", "ccache")
                     env["KRB5CCNAME"] = ccacche
