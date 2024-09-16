@@ -250,6 +250,7 @@ def partial(
     retry_exponential_backoff: bool | ArgNotSet = NOTSET,
     priority_weight: int | ArgNotSet = NOTSET,
     weight_rule: str | PriorityWeightStrategy | ArgNotSet = NOTSET,
+    sla: timedelta | None | ArgNotSet = NOTSET,
     map_index_template: str | None | ArgNotSet = NOTSET,
     max_active_tis_per_dag: int | None | ArgNotSet = NOTSET,
     max_active_tis_per_dagrun: int | None | ArgNotSet = NOTSET,
@@ -318,6 +319,7 @@ def partial(
         "retry_exponential_backoff": retry_exponential_backoff,
         "priority_weight": priority_weight,
         "weight_rule": weight_rule,
+        "sla": sla,
         "max_active_tis_per_dag": max_active_tis_per_dag,
         "max_active_tis_per_dagrun": max_active_tis_per_dagrun,
         "on_execute_callback": on_execute_callback,
@@ -675,6 +677,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         way to limit concurrency for certain tasks
     :param pool_slots: the number of pool slots this task should use (>= 1)
         Values less than 1 are not allowed.
+    :param sla: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1
     :param execution_timeout: max time allowed for the execution of
         this task instance, if it goes beyond it will raise and fail.
     :param on_failure_callback: a function or list of functions to be called when a task instance
@@ -809,6 +812,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         "depends_on_past",
         "wait_for_downstream",
         "priority_weight",
+        "sla",
         "execution_timeout",
         "on_execute_callback",
         "on_failure_callback",
@@ -870,6 +874,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         queue: str = DEFAULT_QUEUE,
         pool: str | None = None,
         pool_slots: int = DEFAULT_POOL_SLOTS,
+        sla: timedelta | None = None,
         execution_timeout: timedelta | None = DEFAULT_TASK_EXECUTION_TIMEOUT,
         on_execute_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,
         on_failure_callback: None | TaskStateChangeCallback | list[TaskStateChangeCallback] = None,

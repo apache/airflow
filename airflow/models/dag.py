@@ -428,6 +428,7 @@ class DAG(LoggingMixin):
         beyond this the scheduler will disable the DAG
     :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
         fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
+    :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1
     :param default_view: Specify DAG default view (grid, graph, duration,
                                                    gantt, landing_times), default grid
     :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT), default LR
@@ -513,6 +514,7 @@ class DAG(LoggingMixin):
             "core", "max_consecutive_failed_dag_runs_per_dag"
         ),
         dagrun_timeout: timedelta | None = None,
+        sla_miss_callback: Any = None,
         default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower(),
         orientation: str = airflow_conf.get_mandatory_value("webserver", "dag_orientation"),
         catchup: bool = airflow_conf.getboolean("scheduler", "catchup_by_default"),
@@ -3067,6 +3069,7 @@ class DAG(LoggingMixin):
                 "_log",
                 "task_dict",
                 "template_searchpath",
+                "sla_miss_callback",
                 "on_success_callback",
                 "on_failure_callback",
                 "template_undefined",
@@ -3575,6 +3578,7 @@ def dag(
         "core", "max_consecutive_failed_dag_runs_per_dag"
     ),
     dagrun_timeout: timedelta | None = None,
+    sla_miss_callback: Any = None,
     default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower(),
     orientation: str = airflow_conf.get_mandatory_value("webserver", "dag_orientation"),
     catchup: bool = airflow_conf.getboolean("scheduler", "catchup_by_default"),
@@ -3626,6 +3630,7 @@ def dag(
                 max_active_runs=max_active_runs,
                 max_consecutive_failed_dag_runs=max_consecutive_failed_dag_runs,
                 dagrun_timeout=dagrun_timeout,
+                sla_miss_callback=sla_miss_callback,
                 default_view=default_view,
                 orientation=orientation,
                 catchup=catchup,
