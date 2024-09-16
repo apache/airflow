@@ -231,6 +231,7 @@ class DatasetAliasEvent(TypedDict):
 
     source_alias_name: str
     dest_dataset_uri: str
+    extra: dict[str, Any]
 
 
 def _set_extra_default(extra: dict | None) -> dict:
