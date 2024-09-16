@@ -179,7 +179,8 @@ class FabAuthManager(BaseAuthManager):
 
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
-        return not self.get_user().is_anonymous
+        user = self.get_user()
+        return not user.is_anonymous and user.is_active
 
     def is_authorized_configuration(
         self,

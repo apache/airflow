@@ -1,7 +1,7 @@
 {
   "airbyte": {
     "deps": [
-      "airbyte-api>=0.51.0",
+      "airbyte-api>=0.52.0",
       "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
@@ -36,6 +36,7 @@
       "inflection>=0.5.1",
       "jmespath>=0.7.0",
       "jsonpath_ng>=1.5.3",
+      "python3-saml>=1.16.0",
       "redshift_connector>=2.0.918",
       "sqlalchemy_redshift>=0.8.6",
       "watchtower>=3.0.0,!=3.3.0,<4"
@@ -519,6 +520,17 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "edge": {
+    "deps": [
+      "apache-airflow>=2.10.0",
+      "pydantic>=2.3.0"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "not-ready"
+  },
   "elasticsearch": {
     "deps": [
       "apache-airflow-providers-common-sql>=1.17.0",
@@ -944,8 +956,8 @@
       "apache-airflow-providers-common-sql>=1.6.0",
       "apache-airflow>=2.8.0",
       "attrs>=22.2",
-      "openlineage-integration-common>=1.16.0",
-      "openlineage-python>=1.16.0"
+      "openlineage-integration-common>=1.22.0",
+      "openlineage-python>=1.22.0"
     ],
     "devel-deps": [],
     "plugins": [

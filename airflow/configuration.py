@@ -327,48 +327,12 @@ class AirflowConfigParser(ConfigParser):
     # DeprecationWarning will be issued and the old option will be used instead
     deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {
         ("celery", "worker_precheck"): ("core", "worker_precheck", "2.0.0"),
-        ("logging", "interleave_timestamp_parser"): ("core", "interleave_timestamp_parser", "2.6.1"),
-        ("logging", "base_log_folder"): ("core", "base_log_folder", "2.0.0"),
-        ("logging", "remote_logging"): ("core", "remote_logging", "2.0.0"),
-        ("logging", "remote_log_conn_id"): ("core", "remote_log_conn_id", "2.0.0"),
-        ("logging", "remote_base_log_folder"): ("core", "remote_base_log_folder", "2.0.0"),
-        ("logging", "encrypt_s3_logs"): ("core", "encrypt_s3_logs", "2.0.0"),
-        ("logging", "logging_level"): ("core", "logging_level", "2.0.0"),
-        ("logging", "fab_logging_level"): ("core", "fab_logging_level", "2.0.0"),
-        ("logging", "logging_config_class"): ("core", "logging_config_class", "2.0.0"),
-        ("logging", "colored_console_log"): ("core", "colored_console_log", "2.0.0"),
-        ("logging", "colored_log_format"): ("core", "colored_log_format", "2.0.0"),
-        ("logging", "colored_formatter_class"): ("core", "colored_formatter_class", "2.0.0"),
-        ("logging", "log_format"): ("core", "log_format", "2.0.0"),
-        ("logging", "simple_log_format"): ("core", "simple_log_format", "2.0.0"),
-        ("logging", "task_log_prefix_template"): ("core", "task_log_prefix_template", "2.0.0"),
-        ("logging", "log_filename_template"): ("core", "log_filename_template", "2.0.0"),
-        ("logging", "log_processor_filename_template"): ("core", "log_processor_filename_template", "2.0.0"),
-        ("logging", "dag_processor_manager_log_location"): (
-            "core",
-            "dag_processor_manager_log_location",
-            "2.0.0",
-        ),
-        ("logging", "task_log_reader"): ("core", "task_log_reader", "2.0.0"),
-        ("metrics", "metrics_allow_list"): ("metrics", "statsd_allow_list", "2.6.0"),
-        ("metrics", "metrics_block_list"): ("metrics", "statsd_block_list", "2.6.0"),
-        ("metrics", "statsd_on"): ("scheduler", "statsd_on", "2.0.0"),
-        ("metrics", "statsd_host"): ("scheduler", "statsd_host", "2.0.0"),
-        ("metrics", "statsd_port"): ("scheduler", "statsd_port", "2.0.0"),
-        ("metrics", "statsd_prefix"): ("scheduler", "statsd_prefix", "2.0.0"),
-        ("metrics", "statsd_allow_list"): ("scheduler", "statsd_allow_list", "2.0.0"),
-        ("metrics", "stat_name_handler"): ("scheduler", "stat_name_handler", "2.0.0"),
-        ("metrics", "statsd_datadog_enabled"): ("scheduler", "statsd_datadog_enabled", "2.0.0"),
-        ("metrics", "statsd_datadog_tags"): ("scheduler", "statsd_datadog_tags", "2.0.0"),
-        ("metrics", "statsd_datadog_metrics_tags"): ("scheduler", "statsd_datadog_metrics_tags", "2.6.0"),
-        ("metrics", "statsd_custom_client_path"): ("scheduler", "statsd_custom_client_path", "2.0.0"),
         ("scheduler", "parsing_processes"): ("scheduler", "max_threads", "1.10.14"),
         ("operators", "default_queue"): ("celery", "default_queue", "2.1.0"),
         ("core", "hide_sensitive_var_conn_fields"): ("admin", "hide_sensitive_variable_fields", "2.1.0"),
         ("core", "sensitive_var_conn_names"): ("admin", "sensitive_variable_fields", "2.1.0"),
         ("core", "default_pool_task_slot_count"): ("core", "non_pooled_task_slot_count", "1.10.4"),
         ("core", "max_active_tasks_per_dag"): ("core", "dag_concurrency", "2.2.0"),
-        ("logging", "worker_log_server_port"): ("celery", "worker_log_server_port", "2.2.0"),
         ("api", "access_control_allow_origins"): ("api", "access_control_allow_origin", "2.2.0"),
         ("api", "auth_backends"): ("api", "auth_backend", "2.3.0"),
         ("database", "sql_alchemy_conn"): ("core", "sql_alchemy_conn", "2.3.0"),
@@ -392,17 +356,6 @@ class AirflowConfigParser(ConfigParser):
         ("fab", "update_fab_perms"): ("webserver", "update_fab_perms", "2.9.0"),
         ("fab", "auth_rate_limited"): ("webserver", "auth_rate_limited", "2.9.0"),
         ("fab", "auth_rate_limit"): ("webserver", "auth_rate_limit", "2.9.0"),
-    }
-
-    # A mapping of new configurations to a list of old configurations for when one configuration
-    # deprecates more than one other deprecation. The deprecation logic for these configurations
-    # is defined in SchedulerJobRunner.
-    many_to_one_deprecated_options: dict[tuple[str, str], list[tuple[str, str, str]]] = {
-        ("scheduler", "task_queued_timeout"): [
-            ("celery", "stalled_task_timeout", "2.6.0"),
-            ("celery", "task_adoption_timeout", "2.6.0"),
-            ("kubernetes_executor", "worker_pods_pending_timeout", "2.6.0"),
-        ]
     }
 
     # A mapping of new section -> (old section, since_version).
