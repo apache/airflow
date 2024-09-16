@@ -98,6 +98,7 @@ from airflow.exceptions import (
     XComForMappingNotPushed,
 )
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.models.crossdagcommunication import CrossDagComm
 from airflow.models.log import Log
 from airflow.models.param import ParamsDict
 from airflow.models.taskfail import TaskFail
@@ -2462,6 +2463,19 @@ class TaskInstance(Base, LoggingMixin):
         """
         if dag_id is None:
             dag_id = self.dag_id
+
+        try:
+            if dag_id != self.dag_id:
+                CrossDagComm.add(
+                    type="xcom", 
+                    key=key, 
+                    source_dag_id=dag_id, 
+                    source_task_id=str(task_ids), 
+                    target_dag_id=self.dag_id, 
+                    target_task_id=self.task_id
+                    )
+        except AirflowException:
+            logging.warning("Failed to add record to CrossDagComm table")
 
         query = XCom.get_many(
             key=key,
