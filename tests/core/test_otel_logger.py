@@ -304,15 +304,25 @@ class TestOtelMetrics:
         assert mock_time.call_count == 2
         self.meter.get_meter().create_observable_gauge.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "metrics_consistency_on",
+        [
+            True,
+            False,
+        ],
+    )
     @mock.patch.object(time, "perf_counter", side_effect=[0.0, 3.14])
-    def test_timer_start_and_stop_manually_send_false(self, mock_time, name):
+    def test_timer_start_and_stop_manually_send_false(self, mock_time, metrics_consistency_on, name):
+        protocols.metrics_consistency_on = metrics_consistency_on
+
         timer = self.stats.timer(name)
         timer.start()
         # Perform some task
         timer.stop(send=False)
 
         assert isinstance(timer.duration, float)
-        assert timer.duration == 3.14
+        expected_value = 3140.0 if metrics_consistency_on else 3.14
+        assert timer.duration == expected_value
         assert mock_time.call_count == 2
         self.meter.get_meter().create_observable_gauge.assert_not_called()
 
