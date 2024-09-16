@@ -28,8 +28,8 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
 from airflow.models.variable import Variable
-from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
+from airflow.providers.standard.core.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
 from airflow.utils.session import create_session

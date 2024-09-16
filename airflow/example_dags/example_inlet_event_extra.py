@@ -28,7 +28,7 @@ import datetime
 from airflow.assets import Asset
 from airflow.decorators import task
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
+from airflow.providers.standard.core.operators.bash import BashOperator
 
 asset = Asset("s3://output/1.txt")
 

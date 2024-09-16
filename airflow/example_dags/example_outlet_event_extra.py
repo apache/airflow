@@ -29,7 +29,7 @@ from airflow.assets import Asset
 from airflow.assets.metadata import Metadata
 from airflow.decorators import task
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
+from airflow.providers.standard.core.operators.bash import BashOperator
 
 ds = Asset("s3://output/1.txt")
 

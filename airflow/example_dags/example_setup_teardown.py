@@ -22,7 +22,7 @@ from __future__ import annotations
 import pendulum
 
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
+from airflow.providers.standard.core.operators.bash import BashOperator
 from airflow.utils.task_group import TaskGroup
 
 with DAG(

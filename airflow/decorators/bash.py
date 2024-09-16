@@ -21,7 +21,7 @@ import warnings
 from typing import Any, Callable, Collection, Mapping, Sequence
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
-from airflow.operators.bash import BashOperator
+from airflow.providers.standard.core.operators.bash import BashOperator
 from airflow.utils.context import Context, context_merge
 from airflow.utils.operator_helpers import determine_kwargs
 from airflow.utils.types import NOTSET

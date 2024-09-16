@@ -20,7 +20,6 @@ from datetime import datetime
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
 from airflow.providers.amazon.aws.operators.appflow import (
     AppflowRecordsShortCircuitOperator,
     AppflowRunAfterOperator,
@@ -28,6 +27,7 @@ from airflow.providers.amazon.aws.operators.appflow import (
     AppflowRunDailyOperator,
     AppflowRunFullOperator,
 )
+from airflow.providers.standard.core.operators.bash import BashOperator
 from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()

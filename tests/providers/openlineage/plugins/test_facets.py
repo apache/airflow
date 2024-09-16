@@ -81,7 +81,7 @@ def test_airflow_dag_run_facet():
                 },
                 tasks={
                     "task_0": {
-                        "operator": "airflow.operators.bash.BashOperator",
+                        "operator": "airflow.providers.standard.core.operators.bash.BashOperator",
                         "task_group": None,
                         "emits_ol_events": True,
                         "ui_color": "#f0ede4",

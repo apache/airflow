@@ -40,7 +40,6 @@ from openlineage.client.facet_v2 import (
 from airflow import DAG
 from airflow.models.dagrun import DagRun, DagRunState
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.extractors import OperatorLineage
@@ -51,6 +50,7 @@ from airflow.providers.openlineage.plugins.facets import (
     AirflowStateRunFacet,
 )
 from airflow.providers.openlineage.utils.utils import get_airflow_job_facet
+from airflow.providers.standard.core.operators.bash import BashOperator
 from airflow.utils.task_group import TaskGroup
 from tests.test_utils.config import conf_vars
 

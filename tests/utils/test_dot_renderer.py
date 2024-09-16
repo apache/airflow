@@ -23,9 +23,9 @@ from unittest import mock
 import pytest
 
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
+from airflow.providers.standard.core.operators.bash import BashOperator
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.utils import dot_renderer, timezone
 from airflow.utils.state import State

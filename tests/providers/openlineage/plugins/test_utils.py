@@ -29,7 +29,6 @@ from openlineage.client.utils import RedactMixin
 from pkg_resources import parse_version
 
 from airflow.models import DAG as AIRFLOW_DAG, DagModel
-from airflow.operators.bash import BashOperator
 from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.utils.utils import (
     InfoJsonEncodable,
@@ -41,6 +40,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_fully_qualified_class_name,
     is_operator_disabled,
 )
+from airflow.providers.standard.core.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.log.secrets_masker import _secrets_masker
 from airflow.utils.state import State
@@ -262,7 +262,7 @@ def test_get_fully_qualified_class_name():
     from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 
     result = get_fully_qualified_class_name(BashOperator(task_id="test", bash_command="exit 0;"))
-    assert result == "airflow.operators.bash.BashOperator"
+    assert result == "airflow.providers.standard.core.operators.bash.BashOperator"
 
     result = get_fully_qualified_class_name(OpenLineageAdapter())
     assert result == "airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter"
@@ -278,7 +278,7 @@ def test_is_operator_disabled(mock_disabled_operators):
     assert is_operator_disabled(op) is False
 
     mock_disabled_operators.return_value = {
-        "airflow.operators.bash.BashOperator",
+        "airflow.providers.standard.core.operators.bash.BashOperator",
         "airflow.operators.python.PythonOperator",
     }
     assert is_operator_disabled(op) is True
@@ -303,7 +303,7 @@ def test_includes_full_task_info(mock_include_full_task_info):
 
 @patch("airflow.providers.openlineage.conf.include_full_task_info")
 def test_does_not_include_full_task_info(mock_include_full_task_info):
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.core.operators.bash import BashOperator
 
     mock_include_full_task_info.return_value = False
     # There should be no 'bash_command' in excludes and it's not in includes - so

@@ -480,7 +480,7 @@ It's easier to grab the concept with an example. Let's say that we have the foll
     from airflow import DAG
     from airflow.decorators import task
     from airflow.exceptions import AirflowException
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.core.operators.bash import BashOperator
     from airflow.utils.trigger_rule import TriggerRule
 
 

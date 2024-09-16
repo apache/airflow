@@ -25,7 +25,7 @@ import pendulum
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
+from airflow.providers.standard.core.operators.bash import BashOperator
 
 with DAG(
     dag_id="example_complex",

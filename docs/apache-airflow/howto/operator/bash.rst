@@ -22,7 +22,7 @@
 BashOperator
 ============
 
-Use the :class:`~airflow.operators.bash.BashOperator` to execute
+Use the :class:`~airflow.providers.standard.core.operators.bash.BashOperator` to execute
 commands in a `Bash <https://www.gnu.org/software/bash/>`__ shell. The Bash command or script to execute is
 determined by:
 
@@ -390,7 +390,7 @@ There are numerous possibilities with this type of pre-execution enrichment.
 BashSensor
 ==========
 
-Use the :class:`~airflow.sensors.bash.BashSensor` to use arbitrary command for sensing. The command
+Use the :class:`~airflow.providers.standard.core.sensors.bash.BashSensor` to use arbitrary command for sensing. The command
 should return 0 when it succeeds, any other value otherwise.
 
 .. exampleinclude:: /../../airflow/example_dags/example_sensors.py

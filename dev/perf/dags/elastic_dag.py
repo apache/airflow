@@ -24,7 +24,7 @@ from enum import Enum
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
+from airflow.providers.standard.core.operators.bash import BashOperator
 
 # DAG File used in performance tests. Its shape can be configured by environment variables.
 RE_TIME_DELTA = re.compile(

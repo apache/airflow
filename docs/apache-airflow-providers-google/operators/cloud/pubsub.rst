@@ -101,7 +101,7 @@ Also for this action you can use sensor in the deferrable mode:
     :start-after: [START howto_operator_gcp_pubsub_pull_message_with_operator]
     :end-before: [END howto_operator_gcp_pubsub_pull_message_with_operator]
 
-To pull messages from XCom use the :class:`~airflow.operators.bash.BashOperator`.
+To pull messages from XCom use the :class:`~airflow.providers.standard.core.operators.bash.BashOperator`.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/pubsub/example_pubsub.py
     :language: python

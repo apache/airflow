@@ -26,8 +26,8 @@ from datetime import date, datetime, timedelta
 
 from airflow import DAG
 from airflow.decorators import task
-from airflow.operators.bash import BashOperator
 from airflow.providers.apache.hive.operators.hive import HiveOperator
+from airflow.providers.standard.core.operators.bash import BashOperator
 
 # --------------------------------------------------------------------------------
 # Caveat: This Dag will not run because of missing scripts.

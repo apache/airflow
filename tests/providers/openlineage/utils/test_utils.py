@@ -27,7 +27,6 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagrun import DagRun
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
-from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowJobFacet
@@ -41,6 +40,7 @@ from airflow.providers.openlineage.utils.utils import (
     get_operator_class,
     get_user_provided_run_facets,
 )
+from airflow.providers.standard.core.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
@@ -82,7 +82,7 @@ def test_get_airflow_job_facet():
             },
             tasks={
                 "task_0": {
-                    "operator": "airflow.operators.bash.BashOperator",
+                    "operator": "airflow.providers.standard.core.operators.bash.BashOperator",
                     "task_group": None,
                     "emits_ol_events": True,
                     "ui_color": "#f0ede4",
@@ -166,7 +166,7 @@ def test_get_airflow_dag_run_facet():
 
 
 def test_get_fully_qualified_class_name_serialized_operator():
-    op_module_path = "airflow.operators.bash"
+    op_module_path = "airflow.providers.standard.core.operators.bash"
     op_name = "BashOperator"
 
     op = BashOperator(task_id="test", bash_command="echo 1")
@@ -191,7 +191,7 @@ def test_get_fully_qualified_class_name_mapped_operator():
 
 def test_get_fully_qualified_class_name_bash_operator():
     result = get_fully_qualified_class_name(BashOperator(task_id="test", bash_command="echo 0;"))
-    expected_result = "airflow.operators.bash.BashOperator"
+    expected_result = "airflow.providers.standard.core.operators.bash.BashOperator"
     assert result == expected_result
 
 
@@ -319,7 +319,7 @@ def test_get_tasks_details():
             ],
         },
         "task_0": {
-            "operator": "airflow.operators.bash.BashOperator",
+            "operator": "airflow.providers.standard.core.operators.bash.BashOperator",
             "task_group": None,
             "emits_ol_events": True,
             "ui_color": BashOperator.ui_color,
@@ -360,7 +360,7 @@ def test_get_tasks_details():
             ],
         },
         "task_3": {
-            "operator": "airflow.operators.bash.BashOperator",
+            "operator": "airflow.providers.standard.core.operators.bash.BashOperator",
             "task_group": None,
             "emits_ol_events": True,
             "ui_color": BashOperator.ui_color,
@@ -388,7 +388,7 @@ def test_get_tasks_details():
             ],
         },
         "task_5": {
-            "operator": "airflow.operators.bash.BashOperator",
+            "operator": "airflow.providers.standard.core.operators.bash.BashOperator",
             "task_group": None,
             "emits_ol_events": True,
             "ui_color": BashOperator.ui_color,

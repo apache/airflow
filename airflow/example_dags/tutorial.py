@@ -32,7 +32,7 @@ from datetime import datetime, timedelta
 from airflow.models.dag import DAG
 
 # Operators; we need this to operate!
-from airflow.operators.bash import BashOperator
+from airflow.providers.standard.core.operators.bash import BashOperator
 
 # [END import_module]
 

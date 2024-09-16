@@ -32,7 +32,7 @@ Example Code:
 
     from datetime import datetime, timezone
     from airflow import DAG
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.core.operators.bash import BashOperator
     from airflow.providers.slack.notifications.slack_webhook import send_slack_webhook_notification
 
     dag_failure_slack_webhook_notification = send_slack_webhook_notification(

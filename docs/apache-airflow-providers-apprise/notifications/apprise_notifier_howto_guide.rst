@@ -30,7 +30,7 @@ Example Code:
 
     from datetime import datetime
     from airflow import DAG
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.core.operators.bash import BashOperator
     from airflow.providers.apprise.notifications.apprise import send_apprise_notification
     from apprise import NotifyType
 

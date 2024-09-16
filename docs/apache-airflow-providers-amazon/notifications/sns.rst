@@ -33,7 +33,7 @@ Example Code:
 
     from datetime import datetime
     from airflow import DAG
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.core.operators.bash import BashOperator
     from airflow.providers.amazon.aws.notifications.sns import send_sns_notification
 
     dag_failure_sns_notification = send_sns_notification(

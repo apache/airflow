@@ -59,7 +59,7 @@ Here's an example of using the above notifier:
     from datetime import datetime
 
     from airflow.models.dag import DAG
-    from airflow.operators.bash import BashOperator
+    from airflow.providers.standard.core.operators.bash import BashOperator
 
     from myprovider.notifier import MyNotifier
 

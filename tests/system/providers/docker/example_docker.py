@@ -21,8 +21,8 @@ import os
 from datetime import datetime
 
 from airflow import models
-from airflow.operators.bash import BashOperator
 from airflow.providers.docker.operators.docker import DockerOperator
+from airflow.providers.standard.core.operators.bash import BashOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "docker_test"

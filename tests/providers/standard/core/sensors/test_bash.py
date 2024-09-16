@@ -23,7 +23,7 @@ import pytest
 
 from airflow.exceptions import AirflowFailException, AirflowSensorTimeout
 from airflow.models.dag import DAG
-from airflow.sensors.bash import BashSensor
+from airflow.providers.standard.core.sensors.bash import BashSensor
 
 
 class TestBashSensor:

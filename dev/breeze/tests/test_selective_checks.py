@@ -703,7 +703,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Only Always and common providers tests should run when only common.io and tests/always changed",
         ),
         pytest.param(
-            ("airflow/operators/bash.py",),
+            ("airflow/providers/standard/core/operators/bash.py",),
             {
                 "affected-providers-list-as-string": None,
                 "all-python-versions": "['3.9']",

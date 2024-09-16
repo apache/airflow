@@ -25,7 +25,6 @@ import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
-from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.pubsub import (
     PubSubCreateSubscriptionOperator,
     PubSubCreateTopicOperator,
@@ -35,6 +34,7 @@ from airflow.providers.google.cloud.operators.pubsub import (
     PubSubPullOperator,
 )
 from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor
+from airflow.providers.standard.core.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")

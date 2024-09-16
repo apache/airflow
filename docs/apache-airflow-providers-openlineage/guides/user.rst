@@ -257,13 +257,13 @@ full import paths of Airflow Operators to disable as ``disabled_for_operators`` 
 
     [openlineage]
     transport = {"type": "http", "url": "http://example.com:5000", "endpoint": "api/v1/lineage"}
-    disabled_for_operators = 'airflow.operators.bash.BashOperator;airflow.operators.python.PythonOperator'
+    disabled_for_operators = 'airflow.providers.standard.core.operators.bash.BashOperator;airflow.operators.python.PythonOperator'
 
 ``AIRFLOW__OPENLINEAGE__DISABLED_FOR_OPERATORS`` environment variable is an equivalent.
 
 .. code-block:: ini
 
-  AIRFLOW__OPENLINEAGE__DISABLED_FOR_OPERATORS='airflow.operators.bash.BashOperator;airflow.operators.python.PythonOperator'
+  AIRFLOW__OPENLINEAGE__DISABLED_FOR_OPERATORS='airflow.providers.standard.core.operators.bash.BashOperator;airflow.operators.python.PythonOperator'
 
 Full Task Info
 ^^^^^^^^^^^^^^
