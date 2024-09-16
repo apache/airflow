@@ -634,6 +634,10 @@ class DAG(LoggingMixin):
                     f"requires max_active_runs <= {self.timetable.active_runs_limit}"
                 )
         self.dagrun_timeout = dagrun_timeout
+        if sla_miss_callback:
+            log.warning(
+                "The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1"
+            )
         if default_view in DEFAULT_VIEW_PRESETS:
             self._default_view: str = default_view
         else:
