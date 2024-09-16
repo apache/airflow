@@ -28,6 +28,7 @@ from airflow.providers.amazon.aws.operators.cloud_formation import (
     CloudFormationDeleteStackOperator,
 )
 from airflow.utils import timezone
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 DEFAULT_DATE = timezone.datetime(2019, 1, 1)
 DEFAULT_ARGS = {"owner": "airflow", "start_date": DEFAULT_DATE}
@@ -87,6 +88,20 @@ class TestCloudFormationCreateStackOperator:
             StackName=stack_name, TemplateBody=template_body, TimeoutInMinutes=timeout
         )
 
+    def test_template_fields(self):
+        op = CloudFormationCreateStackOperator(
+            task_id="cf_create_stack_init",
+            stack_name="fake-stack",
+            cloudformation_parameters={},
+            # Generic hooks parameters
+            aws_conn_id="fake-conn-id",
+            region_name="eu-west-1",
+            verify=True,
+            botocore_config={"read_timeout": 42},
+        )
+
+        validate_template_fields(op)
+
 
 class TestCloudFormationDeleteStackOperator:
     def test_init(self):
@@ -125,3 +140,16 @@ class TestCloudFormationDeleteStackOperator:
         operator.execute(MagicMock())
 
         mocked_hook_client.delete_stack.assert_any_call(StackName=stack_name)
+
+    def test_template_fields(self):
+        op = CloudFormationDeleteStackOperator(
+            task_id="cf_delete_stack_init",
+            stack_name="fake-stack",
+            # Generic hooks parameters
+            aws_conn_id="fake-conn-id",
+            region_name="us-east-1",
+            verify=False,
+            botocore_config={"read_timeout": 42},
+        )
+
+        validate_template_fields(op)

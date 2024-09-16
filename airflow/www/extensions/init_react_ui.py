@@ -32,8 +32,9 @@ def init_react_ui(app):
         static_url_path="/ui",
     )
 
-    @bp.route("/ui")
-    def index():
+    @bp.route("/ui", defaults={"page": ""})
+    @bp.route("/ui/<page>")
+    def index(page):
         return bp.send_static_file("index.html")
 
     app.register_blueprint(bp)

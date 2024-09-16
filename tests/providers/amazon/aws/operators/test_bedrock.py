@@ -35,6 +35,7 @@ from airflow.providers.amazon.aws.operators.bedrock import (
     BedrockInvokeModelOperator,
     BedrockRaGOperator,
 )
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
@@ -176,6 +177,9 @@ class TestBedrockCustomizeModelOperator:
         bedrock_hook.get_waiter.assert_not_called()
         self.operator.defer.assert_not_called()
 
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
 
 class TestBedrockCreateProvisionedModelThroughputOperator:
     MODEL_ARN = "testProvisionedModelArn"
@@ -221,6 +225,9 @@ class TestBedrockCreateProvisionedModelThroughputOperator:
         assert response == self.MODEL_ARN
         assert bedrock_hook.get_waiter.call_count == wait_for_completion
         assert self.operator.defer.call_count == deferrable
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
 
 
 class TestBedrockCreateKnowledgeBaseOperator:
@@ -288,6 +295,9 @@ class TestBedrockCreateKnowledgeBaseOperator:
 
         assert result == self.KNOWLEDGE_BASE_ID
 
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
+
 
 class TestBedrockCreateDataSourceOperator:
     DATA_SOURCE_ID = "data_source_id"
@@ -316,6 +326,9 @@ class TestBedrockCreateDataSourceOperator:
         result = self.operator.execute({})
 
         assert result == self.DATA_SOURCE_ID
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
 
 
 class TestBedrockIngestDataOperator:
@@ -347,6 +360,9 @@ class TestBedrockIngestDataOperator:
         result = self.operator.execute({})
 
         assert result == self.INGESTION_JOB_ID
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)
 
 
 class TestBedrockRaGOperator:
@@ -520,3 +536,14 @@ class TestBedrockRaGOperator:
                 **expected_config_without_template,
                 **expected_config_template,
             }
+
+    def test_template_fields(self):
+        op = BedrockRaGOperator(
+            task_id="test_rag",
+            input="some text prompt",
+            source_type="EXTERNAL_SOURCES",
+            model_arn=self.MODEL_ARN,
+            knowledge_base_id=self.KNOWLEDGE_BASE_ID,
+            vector_search_config=self.VECTOR_SEARCH_CONFIG,
+        )
+        validate_template_fields(op)
