@@ -1,0 +1,6 @@
+**Breaking Change**
+
+The ``airflow.models.taskMixin.TaskMixin`` class has been removed. It was previously
+deprecated in favor of the ``airflow.models.taskMixin.DependencyMixin`` class.
+If your code relies on ``TaskMixin``, please update it to use ``DependencyMixin`` instead
+to ensure compatibility with Airflow 3.0 and beyond.

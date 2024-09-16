@@ -43,7 +43,7 @@ def mocked_hook():
 @pytest.mark.db_test
 class TestSqlToSlackWebhookOperator:
     def setup_method(self):
-        self.example_dag = DAG(TEST_DAG_ID, start_date=DEFAULT_DATE)
+        self.example_dag = DAG(TEST_DAG_ID, schedule=None, start_date=DEFAULT_DATE)
         self.default_hook_parameters = {"timeout": None, "proxy": None, "retry_handlers": None}
 
     @staticmethod

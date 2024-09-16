@@ -534,8 +534,6 @@ Customizing the image
 .. warning::
 
     In Dockerfiles released in Airflow 2.8.0, images are based on ``Debian Bookworm`` images as base images.
-    For Dockerfiles released as part of 2.8.* series you can still choose - deprecated now - ``Debian Bullseye``
-    image as base images, but this possibility will be removed in 2.9.0.
 
 .. note::
     You can usually use the latest ``Dockerfile`` released by Airflow to build previous Airflow versions.
@@ -773,25 +771,6 @@ The ``jre-headless`` does not require recompiling so it can be installed as the 
     :language: bash
     :start-after: [START build]
     :end-before: [END build]
-
-.. _image-build-bullseye:
-
-Building Debian Bullseye-based images
-.....................................
-
-.. warning::
-
-  By default Airflow images as of Airflow 2.8.0 are based on ``Debian Bookworm``. However, you can also
-  build images based on - deprecated - ``Debian Bullseye``. This option will be removed in the
-  Dockerfile released in Airflow 2.9.0
-
-The following example builds the production image in version ``3.8`` based on ``Debian Bullseye`` base image.
-
-.. exampleinclude:: docker-examples/customizing/debian-bullseye.sh
-    :language: bash
-    :start-after: [START build]
-    :end-before: [END build]
-
 
 .. _image-build-uv:
 

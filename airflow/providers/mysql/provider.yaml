@@ -22,9 +22,10 @@ description: |
     `MySQL <https://www.mysql.com/>`__
 
 state: ready
-source-date-epoch: 1722664188
+source-date-epoch: 1723970439
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 5.7.0
   - 5.6.3
   - 5.6.2
   - 5.6.1
@@ -64,8 +65,8 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.7.0
-  - apache-airflow-providers-common-sql>=1.14.1
+  - apache-airflow>=2.8.0
+  - apache-airflow-providers-common-sql>=1.17.0
   - mysqlclient>=1.4.0
   - mysql-connector-python>=8.0.29
 

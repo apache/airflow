@@ -42,6 +42,7 @@ from airflow.providers.celery.executors.celery_executor import CeleryExecutor
 from airflow.utils import timezone
 from airflow.utils.state import State
 from tests.test_utils import db
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
@@ -185,7 +186,7 @@ class TestCeleryExecutor:
     def test_try_adopt_task_instances_none(self):
         start_date = timezone.utcnow() - timedelta(days=2)
 
-        with DAG("test_try_adopt_task_instances_none"):
+        with DAG("test_try_adopt_task_instances_none", schedule=None):
             task_1 = BaseOperator(task_id="task_1", start_date=start_date)
 
         key1 = TaskInstance(task=task_1, run_id=None)
@@ -200,7 +201,7 @@ class TestCeleryExecutor:
     def test_try_adopt_task_instances(self):
         start_date = timezone.utcnow() - timedelta(days=2)
 
-        with DAG("test_try_adopt_task_instances_none") as dag:
+        with DAG("test_try_adopt_task_instances_none", schedule=None) as dag:
             task_1 = BaseOperator(task_id="task_1", start_date=start_date)
             task_2 = BaseOperator(task_id="task_2", start_date=start_date)
 
@@ -219,8 +220,8 @@ class TestCeleryExecutor:
 
         not_adopted_tis = executor.try_adopt_task_instances(tis)
 
-        key_1 = TaskInstanceKey(dag.dag_id, task_1.task_id, None, 0)
-        key_2 = TaskInstanceKey(dag.dag_id, task_2.task_id, None, 0)
+        key_1 = TaskInstanceKey(dag.dag_id, task_1.task_id, None, 0 if AIRFLOW_V_2_10_PLUS else 1)
+        key_2 = TaskInstanceKey(dag.dag_id, task_2.task_id, None, 0 if AIRFLOW_V_2_10_PLUS else 1)
         assert executor.running == {key_1, key_2}
 
         assert executor.tasks == {key_1: AsyncResult("231"), key_2: AsyncResult("232")}
@@ -237,7 +238,7 @@ class TestCeleryExecutor:
     def test_cleanup_stuck_queued_tasks(self, mock_fail):
         start_date = timezone.utcnow() - timedelta(days=2)
 
-        with DAG("test_cleanup_stuck_queued_tasks_failed"):
+        with DAG("test_cleanup_stuck_queued_tasks_failed", schedule=None):
             task = BaseOperator(task_id="task_1", start_date=start_date)
 
         ti = TaskInstance(task=task, run_id=None)

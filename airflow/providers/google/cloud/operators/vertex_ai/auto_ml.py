@@ -22,7 +22,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from deprecated import deprecated
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform import datasets
@@ -37,6 +36,7 @@ from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAITrainingPipelinesLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.deprecated import deprecated
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -642,8 +642,8 @@ class DeleteAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
 
     @property
     @deprecated(
-        reason="`training_pipeline` is deprecated and will be removed in the future. "
-        "Please use `training_pipeline_id` instead.",
+        planned_removal_date="March 01, 2025",
+        use_instead="training_pipeline_id",
         category=AirflowProviderDeprecationWarning,
     )
     def training_pipeline(self):

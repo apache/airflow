@@ -44,6 +44,7 @@ from airflow.providers.amazon.aws.operators.rds import (
 )
 from airflow.providers.amazon.aws.triggers.rds import RdsDbAvailableTrigger, RdsDbStoppedTrigger
 from airflow.utils import timezone
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
@@ -146,7 +147,11 @@ class TestBaseRdsOperator:
 
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.op = RdsBaseOperator(task_id="test_task", aws_conn_id="aws_default", dag=cls.dag)
 
     @classmethod
@@ -162,7 +167,11 @@ class TestBaseRdsOperator:
 class TestRdsCreateDbSnapshotOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 
@@ -257,11 +266,25 @@ class TestRdsCreateDbSnapshotOperator:
         assert len(cluster_snapshots) == 1
         mock_wait.assert_not_called()
 
+    def test_template_fields(self):
+        operator = RdsCreateDbSnapshotOperator(
+            task_id="test_instance_",
+            db_type="instance",
+            db_snapshot_identifier=DB_INSTANCE_SNAPSHOT,
+            db_identifier=DB_INSTANCE_NAME,
+            aws_conn_id=AWS_CONN,
+        )
+        validate_template_fields(operator)
+
 
 class TestRdsCopyDbSnapshotOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 
@@ -363,11 +386,25 @@ class TestRdsCopyDbSnapshotOperator:
         assert len(cluster_snapshots) == 1
         mock_await_status.assert_not_called()
 
+    def test_template_fields(self):
+        operator = RdsCopyDbSnapshotOperator(
+            task_id="test_cluster_no_wait",
+            db_type="cluster",
+            source_db_snapshot_identifier=DB_CLUSTER_SNAPSHOT,
+            target_db_snapshot_identifier=DB_CLUSTER_SNAPSHOT_COPY,
+            aws_conn_id=AWS_CONN,
+        )
+        validate_template_fields(operator)
+
 
 class TestRdsDeleteDbSnapshotOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 
@@ -466,11 +503,25 @@ class TestRdsDeleteDbSnapshotOperator:
         with pytest.raises(self.hook.conn.exceptions.ClientError):
             self.hook.conn.describe_db_cluster_snapshots(DBClusterSnapshotIdentifier=DB_CLUSTER_SNAPSHOT)
 
+    def test_template_fields(self):
+        operator = RdsDeleteDbSnapshotOperator(
+            task_id="test_delete_db_cluster_snapshot_no_wait",
+            db_type="cluster",
+            db_snapshot_identifier=DB_CLUSTER_SNAPSHOT,
+            aws_conn_id=AWS_CONN,
+            wait_for_completion=False,
+        )
+        validate_template_fields(operator)
+
 
 class TestRdsStartExportTaskOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 
@@ -532,11 +583,28 @@ class TestRdsStartExportTaskOperator:
         assert export_tasks[0]["Status"] == "complete"
         mock_await_status.assert_not_called()
 
+    def test_template_fields(self):
+        operator = RdsStartExportTaskOperator(
+            task_id="test_start_no_wait",
+            export_task_identifier=EXPORT_TASK_NAME,
+            source_arn=EXPORT_TASK_SOURCE,
+            iam_role_arn=EXPORT_TASK_ROLE_ARN,
+            kms_key_id=EXPORT_TASK_KMS,
+            s3_bucket_name=EXPORT_TASK_BUCKET,
+            aws_conn_id=AWS_CONN,
+            wait_for_completion=False,
+        )
+        validate_template_fields(operator)
+
 
 class TestRdsCancelExportTaskOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 
@@ -592,11 +660,23 @@ class TestRdsCancelExportTaskOperator:
         assert export_tasks[0]["Status"] == "canceled"
         mock_await_status.assert_not_called()
 
+    def test_template_fields(self):
+        operator = RdsCancelExportTaskOperator(
+            task_id="test_cancel",
+            export_task_identifier=EXPORT_TASK_NAME,
+            aws_conn_id=AWS_CONN,
+        )
+        validate_template_fields(operator)
+
 
 class TestRdsCreateEventSubscriptionOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 
@@ -654,11 +734,26 @@ class TestRdsCreateEventSubscriptionOperator:
         assert subscriptions[0]["Status"] == "active"
         mock_await_status.assert_not_called()
 
+    def test_template_fields(self):
+        operator = RdsCreateEventSubscriptionOperator(
+            task_id="test_create",
+            subscription_name=SUBSCRIPTION_NAME,
+            sns_topic_arn=SUBSCRIPTION_TOPIC,
+            source_type="db-instance",
+            source_ids=[DB_INSTANCE_NAME],
+            aws_conn_id=AWS_CONN,
+        )
+        validate_template_fields(operator)
+
 
 class TestRdsDeleteEventSubscriptionOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 
@@ -683,11 +778,23 @@ class TestRdsDeleteEventSubscriptionOperator:
         with pytest.raises(self.hook.conn.exceptions.ClientError):
             self.hook.conn.describe_event_subscriptions(SubscriptionName=EXPORT_TASK_NAME)
 
+    def test_template_fields(self):
+        operator = RdsDeleteEventSubscriptionOperator(
+            task_id="test_delete",
+            subscription_name=SUBSCRIPTION_NAME,
+            aws_conn_id=AWS_CONN,
+        )
+        validate_template_fields(operator)
+
 
 class TestRdsCreateDbInstanceOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 
@@ -745,11 +852,28 @@ class TestRdsCreateDbInstanceOperator:
         assert db_instances[0]["DBInstanceStatus"] == "available"
         mock_await_status.assert_not_called()
 
+    def test_template_fields(self):
+        operator = RdsCreateDbInstanceOperator(
+            task_id="test_create_db_instance",
+            db_instance_identifier=DB_INSTANCE_NAME,
+            db_instance_class="db.m5.large",
+            engine="postgres",
+            rds_kwargs={
+                "DBName": DB_INSTANCE_NAME,
+            },
+            aws_conn_id=AWS_CONN,
+        )
+        validate_template_fields(operator)
+
 
 class TestRdsDeleteDbInstanceOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 
@@ -799,11 +923,27 @@ class TestRdsDeleteDbInstanceOperator:
             self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
         mock_await_status.assert_not_called()
 
+    def test_template_fields(self):
+        operator = RdsDeleteDbInstanceOperator(
+            task_id="test_delete_db_instance_no_wait",
+            db_instance_identifier=DB_INSTANCE_NAME,
+            rds_kwargs={
+                "SkipFinalSnapshot": True,
+            },
+            aws_conn_id=AWS_CONN,
+            wait_for_completion=False,
+        )
+        validate_template_fields(operator)
+
 
 class TestRdsStopDbOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 
@@ -899,11 +1039,24 @@ class TestRdsStopDbOperator:
         )
         assert warning_message in caplog.text
 
+    def test_template_fields(self):
+        operator = RdsStopDbOperator(
+            task_id="test_stop_db_cluster",
+            db_identifier=DB_CLUSTER_NAME,
+            db_type="cluster",
+            db_snapshot_identifier=DB_CLUSTER_SNAPSHOT,
+        )
+        validate_template_fields(operator)
+
 
 class TestRdsStartDbOperator:
     @classmethod
     def setup_class(cls):
-        cls.dag = DAG("test_dag", default_args={"owner": "airflow", "start_date": DEFAULT_DATE})
+        cls.dag = DAG(
+            dag_id="test_dag",
+            schedule=None,
+            default_args={"owner": "airflow", "start_date": DEFAULT_DATE},
+        )
         cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name="us-east-1")
         _patch_hook_get_connection(cls.hook)
 
@@ -960,3 +1113,9 @@ class TestRdsStartDbOperator:
             op.execute({})
 
         assert isinstance(defer.value.trigger, RdsDbAvailableTrigger)
+
+    def test_template_fields(self):
+        operator = RdsStartDbOperator(
+            task_id="test_start_db_cluster", db_identifier=DB_CLUSTER_NAME, db_type="cluster"
+        )
+        validate_template_fields(operator)

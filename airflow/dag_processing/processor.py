@@ -688,8 +688,6 @@ class DagFileProcessor(LoggingMixin):
         pool_dict: dict[str, set[str]] = {}
         for dag in dagbag.dags.values():
             pool_dict.update(get_pools(dag))
-            for subdag in dag.subdags:
-                pool_dict.update(get_pools(subdag))
         dag_ids = {dag.dag_id for dag in dagbag.dags.values()}
         return DagFileProcessor._validate_task_pools_and_update_dag_warnings(pool_dict, dag_ids)
 

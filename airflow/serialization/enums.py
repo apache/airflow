@@ -46,6 +46,7 @@ class DagAttributeTypes(str, Enum):
     RELATIVEDELTA = "relativedelta"
     BASE_TRIGGER = "base_trigger"
     AIRFLOW_EXC_SER = "airflow_exc_ser"
+    BASE_EXC_SER = "base_exc_ser"
     DICT = "dict"
     SET = "set"
     TUPLE = "tuple"

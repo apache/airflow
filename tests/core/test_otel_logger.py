@@ -25,6 +25,7 @@ import pytest
 from opentelemetry.metrics import MeterProvider
 
 from airflow.exceptions import InvalidStatsNameException
+from airflow.metrics import otel_logger, protocols
 from airflow.metrics.otel_logger import (
     OTEL_NAME_MAX_LENGTH,
     UP_DOWN_COUNTERS,
@@ -234,12 +235,22 @@ class TestOtelMetrics:
 
         assert self.map[full_name(name)].value == 1
 
-    def test_timing_new_metric(self, name):
-        self.stats.timing(name, dt=123)
+    @pytest.mark.parametrize(
+        "metrics_consistency_on",
+        [True, False],
+    )
+    def test_timing_new_metric(self, metrics_consistency_on, name):
+        import datetime
+
+        otel_logger.metrics_consistency_on = metrics_consistency_on
+
+        self.stats.timing(name, dt=datetime.timedelta(seconds=123))
 
         self.meter.get_meter().create_observable_gauge.assert_called_once_with(
             name=full_name(name), callbacks=ANY
         )
+        expected_value = 123000.0 if metrics_consistency_on else 123
+        assert self.map[full_name(name)].value == expected_value
 
     def test_timing_new_metric_with_tags(self, name):
         tags = {"hello": "world"}
@@ -265,13 +276,19 @@ class TestOtelMetrics:
     #   time.perf_count() is called once to get the starting timestamp and again
     #   to get the end timestamp.  timer() should return the difference as a float.
 
+    @pytest.mark.parametrize(
+        "metrics_consistency_on",
+        [True, False],
+    )
     @mock.patch.object(time, "perf_counter", side_effect=[0.0, 3.14])
-    def test_timer_with_name_returns_float_and_stores_value(self, mock_time, name):
+    def test_timer_with_name_returns_float_and_stores_value(self, mock_time, metrics_consistency_on, name):
+        protocols.metrics_consistency_on = metrics_consistency_on
         with self.stats.timer(name) as timer:
             pass
 
         assert isinstance(timer.duration, float)
-        assert timer.duration == 3.14
+        expected_duration = 3140.0 if metrics_consistency_on else 3.14
+        assert timer.duration == expected_duration
         assert mock_time.call_count == 2
         self.meter.get_meter().create_observable_gauge.assert_called_once_with(
             name=full_name(name), callbacks=ANY
@@ -287,15 +304,25 @@ class TestOtelMetrics:
         assert mock_time.call_count == 2
         self.meter.get_meter().create_observable_gauge.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "metrics_consistency_on",
+        [
+            True,
+            False,
+        ],
+    )
     @mock.patch.object(time, "perf_counter", side_effect=[0.0, 3.14])
-    def test_timer_start_and_stop_manually_send_false(self, mock_time, name):
+    def test_timer_start_and_stop_manually_send_false(self, mock_time, metrics_consistency_on, name):
+        protocols.metrics_consistency_on = metrics_consistency_on
+
         timer = self.stats.timer(name)
         timer.start()
         # Perform some task
         timer.stop(send=False)
 
         assert isinstance(timer.duration, float)
-        assert timer.duration == 3.14
+        expected_value = 3140.0 if metrics_consistency_on else 3.14
+        assert timer.duration == expected_value
         assert mock_time.call_count == 2
         self.meter.get_meter().create_observable_gauge.assert_not_called()
 

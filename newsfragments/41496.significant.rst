@@ -1,0 +1,5 @@
+Removed deprecated methods in airflow/utils/dates.py
+
+Methods removed:
+  * date_range
+  * days_ago (Use ``pendulum.today('UTC').add(days=-N, ...)``)

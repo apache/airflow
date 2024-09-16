@@ -36,7 +36,7 @@ github_client_mock = Mock(name="github_client_for_test")
 class TestGithubSensor:
     def setup_class(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG("test_dag_id", default_args=args)
+        dag = DAG("test_dag_id", schedule=None, default_args=args)
         self.dag = dag
         db.merge_conn(
             Connection(

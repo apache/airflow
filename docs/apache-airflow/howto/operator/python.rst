@@ -247,9 +247,11 @@ With some limitations, you can also use ``Context`` in virtual environments.
 
     You can also use ``get_current_context()`` in the same way as before, but with some limitations.
 
-    * set ``use_airflow_context`` to ``True`` to call ``get_current_context()`` in the virtual environment.
+    * Requires ``pydantic>=2``.
 
-    * set ``system_site_packages`` to ``True`` or set ``expect_airflow`` to ``True``
+    * Set ``use_airflow_context`` to ``True`` to call ``get_current_context()`` in the virtual environment.
+
+    * Set ``system_site_packages`` to ``True`` or set ``expect_airflow`` to ``True``
 
 .. tab-set::
 

@@ -488,11 +488,6 @@ labelPRBasedOnFilePath:
     - tests/providers/tableau/**/*
     - tests/system/providers/tableau/**/*
 
-  provider:tabular:
-    - airflow/providers/tabular/**/*
-    - docs/apache-airflow-providers-tabular/**/*
-    - tests/providers/tabular/**/*
-
   provider:telegram:
     - airflow/providers/telegram/**/*
     - docs/apache-airflow-providers-telegram/**/*
@@ -549,12 +544,9 @@ labelPRBasedOnFilePath:
   area:API:
     - airflow/api/**/*
     - airflow/api_connexion/**/*
-    - airflow/www/api/**/*
     - clients/**/*
-    - docs/apache-airflow/deprecated-rest-api-ref.rst
     - docs/apache-airflow/stable-rest-api-ref.rst
     - tests/api_connexion/**/*
-    - tests/www/api/**/*
 
   area:dev-tools:
     - scripts/**/*
@@ -600,6 +592,7 @@ labelPRBasedOnFilePath:
     - airflow/www/webpack.config.js
     - airflow/www/yarn.lock
     - docs/apache-airflow/ui.rst
+    - airflow/ui/**/*
 
   area:CLI:
     - airflow/cli/**/*.py

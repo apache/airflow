@@ -32,7 +32,7 @@ from abc import ABCMeta, abstractmethod
 from collections.abc import Container
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence
 
 import lazy_object_proxy
 
@@ -49,6 +49,7 @@ from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.models.variable import Variable
 from airflow.operators.branch import BranchMixIn
+from airflow.settings import _ENABLE_AIP_44
 from airflow.typing_compat import Literal
 from airflow.utils import hashlib_wrapper
 from airflow.utils.context import context_copy_partial, context_get_outlet_events, context_merge
@@ -61,8 +62,6 @@ from airflow.utils.session import create_session
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from pendulum.datetime import DateTime
-
     from airflow.serialization.enums import Encoding
     from airflow.utils.context import Context
 
@@ -339,7 +338,6 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
         self.skip(
             dag_run=dag_run,
-            execution_date=cast("DateTime", dag_run.execution_date),
             tasks=to_skip,
             map_index=context["ti"].map_index,
         )
@@ -484,6 +482,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 f"Expected one of {', '.join(map(repr, _SERIALIZERS))}"
             )
             raise AirflowException(msg)
+
         self.pickling_library = _SERIALIZERS[serializer]
         self.serializer: _SerializerTypeDef = serializer
 
@@ -549,6 +548,10 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             self._write_args(input_path)
             self._write_string_args(string_args_path)
 
+            if self.use_airflow_context and not _ENABLE_AIP_44:
+                error_msg = "`get_current_context()` needs to be used with AIP-44 enabled."
+                raise AirflowException(error_msg)
+
             jinja_context = {
                 "op_args": self.op_args,
                 "op_kwargs": op_kwargs,
@@ -571,10 +574,6 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
                 from airflow.serialization.serialized_objects import BaseSerialization
 
                 context = get_current_context()
-                # TODO: `TaskInstance`` will also soon be serialized as expected.
-                # see more:
-                #   https://github.com/apache/airflow/issues/40974
-                #   https://github.com/apache/airflow/pull/41067
                 with create_session() as session:
                     # FIXME: DetachedInstanceError
                     dag_run, task_instance = context["dag_run"], context["task_instance"]

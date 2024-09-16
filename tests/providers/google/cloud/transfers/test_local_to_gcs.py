@@ -40,7 +40,7 @@ class TestFileToGcsOperator:
 
     def setup_method(self):
         args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
         self.testfile1 = "/tmp/fake1.csv"
         with open(self.testfile1, "wb") as f:
             f.write(b"x" * 393216)

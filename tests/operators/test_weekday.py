@@ -32,6 +32,10 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.weekday import WeekDay
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -100,12 +104,14 @@ class TestBranchDayOfWeekOperator:
             branch_2.set_upstream(branch_op)
             branch_3.set_upstream(branch_op)
 
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag_maker.create_dagrun(
             run_id="manual__",
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -138,12 +144,15 @@ class TestBranchDayOfWeekOperator:
             branch_1.set_upstream(branch_op)
             branch_2.set_upstream(branch_op)
 
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+
         dr = dag_maker.create_dagrun(
             run_id="manual__",
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -174,12 +183,15 @@ class TestBranchDayOfWeekOperator:
             branch_1.set_upstream(branch_op)
             branch_2.set_upstream(branch_op)
 
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+
         dr = dag_maker.create_dagrun(
             run_id="manual__",
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -271,12 +283,15 @@ class TestBranchDayOfWeekOperator:
             branch_1.set_upstream(branch_op)
             branch_2.set_upstream(branch_op)
 
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+
         dr = dag_maker.create_dagrun(
             run_id="manual__",
             start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
 
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
@@ -285,23 +300,3 @@ class TestBranchDayOfWeekOperator:
         for ti in tis:
             if ti.task_id == "make_choice":
                 assert ti.xcom_pull(task_ids="make_choice") == "branch_1"
-
-    def test_deprecation_warning(self, dag_maker):
-        warning_message = (
-            """Parameter ``use_task_execution_day`` is deprecated. Use ``use_task_logical_date``."""
-        )
-        with pytest.warns(DeprecationWarning) as warnings:
-            with dag_maker(
-                "branch_day_of_week_operator_test",
-                start_date=DEFAULT_DATE,
-                schedule=INTERVAL,
-                serialized=True,
-            ):
-                BranchDayOfWeekOperator(
-                    task_id="week_day_warn",
-                    follow_task_ids_if_true="branch_1",
-                    follow_task_ids_if_false="branch_2",
-                    week_day="Monday",
-                    use_task_execution_day=True,
-                )
-        assert warning_message == str(warnings[0].message)

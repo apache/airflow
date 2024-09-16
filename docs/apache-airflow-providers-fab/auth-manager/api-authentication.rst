@@ -43,24 +43,7 @@ command as in the example below.
 .. code-block:: console
 
     $ airflow config get-value api auth_backends
-    airflow.api.auth.backend.basic_auth
-
-Disable authentication
-''''''''''''''''''''''
-
-If you wish to have the experimental API work, and aware of the risks of enabling this without authentication
-(or if you have your own authentication layer in front of Airflow) you can set the following in ``airflow.cfg``:
-
-.. code-block:: ini
-
-    [api]
-    auth_backends = airflow.api.auth.backend.default
-
-.. note::
-
-    You can only disable authentication for experimental API, not the stable REST API.
-
-See :doc:`apache-airflow:administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
+    airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
 
 Kerberos authentication
 '''''''''''''''''''''''
@@ -95,7 +78,7 @@ To enable basic authentication, set the following in the configuration:
 .. code-block:: ini
 
     [api]
-    auth_backends = airflow.api.auth.backend.basic_auth
+    auth_backends = airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
 
 Username and password needs to be base64 encoded and send through the
 ``Authorization`` HTTP header in the following format:

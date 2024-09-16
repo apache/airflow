@@ -40,7 +40,7 @@ from openlineage.client.uuid import generate_static_uuid
 from airflow.providers.openlineage import __version__ as OPENLINEAGE_PROVIDER_VERSION, conf
 from airflow.providers.openlineage.utils.utils import (
     OpenLineageRedactor,
-    get_airflow_dag_run_facet,
+    get_airflow_debug_facet,
     get_airflow_state_run_facet,
 )
 from airflow.stats import Stats
@@ -49,9 +49,9 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 if TYPE_CHECKING:
     from datetime import datetime
 
-    from airflow.models.dagrun import DagRun
     from airflow.providers.openlineage.extractors import OperatorLineage
     from airflow.utils.log.secrets_masker import SecretsMasker
+    from airflow.utils.state import DagRunState
 
 _PRODUCER = f"https://github.com/apache/airflow/tree/providers-openlineage/{OPENLINEAGE_PROVIDER_VERSION}"
 
@@ -117,10 +117,10 @@ class OpenLineageAdapter(LoggingMixin):
             return yaml.safe_load(config_file)
 
     @staticmethod
-    def build_dag_run_id(dag_id: str, execution_date: datetime) -> str:
+    def build_dag_run_id(dag_id: str, logical_date: datetime) -> str:
         return str(
             generate_static_uuid(
-                instant=execution_date,
+                instant=logical_date,
                 data=f"{conf.namespace()}.{dag_id}".encode(),
             )
         )
@@ -335,33 +335,36 @@ class OpenLineageAdapter(LoggingMixin):
 
     def dag_started(
         self,
-        dag_run: DagRun,
-        msg: str,
+        dag_id: str,
+        logical_date: datetime,
+        start_date: datetime,
         nominal_start_time: str,
         nominal_end_time: str,
+        owners: list[str],
+        run_facets: dict[str, RunFacet],
+        description: str | None = None,
         job_facets: dict[str, JobFacet] | None = None,  # Custom job facets
     ):
         try:
-            owner = [x.strip() for x in dag_run.dag.owner.split(",")] if dag_run.dag else None
             event = RunEvent(
                 eventType=RunState.START,
-                eventTime=dag_run.start_date.isoformat(),
+                eventTime=start_date.isoformat(),
                 job=self._build_job(
-                    job_name=dag_run.dag_id,
+                    job_name=dag_id,
                     job_type=_JOB_TYPE_DAG,
-                    job_description=dag_run.dag.description if dag_run.dag else None,
-                    owners=owner,
+                    job_description=description,
+                    owners=owners,
                     job_facets=job_facets,
                 ),
                 run=self._build_run(
                     run_id=self.build_dag_run_id(
-                        dag_id=dag_run.dag_id,
-                        execution_date=dag_run.execution_date,
+                        dag_id=dag_id,
+                        logical_date=logical_date,
                     ),
-                    job_name=dag_run.dag_id,
+                    job_name=dag_id,
                     nominal_start_time=nominal_start_time,
                     nominal_end_time=nominal_end_time,
-                    run_facets=get_airflow_dag_run_facet(dag_run),
+                    run_facets={**run_facets, **get_airflow_debug_facet()},
                 ),
                 inputs=[],
                 outputs=[],
@@ -374,18 +377,29 @@ class OpenLineageAdapter(LoggingMixin):
             # This part cannot be wrapped to deduplicate code, otherwise the method cannot be pickled in multiprocessing.
             self.log.warning("Failed to emit DAG started event: \n %s", traceback.format_exc())
 
-    def dag_success(self, dag_run: DagRun, msg: str):
+    def dag_success(
+        self,
+        dag_id: str,
+        run_id: str,
+        end_date: datetime,
+        logical_date: datetime,
+        dag_run_state: DagRunState,
+        task_ids: list[str],
+    ):
         try:
             event = RunEvent(
                 eventType=RunState.COMPLETE,
-                eventTime=dag_run.end_date.isoformat(),
-                job=self._build_job(job_name=dag_run.dag_id, job_type=_JOB_TYPE_DAG),
+                eventTime=end_date.isoformat(),
+                job=self._build_job(job_name=dag_id, job_type=_JOB_TYPE_DAG),
                 run=Run(
                     runId=self.build_dag_run_id(
-                        dag_id=dag_run.dag_id,
-                        execution_date=dag_run.execution_date,
+                        dag_id=dag_id,
+                        logical_date=logical_date,
                     ),
-                    facets={**get_airflow_state_run_facet(dag_run)},
+                    facets={
+                        **get_airflow_state_run_facet(dag_id, run_id, task_ids, dag_run_state),
+                        **get_airflow_debug_facet(),
+                    },
                 ),
                 inputs=[],
                 outputs=[],
@@ -398,22 +412,32 @@ class OpenLineageAdapter(LoggingMixin):
             # This part cannot be wrapped to deduplicate code, otherwise the method cannot be pickled in multiprocessing.
             self.log.warning("Failed to emit DAG success event: \n %s", traceback.format_exc())
 
-    def dag_failed(self, dag_run: DagRun, msg: str):
+    def dag_failed(
+        self,
+        dag_id: str,
+        run_id: str,
+        end_date: datetime,
+        logical_date: datetime,
+        dag_run_state: DagRunState,
+        task_ids: list[str],
+        msg: str,
+    ):
         try:
             event = RunEvent(
                 eventType=RunState.FAIL,
-                eventTime=dag_run.end_date.isoformat(),
-                job=self._build_job(job_name=dag_run.dag_id, job_type=_JOB_TYPE_DAG),
+                eventTime=end_date.isoformat(),
+                job=self._build_job(job_name=dag_id, job_type=_JOB_TYPE_DAG),
                 run=Run(
                     runId=self.build_dag_run_id(
-                        dag_id=dag_run.dag_id,
-                        execution_date=dag_run.execution_date,
+                        dag_id=dag_id,
+                        logical_date=logical_date,
                     ),
                     facets={
                         "errorMessage": error_message_run.ErrorMessageRunFacet(
                             message=msg, programmingLanguage="python"
                         ),
-                        **get_airflow_state_run_facet(dag_run),
+                        **get_airflow_state_run_facet(dag_id, run_id, task_ids, dag_run_state),
+                        **get_airflow_debug_facet(),
                     },
                 ),
                 inputs=[],

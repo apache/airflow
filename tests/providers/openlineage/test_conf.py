@@ -28,6 +28,7 @@ from airflow.providers.openlineage.conf import (
     custom_extractors,
     custom_run_facets,
     dag_state_change_process_pool_size,
+    debug_mode,
     disabled_operators,
     execution_timeout,
     include_full_task_info,
@@ -58,6 +59,7 @@ _VAR_URL = "OPENLINEAGE_URL"
 _CONFIG_OPTION_SELECTIVE_ENABLE = "selective_enable"
 _CONFIG_OPTION_DAG_STATE_CHANGE_PROCESS_POOL_SIZE = "dag_state_change_process_pool_size"
 _CONFIG_OPTION_INCLUDE_FULL_TASK_INFO = "include_full_task_info"
+_CONFIG_OPTION_DEBUG_MODE = "debug_mode"
 
 _BOOL_PARAMS = (
     ("1", True),
@@ -577,3 +579,35 @@ def test_include_full_task_info_invalid_value_raise_error(var_string):
 @conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_INCLUDE_FULL_TASK_INFO): None})
 def test_include_full_task_info_do_not_fail_if_conf_option_missing():
     assert include_full_task_info() is False
+
+
+@pytest.mark.parametrize(
+    ("var_string", "expected"),
+    _BOOL_PARAMS,
+)
+def test_debug_mode(var_string, expected):
+    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DEBUG_MODE): var_string}):
+        result = debug_mode()
+        assert result is expected
+
+
+@pytest.mark.parametrize(
+    "var_string",
+    (
+        "a",
+        "asdf",
+        "None",
+        "31",
+        "",
+        " ",
+    ),
+)
+def test_debug_mode_invalid_value_raise_error(var_string):
+    with conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DEBUG_MODE): var_string}):
+        with pytest.raises(AirflowConfigException):
+            debug_mode()
+
+
+@conf_vars({(_CONFIG_SECTION, _CONFIG_OPTION_DEBUG_MODE): None})
+def test_debug_mode_do_not_fail_if_conf_option_missing():
+    assert debug_mode() is False

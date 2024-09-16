@@ -90,7 +90,7 @@ def create_context(task, persist_to_db=False, map_index=None):
     if task.has_dag():
         dag = task.dag
     else:
-        dag = DAG(dag_id="dag", start_date=pendulum.now())
+        dag = DAG(dag_id="dag", schedule=None, start_date=pendulum.now())
         dag.add_task(task)
     dag_run = DagRun(
         run_id=DagRun.generate_run_id(DagRunType.MANUAL, DEFAULT_DATE),
@@ -253,6 +253,7 @@ class TestKubernetesPodOperator:
     def test_env_vars(self, input, render_template_as_native_obj, raises_error):
         dag = DAG(
             dag_id="dag",
+            schedule=None,
             start_date=pendulum.now(),
             render_template_as_native_obj=render_template_as_native_obj,
         )
@@ -1347,7 +1348,7 @@ class TestKubernetesPodOperator:
         self, mock_patch_already_checked, mock_delete_pod, task_kwargs, should_fail, should_be_deleted
     ):
         """If we aren't deleting pods mark "checked" if the task completes (successful or otherwise)"""
-        dag = DAG("hello2", start_date=pendulum.now())
+        dag = DAG("hello2", schedule=None, start_date=pendulum.now())
         k = KubernetesPodOperator(
             task_id="task",
             dag=dag,
@@ -1416,7 +1417,7 @@ class TestKubernetesPodOperator:
         )
 
     def test_task_id_as_name_dag_id_is_ignored(self):
-        dag = DAG(dag_id="this_is_a_dag_name", start_date=pendulum.now())
+        dag = DAG(dag_id="this_is_a_dag_name", schedule=None, start_date=pendulum.now())
         k = KubernetesPodOperator(
             task_id="a_very_reasonable_task_name",
             dag=dag,

@@ -29,5 +29,5 @@ args = {
     "start_date": DEFAULT_DATE,
 }
 
-dag = DAG(dag_id="test_heartbeat_failed_fast", default_args=args)
+dag = DAG(dag_id="test_heartbeat_failed_fast", default_args=args, schedule=None)
 task = BashOperator(task_id="test_heartbeat_failed_fast_op", bash_command="sleep 7", dag=dag)

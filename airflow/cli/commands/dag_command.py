@@ -26,7 +26,6 @@ import operator
 import signal
 import subprocess
 import sys
-import warnings
 from typing import TYPE_CHECKING
 
 import re2
@@ -37,7 +36,7 @@ from airflow.api.client import get_current_api_client
 from airflow.api_connexion.schemas.dag_schema import dag_schema
 from airflow.cli.simple_table import AirflowConsole
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException
 from airflow.jobs.job import Job
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.dag import DAG
@@ -50,6 +49,7 @@ from airflow.utils.helpers import ask_yesno
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunTriggeredByType
 
 if TYPE_CHECKING:
     from graphviz.dot import Dot
@@ -87,6 +87,7 @@ def _run_dag_backfill(dags: list[DAG], args) -> None:
                     dag.dag_id,
                     execution_date=dagrun_info.logical_date,
                     data_interval=dagrun_info.data_interval,
+                    triggered_by=DagRunTriggeredByType.CLI,
                 )
 
                 for task in dag.tasks:
@@ -101,7 +102,6 @@ def _run_dag_backfill(dags: list[DAG], args) -> None:
                     start_date=args.start_date,
                     end_date=args.end_date,
                     confirm_prompt=not args.yes,
-                    include_subdags=True,
                     dag_run_state=DagRunState.QUEUED,
                 )
 
@@ -134,21 +134,7 @@ def dag_backfill(args, dag: list[DAG] | DAG | None = None) -> None:
     """Create backfill job or dry run for a DAG or list of DAGs using regex."""
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
     signal.signal(signal.SIGTERM, sigint_handler)
-    if args.ignore_first_depends_on_past:
-        warnings.warn(
-            "--ignore-first-depends-on-past is deprecated as the value is always set to True",
-            category=RemovedInAirflow3Warning,
-            stacklevel=4,
-        )
     args.ignore_first_depends_on_past = True
-
-    if not args.treat_dag_id_as_regex and args.treat_dag_as_regex:
-        warnings.warn(
-            "--treat-dag-as-regex is deprecated, use --treat-dag-id-as-regex instead",
-            category=RemovedInAirflow3Warning,
-            stacklevel=4,
-        )
-        args.treat_dag_id_as_regex = args.treat_dag_as_regex
 
     if not args.start_date and not args.end_date:
         raise AirflowException("Provide a start_date and/or end_date")
@@ -334,10 +320,8 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
     return {
         "dag_id": dag.dag_id,
         "dag_display_name": dag.dag_display_name,
-        "root_dag_id": dag.parent_dag.dag_id if dag.parent_dag else None,
         "is_paused": dag.get_is_paused(),
         "is_active": dag.get_is_active(),
-        "is_subdag": dag.is_subdag,
         "last_parsed_time": None,
         "last_pickled": None,
         "last_expired": None,
@@ -348,7 +332,7 @@ def _get_dagbag_dag_details(dag: DAG) -> dict:
         "file_token": None,
         "owners": dag.owner,
         "description": dag.description,
-        "schedule_interval": dag.schedule_interval,
+        "timetable_summary": dag.timetable.summary,
         "timetable_description": dag.timetable.description,
         "tags": dag.tags,
         "max_active_tasks": dag.max_active_tasks,

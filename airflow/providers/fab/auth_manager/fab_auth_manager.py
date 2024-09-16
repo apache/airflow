@@ -179,7 +179,8 @@ class FabAuthManager(BaseAuthManager):
 
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
-        return not self.get_user().is_anonymous
+        user = self.get_user()
+        return not user.is_anonymous and user.is_active
 
     def is_authorized_configuration(
         self,
@@ -368,6 +369,9 @@ class FabAuthManager(BaseAuthManager):
             return None
         return url_for(f"{self.security_manager.user_view.endpoint}.userinfo")
 
+    def register_views(self) -> None:
+        self.security_manager.register_views()
+
     def _is_authorized(
         self,
         *,
@@ -503,7 +507,7 @@ class FabAuthManager(BaseAuthManager):
 
         :meta private:
         """
-        if "." in dag_id:
+        if "." in dag_id and hasattr(DagModel, "root_dag_id"):
             return self.appbuilder.get_session.scalar(
                 select(DagModel.dag_id, DagModel.root_dag_id).where(DagModel.dag_id == dag_id).limit(1)
             )

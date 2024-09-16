@@ -36,9 +36,13 @@ from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_roles, delete_user
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 from tests.test_utils.www import _check_last_log
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -147,12 +151,13 @@ class TestDagRunEndpoint:
         with create_session() as session:
             session.add(dag_instance)
         dag = DAG(dag_id=dag_id, schedule=None, params={"validated_number": Param(1, minimum=1, maximum=10)})
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.app.dag_bag.bag_dag(dag)
         return dag_instance
 
     def _create_test_dag_run(self, state=DagRunState.RUNNING, extra_dag=False, commit=True, idx_start=1):
         dag_runs = []
         dags = []
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
 
         for i in range(idx_start, idx_start + 2):
             if i == 1:
@@ -165,6 +170,7 @@ class TestDagRunEndpoint:
                 start_date=timezone.parse(self.default_time),
                 external_trigger=True,
                 state=state,
+                **triggered_by_kwargs,
             )
             dagrun_model.updated_at = timezone.parse(self.default_time)
             dag_runs.append(dagrun_model)
@@ -248,6 +254,7 @@ class TestDeleteDagRun(TestDagRunEndpoint):
 
 class TestGetDagRun(TestDagRunEndpoint):
     def test_should_respond_200(self, session):
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dagrun_model = DagRun(
             dag_id="TEST_DAG_ID",
             run_id="TEST_DAG_RUN_ID",
@@ -256,16 +263,9 @@ class TestGetDagRun(TestDagRunEndpoint):
             start_date=timezone.parse(self.default_time),
             external_trigger=True,
             state="running",
+            **triggered_by_kwargs,
         )
-        session.add(dagrun_model)
-        session.commit()
-        result = session.query(DagRun).all()
-        assert len(result) == 1
-        response = self.client.get(
-            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID", environ_overrides={"REMOTE_USER": "test"}
-        )
-        assert response.status_code == 200
-        assert response.json == {
+        expected_response_json = {
             "dag_id": "TEST_DAG_ID",
             "dag_run_id": "TEST_DAG_RUN_ID",
             "end_date": None,
@@ -281,6 +281,16 @@ class TestGetDagRun(TestDagRunEndpoint):
             "run_type": "manual",
             "note": None,
         }
+        expected_response_json.update({"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {})
+        session.add(dagrun_model)
+        session.commit()
+        result = session.query(DagRun).all()
+        assert len(result) == 1
+        response = self.client.get(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID", environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 200
+        assert response.json == expected_response_json
 
     def test_should_respond_404(self):
         response = self.client.get(
@@ -391,6 +401,40 @@ class TestGetDagRun(TestDagRunEndpoint):
 class TestGetDagRuns(TestDagRunEndpoint):
     def test_should_respond_200(self, session):
         self._create_test_dag_run()
+        expected_response_json_1 = {
+            "dag_id": "TEST_DAG_ID",
+            "dag_run_id": "TEST_DAG_RUN_ID_1",
+            "end_date": None,
+            "state": "running",
+            "execution_date": self.default_time,
+            "logical_date": self.default_time,
+            "external_trigger": True,
+            "start_date": self.default_time,
+            "conf": {},
+            "data_interval_end": None,
+            "data_interval_start": None,
+            "last_scheduling_decision": None,
+            "run_type": "manual",
+            "note": None,
+        }
+        expected_response_json_1.update({"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {})
+        expected_response_json_2 = {
+            "dag_id": "TEST_DAG_ID",
+            "dag_run_id": "TEST_DAG_RUN_ID_2",
+            "end_date": None,
+            "state": "running",
+            "execution_date": self.default_time_2,
+            "logical_date": self.default_time_2,
+            "external_trigger": True,
+            "start_date": self.default_time,
+            "conf": {},
+            "data_interval_end": None,
+            "data_interval_start": None,
+            "last_scheduling_decision": None,
+            "run_type": "manual",
+            "note": None,
+        }
+        expected_response_json_2.update({"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {})
         result = session.query(DagRun).all()
         assert len(result) == 2
         response = self.client.get(
@@ -399,38 +443,8 @@ class TestGetDagRuns(TestDagRunEndpoint):
         assert response.status_code == 200
         assert response.json == {
             "dag_runs": [
-                {
-                    "dag_id": "TEST_DAG_ID",
-                    "dag_run_id": "TEST_DAG_RUN_ID_1",
-                    "end_date": None,
-                    "state": "running",
-                    "execution_date": self.default_time,
-                    "logical_date": self.default_time,
-                    "external_trigger": True,
-                    "start_date": self.default_time,
-                    "conf": {},
-                    "data_interval_end": None,
-                    "data_interval_start": None,
-                    "last_scheduling_decision": None,
-                    "run_type": "manual",
-                    "note": None,
-                },
-                {
-                    "dag_id": "TEST_DAG_ID",
-                    "dag_run_id": "TEST_DAG_RUN_ID_2",
-                    "end_date": None,
-                    "state": "running",
-                    "execution_date": self.default_time_2,
-                    "logical_date": self.default_time_2,
-                    "external_trigger": True,
-                    "start_date": self.default_time,
-                    "conf": {},
-                    "data_interval_end": None,
-                    "data_interval_start": None,
-                    "last_scheduling_decision": None,
-                    "run_type": "manual",
-                    "note": None,
-                },
+                expected_response_json_1,
+                expected_response_json_2,
             ],
             "total_entries": 2,
         }
@@ -459,6 +473,41 @@ class TestGetDagRuns(TestDagRunEndpoint):
 
     def test_return_correct_results_with_order_by(self, session):
         self._create_test_dag_run()
+        expected_response_json_2 = {
+            "dag_id": "TEST_DAG_ID",
+            "dag_run_id": "TEST_DAG_RUN_ID_2",
+            "end_date": None,
+            "state": "running",
+            "execution_date": self.default_time_2,
+            "logical_date": self.default_time_2,
+            "external_trigger": True,
+            "start_date": self.default_time,
+            "conf": {},
+            "data_interval_end": None,
+            "data_interval_start": None,
+            "last_scheduling_decision": None,
+            "run_type": "manual",
+            "note": None,
+        }
+        expected_response_json_2.update({"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {})
+        expected_response_json_1 = {
+            "dag_id": "TEST_DAG_ID",
+            "dag_run_id": "TEST_DAG_RUN_ID_1",
+            "end_date": None,
+            "state": "running",
+            "execution_date": self.default_time,
+            "logical_date": self.default_time,
+            "external_trigger": True,
+            "start_date": self.default_time,
+            "conf": {},
+            "data_interval_end": None,
+            "data_interval_start": None,
+            "last_scheduling_decision": None,
+            "run_type": "manual",
+            "note": None,
+        }
+        expected_response_json_1.update({"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {})
+
         result = session.query(DagRun).all()
         assert len(result) == 2
         response = self.client.get(
@@ -471,38 +520,8 @@ class TestGetDagRuns(TestDagRunEndpoint):
         # - means descending
         assert response.json == {
             "dag_runs": [
-                {
-                    "dag_id": "TEST_DAG_ID",
-                    "dag_run_id": "TEST_DAG_RUN_ID_2",
-                    "end_date": None,
-                    "state": "running",
-                    "execution_date": self.default_time_2,
-                    "logical_date": self.default_time_2,
-                    "external_trigger": True,
-                    "start_date": self.default_time,
-                    "conf": {},
-                    "data_interval_end": None,
-                    "data_interval_start": None,
-                    "last_scheduling_decision": None,
-                    "run_type": "manual",
-                    "note": None,
-                },
-                {
-                    "dag_id": "TEST_DAG_ID",
-                    "dag_run_id": "TEST_DAG_RUN_ID_1",
-                    "end_date": None,
-                    "state": "running",
-                    "execution_date": self.default_time,
-                    "logical_date": self.default_time,
-                    "external_trigger": True,
-                    "start_date": self.default_time,
-                    "conf": {},
-                    "data_interval_end": None,
-                    "data_interval_start": None,
-                    "last_scheduling_decision": None,
-                    "run_type": "manual",
-                    "note": None,
-                },
+                expected_response_json_2,
+                expected_response_json_1,
             ],
             "total_entries": 2,
         }
@@ -795,6 +814,42 @@ class TestGetDagRunsEndDateFilters(TestDagRunEndpoint):
 class TestGetDagRunBatch(TestDagRunEndpoint):
     def test_should_respond_200(self):
         self._create_test_dag_run()
+        expected_response_json_1 = {
+            "dag_id": "TEST_DAG_ID",
+            "dag_run_id": "TEST_DAG_RUN_ID_1",
+            "end_date": None,
+            "state": "running",
+            "execution_date": self.default_time,
+            "logical_date": self.default_time,
+            "external_trigger": True,
+            "start_date": self.default_time,
+            "conf": {},
+            "data_interval_end": None,
+            "data_interval_start": None,
+            "last_scheduling_decision": None,
+            "run_type": "manual",
+            "note": None,
+        }
+        expected_response_json_1.update({"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {})
+
+        expected_response_json_2 = {
+            "dag_id": "TEST_DAG_ID",
+            "dag_run_id": "TEST_DAG_RUN_ID_2",
+            "end_date": None,
+            "state": "running",
+            "execution_date": self.default_time_2,
+            "logical_date": self.default_time_2,
+            "external_trigger": True,
+            "start_date": self.default_time,
+            "conf": {},
+            "data_interval_end": None,
+            "data_interval_start": None,
+            "last_scheduling_decision": None,
+            "run_type": "manual",
+            "note": None,
+        }
+        expected_response_json_2.update({"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {})
+
         response = self.client.post(
             "api/v1/dags/~/dagRuns/list",
             json={"dag_ids": ["TEST_DAG_ID"]},
@@ -803,38 +858,8 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
         assert response.status_code == 200
         assert response.json == {
             "dag_runs": [
-                {
-                    "dag_id": "TEST_DAG_ID",
-                    "dag_run_id": "TEST_DAG_RUN_ID_1",
-                    "end_date": None,
-                    "state": "running",
-                    "execution_date": self.default_time,
-                    "logical_date": self.default_time,
-                    "external_trigger": True,
-                    "start_date": self.default_time,
-                    "conf": {},
-                    "data_interval_end": None,
-                    "data_interval_start": None,
-                    "last_scheduling_decision": None,
-                    "run_type": "manual",
-                    "note": None,
-                },
-                {
-                    "dag_id": "TEST_DAG_ID",
-                    "dag_run_id": "TEST_DAG_RUN_ID_2",
-                    "end_date": None,
-                    "state": "running",
-                    "execution_date": self.default_time_2,
-                    "logical_date": self.default_time_2,
-                    "external_trigger": True,
-                    "start_date": self.default_time,
-                    "conf": {},
-                    "data_interval_end": None,
-                    "data_interval_start": None,
-                    "last_scheduling_decision": None,
-                    "run_type": "manual",
-                    "note": None,
-                },
+                expected_response_json_1,
+                expected_response_json_2,
             ],
             "total_entries": 2,
         }
@@ -869,6 +894,41 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
 
     def test_order_by_descending_works(self):
         self._create_test_dag_run()
+        expected_response_json_1 = {
+            "dag_id": "TEST_DAG_ID",
+            "dag_run_id": "TEST_DAG_RUN_ID_2",
+            "end_date": None,
+            "state": "running",
+            "execution_date": self.default_time_2,
+            "logical_date": self.default_time_2,
+            "external_trigger": True,
+            "start_date": self.default_time,
+            "conf": {},
+            "data_interval_end": None,
+            "data_interval_start": None,
+            "last_scheduling_decision": None,
+            "run_type": "manual",
+            "note": None,
+        }
+        expected_response_json_1.update({"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {})
+        expected_response_json_2 = {
+            "dag_id": "TEST_DAG_ID",
+            "dag_run_id": "TEST_DAG_RUN_ID_1",
+            "end_date": None,
+            "state": "running",
+            "execution_date": self.default_time,
+            "logical_date": self.default_time,
+            "external_trigger": True,
+            "start_date": self.default_time,
+            "conf": {},
+            "data_interval_end": None,
+            "data_interval_start": None,
+            "last_scheduling_decision": None,
+            "run_type": "manual",
+            "note": None,
+        }
+        expected_response_json_2.update({"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {})
+
         response = self.client.post(
             "api/v1/dags/~/dagRuns/list",
             json={"dag_ids": ["TEST_DAG_ID"], "order_by": "-dag_run_id"},
@@ -877,38 +937,8 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
         assert response.status_code == 200
         assert response.json == {
             "dag_runs": [
-                {
-                    "dag_id": "TEST_DAG_ID",
-                    "dag_run_id": "TEST_DAG_RUN_ID_2",
-                    "end_date": None,
-                    "state": "running",
-                    "execution_date": self.default_time_2,
-                    "logical_date": self.default_time_2,
-                    "external_trigger": True,
-                    "start_date": self.default_time,
-                    "conf": {},
-                    "data_interval_end": None,
-                    "data_interval_start": None,
-                    "last_scheduling_decision": None,
-                    "run_type": "manual",
-                    "note": None,
-                },
-                {
-                    "dag_id": "TEST_DAG_ID",
-                    "dag_run_id": "TEST_DAG_RUN_ID_1",
-                    "end_date": None,
-                    "state": "running",
-                    "execution_date": self.default_time,
-                    "logical_date": self.default_time,
-                    "external_trigger": True,
-                    "start_date": self.default_time,
-                    "conf": {},
-                    "data_interval_end": None,
-                    "data_interval_start": None,
-                    "last_scheduling_decision": None,
-                    "run_type": "manual",
-                    "note": None,
-                },
+                expected_response_json_1,
+                expected_response_json_2,
             ],
             "total_entries": 2,
         }
@@ -926,6 +956,41 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
 
     def test_should_return_accessible_with_tilde_as_dag_id_and_dag_level_permissions(self):
         self._create_test_dag_run(extra_dag=True)
+        expected_response_json_1 = {
+            "dag_id": "TEST_DAG_ID",
+            "dag_run_id": "TEST_DAG_RUN_ID_1",
+            "end_date": None,
+            "state": "running",
+            "execution_date": self.default_time,
+            "logical_date": self.default_time,
+            "external_trigger": True,
+            "start_date": self.default_time,
+            "conf": {},
+            "data_interval_end": None,
+            "data_interval_start": None,
+            "last_scheduling_decision": None,
+            "run_type": "manual",
+            "note": None,
+        }
+        expected_response_json_1.update({"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {})
+        expected_response_json_2 = {
+            "dag_id": "TEST_DAG_ID",
+            "dag_run_id": "TEST_DAG_RUN_ID_2",
+            "end_date": None,
+            "state": "running",
+            "execution_date": self.default_time_2,
+            "logical_date": self.default_time_2,
+            "external_trigger": True,
+            "start_date": self.default_time,
+            "conf": {},
+            "data_interval_end": None,
+            "data_interval_start": None,
+            "last_scheduling_decision": None,
+            "run_type": "manual",
+            "note": None,
+        }
+        expected_response_json_2.update({"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {})
+
         response = self.client.post(
             "api/v1/dags/~/dagRuns/list",
             json={"dag_ids": []},
@@ -934,38 +999,8 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
         assert response.status_code == 200
         assert response.json == {
             "dag_runs": [
-                {
-                    "dag_id": "TEST_DAG_ID",
-                    "dag_run_id": "TEST_DAG_RUN_ID_1",
-                    "end_date": None,
-                    "state": "running",
-                    "execution_date": self.default_time,
-                    "logical_date": self.default_time,
-                    "external_trigger": True,
-                    "start_date": self.default_time,
-                    "conf": {},
-                    "data_interval_end": None,
-                    "data_interval_start": None,
-                    "last_scheduling_decision": None,
-                    "run_type": "manual",
-                    "note": None,
-                },
-                {
-                    "dag_id": "TEST_DAG_ID",
-                    "dag_run_id": "TEST_DAG_RUN_ID_2",
-                    "end_date": None,
-                    "state": "running",
-                    "execution_date": self.default_time_2,
-                    "logical_date": self.default_time_2,
-                    "external_trigger": True,
-                    "start_date": self.default_time,
-                    "conf": {},
-                    "data_interval_end": None,
-                    "data_interval_start": None,
-                    "last_scheduling_decision": None,
-                    "run_type": "manual",
-                    "note": None,
-                },
+                expected_response_json_1,
+                expected_response_json_2,
             ],
             "total_entries": 2,
         }
@@ -1306,7 +1341,7 @@ class TestPostDagRun(TestDagRunEndpoint):
             expected_data_interval_start = data_interval_start
             expected_data_interval_end = data_interval_end
 
-        assert response.json == {
+        expected_response_json = {
             "conf": {},
             "dag_id": "TEST_DAG_ID",
             "dag_run_id": expected_dag_run_id,
@@ -1322,6 +1357,9 @@ class TestPostDagRun(TestDagRunEndpoint):
             "run_type": "manual",
             "note": note,
         }
+        expected_response_json.update({"triggered_by": "rest_api"} if AIRFLOW_V_3_0_PLUS else {})
+
+        assert response.json == expected_response_json
         _check_last_log(session, dag_id="TEST_DAG_ID", event="api.post_dag_run", execution_date=None)
 
     def test_raises_validation_error_for_invalid_request(self):
@@ -1422,8 +1460,7 @@ class TestPostDagRun(TestDagRunEndpoint):
         )
         dag_run_id = f"manual__{logical_date}"
 
-        assert response.status_code == 200
-        assert response.json == {
+        expected_response_json = {
             "conf": {},
             "dag_id": "TEST_DAG_ID",
             "dag_run_id": dag_run_id,
@@ -1439,6 +1476,10 @@ class TestPostDagRun(TestDagRunEndpoint):
             "run_type": "manual",
             "note": None,
         }
+        expected_response_json.update({"triggered_by": "rest_api"} if AIRFLOW_V_3_0_PLUS else {})
+
+        assert response.status_code == 200
+        assert response.json == expected_response_json
 
     def test_should_response_400_for_conflicting_execution_date_logical_date(self):
         execution_date = "2020-11-10T08:25:56.939143+00:00"
@@ -1690,7 +1731,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
         dag_run_id = "TEST_DAG_RUN_ID"
         with dag_maker(dag_id) as dag:
             task = EmptyOperator(task_id="task_id", dag=dag)
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.app.dag_bag.bag_dag(dag)
         dr = dag_maker.create_dagrun(run_id=dag_run_id, run_type=run_type)
         ti = dr.get_task_instance(task_id="task_id")
         ti.task = task
@@ -1711,8 +1752,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
             assert ti.state == state
 
         dr = session.query(DagRun).filter(DagRun.run_id == dr.run_id).first()
-        assert response.status_code == 200
-        assert response.json == {
+        expected_response_json = {
             "conf": {},
             "dag_id": dag_id,
             "dag_run_id": dag_run_id,
@@ -1728,13 +1768,17 @@ class TestPatchDagRunState(TestDagRunEndpoint):
             "run_type": run_type,
             "note": None,
         }
+        expected_response_json.update({"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {})
+
+        assert response.status_code == 200
+        assert response.json == expected_response_json
 
     def test_schema_validation_error_raises(self, dag_maker, session):
         dag_id = "TEST_DAG_ID"
         dag_run_id = "TEST_DAG_RUN_ID"
         with dag_maker(dag_id) as dag:
             EmptyOperator(task_id="task_id", dag=dag)
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.app.dag_bag.bag_dag(dag)
         dag_maker.create_dagrun(run_id=dag_run_id)
 
         response = self.client.patch(
@@ -1814,7 +1858,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
         dag_run_id = "TEST_DAG_RUN_ID"
         with dag_maker(dag_id) as dag:
             task = EmptyOperator(task_id="task_id", dag=dag)
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.app.dag_bag.bag_dag(dag)
         dr = dag_maker.create_dagrun(run_id=dag_run_id, run_type=DagRunType.SCHEDULED)
         ti = dr.get_task_instance(task_id="task_id")
         ti.task = task
@@ -1836,7 +1880,7 @@ class TestClearDagRun(TestDagRunEndpoint):
         dag_run_id = "TEST_DAG_RUN_ID"
         with dag_maker(dag_id) as dag:
             task = EmptyOperator(task_id="task_id", dag=dag)
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.app.dag_bag.bag_dag(dag)
         dr = dag_maker.create_dagrun(run_id=dag_run_id, state=DagRunState.FAILED)
         ti = dr.get_task_instance(task_id="task_id")
         ti.task = task
@@ -1853,8 +1897,7 @@ class TestClearDagRun(TestDagRunEndpoint):
         )
 
         dr = session.query(DagRun).filter(DagRun.run_id == dr.run_id).first()
-        assert response.status_code == 200
-        assert response.json == {
+        expected_response_json = {
             "conf": {},
             "dag_id": dag_id,
             "dag_run_id": dag_run_id,
@@ -1870,6 +1913,10 @@ class TestClearDagRun(TestDagRunEndpoint):
             "run_type": dr.run_type,
             "note": None,
         }
+        expected_response_json.update({"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {})
+
+        assert response.status_code == 200
+        assert response.json == expected_response_json
 
         ti.refresh_from_db()
         assert ti.state is None
@@ -1879,7 +1926,7 @@ class TestClearDagRun(TestDagRunEndpoint):
         dag_run_id = "TEST_DAG_RUN_ID"
         with dag_maker(dag_id) as dag:
             EmptyOperator(task_id="task_id", dag=dag)
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.app.dag_bag.bag_dag(dag)
         dag_maker.create_dagrun(run_id=dag_run_id, state=DagRunState.FAILED)
         response = self.client.post(
             f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}/clear",
@@ -1900,7 +1947,7 @@ class TestClearDagRun(TestDagRunEndpoint):
         dag_run_id = "TEST_DAG_RUN_ID"
         with dag_maker(dag_id) as dag:
             task = EmptyOperator(task_id="task_id", dag=dag)
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.app.dag_bag.bag_dag(dag)
         dr = dag_maker.create_dagrun(run_id=dag_run_id)
         ti = dr.get_task_instance(task_id="task_id")
         ti.task = task
@@ -1974,7 +2021,7 @@ class TestClearDagRun(TestDagRunEndpoint):
         dag_run_id = "TEST_DAG_RUN_ID"
         with dag_maker(dag_id) as dag:
             task = EmptyOperator(task_id="task_id", dag=dag)
-        self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.app.dag_bag.bag_dag(dag)
         dr = dag_maker.create_dagrun(run_id=dag_run_id, run_type=DagRunType.SCHEDULED)
         ti = dr.get_task_instance(task_id="task_id")
         ti.task = task
@@ -2134,9 +2181,7 @@ class TestSetDagRunNote(TestDagRunEndpoint):
         )
 
         dr = session.query(DagRun).filter(DagRun.run_id == created_dr.run_id).first()
-        assert response.status_code == 200, response.text
-        assert dr.note == new_note_value
-        assert response.json == {
+        expected_response_json = {
             "conf": {},
             "dag_id": dr.dag_id,
             "dag_run_id": dr.run_id,
@@ -2152,6 +2197,11 @@ class TestSetDagRunNote(TestDagRunEndpoint):
             "run_type": dr.run_type,
             "note": new_note_value,
         }
+        expected_response_json.update({"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {})
+
+        assert response.status_code == 200, response.text
+        assert dr.note == new_note_value
+        assert response.json == expected_response_json
         assert dr.dag_run_note.user_id is not None
         # Update the note again
         new_note_value = "My super cool DagRun notes 2"
@@ -2161,8 +2211,7 @@ class TestSetDagRunNote(TestDagRunEndpoint):
             json=payload,
             environ_overrides={"REMOTE_USER": "test"},
         )
-        assert response.status_code == 200
-        assert response.json == {
+        expected_response_json_new = {
             "conf": {},
             "dag_id": dr.dag_id,
             "dag_run_id": dr.run_id,
@@ -2178,6 +2227,10 @@ class TestSetDagRunNote(TestDagRunEndpoint):
             "run_type": dr.run_type,
             "note": new_note_value,
         }
+        expected_response_json_new.update({"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {})
+
+        assert response.status_code == 200
+        assert response.json == expected_response_json_new
         assert dr.dag_run_note.user_id is not None
         _check_last_log(
             session,

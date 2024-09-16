@@ -199,10 +199,6 @@ class AirflowDagDuplicatedIdException(AirflowException):
         return f"Ignoring DAG {self.dag_id} from {self.incoming} - also found in {self.existing}"
 
 
-class AirflowDagInconsistent(AirflowException):
-    """Raise when a DAG has inconsistent attributes."""
-
-
 class AirflowClusterPolicyViolation(AirflowException):
     """Raise when there is a violation of a Cluster Policy in DAG definition."""
 
@@ -239,6 +235,28 @@ class DagRunAlreadyExists(AirflowBadRequest):
             f"A DAG Run already exists for DAG {dag_run.dag_id} at {execution_date} with run id {run_id}"
         )
         self.dag_run = dag_run
+        self.execution_date = execution_date
+        self.run_id = run_id
+
+    def serialize(self):
+        cls = self.__class__
+        # Note the DagRun object will be detached here and fails serialization, we need to create a new one
+        from airflow.models import DagRun
+
+        dag_run = DagRun(
+            state=self.dag_run.state,
+            dag_id=self.dag_run.dag_id,
+            run_id=self.dag_run.run_id,
+            external_trigger=self.dag_run.external_trigger,
+            run_type=self.dag_run.run_type,
+            execution_date=self.dag_run.execution_date,
+        )
+        dag_run.id = self.dag_run.id
+        return (
+            f"{cls.__module__}.{cls.__name__}",
+            (),
+            {"dag_run": dag_run, "execution_date": self.execution_date, "run_id": self.run_id},
+        )
 
 
 class DagFileExists(AirflowBadRequest):

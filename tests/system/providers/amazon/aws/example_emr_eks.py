@@ -89,36 +89,18 @@ def delete_launch_template(template_name: str):
 
 
 @task
-def enable_access_emr_on_eks(cluster, ns):
+def run_eksctl_commands(cluster_name, ns):
     # Install eksctl and enable access for EMR on EKS
     # See https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-cluster-access.html
     file = "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz"
     commands = f"""
-        curl --silent --location "{file}" | tar xz -C /tmp &&
-        sudo mv /tmp/eksctl /usr/local/bin &&
-        eksctl create iamidentitymapping --cluster {cluster} --namespace {ns} --service-name "emr-containers"
+        curl --silent --location "{file}" | tar xz -C . &&
+        ./eksctl create iamidentitymapping --cluster {cluster_name} --namespace {ns} --service-name "emr-containers" &&
+        ./eksctl utils associate-iam-oidc-provider --cluster {cluster_name} --approve
     """
 
     build = subprocess.Popen(
         commands,
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
-    _, err = build.communicate()
-
-    if build.returncode != 0:
-        raise RuntimeError(err)
-
-
-@task
-def create_iam_oidc_identity_provider(cluster_name):
-    # Create an IAM OIDC identity provider
-    # See https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-enable-IAM.html
-    command = f"eksctl utils associate-iam-oidc-provider --cluster {cluster_name} --approve"
-
-    build = subprocess.Popen(
-        command,
         shell=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -322,8 +304,7 @@ with DAG(
         create_launch_template(launch_template_name),
         create_cluster_and_nodegroup,
         await_create_nodegroup,
-        enable_access_emr_on_eks(eks_cluster_name, eks_namespace),
-        create_iam_oidc_identity_provider(eks_cluster_name),
+        run_eksctl_commands(eks_cluster_name, eks_namespace),
         update_trust_policy_execution_role(eks_cluster_name, eks_namespace, job_role_name),
         # TEST BODY
         create_emr_eks_cluster,

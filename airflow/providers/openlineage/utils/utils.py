@@ -20,10 +20,9 @@ from __future__ import annotations
 import datetime
 import json
 import logging
-import re
-from contextlib import redirect_stdout, suppress
+from contextlib import suppress
 from functools import wraps
-from io import StringIO
+from importlib import metadata
 from typing import TYPE_CHECKING, Any, Callable, Iterable
 
 import attrs
@@ -34,10 +33,11 @@ from packaging.version import Version
 from airflow import __version__ as AIRFLOW_VERSION
 from airflow.datasets import Dataset
 from airflow.exceptions import AirflowProviderDeprecationWarning  # TODO: move this maybe to Airflow's logic?
-from airflow.models import DAG, BaseOperator, MappedOperator
+from airflow.models import DAG, BaseOperator, DagRun, MappedOperator
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.facets import (
     AirflowDagRunFacet,
+    AirflowDebugRunFacet,
     AirflowJobFacet,
     AirflowMappedTaskRunFacet,
     AirflowRunFacet,
@@ -58,9 +58,8 @@ if TYPE_CHECKING:
     from openlineage.client.event_v2 import Dataset as OpenLineageDataset
     from openlineage.client.facet_v2 import RunFacet
 
-    from airflow.models import DagRun, TaskInstance
-    from airflow.utils.state import TaskInstanceState
-
+    from airflow.models import TaskInstance
+    from airflow.utils.state import DagRunState, TaskInstanceState
 
 log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
@@ -199,7 +198,7 @@ class InfoJsonEncodable(dict):
             return value.isoformat()
         if isinstance(value, datetime.timedelta):
             return f"{value.total_seconds()} seconds"
-        if isinstance(value, (set, tuple)):
+        if isinstance(value, (set, list, tuple)):
             return str(list(value))
         return value
 
@@ -244,7 +243,16 @@ class InfoJsonEncodable(dict):
 class DagInfo(InfoJsonEncodable):
     """Defines encoding DAG object to JSON."""
 
-    includes = ["dag_id", "description", "fileloc", "owner", "schedule_interval", "start_date", "tags"]
+    includes = [
+        "dag_id",
+        "description",
+        "fileloc",
+        "owner",
+        "schedule_interval",  # For Airflow 2.
+        "timetable_summary",  # For Airflow 3.
+        "start_date",
+        "tags",
+    ]
     casts = {"timetable": lambda dag: dag.timetable.serialize() if getattr(dag, "timetable", None) else None}
     renames = {"_dag_id": "dag_id"}
 
@@ -378,6 +386,28 @@ def get_airflow_dag_run_facet(dag_run: DagRun) -> dict[str, RunFacet]:
     }
 
 
+@conf.cache
+def _get_all_packages_installed() -> dict[str, str]:
+    """
+    Retrieve a dictionary of all installed packages and their versions.
+
+    This operation involves scanning the system's installed packages, which can be a heavy operation.
+    It is recommended to cache the result to avoid repeated, expensive lookups.
+    """
+    return {dist.metadata["Name"]: dist.version for dist in metadata.distributions()}
+
+
+def get_airflow_debug_facet() -> dict[str, AirflowDebugRunFacet]:
+    if not conf.debug_mode():
+        return {}
+    log.warning("OpenLineage debug_mode is enabled. Be aware that this may log and emit extensive details.")
+    return {
+        "debug": AirflowDebugRunFacet(
+            packages=_get_all_packages_installed(),
+        )
+    }
+
+
 def get_airflow_run_facet(
     dag_run: DagRun,
     dag: DAG,
@@ -401,89 +431,23 @@ def get_airflow_job_facet(dag_run: DagRun) -> dict[str, AirflowJobFacet]:
         return {}
     return {
         "airflow": AirflowJobFacet(
-            taskTree=_get_parsed_dag_tree(dag_run.dag),
+            taskTree={},  # caused OOM errors, to be removed, see #41587
             taskGroups=_get_task_groups_details(dag_run.dag),
             tasks=_get_tasks_details(dag_run.dag),
         )
     }
 
 
-def get_airflow_state_run_facet(dag_run: DagRun) -> dict[str, AirflowStateRunFacet]:
+def get_airflow_state_run_facet(
+    dag_id: str, run_id: str, task_ids: list[str], dag_run_state: DagRunState
+) -> dict[str, AirflowStateRunFacet]:
+    tis = DagRun.fetch_task_instances(dag_id=dag_id, run_id=run_id, task_ids=task_ids)
     return {
         "airflowState": AirflowStateRunFacet(
-            dagRunState=dag_run.get_state(),
-            tasksState={ti.task_id: ti.state for ti in dag_run.get_task_instances()},
+            dagRunState=dag_run_state,
+            tasksState={ti.task_id: ti.state for ti in tis},
         )
     }
-
-
-def _safe_get_dag_tree_view(dag: DAG) -> list[str]:
-    # get_tree_view() has been added in Airflow 2.8.2
-    if hasattr(dag, "get_tree_view"):
-        return dag.get_tree_view().splitlines()
-
-    with redirect_stdout(StringIO()) as stdout:
-        dag.tree_view()
-        return stdout.getvalue().splitlines()
-
-
-def _get_parsed_dag_tree(dag: DAG) -> dict:
-    """
-    Get DAG's tasks hierarchy representation.
-
-    While the task dependencies are defined as following:
-    task >> [task_2, task_4] >> task_7
-    task_3 >> task_5
-    task_6  # has no dependencies, it's a root and a leaf
-
-    The result of this function will look like:
-    {
-        "task": {
-            "task_2": {
-                "task_7": {}
-            },
-            "task_4": {
-                "task_7": {}
-            }
-        },
-        "task_3": {
-            "task_5": {}
-        },
-        "task_6": {}
-    }
-    """
-    lines = _safe_get_dag_tree_view(dag)
-    task_dict: dict[str, dict] = {}
-    parent_map: dict[int, tuple[str, dict]] = {}
-
-    for line in lines:
-        stripped_line = line.strip()
-        if not stripped_line:
-            continue
-
-        # Determine the level by counting the leading spaces, assuming 4 spaces per level
-        # as defined in airflow.models.dag.DAG._generate_tree_view()
-        level = (len(line) - len(stripped_line)) // 4
-        # airflow.models.baseoperator.BaseOperator.__repr__ or
-        # airflow.models.mappedoperator.MappedOperator.__repr__ is used in DAG tree
-        # <Task({op_class}): {task_id}> or <Mapped({op_class}): {task_id}>
-        match = re.match(r"^<(?:Task|Mapped)\(.+\): (.+)>$", stripped_line)
-        if not match:
-            return {}
-        current_task_id = match[1]
-
-        if level == 0:  # It's a root task
-            task_dict[current_task_id] = {}
-            parent_map[level] = (current_task_id, task_dict[current_task_id])
-        else:
-            # Find the immediate parent task
-            parent_task, parent_dict = parent_map[(level - 1)]
-            # Create new dict for the current task
-            parent_dict[current_task_id] = {}
-            # Update this task in the parent map
-            parent_map[level] = (current_task_id, parent_dict[current_task_id])
-
-    return task_dict
 
 
 def _get_tasks_details(dag: DAG) -> dict:
@@ -497,8 +461,9 @@ def _get_tasks_details(dag: DAG) -> dict:
             "ui_label": single_task.label,
             "is_setup": single_task.is_setup,
             "is_teardown": single_task.is_teardown,
+            "downstream_task_ids": sorted(single_task.downstream_task_ids),
         }
-        for single_task in dag.tasks
+        for single_task in sorted(dag.tasks, key=lambda x: x.task_id)
     }
 
     return tasks

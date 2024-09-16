@@ -39,7 +39,7 @@ class MockPineconeHook:
 @pytest.fixture
 def dummy_dag():
     """Fixture to provide a dummy Airflow DAG for testing."""
-    return DAG(dag_id="test_dag", start_date=datetime(2023, 9, 29))
+    return DAG(dag_id="test_dag", schedule=None, start_date=datetime(2023, 9, 29))
 
 
 class TestPineconeVectorIngestOperator:

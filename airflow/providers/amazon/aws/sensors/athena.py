@@ -25,7 +25,7 @@ from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
 
 
@@ -88,11 +88,7 @@ class AthenaSensor(AwsBaseSensor[AthenaHook]):
         state = self.hook.poll_query_status(self.query_execution_id, self.max_retries, self.sleep_time)
 
         if state in self.FAILURE_STATES:
-            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
-            message = "Athena sensor failed"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
-            raise AirflowException(message)
+            raise AirflowException("Athena sensor failed")
 
         if state in self.INTERMEDIATE_STATES:
             return False

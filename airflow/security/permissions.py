@@ -78,7 +78,6 @@ class ResourceDetails(TypedDict):
 # Keeping DAG_ACTIONS to keep the compatibility with outdated versions of FAB provider
 DAG_ACTIONS = {ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE}
 
-
 RESOURCE_DETAILS_MAP = {
     RESOURCE_DAG: ResourceDetails(
         actions={ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE}, prefix=RESOURCE_DAG_PREFIX
@@ -105,3 +104,20 @@ def resource_name(root_dag_id: str, resource: str) -> str:
     if root_dag_id.startswith(tuple(PREFIX_RESOURCES_MAP.keys())):
         return root_dag_id
     return f"{RESOURCE_DETAILS_MAP[resource]['prefix']}{root_dag_id}"
+
+
+def resource_name_for_dag(root_dag_id: str) -> str:
+    """
+    Return the resource name for a DAG id.
+
+    Note that since a sub-DAG should follow the permission of its
+    parent DAG, you should pass ``DagModel.root_dag_id`` to this function,
+    for a subdag. A normal dag should pass the ``DagModel.dag_id``.
+
+    Note: This function is kept for backwards compatibility.
+    """
+    if root_dag_id == RESOURCE_DAG:
+        return root_dag_id
+    if root_dag_id.startswith(RESOURCE_DAG_PREFIX):
+        return root_dag_id
+    return f"{RESOURCE_DAG_PREFIX}{root_dag_id}"

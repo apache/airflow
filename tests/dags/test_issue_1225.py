@@ -40,7 +40,11 @@ def fail():
 
 # DAG tests backfill with pooled tasks
 # Previously backfill would queue the task but never run it
-dag1 = DAG(dag_id="test_backfill_pooled_task_dag", default_args=default_args)
+dag1 = DAG(
+    dag_id="test_backfill_pooled_task_dag",
+    schedule=timedelta(days=1),
+    default_args=default_args,
+)
 dag1_task1 = EmptyOperator(
     task_id="test_backfill_pooled_task",
     dag=dag1,
@@ -50,7 +54,11 @@ dag1_task1 = EmptyOperator(
 # dag2 has been moved to test_prev_dagrun_dep.py
 
 # DAG tests that a Dag run that doesn't complete is marked failed
-dag3 = DAG(dag_id="test_dagrun_states_fail", default_args=default_args)
+dag3 = DAG(
+    dag_id="test_dagrun_states_fail",
+    schedule=timedelta(days=1),
+    default_args=default_args,
+)
 dag3_task1 = PythonOperator(task_id="test_dagrun_fail", dag=dag3, python_callable=fail)
 dag3_task2 = EmptyOperator(
     task_id="test_dagrun_succeed",
@@ -59,7 +67,11 @@ dag3_task2 = EmptyOperator(
 dag3_task2.set_upstream(dag3_task1)
 
 # DAG tests that a Dag run that completes but has a failure is marked success
-dag4 = DAG(dag_id="test_dagrun_states_success", default_args=default_args)
+dag4 = DAG(
+    dag_id="test_dagrun_states_success",
+    schedule=timedelta(days=1),
+    default_args=default_args,
+)
 dag4_task1 = PythonOperator(
     task_id="test_dagrun_fail",
     dag=dag4,
@@ -69,7 +81,11 @@ dag4_task2 = EmptyOperator(task_id="test_dagrun_succeed", dag=dag4, trigger_rule
 dag4_task2.set_upstream(dag4_task1)
 
 # DAG tests that a Dag run that completes but has a root failure is marked fail
-dag5 = DAG(dag_id="test_dagrun_states_root_fail", default_args=default_args)
+dag5 = DAG(
+    dag_id="test_dagrun_states_root_fail",
+    schedule=timedelta(days=1),
+    default_args=default_args,
+)
 dag5_task1 = EmptyOperator(
     task_id="test_dagrun_succeed",
     dag=dag5,
@@ -81,7 +97,11 @@ dag5_task2 = PythonOperator(
 )
 
 # DAG tests that a Dag run that is deadlocked with no states is failed
-dag6 = DAG(dag_id="test_dagrun_states_deadlock", default_args=default_args)
+dag6 = DAG(
+    dag_id="test_dagrun_states_deadlock",
+    schedule=timedelta(days=1),
+    default_args=default_args,
+)
 dag6_task1 = EmptyOperator(
     task_id="test_depends_on_past",
     depends_on_past=True,
@@ -96,7 +116,11 @@ dag6_task2.set_upstream(dag6_task1)
 
 
 # DAG tests that a Dag run that doesn't complete but has a root failure is marked running
-dag8 = DAG(dag_id="test_dagrun_states_root_fail_unfinished", default_args=default_args)
+dag8 = DAG(
+    dag_id="test_dagrun_states_root_fail_unfinished",
+    schedule=timedelta(days=1),
+    default_args=default_args,
+)
 dag8_task1 = EmptyOperator(
     task_id="test_dagrun_unfinished",  # The test will unset the task instance state after
     # running this test
@@ -109,7 +133,11 @@ dag8_task2 = PythonOperator(
 )
 
 # DAG tests that a Dag run that completes but has a root in the future is marked as success
-dag9 = DAG(dag_id="test_dagrun_states_root_future", default_args=default_args)
+dag9 = DAG(
+    dag_id="test_dagrun_states_root_future",
+    schedule=timedelta(days=1),
+    default_args=default_args,
+)
 dag9_task1 = EmptyOperator(
     task_id="current",
     dag=dag9,

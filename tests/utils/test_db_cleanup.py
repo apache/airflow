@@ -297,10 +297,6 @@ class TestDBCleanup:
             assert len(session.query(model).all()) == 5
             assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
 
-    @pytest.mark.filterwarnings(
-        # This test case might import some deprecated modules, ignore it
-        "ignore:This module is deprecated.*:airflow.exceptions.RemovedInAirflow3Warning"
-    )
     def test_no_models_missing(self):
         """
         1. Verify that for all tables in `airflow.models`, we either have them enabled in db cleanup,

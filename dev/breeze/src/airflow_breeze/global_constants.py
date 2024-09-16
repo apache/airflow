@@ -53,9 +53,10 @@ ALLOWED_ARCHITECTURES = [Architecture.X86_64, Architecture.ARM]
 ALLOWED_BACKENDS = ["sqlite", "mysql", "postgres", "none"]
 ALLOWED_PROD_BACKENDS = ["mysql", "postgres"]
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
+CELERY_INTEGRATION = "celery"
 TESTABLE_INTEGRATIONS = [
     "cassandra",
-    "celery",
+    CELERY_INTEGRATION,
     "drill",
     "kafka",
     "kerberos",
@@ -68,7 +69,7 @@ TESTABLE_INTEGRATIONS = [
     "ydb",
 ]
 OTHER_INTEGRATIONS = ["statsd", "otel", "openlineage"]
-ALLOWED_DEBIAN_VERSIONS = ["bookworm", "bullseye"]
+ALLOWED_DEBIAN_VERSIONS = ["bookworm"]
 ALL_INTEGRATIONS = sorted(
     [
         *TESTABLE_INTEGRATIONS,
@@ -90,7 +91,7 @@ ALLOWED_DOCKER_COMPOSE_PROJECTS = ["breeze", "pre-commit", "docker-compose"]
 #   - https://endoflife.date/amazon-eks
 #   - https://endoflife.date/azure-kubernetes-service
 #   - https://endoflife.date/google-kubernetes-engine
-ALLOWED_KUBERNETES_VERSIONS = ["v1.27.13", "v1.28.9", "v1.29.4", "v1.30.0"]
+ALLOWED_KUBERNETES_VERSIONS = ["v1.28.13", "v1.29.8", "v1.30.4", "v1.31.0"]
 ALLOWED_EXECUTORS = [
     "LocalExecutor",
     "KubernetesExecutor",
@@ -102,6 +103,7 @@ ALLOWED_EXECUTORS = [
 DEFAULT_ALLOWED_EXECUTOR = ALLOWED_EXECUTORS[0]
 START_AIRFLOW_ALLOWED_EXECUTORS = ["LocalExecutor", "CeleryExecutor", "SequentialExecutor"]
 START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR = START_AIRFLOW_ALLOWED_EXECUTORS[0]
+ALLOWED_CELERY_EXECUTORS = ["CeleryExecutor", "CeleryKubernetesExecutor"]
 
 SEQUENTIAL_EXECUTOR = "SequentialExecutor"
 
@@ -226,7 +228,6 @@ SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
 ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
 
 ALLOWED_USE_AIRFLOW_VERSIONS = ["none", "wheel", "sdist"]
-ALLOWED_PYDANTIC_VERSIONS = ["v2", "v1", "none"]
 
 ALL_HISTORICAL_PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
 
@@ -251,6 +252,8 @@ RABBITMQ_HOST_PORT = "25672"
 REDIS_HOST_PORT = "26379"
 SSH_PORT = "12322"
 WEBSERVER_HOST_PORT = "28080"
+VITE_DEV_PORT = "5173"
+FASTAPI_API_HOST_PORT = "29091"
 
 CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
@@ -446,7 +449,7 @@ CURRENT_EXECUTORS = ["KubernetesExecutor"]
 DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
-KIND_VERSION = "v0.23.0"
+KIND_VERSION = "v0.24.0"
 HELM_VERSION = "v3.15.3"
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
@@ -505,20 +508,20 @@ CHICKEN_EGG_PROVIDERS = " ".join([])
 BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.8",
-        "airflow-version": "2.7.3",
-        "remove-providers": "common.io fab",
-        "run-tests": "true",
-    },
-    {
-        "python-version": "3.8",
         "airflow-version": "2.8.4",
-        "remove-providers": "fab",
+        "remove-providers": "cloudant fab edge",
         "run-tests": "true",
     },
     {
         "python-version": "3.8",
-        "airflow-version": "2.9.1",
-        "remove-providers": "",
+        "airflow-version": "2.9.3",
+        "remove-providers": "cloudant edge",
+        "run-tests": "true",
+    },
+    {
+        "python-version": "3.8",
+        "airflow-version": "2.10.1",
+        "remove-providers": "cloudant",
         "run-tests": "true",
     },
 ]

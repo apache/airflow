@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.google.cloud.hooks.dataflow import DataflowJobStatus
 from airflow.providers.google.cloud.sensors.dataflow import (
     DataflowJobAutoScalingEventsSensor,
@@ -77,11 +77,8 @@ class TestDataflowJobStatusSensor:
             job_id=TEST_JOB_ID, project_id=TEST_PROJECT_ID, location=TEST_LOCATION
         )
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook")
-    def test_poke_raise_exception(self, mock_hook, soft_fail, expected_exception):
+    def test_poke_raise_exception(self, mock_hook):
         mock_get_job = mock_hook.return_value.get_job
         task = DataflowJobStatusSensor(
             task_id=TEST_TASK_ID,
@@ -91,12 +88,11 @@ class TestDataflowJobStatusSensor:
             project_id=TEST_PROJECT_ID,
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
-            soft_fail=soft_fail,
         )
         mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": DataflowJobStatus.JOB_STATE_CANCELLED}
 
         with pytest.raises(
-            expected_exception,
+            AirflowException,
             match=f"Job with id '{TEST_JOB_ID}' is already in terminal state: "
             f"{DataflowJobStatus.JOB_STATE_CANCELLED}",
         ):
@@ -157,14 +153,7 @@ class TestDataflowJobStatusSensor:
         )
         assert actual_message == expected_result
 
-    @pytest.mark.parametrize(
-        "expected_exception, soft_fail",
-        (
-            (AirflowException, False),
-            (AirflowSkipException, True),
-        ),
-    )
-    def test_execute_complete_not_success_status_raises_exception(self, expected_exception, soft_fail):
+    def test_execute_complete_not_success_status_raises_exception(self):
         """Tests that AirflowException or AirflowSkipException is raised if the trigger event contains an error."""
         task = DataflowJobStatusSensor(
             task_id=TEST_TASK_ID,
@@ -175,9 +164,8 @@ class TestDataflowJobStatusSensor:
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
             deferrable=True,
-            soft_fail=soft_fail,
         )
-        with pytest.raises(expected_exception):
+        with pytest.raises(AirflowException):
             task.execute_complete(context=None, event={"status": "error", "message": "test error message"})
 
 
@@ -221,12 +209,8 @@ class TestDataflowJobMetricsSensor:
         mock_fetch_job_metrics_by_id.return_value.__getitem__.assert_called_once_with("metrics")
         callback.assert_called_once_with(mock_fetch_job_metrics_by_id.return_value.__getitem__.return_value)
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        ((False, AirflowException), (True, AirflowSkipException)),
-    )
     @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook")
-    def test_poke_raise_exception(self, mock_hook, soft_fail, expected_exception):
+    def test_poke_raise_exception(self, mock_hook):
         mock_get_job = mock_hook.return_value.get_job
         mock_fetch_job_messages_by_id = mock_hook.return_value.fetch_job_messages_by_id
         callback = mock.MagicMock()
@@ -240,12 +224,11 @@ class TestDataflowJobMetricsSensor:
             project_id=TEST_PROJECT_ID,
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
-            soft_fail=soft_fail,
         )
         mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": DataflowJobStatus.JOB_STATE_DONE}
 
         with pytest.raises(
-            expected_exception,
+            AirflowException,
             match=f"Job with id '{TEST_JOB_ID}' is already in terminal state: "
             f"{DataflowJobStatus.JOB_STATE_DONE}",
         ):
@@ -345,14 +328,7 @@ class TestDataflowJobMetricsSensor:
         )
         assert actual_result == expected_result
 
-    @pytest.mark.parametrize(
-        "expected_exception, soft_fail",
-        (
-            (AirflowException, False),
-            (AirflowSkipException, True),
-        ),
-    )
-    def test_execute_complete_not_success_status_raises_exception(self, expected_exception, soft_fail):
+    def test_execute_complete_not_success_status_raises_exception(self):
         """Tests that AirflowException or AirflowSkipException is raised if the trigger event contains an error."""
         task = DataflowJobMetricsSensor(
             task_id=TEST_TASK_ID,
@@ -364,9 +340,8 @@ class TestDataflowJobMetricsSensor:
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
             deferrable=True,
-            soft_fail=soft_fail,
         )
-        with pytest.raises(expected_exception):
+        with pytest.raises(AirflowException):
             task.execute_complete(
                 context=None, event={"status": "error", "message": "test error message", "result": None}
             )
@@ -412,12 +387,8 @@ class TestDataflowJobMessagesSensor:
         )
         callback.assert_called_once_with(mock_fetch_job_messages_by_id.return_value)
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        ((False, AirflowException), (True, AirflowSkipException)),
-    )
     @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook")
-    def test_poke_raise_exception(self, mock_hook, soft_fail, expected_exception):
+    def test_poke_raise_exception(self, mock_hook):
         mock_get_job = mock_hook.return_value.get_job
         mock_fetch_job_messages_by_id = mock_hook.return_value.fetch_job_messages_by_id
         callback = mock.MagicMock()
@@ -431,12 +402,11 @@ class TestDataflowJobMessagesSensor:
             project_id=TEST_PROJECT_ID,
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
-            soft_fail=soft_fail,
         )
         mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": DataflowJobStatus.JOB_STATE_DONE}
 
         with pytest.raises(
-            expected_exception,
+            AirflowException,
             match=f"Job with id '{TEST_JOB_ID}' is already in terminal state: "
             f"{DataflowJobStatus.JOB_STATE_DONE}",
         ):
@@ -534,14 +504,7 @@ class TestDataflowJobMessagesSensor:
         )
         assert actual_result == expected_result
 
-    @pytest.mark.parametrize(
-        "expected_exception, soft_fail",
-        (
-            (AirflowException, False),
-            (AirflowSkipException, True),
-        ),
-    )
-    def test_execute_complete_not_success_status_raises_exception(self, expected_exception, soft_fail):
+    def test_execute_complete_not_success_status_raises_exception(self):
         """Tests that AirflowException or AirflowSkipException is raised if the trigger event contains an error."""
         task = DataflowJobMessagesSensor(
             task_id=TEST_TASK_ID,
@@ -553,9 +516,8 @@ class TestDataflowJobMessagesSensor:
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
             deferrable=True,
-            soft_fail=soft_fail,
         )
-        with pytest.raises(expected_exception):
+        with pytest.raises(AirflowException):
             task.execute_complete(
                 context=None, event={"status": "error", "message": "test error message", "result": None}
             )
@@ -601,15 +563,8 @@ class TestDataflowJobAutoScalingEventsSensor:
         )
         callback.assert_called_once_with(mock_fetch_job_autoscaling_events_by_id.return_value)
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception",
-        (
-            (False, AirflowException),
-            (True, AirflowSkipException),
-        ),
-    )
     @mock.patch("airflow.providers.google.cloud.sensors.dataflow.DataflowHook")
-    def test_poke_raise_exception_on_terminal_state(self, mock_hook, soft_fail, expected_exception):
+    def test_poke_raise_exception_on_terminal_state(self, mock_hook):
         mock_get_job = mock_hook.return_value.get_job
         mock_fetch_job_autoscaling_events_by_id = mock_hook.return_value.fetch_job_autoscaling_events_by_id
         callback = mock.MagicMock()
@@ -623,12 +578,11 @@ class TestDataflowJobAutoScalingEventsSensor:
             project_id=TEST_PROJECT_ID,
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
-            soft_fail=soft_fail,
         )
         mock_get_job.return_value = {"id": TEST_JOB_ID, "currentState": DataflowJobStatus.JOB_STATE_DONE}
 
         with pytest.raises(
-            expected_exception,
+            AirflowException,
             match=f"Job with id '{TEST_JOB_ID}' is already in terminal state: "
             f"{DataflowJobStatus.JOB_STATE_DONE}",
         ):
@@ -724,14 +678,7 @@ class TestDataflowJobAutoScalingEventsSensor:
         )
         assert actual_result == expected_result
 
-    @pytest.mark.parametrize(
-        "expected_exception, soft_fail",
-        (
-            (AirflowException, False),
-            (AirflowSkipException, True),
-        ),
-    )
-    def test_execute_complete_not_success_status_raises_exception(self, expected_exception, soft_fail):
+    def test_execute_complete_not_success_status_raises_exception(self):
         """Tests that AirflowException or AirflowSkipException is raised if the trigger event contains an error."""
         task = DataflowJobAutoScalingEventsSensor(
             task_id=TEST_TASK_ID,
@@ -743,9 +690,8 @@ class TestDataflowJobAutoScalingEventsSensor:
             gcp_conn_id=TEST_GCP_CONN_ID,
             impersonation_chain=TEST_IMPERSONATION_CHAIN,
             deferrable=True,
-            soft_fail=soft_fail,
         )
-        with pytest.raises(expected_exception):
+        with pytest.raises(AirflowException):
             task.execute_complete(
                 context=None,
                 event={"status": "error", "message": "test error message", "result": None},

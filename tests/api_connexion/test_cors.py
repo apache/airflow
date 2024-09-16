@@ -48,13 +48,15 @@ class BaseTestAuth:
 class TestEmptyCors(BaseTestAuth):
     @pytest.fixture(autouse=True, scope="class")
     def with_basic_auth_backend(self, minimal_app_for_api):
-        from airflow.www.extensions.init_security import init_api_experimental_auth
+        from airflow.www.extensions.init_security import init_api_auth
 
         old_auth = getattr(minimal_app_for_api, "api_auth")
 
         try:
-            with conf_vars({("api", "auth_backends"): "airflow.api.auth.backend.basic_auth"}):
-                init_api_experimental_auth(minimal_app_for_api)
+            with conf_vars(
+                {("api", "auth_backends"): "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"}
+            ):
+                init_api_auth(minimal_app_for_api)
                 yield
         finally:
             setattr(minimal_app_for_api, "api_auth", old_auth)
@@ -74,18 +76,21 @@ class TestEmptyCors(BaseTestAuth):
 class TestCorsOrigin(BaseTestAuth):
     @pytest.fixture(autouse=True, scope="class")
     def with_basic_auth_backend(self, minimal_app_for_api):
-        from airflow.www.extensions.init_security import init_api_experimental_auth
+        from airflow.www.extensions.init_security import init_api_auth
 
         old_auth = getattr(minimal_app_for_api, "api_auth")
 
         try:
             with conf_vars(
                 {
-                    ("api", "auth_backends"): "airflow.api.auth.backend.basic_auth",
+                    (
+                        "api",
+                        "auth_backends",
+                    ): "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth",
                     ("api", "access_control_allow_origins"): "http://apache.org http://example.com",
                 }
             ):
-                init_api_experimental_auth(minimal_app_for_api)
+                init_api_auth(minimal_app_for_api)
                 yield
         finally:
             setattr(minimal_app_for_api, "api_auth", old_auth)
@@ -115,18 +120,21 @@ class TestCorsOrigin(BaseTestAuth):
 class TestCorsWildcard(BaseTestAuth):
     @pytest.fixture(autouse=True, scope="class")
     def with_basic_auth_backend(self, minimal_app_for_api):
-        from airflow.www.extensions.init_security import init_api_experimental_auth
+        from airflow.www.extensions.init_security import init_api_auth
 
         old_auth = getattr(minimal_app_for_api, "api_auth")
 
         try:
             with conf_vars(
                 {
-                    ("api", "auth_backends"): "airflow.api.auth.backend.basic_auth",
+                    (
+                        "api",
+                        "auth_backends",
+                    ): "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth",
                     ("api", "access_control_allow_origins"): "*",
                 }
             ):
-                init_api_experimental_auth(minimal_app_for_api)
+                init_api_auth(minimal_app_for_api)
                 yield
         finally:
             setattr(minimal_app_for_api, "api_auth", old_auth)

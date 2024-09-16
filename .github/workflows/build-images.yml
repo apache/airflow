@@ -241,14 +241,14 @@ jobs:
       pull-request-target: "true"
       is-committer-build: ${{ needs.build-info.outputs.is-committer-build }}
       push-image: "true"
-      use-uv: ${{ needs.build-info.outputs.default-branch == 'main' && 'true' || 'false' }}
+      use-uv: "true"
       image-tag: ${{ needs.build-info.outputs.image-tag }}
       platform: "linux/amd64"
       python-versions: ${{ needs.build-info.outputs.python-versions }}
       default-python-version: ${{ needs.build-info.outputs.default-python-version }}
       branch: ${{ needs.build-info.outputs.default-branch }}
       constraints-branch: ${{ needs.build-info.outputs.constraints-branch }}
-      build-provider-packages: "true"
+      build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
