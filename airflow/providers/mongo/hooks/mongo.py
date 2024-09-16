@@ -167,7 +167,7 @@ class MongoHook(BaseHook):
                 f"conn_type '{conn_type}' not allowed for MongoHook; conn_type must be 'mongo'"
             )
 
-        if conn.port and "srv" in conn.extra_dejson and conn.extra_dejson["srv"] is True:
+        if conn.port and conn.extra_dejson.get("srv"):
             raise AirflowConfigException("srv URI should not specify a port")
 
     def __enter__(self):
