@@ -26,7 +26,6 @@ operators talk to the ``api/2.0/jobs/runs/submit``
 from __future__ import annotations
 
 import copy
-import os
 import platform
 import time
 from asyncio.exceptions import TimeoutError
