@@ -133,3 +133,7 @@ For example, in v1.yaml, you might add:
 Including schemas helps in automatically generating API documentation and ensures consistent data structures across the API.
 
 After adding or modifying schemas, make sure to run the pre-commit hooks again to update any generated files.
+
+Note on the New FastAPI API
+---------------------------
+As part of the AIP-84 you may be adding new endpoints to the FastAPI API by migrating some legacy endpoints. In case you are doing so don't forget to mark the legacy endpoint (Flask one) with the ``@mark_fastapi_migration_done`` decorator. This will help maintainers keep track of the endpoints remaining for the migration and those already migrated.
