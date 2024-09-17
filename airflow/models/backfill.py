@@ -17,10 +17,10 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import Boolean, Column, Integer, String, UniqueConstraint
+from sqlalchemy import Boolean, Column, Integer, UniqueConstraint
 from sqlalchemy_jsonfield import JSONField
 
-from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.models.base import Base, StringID
 from airflow.settings import json
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -32,7 +32,7 @@ class Backfill(Base):
     __tablename__ = "backfill"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS))
+    dag_id = Column(StringID(), nullable=False)
     from_date = Column(UtcDateTime, nullable=False)
     to_date = Column(UtcDateTime, nullable=False)
     dag_run_conf = Column(JSONField(json=json), nullable=True)
