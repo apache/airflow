@@ -21,10 +21,10 @@ import { render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, it, vi } from "vitest";
 
 import * as openapiQueriesModule from "openapi/queries";
+import type { DAGCollectionResponse } from "openapi/requests/types.gen";
 
 import { App } from "./App";
 import { Wrapper } from "./utils/Wrapper";
-import { DAGCollectionResponse } from "openapi/requests/types.gen";
 
 const mockListDags: DAGCollectionResponse = {
   dags: [
@@ -107,7 +107,7 @@ beforeEach(() => {
 
   vi.spyOn(
     openapiQueriesModule,
-    "useDagServiceGetDagsPublicDagsGet"
+    "useDagServiceGetDagsPublicDagsGet",
   ).mockImplementation(() => returnValue);
 });
 

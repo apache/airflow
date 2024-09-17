@@ -30,8 +30,9 @@ import { Select as ReactSelect } from "chakra-react-select";
 import { type ChangeEventHandler, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import type { DAGModelResponse } from "openapi/requests/types.gen";
 import { useDagServiceGetDagsPublicDagsGet } from "openapi/queries";
+import type { DAGModelResponse } from "openapi/requests/types.gen";
+
 import { DataTable } from "../components/DataTable";
 import { useTableURLState } from "../components/DataTable/useTableUrlState";
 import { QuickFilterButton } from "../components/QuickFilterButton";
@@ -67,7 +68,7 @@ const columns: Array<ColumnDef<DAGModelResponse>> = [
     accessorKey: "tags",
     cell: ({ row }) => (
       <HStack>
-        {row.original.tags?.map((tag) => (
+        {row.original.tags.map((tag) => (
           <Badge key={tag.name}>{tag.name}</Badge>
         ))}
       </HStack>
