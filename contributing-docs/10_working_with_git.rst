@@ -151,7 +151,21 @@ as "apache" so you can refer to it easily:
 
    ``git checkout my-branch``
 
-5. Rebase:
+5. Commit your code change.
+
+   ``git add .``
+
+   ``git commit``
+
+   If you encounter error "Please tell me who you are .git", run the below commands to set up.
+
+   ``git config user.name "someone"``
+
+   ``git config user.email "someone@someplace.com"``
+
+   You can add the ``--global`` flag to avoid setting it for every cloned repo.
+
+6. Rebase:
 
    ``git rebase HASH --onto apache/main``
 
@@ -159,11 +173,11 @@ as "apache" so you can refer to it easily:
 
    ``git rebase 5abce471e0690c6b8d06ca25685b0845c5fd270f --onto apache/main``
 
-6. If you have no conflicts - that's cool. You rebased. You can now run ``git push --force-with-lease`` to
+7. If you have no conflicts - that's cool. You rebased. You can now run ``git push --force-with-lease`` to
    push your changes to your repository. That should trigger the build in our CI if you have a
    Pull Request (PR) opened already.
 
-7. While rebasing you might have conflicts. Read carefully what git tells you when it prints information
+8. While rebasing you might have conflicts. Read carefully what git tells you when it prints information
    about the conflicts. You need to solve the conflicts manually. This is sometimes the most difficult
    part and requires deliberately correcting your code and looking at what has changed since you developed your
    changes.
@@ -177,7 +191,7 @@ as "apache" so you can refer to it easily:
    you have a very intuitive and helpful merge tool. For more information, see
    `Resolve conflicts <https://www.jetbrains.com/help/idea/resolving-conflicts.html>`_.
 
-8. After you've solved your conflict run:
+9. After you've solved your conflict run:
 
    ``git rebase --continue``
 
@@ -194,6 +208,8 @@ Useful when you understand the flow but don't remember the steps and want a quic
 .. code-block:: console
 
     git fetch --all
+    git add .
+    git commit
     git merge-base my-branch apache/main
     git checkout my-branch
     git rebase HASH --onto apache/main
