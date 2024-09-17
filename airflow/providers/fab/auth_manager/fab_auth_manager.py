@@ -523,9 +523,15 @@ class FabAuthManager(BaseAuthManager):
         # Otherwise, when the name of a view or menu is changed, the framework
         # will add the new Views and Menus names to the backend, but will not
         # delete the old ones.
-        if conf.getboolean(
-            "fab", "UPDATE_FAB_PERMS", fallback=conf.getboolean("webserver", "UPDATE_FAB_PERMS")
-        ):
+        from packaging.version import Version
+
+        from airflow.version import version
+
+        if Version(Version(version).base_version) >= Version("3.0.0"):
+            fallback = None
+        else:
+            fallback = conf.getboolean("webserver", "UPDATE_FAB_PERMS")
+        if conf.getboolean("fab", "UPDATE_FAB_PERMS", fallback=fallback):
             self.security_manager.sync_roles()
 
 

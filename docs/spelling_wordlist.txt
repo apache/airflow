@@ -1534,6 +1534,7 @@ stacktrace
 starttls
 StatefulSet
 StatefulSets
+statics
 StatsD
 statsd
 stderr
@@ -1797,6 +1798,7 @@ verticaql
 Vevo
 videointelligence
 VideoIntelligenceServiceClient
+views
 virtualenv
 virtualenvs
 vm

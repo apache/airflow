@@ -168,3 +168,4 @@ v1-generated.yaml
 # Front end generated files
 api-generated.ts
 openapi-gen
+pnpm-lock.yaml
