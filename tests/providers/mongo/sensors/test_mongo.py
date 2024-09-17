@@ -17,13 +17,13 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.mongo.hooks.mongo import MongoHook
 from airflow.providers.mongo.sensors.mongo import MongoSensor
 from airflow.utils import timezone
+from airflow.utils.context import Context
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
@@ -34,34 +34,31 @@ class TestMongoSensor:
 
         self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
-        self.mock_context = MagicMock()
+        self.context = Context()
 
-    @patch.object(MongoHook, "_create_uri", return_value="mocked_uri")
-    @patch("airflow.providers.mongo.hooks.mongo.MongoHook.find")
-    @patch("airflow.providers.mongo.hooks.mongo.MongoHook.get_connection")
-    def test_execute_operator(self, mock_mongo_conn, mock_mongo_find, mock_create_uri):
-        mock_mongo_find.return_value = {"test_key": "test"}
-        mock_connection = MagicMock(spec=Connection)
-        mock_connection.conn_type = "mongo"
+    @patch("airflow.providers.mongo.sensors.mongo.MongoHook", spec=MongoHook)
+    def test_execute_operator(self, mock_mongo_hook_constructor):
+        test_collection = "coll"
+        test_query = {"test_key": "test"}
+        test_conn_id = "mongo_default"
+        test_db = "test_db"
 
-        mock_extra_dejson = {"ssl": "false", "srv": "false"}
-        mock_connection.extra_dejson = MagicMock(spec=dict)
-        mock_connection.extra_dejson.copy.return_value = mock_extra_dejson
-        mock_mongo_conn.return_value = mock_connection
+        mock_mongo_hook_find = mock_mongo_hook_constructor.return_value.find
+        mock_mongo_hook_find.return_value = {"document_key": "document_val"}
 
         sensor = MongoSensor(
-            collection="coll",
-            query={"test_key": "test"},
-            mongo_conn_id="mongo_default",
-            mongo_db="test_db",
+            collection=test_collection,
+            query=test_query,
+            mongo_conn_id=test_conn_id,
+            mongo_db=test_db,
             task_id="test_task",
             dag=self.dag,
         )
 
-        result = sensor.poke(self.mock_context)
+        result = sensor.poke(self.context)
 
-        mock_mongo_conn.assert_called_once_with("mongo_default")
+        mock_mongo_hook_constructor.assert_called_once_with(mongo_conn_id=test_conn_id)
         assert result is True
-        mock_mongo_find.assert_called_once_with(
-            "coll", {"test_key": "test"}, mongo_db="test_db", find_one=True
+        mock_mongo_hook_find.assert_called_once_with(
+            test_collection, test_query, mongo_db=test_db, find_one=True
         )
