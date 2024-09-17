@@ -716,6 +716,16 @@ def create_default_connections(session: Session = NEW_SESSION):
         ),
         session,
     )
+    merge_conn(
+        Connection(
+            conn_id="couchbase_default",
+            conn_type="couchbase",
+            host="localhost",
+            login="username",
+            password="password",
+        ),
+        session,
+    )
 
 
 def _get_flask_db(sql_database_uri):

@@ -424,6 +424,18 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "couchbase": {
+    "deps": [
+      "apache-airflow>=2.8.0",
+      "couchbase>=4.3.0",
+      "dnspython>=1.13.0"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "ready"
+  },
   "databricks": {
     "deps": [
       "aiohttp>=3.9.2, <4",
