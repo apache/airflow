@@ -87,8 +87,6 @@ def __getattr__(name):
 __lazy_imports = {
     "DAG": "airflow.models.dag",
     "ID_LEN": "airflow.models.base",
-    "Backfill": "airflow.models.backfill",
-    "BackfillDagRun": "airflow.models.backfill",
     "Base": "airflow.models.base",
     "BaseOperator": "airflow.models.baseoperator",
     "BaseOperatorLink": "airflow.models.baseoperatorlink",
