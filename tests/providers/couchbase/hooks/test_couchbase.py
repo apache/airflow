@@ -19,7 +19,12 @@ from __future__ import annotations
 
 from unittest import mock
 
+
 import couchbase.auth
+import couchbase.bucket
+import couchbase.cluster
+import couchbase.collection
+import couchbase.scope
 import pytest
 
 from airflow.models import Connection
@@ -106,3 +111,62 @@ class TestCouchbaseHook:
                 )
             ),
         )
+
+    @mock.patch("airflow.providers.couchbase.hooks.couchbase.Cluster")
+    def test_get_scope(self, mock_cluster: mock.MagicMock):
+        # Mock the cluster object
+        mock_cluster_instance = mock.Mock(spec=couchbase.cluster.Cluster)
+        mock_cluster.return_value = mock_cluster_instance
+
+        # Mock bucket and scope behavior
+        mock_bucket = mock.Mock(spec=couchbase.bucket.Bucket)
+        mock_cluster_instance.bucket.return_value = mock_bucket
+        mock_scope = mock.Mock(spec=couchbase.scope.Scope)
+        mock_bucket.scope.return_value = mock_scope
+
+        hook = CouchbaseHook()
+        scope = hook.get_scope(bucket="bucket", scope="scope")
+        assert hook.cluster is not None
+        mock_cluster.assert_called_once_with(
+            "localhost",
+            ClusterOptions(
+                authenticator=couchbase.auth.PasswordAuthenticator(
+                    username="username",
+                    password="password",
+                )
+            ),
+        )    
+        mock_cluster_instance.bucket.assert_called_once_with("bucket")
+        mock_bucket.scope.assert_called_once_with("scope")
+        assert isinstance(scope, couchbase.scope.Scope), "collection is not of type Collection"
+
+    @mock.patch("airflow.providers.couchbase.hooks.couchbase.Cluster")
+    def test_get_collection(self, mock_cluster: mock.MagicMock):
+        # Mock the cluster object
+        mock_cluster_instance = mock.Mock(spec=couchbase.cluster.Cluster)
+        mock_cluster.return_value = mock_cluster_instance
+
+        # Mock bucket and scope behavior
+        mock_bucket = mock.Mock(spec=couchbase.bucket.Bucket)
+        mock_cluster_instance.bucket.return_value = mock_bucket
+        mock_scope = mock.Mock(spec=couchbase.scope.Scope)
+        mock_bucket.scope.return_value = mock_scope
+        mock_collection = mock.Mock(spec=couchbase.collection.Collection)
+        mock_scope.collection.return_value = mock_collection
+        
+        hook = CouchbaseHook()
+        collection = hook.get_collection(bucket="bucket", scope="scope", collection="collection")
+        assert hook.cluster is not None
+        mock_cluster.assert_called_once_with(
+            "localhost",
+            ClusterOptions(
+                authenticator=couchbase.auth.PasswordAuthenticator(
+                    username="username",
+                    password="password",
+                )
+            ),
+        )    
+        mock_cluster_instance.bucket.assert_called_once_with("bucket")
+        mock_bucket.scope.assert_called_once_with("scope")    
+        mock_scope.collection.assert_called_once_with("collection")
+        assert isinstance(collection, couchbase.collection.Collection), "collection is not of type Collection"
