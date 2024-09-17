@@ -47,7 +47,7 @@ from airflow.providers.openlineage.extractors import OperatorLineage as Operator
 from airflow.utils.context import Context as Context
 from airflow.utils.helpers import merge_dicts as merge_dicts
 from functools import cached_property as cached_property
-from typing import Any, Callable, Iterable, Mapping, Sequence, SupportsAbs
+from typing import Any, Callable, Iterable, Mapping, Sequence, SupportsAbs, Optional
 
 def _parse_boolean(val: str) -> str | bool: ...
 def parse_boolean(val: str) -> str | bool: ...
