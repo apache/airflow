@@ -515,13 +515,13 @@ BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.8",
         "airflow-version": "2.9.3",
-        "remove-providers": "standard",
+        "remove-providers": "cloudant edge standard",
         "run-tests": "true",
     },
     {
         "python-version": "3.8",
         "airflow-version": "2.10.1",
-        "remove-providers": "cloudant edge",
+        "remove-providers": "cloudant",
         "run-tests": "true",
     },
 ]
