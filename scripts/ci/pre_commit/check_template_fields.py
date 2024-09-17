@@ -17,12 +17,15 @@
 # under the License.
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.resolve()))
-from common_precommit_utils import console, initialize_breeze_precommit, run_command_via_breeze_shell
+from common_precommit_utils import (
+    initialize_breeze_precommit,
+    run_command_via_breeze_shell,
+    validate_cmd_result,
+)
 
 initialize_breeze_precommit(__name__, __file__)
 py_files_to_test = sys.argv[1:]
@@ -33,10 +36,5 @@ cmd_result = run_command_via_breeze_shell(
     warn_image_upgrade_needed=True,
     extra_env={"PYTHONWARNINGS": "default"},
 )
-if cmd_result.returncode != 0 and os.environ.get("CI") != "true":
-    console.print(
-        "\n[yellow]If you see strange stacktraces above, especially about missing imports "
-        "run this command:[/]\n"
-    )
-    console.print("[magenta]breeze ci-image build --python 3.8 --upgrade-to-newer-dependencies[/]\n")
-sys.exit(cmd_result.returncode)
+
+validate_cmd_result(cmd_result, include_ci_env_check=True)
