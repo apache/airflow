@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,29 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This module is deprecated.
-
-Please use :mod:`airflow.providers.fab.auth_manager.api.auth.backend.kerberos_auth` instead.
-"""
-
-from __future__ import annotations
-
-import warnings
-from typing import Any
-
-from requests_kerberos import HTTPKerberosAuth
-
-import airflow.providers.fab.auth_manager.api.auth.backend.kerberos_auth as fab_kerberos_auth
-from airflow.exceptions import RemovedInAirflow3Warning
-
-CLIENT_AUTH: tuple[str, str] | Any | None = HTTPKerberosAuth(service="airflow")
-
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.fab.auth_manager.api.auth.backend.kerberos_auth` instead.",
-    RemovedInAirflow3Warning,
-    stacklevel=2,
-)
-
-init_app = fab_kerberos_auth.init_app
-requires_authentication = fab_kerberos_auth.requires_authentication

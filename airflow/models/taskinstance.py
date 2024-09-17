@@ -937,7 +937,7 @@ def _get_template_context(
     Return TI Context.
 
     :param task_instance: the task instance for the task
-    :param dag for the task
+    :param dag: dag for the task
     :param session: SQLAlchemy ORM Session
     :param ignore_param_exceptions: flag to suppress value exceptions while initializing the ParamsDict
 

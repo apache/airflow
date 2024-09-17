@@ -16,34 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-import { PropsWithChildren } from "react";
 import { ChakraProvider } from "@chakra-ui/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router-dom";
-
-export const Wrapper = ({ children }: PropsWithChildren) => {
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: Infinity,
-      },
-    },
-  });
-
-  return (
-    <ChakraProvider>
-      <QueryClientProvider client={queryClient}>
-        <MemoryRouter>{children}</MemoryRouter>
-      </QueryClientProvider>
-    </ChakraProvider>
-  );
-};
+import type { PropsWithChildren } from "react";
 
 export const ChakraWrapper = ({ children }: PropsWithChildren) => (
   <ChakraProvider>{children}</ChakraProvider>
-);
-
-export const RouterWrapper = ({ children }: PropsWithChildren) => (
-  <MemoryRouter>{children}</MemoryRouter>
 );
