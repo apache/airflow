@@ -66,6 +66,7 @@ const config = {
     flash: `${CSS_DIR}/flash.css`,
     graph: `${CSS_DIR}/graph.css`,
     loadingDots: `${CSS_DIR}/loading-dots.css`,
+    login: `${JS_DIR}/login/index.tsx`,
     main: [`${CSS_DIR}/main.css`, `${JS_DIR}/main.js`],
     materialIcons: `${CSS_DIR}/material-icons.css`,
     moment: "moment-timezone",
