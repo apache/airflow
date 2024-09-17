@@ -16,9 +16,12 @@
 # under the License.
 from __future__ import annotations
 
+import json
+
 import pytest
 from flask import session, url_for
 
+from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.www import app as application
 from tests.test_utils.config import conf_vars
 
@@ -33,13 +36,16 @@ def simple_app():
             ): "airflow.auth.managers.simple.simple_auth_manager.SimpleAuthManager",
         }
     ):
+        with open(SimpleAuthManager.GENERATED_PASSWORDS_FILE, "w") as file:
+            user = {"test": "test"}
+            file.write(json.dumps(user))
+
         return application.create_app(
             testing=True,
             config={
                 "SIMPLE_AUTH_MANAGER_USERS": [
                     {
                         "username": "test",
-                        "password": "test",
                         "role": "admin",
                     }
                 ]
@@ -61,14 +67,6 @@ class TestSimpleAuthManagerAuthenticationViews:
         [("test", "test", True), ("test", "test2", False), ("", "", False)],
     )
     def test_login_submit(self, simple_app, username, password, is_successful):
-        simple_app.config["SIMPLE_AUTH_MANAGER_USERS"] = [
-            {
-                "username": "test",
-                "password": "test",
-                "role": "admin",
-            }
-        ]
-
         with simple_app.test_client() as client:
             response = client.post("/login_submit", data={"username": username, "password": password})
             assert response.status_code == 302

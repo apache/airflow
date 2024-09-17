@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import json
 from unittest.mock import Mock, patch
 
 import pytest
@@ -46,6 +47,30 @@ def test_user():
 
 
 class TestSimpleAuthManager:
+    @pytest.mark.db_test
+    def test_init_with_no_user(self, auth_manager_with_appbuilder):
+        auth_manager_with_appbuilder.init()
+        with open(SimpleAuthManager.GENERATED_PASSWORDS_FILE) as file:
+            passwords_str = file.read().strip()
+            user_passwords_from_file = json.loads(passwords_str)
+
+            assert user_passwords_from_file == {}
+
+    @pytest.mark.db_test
+    def test_init_with_users(self, auth_manager_with_appbuilder):
+        auth_manager_with_appbuilder.appbuilder.app.config["SIMPLE_AUTH_MANAGER_USERS"] = [
+            {
+                "username": "test",
+                "role": "admin",
+            }
+        ]
+        auth_manager_with_appbuilder.init()
+        with open(SimpleAuthManager.GENERATED_PASSWORDS_FILE) as file:
+            passwords_str = file.read().strip()
+            user_passwords_from_file = json.loads(passwords_str)
+
+            assert len(user_passwords_from_file) == 1
+
     @pytest.mark.db_test
     def test_is_logged_in(self, auth_manager, app, test_user):
         with app.test_request_context():

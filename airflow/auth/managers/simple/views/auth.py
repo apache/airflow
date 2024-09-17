@@ -71,9 +71,6 @@ class SimpleAuthManagerAuthenticationViews(AirflowBaseView):
         username = request.form.get("username")
         password = request.form.get("password")
 
-        print("TESTTTTTTTT")
-        print(self.passwords)
-
         found_users = [
             user
             for user in self.users
