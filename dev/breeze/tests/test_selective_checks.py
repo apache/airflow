@@ -43,7 +43,9 @@ ANSI_COLORS_MATCHER = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
 
 ALL_DOCS_SELECTED_FOR_BUILD = ""
 ALL_PROVIDERS_AFFECTED = ""
-LIST_OF_ALL_PROVIDER_TESTS = " ".join(f"Providers[{provider}]" for provider in get_available_packages())
+LIST_OF_ALL_PROVIDER_TESTS = " ".join(
+    f"Providers[{provider}]" for provider in get_available_packages(include_not_ready=True)
+)
 
 
 # commit that is neutral - allows to keep pyproject.toml-changing PRS neutral for unit tests
@@ -1119,7 +1121,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
                 },
-                id="Everything should run including full providers when"
+                id="Everything should run including full providers when "
                 "full tests are needed even if no files are changed",
             )
         ),
