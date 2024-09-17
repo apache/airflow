@@ -46,5 +46,5 @@ sensors:
     python-modules:
       - airflow.providers.standard.time.sensors.date_time
       - airflow.providers.standard.time.sensors.time_delta
-      - airflow.providers.standard.time.sensors.time_sensor
+      - airflow.providers.standard.time.sensors.time
       - airflow.providers.standard.time.sensors.weekday
