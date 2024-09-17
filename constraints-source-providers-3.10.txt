@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-17T07:39:16.184300
+# This constraints file was automatically generated on 2024-09-17T13:41:23.680729
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -323,7 +323,7 @@ jsonpointer==3.0.0
 jsonschema-path==0.3.3
 jsonschema-specifications==2023.12.1
 jsonschema==4.23.0
-jupyter_client==8.6.2
+jupyter_client==8.6.3
 jupyter_core==5.7.2
 kerberos==1.3.1
 keyring==25.3.0
@@ -645,9 +645,9 @@ xmlsec==1.3.14
 xmltodict==0.13.0
 yamllint==1.35.1
 yandex-query-client==0.1.4
-yandexcloud==0.316.0
+yandexcloud==0.317.0
 yarl==1.11.1
-ydb==3.17.1
+ydb==3.17.2
 zeep==4.2.1
 zenpy==2.0.53
 zipp==3.20.2
