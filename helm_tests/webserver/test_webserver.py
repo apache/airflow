@@ -38,6 +38,28 @@ class TestWebserverDeployment:
 
         assert 0 == len(docs)
 
+    def test_should_remove_replicas_field(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "hpa": {"enabled": True},
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        assert "replicas" not in jmespath.search("spec", docs[0])
+
+    def test_should_not_remove_replicas_field(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "hpa": {"enabled": False},
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        assert "replicas" in jmespath.search("spec", docs[0])
+
     def test_should_add_host_header_to_liveness_and_readiness_and_startup_probes(self):
         docs = render_chart(
             values={
@@ -1154,86 +1176,3 @@ class TestWebserverServiceAccount:
             show_only=["templates/webserver/webserver-serviceaccount.yaml"],
         )
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
-
-
-class TestWebserverHPAAutoScaler:
-    """Tests webserver HPA auto scaler."""
-
-    def test_should_add_component_specific_labels(self):
-        docs = render_chart(
-            values={
-                "webserver": {
-                    "hpa": {"enabled": True},
-                    "labels": {"test_label": "test_label_value"},
-                },
-            },
-            show_only=["templates/webserver/webserver-hpa.yaml"],
-        )
-
-        assert "test_label" in jmespath.search("metadata.labels", docs[0])
-        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
-
-    def test_should_remove_replicas_field(self):
-        docs = render_chart(
-            values={
-                "webserver": {
-                    "hpa": {"enabled": True},
-                },
-            },
-            show_only=["templates/webserver/webserver-deployment.yaml"],
-        )
-        assert "replicas" not in jmespath.search("spec", docs[0])
-
-    def test_should_not_remove_replicas_field(self):
-        docs = render_chart(
-            values={
-                "webserver": {
-                    "hpa": {"enabled": False},
-                },
-            },
-            show_only=["templates/webserver/webserver-deployment.yaml"],
-        )
-        assert "replicas" in jmespath.search("spec", docs[0])
-
-    @pytest.mark.parametrize(
-        "metrics, expected_metrics",
-        [
-            # default metrics
-            (
-                None,
-                {
-                    "type": "Resource",
-                    "resource": {"name": "cpu", "target": {"type": "Utilization", "averageUtilization": 80}},
-                },
-            ),
-            # custom metric
-            (
-                [
-                    {
-                        "type": "Pods",
-                        "pods": {
-                            "metric": {"name": "custom"},
-                            "target": {"type": "Utilization", "averageUtilization": 80},
-                        },
-                    }
-                ],
-                {
-                    "type": "Pods",
-                    "pods": {
-                        "metric": {"name": "custom"},
-                        "target": {"type": "Utilization", "averageUtilization": 80},
-                    },
-                },
-            ),
-        ],
-    )
-    def test_should_use_hpa_metrics(self, metrics, expected_metrics):
-        docs = render_chart(
-            values={
-                "webserver": {
-                    "hpa": {"enabled": True, **({"metrics": metrics} if metrics else {})},
-                },
-            },
-            show_only=["templates/webserver/webserver-hpa.yaml"],
-        )
-        assert expected_metrics == jmespath.search("spec.metrics[0]", docs[0])

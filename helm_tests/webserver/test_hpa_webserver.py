@@ -33,6 +33,20 @@ class TestWebserverHPA:
         )
         assert docs == []
 
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "hpa": {"enabled": True},
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/webserver/webserver-hpa.yaml"],
+        )
+
+        assert "test_label" in jmespath.search("metadata.labels", docs[0])
+        assert jmespath.search("metadata.labels", docs[0])["test_label"] == "test_label_value"
+
     @pytest.mark.parametrize(
         "min_replicas, max_replicas",
         [
@@ -77,3 +91,46 @@ class TestWebserverHPA:
             show_only=["templates/webserver/webserver-hpa.yaml"],
         )
         assert jmespath.search("spec.behavior", docs[0]) == expected_behavior
+
+    @pytest.mark.parametrize(
+        "metrics, expected_metrics",
+        [
+            # default metrics
+            (
+                None,
+                {
+                    "type": "Resource",
+                    "resource": {"name": "cpu", "target": {"type": "Utilization", "averageUtilization": 80}},
+                },
+            ),
+            # custom metric
+            (
+                [
+                    {
+                        "type": "Pods",
+                        "pods": {
+                            "metric": {"name": "custom"},
+                            "target": {"type": "Utilization", "averageUtilization": 80},
+                        },
+                    }
+                ],
+                {
+                    "type": "Pods",
+                    "pods": {
+                        "metric": {"name": "custom"},
+                        "target": {"type": "Utilization", "averageUtilization": 80},
+                    },
+                },
+            ),
+        ],
+    )
+    def test_should_use_hpa_metrics(self, metrics, expected_metrics):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "hpa": {"enabled": True, **({"metrics": metrics} if metrics else {})},
+                },
+            },
+            show_only=["templates/webserver/webserver-hpa.yaml"],
+        )
+        assert expected_metrics == jmespath.search("spec.metrics[0]", docs[0])
