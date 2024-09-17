@@ -355,6 +355,24 @@ class TestCleanupPods:
             "readOnly": True,
         } in jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].volumeMounts", docs[0])
 
+    def test_global_volumes_and_volume_mounts(self):
+        docs = render_chart(
+            values={
+                "cleanup": {"enabled": True},
+                "volumes": [{"name": "test-volume", "emptyDir": {}}],
+                "volumeMounts": [{"name": "test-volume", "mountPath": "/test"}],
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+        assert {
+            "name": "test-volume",
+            "mountPath": "/test",
+        } in jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert {
+            "name": "test-volume",
+            "emptyDir": {},
+        } in jmespath.search("spec.jobTemplate.spec.template.spec.volumes", docs[0])
+
 
 class TestCleanupServiceAccount:
     """Tests cleanup of service accounts."""

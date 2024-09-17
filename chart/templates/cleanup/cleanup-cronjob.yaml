@@ -105,10 +105,17 @@ spec:
               env:
                 {{- include "standard_airflow_environment" . | indent 12 }}
                 {{- include "container_extra_envs" (list . .Values.cleanup.env) | indent 12 }}
-              volumeMounts: {{- include "airflow_config_mount" . | nindent 16 }}
+              volumeMounts:
+                {{- include "airflow_config_mount" . | nindent 16 }}
+                {{- if .Values.volumeMounts }}
+                  {{- toYaml .Values.volumeMounts | nindent 16 }}
+                {{- end }}
               resources: {{- toYaml .Values.cleanup.resources | nindent 16 }}
           volumes:
             - name: config
               configMap:
                 name: {{ template "airflow_config" . }}
+            {{- if .Values.volumes }}
+              {{- toYaml .Values.volumes | nindent 12 }}
+            {{- end }}
 {{- end }}
