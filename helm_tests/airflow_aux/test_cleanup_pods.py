@@ -96,6 +96,8 @@ class TestCleanupPods:
             "subPath": "airflow.cfg",
             "readOnly": True,
         } in jmespath.search("spec.jobTemplate.spec.template.spec.containers[0].volumeMounts", docs[0])
+        assert "successfulJobsHistoryLimit" not in docs[0]["spec"]
+        assert "failedJobsHistoryLimit" not in docs[0]["spec"]
 
     def test_should_pass_validation_with_v1beta1_api(self):
         render_chart(
@@ -326,6 +328,20 @@ class TestCleanupPods:
         )
         assert 2 == jmespath.search("spec.failedJobsHistoryLimit", docs[0])
         assert 4 == jmespath.search("spec.successfulJobsHistoryLimit", docs[0])
+
+    def test_should_set_zero_job_history_limits(self):
+        docs = render_chart(
+            values={
+                "cleanup": {
+                    "enabled": True,
+                    "failedJobsHistoryLimit": 0,
+                    "successfulJobsHistoryLimit": 0,
+                },
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+        assert 0 == jmespath.search("spec.failedJobsHistoryLimit", docs[0])
+        assert 0 == jmespath.search("spec.successfulJobsHistoryLimit", docs[0])
 
     def test_no_airflow_local_settings(self):
         docs = render_chart(
