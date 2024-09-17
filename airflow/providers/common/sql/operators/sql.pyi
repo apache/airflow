@@ -89,7 +89,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         sql: str | list[str],
         autocommit: bool = False,
         parameters: Mapping | Iterable | None = None,
-        handler: Callable[[Any], list[tuple]] = ...,
+        handler: Callable[[Any], Optional[list[tuple]]] = ...,
         conn_id: str | None = None,
         database: str | None = None,
         split_statements: bool | None = None,
