@@ -180,7 +180,9 @@ class FabAuthManager(BaseAuthManager):
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
         user = self.get_user()
-        return not user.is_anonymous and user.is_active
+        return self.appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None) or (
+            not user.is_anonymous and user.is_active
+        )
 
     def is_authorized_configuration(
         self,
@@ -365,7 +367,9 @@ class FabAuthManager(BaseAuthManager):
 
     def get_url_user_profile(self) -> str | None:
         """Return the url to a page displaying info about the current user."""
-        if not self.security_manager.user_view:
+        if not self.security_manager.user_view or self.appbuilder.get_app.config.get(
+            "AUTH_ROLE_PUBLIC", None
+        ):
             return None
         return url_for(f"{self.security_manager.user_view.endpoint}.userinfo")
 
