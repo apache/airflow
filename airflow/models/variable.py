@@ -142,8 +142,8 @@ class Variable(Base, LoggingMixin):
                 target_dag_id=ti.dag_id,
                 target_task_id=ti.task_id,
             )
-        except AirflowException:
-            log.warning("Variable.get() called outside of task context.")
+        except Exception as e:
+            log.warning(f"Failed to add record to cross_dag_communication: {e}")
 
         var_val = Variable.get_variable_from_secrets(key=key)
         if var_val is None:
@@ -191,8 +191,8 @@ class Variable(Base, LoggingMixin):
                 source_dag_id=ti.dag_id,
                 source_task_id=ti.task_id,
             )
-        except AirflowException:
-            log.warning("Variable.set() called outside of task context.")
+        except Exception as e:
+            log.warning(f"Failed to add record to cross_dag_communication: {e}")
         
         # check if the secret exists in the custom secrets backend.
         cls.check_for_write_conflict(key)

@@ -2474,8 +2474,8 @@ class TaskInstance(Base, LoggingMixin):
                     target_dag_id=self.dag_id, 
                     target_task_id=self.task_id
                     )
-        except AirflowException:
-            logging.warning("Failed to add record to CrossDagComm table")
+        except Exception as e:
+            log.warning(f"Failed to add record to cross_dag_communication: {e}")
 
         query = XCom.get_many(
             key=key,
