@@ -89,7 +89,7 @@ T = TypeVar("T")
 
 log = logging.getLogger(__name__)
 
-_REVISION_HEADS_MAP = {
+_REVISION_HEADS_MAP: dict[str, str] = {
     "2.7.0": "405de8318b3a",
     "2.8.0": "10b52ebd31f7",
     "2.8.1": "88344c1d9134",
