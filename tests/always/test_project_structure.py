@@ -156,6 +156,9 @@ class TestProjectStructure:
             "tests/providers/yandex/hooks/test_yandexcloud_dataproc.py",
             "tests/providers/yandex/operators/test_yandexcloud_dataproc.py",
             "tests/providers/fab/migrations/test_env.py",
+            "tests/providers/fab/webserver/init_appbuilder.py",
+            "tests/providers/fab/webserver/init_appbuilder_links.py",
+            "tests/providers/fab/webserver/init_views.py",
         ]
 
         # TODO: Should we extend this test to cover other directories?

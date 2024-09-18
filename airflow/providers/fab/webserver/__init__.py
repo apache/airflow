@@ -16,19 +16,12 @@
 # under the License.
 from __future__ import annotations
 
-import pytest
-
-from tests.test_utils.compat import ignore_provider_compatibility_error
-
-with ignore_provider_compatibility_error("2.9.0+", __file__):
-    from airflow.providers.fab.auth_manager.cli_commands.utils import get_application_builder
-
-from airflow.providers.fab.webserver.init_appbuilder import AirflowAppBuilder
-
-pytestmark = pytest.mark.db_test
+from airflow.providers.fab.webserver.init_appbuilder import init_appbuilder
+from airflow.providers.fab.webserver.init_appbuilder_links import init_appbuilder_links
+from airflow.providers.fab.webserver.init_views import init_appbuilder_views
 
 
-class TestCliUtils:
-    def test_get_application_builder(self):
-        with get_application_builder() as appbuilder:
-            assert isinstance(appbuilder, AirflowAppBuilder)
+def init_fab(app):
+    init_appbuilder(app)
+    init_appbuilder_links(app)
+    init_appbuilder_views(app)

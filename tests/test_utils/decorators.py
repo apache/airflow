@@ -33,8 +33,6 @@ def dont_initialize_flask_app_submodules(_func=None, *, skip_all_except=None):
         methods = [
             "init_api_auth",
             "init_flash_views",
-            "init_appbuilder_links",
-            "init_appbuilder_views",
             "init_plugins",
             "init_error_handlers",
             "init_api_connexion",
@@ -44,7 +42,7 @@ def dont_initialize_flask_app_submodules(_func=None, *, skip_all_except=None):
             "init_jinja_globals",
             "init_xframe_protection",
             "init_airflow_session_interface",
-            "init_appbuilder",
+            "init_fab",
         ]
 
         @functools.wraps(f)

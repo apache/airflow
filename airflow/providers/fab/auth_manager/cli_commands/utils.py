@@ -26,11 +26,11 @@ from flask import Flask
 
 import airflow
 from airflow.configuration import conf
-from airflow.www.extensions.init_appbuilder import init_appbuilder
+from airflow.providers.fab.webserver.init_appbuilder import init_appbuilder
 from airflow.www.extensions.init_views import init_plugins
 
 if TYPE_CHECKING:
-    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
+    from airflow.providers.fab.webserver.init_appbuilder import AirflowAppBuilder
 
 
 @lru_cache(maxsize=None)

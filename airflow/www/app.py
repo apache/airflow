@@ -32,10 +32,9 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
 from airflow.logging_config import configure_logging
 from airflow.models import import_all_models
+from airflow.providers.fab.webserver import init_fab
 from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.json import AirflowJsonProvider
-from airflow.www.extensions.init_appbuilder import init_appbuilder
-from airflow.www.extensions.init_appbuilder_links import init_appbuilder_links
 from airflow.www.extensions.init_cache import init_cache
 from airflow.www.extensions.init_dagbag import init_dagbag
 from airflow.www.extensions.init_jinja_globals import init_jinja_globals
@@ -53,7 +52,6 @@ from airflow.www.extensions.init_views import (
     init_api_connexion,
     init_api_error_handlers,
     init_api_internal,
-    init_appbuilder_views,
     init_error_handlers,
     init_flash_views,
     init_plugins,
@@ -153,11 +151,9 @@ def create_app(config=None, testing=False):
     import_all_models()
 
     with flask_app.app_context():
-        init_appbuilder(flask_app)
+        init_fab(flask_app)
 
         init_react_ui(flask_app)
-        init_appbuilder_views(flask_app)
-        init_appbuilder_links(flask_app)
         init_plugins(flask_app)
         init_error_handlers(flask_app)
         init_api_connexion(flask_app)

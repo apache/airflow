@@ -31,12 +31,11 @@ from tests.test_utils.decorators import dont_initialize_flask_app_submodules
 def google_openid_app():
     @dont_initialize_flask_app_submodules(
         skip_all_except=[
-            "init_appbuilder",
+            "init_fab",
             "init_api_auth",
             "init_api_connexion",
             "init_api_error_handlers",
             "init_airflow_session_interface",
-            "init_appbuilder_views",
         ]
     )
     def factory():

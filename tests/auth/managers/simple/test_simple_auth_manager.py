@@ -26,7 +26,7 @@ from airflow.auth.managers.models.resource_details import AccessView
 from airflow.auth.managers.simple.simple_auth_manager import SimpleAuthManager
 from airflow.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.auth.managers.simple.views.auth import SimpleAuthManagerAuthenticationViews
-from airflow.www.extensions.init_appbuilder import init_appbuilder
+from airflow.providers.fab.webserver.init_appbuilder import init_appbuilder
 
 
 @pytest.fixture

@@ -57,7 +57,7 @@ pytest.importorskip("pydantic", minversion="2.0.0")
 def minimal_app_for_internal_api() -> Flask:
     @dont_initialize_flask_app_submodules(
         skip_all_except=[
-            "init_appbuilder",
+            "init_fab",
             "init_api_internal",
         ]
     )

@@ -74,9 +74,8 @@ def log_path(tmp_path_factory):
 def log_app(backup_modules, log_path):
     @dont_initialize_flask_app_submodules(
         skip_all_except=[
-            "init_appbuilder",
+            "init_fab",
             "init_jinja_globals",
-            "init_appbuilder_views",
             "init_api_connexion",
         ]
     )

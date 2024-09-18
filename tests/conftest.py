@@ -366,8 +366,8 @@ def initial_db_init():
     from flask import Flask
 
     from airflow.configuration import conf
+    from airflow.providers.fab.webserver.init_appbuilder import init_appbuilder
     from airflow.utils import db
-    from airflow.www.extensions.init_appbuilder import init_appbuilder
     from airflow.www.extensions.init_auth_manager import get_auth_manager
     from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
 

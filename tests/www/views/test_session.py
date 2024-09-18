@@ -53,9 +53,7 @@ def test_invalid_session_backend_option():
     @dont_initialize_flask_app_submodules(
         skip_all_except=[
             "init_api_connexion",
-            "init_appbuilder",
-            "init_appbuilder_links",
-            "init_appbuilder_views",
+            "init_fab",
             "init_flash_views",
             "init_jinja_globals",
             "init_plugins",
