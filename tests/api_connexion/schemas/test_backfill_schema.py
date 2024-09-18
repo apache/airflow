@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from airflow.api_connexion.schemas.backfill_schema import BackfillCollection, backfill_collection_schema
-from airflow.models import Backfill
+from airflow.models.backfill import Backfill
 from airflow.utils import timezone
 
 
