@@ -130,3 +130,20 @@ AUTH_TYPE = AUTH_DB
 # APP_THEME = "superhero.css"
 # APP_THEME = "united.css"
 # APP_THEME = "yeti.css"
+
+# ----------------------------------------------------
+# Simple auth manager config
+# ----------------------------------------------------
+# This list contains the list of users and their associated role in simple auth manager.
+# If the simple auth manager is used in your environment, this list controls who can access the environment.
+# Example:
+# [{
+#     "username": "admin",
+#     "role": "admin",
+# }]
+SIMPLE_AUTH_MANAGER_USERS = [
+    {
+        "username": "admin",
+        "role": "admin",
+    }
+]
