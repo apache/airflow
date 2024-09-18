@@ -24,7 +24,7 @@ import pytest
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.models import DagBag
 from airflow.models.dag import DAG
-from airflow.sensors.weekday import DayOfWeekSensor
+from airflow.providers.standard.time.sensors.weekday import DayOfWeekSensor
 from airflow.utils.timezone import datetime
 from airflow.utils.weekday import WeekDay
 from tests.test_utils import db

@@ -106,6 +106,7 @@ body:
         - snowflake
         - sqlite
         - ssh
+        - standard
         - tableau
         - telegram
         - teradata

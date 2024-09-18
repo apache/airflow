@@ -15,21 +15,7 @@
     specific language governing permissions and limitations
     under the License.
 
+ .. THIS FILE IS UPDATED AUTOMATICALLY_AT_RELEASE_TIME
 
-
-Using Operators
-===============
-
-An operator represents a single, ideally idempotent, task. Operators
-determine what actually executes when your DAG runs.
-
-.. note::
-    See the :doc:`Operators Concepts </core-concepts/operators>` documentation.
-
-.. toctree::
-    :maxdepth: 2
-
-    bash
-    file
-    python
-    external_task_sensor
+Package apache-airflow-providers-standard
+------------------------------------------------------

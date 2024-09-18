@@ -15,7 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-
+.. contents:: Table of Contents
+    :depth: 2
 
 .. _howto/operator:BranchDateTimeOperator:
 
