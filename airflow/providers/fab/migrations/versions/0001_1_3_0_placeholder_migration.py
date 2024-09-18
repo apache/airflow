@@ -23,6 +23,10 @@ Revision ID: 6709f7a774b9
 Revises:
 Create Date: 2024-09-03 17:06:38.040510
 
+Note: This is a placeholder migration used to stamp the migration
+when we create the migration from the ORM. Otherwise, it will run
+without stamping the migration, leading to subsequent changes to
+the tables not being migrated.
 """
 
 from __future__ import annotations
