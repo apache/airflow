@@ -283,7 +283,10 @@ class DatasetCollection(NamedTuple):
         )
         return coll
 
-    def write_datasets(self, *, session: Session) -> dict[str, DatasetModel]:
+    def add_datasets(self, *, session: Session) -> dict[str, DatasetModel]:
+        # Optimization: skip all database calls if no datasets were collected.
+        if not self.datasets:
+            return {}
         orm_datasets: dict[str, DatasetModel] = {
             dm.uri: dm
             for dm in session.scalars(select(DatasetModel).where(DatasetModel.uri.in_(self.datasets)))
@@ -305,7 +308,10 @@ class DatasetCollection(NamedTuple):
         dataset_manager.create_datasets(list(_resolve_dataset_addition()), session=session)
         return orm_datasets
 
-    def write_dataset_aliases(self, *, session: Session) -> dict[str, DatasetAliasModel]:
+    def add_dataset_aliases(self, *, session: Session) -> dict[str, DatasetAliasModel]:
+        # Optimization: skip all database calls if no dataset aliases were collected.
+        if not self.dataset_aliases:
+            return {}
         orm_aliases: dict[str, DatasetAliasModel] = {
             da.name: da
             for da in session.scalars(
@@ -320,15 +326,18 @@ class DatasetCollection(NamedTuple):
                 session.add(da)
         return orm_aliases
 
-    def write_dag_dataset_references(
+    def add_dag_dataset_references(
         self,
         dags: dict[str, DagModel],
         datasets: dict[str, DatasetModel],
         *,
         session: Session,
     ) -> None:
+        # Optimization: No datasets means there are no references to update.
+        if not datasets:
+            return
         for dag_id, references in self.schedule_dataset_references.items():
-            # Optimization: no references at all, just clear everything.
+            # Optimization: no references at all; this is faster than repeated delete().
             if not references:
                 dags[dag_id].schedule_dataset_references = []
                 continue
@@ -343,15 +352,18 @@ class DatasetCollection(NamedTuple):
                 if dataset_id not in orm_refs
             )
 
-    def write_dag_dataset_alias_references(
+    def add_dag_dataset_alias_references(
         self,
         dags: dict[str, DagModel],
         aliases: dict[str, DatasetAliasModel],
         *,
         session: Session,
     ) -> None:
+        # Optimization: No aliases means there are no references to update.
+        if not aliases:
+            return
         for dag_id, references in self.schedule_dataset_alias_references.items():
-            # Optimization: no references at all, just clear everything.
+            # Optimization: no references at all; this is faster than repeated delete().
             if not references:
                 dags[dag_id].schedule_dataset_alias_references = []
                 continue
@@ -366,15 +378,18 @@ class DatasetCollection(NamedTuple):
                 if alias_id not in orm_refs
             )
 
-    def write_task_dataset_references(
+    def add_task_dataset_references(
         self,
         dags: dict[str, DagModel],
         datasets: dict[str, DatasetModel],
         *,
         session: Session,
     ) -> None:
+        # Optimization: No datasets means there are no references to update.
+        if not datasets:
+            return
         for dag_id, references in self.outlet_references.items():
-            # Optimization: no references at all, just clear everything.
+            # Optimization: no references at all; this is faster than repeated delete().
             if not references:
                 dags[dag_id].task_outlet_dataset_references = []
                 continue

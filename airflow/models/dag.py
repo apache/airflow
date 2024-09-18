@@ -2665,13 +2665,14 @@ class DAG(LoggingMixin):
         DagCode.bulk_sync_to_db((dag.fileloc for dag in dags_by_ids.values()), session=session)
 
         dataset_collection = DatasetCollection.collect(dags_by_ids)
-        orm_datasets = dataset_collection.write_datasets(session=session)
-        orm_dataset_aliases = dataset_collection.write_dataset_aliases(session=session)
-        session.flush()
 
-        dataset_collection.write_dag_dataset_references(orm_dags, orm_datasets, session=session)
-        dataset_collection.write_dag_dataset_alias_references(orm_dags, orm_dataset_aliases, session=session)
-        dataset_collection.write_task_dataset_references(orm_dags, orm_datasets, session=session)
+        orm_datasets = dataset_collection.add_datasets(session=session)
+        orm_dataset_aliases = dataset_collection.add_dataset_aliases(session=session)
+        session.flush()  # This populates id so we can create fks in later calls.
+
+        dataset_collection.add_dag_dataset_references(orm_dags, orm_datasets, session=session)
+        dataset_collection.add_dag_dataset_alias_references(orm_dags, orm_dataset_aliases, session=session)
+        dataset_collection.add_task_dataset_references(orm_dags, orm_datasets, session=session)
         session.flush()
 
     @provide_session
