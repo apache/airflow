@@ -86,7 +86,7 @@ class _AbsolutePriorityWeightStrategy(PriorityWeightStrategy):
 class _DownstreamPriorityWeightStrategy(PriorityWeightStrategy):
     """Priority weight strategy that uses the sum of the priority weights of all downstream tasks."""
 
-    def get_weight(self, ti: TaskInstance) -> int:
+    def get_weight(self, ti: TaskInstance) -> int | float:
         if TYPE_CHECKING:
             assert ti.task
         dag = ti.task.get_dag()

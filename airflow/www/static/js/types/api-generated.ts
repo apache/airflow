@@ -1440,7 +1440,7 @@ export interface components {
       pool?: string;
       pool_slots?: number;
       queue?: string | null;
-      priority_weight?: number | null;
+      priority_weight?: (Partial<number> & Partial<number>) | null;
       /** @description *Changed in version 2.1.1*&#58; Field becomes nullable. */
       operator?: string | null;
       /** @description The datetime that the task enter the state QUEUE, also known as queue_at */
@@ -1654,7 +1654,7 @@ export interface components {
       execution_timeout?: components["schemas"]["TimeDelta"];
       retry_delay?: components["schemas"]["TimeDelta"];
       retry_exponential_backoff?: boolean;
-      priority_weight?: number;
+      priority_weight?: Partial<number> & Partial<number>;
       weight_rule?: components["schemas"]["WeightRule"];
       ui_color?: components["schemas"]["Color"];
       ui_fgcolor?: components["schemas"]["Color"];

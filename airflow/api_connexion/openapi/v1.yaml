@@ -3642,7 +3642,10 @@ components:
           type: string
           nullable: true
         priority_weight:
-          type: integer
+          anyOf:
+            - type: integer
+            - type: number
+              format: float
           nullable: true
         operator:
           type: string
@@ -4030,7 +4033,10 @@ components:
           type: boolean
           readOnly: true
         priority_weight:
-          type: number
+          anyOf:
+            - type: integer
+            - type: number
+              format: float
           readOnly: true
         weight_rule:
           $ref: "#/components/schemas/WeightRule"

@@ -530,11 +530,11 @@ class MappedOperator(AbstractOperator):
         self.partial_kwargs["retry_exponential_backoff"] = value
 
     @property
-    def priority_weight(self) -> int:  # type: ignore[override]
+    def priority_weight(self) -> int | float:  # type: ignore[override]
         return self.partial_kwargs.get("priority_weight", DEFAULT_PRIORITY_WEIGHT)
 
     @priority_weight.setter
-    def priority_weight(self, value: int) -> None:
+    def priority_weight(self, value: int | float) -> None:
         self.partial_kwargs["priority_weight"] = value
 
     @property

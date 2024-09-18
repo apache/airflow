@@ -248,7 +248,7 @@ def partial(
     max_retry_delay: None | timedelta | float | ArgNotSet = NOTSET,
     retry_delay: timedelta | float | ArgNotSet = NOTSET,
     retry_exponential_backoff: bool | ArgNotSet = NOTSET,
-    priority_weight: int | ArgNotSet = NOTSET,
+    priority_weight: float | int | ArgNotSet = NOTSET,
     weight_rule: str | PriorityWeightStrategy | ArgNotSet = NOTSET,
     sla: timedelta | None | ArgNotSet = NOTSET,
     map_index_template: str | None | ArgNotSet = NOTSET,
@@ -879,7 +879,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         dag: DAG | None = None,
         params: collections.abc.MutableMapping | None = None,
         default_args: dict | None = None,
-        priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
+        priority_weight: float | int = DEFAULT_PRIORITY_WEIGHT,
         weight_rule: str | PriorityWeightStrategy = DEFAULT_WEIGHT_RULE,
         queue: str = DEFAULT_QUEUE,
         pool: str | None = None,
@@ -1003,9 +1003,9 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         # At execution_time this becomes a normal dict
         self.params: ParamsDict | dict = ParamsDict(params)
-        if priority_weight is not None and not isinstance(priority_weight, int):
+        if priority_weight is not None and not isinstance(priority_weight, (int, float)):
             raise AirflowException(
-                f"`priority_weight` for task '{self.task_id}' only accepts integers, "
+                f"`priority_weight` for task '{self.task_id}' only accepts integers/floats, "
                 f"received '{type(priority_weight)}'."
             )
         self.priority_weight = priority_weight
