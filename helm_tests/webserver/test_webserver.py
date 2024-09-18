@@ -38,6 +38,28 @@ class TestWebserverDeployment:
 
         assert 0 == len(docs)
 
+    def test_should_remove_replicas_field(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "hpa": {"enabled": True},
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        assert "replicas" not in jmespath.search("spec", docs[0])
+
+    def test_should_not_remove_replicas_field(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "hpa": {"enabled": False},
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+        assert "replicas" in jmespath.search("spec", docs[0])
+
     def test_should_add_host_header_to_liveness_and_readiness_and_startup_probes(self):
         docs = render_chart(
             values={
