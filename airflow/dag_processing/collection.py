@@ -318,6 +318,7 @@ class DatasetCollection(NamedTuple):
             except KeyError:
                 da = orm_aliases[name] = DatasetAliasModel.from_public(alias)
                 session.add(da)
+        session.flush()
         return orm_aliases
 
     def write_dag_dataset_references(

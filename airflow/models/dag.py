@@ -2667,7 +2667,6 @@ class DAG(LoggingMixin):
         dataset_collection = DatasetCollection.collect(dags_by_ids)
         orm_datasets = dataset_collection.write_datasets(session=session)
         orm_dataset_aliases = dataset_collection.write_dataset_aliases(session=session)
-        session.flush()  # This populates id so we can start creating references.
 
         dataset_collection.write_dag_dataset_references(orm_dags, orm_datasets, session=session)
         dataset_collection.write_dag_dataset_alias_references(orm_dags, orm_dataset_aliases, session=session)
