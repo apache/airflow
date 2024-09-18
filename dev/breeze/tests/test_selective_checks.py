@@ -705,7 +705,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("airflow/providers/standard/core/operators/bash.py",),
             {
-                "affected-providers-list-as-string": None,
+                "affected-providers-list-as-string": "standard",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "python-versions": "['3.9']",
@@ -717,14 +717,14 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 "run-amazon-tests": "false",
                 "docs-build": "true",
                 "run-kubernetes-tests": "false",
-                "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,"
+                "skip-pre-commits": "identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,"
                 "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                 "upgrade-to-newer-dependencies": "false",
-                "parallel-test-types-list-as-string": "Always Core Operators Serialization",
+                "parallel-test-types-list-as-string": "Always Core Providers[standard] Serialization",
                 "needs-mypy": "true",
-                "mypy-folders": "['airflow']",
+                "mypy-folders": "['providers']",
             },
-            id="Force Core and Serialization tests to run when airflow bash.py changed",
+            id="Providers tests and Serialization tests to run when airflow bash.py changed",
         ),
         pytest.param(
             ("tests/operators/bash.py",),
