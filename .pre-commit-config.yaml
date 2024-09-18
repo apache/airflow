@@ -1336,13 +1336,6 @@ repos:
         pass_filenames: false
         files: ^airflow/api_fastapi/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
-      # - id: update-er-diagram
-      #   name: Update ER diagram
-      #   language: python
-      #   entry: ./scripts/ci/pre_commit/update_er_diagram.py
-      #   pass_filenames: false
-      #   files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
-      #   additional_dependencies: ['rich>=12.4.4']
       - id: generate-er-diagram
         name: Generate Entity Relationship Diagram
         language: python

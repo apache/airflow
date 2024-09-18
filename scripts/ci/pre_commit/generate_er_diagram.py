@@ -91,5 +91,5 @@ def generate_svg():
         console.print("An error occurred:", str(e))
 
 if __name__ == "__main__":
-    #generate_svg()
+    generate_svg()
     inject_mermaid_diagram()
