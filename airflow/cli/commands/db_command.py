@@ -97,7 +97,7 @@ def _get_version_revision(
     return _get_version_revision(new_version, recursion_limit)
 
 
-def run_db_migrate_command(args, command, revision_heads_map: dict[str, str], airflow_db: bool = True):
+def run_db_migrate_command(args, command, revision_heads_map: dict[str, str], reserialize_dags: bool = True):
     """
     Run the db migrate command.
 
@@ -122,12 +122,9 @@ def run_db_migrate_command(args, command, revision_heads_map: dict[str, str], ai
         from_revision = args.from_revision
     elif args.from_version:
         try:
-            parsed_version = parse_version(args.from_version)
+            parse_version(args.from_version)
         except InvalidVersion:
             raise SystemExit(f"Invalid version {args.from_version!r} supplied as `--from-version`.")
-        if airflow_db:
-            if parsed_version < parse_version("2.0.0"):
-                raise SystemExit("--from-version must be greater or equal to than 2.0.0")
         from_revision = _get_version_revision(args.from_version, revision_heads_map=revision_heads_map)
         if not from_revision:
             raise SystemExit(f"Unknown version {args.from_version!r} supplied as `--from-version`.")
@@ -147,7 +144,7 @@ def run_db_migrate_command(args, command, revision_heads_map: dict[str, str], ai
         print(f"Performing upgrade to the metadata database {settings.engine.url!r}")
     else:
         print("Generating sql for upgrade -- upgrade commands will *not* be submitted.")
-    if airflow_db:
+    if reserialize_dags:
         command(
             to_revision=to_revision,
             from_revision=from_revision,
@@ -220,7 +217,14 @@ def run_db_downgrade_command(args, command, revision_heads_map: dict[str, str]):
 @providers_configuration_loaded
 def migratedb(args):
     """Migrates the metadata database."""
-    run_db_migrate_command(args, db.upgradedb, _REVISION_HEADS_MAP, airflow_db=True)
+    if args.from_version:
+        try:
+            parsed_version = parse_version(args.from_version)
+        except InvalidVersion:
+            raise SystemExit(f"Invalid version {args.from_version!r} supplied as `--from-version`.")
+        if parsed_version < parse_version("2.0.0"):
+            raise SystemExit("--from-version must be greater or equal to 2.0.0")
+    run_db_migrate_command(args, db.upgradedb, _REVISION_HEADS_MAP, reserialize_dags=True)
 
 
 @cli_utils.action_cli(check_db=False)
