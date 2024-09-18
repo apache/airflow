@@ -318,7 +318,6 @@ class DatasetCollection(NamedTuple):
             except KeyError:
                 da = orm_aliases[name] = DatasetAliasModel.from_public(alias)
                 session.add(da)
-        session.flush()
         return orm_aliases
 
     def write_dag_dataset_references(
@@ -339,12 +338,9 @@ class DatasetCollection(NamedTuple):
                 if dataset_id not in referenced_dataset_ids:
                     session.delete(ref)
             session.bulk_save_objects(
-                (
-                    DagScheduleDatasetReference(dataset_id=dataset_id, dag_id=dag_id)
-                    for dataset_id in referenced_dataset_ids
-                    if dataset_id not in orm_refs
-                ),
-                preserve_order=False,
+                DagScheduleDatasetReference(dataset_id=dataset_id, dag_id=dag_id)
+                for dataset_id in referenced_dataset_ids
+                if dataset_id not in orm_refs
             )
 
     def write_dag_dataset_alias_references(
@@ -365,12 +361,9 @@ class DatasetCollection(NamedTuple):
                 if alias_id not in referenced_alias_ids:
                     session.delete(ref)
             session.bulk_save_objects(
-                (
-                    DagScheduleDatasetAliasReference(alias_id=alias_id, dag_id=dag_id)
-                    for alias_id in referenced_alias_ids
-                    if alias_id not in orm_refs
-                ),
-                preserve_order=False,
+                DagScheduleDatasetAliasReference(alias_id=alias_id, dag_id=dag_id)
+                for alias_id in referenced_alias_ids
+                if alias_id not in orm_refs
             )
 
     def write_task_dataset_references(
@@ -394,10 +387,7 @@ class DatasetCollection(NamedTuple):
                 if key not in referenced_outlets:
                     session.delete(ref)
             session.bulk_save_objects(
-                (
-                    TaskOutletDatasetReference(dataset_id=dataset_id, dag_id=dag_id, task_id=task_id)
-                    for task_id, dataset_id in referenced_outlets
-                    if (task_id, dataset_id) not in orm_refs
-                ),
-                preserve_order=False,
+                TaskOutletDatasetReference(dataset_id=dataset_id, dag_id=dag_id, task_id=task_id)
+                for task_id, dataset_id in referenced_outlets
+                if (task_id, dataset_id) not in orm_refs
             )
