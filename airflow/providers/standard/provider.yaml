@@ -34,6 +34,8 @@ integrations:
   - integration-name: Standard
     external-doc-url: https://airflow.apache.org/
     tags: [apache]
+    how-to-guide:
+      - /docs/apache-airflow-providers-standard/operators.rst
 
 operators:
   - integration-name: Standard
