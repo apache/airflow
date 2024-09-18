@@ -66,7 +66,6 @@ def import_all_models():
     import airflow.models.taskinstancehistory
     import airflow.models.tasklog
     import airflow.providers.fab.auth_manager.models
-    from airflow.models.backfill import Backfill, BackfillDagRun
 
 
 def __getattr__(name):
@@ -118,7 +117,6 @@ __lazy_imports = {
 if TYPE_CHECKING:
     # I was unable to get mypy to respect a airflow/models/__init__.pyi, so
     # having to resort back to this hacky method
-    from airflow.models.backfill import Backfill, BackfillDagRun
     from airflow.models.base import ID_LEN, Base
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.baseoperatorlink import BaseOperatorLink
