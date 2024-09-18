@@ -53,6 +53,15 @@ from tests.utils.test_config import (
 
 HOME_DIR = os.path.expanduser("~")
 
+# The conf has been updated with sql_alchemy_con and deactivate_stale_dags_interval to test the
+# functionality of deprecated options support.
+conf.deprecated_options[("database", "sql_alchemy_conn")] = ("core", "sql_alchemy_conn", "2.3.0")
+conf.deprecated_options[("scheduler", "parsing_cleanup_interval")] = (
+    "scheduler",
+    "deactivate_stale_dags_interval",
+    "2.5.0",
+)
+
 
 @pytest.fixture(scope="module", autouse=True)
 def restore_env():
@@ -958,33 +967,6 @@ class TestDeprecatedConf:
 
     @conf_vars(
         {
-            ("logging", "logging_level"): None,
-            ("core", "logging_level"): None,
-        }
-    )
-    def test_deprecated_options_with_new_section(self):
-        # Guarantee we have a deprecated setting, so we test the deprecation
-        # lookup even if we remove this explicit fallback
-        with set_deprecated_options(
-            deprecated_options={("logging", "logging_level"): ("core", "logging_level", "2.0.0")}
-        ):
-            # Remove it so we are sure we use the right setting
-            conf.remove_option("core", "logging_level")
-            conf.remove_option("logging", "logging_level")
-
-            with pytest.warns(DeprecationWarning):
-                with mock.patch.dict("os.environ", AIRFLOW__CORE__LOGGING_LEVEL="VALUE"):
-                    assert conf.get("logging", "logging_level") == "VALUE"
-
-            with pytest.warns(FutureWarning, match="Please update your `conf.get"):
-                with mock.patch.dict("os.environ", AIRFLOW__CORE__LOGGING_LEVEL="VALUE"):
-                    assert conf.get("core", "logging_level") == "VALUE"
-
-            with pytest.warns(DeprecationWarning), conf_vars({("core", "logging_level"): "VALUE"}):
-                assert conf.get("logging", "logging_level") == "VALUE"
-
-    @conf_vars(
-        {
             ("celery", "result_backend"): None,
             ("celery", "celery_result_backend"): None,
             ("celery", "celery_result_backend_cmd"): None,
@@ -1029,14 +1011,6 @@ sql_alchemy_conn=sqlite://test
     @pytest.mark.parametrize(
         "old, new",
         [
-            (
-                ("api", "auth_backend", "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"),
-                (
-                    "api",
-                    "auth_backends",
-                    "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth,airflow.api.auth.backend.session",
-                ),
-            ),
             (
                 ("core", "sql_alchemy_conn", "postgres+psycopg2://localhost/postgres"),
                 ("database", "sql_alchemy_conn", "postgresql://localhost/postgres"),

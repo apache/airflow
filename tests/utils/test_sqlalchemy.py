@@ -42,6 +42,10 @@ from airflow.utils.sqlalchemy import (
 )
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -73,6 +77,7 @@ class TestSqlAlchemyUtils:
         dag = DAG(dag_id=dag_id, schedule=datetime.timedelta(days=1), start_date=start_date)
         dag.clear()
 
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         run = dag.create_dagrun(
             run_id=iso_date,
             state=State.NONE,
@@ -80,6 +85,7 @@ class TestSqlAlchemyUtils:
             start_date=start_date,
             session=self.session,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=execution_date),
+            **triggered_by_kwargs,
         )
 
         assert execution_date == run.execution_date
@@ -103,6 +109,7 @@ class TestSqlAlchemyUtils:
         start_date = datetime.datetime.now()
         dag = DAG(dag_id=dag_id, start_date=start_date, schedule=datetime.timedelta(days=1))
         dag.clear()
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
 
         with pytest.raises((ValueError, StatementError)):
             dag.create_dagrun(
@@ -112,6 +119,7 @@ class TestSqlAlchemyUtils:
                 start_date=start_date,
                 session=self.session,
                 data_interval=dag.timetable.infer_manual_data_interval(run_after=start_date),
+                **triggered_by_kwargs,
             )
         dag.clear()
 

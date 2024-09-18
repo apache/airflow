@@ -69,6 +69,13 @@ class PubSubPullSensor(BaseSensorOperator):
         full subscription path.
     :param max_messages: The maximum number of messages to retrieve per
         PubSub pull request
+    :param return_immediately: If this field set to true, the system will
+        respond immediately even if it there are no messages available to
+        return in the ``Pull`` response. Otherwise, the system may wait
+        (for a bounded amount of time) until at least one message is available,
+        rather than returning no messages. Warning: setting this field to
+        ``true`` is discouraged because it adversely impacts the performance
+        of ``Pull`` operations. We recommend that users do not set this field.
     :param ack_messages: If True, each message will be acknowledged
         immediately rather than by any downstream tasks
     :param gcp_conn_id: The connection ID to use connecting to
@@ -102,6 +109,7 @@ class PubSubPullSensor(BaseSensorOperator):
         project_id: str,
         subscription: str,
         max_messages: int = 5,
+        return_immediately: bool = True,
         ack_messages: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         messages_callback: Callable[[list[ReceivedMessage], Context], Any] | None = None,
@@ -115,6 +123,7 @@ class PubSubPullSensor(BaseSensorOperator):
         self.project_id = project_id
         self.subscription = subscription
         self.max_messages = max_messages
+        self.return_immediately = return_immediately
         self.ack_messages = ack_messages
         self.messages_callback = messages_callback
         self.impersonation_chain = impersonation_chain
@@ -132,7 +141,7 @@ class PubSubPullSensor(BaseSensorOperator):
             project_id=self.project_id,
             subscription=self.subscription,
             max_messages=self.max_messages,
-            return_immediately=True,
+            return_immediately=self.return_immediately,
         )
 
         handle_messages = self.messages_callback or self._default_message_callback

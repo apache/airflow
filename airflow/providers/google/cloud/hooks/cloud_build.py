@@ -21,7 +21,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from deprecated import deprecated
 from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -29,6 +28,7 @@ from google.cloud.devtools.cloudbuild_v1 import CloudBuildAsyncClient, CloudBuil
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
@@ -191,7 +191,8 @@ class CloudBuildHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     @deprecated(
-        reason="Please use `create_build_without_waiting_for_result`",
+        planned_removal_date="March 01, 2025",
+        use_instead="create_build_without_waiting_for_result",
         category=AirflowProviderDeprecationWarning,
     )
     def create_build(

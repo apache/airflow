@@ -30,7 +30,6 @@ from airflow.operators.python import PythonOperator
 from airflow.providers.apache.beam.operators.beam import BeamRunPythonPipelineOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.utils.mlengine_operator_utils import create_evaluate_ops
-from tests.providers.google.cloud.operators.test_mlengine import DEPRECATION_MESSAGE
 
 TASK_PREFIX = "test-task-prefix"
 TASK_PREFIX_PREDICTION = TASK_PREFIX + "-prediction"
@@ -95,7 +94,7 @@ class TestMlengineOperatorUtils:
     @mock.patch.object(PythonOperator, "set_upstream")
     @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")
     def test_create_evaluate_ops(self, mock_beam_pipeline, mock_python):
-        with pytest.warns(AirflowProviderDeprecationWarning, match=DEPRECATION_MESSAGE):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             result = create_evaluate_ops(
                 task_prefix=TASK_PREFIX,
                 data_format=DATA_FORMAT,
@@ -141,7 +140,7 @@ class TestMlengineOperatorUtils:
     @mock.patch.object(PythonOperator, "set_upstream")
     @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")
     def test_create_evaluate_ops_model_and_version_name(self, mock_beam_pipeline, mock_python):
-        with pytest.warns(AirflowProviderDeprecationWarning, match=DEPRECATION_MESSAGE):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             result = create_evaluate_ops(
                 task_prefix=TASK_PREFIX,
                 data_format=DATA_FORMAT,
@@ -189,7 +188,7 @@ class TestMlengineOperatorUtils:
     @mock.patch.object(PythonOperator, "set_upstream")
     @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")
     def test_create_evaluate_ops_dag(self, mock_dataflow, mock_python):
-        with pytest.warns(AirflowProviderDeprecationWarning, match=DEPRECATION_MESSAGE):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             result = create_evaluate_ops(
                 task_prefix=TASK_PREFIX,
                 data_format=DATA_FORMAT,
@@ -235,10 +234,7 @@ class TestMlengineOperatorUtils:
     @mock.patch.object(PythonOperator, "set_upstream")
     @mock.patch.object(BeamRunPythonPipelineOperator, "set_upstream")
     def test_apply_validate_fn(self, mock_beam_pipeline, mock_python, mock_download):
-        with pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match=DEPRECATION_MESSAGE,
-        ):
+        with pytest.warns(AirflowProviderDeprecationWarning):
             result = create_evaluate_ops(
                 task_prefix=TASK_PREFIX,
                 data_format=DATA_FORMAT,

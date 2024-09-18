@@ -58,7 +58,7 @@ class PowerBITrigger(BaseTrigger):
         group_id: str,
         timeout: float = 60 * 60 * 24 * 7,
         proxies: dict | None = None,
-        api_version: APIVersion | None = None,
+        api_version: APIVersion | str | None = None,
         check_interval: int = 60,
         wait_for_termination: bool = True,
     ):
@@ -72,13 +72,12 @@ class PowerBITrigger(BaseTrigger):
 
     def serialize(self):
         """Serialize the trigger instance."""
-        api_version = self.api_version.value if self.api_version else None
         return (
             "airflow.providers.microsoft.azure.triggers.powerbi.PowerBITrigger",
             {
                 "conn_id": self.conn_id,
                 "proxies": self.proxies,
-                "api_version": api_version,
+                "api_version": self.api_version,
                 "dataset_id": self.dataset_id,
                 "group_id": self.group_id,
                 "timeout": self.timeout,
@@ -96,7 +95,7 @@ class PowerBITrigger(BaseTrigger):
         return self.hook.proxies
 
     @property
-    def api_version(self) -> APIVersion:
+    def api_version(self) -> APIVersion | str:
         return self.hook.api_version
 
     async def run(self) -> AsyncIterator[TriggerEvent]:

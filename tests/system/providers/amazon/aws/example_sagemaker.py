@@ -21,6 +21,7 @@ import logging
 import subprocess
 from datetime import datetime
 from tempfile import NamedTemporaryFile
+from textwrap import dedent
 
 import boto3
 
@@ -75,34 +76,33 @@ KNN_IMAGES_BY_REGION = {
 SAMPLE_SIZE = 600
 
 # This script will be the entrypoint for the docker image which will handle preprocessing the raw data
-# NOTE:  The following string must remain dedented as it is being written to a file.
-PREPROCESS_SCRIPT_TEMPLATE = """
-import numpy as np
-import pandas as pd
+PREPROCESS_SCRIPT_TEMPLATE = dedent("""
+    import numpy as np
+    import pandas as pd
 
-def main():
-    # Load the dataset from {input_path}/input.csv, split it into train/test
-    # subsets, and write them to {output_path}/ for the Processing Operator.
+    def main():
+        # Load the dataset from {input_path}/input.csv, split it into train/test
+        # subsets, and write them to {output_path}/ for the Processing Operator.
 
-    data = pd.read_csv('{input_path}/input.csv')
+        data = pd.read_csv('{input_path}/input.csv')
 
-    # Split into test and train data
-    data_train, data_test = np.split(
-        data.sample(frac=1, random_state=np.random.RandomState()), [int(0.7 * len(data))]
-    )
+        # Split into test and train data
+        data_train, data_test = np.split(
+            data.sample(frac=1, random_state=np.random.RandomState()), [int(0.7 * len(data))]
+        )
 
-    # Remove the "answers" from the test set
-    data_test.drop(['class'], axis=1, inplace=True)
+        # Remove the "answers" from the test set
+        data_test.drop(['class'], axis=1, inplace=True)
 
-    # Write the splits to disk
-    data_train.to_csv('{output_path}/train.csv', index=False, header=False)
-    data_test.to_csv('{output_path}/test.csv', index=False, header=False)
+        # Write the splits to disk
+        data_train.to_csv('{output_path}/train.csv', index=False, header=False)
+        data_test.to_csv('{output_path}/test.csv', index=False, header=False)
 
-    print('Preprocessing Done.')
+        print('Preprocessing Done.')
 
-if __name__ == "__main__":
-    main()
-"""
+    if __name__ == "__main__":
+        main()
+""")
 
 
 def _create_ecr_repository(repo_name):

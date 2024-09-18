@@ -29,6 +29,7 @@ from airflow.providers.amazon.aws.operators.lambda_function import (
     LambdaCreateFunctionOperator,
     LambdaInvokeFunctionOperator,
 )
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 FUNCTION_NAME = "function_name"
 PAYLOADS = [
@@ -160,6 +161,17 @@ class TestLambdaCreateFunctionOperator:
         assert operator.config.get("snap_start") == config.get("snap_start")
         assert operator.config.get("ephemeral_storage") == config.get("ephemeral_storage")
 
+    def test_template_fields(self):
+        operator = LambdaCreateFunctionOperator(
+            task_id="task_test",
+            function_name=FUNCTION_NAME,
+            role=ROLE_ARN,
+            code={
+                "ImageUri": IMAGE_URI,
+            },
+        )
+        validate_template_fields(operator)
+
 
 class TestLambdaInvokeFunctionOperator:
     @pytest.mark.parametrize("payload", PAYLOADS)
@@ -280,3 +292,10 @@ class TestLambdaInvokeFunctionOperator:
 
         with pytest.raises(ValueError):
             operator.execute(None)
+
+    def test_template_fields(self):
+        operator = LambdaInvokeFunctionOperator(
+            task_id="task_test",
+            function_name="a",
+        )
+        validate_template_fields(operator)
