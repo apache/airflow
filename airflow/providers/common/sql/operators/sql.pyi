@@ -47,7 +47,7 @@ from airflow.providers.openlineage.extractors import OperatorLineage as Operator
 from airflow.utils.context import Context as Context
 from airflow.utils.helpers import merge_dicts as merge_dicts
 from functools import cached_property as cached_property
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Optional, Sequence, SupportsAbs
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
 
 def _parse_boolean(val: str) -> str | bool: ...
 def parse_boolean(val: str) -> str | bool: ...
@@ -89,7 +89,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         sql: str | list[str],
         autocommit: bool = False,
         parameters: Mapping | Iterable | None = None,
-        handler: Callable[[Any], Optional[list[tuple]]] = ...,
+        handler: Callable[[Any], list[tuple] | None] = ...,
         conn_id: str | None = None,
         database: str | None = None,
         split_statements: bool | None = None,
