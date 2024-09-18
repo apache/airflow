@@ -38,15 +38,16 @@ if TYPE_CHECKING:
 class YDBCursor:
     """YDB cursor wrapper."""
 
-    def __init__(self, delegatee: DbApiCursor, is_ddl: bool):
+    def __init__(self, delegatee: DbApiCursor, is_ddl: bool, use_scan_query: bool):
         self.delegatee: DbApiCursor = delegatee
         self.is_ddl: bool = is_ddl
+        self.use_scan_query: bool = use_scan_query
 
     def execute(self, sql: str, parameters: Mapping[str, Any] | None = None):
         if parameters is not None:
             raise AirflowException("parameters is not supported yet")
 
-        q = YdbQuery(yql_text=sql, is_ddl=self.is_ddl)
+        q = YdbQuery(yql_text=sql, is_ddl=self.is_ddl, use_scan_query=self.use_scan_query)
         return self.delegatee.execute(q, parameters)
 
     def executemany(self, sql: str, seq_of_parameters: Sequence[Mapping[str, Any]]):
@@ -95,12 +96,13 @@ class YDBCursor:
 class YDBConnection:
     """YDB connection wrapper."""
 
-    def __init__(self, ydb_session_pool: Any, is_ddl: bool):
+    def __init__(self, ydb_session_pool: Any, is_ddl: bool, use_scan_query: bool):
         self.is_ddl = is_ddl
+        self.use_scan_query = use_scan_query
         self.delegatee: DbApiConnection = DbApiConnection(ydb_session_pool=ydb_session_pool)
 
     def cursor(self) -> YDBCursor:
-        return YDBCursor(self.delegatee.cursor(), is_ddl=self.is_ddl)
+        return YDBCursor(self.delegatee.cursor(), is_ddl=self.is_ddl, use_scan_query=self.use_scan_query)
 
     def begin(self) -> None:
         self.delegatee.begin()
@@ -134,9 +136,10 @@ class YDBHook(DbApiHook):
     supports_autocommit: bool = True
     supports_executemany: bool = True
 
-    def __init__(self, *args, is_ddl: bool = False, **kwargs) -> None:
+    def __init__(self, *args, is_ddl: bool = False, use_scan_query: bool = False, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.is_ddl = is_ddl
+        self.use_scan_query = use_scan_query
 
         conn: Connection = self.get_connection(self.get_conn_id())
         host: str | None = conn.host
@@ -234,7 +237,7 @@ class YDBHook(DbApiHook):
 
     def get_conn(self) -> YDBConnection:
         """Establish a connection to a YDB database."""
-        return YDBConnection(self.ydb_session_pool, is_ddl=self.is_ddl)
+        return YDBConnection(self.ydb_session_pool, is_ddl=self.is_ddl, use_scan_query=self.use_scan_query)
 
     @staticmethod
     def _serialize_cell(cell: object, conn: YDBConnection | None = None) -> Any:

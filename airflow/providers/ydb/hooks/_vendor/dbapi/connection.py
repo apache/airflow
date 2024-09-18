@@ -59,7 +59,9 @@ class Connection:
         self.tx_context: Optional[ydb.TxContext] = None
 
     def cursor(self):
-        return self._cursor_class(self.session_pool, self.tx_mode, self.tx_context, self.table_path_prefix)
+        return self._cursor_class(
+            self.driver, self.session_pool, self.tx_mode, self.tx_context, self.table_path_prefix
+        )
 
     def describe(self, table_path: str) -> ydb.TableDescription:
         abs_table_path = posixpath.join(self.database, self.table_path_prefix, table_path)
@@ -117,7 +119,7 @@ class Connection:
 
     def begin(self):
         self.tx_context = None
-        if self.interactive_transaction:
+        if self.interactive_transaction and not self.use_scan_query:
             session = self._maybe_await(self.session_pool.acquire)
             self.tx_context = session.transaction(self.tx_mode)
             self._maybe_await(self.tx_context.begin)
