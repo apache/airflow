@@ -537,11 +537,11 @@ class BaseExecutor(LoggingMixin):
 
     def end(self) -> None:  # pragma: no cover
         """Wait synchronously for the previously submitted job to complete."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def terminate(self):
         """Get called when the daemon receives a SIGTERM."""
-        raise NotImplementedError()
+        raise NotImplementedError
 
     def cleanup_stuck_queued_tasks(self, tis: list[TaskInstance]) -> list[str]:  # pragma: no cover
         """
@@ -606,6 +606,9 @@ class BaseExecutor(LoggingMixin):
 
     def debug_dump(self):
         """Get called in response to SIGUSR2 by the scheduler."""
+        import tracemalloc
+
+        tracemalloc.start()
         self.log.info(
             "executor.queued (%d)\n\t%s",
             len(self.queued_tasks),
@@ -617,6 +620,12 @@ class BaseExecutor(LoggingMixin):
             len(self.event_buffer),
             "\n\t".join(map(repr, self.event_buffer.items())),
         )
+        snapshot = tracemalloc.take_snapshot()
+        top_stats = snapshot.statistics("lineno")
+        n = 10
+        memory_usage_top_n_info = "\n".join([str(stat) for stat in top_stats[:n]])
+        self.log.debug("executor memory usgae:\n Top %d\n %s", n, memory_usage_top_n_info)
+        tracemalloc.stop()
 
     def send_callback(self, request: CallbackRequest) -> None:
         """
