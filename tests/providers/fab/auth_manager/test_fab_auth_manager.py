@@ -120,6 +120,7 @@ class TestFabAuthManager:
 
         assert auth_manager.get_user() == user
 
+    @pytest.mark.db_test
     @mock.patch.object(FabAuthManager, "get_user")
     def test_is_logged_in(self, mock_get_user, auth_manager_with_appbuilder):
         user = Mock()
@@ -128,6 +129,7 @@ class TestFabAuthManager:
 
         assert auth_manager_with_appbuilder.is_logged_in() is False
 
+    @pytest.mark.db_test
     @mock.patch.object(FabAuthManager, "get_user")
     def test_is_logged_in_with_inactive_user(self, mock_get_user, auth_manager_with_appbuilder):
         user = Mock()
