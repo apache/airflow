@@ -19,6 +19,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from sqlalchemy.orm import Query
+
+from airflow.api_fastapi.parameters import BaseParam
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
@@ -41,3 +44,11 @@ async def get_session() -> Session:
     """
     with create_session() as session:
         yield session
+
+
+def apply_filters_to_query(base_query: Query, filters: list[BaseParam]) -> Query:
+    query = base_query
+    for filter in filters:
+        query = filter.to_orm(query)
+
+    return query
