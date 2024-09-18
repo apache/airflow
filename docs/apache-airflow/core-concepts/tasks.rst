@@ -150,6 +150,11 @@ is periodically executed and rescheduled until it succeeds.
     )
 
 
+SLAs
+----
+
+The SLA feature from Airflow 2 has been removed in 3.0 and will be replaced with a new implementation in Airflow 3.1
+
 Special Exceptions
 ------------------
 
