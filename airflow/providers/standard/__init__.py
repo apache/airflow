@@ -1,3 +1,4 @@
+#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -14,21 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-import datetime
-
-from airflow.decorators import task
-from airflow.models.dag import DAG
-from airflow.providers.standard.time.sensors.date_time import DateTimeSensor
-from airflow.utils import timezone
-
-with DAG(
-    dag_id="test_sensor", start_date=datetime.datetime(2022, 1, 1), catchup=False, schedule="@once"
-) as dag:
-
-    @task
-    def get_date():
-        return str(timezone.utcnow() + datetime.timedelta(seconds=3))
-
-    DateTimeSensor(task_id="dts", target_time=str(get_date()), poke_interval=1, mode="reschedule")
