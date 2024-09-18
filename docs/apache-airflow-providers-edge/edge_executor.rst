@@ -128,6 +128,8 @@ before use. The following features have been initially tested and are working:
   - Tasks that require DB access will fail - no DB connection from remote site is possible
   - This also means that some direct Airflow API via Python is not possible (e.g. airflow.models.*)
   - Log upload will only work if you use a single web server instance or they need to share one log file volume.
+  - Performance: No performance assessment and scaling tests have been made. The edge executor package is not
+    optimized for scalability. This will need to be considered in future releases.
 
 
 Architecture
@@ -240,6 +242,7 @@ The following features are known missing and will be implemented in increments:
   - Test/Support on Windows for Edge Worker
 
 - Scaling test - Check and define boundaries of workers/jobs
+- Load tests - impact of scaled execution and code optimization
 - Airflow 3 / AIP-72 Migration
 
   - Thin deployment based on Task SDK
