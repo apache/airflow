@@ -494,7 +494,7 @@ What does "MySQL Server has gone away" mean?
 
 You may occasionally experience ``OperationalError`` with the message "MySQL Server has gone away". This is due to the
 connection pool keeping connections open too long and you are given an old connection that has expired. To ensure a
-valid connection, you can set :ref:`config:core__sql_alchemy_pool_recycle` to ensure connections are invalidated after
+valid connection, you can set :ref:`config:database__sql_alchemy_pool_recycle` to ensure connections are invalidated after
 that many seconds and new ones are created.
 
 

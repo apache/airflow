@@ -35,8 +35,8 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.metrics.protocols import Timer
 from airflow.metrics.validators import (
     OTEL_NAME_MAX_LENGTH,
-    AllowListValidator,
     ListValidator,
+    PatternAllowListValidator,
     get_validator,
     stat_name_otel_handler,
 )
@@ -179,7 +179,7 @@ class SafeOtelLogger:
         self,
         otel_provider,
         prefix: str = DEFAULT_METRIC_NAME_PREFIX,
-        metrics_validator: ListValidator = AllowListValidator(),
+        metrics_validator: ListValidator = PatternAllowListValidator(),
     ):
         self.otel: Callable = otel_provider
         self.prefix: str = prefix

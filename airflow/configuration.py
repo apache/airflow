@@ -325,20 +325,7 @@ class AirflowConfigParser(ConfigParser):
     # A mapping of (new section, new option) -> (old section, old option, since_version).
     # When reading new option, the old option will be checked to see if it exists. If it does a
     # DeprecationWarning will be issued and the old option will be used instead
-    deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {
-        ("database", "sql_alchemy_conn"): ("core", "sql_alchemy_conn", "2.3.0"),
-        ("database", "sql_engine_encoding"): ("core", "sql_engine_encoding", "2.3.0"),
-        ("database", "sql_engine_collation_for_ids"): ("core", "sql_engine_collation_for_ids", "2.3.0"),
-        ("database", "sql_alchemy_pool_enabled"): ("core", "sql_alchemy_pool_enabled", "2.3.0"),
-        ("database", "sql_alchemy_pool_size"): ("core", "sql_alchemy_pool_size", "2.3.0"),
-        ("database", "sql_alchemy_max_overflow"): ("core", "sql_alchemy_max_overflow", "2.3.0"),
-        ("database", "sql_alchemy_pool_recycle"): ("core", "sql_alchemy_pool_recycle", "2.3.0"),
-        ("database", "sql_alchemy_pool_pre_ping"): ("core", "sql_alchemy_pool_pre_ping", "2.3.0"),
-        ("database", "sql_alchemy_schema"): ("core", "sql_alchemy_schema", "2.3.0"),
-        ("database", "sql_alchemy_connect_args"): ("core", "sql_alchemy_connect_args", "2.3.0"),
-        ("database", "load_default_connections"): ("core", "load_default_connections", "2.3.0"),
-        ("database", "max_db_retries"): ("core", "max_db_retries", "2.3.0"),
-    }
+    deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {}
 
     # A mapping of new section -> (old section, since_version).
     deprecated_sections: dict[str, tuple[str, str]] = {}
