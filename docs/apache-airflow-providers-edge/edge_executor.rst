@@ -32,6 +32,10 @@ Edge Executor
     This can be done by installing ``apache-airflow-providers-edge`` or by installing Airflow
     with the ``edge`` extra: ``pip install 'apache-airflow[edge]'``.
 
+    While it is in not-ready state, a wheel release package must be manually built from source tree
+    via ``breeze release-management prepare-provider-packages --include-not-ready-providers edge``
+    and then installed via pip from the generated wheel file.
+
 
 ``EdgeExecutor`` is an option if you want to distribute tasks to workers distributed in different locations.
 You can use it also in parallel with other executors if needed. Change your ``airflow.cfg`` to point
@@ -65,7 +69,7 @@ Minimum configuration for the Edge Worker to make it running is:
 
 - Section ``[edge]``
 
-  - ``api_enabled``: Must be set to true. It is disabled by intend not to expose
+  - ``api_enabled``: Must be set to true. It is disabled intentionally to not expose
     the endpoint by default. This is the endpoint the worker connects to.
     In a future release a dedicated API server can be started.
   - ``api_url``: Must be set to the URL which exposes the web endpoint
@@ -88,14 +92,14 @@ It will try to stop the worker gracefully by sending ``SIGINT`` signal to main
 process as and wait until all running tasks are completed.
 
 If you want to monitor the remote activity and worker, use the UI plugin which
-is included in the provider package as install on the webserver and use the
+is included in the provider package and install it on the webserver and use the
 "Admin" - "Edge Worker Hosts" and "Edge Worker Jobs" pages.
 
 
 Some caveats:
 
 - Tasks can consume resources. Make sure your worker has enough resources to run ``worker_concurrency`` tasks
-- Queue names are limited to 256 characters, but each broker backend might have its own restrictions
+- Queue names are limited to 256 characters
 
 See :doc:`apache-airflow:administration-and-deployment/modules_management` for details on how Python and Airflow manage modules.
 
@@ -123,6 +127,7 @@ before use. The following features have been initially tested and are working:
 
   - Tasks that require DB access will fail - no DB connection from remote site is possible
   - This also means that some direct Airflow API via Python is not possible (e.g. airflow.models.*)
+  - Log upload will only work if you use a single web server instance or they need to share one log file volume.
 
 
 Architecture
@@ -246,3 +251,6 @@ The following features are known missing and will be implemented in increments:
   - Describe more details on deployment options and tuning
   - Provide scripts and guides to install edge components as service (systemd)
   - Extend Helm-Chart for needed support
+    While it is in not-ready state, a wheel release package must be manually built from source tree
+    via ``breeze release-management prepare-provider-packages --include-not-ready-providers edge``
+    and then installed via pip from the generated wheel file.
