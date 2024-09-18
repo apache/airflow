@@ -109,8 +109,6 @@ def on_celery_import_modules(*args, **kwargs):
     """
     import jinja2.ext  # noqa: F401
 
-    import airflow.operators.python  # noqa: F401
-
     with contextlib.suppress(ImportError):
         import numpy  # noqa: F401
 
