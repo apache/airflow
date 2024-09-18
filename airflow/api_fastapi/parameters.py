@@ -21,7 +21,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Generic, List, TypeVar, Union
 
 from fastapi import Depends, HTTPException, Query
-from sqlalchemy import or_
+from sqlalchemy import nullslast, or_
 from typing_extensions import Annotated, Self
 
 from airflow.models.dag import DagModel, DagTag
@@ -101,16 +101,39 @@ class _OnlyActiveFilter(BaseParam[bool]):
         return self.set_value(only_active)
 
 
-class _DagIdPatternSearch(BaseParam[Union[str, None]]):
-    """Search on dag_id."""
+class _SearchParam(BaseParam[Union[str, None]]):
+    """Search on attribute."""
+
+    def __init__(self, attribute: ColumnElement) -> None:
+        super().__init__()
+        self.attribute: ColumnElement = attribute
 
     def to_orm(self, select: Select) -> Select:
         if self.value is None:
             return select
-        return select.where(DagModel.dag_id.ilike(f"%{self.value}"))
+        return select.where(self.attribute.ilike(f"%{self.value}"))
+
+
+class _DagIdPatternSearch(_SearchParam):
+    """Search on dag_id."""
+
+    def __init__(self) -> None:
+        super().__init__(DagModel.dag_id)
 
     def __call__(self, dag_id_pattern: str | None = Query(default=None)) -> _DagIdPatternSearch:
         return self.set_value(dag_id_pattern)
+
+
+class _DagDisplayNamePatternSearch(_SearchParam):
+    """Search on dag_display_name."""
+
+    def __init__(self) -> None:
+        super().__init__(DagModel.dag_display_name)
+
+    def __call__(
+        self, dag_display_name_pattern: str | None = Query(default=None)
+    ) -> _DagDisplayNamePatternSearch:
+        return self.set_value(dag_display_name_pattern)
 
 
 class SortParam(BaseParam[Union[str]]):
@@ -132,9 +155,9 @@ class SortParam(BaseParam[Union[str]]):
                 f"the attribute does not exist on the model",
             )
         if self.value[0] == "-":
-            return select.order_by(getattr(DagModel, lstriped_orderby).desc())
+            return select.order_by(nullslast(getattr(DagModel, lstriped_orderby).desc()), DagModel.dag_id)
         else:
-            return select.order_by(getattr(DagModel, lstriped_orderby).asc())
+            return select.order_by(nullslast(getattr(DagModel, lstriped_orderby)), DagModel.dag_id.asc())
 
     def __call__(self, order_by: str = Query(default="dag_id")) -> SortParam:
         return self.set_value(order_by)
@@ -144,7 +167,7 @@ class _TagsFilter(BaseParam[List[str]]):
     """Filter on tags."""
 
     def to_orm(self, select: Select) -> Select:
-        if self.value is None:
+        if not self.value:
             return select
 
         conditions = [DagModel.tags.any(DagTag.name == tag) for tag in self.value]
@@ -154,9 +177,27 @@ class _TagsFilter(BaseParam[List[str]]):
         return self.set_value(tags)
 
 
+class _OwnersFilter(BaseParam[List[str]]):
+    """Filter on owners."""
+
+    def to_orm(self, select: Select) -> Select:
+        if not self.value:
+            return select
+
+        conditions = [DagModel.owners.ilike(f"%{owner}%") for owner in self.value]
+        return select.where(or_(*conditions))
+
+    def __call__(self, owners: list[str] = Query(default_factory=list)) -> _OwnersFilter:
+        return self.set_value(owners)
+
+
 QueryLimit = Annotated[_LimitFilter, Depends(_LimitFilter())]
 QueryOffset = Annotated[_OffsetFilter, Depends(_OffsetFilter())]
 QueryPausedFilter = Annotated[_PausedFilter, Depends(_PausedFilter())]
 QueryOnlyActiveFilter = Annotated[_OnlyActiveFilter, Depends(_OnlyActiveFilter())]
 QueryDagIdPatternSearch = Annotated[_DagIdPatternSearch, Depends(_DagIdPatternSearch())]
+QueryDagDisplayNamePatternSearch = Annotated[
+    _DagDisplayNamePatternSearch, Depends(_DagDisplayNamePatternSearch())
+]
 QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter())]
+QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter())]
