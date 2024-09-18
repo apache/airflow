@@ -1261,6 +1261,16 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "standard": {
+    "deps": [
+      "apache-airflow>=2.10.0"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "not-ready"
+  },
   "tableau": {
     "deps": [
       "apache-airflow>=2.8.0",

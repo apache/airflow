@@ -33,6 +33,15 @@ log = logging.getLogger(__name__)
 _listener_manager: ListenerManager | None = None
 
 
+def _before_hookcall(hook_name, hook_impls, kwargs):
+    log.debug("Calling %r with %r", hook_name, kwargs)
+    log.debug("Hook impls: %s", hook_impls)
+
+
+def _after_hookcall(outcome, hook_name, hook_impls, kwargs):
+    log.debug("Result from %r: %s", hook_name, outcome.get_result())
+
+
 class ListenerManager:
     """Manage listener registration and provides hook property for calling them."""
 
@@ -40,6 +49,7 @@ class ListenerManager:
         from airflow.listeners.spec import dagrun, dataset, importerrors, lifecycle, taskinstance
 
         self.pm = pluggy.PluginManager("airflow")
+        self.pm.add_hookcall_monitoring(_before_hookcall, _after_hookcall)
         self.pm.add_hookspecs(lifecycle)
         self.pm.add_hookspecs(dagrun)
         self.pm.add_hookspecs(dataset)

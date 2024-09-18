@@ -26,7 +26,11 @@ import time_machine
 
 from airflow.models import DagBag
 from airflow.models.dag import DAG
-from airflow.sensors.time_delta import TimeDeltaSensor, TimeDeltaSensorAsync, WaitSensor
+from airflow.providers.standard.time.sensors.time_delta import (
+    TimeDeltaSensor,
+    TimeDeltaSensorAsync,
+    WaitSensor,
+)
 from airflow.utils.timezone import datetime
 
 pytestmark = pytest.mark.db_test
@@ -77,7 +81,7 @@ class TestTimeDeltaSensorAsync:
         [False, True],
     )
     @mock.patch("airflow.models.baseoperator.BaseOperator.defer")
-    @mock.patch("airflow.sensors.time_delta.sleep")
+    @mock.patch("airflow.providers.standard.time.sensors.time_delta.sleep")
     def test_wait_sensor(self, sleep_mock, defer_mock, should_defer):
         wait_time = timedelta(seconds=30)
         op = WaitSensor(
