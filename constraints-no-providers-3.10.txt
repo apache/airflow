@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-17T13:41:34.319547
+# This constraints file was automatically generated on 2024-09-18T07:39:21.444487
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -78,9 +78,9 @@ eval_type_backport==0.2.0
 eventlet==0.37.0
 exceptiongroup==1.2.2
 fastapi-cli==0.0.5
-fastapi==0.114.2
+fastapi==0.115.0
 fastavro==1.9.7
-filelock==3.16.0
+filelock==3.16.1
 frozenlist==1.4.1
 fsspec==2024.9.0
 gevent==24.2.1
@@ -134,7 +134,7 @@ packaging==24.1
 pandas==2.1.4
 pathspec==0.12.1
 pendulum==3.0.0
-platformdirs==4.3.3
+platformdirs==4.3.6
 pluggy==1.5.0
 plyvel==1.5.1
 prison==0.2.1
@@ -145,8 +145,8 @@ pure-sasl==0.6.2
 pyasn1==0.6.1
 pyasn1_modules==0.4.1
 pycparser==2.22
-pydantic==2.9.1
-pydantic_core==2.23.3
+pydantic==2.9.2
+pydantic_core==2.23.4
 pykerberos==1.2.4
 pyspnego==0.11.1
 python-daemon==3.0.1
@@ -192,7 +192,7 @@ uv==0.4.1
 uvicorn==0.30.6
 uvloop==0.20.0
 vine==5.1.0
-virtualenv==20.26.4
+virtualenv==20.26.5
 watchfiles==0.24.0
 websockets==13.0.1
 wirerope==0.4.7

@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-17T13:48:47.138109
+# This constraints file was automatically generated on 2024-09-18T07:46:38.327910
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -222,9 +222,9 @@ azure-mgmt-resource==23.1.1
 azure-mgmt-storage==21.2.1
 azure-nspkg==3.0.2
 azure-servicebus==7.12.2
-azure-storage-blob==12.22.0
-azure-storage-file-datalake==12.16.0
-azure-storage-file-share==12.17.0
+azure-storage-blob==12.23.0
+azure-storage-file-datalake==12.17.0
+azure-storage-file-share==12.18.0
 azure-synapse-artifacts==0.19.0
 azure-synapse-spark==0.7.0
 babel==2.16.0
@@ -246,7 +246,7 @@ celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.14.0
+cfn-lint==1.14.1
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -278,7 +278,7 @@ db-dtypes==1.3.0
 debugpy==1.8.5
 decorator==5.1.1
 defusedxml==0.7.1
-deltalake==0.19.2
+deltalake==0.20.0
 diagrams==0.23.4
 dill==0.3.1.1
 distlib==0.3.8
@@ -301,11 +301,11 @@ execnet==2.1.1
 executing==2.1.0
 facebook_business==20.0.2
 fastapi-cli==0.0.5
-fastapi==0.114.2
+fastapi==0.115.0
 fastavro==1.9.7
 fasteners==0.19
 fastjsonschema==2.20.0
-filelock==3.16.0
+filelock==3.16.1
 flower==2.0.1
 frozenlist==1.4.1
 fsspec==2024.9.0
@@ -320,11 +320,11 @@ gitdb==4.0.11
 google-ads==25.0.0
 google-analytics-admin==0.23.0
 google-api-core==2.19.2
-google-api-python-client==2.145.0
+google-api-python-client==2.146.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.34.0
-google-cloud-aiplatform==1.66.0
+google-cloud-aiplatform==1.67.0
 google-cloud-appengine-logging==1.4.5
 google-cloud-audit-log==0.3.0
 google-cloud-automl==2.13.5
@@ -437,7 +437,7 @@ jsonschema==4.23.0
 jupyter_client==8.6.3
 jupyter_core==5.7.2
 kerberos==1.3.1
-keyring==25.3.0
+keyring==25.4.0
 kombu==5.4.1
 krb5==0.6.0
 kubernetes==30.1.0
@@ -476,7 +476,7 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.1.0
 mypy-boto3-appflow==1.35.0
-mypy-boto3-rds==1.35.20
+mypy-boto3-rds==1.35.21
 mypy-boto3-redshift-data==1.35.10
 mypy-boto3-s3==1.35.16
 mypy-extensions==1.0.0
@@ -493,7 +493,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.45.1
+openai==1.46.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.22.0
@@ -533,10 +533,10 @@ pinecone-client==5.0.1
 pinecone-plugin-inference==1.1.0
 pinecone-plugin-interface==0.0.7
 pinotdb==5.6.0
-pipdeptree==2.23.3
+pipdeptree==2.23.4
 pipx==1.7.1
 pkginfo==1.10.0
-platformdirs==4.3.3
+platformdirs==4.3.6
 pluggy==1.5.0
 ply==3.11
 plyvel==1.5.1
@@ -564,8 +564,8 @@ pyasn1_modules==0.4.0
 pycountry==24.6.1
 pycparser==2.22
 pycryptodome==3.20.0
-pydantic==2.9.1
-pydantic_core==2.23.3
+pydantic==2.9.2
+pydantic_core==2.23.4
 pydata-google-auth==1.8.2
 pydot==1.4.2
 pydruid==0.6.9
@@ -684,7 +684,7 @@ statsd==4.0.1
 std-uritemplate==1.0.6
 strictyaml==1.7.3
 sympy==1.13.2
-tableauserverclient==0.32
+tableauserverclient==0.33
 tabulate==0.9.0
 tenacity==8.5.0
 teradatasql==20.0.0.15
@@ -714,7 +714,7 @@ types-certifi==2021.10.8.3
 types-cffi==1.16.0.20240331
 types-croniter==3.0.3.20240731
 types-docutils==0.21.0.20240907
-types-paramiko==3.4.0.20240423
+types-paramiko==3.5.0.20240918
 types-protobuf==5.27.0.20240907
 types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20240906
@@ -742,7 +742,7 @@ uvloop==0.20.0
 validators==0.33.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==20.26.4
+virtualenv==20.26.5
 watchfiles==0.24.0
 watchtower==3.3.1
 wcwidth==0.2.13
