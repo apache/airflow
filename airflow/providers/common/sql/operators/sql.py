@@ -20,7 +20,7 @@ from __future__ import annotations
 import ast
 import re
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Optional, Sequence, SupportsAbs
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping, NoReturn, Sequence, SupportsAbs
 
 from airflow.exceptions import AirflowException, AirflowFailException
 from airflow.hooks.base import BaseHook
@@ -221,7 +221,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         sql: str | list[str],
         autocommit: bool = False,
         parameters: Mapping | Iterable | None = None,
-        handler: Callable[[Any], Optional[list[tuple]]] = fetch_all_handler,
+        handler: Callable[[Any], list[tuple]] | None = fetch_all_handler,
         conn_id: str | None = None,
         database: str | None = None,
         split_statements: bool | None = None,
