@@ -4651,7 +4651,28 @@
                         "null"
                     ],
                     "default": 300
-                }
+                },
+                "env": {
+                        "description": "Add additional env vars to migrateDatabaseJob.",
+                        "type": "array",
+                        "default": [],
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "value": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "name",
+                                "value"
+                            ],
+                            "additionalProperties": false
+                        }
+                    }
             }
         },
         "_rpcServer": {
