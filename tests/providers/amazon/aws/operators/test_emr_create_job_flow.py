@@ -188,43 +188,63 @@ class TestEmrCreateJobFlowOperator:
         assert self.operator.execute(self.mock_context) == JOB_FLOW_ID
         mock_waiter.assert_called_once_with(mock.ANY, ClusterId=JOB_FLOW_ID, WaiterConfig=mock.ANY)
         assert_expected_waiter_type(mock_waiter, "job_flow_waiting")
-
-    def test_create_job_flow_deferrable(self, mocked_hook_client):
+    @
+    patch("airflow.providers.amazon.aws.operators.emr.EmrCreateJobFlowTrigger")
+    def test_create_job_flow_deferrable(self, mock_trigger, mocked_hook_client):
         """
-        Test to make sure that the operator raises a TaskDeferred exception
+        Test to ensure the operator raises a TaskDeferred exception
         if run in deferrable mode.
         """
         mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
-
+    
+        # Set the deferrable flag and wait_for_completion
         self.operator.deferrable = True
+        self.operator.wait_for_completion = True
+    
+        # Check for TaskDeferred being raised
         with pytest.raises(TaskDeferred) as exc:
             self.operator.execute(self.mock_context)
-
-        assert isinstance(
-            exc.value.trigger, EmrCreateJobFlowTrigger
-        ), "Trigger is not a EmrCreateJobFlowTrigger"
-
+    
+        # Ensure the trigger is created with the right parameters
+        mock_trigger.assert_called_once_with(
+            job_flow_id=JOB_FLOW_ID,
+            aws_conn_id=self.operator.aws_conn_id,
+            waiter_delay=self.operator.waiter_delay,
+            waiter_max_attempts=self.operator.waiter_max_attempts,
+        )
+    
+        # Ensure the trigger is correctly set
+        assert exc.value.trigger == mock_trigger.return_value
 
 
 class TestEmrCreateJobFlowOperatorExtended(TestEmrCreateJobFlowOperator):
 
-    @mock.patch("airflow.providers.amazon.aws.operators.emr.EmrCreateJobFlowOperator.defer")
-    def test_deferrable_and_wait_for_completion(self, mock_defer, mocked_hook_client):
+    @patch("airflow.providers.amazon.aws.operators.emr.EmrCreateJobFlowTrigger")
+    @patch("airflow.providers.amazon.aws.operators.emr.EmrCreateJobFlowOperator.defer")
+    def test_deferrable_and_wait_for_completion(self, mock_defer, mock_trigger, mocked_hook_client):
+        # Simulate successful job flow creation
         mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
-
+    
+        # Set the deferrable attributes
         self.operator.deferrable = True
         self.operator.wait_for_completion = True
-        self.operator.waiter_delay = 10  # Example value
-        self.operator.waiter_max_attempts = 5  # Example value
-
+        self.operator.waiter_delay = 10  # Example delay value
+        self.operator.waiter_max_attempts = 5  # Example max attempts value
+    
+        # Execute the operator
         self.operator.execute(self.mock_context)
+    
+        # Ensure that the trigger was called with the correct parameters
+        mock_trigger.assert_called_once_with(
+            job_flow_id=JOB_FLOW_ID,
+            aws_conn_id=self.operator.aws_conn_id,
+            waiter_delay=self.operator.waiter_delay,
+            waiter_max_attempts=self.operator.waiter_max_attempts,
+        )
+    
+        # Ensure the defer method was called with the correct arguments
         mock_defer.assert_called_once_with(
-            trigger=EmrCreateJobFlowTrigger(
-                job_flow_id=JOB_FLOW_ID,
-                aws_conn_id=self.operator.aws_conn_id,
-                waiter_delay=self.operator.waiter_delay,
-                waiter_max_attempts=self.operator.waiter_max_attempts,
-            ),
+            trigger=mock_trigger.return_value,
             method_name="execute_complete",
             timeout=timedelta(seconds=self.operator.waiter_max_attempts * self.operator.waiter_delay + 60),
         )
