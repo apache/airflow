@@ -2915,10 +2915,10 @@ class TaskInstance(Base, LoggingMixin):
             log = self.log
 
             def __missing__(self, key: str) -> DatasetModel:
-                dataset_obj = self[key] = DatasetModel(uri=uri)
-                dataset_manager.create_datasets(dataset_models=[dataset_obj], session=session)
+                (dataset_obj,) = dataset_manager.create_datasets([Dataset(uri=key)], session=session)
                 session.flush()
                 self.log.warning("Created a new %r as it did not exist.", dataset_obj)
+                self[key] = dataset_obj
                 return dataset_obj
 
         dataset_objs_cache = _DatasetModelCache(

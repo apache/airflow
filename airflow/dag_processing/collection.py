@@ -291,21 +291,15 @@ class DatasetModelOperation(NamedTuple):
             dm.uri: dm
             for dm in session.scalars(select(DatasetModel).where(DatasetModel.uri.in_(self.datasets)))
         }
-
-        def _resolve_dataset_addition() -> Iterator[DatasetModel]:
-            for uri, dataset in self.datasets.items():
-                try:
-                    dm = orm_datasets[uri]
-                except KeyError:
-                    dm = orm_datasets[uri] = DatasetModel.from_public(dataset)
-                    yield dm
-                else:
-                    # The orphaned flag was bulk-set to True before parsing, so we
-                    # don't need to handle rows in the db without a public entry.
-                    dm.is_orphaned = expression.false()
-                dm.extra = dataset.extra
-
-        dataset_manager.create_datasets(list(_resolve_dataset_addition()), session=session)
+        for model in orm_datasets.values():
+            model.is_orphaned = expression.false()
+        orm_datasets.update(
+            (model.uri, model)
+            for model in dataset_manager.create_datasets(
+                [dataset for uri, dataset in self.datasets.items() if uri not in orm_datasets],
+                session=session,
+            )
+        )
         return orm_datasets
 
     def add_dataset_aliases(self, *, session: Session) -> dict[str, DatasetAliasModel]:
@@ -318,12 +312,13 @@ class DatasetModelOperation(NamedTuple):
                 select(DatasetAliasModel).where(DatasetAliasModel.name.in_(self.dataset_aliases))
             )
         }
-        for name, alias in self.dataset_aliases.items():
-            try:
-                da = orm_aliases[name]
-            except KeyError:
-                da = orm_aliases[name] = DatasetAliasModel.from_public(alias)
-                session.add(da)
+        orm_aliases.update(
+            (model.name, model)
+            for model in dataset_manager.create_dataset_aliases(
+                [alias for name, alias in self.dataset_aliases.items() if name not in orm_aliases],
+                session=session,
+            )
+        )
         return orm_aliases
 
     def add_dag_dataset_references(
