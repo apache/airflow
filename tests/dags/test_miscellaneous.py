@@ -23,7 +23,7 @@ import datetime
 
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
-from airflow.providers.standard.core.operators.bash import BashOperator
+from tests.test_utils.compat import BashOperator
 
 args = {
     "owner": "airflow",
