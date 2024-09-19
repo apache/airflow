@@ -652,7 +652,6 @@ class KubernetesPodOperator(BaseOperator):
             return result
 
     @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3),
         wait=tenacity.wait_exponential(max=15),
         retry=tenacity.retry_if_exception(lambda exc: check_exception_is_kubernetes_api_unauthorized(exc)),
         reraise=True,

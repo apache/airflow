@@ -1663,7 +1663,7 @@ class TestKubernetesPodOperator:
         "side_effect, exception_type, expect_exc",
         [
             ([ApiException(401), mock.DEFAULT], ApiException, True),  # works after one 401
-            ([ApiException(401)] * 10, ApiException, False),  # exc after 3 retries on 401
+            ([ApiException(401)] * 1000 + [mock.DEFAULT], ApiException, True),  # works after 1000 retries
             ([ApiException(402)], ApiException, False),  # exc on non-401
             ([ApiException(500)], ApiException, False),  # exc on non-401
             ([Exception], Exception, False),  # exc on different exception
@@ -1684,7 +1684,7 @@ class TestKubernetesPodOperator:
         else:
             with pytest.raises(exception_type):
                 k.await_pod_completion(pod)
-        expected_call_count = min(len(side_effect), 3)  # retry max 3 times
+        expected_call_count = len(side_effect)
         mock_await_container_completion.assert_has_calls(
             [mock.call(pod=pod, container_name=k.base_container_name)] * expected_call_count
         )
