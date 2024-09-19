@@ -200,6 +200,9 @@ class DatasetModel(Base):
     def __repr__(self):
         return f"{self.__class__.__name__}(uri={self.uri!r}, extra={self.extra!r})"
 
+    def to_public(self) -> Dataset:
+        return Dataset(uri=self.uri, extra=self.extra)
+
 
 class DagScheduleDatasetAliasReference(Base):
     """References from a DAG to a dataset alias of which it is a consumer."""

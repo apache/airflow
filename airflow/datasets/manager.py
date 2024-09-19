@@ -25,7 +25,6 @@ from sqlalchemy.orm import joinedload
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
-from airflow.datasets import Dataset
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dataset import (
@@ -43,6 +42,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
+    from airflow.datasets import Dataset
     from airflow.models.dag import DagModel
     from airflow.models.taskinstance import TaskInstance
 
@@ -63,7 +63,7 @@ class DatasetManager(LoggingMixin):
         for dataset_model in dataset_models:
             session.add(dataset_model)
         for dataset_model in dataset_models:
-            self.notify_dataset_created(dataset=Dataset(uri=dataset_model.uri, extra=dataset_model.extra))
+            self.notify_dataset_created(dataset=dataset_model.to_public())
 
     @classmethod
     @internal_api_call
