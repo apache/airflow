@@ -43,13 +43,6 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.www import check_content_in_response
 
 try:
-    from airflow.security.permissions import RESOURCE_ASSET
-except ImportError:
-    from airflow.security.permissions import (
-        RESOURCE_DATASET as RESOURCE_ASSET,  # type: ignore[attr-defined, no-redef]
-    )
-
-try:
     from airflow.auth.managers.models.resource_details import (
         AccessView,
         ConfigurationDetails,
@@ -59,13 +52,6 @@ try:
         PoolDetails,
         VariableDetails,
     )
-
-    try:
-        from airflow.auth.managers.models.resource_details import AssetDetails
-    except ImportError:
-        from airflow.auth.managers.models.resource_details import (
-            DatasetDetails as AssetDetails,  # type: ignore[attr-defined, no-redef]
-        )
 except ImportError:
     if not AIRFLOW_V_2_8_PLUS:
         pytest.skip(
@@ -77,6 +63,15 @@ except ImportError:
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.auth.managers.models.resource_details import AssetDetails
+    from airflow.security.permissions import RESOURCE_ASSET
+else:
+    try:
+        from airflow.auth.managers.models.resource_details import AssetDetails
+        from airflow.security.permissions import RESOURCE_ASSET
+    except ImportError:
+        from airflow.auth.managers.models.resource_details import DatasetDetails as AssetDetails
+        from airflow.security.permissions import RESOURCE_DATASET as RESOURCE_ASSET
 
 pytestmark = [
     pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Test requires Airflow 2.9+"),

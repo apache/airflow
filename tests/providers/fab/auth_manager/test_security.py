@@ -22,6 +22,7 @@ import datetime
 import json
 import logging
 import os
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
 
@@ -60,12 +61,13 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.mock_security_manager import MockSecurityManager
 from tests.test_utils.permissions import _resource_name
 
-try:
+if TYPE_CHECKING:
     from airflow.security.permissions import RESOURCE_ASSET
-except ImportError:
-    from airflow.security.permissions import (
-        RESOURCE_DATASET as RESOURCE_ASSET,  # type: ignore[attr-defined, no-redef]
-    )
+else:
+    try:
+        from airflow.security.permissions import RESOURCE_ASSET
+    except ImportError:
+        from airflow.security.permissions import RESOURCE_DATASET as RESOURCE_ASSET
 
 
 pytestmark = pytest.mark.db_test

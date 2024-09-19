@@ -59,15 +59,17 @@ from airflow.security.permissions import (
 )
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 
-try:
-    from airflow.security.permissions import RESOURCE_ASSET
-except ImportError:
-    from airflow.security.permissions import (
-        RESOURCE_DATASET as RESOURCE_ASSET,  # type: ignore[attr-defined, no-redef]
-    )
-
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.security.permissions import RESOURCE_ASSET
+else:
+    try:
+        from airflow.security.permissions import RESOURCE_ASSET
+    except ImportError:
+        from airflow.security.permissions import (
+            RESOURCE_DATASET as RESOURCE_ASSET,
+        )
+
 
 IS_AUTHORIZED_METHODS_SIMPLE = {
     "is_authorized_configuration": RESOURCE_CONFIG,

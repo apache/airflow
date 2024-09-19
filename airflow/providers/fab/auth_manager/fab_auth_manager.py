@@ -87,13 +87,6 @@ from airflow.version import version
 from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
 from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
 
-try:
-    from airflow.security.permissions import RESOURCE_ASSET
-except ImportError:
-    from airflow.security.permissions import (
-        RESOURCE_DATASET as RESOURCE_ASSET,  # type: ignore[attr-defined, no-redef]
-    )
-
 if TYPE_CHECKING:
     from airflow.auth.managers.models.base_user import BaseUser
     from airflow.cli.cli_config import (
@@ -101,6 +94,13 @@ if TYPE_CHECKING:
     )
     from airflow.providers.common.compat.assets import AssetDetails
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+    from airflow.security.permissions import RESOURCE_ASSET
+else:
+    try:
+        from airflow.security.permissions import RESOURCE_ASSET
+    except ImportError:
+        from airflow.security.permissions import RESOURCE_DATASET as RESOURCE_ASSET
+
 
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {
     DagAccessEntity.AUDIT_LOG: (RESOURCE_AUDIT_LOG,),
