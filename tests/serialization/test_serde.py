@@ -28,7 +28,7 @@ import attr
 import pytest
 from pydantic import BaseModel
 
-from airflow.providers.common.compat.assets import Asset
+from airflow.assets import Asset
 from airflow.serialization.serde import (
     CLASSNAME,
     DATA,

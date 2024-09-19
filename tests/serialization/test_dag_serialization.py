@@ -42,6 +42,7 @@ from dateutil.relativedelta import FR, relativedelta
 from kubernetes.client import models as k8s
 
 import airflow
+from airflow.assets import Asset
 from airflow.decorators import teardown
 from airflow.decorators.base import DecoratedOperator
 from airflow.exceptions import (
@@ -62,7 +63,6 @@ from airflow.models.xcom import XCom
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-from airflow.providers.common.compat.assets import Asset
 from airflow.security import permissions
 from airflow.sensors.bash import BashSensor
 from airflow.serialization.dag_dependency import DagDependency
