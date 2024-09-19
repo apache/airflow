@@ -31,7 +31,7 @@ import itertools
 import logging
 from typing import TYPE_CHECKING, NamedTuple
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload, load_only
 from sqlalchemy.sql import expression
 
@@ -111,7 +111,7 @@ def _get_latest_runs_stmt(dag_ids: Collection[str]) -> Select:
             select(func.max(DagRun.execution_date).label("max_execution_date"))
             .where(
                 DagRun.dag_id == dag_id,
-                or_(DagRun.run_type == DagRunType.BACKFILL_JOB, DagRun.run_type == DagRunType.SCHEDULED),
+                DagRun.run_type.in_((DagRunType.BACKFILL_JOB, DagRunType.SCHEDULED)),
             )
             .scalar_subquery()
         )
