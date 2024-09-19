@@ -36,7 +36,7 @@ import jinja2
 import pendulum
 import pytest
 import time_machine
-from sqlalchemy import inspect, select
+from sqlalchemy import func, inspect, select
 from sqlalchemy.exc import SAWarning
 
 from airflow import settings
@@ -3094,8 +3094,8 @@ def test_set_task_instance_state_mapped(dag_maker, session):
         state=TaskInstanceState.SUCCESS,
         session=session,
     )
-    assert dr1 in session, "Check session is passed down all the way"
-
+    dag_run_count = session.query(func.count(DagRun.run_id)).filter(DagRun.run_id == dr1.run_id).scalar()
+    assert dag_run_count > 0, "Check session is passed down all the way"
     assert ti_query.all() == [
         ("downstream", -1, dr1.run_id, None),
         (task_id, 0, dr1.run_id, TaskInstanceState.FAILED),

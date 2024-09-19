@@ -641,3 +641,94 @@ def test_build_scarf_url(
             assert result == expected_url
         else:
             assert result == ""
+
+
+def test_clear(dag_maker, session, clean_dags_and_dagruns):
+    from airflow.decorators import task_group
+    from airflow.models.dagbag import DagBag
+    from airflow.operators.empty import EmptyOperator
+    from airflow.utils.state import State
+    from airflow.utils.timezone import datetime
+    from airflow.utils.types import DagRunType
+
+    files = ["a", "b", "c"]
+    start_date = datetime(2024, 1, 1)
+    end_date = datetime(2024, 1, 2)
+
+    with dag_maker(
+        dag_id="task_group_mapping_example",
+        start_date=start_date,
+        schedule=None,
+        catchup=False,
+        session=session,
+    ):
+
+        @task_group(group_id="etl")
+        def etl_pipeline(file):
+            e = EmptyOperator(task_id="e")
+            t = EmptyOperator(task_id="t")
+            last = EmptyOperator(task_id="last")
+
+            e >> t >> last
+
+        etl_pipeline.expand(file=files)
+
+    dag_instance = dag_maker.dag
+
+    dag_instance.create_dagrun(
+        run_id="manual_run_2024_01_01",
+        state=State.SUCCESS,
+        execution_date=start_date,
+        start_date=start_date,
+        data_interval=(start_date, start_date),
+        run_type=DagRunType.MANUAL,
+        triggered_by=None,
+    )
+    test_app.dag_bag = DagBag(dag_folder="/dev/null", include_examples=False)
+    test_app.dag_bag.bag_dag(dag=dag_instance)
+    dag = test_app.dag_bag.get_dag(dag_instance.dag_id)
+
+    # with group id
+    task_group_dict = dag.task_group.get_task_group_dict()
+    task_group_list = task_group_dict.get("etl")
+    task_ids_group = [t.task_id for t in task_group_list.iter_tasks()]
+
+    # with task_id and  map_index
+    task_id = "etl.e"
+    task_id_or_regex = [task_id]
+    map_indexes = [0, 1]
+    task_ids = [(task_id, map_index) for map_index in map_indexes]
+    partial_dag = dag.partial_subset(
+        task_ids_or_regex=task_id_or_regex,
+        include_downstream=True,
+        include_upstream=False,
+    )
+    partial_dag_task_group = dag.partial_subset(
+        task_ids_or_regex=task_ids_group,
+        include_downstream=True,
+        include_upstream=False,
+    )
+
+    # handling downstream tasks:
+    task_ids.extend(tid for tid in partial_dag.task_dict if tid != task_id)
+
+    task_ids_group.extend(tid for tid in partial_dag_task_group.task_dict if tid != task_id)
+
+    count = partial_dag.clear(
+        start_date=start_date,
+        end_date=end_date,
+        task_ids=task_ids,
+        only_failed=None,
+        session=session,
+    )
+    assert count == 6
+    session.commit()
+    count_task_group = partial_dag_task_group.clear(
+        start_date=start_date,
+        end_date=end_date,
+        task_ids=task_ids_group,
+        only_failed=None,
+        session=session,
+    )
+    assert count_task_group == 9
+    session.close()

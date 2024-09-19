@@ -128,7 +128,6 @@ from airflow.utils.sqlalchemy import (
     ExecutorConfigType,
     ExtendedJSON,
     UtcDateTime,
-    tuple_in_condition,
     with_row_locks,
 )
 from airflow.utils.state import DagRunState, JobState, State, TaskInstanceState
@@ -3670,22 +3669,62 @@ class TaskInstance(Base, LoggingMixin):
         return or_(*filter_condition)
 
     @classmethod
-    def ti_selector_condition(cls, vals: Collection[str | tuple[str, int]]) -> ColumnOperators:
+    def ti_selector_condition(
+        cls,
+        vals: Collection[str | tuple[str, int]],
+    ) -> ColumnOperators:
         """
         Build an SQLAlchemy filter for a list of task_ids or tuples of (task_id,map_index).
 
         :meta private:
         """
-        # Compute a filter for TI.task_id and TI.map_index based on input values
-        # For each item, it will either be a task_id, or (task_id, map_index)
-        task_id_only = [v for v in vals if isinstance(v, str)]
-        with_map_index = [v for v in vals if not isinstance(v, str)]
+        # If map_index is given in the list, then filter based on both task_id and map_index
+        # If only task_id is given, then filter only based on task_id
+        # This is to filter downstream/upstream(if true) tasks based on map_index
+        from sqlalchemy import or_, select, tuple_
 
+        task_id_only: list[str] = []
+        with_map_index: list[tuple[str, int]] = []
         filters: list[ColumnOperators] = []
-        if task_id_only:
+
+        for v in vals:
+            if isinstance(v, str):
+                task_id_only.append(v)
+
+        are_equal: bool = all(x == y for x, y in zip(task_id_only, vals)) and len(task_id_only) == len(vals)
+        if are_equal:  # To check for string only values
             filters.append(cls.task_id.in_(task_id_only))
-        if with_map_index:
-            filters.append(tuple_in_condition((cls.task_id, cls.map_index), with_map_index))
+        else:
+            # TaskMap Object handling
+            subquery = (
+                select(cls.task_id, cls.map_index).where(cls.task_id.in_(task_id_only), cls.map_index == -1)
+            ).subquery()
+            stmt = select(subquery)
+
+            for v in vals:
+                if isinstance(v, tuple) and len(v) == 2 and isinstance(v[0], str) and isinstance(v[1], int):
+                    with_map_index.append(v)
+                elif v in task_id_only:
+                    continue
+                else:
+                    raise AirflowException(
+                        f"Invalid value {v} in the list. It should be a tuple of (task_id, map_index)"
+                    )
+
+            map_indexes = {v[1] for v in with_map_index}
+            task_id_with_map_new = [
+                (task_id, map_index) for task_id in task_id_only for map_index in map_indexes
+            ]
+            with_map_index.extend(task_id_with_map_new)
+
+            if all(v in task_id_only for v in vals):
+                filters.append(cls.task_id.in_(task_id_only))
+
+            elif with_map_index:
+                filters.append(
+                    tuple_(cls.task_id, cls.map_index).in_(with_map_index),
+                )
+                filters.append(tuple_(cls.task_id, cls.map_index).in_(stmt))
 
         if not filters:
             return false()

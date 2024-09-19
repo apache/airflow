@@ -5333,3 +5333,69 @@ def test_swallow_mini_scheduler_exceptions(_schedule_downstream_mock, create_tas
     ti.schedule_downstream_tasks()
     assert "Error scheduling downstream tasks." in caplog.text
     assert "To be swallowed" in caplog.text
+
+
+def test_ti_selector_condition(dag_maker, session, clean_dags_and_dagruns):
+    from airflow.utils.timezone import datetime
+
+    files = ["a", "b", "c"]
+
+    start_date = datetime(2024, 1, 1)
+    files = ["file1", "file2", "file3"]
+
+    with dag_maker(
+        dag_id="task_group_mapping_example",
+        start_date=start_date,
+        schedule=None,
+        catchup=False,
+        session=session,
+    ):
+
+        @task_group(group_id="etl")
+        def etl_pipeline(file):
+            e = EmptyOperator(task_id="e")
+            t = EmptyOperator(task_id="t")
+            last = EmptyOperator(task_id="last")
+
+            e >> t >> last
+
+        etl_pipeline.expand(file=files)
+
+    dag_instance = dag_maker.dag
+    dag_maker.create_dagrun(
+        run_id="manual_run_2024_01_01",
+        state=State.SUCCESS,
+        execution_date=start_date,
+        start_date=start_date,
+        data_interval=(start_date, start_date),
+        run_type=DagRunType.MANUAL,
+        triggered_by=None,
+    )
+
+    # with map_index
+    task_id = "etl.e"
+    task_id_or_regex = [task_id]
+    map_indexes = [0, 1]
+    task_ids = [(task_id, map_index) for map_index in map_indexes]
+    partial_dag = dag_instance.partial_subset(
+        task_ids_or_regex=task_id_or_regex,
+        include_downstream=True,
+        include_upstream=False,
+    )
+
+    # handling downstream tasks
+    task_ids.extend(tid for tid in partial_dag.task_dict if tid != task_id)
+
+    tis = select(TaskInstance.task_id, TaskInstance.map_index)
+    req_task_ids = sorted(
+        [("etl.e", 0), ("etl.e", 1), ("etl.t", 0), ("etl.t", 1), ("etl.last", 0), ("etl.last", 1)]
+    )
+
+    tis = tis.where(TaskInstance.ti_selector_condition(task_ids))
+    tis_task_ids = sorted(session.scalars(tis).all())
+    tis_task_ids_execute = sorted(session.execute(tis).fetchall())
+
+    assert tis_task_ids != req_task_ids
+    assert tis_task_ids_execute == req_task_ids
+
+    session.close()
