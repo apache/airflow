@@ -183,6 +183,7 @@ class DatasetManager(LoggingMixin):
         get_listener_manager().hook.on_dataset_created(dataset=dataset)
 
     def notify_dataset_alias_created(self, dataset_alias: DatasetAlias):
+        """Run applicable notification actions when a dataset alias is created."""
         get_listener_manager().hook.on_dataset_alias_created(dataset_alias=dataset_alias)
 
     @classmethod
