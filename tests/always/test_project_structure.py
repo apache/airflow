@@ -411,6 +411,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.dataproc._DataprocStartStopClusterBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.custom_job.CustomTrainingJobBaseOperator",
         "airflow.providers.google.cloud.operators.cloud_base.GoogleCloudBaseOperator",
+        "airflow.providers.google.marketing_platform.operators.search_ads._GoogleSearchAdsBaseOperator",
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {
@@ -509,7 +510,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "GoogleDisplayVideo360GetSDFDownloadOperationSensor",
         "airflow.providers.google.marketing_platform.sensors.display_video."
         "GoogleDisplayVideo360ReportSensor",
-        "airflow.providers.google.marketing_platform.sensors.search_ads.GoogleSearchAdsReportSensor",
     }
 
     @pytest.mark.xfail(reason="We did not reach full coverage yet")
