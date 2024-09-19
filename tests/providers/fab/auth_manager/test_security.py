@@ -35,7 +35,6 @@ from airflow.configuration import initialize_config
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
 from airflow.models.dag import DAG
-from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 from tests.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
@@ -60,6 +59,14 @@ from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.mock_security_manager import MockSecurityManager
 from tests.test_utils.permissions import _resource_name
+
+try:
+    from airflow.security.permissions import RESOURCE_ASSET
+except ImportError:
+    from airflow.security.permissions import (
+        RESOURCE_DATASET as RESOURCE_ASSET,  # type: ignore[attr-defined, no-redef]
+    )
+
 
 pytestmark = pytest.mark.db_test
 

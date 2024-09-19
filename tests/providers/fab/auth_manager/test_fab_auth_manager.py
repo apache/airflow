@@ -38,7 +38,6 @@ with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.models import User
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
-from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 from airflow.security.permissions import (
     ACTION_CAN_ACCESS_MENU,
     ACTION_CAN_CREATE,
@@ -59,6 +58,13 @@ from airflow.security.permissions import (
     RESOURCE_WEBSITE,
 )
 from airflow.www.extensions.init_appbuilder import init_appbuilder
+
+try:
+    from airflow.security.permissions import RESOURCE_ASSET
+except ImportError:
+    from airflow.security.permissions import (
+        RESOURCE_DATASET as RESOURCE_ASSET,  # type: ignore[attr-defined, no-redef]
+    )
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod

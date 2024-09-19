@@ -77,7 +77,6 @@ from airflow.auth.managers.utils.fab import get_method_from_fab_action_map
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, RemovedInAirflow3Warning
 from airflow.models import DagBag, DagModel
-from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 from airflow.providers.fab.auth_manager.models import (
     Action,
     Permission,
@@ -116,6 +115,12 @@ from airflow.www.session import AirflowDatabaseSessionInterface
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod
+    from airflow.security.permissions import RESOURCE_ASSET
+else:
+    try:
+        from airflow.security.permissions import RESOURCE_ASSET
+    except ImportError:
+        from airflow.security.permissions import RESOURCE_DATASET as RESOURCE_ASSET
 
 log = logging.getLogger(__name__)
 

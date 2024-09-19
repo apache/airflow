@@ -48,7 +48,6 @@ from airflow.cli.cli_config import (
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.models import DagModel
-from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
 from airflow.providers.fab.auth_manager.cli_commands.definition import (
     DB_COMMANDS,
     ROLES_COMMANDS,
@@ -87,6 +86,13 @@ from airflow.utils.yaml import safe_load
 from airflow.version import version
 from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
 from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
+
+try:
+    from airflow.security.permissions import RESOURCE_ASSET
+except ImportError:
+    from airflow.security.permissions import (
+        RESOURCE_DATASET as RESOURCE_ASSET,  # type: ignore[attr-defined, no-redef]
+    )
 
 if TYPE_CHECKING:
     from airflow.auth.managers.models.base_user import BaseUser
