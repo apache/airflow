@@ -95,6 +95,10 @@ class DatasetManager(LoggingMixin):
             cls.logger().warning("DatasetModel %s not found", dataset)
             return None
 
+        dataset_model.aliases = session.scalars(
+            select(DatasetAliasModel).where(DatasetAliasModel.name.in_(alias.name for alias in aliases))
+        )
+
         event_kwargs = {
             "dataset_id": dataset_model.id,
             "extra": extra,
