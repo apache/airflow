@@ -28,10 +28,9 @@ from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.triggers.athena import AthenaTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
-from airflow.providers.common.compat.openlineage.facet import Dataset
 
 if TYPE_CHECKING:
-    from airflow.providers.common.compat.openlineage.facet import BaseFacet, DatasetFacet
+    from airflow.providers.common.compat.openlineage.facet import BaseFacet, Dataset, DatasetFacet
     from airflow.providers.openlineage.extractors.base import OperatorLineage
     from airflow.utils.context import Context
 
@@ -283,6 +282,7 @@ class AthenaOperator(AwsBaseOperator[AthenaHook]):
 
     def get_openlineage_dataset(self, database, table) -> Dataset | None:
         from airflow.providers.common.compat.openlineage.facet import (
+            Dataset,
             Identifier,
             SchemaDatasetFacet,
             SchemaDatasetFacetFields,

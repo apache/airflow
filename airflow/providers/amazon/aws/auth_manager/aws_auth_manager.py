@@ -63,9 +63,8 @@ if TYPE_CHECKING:
         IsAuthorizedPoolRequest,
         IsAuthorizedVariableRequest,
     )
-    from airflow.auth.managers.models.resource_details import ConfigurationDetails
+    from airflow.auth.managers.models.resource_details import AssetDetails, ConfigurationDetails
     from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
-    from airflow.providers.common.compat.assets import AssetDetails
     from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
 

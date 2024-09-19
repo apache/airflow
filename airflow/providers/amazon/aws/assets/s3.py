@@ -19,7 +19,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.common.compat.assets import Asset
+
+try:
+    from airflow.assets import Asset
+except ModuleNotFoundError:
+    from airflow.datasets import Dataset as Asset
 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult

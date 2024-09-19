@@ -23,10 +23,31 @@ import pytest
 from flask import Flask, session
 from flask_appbuilder.menu import MenuItem
 
+from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
+from airflow.providers.amazon.aws.auth_manager.avp.facade import AwsAuthManagerAmazonVerifiedPermissionsFacade
+from airflow.providers.amazon.aws.auth_manager.aws_auth_manager import AwsAuthManager
 from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
     AwsSecurityManagerOverride,
 )
+from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
+from airflow.security.permissions import (
+    RESOURCE_AUDIT_LOG,
+    RESOURCE_CLUSTER_ACTIVITY,
+    RESOURCE_CONNECTION,
+    RESOURCE_VARIABLE,
+)
+from airflow.www import app as application
+from airflow.www.extensions.init_appbuilder import init_appbuilder
 from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS, AIRFLOW_V_2_9_PLUS
+from tests.test_utils.config import conf_vars
+from tests.test_utils.www import check_content_in_response
+
+try:
+    from airflow.security.permissions import RESOURCE_ASSET
+except ImportError:
+    from airflow.security.permissions import (
+        RESOURCE_DATASET as RESOURCE_ASSET,  # type: ignore[attr-defined, no-redef]
+    )
 
 try:
     from airflow.auth.managers.models.resource_details import (
@@ -38,7 +59,11 @@ try:
         PoolDetails,
         VariableDetails,
     )
-    from airflow.providers.common.compat.assets import AssetDetails
+
+    try:
+        from airflow.auth.managers.models.resource_details import AssetDetails
+    except ImportError:
+        from airflow.auth.managers.models.resource_details import DatasetDetails as AssetDetails
 except ImportError:
     if not AIRFLOW_V_2_8_PLUS:
         pytest.skip(
@@ -47,21 +72,6 @@ except ImportError:
         )
     else:
         raise
-from airflow.providers.amazon.aws.auth_manager.avp.entities import AvpEntities
-from airflow.providers.amazon.aws.auth_manager.avp.facade import AwsAuthManagerAmazonVerifiedPermissionsFacade
-from airflow.providers.amazon.aws.auth_manager.aws_auth_manager import AwsAuthManager
-from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
-from airflow.providers.common.compat.security.permissions import RESOURCE_ASSET
-from airflow.security.permissions import (
-    RESOURCE_AUDIT_LOG,
-    RESOURCE_CLUSTER_ACTIVITY,
-    RESOURCE_CONNECTION,
-    RESOURCE_VARIABLE,
-)
-from airflow.www import app as application
-from airflow.www.extensions.init_appbuilder import init_appbuilder
-from tests.test_utils.config import conf_vars
-from tests.test_utils.www import check_content_in_response
 
 if TYPE_CHECKING:
     from airflow.auth.managers.base_auth_manager import ResourceMethod

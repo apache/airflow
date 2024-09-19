@@ -21,12 +21,12 @@ import urllib.parse
 import pytest
 
 from airflow.providers.amazon.aws.assets.s3 import (
+    Asset,
     convert_asset_to_openlineage,
     create_asset,
     sanitize_uri,
 )
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.common.compat.assets import Asset
 
 
 def test_sanitize_uri():
