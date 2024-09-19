@@ -705,7 +705,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             ("airflow/providers/standard/core/operators/bash.py",),
             {
-                "affected-providers-list-as-string": "edge standard",
+                "affected-providers-list-as-string": "celery edge standard",
                 "all-python-versions": "['3.9']",
                 "all-python-versions-list-as-string": "3.9",
                 "python-versions": "['3.9']",
@@ -1720,7 +1720,7 @@ def test_upgrade_to_newer_dependencies(
         ),
         pytest.param(
             ("airflow/providers/celery/file.py",),
-            {"docs-list-as-string": "apache-airflow celery cncf.kubernetes"},
+            {"docs-list-as-string": "apache-airflow celery cncf.kubernetes standard"},
             id="Celery python files changed",
         ),
         pytest.param(

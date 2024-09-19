@@ -36,10 +36,10 @@ from airflow.models.dag import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
-from airflow.providers.standard.core.operators.bash import BashOperator
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.task_group import TASKGROUP_ARGS_EXPECTED_TYPES, TaskGroup, task_group_to_dict
 from tests.models import DEFAULT_DATE
+from tests.test_utils.compat import BashOperator
 
 
 def make_task(name, type_="classic"):
