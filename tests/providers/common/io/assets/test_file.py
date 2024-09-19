@@ -20,9 +20,9 @@ from urllib.parse import urlsplit, urlunsplit
 
 import pytest
 
-from airflow.providers.common.compat.assets import Asset
 from airflow.providers.common.compat.openlineage.facet import Dataset as OpenLineageDataset
 from airflow.providers.common.io.assets.file import (
+    Asset,
     convert_asset_to_openlineage,
     create_asset,
     sanitize_uri,
