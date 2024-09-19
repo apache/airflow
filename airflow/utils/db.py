@@ -89,7 +89,7 @@ T = TypeVar("T")
 
 log = logging.getLogger(__name__)
 
-_REVISION_HEADS_MAP = {
+_REVISION_HEADS_MAP: dict[str, str] = {
     "2.7.0": "405de8318b3a",
     "2.8.0": "10b52ebd31f7",
     "2.8.1": "88344c1d9134",
@@ -819,6 +819,7 @@ def check_migrations(timeout):
     :return: None
     """
     timeout = timeout or 1  # run the loop at least 1
+    external_db_manager = RunDBManager()
     with _configured_alembic_environment() as env:
         context = env.get_context()
         source_heads = None
@@ -826,7 +827,7 @@ def check_migrations(timeout):
         for ticker in range(timeout):
             source_heads = set(env.script.get_heads())
             db_heads = set(context.get_current_heads())
-            if source_heads == db_heads:
+            if source_heads == db_heads and external_db_manager.check_migration(settings.Session()):
                 return
             time.sleep(1)
             log.info("Waiting for migrations... %s second(s)", ticker)
@@ -1027,6 +1028,11 @@ def _check_migration_errors(session: Session = NEW_SESSION) -> Iterable[str]:
 
 
 def _offline_migration(migration_func: Callable, config, revision):
+    """
+    Run offline migration.
+
+    :meta private:
+    """
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         logging.disable(logging.CRITICAL)
@@ -1160,6 +1166,13 @@ def upgradedb(
             os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE"] = "1"
             settings.reconfigure_orm(pool_class=sqlalchemy.pool.SingletonThreadPool)
             command.upgrade(config, revision=to_revision or "heads")
+            current_revision = _get_current_revision(session=session)
+            with _configured_alembic_environment() as env:
+                source_heads = env.script.get_heads()
+            if current_revision == source_heads[0]:
+                # Only run external DB upgrade migration if user upgraded to heads
+                external_db_manager = RunDBManager()
+                external_db_manager.upgradedb(session)
 
         finally:
             if val is None:
@@ -1167,8 +1180,6 @@ def upgradedb(
             else:
                 os.environ["AIRFLOW__DATABASE__SQL_ALCHEMY_MAX_SIZE"] = val
             settings.reconfigure_orm()
-
-        current_revision = _get_current_revision(session=session)
 
         if reserialize_dags and current_revision != previous_revision:
             _reserialize_dags(session=session)
@@ -1191,7 +1202,7 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
         drop_airflow_models(connection)
         drop_airflow_moved_tables(connection)
         external_db_manager = RunDBManager()
-        external_db_manager.drop_tables(connection)
+        external_db_manager.drop_tables(session, connection)
 
     if not skip_init:
         initdb(session=session)

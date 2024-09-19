@@ -16,30 +16,30 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""${message}
-
-Revision ID: ${up_revision}
-Revises: ${down_revision | comma,n}
-Create Date: ${create_date}
-
 """
-from typing import Sequence, Union
+placeholder migration.
 
-from alembic import op
-import sqlalchemy as sa
-${imports if imports else ""}
+Revision ID: 6709f7a774b9
+Revises:
+Create Date: 2024-09-03 17:06:38.040510
+
+Note: This is a placeholder migration used to stamp the migration
+when we create the migration from the ORM. Otherwise, it will run
+without stamping the migration, leading to subsequent changes to
+the tables not being migrated.
+"""
+
+from __future__ import annotations
 
 # revision identifiers, used by Alembic.
-revision = ${repr(up_revision)}
-down_revision = ${repr(down_revision)}
-branch_labels = ${repr(branch_labels)}
-depends_on = ${repr(depends_on)}
-fab_version = None
+revision = "6709f7a774b9"
+down_revision = None
+branch_labels = None
+depends_on = None
+fab_version = "1.3.0"
 
 
-def upgrade() -> None:
-    ${upgrades if upgrades else "pass"}
+def upgrade() -> None: ...
 
 
-def downgrade() -> None:
-    ${downgrades if downgrades else "pass"}
+def downgrade() -> None: ...
