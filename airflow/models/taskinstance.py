@@ -2929,9 +2929,10 @@ class TaskInstance(Base, LoggingMixin):
         )
         for (uri, extra_items), alias_names in dataset_alias_names.items():
             dataset_obj = dataset_objs_cache[uri]
-            dataset_obj.aliases.extend(
-                session.scalars(select(DatasetAliasModel).where(DatasetAliasModel.name.in_(alias_names)))
-            )
+            aliases = session.scalars(
+                select(DatasetAliasModel).where(DatasetAliasModel.name.in_(alias_names))
+            ).all()
+            dataset_obj.aliases.extend(aliases)
             self.log.info(
                 'Creating event for %r through aliases "%s"',
                 dataset_obj,
@@ -2940,6 +2941,7 @@ class TaskInstance(Base, LoggingMixin):
             dataset_manager.register_dataset_change(
                 task_instance=self,
                 dataset=dataset_obj.to_public(),
+                aliases=[a.to_public() for a in aliases],
                 extra=dict(extra_items),
                 session=session,
                 source_alias_names=alias_names,

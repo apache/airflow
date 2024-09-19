@@ -138,6 +138,9 @@ class DatasetAliasModel(Base):
         else:
             return NotImplemented
 
+    def to_public(self) -> DatasetAlias:
+        return DatasetAlias(name=self.name)
+
 
 class DatasetModel(Base):
     """

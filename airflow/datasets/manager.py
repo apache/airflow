@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from typing import TYPE_CHECKING
 
 from sqlalchemy import exc, select
@@ -42,7 +42,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
-    from airflow.datasets import Dataset
+    from airflow.datasets import Dataset, DatasetAlias
     from airflow.models.dag import DagModel
     from airflow.models.taskinstance import TaskInstance
 
@@ -74,8 +74,9 @@ class DatasetManager(LoggingMixin):
         task_instance: TaskInstance | None = None,
         dataset: Dataset,
         extra=None,
-        session: Session = NEW_SESSION,
+        aliases: Collection[DatasetAlias] = (),
         source_alias_names: Iterable[str] | None = None,
+        session: Session = NEW_SESSION,
         **kwargs,
     ) -> DatasetEvent | None:
         """
@@ -100,12 +101,10 @@ class DatasetManager(LoggingMixin):
         }
         if task_instance:
             event_kwargs.update(
-                {
-                    "source_task_id": task_instance.task_id,
-                    "source_dag_id": task_instance.dag_id,
-                    "source_run_id": task_instance.run_id,
-                    "source_map_index": task_instance.map_index,
-                }
+                source_task_id=task_instance.task_id,
+                source_dag_id=task_instance.dag_id,
+                source_run_id=task_instance.run_id,
+                source_map_index=task_instance.map_index,
             )
 
         dataset_event = DatasetEvent(**event_kwargs)
