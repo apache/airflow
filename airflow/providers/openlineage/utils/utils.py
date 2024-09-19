@@ -56,7 +56,7 @@ from airflow.utils.module_loading import import_string
 try:
     from airflow.assets import Asset
 except ModuleNotFoundError:
-    from airflow.datasets import Dataset as Asset
+    from airflow.datasets import Dataset as Asset  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from openlineage.client.event_v2 import Dataset as OpenLineageDataset

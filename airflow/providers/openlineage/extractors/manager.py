@@ -178,7 +178,16 @@ class ExtractorManager(LoggingMixin):
 
     def get_hook_lineage(self) -> tuple[list[Dataset], list[Dataset]] | None:
         try:
-            from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+            from importlib.util import find_spec
+
+            if find_spec("airflow.assets"):
+                from airflow.lineage.hook import get_hook_lineage_collector
+            else:
+                # TODO: import from common.compat directly after common.compat providers with
+                # asset_compat_lineage_collector released
+                from airflow.providers.openlineage.utils.asset_compat_lineage_collector import (
+                    get_hook_lineage_collector,
+                )
         except ImportError:
             return None
 

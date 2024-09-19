@@ -43,8 +43,17 @@ if AIRFLOW_V_2_10_PLUS:
 
     @pytest.fixture
     def hook_lineage_collector():
+        from importlib.util import find_spec
+
         from airflow.lineage import hook
-        from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
+
+        if find_spec("airflow.assets"):
+            # Dataset has been renamed as Asset in 3.0
+            from airflow.lineage.hook import get_hook_lineage_collector
+        else:
+            from airflow.providers.openlineage.utils.asset_compat_lineage_collector import (
+                get_hook_lineage_collector,
+            )
 
         hook._hook_lineage_collector = None
         hook._hook_lineage_collector = hook.HookLineageCollector()
