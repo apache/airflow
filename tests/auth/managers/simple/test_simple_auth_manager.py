@@ -85,6 +85,7 @@ class TestSimpleAuthManager:
 
         assert result is False
 
+    @pytest.mark.db_test
     def test_is_logged_in_with_all_admins(self, auth_manager_with_appbuilder, app):
         auth_manager_with_appbuilder.appbuilder.app.config["SIMPLE_AUTH_MANAGER_ALL_ADMINS"] = True
         with app.test_request_context():
