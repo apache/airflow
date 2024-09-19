@@ -38,10 +38,6 @@ integrations:
     logo: /integration-logos/couchbase/logo.svg
     tags: [software]
 
-sensors:
-  - integration-name: Couchbase
-    python-modules:
-      - airflow.providers.couchbase.sensors.couchbase
 hooks:
   - integration-name: Couchbase
     python-modules:
