@@ -119,8 +119,15 @@ class DatasetManager(LoggingMixin):
             cls.logger().warning("DatasetModel %s not found", dataset)
             return None
 
-        dataset_model.aliases = session.scalars(
-            select(DatasetAliasModel).where(DatasetAliasModel.name.in_(alias.name for alias in aliases))
+        # This INSERTs directly into the association table of the many-to-many
+        # dataset_model.aliases relationship. I don't know how to do it in ORM.
+        session.execute(
+            DatasetAliasModel.datasets.prop.secondary.insert().from_select(
+                ["alias_id", "dataset_id"],
+                select(DatasetAliasModel.id, dataset_model.id).where(
+                    DatasetAliasModel.name.in_(alias.name for alias in aliases)
+                ),
+            )
         )
 
         event_kwargs = {
