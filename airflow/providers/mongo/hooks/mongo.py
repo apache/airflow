@@ -32,6 +32,8 @@ from airflow.hooks.base import BaseHook
 if TYPE_CHECKING:
     from types import TracebackType
 
+    from pymongo.collection import Collection as MongoCollection
+    from pymongo.command_cursor import CommandCursor
     from typing_extensions import Literal
 
     from airflow.models import Connection
@@ -218,9 +220,7 @@ class MongoHook(BaseHook):
         path = f"/{self.connection.schema}"
         return urlunsplit((scheme, netloc, path, "", ""))
 
-    def get_collection(
-        self, mongo_collection: str, mongo_db: str | None = None
-    ) -> pymongo.collection.Collection:
+    def get_collection(self, mongo_collection: str, mongo_db: str | None = None) -> MongoCollection:
         """
         Fetch a mongo collection object for querying.
 
@@ -233,7 +233,7 @@ class MongoHook(BaseHook):
 
     def aggregate(
         self, mongo_collection: str, aggregate_query: list, mongo_db: str | None = None, **kwargs
-    ) -> pymongo.command_cursor.CommandCursor:
+    ) -> CommandCursor:
         """
         Run an aggregation pipeline and returns the results.
 
