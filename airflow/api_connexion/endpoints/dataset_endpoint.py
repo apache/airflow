@@ -84,7 +84,7 @@ def get_datasets(
     *,
     limit: int,
     offset: int = 0,
-    uri_pattern: str | None = None,
+    # uri_pattern: str | None = None,
     dag_ids: str | None = None,
     order_by: str = "id",
     session: Session = NEW_SESSION,
@@ -101,8 +101,8 @@ def get_datasets(
             (DatasetModel.consuming_dags.any(DagScheduleDatasetReference.dag_id.in_(dags_list)))
             | (DatasetModel.producing_tasks.any(TaskOutletDatasetReference.dag_id.in_(dags_list)))
         )
-    if uri_pattern:
-        query = query.where(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
+    # if uri_pattern:
+    #     query = query.where(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
     query = apply_sorting(query, order_by, {}, allowed_attrs)
     datasets = session.scalars(
         query.options(subqueryload(DatasetModel.consuming_dags), subqueryload(DatasetModel.producing_tasks))

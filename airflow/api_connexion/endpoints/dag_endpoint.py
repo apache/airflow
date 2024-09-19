@@ -99,7 +99,7 @@ def get_dags(
     limit: int,
     offset: int = 0,
     tags: Collection[str] | None = None,
-    dag_id_pattern: str | None = None,
+    # dag_id_pattern: str | None = None,
     only_active: bool = True,
     paused: bool | None = None,
     order_by: str = "dag_id",
@@ -116,8 +116,8 @@ def get_dags(
             dags_query = dags_query.where(DagModel.is_paused)
         else:
             dags_query = dags_query.where(~DagModel.is_paused)
-    if dag_id_pattern:
-        dags_query = dags_query.where(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
+    # if dag_id_pattern:
+    #     dags_query = dags_query.where(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
 
     readable_dags = get_auth_manager().get_permitted_dag_ids(user=g.user)
 
@@ -168,7 +168,15 @@ def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session =
 @format_parameters({"limit": check_limit})
 @action_logging
 @provide_session
-def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pattern=None, update_mask=None):
+def patch_dags(
+    limit,
+    session,
+    offset=0,
+    only_active=True,
+    tags=None,
+    # dag_id_pattern=None,
+    update_mask=None,
+):
     """Patch multiple DAGs."""
     try:
         patch_body = dag_schema.load(request.json, session=session)
@@ -185,9 +193,9 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
     if only_active:
         dags_query = dags_query.where(DagModel.is_active)
 
-    if dag_id_pattern == "~":
-        dag_id_pattern = "%"
-    dags_query = dags_query.where(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
+    # if dag_id_pattern == "~":
+    #     dag_id_pattern = "%"
+    # dags_query = dags_query.where(DagModel.dag_id.ilike(f"%{dag_id_pattern}%"))
     editable_dags = get_auth_manager().get_permitted_dag_ids(methods=["PUT"], user=g.user)
 
     dags_query = dags_query.where(DagModel.dag_id.in_(editable_dags))
