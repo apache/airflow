@@ -25,10 +25,10 @@ from sqlalchemy.orm import make_transient
 from airflow.configuration import TEST_DAGS_FOLDER
 from airflow.models.renderedtifields import RenderedTaskInstanceFields, RenderedTaskInstanceFields as RTIF
 from airflow.providers.cncf.kubernetes.template_rendering import get_rendered_k8s_spec, render_k8s_pod_yaml
-from airflow.providers.standard.core.operators.bash import BashOperator
 from airflow.utils.session import create_session
 from airflow.version import version
 from tests.models import DEFAULT_DATE
+from tests.test_utils.compat import BashOperator
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

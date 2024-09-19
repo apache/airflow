@@ -38,7 +38,6 @@ try:
 except ImportError:
     from airflow.models.errors import ImportError as ParseImportError  # type: ignore[no-redef,attr-defined]
 
-
 from airflow import __version__ as airflow_version
 
 AIRFLOW_VERSION = Version(airflow_version)
@@ -52,6 +51,14 @@ try:
 except ImportError:
     # Compatibility for Airflow 2.7.*
     from airflow.models.baseoperator import BaseOperatorLink
+
+try:
+    from airflow.providers.standard.core.operators.bash import BashOperator
+    from airflow.providers.standard.core.sensors.bash import BashSensor
+except ImportError:
+    # Compatibility for Airflow < 2.10.*
+    from airflow.operators.bash import BashOperator  # type: ignore[no-redef,attr-defined]
+    from airflow.sensors.bash import BashSensor  # type: ignore[no-redef,attr-defined]
 
 
 if TYPE_CHECKING:

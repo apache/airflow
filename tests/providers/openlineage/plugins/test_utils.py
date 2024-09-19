@@ -40,11 +40,10 @@ from airflow.providers.openlineage.utils.utils import (
     get_fully_qualified_class_name,
     is_operator_disabled,
 )
-from airflow.providers.standard.core.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.log.secrets_masker import _secrets_masker
 from airflow.utils.state import State
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS, BashOperator
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

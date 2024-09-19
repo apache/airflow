@@ -52,9 +52,9 @@ from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import (
     get_logs_task_metadata,
 )
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-from airflow.providers.standard.core.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.state import State, TaskInstanceState
+from tests.test_utils.compat import BashOperator
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.skip_if_database_isolation_mode

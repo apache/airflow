@@ -50,8 +50,8 @@ from airflow.providers.openlineage.plugins.facets import (
     AirflowStateRunFacet,
 )
 from airflow.providers.openlineage.utils.utils import get_airflow_job_facet
-from airflow.providers.standard.core.operators.bash import BashOperator
 from airflow.utils.task_group import TaskGroup
+from tests.test_utils.compat import BashOperator
 from tests.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
