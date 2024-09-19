@@ -34,6 +34,7 @@ from airflow_breeze.commands.common_options import (
     option_downgrade_pendulum,
     option_downgrade_sqlalchemy,
     option_dry_run,
+    option_excluded_providers,
     option_force_lowest_dependencies,
     option_forward_credentials,
     option_github_repository,
@@ -189,29 +190,32 @@ def _run_test(
         "--rm",
         "airflow",
     ]
-    run_cmd.extend(
-        generate_args_for_pytest(
-            test_type=shell_params.test_type,
-            test_timeout=test_timeout,
-            skip_provider_tests=shell_params.skip_provider_tests,
-            skip_db_tests=shell_params.skip_db_tests,
-            run_db_tests_only=shell_params.run_db_tests_only,
-            backend=shell_params.backend,
-            use_xdist=shell_params.use_xdist,
-            enable_coverage=shell_params.enable_coverage,
-            collect_only=shell_params.collect_only,
-            parallelism=shell_params.parallelism,
-            python_version=python_version,
-            parallel_test_types_list=shell_params.parallel_test_types_list,
-            helm_test_package=None,
-            keep_env_variables=shell_params.keep_env_variables,
-            no_db_cleanup=shell_params.no_db_cleanup,
-        )
+    pytest_args = generate_args_for_pytest(
+        test_type=shell_params.test_type,
+        test_timeout=test_timeout,
+        skip_provider_tests=shell_params.skip_provider_tests,
+        skip_db_tests=shell_params.skip_db_tests,
+        run_db_tests_only=shell_params.run_db_tests_only,
+        backend=shell_params.backend,
+        use_xdist=shell_params.use_xdist,
+        enable_coverage=shell_params.enable_coverage,
+        collect_only=shell_params.collect_only,
+        parallelism=shell_params.parallelism,
+        python_version=python_version,
+        parallel_test_types_list=shell_params.parallel_test_types_list,
+        helm_test_package=None,
+        keep_env_variables=shell_params.keep_env_variables,
+        no_db_cleanup=shell_params.no_db_cleanup,
     )
-    run_cmd.extend(list(extra_pytest_args))
+    pytest_args.extend(extra_pytest_args)
     # Skip "FOLDER" in case "--ignore=FOLDER" is passed as an argument
     # Which might be the case if we are ignoring some providers during compatibility checks
-    run_cmd = [arg for arg in run_cmd if f"--ignore={arg}" not in run_cmd]
+    pytest_args_before_skip = pytest_args
+    pytest_args = [arg for arg in pytest_args if f"--ignore={arg}" not in pytest_args]
+    # Double check: If no test is leftover we can skip running the test
+    if pytest_args_before_skip != pytest_args and pytest_args[0].startswith("--"):
+        return 0, f"Skipped test, no tests needed: {shell_params.test_type}"
+    run_cmd.extend(pytest_args)
     try:
         remove_docker_networks(networks=[f"{compose_project_name}_default"])
         result = run_command(
@@ -513,6 +517,7 @@ option_force_sa_warnings = click.option(
 @option_downgrade_sqlalchemy
 @option_dry_run
 @option_enable_coverage
+@option_excluded_providers
 @option_excluded_parallel_test_types
 @option_force_sa_warnings
 @option_force_lowest_dependencies
@@ -574,6 +579,7 @@ def command_for_tests(**kwargs):
 @option_dry_run
 @option_enable_coverage
 @option_excluded_parallel_test_types
+@option_excluded_providers
 @option_forward_credentials
 @option_force_lowest_dependencies
 @option_github_repository
@@ -635,6 +641,7 @@ def command_for_db_tests(**kwargs):
 @option_dry_run
 @option_enable_coverage
 @option_excluded_parallel_test_types
+@option_excluded_providers
 @option_forward_credentials
 @option_force_lowest_dependencies
 @option_github_repository
@@ -690,6 +697,7 @@ def _run_test_command(
     downgrade_pendulum: bool,
     enable_coverage: bool,
     excluded_parallel_test_types: str,
+    excluded_providers: str,
     extra_pytest_args: tuple,
     force_sa_warnings: bool,
     forward_credentials: bool,
@@ -745,6 +753,7 @@ def _run_test_command(
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         downgrade_pendulum=downgrade_pendulum,
         enable_coverage=enable_coverage,
+        excluded_providers=excluded_providers,
         force_sa_warnings=force_sa_warnings,
         force_lowest_dependencies=force_lowest_dependencies,
         forward_credentials=forward_credentials,

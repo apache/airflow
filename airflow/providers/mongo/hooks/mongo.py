@@ -26,13 +26,15 @@ from urllib.parse import quote_plus, urlunsplit
 import pymongo
 from pymongo import MongoClient, ReplaceOne
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 
 if TYPE_CHECKING:
     from types import TracebackType
 
     from typing_extensions import Literal
+
+    from airflow.models import Connection
 
 
 class MongoHook(BaseHook):
@@ -80,6 +82,37 @@ class MongoHook(BaseHook):
     conn_type = "mongo"
     hook_name = "MongoDB"
 
+    @classmethod
+    def get_connection_form_widgets(cls) -> dict[str, Any]:
+        """Return connection widgets to add to connection form."""
+        from flask_babel import lazy_gettext
+        from wtforms import BooleanField
+
+        return {
+            "srv": BooleanField(
+                label=lazy_gettext("SRV Connection"),
+                description="Check if using an SRV/seed list connection, i.e. one that begins with 'mongdb+srv://' (if so, the port field should be left empty)",
+            ),
+            "ssl": BooleanField(
+                label=lazy_gettext("Use SSL"), description="Check to enable SSL/TLS for the connection"
+            ),
+            "allow_insecure": BooleanField(
+                label=lazy_gettext("Allow Invalid Certificates"),
+                description="Check to bypass verification of certificates during SSL/TLS connections (has no effect for non-SSL/TLS connections)",
+            ),
+        }
+
+    @classmethod
+    def get_ui_field_behaviour(cls) -> dict[str, Any]:
+        """Return custom field behaviour."""
+        return {
+            "hidden_fields": [],
+            "relabeling": {"login": "Username", "schema": "Default DB"},
+            "placeholders": {
+                "port": "Note: port should not be set for SRV connections",
+            },
+        }
+
     def __init__(self, mongo_conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__()
         if conn_id := kwargs.pop("conn_id", None):
@@ -92,7 +125,11 @@ class MongoHook(BaseHook):
             mongo_conn_id = conn_id
 
         self.mongo_conn_id = mongo_conn_id
-        self.connection = self.get_connection(self.mongo_conn_id)
+
+        conn = self.get_connection(self.mongo_conn_id)
+        self._validate_connection(conn)
+        self.connection = conn
+
         self.extras = self.connection.extra_dejson.copy()
         self.client: MongoClient | None = None
         self.uri = self._create_uri()
@@ -117,6 +154,21 @@ class MongoHook(BaseHook):
         elif not self.ssl_enabled:
             # Case: HTTP (ssl=False) with allow_insecure not specified
             self.allow_insecure = False
+
+    @staticmethod
+    def _validate_connection(conn: Connection):
+        conn_type = conn.conn_type
+        if conn_type != "mongo":
+            if conn_type == "mongodb+srv":
+                raise AirflowConfigException(
+                    "Mongo SRV connections should have the conn_type 'mongo' and set 'use_srv=true' in extras"
+                )
+            raise AirflowConfigException(
+                f"conn_type '{conn_type}' not allowed for MongoHook; conn_type must be 'mongo'"
+            )
+
+        if conn.port and conn.extra_dejson.get("srv"):
+            raise AirflowConfigException("srv URI should not specify a port")
 
     def __enter__(self):
         """Return the object when a context manager is created."""

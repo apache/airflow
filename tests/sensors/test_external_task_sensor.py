@@ -52,8 +52,12 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.models import TEST_DAGS_FOLDER
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.mock_operators import MockOperator
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -448,12 +452,14 @@ class TestExternalTaskSensor:
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_external_dag_sensor(self):
         other_dag = DAG("other_dag", default_args=self.args, end_date=DEFAULT_DATE, schedule="@once")
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         other_dag.create_dagrun(
             run_id="test",
             start_date=DEFAULT_DATE,
             execution_date=DEFAULT_DATE,
             state=State.SUCCESS,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
         op = ExternalTaskSensor(
             task_id="test_external_dag_sensor_check",
@@ -466,12 +472,14 @@ class TestExternalTaskSensor:
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_external_dag_sensor_log(self, caplog):
         other_dag = DAG("other_dag", default_args=self.args, end_date=DEFAULT_DATE, schedule="@once")
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         other_dag.create_dagrun(
             run_id="test",
             start_date=DEFAULT_DATE,
             execution_date=DEFAULT_DATE,
             state=State.SUCCESS,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
         op = ExternalTaskSensor(
             task_id="test_external_dag_sensor_check",
@@ -484,12 +492,14 @@ class TestExternalTaskSensor:
     @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
     def test_external_dag_sensor_soft_fail_as_skipped(self):
         other_dag = DAG("other_dag", default_args=self.args, end_date=DEFAULT_DATE, schedule="@once")
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         other_dag.create_dagrun(
             run_id="test",
             start_date=DEFAULT_DATE,
             execution_date=DEFAULT_DATE,
             state=State.SUCCESS,
             data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
         op = ExternalTaskSensor(
             task_id="test_external_dag_sensor_check",
@@ -1270,6 +1280,7 @@ def run_tasks(dag_bag, execution_date=DEFAULT_DATE, session=None):
     keyed by task_id.
     """
     tis = {}
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
 
     for dag in dag_bag.dags.values():
         dagrun = dag.create_dagrun(
@@ -1277,8 +1288,9 @@ def run_tasks(dag_bag, execution_date=DEFAULT_DATE, session=None):
             execution_date=execution_date,
             start_date=execution_date,
             run_type=DagRunType.MANUAL,
-            data_interval=(execution_date, execution_date),
             session=session,
+            data_interval=(DEFAULT_DATE, DEFAULT_DATE),
+            **triggered_by_kwargs,
         )
         # we use sorting by task_id here because for the test DAG structure of ours
         # this is equivalent to topological sort. It would not work in general case
@@ -1669,7 +1681,7 @@ def dag_bag_head_tail_mapped_tasks():
     with DAG("head_tail", start_date=DEFAULT_DATE, schedule="@daily") as dag:
 
         @task_deco
-        def fake_task(x: int):
+        def dummy_task(x: int):
             return x
 
         head = ExternalTaskSensor(
@@ -1680,7 +1692,7 @@ def dag_bag_head_tail_mapped_tasks():
             mode="reschedule",
         )
 
-        body = fake_task.expand(x=range(5))
+        body = dummy_task.expand(x=range(5))
         tail = ExternalTaskMarker(
             task_id="tail",
             external_dag_id=dag.dag_id,
@@ -1711,7 +1723,7 @@ def test_clear_overlapping_external_task_marker_mapped_tasks(dag_bag_head_tail_m
         )
         session.add(dagrun)
         for task in dag.tasks:
-            if task.task_id == "fake_task":
+            if task.task_id == "dummy_task":
                 for map_index in range(5):
                     ti = TaskInstance(task=task, run_id=dagrun.run_id, map_index=map_index)
                     ti.state = TaskInstanceState.SUCCESS

@@ -36,16 +36,15 @@ from airflow.settings import _ENABLE_AIP_44
 from airflow.utils.json import AirflowJsonProvider
 from airflow.www.extensions.init_appbuilder import init_appbuilder
 from airflow.www.extensions.init_appbuilder_links import init_appbuilder_links
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.extensions.init_cache import init_cache
 from airflow.www.extensions.init_dagbag import init_dagbag
 from airflow.www.extensions.init_jinja_globals import init_jinja_globals
 from airflow.www.extensions.init_manifest_files import configure_manifest_files
+from airflow.www.extensions.init_react_ui import init_react_ui
 from airflow.www.extensions.init_robots import init_robots
 from airflow.www.extensions.init_security import (
     init_api_auth,
     init_cache_control,
-    init_check_user_active,
     init_xframe_protection,
 )
 from airflow.www.extensions.init_session import init_airflow_session_interface
@@ -156,6 +155,7 @@ def create_app(config=None, testing=False):
     with flask_app.app_context():
         init_appbuilder(flask_app)
 
+        init_react_ui(flask_app)
         init_appbuilder_views(flask_app)
         init_appbuilder_links(flask_app)
         init_plugins(flask_app)
@@ -167,14 +167,10 @@ def create_app(config=None, testing=False):
             init_api_internal(flask_app)
         init_api_auth_provider(flask_app)
         init_api_error_handlers(flask_app)  # needs to be after all api inits to let them add their path first
-
-        get_auth_manager().init()
-
         init_jinja_globals(flask_app)
         init_xframe_protection(flask_app)
         init_cache_control(flask_app)
         init_airflow_session_interface(flask_app)
-        init_check_user_active(flask_app)
     return flask_app
 
 

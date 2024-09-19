@@ -25,6 +25,7 @@ DEVELOPER_COMMANDS: dict[str, str | list[str]] = {
         "down",
         "shell",
         "exec",
+        "compile-ui-assets",
         "compile-www-assets",
         "cleanup",
         "generate-migration-file",
@@ -148,6 +149,7 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
                 "--airflow-extras",
                 "--airflow-skip-constraints",
                 "--clean-airflow-installation",
+                "--excluded-providers",
                 "--force-lowest-dependencies",
                 "--install-airflow-with-constraints",
                 "--install-selected-providers",
@@ -190,6 +192,15 @@ DEVELOPER_PARAMETERS: dict[str, list[dict[str, str | list[str]]]] = {
     "breeze compile-www-assets": [
         {
             "name": "Compile www assets flag",
+            "options": [
+                "--dev",
+                "--force-clean",
+            ],
+        }
+    ],
+    "breeze compile-ui-assets": [
+        {
+            "name": "Compile ui assets flag",
             "options": [
                 "--dev",
                 "--force-clean",

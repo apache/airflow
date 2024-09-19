@@ -85,6 +85,7 @@ class TestProjectStructure:
             "tests/providers/apache/hive/plugins/test_hive.py",
             "tests/providers/celery/executors/test_celery_executor_utils.py",
             "tests/providers/celery/executors/test_default_celery.py",
+            "tests/providers/cloudant/test_cloudant_fake.py",
             "tests/providers/cncf/kubernetes/backcompat/test_backwards_compat_converters.py",
             "tests/providers/cncf/kubernetes/executors/test_kubernetes_executor_types.py",
             "tests/providers/cncf/kubernetes/executors/test_kubernetes_executor_utils.py",
@@ -150,7 +151,6 @@ class TestProjectStructure:
             "tests/providers/google/test_go_module_utils.py",
             "tests/providers/microsoft/azure/operators/test_adls.py",
             "tests/providers/microsoft/azure/transfers/test_azure_blob_to_gcs.py",
-            "tests/providers/mongo/sensors/test_mongo.py",
             "tests/providers/slack/notifications/test_slack_notifier.py",
             "tests/providers/snowflake/triggers/test_snowflake_trigger.py",
             "tests/providers/yandex/hooks/test_yandexcloud_dataproc.py",
@@ -395,6 +395,12 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360RunQueryOperator",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360DownloadReportV2Operator",
         "airflow.providers.google.marketing_platform.sensors.GoogleDisplayVideo360RunQuerySensor",
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsDataImportUploadOperator",
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsDeletePreviousDataUploadsOperator",
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsGetAdsLinkOperator",
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsListAccountsOperator",
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsModifyFileHeadersDataImportOperator",
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsRetrieveAdsLinksListOperator",
     }
 
     BASE_CLASSES = {
