@@ -249,8 +249,8 @@ def _find_all_dataset_aliases(dags: Iterable[DAG]) -> Iterator[DatasetAlias]:
                     yield obj
 
 
-class DatasetCollection(NamedTuple):
-    """Datasets collected from DAGs."""
+class DatasetModelOperation(NamedTuple):
+    """Collect dataset/alias objects from DAGs and perform database operations for them."""
 
     schedule_dataset_references: dict[str, list[Dataset]]
     schedule_dataset_alias_references: dict[str, list[DatasetAlias]]
