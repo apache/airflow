@@ -55,10 +55,12 @@ except ImportError:
 try:
     from airflow.providers.standard.core.operators.bash import BashOperator
     from airflow.providers.standard.core.sensors.bash import BashSensor
+    from airflow.providers.standard.time.sensors.date_time import DateTimeSensor
 except ImportError:
     # Compatibility for Airflow < 2.10.*
     from airflow.operators.bash import BashOperator  # type: ignore[no-redef,attr-defined]
     from airflow.sensors.bash import BashSensor  # type: ignore[no-redef,attr-defined]
+    from airflow.sensors.date_time import DateTimeSensor  # type: ignore[no-redef,attr-defined]
 
 
 if TYPE_CHECKING:
