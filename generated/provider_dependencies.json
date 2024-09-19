@@ -344,7 +344,8 @@
     "devel-deps": [],
     "plugins": [],
     "cross-providers-deps": [
-      "cncf.kubernetes"
+      "cncf.kubernetes",
+      "standard"
     ],
     "excluded-python-versions": [],
     "state": "ready"
