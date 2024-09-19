@@ -1090,7 +1090,7 @@ class DagFileProcessorManager(LoggingMixin):
     def get_dag_directory(self) -> str:
         """Return the dag_director as a string."""
         if isinstance(self._dag_directory, Path):
-            return str(self._dag_directory.resolve())
+            return str(self._dag_directory.absolute())
         else:
             return str(self._dag_directory)
 
