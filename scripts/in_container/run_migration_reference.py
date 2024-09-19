@@ -138,8 +138,7 @@ def get_revisions(app="airflow") -> Iterable[Script]:
     else:
         from airflow.providers.fab.auth_manager.models.db import FABDBManager
 
-        config = FABDBManager(session="").get_alembic_config()
-        script = ScriptDirectory.from_config(config)
+        script = FABDBManager(session="").get_script_object()
         yield from script.walk_revisions()
 
 
@@ -234,9 +233,9 @@ def correct_mismatching_revision_nums(revisions: Iterable[Script]):
 if __name__ == "__main__":
     apps = ["airflow", "fab"]
     for app in apps:
-        console.print("[bright_blue]Updating migration reference")
+        console.print(f"[bright_blue]Updating migration reference for {app}")
         revisions = list(reversed(list(get_revisions(app))))
-        console.print("[bright_blue]Making sure airflow version updated")
+        console.print(f"[bright_blue]Making sure {app} version updated")
         ensure_version(revisions=revisions, app=app)
         console.print("[bright_blue]Making sure there's no mismatching revision numbers")
         correct_mismatching_revision_nums(revisions=revisions)

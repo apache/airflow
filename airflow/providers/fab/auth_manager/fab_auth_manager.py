@@ -22,11 +22,13 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Container
 
+import packaging.version
 from connexion import FlaskApi
 from flask import Blueprint, url_for
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
+from airflow import __version__ as airflow_version
 from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
 from airflow.auth.managers.models.resource_details import (
     AccessView,
@@ -47,6 +49,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.models import DagModel
 from airflow.providers.fab.auth_manager.cli_commands.definition import (
+    DB_COMMANDS,
     ROLES_COMMANDS,
     SYNC_PERM_COMMAND,
     USERS_COMMANDS,
@@ -132,7 +135,7 @@ class FabAuthManager(BaseAuthManager):
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
         """Vends CLI commands to be included in Airflow CLI."""
-        return [
+        commands: list[CLICommand] = [
             GroupCommand(
                 name="users",
                 help="Manage users",
@@ -145,6 +148,12 @@ class FabAuthManager(BaseAuthManager):
             ),
             SYNC_PERM_COMMAND,  # not in a command group
         ]
+        # If Airflow version is 3.0.0 or higher, add the fab-db command group
+        if packaging.version.parse(
+            packaging.version.parse(airflow_version).base_version
+        ) >= packaging.version.parse("3.0.0"):
+            commands.append(GroupCommand(name="fab-db", help="Manage FAB", subcommands=DB_COMMANDS))
+        return commands
 
     def get_api_endpoints(self) -> None | Blueprint:
         folder = Path(__file__).parents[0].resolve()  # this is airflow/auth/managers/fab/
