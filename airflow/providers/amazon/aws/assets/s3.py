@@ -23,7 +23,7 @@ from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 try:
     from airflow.assets import Asset
 except ModuleNotFoundError:
-    from airflow.datasets import Dataset as Asset
+    from airflow.datasets import Dataset as Asset  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     from urllib.parse import SplitResult

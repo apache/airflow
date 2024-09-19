@@ -63,7 +63,9 @@ try:
     try:
         from airflow.auth.managers.models.resource_details import AssetDetails
     except ImportError:
-        from airflow.auth.managers.models.resource_details import DatasetDetails as AssetDetails
+        from airflow.auth.managers.models.resource_details import (
+            DatasetDetails as AssetDetails,  # type: ignore[attr-defined, no-redef]
+        )
 except ImportError:
     if not AIRFLOW_V_2_8_PLUS:
         pytest.skip(

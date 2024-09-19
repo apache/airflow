@@ -40,8 +40,6 @@ from typing import TYPE_CHECKING, Any, AsyncIterator, Callable
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-from airflow.providers.common.compat.lineage.hook import get_hook_lineage_collector
-
 if TYPE_CHECKING:
     from mypy_boto3_s3.service_resource import Bucket as S3Bucket, Object as S3ResourceObject
 
@@ -49,6 +47,8 @@ if TYPE_CHECKING:
 
     with suppress(ImportError):
         from aiobotocore.client import AioBaseClient
+
+from importlib.util import find_spec
 
 from asgiref.sync import sync_to_async
 from boto3.s3.transfer import S3Transfer, TransferConfig
@@ -59,6 +59,13 @@ from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.tags import format_tags
 from airflow.utils.helpers import chunks
+
+if find_spec("airflow.assets"):
+    from airflow.lineage.hook import get_hook_lineage_collector
+else:
+    # TODO: import from common.compat directly after common.compat providers with
+    # asset_compat_lineage_collector released
+    from airflow.providers.amazon.aws.utils.asset_compat_lineage_collector import get_hook_lineage_collector
 
 logger = logging.getLogger(__name__)
 
