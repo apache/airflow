@@ -336,7 +336,14 @@ If release name contains chart name it will be used as a full name.
 {{- end }}
 
 {{- define "pod_template_image" -}}
-  {{- printf "%s:%s" (.Values.images.pod_template.repository | default .Values.defaultAirflowRepository) (.Values.images.pod_template.tag | default .Values.defaultAirflowTag) }}
+  {{- $repository := .Values.images.pod_template.repository | default .Values.defaultAirflowRepository -}}
+  {{- $tag := .Values.images.pod_template.tag | default .Values.defaultAirflowTag -}}
+  {{- $digest := .Values.images.pod_template.digest | default .Values.defaultAirflowDigest -}}
+  {{- if $digest }}
+    {{- printf "%s@%s" $repository $digest -}}
+  {{- else }}
+    {{- printf "%s:%s" $repository $tag -}}
+  {{- end }}
 {{- end }}
 
 {{/* This helper is used for airflow containers that do not need the users code */}}
