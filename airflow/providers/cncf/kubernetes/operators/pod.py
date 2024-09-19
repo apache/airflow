@@ -112,6 +112,9 @@ class PodEventType(Enum):
 class PodReattachFailure(AirflowException):
     """When we expect to be able to find a pod but cannot."""
 
+class PodCredentialsExpiredFailure(AirflowException):
+    """When pod fails to refresh credentials."""
+
 
 class KubernetesPodOperator(BaseOperator):
     """
@@ -650,10 +653,10 @@ class KubernetesPodOperator(BaseOperator):
 
         if self.do_xcom_push:
             return result
-
+        
     @tenacity.retry(
         wait=tenacity.wait_exponential(max=15),
-        retry=tenacity.retry_if_exception(lambda exc: check_exception_is_kubernetes_api_unauthorized(exc)),
+        retry=tenacity.retry_if_exception_type(PodCredentialsExpiredFailure),
         reraise=True,
     )
     def await_pod_completion(self, pod: k8s.V1Pod):
@@ -674,7 +677,8 @@ class KubernetesPodOperator(BaseOperator):
                     "Failed to check container status due to permission error. Refreshing credentials and retrying."
                 )
                 self._refresh_cached_properties()
-            raise exc
+                self.pod_manager.read_pod(pod)
+            raise PodCredentialsExpiredFailure
 
     def _refresh_cached_properties(self):
         del self.hook
