@@ -104,7 +104,7 @@ def create_orm_dag(dag: DAG, session: Session) -> DagModel:
 
 
 def _get_latest_runs_stmt(dag_ids: Collection[str]) -> Select:
-    """Build a select statement for retrieve the last automated run for each dag."""
+    """Build a select statement to retrieve the last automated run for each dag."""
     if len(dag_ids) == 1:  # Index optimized fast path to avoid more complicated & slower groupby queryplan.
         (dag_id,) = dag_ids
         last_automated_runs_subq = (
