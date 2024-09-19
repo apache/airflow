@@ -1,1 +1,1 @@
-The SLA feature is removed in Airflow 3.0, to be replaced wAirflow 3.0 removes the SLA feature, which will be replaced with a new implementation of the feature in 3.1 2ith a new implementation in 3.1
+The SLA feature is removed in Airflow 3.0, to be replaced with Airflow Alerts in 3.1
