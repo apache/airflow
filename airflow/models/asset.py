@@ -357,7 +357,7 @@ class DagScheduleAssetReference(Base):
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
     asset = relationship("AssetModel", back_populates="consuming_dags")
-    dag = relationship("DagModel", back_populates="schedule_dataset_references")
+    dag = relationship("DagModel", back_populates="schedule_asset_references")
 
     queue_records = relationship(
         "AssetDagRunQueue",
