@@ -36,7 +36,7 @@ revision = "6709f7a774b9"
 down_revision = None
 branch_labels = None
 depends_on = None
-fab_version = "1.3.0"
+fab_version = "1.4.0"
 
 
 def upgrade() -> None: ...
