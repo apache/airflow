@@ -68,13 +68,13 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.10.0"
+defaultAirflowTag: "2.10.1"
 
 # Default airflow digest. If specified, it takes precedence over tag
 defaultAirflowDigest: ~
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.10.0"
+airflowVersion: "2.10.1"
 
 # Images
 images:
@@ -105,7 +105,7 @@ images:
     pullPolicy: IfNotPresent
   statsd:
     repository: quay.io/prometheus/statsd-exporter
-    tag: v0.27.1
+    tag: v0.27.2-pr579
     pullPolicy: IfNotPresent
   redis:
     repository: redis
@@ -221,6 +221,66 @@ ingress:
       enabled: false
       # the name of a pre-created Secret containing a TLS private key and certificate
       secretName: ""
+
+  # Configs for the Ingress of the statsd Service
+  statsd:
+    # Enable web ingress resource
+    enabled: false
+
+    # Annotations for the statsd Ingress
+    annotations: {}
+
+    # The path for the statsd Ingress
+    path: "/metrics"
+
+    # The pathType for the above path (used only with Kubernetes v1.19 and above)
+    pathType: "ImplementationSpecific"
+
+    # The hostname for the statsd Ingress (Deprecated - renamed to `ingress.statsd.hosts`)
+    host: ""
+
+    # The hostnames or hosts configuration for the statsd Ingress
+    hosts: []
+    #   # The hostname for the statsd Ingress (can be templated)
+    # - name: ""
+    #   tls:
+    #     # Enable TLS termination for the statsd Ingress
+    #     enabled: false
+    #     # the name of a pre-created Secret containing a TLS private key and certificate
+    #     secretName: ""
+
+    # The Ingress Class for the statsd Ingress (used only with Kubernetes v1.19 and above)
+    ingressClassName: ""
+
+  # Configs for the Ingress of the pgbouncer Service
+  pgbouncer:
+    # Enable web ingress resource
+    enabled: false
+
+    # Annotations for the pgbouncer Ingress
+    annotations: {}
+
+    # The path for the pgbouncer Ingress
+    path: "/metrics"
+
+    # The pathType for the above path (used only with Kubernetes v1.19 and above)
+    pathType: "ImplementationSpecific"
+
+    # The hostname for the pgbouncer Ingress (Deprecated - renamed to `ingress.pgbouncer.hosts`)
+    host: ""
+
+    # The hostnames or hosts configuration for the pgbouncer Ingress
+    hosts: []
+    #   # The hostname for the statsd Ingress (can be templated)
+    # - name: ""
+    #   tls:
+    #     # Enable TLS termination for the pgbouncer Ingress
+    #     enabled: false
+    #     # the name of a pre-created Secret containing a TLS private key and certificate
+    #     secretName: ""
+
+    # The Ingress Class for the pgbouncer Ingress (used only with Kubernetes v1.19 and above)
+    ingressClassName: ""
 
 # Network policy configuration
 networkPolicies:
@@ -1329,6 +1389,29 @@ webserver:
 
   # Grace period for webserver to finish after SIGTERM is sent from kubernetes
   terminationGracePeriodSeconds: 30
+
+  # Allow HPA
+  hpa:
+    enabled: false
+
+    # Minimum number of webservers created by HPA
+    minReplicaCount: 1
+
+    # Maximum number of webservers created by HPA
+    maxReplicaCount: 5
+
+    # Specifications for which to use to calculate the desired replica count
+    metrics:
+      - type: Resource
+        resource:
+          name: cpu
+          target:
+            type: Utilization
+            averageUtilization: 80
+
+    # Scaling behavior of the target in both Up and Down directions
+    behavior: {}
+
 
   # Create ServiceAccount
   serviceAccount:

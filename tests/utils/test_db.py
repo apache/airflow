@@ -49,6 +49,7 @@ from airflow.utils.db import (
     upgradedb,
 )
 from airflow.utils.db_manager import RunDBManager
+from tests.test_utils.config import conf_vars
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -92,7 +93,7 @@ class TestDb:
             # sqlite sequence is used for autoincrementing columns created with `sqlite_autoincrement` option
             lambda t: (t[0] == "remove_table" and t[1].name == "sqlite_sequence"),
             # fab version table
-            lambda t: (t[0] == "remove_table" and t[1].name == "fab_alembic_version"),
+            lambda t: (t[0] == "remove_table" and t[1].name == "alembic_version_fab"),
         ]
 
         for ignore in ignores:
@@ -131,7 +132,8 @@ class TestDb:
     @mock.patch("alembic.command")
     def test_upgradedb(self, mock_alembic_command):
         upgradedb()
-        mock_alembic_command.upgrade.assert_called_once_with(mock.ANY, revision="heads")
+        mock_alembic_command.upgrade.assert_called_with(mock.ANY, revision="heads")
+        assert mock_alembic_command.upgrade.call_count == 2
 
     @pytest.mark.parametrize(
         "from_revision, to_revision",
@@ -165,9 +167,8 @@ class TestDb:
             dialect.name = "postgresql"  # offline migration supported with postgres
             mock_gcr.return_value = "22ed7efa9da2"
             upgradedb(from_revision=None, to_revision=None, show_sql_only=True)
-            # TODO (ephraimbuddy): Enable the below assertion once we have a migration higher than 22ed7efa9da2
-            # actual = mock_om.call_args.args[2]
-            # assert re.match(r"22ed7efa9da2:[a-z0-9]+", actual) is not None
+            actual = mock_om.call_args.args[2]
+            assert re.match(r"22ed7efa9da2:[a-z0-9]+", actual) is not None
 
     @mock.patch("airflow.utils.db._get_current_revision")
     def test_sqlite_offline_upgrade_raises_with_revision(self, mock_gcr):
@@ -201,6 +202,10 @@ class TestDb:
         assert actual == "abc"
 
     @pytest.mark.parametrize("skip_init", [False, True])
+    @conf_vars(
+        {("database", "external_db_managers"): "airflow.providers.fab.auth_manager.models.db.FABDBManager"}
+    )
+    @mock.patch("airflow.providers.fab.auth_manager.models.db.FABDBManager")
     @mock.patch("airflow.utils.db.create_global_lock", new=MagicMock)
     @mock.patch("airflow.utils.db.drop_airflow_models")
     @mock.patch("airflow.utils.db.drop_airflow_moved_tables")
@@ -212,6 +217,7 @@ class TestDb:
         mock_init,
         mock_drop_moved,
         mock_drop_airflow,
+        mock_fabdb_manager,
         skip_init,
     ):
         session_mock = MagicMock()

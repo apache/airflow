@@ -30,6 +30,7 @@ from airflow.utils import timezone
 from airflow.utils.helpers import exactly_one
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -76,6 +77,7 @@ def _create_dagruns(
                 external_trigger=False,
                 state=state,
                 run_type=run_type,
+                triggered_by=DagRunTriggeredByType.TIMETABLE,
             )
     return dag_runs.values()
 

@@ -45,6 +45,10 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import AttributeRemoved, DagRunType
 from tests.models import DEFAULT_DATE
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -235,6 +239,8 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
     )
     execution_date = timezone.utcnow()
     TracebackSessionForTests.set_allow_db_access(session, True)
+
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dr = dag.create_dagrun(
         run_id="test2",
         run_type=DagRunType.DATASET_TRIGGERED,
@@ -242,6 +248,7 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
         state=None,
         session=session,
         data_interval=(execution_date, execution_date),
+        **triggered_by_kwargs,
     )
     ds1_event = DatasetEvent(dataset_id=1)
     ds2_event_1 = DatasetEvent(dataset_id=2)

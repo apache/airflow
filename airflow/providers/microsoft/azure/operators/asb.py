@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from azure.core.exceptions import ResourceNotFoundError
 
@@ -26,9 +26,12 @@ from airflow.providers.microsoft.azure.hooks.asb import AdminClientHook, Message
 if TYPE_CHECKING:
     import datetime
 
+    from azure.servicebus import ServiceBusMessage
     from azure.servicebus.management._models import AuthorizationRule
 
     from airflow.utils.context import Context
+
+    MessageCallback = Callable[[ServiceBusMessage], None]
 
 
 class AzureServiceBusCreateQueueOperator(BaseOperator):
@@ -140,6 +143,9 @@ class AzureServiceBusReceiveMessageOperator(BaseOperator):
     :param max_wait_time: Maximum time to wait in seconds for the first message to arrive.
     :param azure_service_bus_conn_id: Reference to the
         :ref: `Azure Service Bus connection <howto/connection:azure_service_bus>`.
+    :param message_callback: Optional callback to process each message. If not provided, then
+        the message will be logged and completed. If provided, and throws an exception, the
+        message will be abandoned for future redelivery.
     """
 
     template_fields: Sequence[str] = ("queue_name",)
@@ -152,6 +158,7 @@ class AzureServiceBusReceiveMessageOperator(BaseOperator):
         azure_service_bus_conn_id: str = "azure_service_bus_default",
         max_message_count: int = 10,
         max_wait_time: float = 5,
+        message_callback: MessageCallback | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -159,6 +166,7 @@ class AzureServiceBusReceiveMessageOperator(BaseOperator):
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
         self.max_message_count = max_message_count
         self.max_wait_time = max_wait_time
+        self.message_callback = message_callback
 
     def execute(self, context: Context) -> None:
         """Receive Message in specific queue in Service Bus namespace by connecting to Service Bus client."""
@@ -167,7 +175,10 @@ class AzureServiceBusReceiveMessageOperator(BaseOperator):
 
         # Receive message
         hook.receive_message(
-            self.queue_name, max_message_count=self.max_message_count, max_wait_time=self.max_wait_time
+            self.queue_name,
+            max_message_count=self.max_message_count,
+            max_wait_time=self.max_wait_time,
+            message_callback=self.message_callback,
         )
 
 
@@ -515,6 +526,9 @@ class ASBReceiveSubscriptionMessageOperator(BaseOperator):
         an empty list will be returned.
     :param azure_service_bus_conn_id: Reference to the
         :ref:`Azure Service Bus connection <howto/connection:azure_service_bus>`.
+    :param message_callback: Optional callback to process each message. If not provided, then
+        the message will be logged and completed. If provided, and throws an exception, the
+        message will be abandoned for future redelivery.
     """
 
     template_fields: Sequence[str] = ("topic_name", "subscription_name")
@@ -528,6 +542,7 @@ class ASBReceiveSubscriptionMessageOperator(BaseOperator):
         max_message_count: int | None = 1,
         max_wait_time: float | None = 5,
         azure_service_bus_conn_id: str = "azure_service_bus_default",
+        message_callback: MessageCallback | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -536,6 +551,7 @@ class ASBReceiveSubscriptionMessageOperator(BaseOperator):
         self.max_message_count = max_message_count
         self.max_wait_time = max_wait_time
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
+        self.message_callback = message_callback
 
     def execute(self, context: Context) -> None:
         """Receive Message in specific queue in Service Bus namespace by connecting to Service Bus client."""
@@ -544,7 +560,11 @@ class ASBReceiveSubscriptionMessageOperator(BaseOperator):
 
         # Receive message
         hook.receive_subscription_message(
-            self.topic_name, self.subscription_name, self.max_message_count, self.max_wait_time
+            self.topic_name,
+            self.subscription_name,
+            self.max_message_count,
+            self.max_wait_time,
+            message_callback=self.message_callback,
         )
 
 

@@ -210,6 +210,30 @@ class TestAzureServiceBusReceiveMessageOperator:
         ]
         mock_get_conn.assert_has_calls(expected_calls)
 
+    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.MessageHook.get_conn")
+    def test_receive_message_queue_callback(self, mock_get_conn):
+        """
+        Test AzureServiceBusReceiveMessageOperator by mock connection, values
+        and the service bus receive message
+        """
+        mock_service_bus_message = ServiceBusMessage("Test message")
+        mock_get_conn.return_value.__enter__.return_value.get_queue_receiver.return_value.__enter__.return_value.receive_messages.return_value = [
+            mock_service_bus_message
+        ]
+
+        messages_received = []
+
+        def message_callback(msg):
+            messages_received.append(msg)
+            print(msg)
+
+        asb_receive_queue_operator = AzureServiceBusReceiveMessageOperator(
+            task_id="asb_receive_message_queue", queue_name=QUEUE_NAME, message_callback=message_callback
+        )
+        asb_receive_queue_operator.execute(None)
+        assert len(messages_received) == 1
+        assert messages_received[0] == mock_service_bus_message
+
 
 class TestABSTopicCreateOperator:
     def test_init(self):
@@ -429,6 +453,51 @@ class TestASBSubscriptionReceiveMessageOperator:
             .__exit__
         ]
         mock_get_conn.assert_has_calls(expected_calls)
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.MessageHook.get_conn")
+    def test_receive_message_queue_callback(self, mock_get_conn):
+        """
+        Test ASBReceiveSubscriptionMessageOperator by mock connection, values
+        and the service bus receive message
+        """
+
+        mock_sb_message0 = ServiceBusMessage("Test message 0")
+        mock_sb_message1 = ServiceBusMessage("Test message 1")
+        mock_get_conn.return_value.__enter__.return_value.get_subscription_receiver.return_value.__enter__.return_value.receive_messages.return_value = [
+            mock_sb_message0,
+            mock_sb_message1,
+        ]
+
+        messages_received = []
+
+        def message_callback(msg):
+            messages_received.append(msg)
+            print(msg)
+
+        asb_subscription_receive_message = ASBReceiveSubscriptionMessageOperator(
+            task_id="asb_subscription_receive_message",
+            topic_name=TOPIC_NAME,
+            subscription_name=SUBSCRIPTION_NAME,
+            max_message_count=10,
+            message_callback=message_callback,
+        )
+
+        asb_subscription_receive_message.execute(None)
+        expected_calls = [
+            mock.call()
+            .__enter__()
+            .get_subscription_receiver(SUBSCRIPTION_NAME, TOPIC_NAME)
+            .__enter__()
+            .receive_messages(max_message_count=10, max_wait_time=5)
+            .get_subscription_receiver(SUBSCRIPTION_NAME, TOPIC_NAME)
+            .__exit__()
+            .mock_call()
+            .__exit__
+        ]
+        mock_get_conn.assert_has_calls(expected_calls)
+        assert len(messages_received) == 2
+        assert messages_received[0] == mock_sb_message0
+        assert messages_received[1] == mock_sb_message1
 
 
 class TestASBTopicDeleteOperator:

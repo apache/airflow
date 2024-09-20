@@ -42,9 +42,13 @@ from airflow.www.views import (
     get_task_stats_from_query,
     get_value_from_path,
 )
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -338,12 +342,14 @@ def test_mark_task_instance_state(test_app):
 
         task_1 >> [task_2, task_3, task_4, task_5]
 
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dagrun = dag.create_dagrun(
         start_date=start_date,
         execution_date=start_date,
         data_interval=(start_date, start_date),
         state=State.FAILED,
         run_type=DagRunType.SCHEDULED,
+        **triggered_by_kwargs,
     )
 
     def get_task_instance(session, task):
@@ -438,12 +444,14 @@ def test_mark_task_group_state(test_app):
 
         start >> section_1 >> [task_4, task_5, task_6, task_7, task_8]
 
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dagrun = dag.create_dagrun(
         start_date=start_date,
         execution_date=start_date,
         data_interval=(start_date, start_date),
         state=State.FAILED,
         run_type=DagRunType.SCHEDULED,
+        **triggered_by_kwargs,
     )
 
     def get_task_instance(session, task):

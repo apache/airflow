@@ -127,9 +127,6 @@ ENV/
 .idea/
 *.iml
 
-# Visual Studio Code
-.vscode/
-
 # vim
 *.swp
 
@@ -172,6 +169,8 @@ pnpm-debug.log*
 .vscode/*
 !.vscode/extensions.json
 /.vite/
+.pnpm-store
+*.tsbuildinfo
 
 # Airflow log files when airflow is run locally
 airflow-*.err

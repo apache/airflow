@@ -120,6 +120,7 @@ from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.timetables.simple import ContinuousTimetable
 from airflow.utils import json as utils_json, timezone, usage_data_collection, yaml
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.db import get_query_count
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
@@ -132,7 +133,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.strings import to_boolean
 from airflow.utils.task_group import TaskGroup, task_group_to_dict
 from airflow.utils.timezone import td_format, utcnow
-from airflow.utils.types import NOTSET
+from airflow.utils.types import NOTSET, DagRunTriggeredByType
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
@@ -708,12 +709,16 @@ def show_traceback(error):
             "airflow/traceback.html",
             python_version=sys.version.split(" ")[0] if is_logged_in else "redacted",
             airflow_version=version if is_logged_in else "redacted",
-            hostname=get_hostname()
-            if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and is_logged_in
-            else "redacted",
-            info=traceback.format_exc()
-            if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and is_logged_in
-            else "Error! Please contact server admin.",
+            hostname=(
+                get_hostname()
+                if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and is_logged_in
+                else "redacted"
+            ),
+            info=(
+                traceback.format_exc()
+                if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and is_logged_in
+                else "Error! Please contact server admin."
+            ),
         ),
         500,
     )
@@ -2252,6 +2257,7 @@ class Airflow(AirflowBaseView):
                 external_trigger=True,
                 dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
                 run_id=run_id,
+                triggered_by=DagRunTriggeredByType.UI,
             )
         except (ValueError, ParamValidationError) as ve:
             flash(f"{ve}", "error")
@@ -3404,6 +3410,7 @@ class Airflow(AirflowBaseView):
     @expose("/object/next_run_datasets/<string:dag_id>")
     @auth.has_access_dag("GET", DagAccessEntity.RUN)
     @auth.has_access_dataset("GET")
+    @mark_fastapi_migration_done
     def next_run_datasets(self, dag_id):
         """Return datasets necessary, and their status, for the next dag run."""
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
@@ -3438,9 +3445,11 @@ class Airflow(AirflowBaseView):
                         DatasetEvent,
                         and_(
                             DatasetEvent.dataset_id == DatasetModel.id,
-                            DatasetEvent.timestamp >= latest_run.execution_date
-                            if latest_run and latest_run.execution_date
-                            else True,
+                            (
+                                DatasetEvent.timestamp >= latest_run.execution_date
+                                if latest_run and latest_run.execution_date
+                                else True
+                            ),
                         ),
                         isouter=True,
                     )

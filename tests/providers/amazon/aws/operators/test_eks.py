@@ -51,6 +51,7 @@ from tests.providers.amazon.aws.utils.eks_test_constants import (
     TASK_ID,
 )
 from tests.providers.amazon.aws.utils.eks_test_utils import convert_keys
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 from tests.providers.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 CLUSTER_NAME = "cluster1"
@@ -365,6 +366,15 @@ class TestEksCreateClusterOperator:
             eks_create_cluster_operator.execute({})
         assert "Waiting for EKS Cluster to provision. This will take some time." in caplog.messages
 
+    def test_template_fields(self):
+        op = EksCreateClusterOperator(
+            task_id=TASK_ID,
+            **self.create_cluster_params,
+            compute="fargate",
+        )
+
+        validate_template_fields(op)
+
 
 class TestEksCreateFargateProfileOperator:
     def setup_method(self) -> None:
@@ -444,6 +454,11 @@ class TestEksCreateFargateProfileOperator:
         assert isinstance(
             exc.value.trigger, EksCreateFargateProfileTrigger
         ), "Trigger is not a EksCreateFargateProfileTrigger"
+
+    def test_template_fields(self):
+        op = EksCreateFargateProfileOperator(task_id=TASK_ID, **self.create_fargate_profile_params)
+
+        validate_template_fields(op)
 
 
 class TestEksCreateNodegroupOperator:
@@ -536,6 +551,12 @@ class TestEksCreateNodegroupOperator:
         )
         assert operator.wait_for_completion is True
 
+    def test_template_fields(self):
+        op_kwargs = {**self.create_nodegroup_params}
+        op = EksCreateNodegroupOperator(task_id=TASK_ID, **op_kwargs)
+
+        validate_template_fields(op)
+
 
 class TestEksDeleteClusterOperator:
     def setup_method(self) -> None:
@@ -575,6 +596,9 @@ class TestEksDeleteClusterOperator:
         with pytest.raises(TaskDeferred):
             self.delete_cluster_operator.execute({})
 
+    def test_template_fields(self):
+        validate_template_fields(self.delete_cluster_operator)
+
 
 class TestEksDeleteNodegroupOperator:
     def setup_method(self) -> None:
@@ -607,6 +631,9 @@ class TestEksDeleteNodegroupOperator:
         )
         mock_waiter.assert_called_with(mock.ANY, clusterName=CLUSTER_NAME, nodegroupName=NODEGROUP_NAME)
         assert_expected_waiter_type(mock_waiter, "NodegroupDeleted")
+
+    def test_template_fields(self):
+        validate_template_fields(self.delete_nodegroup_operator)
 
 
 class TestEksDeleteFargateProfileOperator:
@@ -655,6 +682,9 @@ class TestEksDeleteFargateProfileOperator:
         assert isinstance(
             exc.value.trigger, EksDeleteFargateProfileTrigger
         ), "Trigger is not a EksDeleteFargateProfileTrigger"
+
+    def test_template_fields(self):
+        validate_template_fields(self.delete_fargate_profile_operator)
 
 
 class TestEksPodOperator:
@@ -767,3 +797,17 @@ class TestEksPodOperator:
                 )
             for expected_attr in expected_attributes:
                 assert op.__getattribute__(expected_attr) == expected_attributes[expected_attr]
+
+    def test_template_fields(self):
+        op = EksPodOperator(
+            task_id="run_pod",
+            pod_name="run_pod",
+            cluster_name=CLUSTER_NAME,
+            image="amazon/aws-cli:latest",
+            cmds=["sh", "-c", "ls"],
+            labels={"demo": "hello_world"},
+            get_logs=True,
+            on_finish_action="delete_pod",
+        )
+
+        validate_template_fields(op)
