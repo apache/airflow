@@ -26,7 +26,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
    will be executed during migrations between specific Airflow versions. The intention here is that the
    "DB conscious" users might perform an analysis on the migrations and draw conclusions about the impact
    of the migrations on their Airflow database. Those users might also want to take a look at the
-   :doc:`</apache-airflow/database-erd-ref>` document to understand how the internal DB of Airflow structure looks like.
+   :doc:`apache-airflow:database-erd-ref` document to understand how the internal DB of Airflow structure looks like.
    However, you should be aware that the structure is internal and you should not access the DB directly
    to retrieve or modify any data - you should use the :doc:`REST API <stable-rest-api-ref>` to do that instead.
 

@@ -17,12 +17,13 @@
 
 Upgrading FAB to a newer version
 --------------------------------
-Before reading the section below, make sure you have read the Airflow Upgrade Guide for how to prepare for an upgrade.
+Before reading this, make sure you have read the Airflow Upgrade Guide for how to prepare for an upgrade:
+:doc:`apache-airflow:installation/upgrading`
 
 Why you need to upgrade
 =======================
-The FAB provider is a separate package from Airflow, and it is released independently. Starting from version 1.3.0, FAB
-can now run its own migrations if you are on Airflow 3. Newer FAB versions can contain database migrations so you
+The FAB provider is a separate package from Airflow and it is released independently. Starting from version 1.3.0, FAB
+can now run its own migrations if you are on Airflow 3. Newer FAB versions can contain database migrations, so you
 must run ``airflow fab-db migrate`` to migrate your database with the schema changes in the FAB version you are
 upgrading to. If ``FABDBManager`` is included in the ``[core] external_db_managers`` configuration, the migrations will
 be run automatically as part of the ``airflow db migrate`` command.
