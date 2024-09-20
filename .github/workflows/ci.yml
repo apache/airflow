@@ -672,7 +672,7 @@ jobs:
 
   notify-slack-failure:
     name: "Notify Slack on Failure"
-    if: failure()
+    # if: failure()
     runs-on: ["ubuntu-22.04"]
     steps:
       - name: Notify Slack
