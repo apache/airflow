@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-18T07:46:38.327910
+# This constraints file was automatically generated on 2024-09-20T02:13:21.102214
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -69,7 +69,7 @@ WTForms==3.1.2
 Werkzeug==2.2.3
 adal==1.2.7
 adlfs==2024.7.0
-aiobotocore==2.15.0
+aiobotocore==2.15.1
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.0
 aiohttp==3.10.5
@@ -95,7 +95,7 @@ analytics-python==1.2.9
 annotated-types==0.7.0
 ansicolors==1.1.8
 anyascii==0.3.2
-anyio==4.4.0
+anyio==4.5.0
 apache-airflow-providers-airbyte==3.9.0
 apache-airflow-providers-alibaba==2.9.0
 apache-airflow-providers-amazon==8.28.0
@@ -207,13 +207,13 @@ azure-common==1.1.28
 azure-core==1.31.0
 azure-cosmos==4.7.0
 azure-datalake-store==0.0.53
-azure-identity==1.17.1
+azure-identity==1.18.0
 azure-keyvault-secrets==4.8.0
 azure-kusto-data==4.5.1
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==10.3.0
 azure-mgmt-core==1.4.0
-azure-mgmt-cosmosdb==9.5.1
+azure-mgmt-cosmosdb==9.6.0
 azure-mgmt-datafactory==9.0.0
 azure-mgmt-datalake-nspkg==3.0.1
 azure-mgmt-datalake-store==0.5.0
@@ -221,7 +221,7 @@ azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==23.1.1
 azure-mgmt-storage==21.2.1
 azure-nspkg==3.0.2
-azure-servicebus==7.12.2
+azure-servicebus==7.12.3
 azure-storage-blob==12.23.0
 azure-storage-file-datalake==12.17.0
 azure-storage-file-share==12.18.0
@@ -236,8 +236,8 @@ billiard==4.2.0
 bitarray==2.9.2
 black==24.8.0
 blinker==1.8.2
-boto3==1.35.16
-botocore==1.35.16
+boto3==1.35.23
+botocore==1.35.23
 cachelib==0.9.0
 cachetools==5.5.0
 cassandra-driver==3.29.2
@@ -246,7 +246,7 @@ celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.14.1
+cfn-lint==1.14.2
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -273,7 +273,7 @@ cryptography==42.0.8
 curlify==2.2.1
 databricks-sql-connector==2.9.6
 dataclasses-json==0.6.7
-datadog==0.50.0
+datadog==0.50.1
 db-dtypes==1.3.0
 debugpy==1.8.5
 decorator==5.1.1
@@ -299,7 +299,7 @@ eval_type_backport==0.2.0
 eventlet==0.37.0
 execnet==2.1.1
 executing==2.1.0
-facebook_business==20.0.2
+facebook_business==20.0.3
 fastapi-cli==0.0.5
 fastapi==0.115.0
 fastavro==1.9.7
@@ -319,12 +319,12 @@ gevent==24.2.1
 gitdb==4.0.11
 google-ads==25.0.0
 google-analytics-admin==0.23.0
-google-api-core==2.19.2
+google-api-core==2.20.0
 google-api-python-client==2.146.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
-google-auth==2.34.0
-google-cloud-aiplatform==1.67.0
+google-auth==2.35.0
+google-cloud-aiplatform==1.67.1
 google-cloud-appengine-logging==1.4.5
 google-cloud-audit-log==0.3.0
 google-cloud-automl==2.13.5
@@ -438,7 +438,7 @@ jupyter_client==8.6.3
 jupyter_core==5.7.2
 kerberos==1.3.1
 keyring==25.4.0
-kombu==5.4.1
+kombu==5.4.2
 krb5==0.6.0
 kubernetes==30.1.0
 kubernetes_asyncio==30.1.0
@@ -476,9 +476,9 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.1.0
 mypy-boto3-appflow==1.35.0
-mypy-boto3-rds==1.35.21
+mypy-boto3-rds==1.35.22
 mypy-boto3-redshift-data==1.35.10
-mypy-boto3-s3==1.35.16
+mypy-boto3-s3==1.35.22
 mypy-extensions==1.0.0
 mypy==1.9.0
 mysql-connector-python==9.0.0
@@ -493,7 +493,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.46.0
+openai==1.46.1
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.22.0
@@ -548,7 +548,7 @@ prison==0.2.1
 prometheus_client==0.20.0
 prompt_toolkit==3.0.47
 proto-plus==1.24.0
-protobuf==4.25.4
+protobuf==4.25.5
 psutil==6.0.0
 psycopg2-binary==2.9.9
 ptyprocess==0.7.0
@@ -575,7 +575,7 @@ pygraphviz==1.13
 pyiceberg==0.7.1
 pyjsparser==2.7.1
 pykerberos==1.2.4
-pymongo==4.8.0
+pymongo==4.9.1
 pymssql==2.3.1
 pyodbc==5.1.0
 pyparsing==3.1.4
@@ -602,7 +602,7 @@ python-ldap==3.4.4
 python-multipart==0.0.9
 python-nvd3==0.16.0
 python-slugify==8.0.4
-python-telegram-bot==21.5
+python-telegram-bot==21.6
 python3-saml==1.16.0
 pytz==2024.2
 pywinrm==0.5.0
@@ -644,7 +644,7 @@ shapely==2.0.6
 shellingham==1.5.4
 simple-salesforce==1.12.6
 six==1.16.0
-slack_sdk==3.33.0
+slack_sdk==3.33.1
 smbprotocol==1.14.0
 smmap==5.0.1
 sniffio==1.3.1
@@ -683,7 +683,7 @@ starlette==0.38.5
 statsd==4.0.1
 std-uritemplate==1.0.6
 strictyaml==1.7.3
-sympy==1.13.2
+sympy==1.13.3
 tableauserverclient==0.33
 tabulate==0.9.0
 tenacity==8.5.0
@@ -755,7 +755,7 @@ xmlsec==1.3.14
 xmltodict==0.13.0
 yamllint==1.35.1
 yandex-query-client==0.1.4
-yandexcloud==0.317.0
+yandexcloud==0.319.0
 yarl==1.11.1
 ydb==3.17.2
 zeep==4.2.1
