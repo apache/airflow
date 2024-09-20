@@ -20,7 +20,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Generic, List, TypeVar, Union
 
-from fastapi import Depends, HTTPException, Query as FastAPIQuery
+from fastapi import Depends, HTTPException, Query as Query
 from sqlalchemy import or_
 from sqlalchemy.sql import ColumnElement, Select
 from typing_extensions import Annotated, Self
@@ -38,7 +38,7 @@ class BaseParam(Generic[T], ABC):
         self.attribute: ColumnElement | None = None
 
     @abstractmethod
-    def to_orm(self, query: Select) -> Select:
+    def to_orm(self, select: Select) -> Select:
         pass
 
     @abstractmethod
@@ -53,11 +53,11 @@ class BaseParam(Generic[T], ABC):
 class _LimitFilter(BaseParam[int]):
     """Filter on the limit."""
 
-    def to_orm(self, query: Select) -> Select:
+    def to_orm(self, select: Select) -> Select:
         if self.value is None:
-            return query
+            return select
 
-        return query.limit(self.value)
+        return select.limit(self.value)
 
     def __call__(self, limit: int = 100) -> _LimitFilter:
         self.value = limit
@@ -68,10 +68,10 @@ class _LimitFilter(BaseParam[int]):
 class _OffsetFilter(BaseParam[int]):
     """Filter on offset."""
 
-    def to_orm(self, query: Select) -> Select:
+    def to_orm(self, select: Select) -> Select:
         if self.value is None:
-            return query
-        return query.offset(self.value)
+            return select
+        return select.offset(self.value)
 
     def __call__(self, offset: int = 0) -> _OffsetFilter:
         self.value = offset
@@ -82,36 +82,36 @@ class _OffsetFilter(BaseParam[int]):
 class _PausedFilter(BaseParam[Union[bool, None]]):
     """Filter on is_paused."""
 
-    def to_orm(self, query: Select) -> Select:
+    def to_orm(self, select: Select) -> Select:
         if self.value is None:
-            return query
-        return query.where(DagModel.is_paused == self.value)
+            return select
+        return select.where(DagModel.is_paused == self.value)
 
-    def __call__(self, paused: bool | None = FastAPIQuery(default=None)) -> _PausedFilter:
+    def __call__(self, paused: bool | None = Query(default=None)) -> _PausedFilter:
         return self.set_value(paused)
 
 
 class _OnlyActiveFilter(BaseParam[bool]):
     """Filter on is_active."""
 
-    def to_orm(self, query: Select) -> Select:
+    def to_orm(self, select: Select) -> Select:
         if self.value:
-            return query.where(DagModel.is_active == self.value)
-        return query
+            return select.where(DagModel.is_active == self.value)
+        return select
 
-    def __call__(self, only_active: bool = FastAPIQuery(default=True)) -> _OnlyActiveFilter:
+    def __call__(self, only_active: bool = Query(default=True)) -> _OnlyActiveFilter:
         return self.set_value(only_active)
 
 
 class _DagIdPatternSearch(BaseParam[Union[str, None]]):
     """Search on dag_id."""
 
-    def to_orm(self, query: Select) -> Select:
+    def to_orm(self, select: Select) -> Select:
         if self.value is None:
-            return query
-        return query.where(DagModel.dag_id.ilike(f"%{self.value}"))
+            return select
+        return select.where(DagModel.dag_id.ilike(f"%{self.value}"))
 
-    def __call__(self, dag_id_pattern: str | None = FastAPIQuery(default=None)) -> _DagIdPatternSearch:
+    def __call__(self, dag_id_pattern: str | None = Query(default=None)) -> _DagIdPatternSearch:
         return self.set_value(dag_id_pattern)
 
 
@@ -122,9 +122,9 @@ class SortParam(BaseParam[Union[str]]):
         super().__init__()
         self.allowed_attrs = allowed_attrs
 
-    def to_orm(self, query: Select) -> Select:
+    def to_orm(self, select: Select) -> Select:
         if self.value is None:
-            return query
+            return select
 
         lstriped_orderby = self.value.lstrip("-")
         if self.allowed_attrs and lstriped_orderby not in self.allowed_attrs:
@@ -134,26 +134,26 @@ class SortParam(BaseParam[Union[str]]):
                 f"the attribute does not exist on the model",
             )
         if self.value[0] == "-":
-            return query.order_by(getattr(DagModel, lstriped_orderby).desc())
+            return select.order_by(getattr(DagModel, lstriped_orderby).desc())
         else:
-            return query.order_by(getattr(DagModel, lstriped_orderby).asc())
-        return query
+            return select.order_by(getattr(DagModel, lstriped_orderby).asc())
+        return select
 
-    def __call__(self, order_by: str = FastAPIQuery(default="dag_id")) -> SortParam:
+    def __call__(self, order_by: str = Query(default="dag_id")) -> SortParam:
         return self.set_value(order_by)
 
 
 class _TagsFilter(BaseParam[List[str]]):
     """Filter on tags."""
 
-    def to_orm(self, query: Select) -> Select:
+    def to_orm(self, select: Select) -> Select:
         if self.value:
             conditions = [DagModel.tags.any(DagTag.name == tag) for tag in self.value]
-            return query.where(or_(*conditions))
+            return select.where(or_(*conditions))
 
-        return query
+        return select
 
-    def __call__(self, tags: list[str] = FastAPIQuery(default_factory=list)) -> _TagsFilter:
+    def __call__(self, tags: list[str] = Query(default_factory=list)) -> _TagsFilter:
         return self.set_value(tags)
 
 

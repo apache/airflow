@@ -22,7 +22,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
-from airflow.api_fastapi.db import apply_filters_to_query, get_session
+from airflow.api_fastapi.db import apply_filters_to_select, get_session
 from airflow.api_fastapi.parameters import (
     QueryDagIdPatternSearch,
     QueryLimit,
@@ -54,7 +54,7 @@ async def get_dags(
     """Get all DAGs."""
     dags_query = select(DagModel)
 
-    dags_query = apply_filters_to_query(dags_query, [only_active, paused, dag_id_pattern, tags])
+    dags_query = apply_filters_to_select(dags_query, [only_active, paused, dag_id_pattern, tags])
 
     # TODO: Re-enable when permissions are handled.
     # readable_dags = get_auth_manager().get_permitted_dag_ids(user=g.user)
@@ -62,7 +62,7 @@ async def get_dags(
 
     total_entries = get_query_count(dags_query, session=session)
 
-    dags_query = apply_filters_to_query(dags_query, [order_by, offset, limit])
+    dags_query = apply_filters_to_select(dags_query, [order_by, offset, limit])
 
     dags = session.scalars(dags_query).all()
 

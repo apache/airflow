@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy.orm import Query
+from sqlalchemy.sql import Select
 
 from airflow.api_fastapi.parameters import BaseParam
 from airflow.utils.session import create_session
@@ -46,9 +46,9 @@ async def get_session() -> Session:
         yield session
 
 
-def apply_filters_to_query(base_query: Query, filters: list[BaseParam]) -> Query:
-    query = base_query
+def apply_filters_to_select(base_select: Select, filters: list[BaseParam]) -> Select:
+    select = base_select
     for filter in filters:
-        query = filter.to_orm(query)
+        select = filter.to_orm(select)
 
-    return query
+    return select
