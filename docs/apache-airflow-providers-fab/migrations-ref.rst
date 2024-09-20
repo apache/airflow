@@ -34,7 +34,7 @@ Here's the list of all the Database Migrations that are executed via when you ru
 +-------------------------+--------------+---------------+------------------------+
 | Revision ID             | Revises ID   | Fab Version   | Description            |
 +=========================+==============+===============+========================+
-| ``6709f7a774b9`` (head) | ``None``     | ``1.3.0``     | placeholder migration. |
+| ``6709f7a774b9`` (head) | ``None``     | ``1.4.0``     | placeholder migration. |
 +-------------------------+--------------+---------------+------------------------+
 
  .. End of auto-generated table
