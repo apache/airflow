@@ -686,4 +686,4 @@ jobs:
                     Commit: ${{ github.sha }}\n
                     Check the details at:
                     ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          }' $SLACK_WEBHOOK_URL
+          }' ${{ secrets.SLACK_WEBHOOK_URL }}
