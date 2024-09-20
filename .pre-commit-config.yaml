@@ -505,7 +505,9 @@ repos:
           (?x)
           ^scripts/ci/pre_commit/version_heads_map\.py$|
           ^airflow/migrations/versions/.*$|^airflow/migrations/versions|
-          ^airflow/utils/db.py$
+          ^airflow/providers/fab/migrations/versions/.*$|^airflow/providers/fab/migrations/versions|
+          ^airflow/utils/db.py$|
+          ^airflow/providers/fab/auth_manager/models/db.py$
         additional_dependencies: ['packaging','google-re2']
       - id: update-version
         name: Update version to the latest version in the documentation

@@ -28,7 +28,7 @@ from airflow.utils.db_manager import BaseDBManager
 PACKAGE_DIR = os.path.dirname(airflow.__file__)
 
 _REVISION_HEADS_MAP: dict[str, str] = {
-    "1.3.0": "6709f7a774b9",
+    "1.4.0": "6709f7a774b9",
 }
 
 
