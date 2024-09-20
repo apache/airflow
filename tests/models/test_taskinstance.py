@@ -3206,9 +3206,9 @@ class TestTaskInstance:
         ds1_event = AssetEvent(dataset_id=1)
         ds2_event_1 = AssetEvent(dataset_id=2)
         ds2_event_2 = AssetEvent(dataset_id=2)
-        dr.consumed_dataset_events.append(ds1_event)
-        dr.consumed_dataset_events.append(ds2_event_1)
-        dr.consumed_dataset_events.append(ds2_event_2)
+        dr.consumed_asset_events.append(ds1_event)
+        dr.consumed_asset_events.append(ds2_event_1)
+        dr.consumed_asset_events.append(ds2_event_2)
         session.commit()
 
         ti = dr.get_task_instance(task1.task_id, session=session)

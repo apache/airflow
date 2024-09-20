@@ -1484,7 +1484,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     triggered_by=DagRunTriggeredByType.DATASET,
                 )
                 Stats.incr("asset.triggered_dagruns")
-                dag_run.consumed_dataset_events.extend(asset_events)
+                dag_run.consumed_asset_events.extend(asset_events)
                 session.execute(
                     delete(AssetDagRunQueue).where(AssetDagRunQueue.target_dag_id == dag_run.dag_id)
                 )

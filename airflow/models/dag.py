@@ -322,7 +322,7 @@ def _create_orm_dagrun(
     )
     # Load defaults into the following two fields to ensure result can be serialized detached
     run.log_template_id = int(session.scalar(select(func.max(LogTemplate.__table__.c.id))))
-    run.consumed_dataset_events = []
+    run.consumed_asset_events = []
     session.add(run)
     session.flush()
     run.dag = dag
