@@ -97,14 +97,13 @@ def insert_version(old_content, file, app):
             old_content,
             flags=re.MULTILINE,
         )
-        return
-
-    new_content = re.sub(
-        r"(^depends_on.*)",
-        lambda x: f'{x.group(1)}\nfab_version = "{fab_version}"',
-        old_content,
-        flags=re.MULTILINE,
-    )
+    else:
+        new_content = re.sub(
+            r"(^depends_on.*)",
+            lambda x: f'{x.group(1)}\nfab_version = "{fab_version}"',
+            old_content,
+            flags=re.MULTILINE,
+        )
     file.write_text(new_content)
 
 
