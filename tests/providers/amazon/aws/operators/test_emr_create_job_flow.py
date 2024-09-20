@@ -188,8 +188,7 @@ class TestEmrCreateJobFlowOperator:
         assert self.operator.execute(self.mock_context) == JOB_FLOW_ID
         mock_waiter.assert_called_once_with(mock.ANY, ClusterId=JOB_FLOW_ID, WaiterConfig=mock.ANY)
         assert_expected_waiter_type(mock_waiter, "job_flow_waiting")
-    @
-    patch("airflow.providers.amazon.aws.operators.emr.EmrCreateJobFlowTrigger")
+    @patch("airflow.providers.amazon.aws.operators.emr.EmrCreateJobFlowTrigger")
     def test_create_job_flow_deferrable(self, mock_trigger, mocked_hook_client):
         """
         Test to ensure the operator raises a TaskDeferred exception
