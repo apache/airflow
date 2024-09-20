@@ -58,12 +58,12 @@ This guide will show you how to hook your application into Airflow's migration p
 
 Subclass the BaseDBManager
 ==========================
-To hook your application into Airflow's migration process, you need to subclass the BaseDBManager class from the
-airflow.utils.db_manager.py module. This class provides methods for running Alembic migrations.
+To hook your application into Airflow's migration process, you need to subclass the ``BaseDBManager`` class from the
+``airflow.utils.db_manager`` module. This class provides methods for running Alembic migrations.
 
 Create Alembic migration scripts
 ================================
-At the root of your application, run "alembic init migrations" to create a new migrations directory. Set
+At the root of your application, run "alembic init migrations" to create a new migrations directory. Set the
 ``version_table`` variable in the ``env.py`` file to the name of the table that stores the migration history. Specify this
 version_table in the ``version_table`` argument of the alembic's ``context.configure`` method of the ``run_migration_online``
 and ``run_migration_offline`` functions. This will ensure that your application's migrations are stored in a separate
@@ -74,10 +74,10 @@ migrations. This too should be specified in the ``context.configure`` method of 
 
 Next, set the config_file not to disable existing loggers:
 
-```python
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name, disable_existing_loggers=False)
-```
+.. code-block:: python
+
+    if config.config_file_name is not None:
+        fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 Replace the content of your application's ``alembic.ini`` file with Airflow's ``alembic.ini`` copy.
 
