@@ -167,7 +167,7 @@ class AssetManager(LoggingMixin):
             ).unique()
 
             for asset_alias_model in asset_alias_models:
-                asset_alias_model.dataset_events.append(asset_event)
+                asset_alias_model.asset_events.append(asset_event)
                 session.add(asset_alias_model)
 
                 dags_to_queue_from_asset_alias |= {

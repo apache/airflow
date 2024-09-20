@@ -347,7 +347,7 @@ class TestDBCleanup:
             "dag_schedule_dataset_alias_reference",  # leave alone for now
             "task_outlet_asset_reference",  # leave alone for now
             "asset_dag_run_queue",  # self-managed
-            "dataset_event_dag_run",  # foreign keys
+            "asset_event_dag_run",  # foreign keys
             "task_instance_note",  # foreign keys
             "dag_run_note",  # foreign keys
             "rendered_task_instance_fields",  # foreign key with TI
