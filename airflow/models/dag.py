@@ -2675,7 +2675,7 @@ class DAG(LoggingMixin):
         """Stringified DAGs and operators contain exactly these fields."""
         if not cls.__serialized_fields:
             exclusion_list = {
-                "schedule_dataset_references",
+                "schedule_asset_references",
                 "schedule_asset_alias_references",
                 "task_outlet_asset_references",
                 "_old_context_manager_dags",
@@ -2870,7 +2870,7 @@ class DagModel(Base):
 
     __table_args__ = (Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),)
 
-    schedule_dataset_references = relationship(
+    schedule_asset_references = relationship(
         "DagScheduleAssetReference",
         back_populates="dag",
         cascade="all, delete, delete-orphan",
@@ -2880,7 +2880,7 @@ class DagModel(Base):
         back_populates="dag",
         cascade="all, delete, delete-orphan",
     )
-    schedule_datasets = association_proxy("schedule_dataset_references", "dataset")
+    schedule_datasets = association_proxy("schedule_asset_references", "dataset")
     task_outlet_asset_references = relationship(
         "TaskOutletAssetReference",
         cascade="all, delete, delete-orphan",

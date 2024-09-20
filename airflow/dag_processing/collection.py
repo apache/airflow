@@ -67,8 +67,8 @@ def _find_orm_dags(dag_ids: Iterable[str], *, session: Session) -> dict[str, Dag
         select(DagModel)
         .options(joinedload(DagModel.tags, innerjoin=False))
         .where(DagModel.dag_id.in_(dag_ids))
-        .options(joinedload(DagModel.schedule_dataset_references))
-        .options(joinedload(DagModel.schedule_dataset_alias_references))
+        .options(joinedload(DagModel.schedule_asset_references))
+        .options(joinedload(DagModel.schedule_asset_alias_references))
         .options(joinedload(DagModel.task_outlet_asset_references))
     )
     stmt = with_row_locks(stmt, of=DagModel, session=session)
@@ -237,8 +237,8 @@ class DagModelOperation(NamedTuple):
                 dm.calculate_dagrun_date_fields(dag, last_automated_data_interval)
 
             if not dag.timetable.asset_condition:
-                dm.schedule_dataset_references = []
-                dm.schedule_dataset_alias_references = []
+                dm.schedule_asset_references = []
+                dm.schedule_asset_alias_references = []
             # FIXME: STORE NEW REFERENCES.
 
             if dag.tags:
@@ -367,10 +367,10 @@ class AssetModelOperation(NamedTuple):
         for dag_id, references in self.schedule_asset_references.items():
             # Optimization: no references at all; this is faster than repeated delete().
             if not references:
-                dags[dag_id].schedule_dataset_references = []
+                dags[dag_id].schedule_asset_references = []
                 continue
             referenced_asset_ids = {asset.id for asset in (assets[r.uri] for r in references)}
-            orm_refs = {r.dataset_id: r for r in dags[dag_id].schedule_dataset_references}
+            orm_refs = {r.asset_id: r for r in dags[dag_id].schedule_asset_references}
             for asset_id, ref in orm_refs.items():
                 if asset_id not in referenced_asset_ids:
                     session.delete(ref)
@@ -393,10 +393,10 @@ class AssetModelOperation(NamedTuple):
         for dag_id, references in self.schedule_asset_alias_references.items():
             # Optimization: no references at all; this is faster than repeated delete().
             if not references:
-                dags[dag_id].schedule_dataset_alias_references = []
+                dags[dag_id].schedule_asset_alias_references = []
                 continue
             referenced_alias_ids = {alias.id for alias in (aliases[r.name] for r in references)}
-            orm_refs = {a.alias_id: a for a in dags[dag_id].schedule_dataset_alias_references}
+            orm_refs = {a.alias_id: a for a in dags[dag_id].schedule_asset_alias_references}
             for alias_id, ref in orm_refs.items():
                 if alias_id not in referenced_alias_ids:
                     session.delete(ref)
