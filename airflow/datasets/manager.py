@@ -90,6 +90,38 @@ class DatasetManager(LoggingMixin):
         return models
 
     @classmethod
+    def _slow_path_add_dataset_alias_association(
+        cls,
+        alias_names: Iterable[str],
+        dataset_model: DatasetModel,
+    ) -> None:
+        # For databases not supporting ON CONFLICT DO NOTHING, we need to fetch
+        # the existing names to figure out what we can add.
+        existing = {alias.name for alias in dataset_model.aliases}
+        dataset_model.aliases.extend(DatasetAliasModel(name=n) for n in alias_names if n not in existing)
+
+    @classmethod
+    def _postgres_add_dataset_alias_association(
+        cls,
+        alias_names: Iterable[str],
+        dataset_id: int,
+        *,
+        session: Session,
+    ) -> None:
+        from sqlalchemy.dialects.postgresql import insert
+
+        # This INSERTs directly into the association table of the many-to-many
+        # dataset_model.aliases relationship. I don't know how to do it in ORM.
+        session.execute(
+            insert(DatasetAliasModel.datasets.prop.secondary)
+            .from_select(
+                ["alias_id", "dataset_id"],
+                select(DatasetAliasModel.id, dataset_id).where(DatasetAliasModel.name.in_(alias_names)),
+            )
+            .on_conflict_do_nothing()
+        )
+
+    @classmethod
     @internal_api_call
     @provide_session
     def register_dataset_change(
@@ -119,16 +151,12 @@ class DatasetManager(LoggingMixin):
             cls.logger().warning("DatasetModel %s not found", dataset)
             return None
 
-        # This INSERTs directly into the association table of the many-to-many
-        # dataset_model.aliases relationship. I don't know how to do it in ORM.
-        session.execute(
-            DatasetAliasModel.datasets.prop.secondary.insert().from_select(
-                ["alias_id", "dataset_id"],
-                select(DatasetAliasModel.id, dataset_model.id).where(
-                    DatasetAliasModel.name.in_(alias.name for alias in aliases)
-                ),
+        if session.bind.dialect.name == "postgresql":
+            cls._postgres_add_dataset_alias_association(
+                (alias.name for alias in aliases), dataset_model.id, session=session
             )
-        )
+        else:
+            cls._slow_path_add_dataset_alias_association((alias.name for alias in aliases), dataset_model)
 
         event_kwargs = {
             "dataset_id": dataset_model.id,
