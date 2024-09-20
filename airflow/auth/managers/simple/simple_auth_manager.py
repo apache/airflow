@@ -163,7 +163,7 @@ class SimpleAuthManager(BaseAuthManager):
             allow_role=SimpleAuthManagerRole.USER,
         )
 
-    def is_authorized_dataset(
+    def is_authorized_asset(
         self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
     ) -> bool:
         return self._is_authorized(
