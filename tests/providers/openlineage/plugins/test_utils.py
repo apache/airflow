@@ -43,10 +43,14 @@ from airflow.providers.openlineage.utils.utils import (
 from airflow.utils import timezone
 from airflow.utils.log.secrets_masker import _secrets_masker
 from airflow.utils.state import State
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS, BashOperator
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS, BashOperator
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
+
+BASH_OPERATOR_PATH = "airflow.providers.standard.core.operators.bash"
+if not AIRFLOW_V_2_10_PLUS:
+    BASH_OPERATOR_PATH = "airflow.operators.bash"
 
 
 class SafeStrDict(dict):
@@ -261,7 +265,7 @@ def test_get_fully_qualified_class_name():
     from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 
     result = get_fully_qualified_class_name(BashOperator(task_id="test", bash_command="exit 0;"))
-    assert result == "airflow.providers.standard.core.operators.bash.BashOperator"
+    assert result == f"{BASH_OPERATOR_PATH}.BashOperator"
 
     result = get_fully_qualified_class_name(OpenLineageAdapter())
     assert result == "airflow.providers.openlineage.plugins.adapter.OpenLineageAdapter"
@@ -277,7 +281,7 @@ def test_is_operator_disabled(mock_disabled_operators):
     assert is_operator_disabled(op) is False
 
     mock_disabled_operators.return_value = {
-        "airflow.providers.standard.core.operators.bash.BashOperator",
+        f"{BASH_OPERATOR_PATH}.BashOperator",
         "airflow.operators.python.PythonOperator",
     }
     assert is_operator_disabled(op) is True
@@ -302,8 +306,6 @@ def test_includes_full_task_info(mock_include_full_task_info):
 
 @patch("airflow.providers.openlineage.conf.include_full_task_info")
 def test_does_not_include_full_task_info(mock_include_full_task_info):
-    from airflow.providers.standard.core.operators.bash import BashOperator
-
     mock_include_full_task_info.return_value = False
     # There should be no 'bash_command' in excludes and it's not in includes - so
     # it's a good choice for checking TaskInfo vs TaskInfoComplete
