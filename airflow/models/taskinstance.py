@@ -1086,7 +1086,7 @@ def _get_template_context(
         nonlocal dag_run
         if dag_run not in session:
             dag_run = session.merge(dag_run, load=False)
-        asset_events = dag_run.consumed_dataset_events
+        asset_events = dag_run.consumed_asset_events
         triggering_events: dict[str, list[AssetEvent | AssetEventPydantic]] = defaultdict(list)
         for event in asset_events:
             if event.dataset:

@@ -533,7 +533,7 @@ class AssetEvent(Base):
     created_dagruns = relationship(
         "DagRun",
         secondary=association_table,
-        backref="consumed_dataset_events",
+        backref="consumed_asset_events",
     )
 
     source_aliases = relationship(

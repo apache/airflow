@@ -4084,7 +4084,7 @@ class TestSchedulerJob:
 
         # we don't have __eq__ defined on AssetEvent because... given the fact that in the future
         # we may register events from other systems, asset_id + timestamp might not be enough PK
-        assert list(map(dict_from_obj, created_run.consumed_dataset_events)) == list(
+        assert list(map(dict_from_obj, created_run.consumed_asset_events)) == list(
             map(dict_from_obj, [event1, event2])
         )
         assert created_run.data_interval_start == DEFAULT_DATE + timedelta(days=5)

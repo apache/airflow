@@ -1794,7 +1794,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         with dag_maker(dag_id="TEST_DAG_ID", start_date=timezone.utcnow(), session=session):
             pass
         dr = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.DATASET_TRIGGERED)
-        dr.consumed_dataset_events.append(event)
+        dr.consumed_asset_events.append(event)
 
         session.commit()
         assert event.timestamp
@@ -1864,6 +1864,45 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
 
         assert_401(response)
 
+<<<<<<< HEAD
+=======
+    @pytest.mark.parametrize(
+        "set_auto_role_public, expected_status_code",
+        (("Public", 403), ("Admin", 200)),
+        indirect=["set_auto_role_public"],
+    )
+    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, dag_maker, session):
+        asset1 = Asset(uri="ds1")
+
+        with dag_maker(dag_id="source_dag", start_date=timezone.utcnow(), session=session):
+            EmptyOperator(task_id="task", outlets=[asset1])
+        dr = dag_maker.create_dagrun()
+        ti = dr.task_instances[0]
+
+        asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
+        event = AssetEvent(
+            dataset_id=asset1_id,
+            source_task_id=ti.task_id,
+            source_dag_id=ti.dag_id,
+            source_run_id=ti.run_id,
+            source_map_index=ti.map_index,
+        )
+        session.add(event)
+
+        with dag_maker(dag_id="TEST_DAG_ID", start_date=timezone.utcnow(), session=session):
+            pass
+        dr = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.DATASET_TRIGGERED)
+        dr.consumed_asset_events.append(event)
+
+        session.commit()
+        assert event.timestamp
+
+        response = self.client.get(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamDatasetEvents",
+        )
+        assert response.status_code == expected_status_code
+
+>>>>>>> 6a1636f5da (feat(models/dag): rename consumed_dataset_events as consumed_asset_events)
 
 class TestSetDagRunNote(TestDagRunEndpoint):
     def test_should_respond_200(self, dag_maker, session):
