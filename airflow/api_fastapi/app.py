@@ -34,6 +34,8 @@ def init_dag_bag(app: FastAPI) -> None:
 
 
 def create_app() -> FastAPI:
+    from airflow.configuration import conf
+
     app = FastAPI(
         description="Airflow API. All endpoints located under ``/public`` can be used safely, are stable and backward compatible. "
         "Endpoints located under ``/ui`` are dedicated to the UI and are subject to breaking change "
@@ -44,17 +46,18 @@ def create_app() -> FastAPI:
 
     init_views(app)
 
-    origins = [
-        "http://localhost:28080",
-        "http://localhost:8080",
-    ]
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    allow_origins = conf.getlist("api", "access_control_allow_origins")
+    allow_methods = conf.getlist("api", "access_control_allow_methods")
+    allow_headers = conf.getlist("api", "access_control_allow_headers")
+
+    if allow_origins or allow_methods or allow_headers:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=allow_origins,
+            allow_credentials=True,
+            allow_methods=allow_methods,
+            allow_headers=allow_headers,
+        )
 
     return app
 
