@@ -455,7 +455,7 @@ class AssetDagRunQueue(Base):
     target_dag_id = Column(StringID(), primary_key=True, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     dataset = relationship("AssetModel", viewonly=True)
-    __tablename__ = "dataset_dag_run_queue"
+    __tablename__ = "asset_dag_run_queue"
     __table_args__ = (
         PrimaryKeyConstraint(dataset_id, target_dag_id, name="datasetdagrunqueue_pkey"),
         ForeignKeyConstraint(
@@ -470,7 +470,7 @@ class AssetDagRunQueue(Base):
             name="ddrq_dag_fkey",
             ondelete="CASCADE",
         ),
-        Index("idx_dataset_dag_run_queue_target_dag_id", target_dag_id),
+        Index("idx_asset_dag_run_queue_target_dag_id", target_dag_id),
     )
 
     def __eq__(self, other):
