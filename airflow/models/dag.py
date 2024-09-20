@@ -3274,7 +3274,10 @@ class DagModel(Base):
     def get_dataset_triggered_next_run_info(self, *, session=NEW_SESSION) -> dict[str, int | str] | None:
         if self.dataset_expression is None:
             return None
-        return get_dataset_triggered_next_run_info([self.dag_id], session=session)[self.dag_id]
+
+        # When a dataset alias does not resolve into datasets, get_dataset_triggered_next_run_info returns
+        # an empty dict as there's no dataset info to get. This method should thus return None.
+        return get_dataset_triggered_next_run_info([self.dag_id], session=session).get(self.dag_id, None)
 
 
 # NOTE: Please keep the list of arguments in sync with DAG.__init__.
