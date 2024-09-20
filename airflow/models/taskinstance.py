@@ -2925,6 +2925,7 @@ class TaskInstance(Base, LoggingMixin):
                 dataset_obj = DatasetModel(uri=uri)
                 dataset_manager.create_datasets(dataset_models=[dataset_obj], session=session)
                 self.log.warning("Created a new %r as it did not exist.", dataset_obj)
+                session.flush()
                 dataset_objs_cache[uri] = dataset_obj
 
             for alias in alias_names:
