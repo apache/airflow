@@ -122,7 +122,7 @@ class TestSimpleAuthManager:
         with app.test_request_context():
             result = auth_manager_with_appbuilder.get_user()
 
-        assert result.username == "Anonymous"
+        assert result.username == "anonymous"
         assert result.role == "admin"
 
     @patch.object(SimpleAuthManager, "is_logged_in")

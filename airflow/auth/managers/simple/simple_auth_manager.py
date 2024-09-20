@@ -127,7 +127,7 @@ class SimpleAuthManager(BaseAuthManager):
         if not self.is_logged_in():
             return None
         if self.appbuilder.get_app.config.get("SIMPLE_AUTH_MANAGER_ALL_ADMINS", False):
-            return SimpleAuthManagerUser(username="Anonymous", role="admin")
+            return SimpleAuthManagerUser(username="anonymous", role="admin")
         else:
             return session["user"]
 
