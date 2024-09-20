@@ -55,7 +55,7 @@ alias_association_table = Table(
     ForeignKeyConstraint(
         ("dataset_id",),
         ["dataset.id"],
-        name="ds_dsa_dataset_id",
+        name="ds_dsa_asset_id",
         ondelete="CASCADE",
     ),
 )
