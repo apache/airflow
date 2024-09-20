@@ -30,8 +30,8 @@ import { Select as ReactSelect } from "chakra-react-select";
 import { type ChangeEventHandler, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 
-import { useDagServiceGetDags } from "openapi/queries";
-import type { DAG } from "openapi/requests/types.gen";
+import { useDagServiceGetDagsPublicDagsGet } from "openapi/queries";
+import type { DAGModelResponse } from "openapi/requests/types.gen";
 
 import { DataTable } from "../components/DataTable";
 import { useTableURLState } from "../components/DataTable/useTableUrlState";
@@ -39,7 +39,7 @@ import { QuickFilterButton } from "../components/QuickFilterButton";
 import { SearchBar } from "../components/SearchBar";
 import { pluralize } from "../utils/pluralize";
 
-const columns: Array<ColumnDef<DAG>> = [
+const columns: Array<ColumnDef<DAGModelResponse>> = [
   {
     accessorKey: "dag_id",
     cell: ({ row }) => row.original.dag_display_name,
@@ -68,7 +68,7 @@ const columns: Array<ColumnDef<DAG>> = [
     accessorKey: "tags",
     cell: ({ row }) => (
       <HStack>
-        {row.original.tags?.map((tag) => (
+        {row.original.tags.map((tag) => (
           <Badge key={tag.name}>{tag.name}</Badge>
         ))}
       </HStack>
@@ -93,7 +93,7 @@ export const DagsList = ({ cardView = false }) => {
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
 
-  const { data, isLoading } = useDagServiceGetDags({
+  const { data, isLoading } = useDagServiceGetDagsPublicDagsGet({
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     onlyActive: true,
