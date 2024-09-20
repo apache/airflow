@@ -40,6 +40,7 @@ env:
   GITHUB_USERNAME: ${{ github.actor }}
   IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
   VERBOSE: "true"
+  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -676,8 +677,6 @@ jobs:
     runs-on: ["ubuntu-22.04"]
     steps:
       - name: Notify Slack
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
           curl -X POST -H 'Content-type: application/json' --data '{
             "text": "The GitLab CI workflow *Tests* has failed.\n
@@ -686,4 +685,4 @@ jobs:
                     Commit: ${{ github.sha }}\n
                     Check the details at:
                     ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          }' ${{ secrets.SLACK_WEBHOOK_URL }}
+          }' ${{ env.SLACK_WEBHOOK_URL }}
