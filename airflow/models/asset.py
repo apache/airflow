@@ -65,7 +65,7 @@ asset_alias_asset_event_assocation_table = Table(
     "asset_alias_asset_event",
     Base.metadata,
     Column("alias_id", ForeignKey("asset_alias.id", ondelete="CASCADE"), primary_key=True),
-    Column("event_id", ForeignKey("dataset_event.id", ondelete="CASCADE"), primary_key=True),
+    Column("event_id", ForeignKey("asset_event.id", ondelete="CASCADE"), primary_key=True),
     Index("idx_asset_alias_asset_event_alias_id", "alias_id"),
     Index("idx_asset_alias_asset_event_event_id", "event_id"),
     ForeignKeyConstraint(
@@ -76,7 +76,7 @@ asset_alias_asset_event_assocation_table = Table(
     ),
     ForeignKeyConstraint(
         ("event_id",),
-        ["dataset_event.id"],
+        ["asset_event.id"],
         name="dss_de_event_id",
         ondelete="CASCADE",
     ),
@@ -115,7 +115,7 @@ class AssetAliasModel(Base):
         secondary=alias_association_table,
         backref="aliases",
     )
-    dataset_events = relationship(
+    asset_events = relationship(
         "AssetEvent",
         secondary=asset_alias_asset_event_assocation_table,
         back_populates="source_aliases",
@@ -419,7 +419,7 @@ association_table = Table(
     "dagrun_asset_event",
     Base.metadata,
     Column("dag_run_id", ForeignKey("dag_run.id", ondelete="CASCADE"), primary_key=True),
-    Column("event_id", ForeignKey("dataset_event.id", ondelete="CASCADE"), primary_key=True),
+    Column("event_id", ForeignKey("asset_event.id", ondelete="CASCADE"), primary_key=True),
     Index("idx_dagrun_asset_events_dag_run_id", "dag_run_id"),
     Index("idx_dagrun_asset_events_event_id", "event_id"),
 )
@@ -450,7 +450,7 @@ class AssetEvent(Base):
     source_map_index = Column(Integer, nullable=True, server_default=text("-1"))
     timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
-    __tablename__ = "dataset_event"
+    __tablename__ = "asset_event"
     __table_args__ = (
         Index("idx_dataset_id_timestamp", dataset_id, timestamp),
         {"sqlite_autoincrement": True},  # ensures PK values not reused
@@ -465,7 +465,7 @@ class AssetEvent(Base):
     source_aliases = relationship(
         "AssetAliasModel",
         secondary=asset_alias_asset_event_assocation_table,
-        back_populates="dataset_events",
+        back_populates="asset_events",
     )
 
     source_task_instance = relationship(
