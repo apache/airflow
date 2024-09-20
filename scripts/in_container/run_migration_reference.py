@@ -61,7 +61,7 @@ def wrap_backticks(val):
     return ",\n".join(map(_wrap_backticks, val)) if isinstance(val, (tuple, list)) else _wrap_backticks(val)
 
 
-def update_doc(file, data):
+def update_doc(file, data, app):
     replace_text_between(
         file=file,
         start=" .. Beginning of auto-generated table\n",
@@ -71,7 +71,7 @@ def update_doc(file, data):
             headers={
                 "revision": "Revision ID",
                 "down_revision": "Revises ID",
-                "version": "Airflow Version",
+                "version": f"{app.title()} Version",
                 "description": "Description",
             },
             tabular_data=data,
@@ -142,21 +142,27 @@ def get_revisions(app="airflow") -> Iterable[Script]:
         yield from script.walk_revisions()
 
 
-def update_docs(revisions: Iterable[Script]):
+def update_docs(revisions: Iterable[Script], app="airflow"):
     doc_data = []
     for rev in revisions:
+        app_revision = rev.module.airflow_version if app == "airflow" else rev.module.fab_version
         doc_data.append(
             dict(
                 revision=wrap_backticks(rev.revision) + revision_suffix(rev),
                 down_revision=wrap_backticks(rev.down_revision),
-                version=wrap_backticks(rev.module.airflow_version),  # type: ignore
+                version=wrap_backticks(app_revision),  # type: ignore
                 description="\n".join(textwrap.wrap(rev.doc, width=60)),
             )
         )
+    if app == "fab":
+        filepath = project_root / "docs" / "apache-airflow-providers-fab" / "migrations-ref.rst"
+    else:
+        filepath = project_root / "docs" / "apache-airflow" / "migrations-ref.rst"
 
     update_doc(
-        file=project_root / "docs" / "apache-airflow" / "migrations-ref.rst",
+        file=filepath,
         data=doc_data,
+        app=app,
     )
 
 
@@ -243,7 +249,6 @@ if __name__ == "__main__":
         console.print("[bright_blue]Making sure filenames are sorted")
         ensure_filenames_are_sorted(revisions=revisions, app=app)
         revisions = list(get_revisions(app=app))
-        if app == "airflow":
-            console.print("[bright_blue]Updating documentation")
-            update_docs(revisions=revisions)
-            console.print("[green]Migrations OK")
+        console.print("[bright_blue]Updating documentation")
+        update_docs(revisions=revisions, app=app)
+        console.print("[green]Migrations OK")
