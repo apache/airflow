@@ -35,14 +35,36 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.4.0
+.....
+
+Latest change: 2024-09-19
+
+=================================================================================================  ===========  ===================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===================================================================================
+`9f167bbc34 <https://github.com/apache/airflow/commit/9f167bbc34ba4f0f64a6edab90d436275949fc56>`_  2024-09-19   ``Add FAB migration commands (#41804)``
+`db7f92787a <https://github.com/apache/airflow/commit/db7f92787ab6f0e9646cc0e2a7ad5044f1d9ade8>`_  2024-09-17   ``Deprecated kerberos auth removed (#41693)``
+`d1e500c450 <https://github.com/apache/airflow/commit/d1e500c45069dc42254d55d8175e2c494cb41167>`_  2024-09-16   ``Deprecated configuration removed (#42129)``
+`a094f9105c <https://github.com/apache/airflow/commit/a094f9105c649f1aed3524e3c1edf3441ea5eb87>`_  2024-09-12   ``Move 'is_active' user property to FAB auth manager (#42042)``
+`7b6eb92537 <https://github.com/apache/airflow/commit/7b6eb92537c688e446c0489fcdf1f67e86c10813>`_  2024-09-04   ``Move 'register_views' to auth manager interface (#41777)``
+`1379376b66 <https://github.com/apache/airflow/commit/1379376b66da034c2e0c0960bd6efe60e10dfbb9>`_  2024-09-02   ``Add TODOs in providers code for Subdag code removal (#41963)``
+`f16107017c <https://github.com/apache/airflow/commit/f16107017c02b43e1c161b22106f3bb0529ff996>`_  2024-09-02   ``Revert "Provider fab auth manager deprecated methods removed (#41720)" (#41960)``
+`b0391838c1 <https://github.com/apache/airflow/commit/b0391838c142bebdf178ba030c45db16b1f1f33b>`_  2024-08-26   ``Provider fab auth manager deprecated methods removed (#41720)``
+`59dc98178b <https://github.com/apache/airflow/commit/59dc98178bcf36fec41ad104764393dadae3dacf>`_  2024-08-25   ``Separate FAB migration from Core Airflow migration (#41437)``
+`c78a004210 <https://github.com/apache/airflow/commit/c78a0042100ea7330c1fbc7ac234306e09d4678e>`_  2024-08-20   ``Add fixes by breeze/precommit-lint static checks (#41604) (#41618)``
+`d6df0786cf <https://github.com/apache/airflow/commit/d6df0786cfe3b7e7ded30c7fd786d685811cac52>`_  2024-08-20   ``Make kerberos an optional and devel dependency for impala and fab (#41616)``
+=================================================================================================  ===========  ===================================================================================
+
 1.3.0
 .....
 
-Latest change: 2024-08-13
+Latest change: 2024-08-19
 
 =================================================================================================  ===========  ==========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================
+`75fb7acbac <https://github.com/apache/airflow/commit/75fb7acbaca09a040067f0a5a37637ff44eb9e14>`_  2024-08-19   ``Prepare docs for Aug 2nd wave of providers (#41559)``
 `6570c6d1bb <https://github.com/apache/airflow/commit/6570c6d1bb620c6a952a16743c7168c775f6ad70>`_  2024-08-13   ``Remove deprecated SubDags (#41390)``
 `090607d92a <https://github.com/apache/airflow/commit/090607d92a7995c75b9d25f5324d11a3dae683ce>`_  2024-08-08   ``Feature: Allow set Dag Run resource into Dag Level permission (#40703)``
 =================================================================================================  ===========  ==========================================================================

@@ -20,6 +20,32 @@
 Changelog
 ---------
 
+1.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add FAB migration commands (#41804)``
+* ``Separate FAB migration from Core Airflow migration (#41437)``
+
+Misc
+~~~~
+
+* ``Deprecated kerberos auth removed (#41693)``
+* ``Deprecated configuration removed (#42129)``
+* ``Move 'is_active' user property to FAB auth manager (#42042)``
+* ``Move 'register_views' to auth manager interface (#41777)``
+* ``Revert "Provider fab auth manager deprecated methods removed (#41720)" (#41960)``
+* ``Provider fab auth manager deprecated methods removed (#41720)``
+* ``Make kerberos an optional and devel dependency for impala and fab (#41616)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add TODOs in providers code for Subdag code removal (#41963)``
+   * ``Add fixes by breeze/precommit-lint static checks (#41604) (#41618)``
+
 1.3.0
 .....
 
