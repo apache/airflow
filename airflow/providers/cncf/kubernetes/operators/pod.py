@@ -677,8 +677,9 @@ class KubernetesPodOperator(BaseOperator):
                     "Failed to check container status due to permission error. Refreshing credentials and retrying."
                 )
                 self._refresh_cached_properties()
-                self.pod_manager.read_pod(pod)
-            raise PodCredentialsExpiredFailure
+                self.pod_manager.read_pod(pod=pod) # attempt using refreshed credentials, raises if still invalid
+                raise PodCredentialsExpiredFailure("Kubernetes credentials expired, retrying after refresh.")
+            raise exc
 
     def _refresh_cached_properties(self):
         del self.hook
