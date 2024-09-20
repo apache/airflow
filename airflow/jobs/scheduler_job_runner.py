@@ -1486,7 +1486,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _start_queued_dagruns(self, session: Session) -> None:
         """Find DagRuns in queued state and decide moving them to running state."""
         # added all() to save runtime, otherwise query is executed more than once
-        dag_runs: Collection[DagRun] = DagRun.queued_dag_runs_to_examine(session).all()
+        dag_runs: Collection[DagRun] = DagRun.queued_dag_runs_to_set_running(session).all()
 
         active_runs_of_dags = Counter(
             DagRun.active_runs_of_dags((dr.dag_id for dr in dag_runs), only_running=True, session=session),
