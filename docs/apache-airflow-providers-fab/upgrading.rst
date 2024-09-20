@@ -34,11 +34,22 @@ To upgrade the FAB provider, you need to install the new version of the package.
 After the installation, you can run the DB upgrade of the FAB provider by running the following command:
 ``airflow fab-db migrate``. This command is only available if you are in Airflow 3.0.0 or newer.
 
+The command takes the same options as ``airflow db migrate`` command, you can learn more about the command by
+running ``airflow fab-db migrate --help``.
+
 How to downgrade
 ================
 If you need to downgrade the FAB provider, you can do this by running the downgrade command to the version you want to
 downgrade to, example ``airflow fab-db downgrade --to-version 1.2.0``. Afterwards, install the new FAB provider version
 using ``pip``.
+
+There are other options to this command, check it out by running ``airflow fab-db downgrade -help``.
+
+Resetting the FAB database
+==========================
+If you need to reset the FAB database, you can do this by running the reset command, example ``airflow fab-db reset``.
+This command will drop all tables in the FAB database and recreate them. This command is only available if you are in
+Airflow 3.0.0 or newer. There are other options to this command, check it out by running ``airflow fab-db reset --help``.
 
 Offline SQL migration scripts
 =============================
