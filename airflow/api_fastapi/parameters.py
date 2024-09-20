@@ -22,8 +22,7 @@ from typing import Any, Generic, List, TypeVar, Union
 
 from fastapi import Depends, HTTPException, Query as FastAPIQuery
 from sqlalchemy import or_
-from sqlalchemy.orm import Query
-from sqlalchemy.sql import ColumnElement
+from sqlalchemy.sql import ColumnElement, Select
 from typing_extensions import Annotated, Self
 
 from airflow.models.dag import DagModel, DagTag
@@ -39,7 +38,7 @@ class BaseParam(Generic[T], ABC):
         self.attribute: ColumnElement | None = None
 
     @abstractmethod
-    def to_orm(self, query: Query) -> Query:
+    def to_orm(self, query: Select) -> Select:
         pass
 
     @abstractmethod
@@ -54,7 +53,7 @@ class BaseParam(Generic[T], ABC):
 class _LimitFilter(BaseParam[int]):
     """Filter on the limit."""
 
-    def to_orm(self, query: Query) -> Query:
+    def to_orm(self, query: Select) -> Select:
         if self.value is None:
             return query
 
@@ -69,7 +68,7 @@ class _LimitFilter(BaseParam[int]):
 class _OffsetFilter(BaseParam[int]):
     """Filter on offset."""
 
-    def to_orm(self, query: Query) -> Query:
+    def to_orm(self, query: Select) -> Select:
         if self.value is None:
             return query
         return query.offset(self.value)
@@ -83,7 +82,7 @@ class _OffsetFilter(BaseParam[int]):
 class _PausedFilter(BaseParam[Union[bool, None]]):
     """Filter on is_paused."""
 
-    def to_orm(self, query: Query) -> Query:
+    def to_orm(self, query: Select) -> Select:
         if self.value is None:
             return query
         return query.where(DagModel.is_paused == self.value)
@@ -95,7 +94,7 @@ class _PausedFilter(BaseParam[Union[bool, None]]):
 class _OnlyActiveFilter(BaseParam[bool]):
     """Filter on is_active."""
 
-    def to_orm(self, query: Query) -> Query:
+    def to_orm(self, query: Select) -> Select:
         if self.value:
             return query.where(DagModel.is_active == self.value)
         return query
@@ -107,7 +106,7 @@ class _OnlyActiveFilter(BaseParam[bool]):
 class _DagIdPatternSearch(BaseParam[Union[str, None]]):
     """Search on dag_id."""
 
-    def to_orm(self, query: Query) -> Query:
+    def to_orm(self, query: Select) -> Select:
         if self.value is None:
             return query
         return query.where(DagModel.dag_id.ilike(f"%{self.value}"))
@@ -123,7 +122,7 @@ class SortParam(BaseParam[Union[str]]):
         super().__init__()
         self.allowed_attrs = allowed_attrs
 
-    def to_orm(self, query: Query) -> Query:
+    def to_orm(self, query: Select) -> Select:
         if self.value is None:
             return query
 
@@ -147,7 +146,7 @@ class SortParam(BaseParam[Union[str]]):
 class _TagsFilter(BaseParam[List[str]]):
     """Filter on tags."""
 
-    def to_orm(self, query: Query) -> Query:
+    def to_orm(self, query: Select) -> Select:
         if self.value:
             conditions = [DagModel.tags.any(DagTag.name == tag) for tag in self.value]
             return query.where(or_(*conditions))
