@@ -830,7 +830,7 @@ with airflow.DAG(
         # from DB
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 4)), tick=False):
             with assert_queries_count(0):
-                assert dag_bag.get_dag("example_bash_operator").tags == ["example", "example2"]
+                assert dag_bag.get_dag("example_bash_operator").tags == {"example", "example2"}
 
         # Make a change in the DAG and write Serialized DAG to the DB
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 6)), tick=False):
@@ -869,7 +869,7 @@ with airflow.DAG(
                 ser_dag = dag_bag.get_dag("example_bash_operator")
 
             ser_dag_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
-            assert ser_dag.tags == ["example", "example2"]
+            assert ser_dag.tags == {"example", "example2"}
             assert ser_dag_update_time == tz.datetime(2020, 1, 5, 1, 0, 10)
 
             with create_session() as session:
