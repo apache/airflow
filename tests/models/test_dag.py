@@ -3433,6 +3433,22 @@ def test_get_dataset_triggered_next_run_info(dag_maker, clear_datasets):
     }
 
 
+@pytest.mark.need_serialized_dag
+def test_get_dataset_triggered_next_run_info_with_unresolved_dataset_alias(dag_maker, clear_datasets):
+    dataset_alias1 = DatasetAlias(name="alias")
+    with dag_maker(dag_id="dag-1", schedule=[dataset_alias1]):
+        pass
+    dag1 = dag_maker.dag
+    session = dag_maker.session
+    session.flush()
+
+    info = get_dataset_triggered_next_run_info([dag1.dag_id], session=session)
+    assert info == {}
+
+    dag1_model = DagModel.get_dagmodel(dag1.dag_id)
+    assert dag1_model.get_dataset_triggered_next_run_info(session=session) is None
+
+
 def test_dag_uses_timetable_for_run_id(session):
     class CustomRunIdTimetable(Timetable):
         def generate_run_id(self, *, run_type, logical_date, data_interval, **extra) -> str:
