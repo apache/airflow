@@ -53,7 +53,11 @@ RENDERED_INDEX = {
 @pytest.mark.need_serialized_dag
 @pytest.mark.db_test
 def test_render_template(dag_maker):
-    with dag_maker("test_druid_render_template", default_args={"start_date": DEFAULT_DATE}):
+    with dag_maker(
+        "test_druid_render_template",
+        schedule="@daily",
+        default_args={"start_date": DEFAULT_DATE},
+    ):
         operator = DruidOperator(
             task_id="spark_submit_job",
             json_index_file=JSON_INDEX_STR,
@@ -75,6 +79,7 @@ def test_render_template_from_file(tmp_path, dag_maker):
 
     with dag_maker(
         "test_druid_render_template_from_file",
+        schedule="@daily",
         template_searchpath=[str(tmp_path)],
         default_args={"start_date": DEFAULT_DATE},
     ):

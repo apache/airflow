@@ -16,9 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from functools import wraps
-from typing import TYPE_CHECKING, Callable, Sequence, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 from flask import Response, g
 
@@ -33,7 +32,6 @@ from airflow.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
@@ -50,35 +48,9 @@ def check_authentication() -> None:
         if response.status_code == 200:
             return
 
-    # Even if the current_user is anonymous, the AUTH_ROLE_PUBLIC might still have permission.
-    appbuilder = get_airflow_app().appbuilder
-    if appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None):
-        return
-
     # since this handler only checks authentication, not authorization,
     # we should always return 401
     raise Unauthenticated(headers=response.headers)
-
-
-def requires_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable[[T], T]:
-    """
-    Check current user's permissions against required permissions.
-
-    Deprecated. Do not use this decorator, use one of the decorator `has_access_*` defined in
-    airflow/api_connexion/security.py instead.
-    This decorator will only work with FAB authentication and not with other auth providers.
-
-    This decorator might be used in user plugins, do not remove it.
-    """
-    warnings.warn(
-        "The 'requires_access' decorator is deprecated. Please use one of the decorator `requires_access_*`"
-        "defined in airflow/api_connexion/security.py instead.",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    from airflow.providers.fab.auth_manager.decorators.auth import _requires_access_fab
-
-    return _requires_access_fab(permissions)
 
 
 def _requires_access(*, is_authorized_callback: Callable[[], bool], func: Callable, args, kwargs) -> bool:

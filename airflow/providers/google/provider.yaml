@@ -29,9 +29,10 @@ description: |
     - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 state: ready
-source-date-epoch: 1722145669
+source-date-epoch: 1723970253
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 10.22.0
   - 10.21.1
   - 10.21.0
   - 10.20.0
@@ -102,7 +103,7 @@ dependencies:
   - gcloud-aio-bigquery>=6.1.2
   - gcloud-aio-storage>=9.0.0
   - gcsfs>=2023.10.0
-  - google-ads>=24.1.0
+  - google-ads>=25.0.0
   - google-analytics-admin>=0.9.0
   # Google-api-core 2.16.0 back-compat issue:
   # - https://github.com/googleapis/python-api-core/issues/576
@@ -111,12 +112,10 @@ dependencies:
   - google-api-python-client>=2.0.2
   - google-auth>=2.29.0
   - google-auth-httplib2>=0.0.1
-  - google-cloud-aiplatform>=1.57.0
+  - google-cloud-aiplatform>=1.63.0
   - google-cloud-automl>=2.12.0
-  # google-cloud-bigquery version 3.21.0 introduced a performance enhancement in QueryJob.result(),
-  # which has led to backward compatibility issues
-  # - https://github.com/apache/airflow/issues/39541
-  - google-cloud-bigquery<3.21.0,>=3.4.0
+  # Excluded versions contain bug https://github.com/apache/airflow/issues/39541 which is resolved in 3.24.0
+  - google-cloud-bigquery>=3.4.0,!=3.21.*,!=3.22.0,!=3.23.*
   - google-cloud-bigquery-datatransfer>=3.13.0
   - google-cloud-bigtable>=2.17.0
   - google-cloud-build>=3.22.0
@@ -126,7 +125,7 @@ dependencies:
   - google-cloud-dataflow-client>=0.8.6
   - google-cloud-dataform>=0.5.0
   - google-cloud-dataplex>=1.10.0
-  - google-cloud-dataproc>=5.8.0
+  - google-cloud-dataproc>=5.12.0
   - google-cloud-dataproc-metastore>=1.12.0
   - google-cloud-dlp>=3.12.0
   - google-cloud-kms>=2.15.0
@@ -139,7 +138,9 @@ dependencies:
   - google-cloud-pubsub>=2.19.0
   - google-cloud-redis>=2.12.0
   - google-cloud-secret-manager>=2.16.0
-  - google-cloud-spanner>=3.11.1
+  # Google Cloud spanner 3.49.0 is excluded due to a bug in the library (missing grpc_interceptor)
+  # See https://github.com/googleapis/python-spanner/issues/1193
+  - google-cloud-spanner>=3.11.1,!=3.49.0
   - google-cloud-speech>=2.18.0
   - google-cloud-storage>=2.7.0
   - google-cloud-storage-transfer>=1.4.1
@@ -170,6 +171,7 @@ dependencies:
   - sqlalchemy-bigquery>=1.2.1
   - sqlalchemy-spanner>=1.6.2
   - tenacity>=8.1.0
+  - immutabledict>=4.2.0
 
 additional-extras:
   - name: apache.beam
@@ -752,9 +754,6 @@ sensors:
   - integration-name: Google Display&Video 360
     python-modules:
       - airflow.providers.google.marketing_platform.sensors.display_video
-  - integration-name: Google Search Ads 360
-    python-modules:
-      - airflow.providers.google.marketing_platform.sensors.search_ads
   - integration-name: Google Looker
     python-modules:
       - airflow.providers.google.cloud.sensors.looker

@@ -32,6 +32,7 @@ from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 from tests.providers.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 
@@ -248,6 +249,27 @@ class TestEmrCreateJobFlowOperatorExtended(TestEmrCreateJobFlowOperator):
             timeout=timedelta(seconds=self.operator.waiter_max_attempts * self.operator.waiter_delay + 60),
         )
 
+    @mock.patch("airflow.providers.amazon.aws.operators.emr.EmrCreateJobFlowOperator.defer")
+    def test_deferrable_and_wait_for_completion(self, mock_defer, mocked_hook_client):
+        mocked_hook_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
+
+        self.operator.deferrable = True
+        self.operator.wait_for_completion = True
+        self.operator.waiter_delay = 10  # Example value
+        self.operator.waiter_max_attempts = 5  # Example value
+
+        self.operator.execute(self.mock_context)
+        mock_defer.assert_called_once_with(
+            trigger=EmrCreateJobFlowTrigger(
+                job_flow_id=JOB_FLOW_ID,
+                aws_conn_id=self.operator.aws_conn_id,
+                waiter_delay=self.operator.waiter_delay,
+                waiter_max_attempts=self.operator.waiter_max_attempts,
+            ),
+            method_name="execute_complete",
+            timeout=timedelta(seconds=self.operator.waiter_max_attempts * self.operator.waiter_delay + 60),
+        )
+
     @mock.patch("botocore.waiter.get_service_module_name", return_value="emr")
     @mock.patch.object(Waiter, "wait")
     def test_non_deferrable_but_wait_for_completion(self, mock_waiter, _, mocked_hook_client):
@@ -267,3 +289,7 @@ class TestEmrCreateJobFlowOperatorExtended(TestEmrCreateJobFlowOperator):
 
         assert self.operator.execute(self.mock_context) == JOB_FLOW_ID
         assert not mocked_hook_client.get_waiter.called
+
+    # This part comes from the main branch
+    def test_template_fields(self):
+        validate_template_fields(self.operator)

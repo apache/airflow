@@ -1,0 +1,1 @@
+Removed deprecated ``dependency_detector`` parameter from ``scheduler``.

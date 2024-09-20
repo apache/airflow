@@ -167,6 +167,7 @@ class TaskInstanceBatchFormSchema(Schema):
     pool = fields.List(fields.Str(), load_default=None)
     queue = fields.List(fields.Str(), load_default=None)
     executor = fields.List(fields.Str(), load_default=None)
+    order_by = fields.Str(load_default=None)
 
 
 class ClearTaskInstanceFormSchema(Schema):

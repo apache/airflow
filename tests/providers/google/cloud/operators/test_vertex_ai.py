@@ -1833,20 +1833,21 @@ class TestVertexAICreateAutoMLTextTrainingJobOperator:
     @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
     def test_execute(self, mock_hook, mock_dataset):
         mock_hook.return_value.create_auto_ml_text_training_job.return_value = (None, "training_id")
-        op = CreateAutoMLTextTrainingJobOperator(
-            task_id=TASK_ID,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-            display_name=DISPLAY_NAME,
-            dataset_id=TEST_DATASET_ID,
-            prediction_type=None,
-            multi_label=False,
-            sentiment_max=10,
-            sync=True,
-            region=GCP_LOCATION,
-            project_id=GCP_PROJECT,
-            parent_model=TEST_PARENT_MODEL,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = CreateAutoMLTextTrainingJobOperator(
+                task_id=TASK_ID,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+                display_name=DISPLAY_NAME,
+                dataset_id=TEST_DATASET_ID,
+                prediction_type=None,
+                multi_label=False,
+                sentiment_max=10,
+                sync=True,
+                region=GCP_LOCATION,
+                project_id=GCP_PROJECT,
+                parent_model=TEST_PARENT_MODEL,
+            )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
         mock_dataset.assert_called_once_with(dataset_name=TEST_DATASET_ID)
@@ -1880,20 +1881,21 @@ class TestVertexAICreateAutoMLTextTrainingJobOperator:
     @mock.patch(VERTEX_AI_PATH.format("auto_ml.AutoMLHook"))
     def test_execute__parent_model_version_index_is_removed(self, mock_hook, mock_dataset):
         mock_hook.return_value.create_auto_ml_text_training_job.return_value = (None, "training_id")
-        op = CreateAutoMLTextTrainingJobOperator(
-            task_id=TASK_ID,
-            gcp_conn_id=GCP_CONN_ID,
-            impersonation_chain=IMPERSONATION_CHAIN,
-            display_name=DISPLAY_NAME,
-            dataset_id=TEST_DATASET_ID,
-            prediction_type=None,
-            multi_label=False,
-            sentiment_max=10,
-            sync=True,
-            region=GCP_LOCATION,
-            project_id=GCP_PROJECT,
-            parent_model=VERSIONED_TEST_PARENT_MODEL,
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = CreateAutoMLTextTrainingJobOperator(
+                task_id=TASK_ID,
+                gcp_conn_id=GCP_CONN_ID,
+                impersonation_chain=IMPERSONATION_CHAIN,
+                display_name=DISPLAY_NAME,
+                dataset_id=TEST_DATASET_ID,
+                prediction_type=None,
+                multi_label=False,
+                sentiment_max=10,
+                sync=True,
+                region=GCP_LOCATION,
+                project_id=GCP_PROJECT,
+                parent_model=VERSIONED_TEST_PARENT_MODEL,
+            )
         op.execute(context={"ti": mock.MagicMock()})
         mock_hook.return_value.create_auto_ml_text_training_job.assert_called_once_with(
             project_id=GCP_PROJECT,
@@ -2849,6 +2851,34 @@ class TestVertexAIUploadModelOperator:
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             model=TEST_MODEL_OBJ,
+            parent_model=None,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+
+    @mock.patch(VERTEX_AI_PATH.format("model_service.model_service.UploadModelResponse.to_dict"))
+    @mock.patch(VERTEX_AI_PATH.format("model_service.ModelServiceHook"))
+    def test_execute_with_parent_model(self, mock_hook, to_dict_mock):
+        op = UploadModelOperator(
+            task_id=TASK_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            model=TEST_MODEL_OBJ,
+            parent_model=TEST_PARENT_MODEL,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+        )
+        op.execute(context={"ti": mock.MagicMock()})
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.upload_model.assert_called_once_with(
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            model=TEST_MODEL_OBJ,
+            parent_model=TEST_PARENT_MODEL,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,

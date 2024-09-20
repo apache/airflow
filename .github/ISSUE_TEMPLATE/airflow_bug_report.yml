@@ -25,8 +25,7 @@ body:
         the latest release or main to see if the issue is fixed before reporting it.
       multiple: false
       options:
-        - "2.10.0rc1"
-        - "2.9.3"
+        - "2.10.1"
         - "main (development)"
         - "Other Airflow 2 version (please specify below)"
     validations:

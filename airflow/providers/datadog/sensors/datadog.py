@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from datadog import api
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.datadog.hooks.datadog import DatadogHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -89,10 +89,7 @@ class DatadogSensor(BaseSensorOperator):
 
         if isinstance(response, dict) and response.get("status", "ok") != "ok":
             self.log.error("Unexpected Datadog result: %s", response)
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = "Datadog returned unexpected result"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AirflowException(message)
 
         if self.response_check:

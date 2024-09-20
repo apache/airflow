@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 from glob import glob
 from importlib import metadata as importlib_metadata
@@ -38,8 +39,11 @@ OPTIONAL_PROVIDERS_DEPENDENCIES: dict[str, dict[str, str | None]] = {
     # Some examples or system tests may depend on additional packages
     # that are not included in certain CI checks.
     # The format of the dictionary is as follows:
-    # key: the prefix of the file to be excluded,
+    # key: the regexp matching the file to be excluded,
     # value: a dictionary containing package distributions with an optional version specifier, e.g., >=2.3.4
+    ".*example_bedrock_retrieve_and_generate.py": {"opensearch-py": None},
+    ".*example_opensearch.py": {"opensearch-py": None},
+    r".*example_yandexcloud.*\.py": {"yandexcloud": None},
 }
 IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     # Certain examples or system tests may trigger AirflowProviderDeprecationWarnings.
@@ -47,6 +51,7 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     # If the deprecation is postponed, the item should be added to this tuple,
     # and a corresponding Issue should be created on GitHub.
     "tests/system/providers/google/cloud/bigquery/example_bigquery_operations.py",
+    "tests/system/providers/google/cloud/dataflow/example_dataflow_sql.py",
     "tests/system/providers/google/cloud/dataproc/example_dataproc_gke.py",
     "tests/system/providers/google/cloud/datapipelines/example_datapipeline.py",
     "tests/system/providers/google/cloud/gcs/example_gcs_sensor.py",
@@ -56,15 +61,8 @@ IGNORE_AIRFLOW_PROVIDER_DEPRECATION_WARNING: tuple[str, ...] = (
     "tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_kueue.py",
     "tests/system/providers/google/cloud/kubernetes_engine/example_kubernetes_engine_resource.py",
     "tests/system/providers/google/cloud/life_sciences/example_life_sciences.py",
-    "tests/system/providers/google/marketing_platform/example_analytics.py",
     # Deprecated Operators/Hooks, which replaced by common.sql Operators/Hooks
 )
-
-
-if os.environ.get("PYDANTIC", "v2") != "v2":
-    pytest.skip(
-        "The test is skipped because we are running in limited Pydantic environment", allow_module_level=True
-    )
 
 
 def match_optional_dependencies(distribution_name: str, specifier: str | None) -> tuple[bool, str]:
@@ -123,13 +121,6 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
         for prefix in PROVIDERS_PREFIXES
         for provider in suspended_providers_folders
     ]
-    temporary_excluded_upgrade_boto_providers_folders = [
-        AIRFLOW_SOURCES_ROOT.joinpath(prefix, provider).as_posix()
-        for prefix in PROVIDERS_PREFIXES
-        # TODO - remove me when https://github.com/apache/beam/issues/32080 is addressed
-        #        and we bring back yandex to be run in case of upgrade boto
-        for provider in ["yandex"]
-    ]
     current_python_excluded_providers_folders = [
         AIRFLOW_SOURCES_ROOT.joinpath(prefix, provider).as_posix()
         for prefix in PROVIDERS_PREFIXES
@@ -145,18 +136,13 @@ def example_not_excluded_dags(xfail_db_exception: bool = False):
             if candidate.startswith(tuple(suspended_providers_folders)):
                 param_marks.append(pytest.mark.skip(reason="Suspended provider"))
 
-            if os.environ.get("UPGRADE_BOTO", "false") == "true" and candidate.startswith(
-                tuple(temporary_excluded_upgrade_boto_providers_folders)
-            ):
-                param_marks.append(pytest.mark.skip(reason="Temporary excluded upgrade boto provider"))
-
             if candidate.startswith(tuple(current_python_excluded_providers_folders)):
                 param_marks.append(
                     pytest.mark.skip(reason=f"Not supported for Python {CURRENT_PYTHON_VERSION}")
                 )
 
             for optional, dependencies in OPTIONAL_PROVIDERS_DEPENDENCIES.items():
-                if candidate.endswith(optional):
+                if re.match(optional, candidate):
                     for distribution_name, specifier in dependencies.items():
                         result, reason = match_optional_dependencies(distribution_name, specifier)
                         if not result:

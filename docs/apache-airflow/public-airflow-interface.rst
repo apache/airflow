@@ -30,7 +30,7 @@ Using Airflow Public Interfaces
 
 The following are some examples of the public interface of Airflow:
 
-* When you are writing your own operators or hooks. This commonly done when no hook or operator exists for your use case, or when perhaps when one exists but you need to customize the behavior.
+* When you are writing your own operators or hooks. This is commonly done when no hook or operator exists for your use case, or when perhaps when one exists but you need to customize the behavior.
 * When writing new :doc:`Plugins <authoring-and-scheduling/plugins>` that extend Airflow's functionality beyond
   DAG building blocks. Secrets, Timetables, Triggers, Listeners are all examples of such functionality. This
   is usually done by users who manage Airflow instances.
@@ -41,7 +41,7 @@ The following are some examples of the public interface of Airflow:
 * Relying on the consistent behavior of Airflow objects
 
 One aspect of "public interface" is  extending or using Airflow Python classes and functions. The classes
-and functions mentioned below can be relied on to keep backwards-compatible signatures and behaviours within
+and functions mentioned below can be relied on to maintain backwards-compatible signatures and behaviours within
 MAJOR version of Airflow. On the other hand, classes and methods starting with ``_`` (also known
 as protected Python methods) and ``__`` (also known as private Python methods) are not part of the Public
 Airflow Interface and might change at any time.

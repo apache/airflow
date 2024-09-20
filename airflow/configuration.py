@@ -325,89 +325,10 @@ class AirflowConfigParser(ConfigParser):
     # A mapping of (new section, new option) -> (old section, old option, since_version).
     # When reading new option, the old option will be checked to see if it exists. If it does a
     # DeprecationWarning will be issued and the old option will be used instead
-    deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {
-        ("celery", "worker_precheck"): ("core", "worker_precheck", "2.0.0"),
-        ("logging", "interleave_timestamp_parser"): ("core", "interleave_timestamp_parser", "2.6.1"),
-        ("logging", "base_log_folder"): ("core", "base_log_folder", "2.0.0"),
-        ("logging", "remote_logging"): ("core", "remote_logging", "2.0.0"),
-        ("logging", "remote_log_conn_id"): ("core", "remote_log_conn_id", "2.0.0"),
-        ("logging", "remote_base_log_folder"): ("core", "remote_base_log_folder", "2.0.0"),
-        ("logging", "encrypt_s3_logs"): ("core", "encrypt_s3_logs", "2.0.0"),
-        ("logging", "logging_level"): ("core", "logging_level", "2.0.0"),
-        ("logging", "fab_logging_level"): ("core", "fab_logging_level", "2.0.0"),
-        ("logging", "logging_config_class"): ("core", "logging_config_class", "2.0.0"),
-        ("logging", "colored_console_log"): ("core", "colored_console_log", "2.0.0"),
-        ("logging", "colored_log_format"): ("core", "colored_log_format", "2.0.0"),
-        ("logging", "colored_formatter_class"): ("core", "colored_formatter_class", "2.0.0"),
-        ("logging", "log_format"): ("core", "log_format", "2.0.0"),
-        ("logging", "simple_log_format"): ("core", "simple_log_format", "2.0.0"),
-        ("logging", "task_log_prefix_template"): ("core", "task_log_prefix_template", "2.0.0"),
-        ("logging", "log_filename_template"): ("core", "log_filename_template", "2.0.0"),
-        ("logging", "log_processor_filename_template"): ("core", "log_processor_filename_template", "2.0.0"),
-        ("logging", "dag_processor_manager_log_location"): (
-            "core",
-            "dag_processor_manager_log_location",
-            "2.0.0",
-        ),
-        ("logging", "task_log_reader"): ("core", "task_log_reader", "2.0.0"),
-        ("metrics", "metrics_allow_list"): ("metrics", "statsd_allow_list", "2.6.0"),
-        ("metrics", "metrics_block_list"): ("metrics", "statsd_block_list", "2.6.0"),
-        ("metrics", "statsd_on"): ("scheduler", "statsd_on", "2.0.0"),
-        ("metrics", "statsd_host"): ("scheduler", "statsd_host", "2.0.0"),
-        ("metrics", "statsd_port"): ("scheduler", "statsd_port", "2.0.0"),
-        ("metrics", "statsd_prefix"): ("scheduler", "statsd_prefix", "2.0.0"),
-        ("metrics", "statsd_allow_list"): ("scheduler", "statsd_allow_list", "2.0.0"),
-        ("metrics", "stat_name_handler"): ("scheduler", "stat_name_handler", "2.0.0"),
-        ("metrics", "statsd_datadog_enabled"): ("scheduler", "statsd_datadog_enabled", "2.0.0"),
-        ("metrics", "statsd_datadog_tags"): ("scheduler", "statsd_datadog_tags", "2.0.0"),
-        ("metrics", "statsd_datadog_metrics_tags"): ("scheduler", "statsd_datadog_metrics_tags", "2.6.0"),
-        ("metrics", "statsd_custom_client_path"): ("scheduler", "statsd_custom_client_path", "2.0.0"),
-        ("scheduler", "parsing_processes"): ("scheduler", "max_threads", "1.10.14"),
-        ("scheduler", "scheduler_idle_sleep_time"): ("scheduler", "processor_poll_interval", "2.2.0"),
-        ("operators", "default_queue"): ("celery", "default_queue", "2.1.0"),
-        ("core", "hide_sensitive_var_conn_fields"): ("admin", "hide_sensitive_variable_fields", "2.1.0"),
-        ("core", "sensitive_var_conn_names"): ("admin", "sensitive_variable_fields", "2.1.0"),
-        ("core", "default_pool_task_slot_count"): ("core", "non_pooled_task_slot_count", "1.10.4"),
-        ("core", "max_active_tasks_per_dag"): ("core", "dag_concurrency", "2.2.0"),
-        ("logging", "worker_log_server_port"): ("celery", "worker_log_server_port", "2.2.0"),
-        ("api", "access_control_allow_origins"): ("api", "access_control_allow_origin", "2.2.0"),
-        ("api", "auth_backends"): ("api", "auth_backend", "2.3.0"),
-        ("database", "sql_alchemy_conn"): ("core", "sql_alchemy_conn", "2.3.0"),
-        ("database", "sql_engine_encoding"): ("core", "sql_engine_encoding", "2.3.0"),
-        ("database", "sql_engine_collation_for_ids"): ("core", "sql_engine_collation_for_ids", "2.3.0"),
-        ("database", "sql_alchemy_pool_enabled"): ("core", "sql_alchemy_pool_enabled", "2.3.0"),
-        ("database", "sql_alchemy_pool_size"): ("core", "sql_alchemy_pool_size", "2.3.0"),
-        ("database", "sql_alchemy_max_overflow"): ("core", "sql_alchemy_max_overflow", "2.3.0"),
-        ("database", "sql_alchemy_pool_recycle"): ("core", "sql_alchemy_pool_recycle", "2.3.0"),
-        ("database", "sql_alchemy_pool_pre_ping"): ("core", "sql_alchemy_pool_pre_ping", "2.3.0"),
-        ("database", "sql_alchemy_schema"): ("core", "sql_alchemy_schema", "2.3.0"),
-        ("database", "sql_alchemy_connect_args"): ("core", "sql_alchemy_connect_args", "2.3.0"),
-        ("database", "load_default_connections"): ("core", "load_default_connections", "2.3.0"),
-        ("database", "max_db_retries"): ("core", "max_db_retries", "2.3.0"),
-        ("scheduler", "parsing_cleanup_interval"): ("scheduler", "deactivate_stale_dags_interval", "2.5.0"),
-        ("scheduler", "task_queued_timeout_check_interval"): (
-            "kubernetes_executor",
-            "worker_pods_pending_timeout_check_interval",
-            "2.6.0",
-        ),
-        ("fab", "update_fab_perms"): ("webserver", "update_fab_perms", "2.9.0"),
-        ("fab", "auth_rate_limited"): ("webserver", "auth_rate_limited", "2.9.0"),
-        ("fab", "auth_rate_limit"): ("webserver", "auth_rate_limit", "2.9.0"),
-    }
-
-    # A mapping of new configurations to a list of old configurations for when one configuration
-    # deprecates more than one other deprecation. The deprecation logic for these configurations
-    # is defined in SchedulerJobRunner.
-    many_to_one_deprecated_options: dict[tuple[str, str], list[tuple[str, str, str]]] = {
-        ("scheduler", "task_queued_timeout"): [
-            ("celery", "stalled_task_timeout", "2.6.0"),
-            ("celery", "task_adoption_timeout", "2.6.0"),
-            ("kubernetes_executor", "worker_pods_pending_timeout", "2.6.0"),
-        ]
-    }
+    deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {}
 
     # A mapping of new section -> (old section, since_version).
-    deprecated_sections: dict[str, tuple[str, str]] = {"kubernetes_executor": ("kubernetes", "2.5.0")}
+    deprecated_sections: dict[str, tuple[str, str]] = {}
 
     # Now build the inverse so we can go from old_section/old_key to new_section/new_key
     # if someone tries to retrieve it based on old_section/old_key

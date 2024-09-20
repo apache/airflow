@@ -52,11 +52,9 @@ class TestPineconeHook:
         self.pinecone_hook.list_indexes()
         mock_list_indexes.assert_called_once()
 
-    @patch("airflow.providers.pinecone.hooks.pinecone.PineconeHook.list_indexes")
-    def test_debug_curl_setting(self, mock_list_indexes):
+    def test_debug_curl_setting(self):
         """Test that the PINECONE_DEBUG_CURL environment variable is set when initializing Pinecone Object."""
-        self.pinecone_hook.list_indexes()
-        mock_list_indexes.assert_called_once()
+        self.pinecone_hook.pinecone_client
         assert os.environ.get("PINECONE_DEBUG_CURL") == "true"
 
     @patch("airflow.providers.pinecone.hooks.pinecone.PineconeHook.create_index")

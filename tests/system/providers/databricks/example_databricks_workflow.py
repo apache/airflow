@@ -32,37 +32,38 @@ from airflow.utils.timezone import datetime
 
 EXECUTION_TIMEOUT = int(os.getenv("EXECUTION_TIMEOUT", 6))
 
-DATABRICKS_CONN_ID = os.getenv("DATABRICKS_CONN_ID", "databricks_conn")
+DATABRICKS_CONN_ID = os.getenv("DATABRICKS_CONN_ID", "databricks_default")
 DATABRICKS_NOTIFICATION_EMAIL = os.getenv("DATABRICKS_NOTIFICATION_EMAIL", "your_email@serviceprovider.com")
 
 GROUP_ID = os.getenv("DATABRICKS_GROUP_ID", "1234").replace(".", "_")
 USER = os.environ.get("USER")
 
-QUERY_ID = os.environ.get("QUERY_ID", "c9cf6468-babe-41a6-abc3-10ac358c71ee")
-WAREHOUSE_ID = os.environ.get("WAREHOUSE_ID", "cf414a2206dfb397")
+QUERY_ID = os.environ.get("QUERY_ID", "d3773b5a-56f9-422c-ae60-048eaa90aa33")
+WAREHOUSE_ID = os.environ.get("WAREHOUSE_ID", "368fe30b92228713")
 
+# job_cluster_spec example for Databricks on Azure
 job_cluster_spec = [
     {
         "job_cluster_key": "Shared_job_cluster",
         "new_cluster": {
             "cluster_name": "",
             "spark_version": "11.3.x-scala2.12",
-            "aws_attributes": {
-                "first_on_demand": 1,
-                "availability": "SPOT_WITH_FALLBACK",
-                "zone_id": "us-east-2b",
-                "spot_bid_price_percent": 100,
-                "ebs_volume_count": 0,
+            "azure_attributes": {
+                "availability": "ON_DEMAND_AZURE",
+                "spot_bid_max_price": -1,
             },
-            "node_type_id": "i3.xlarge",
+            "num_workers": 1,
+            "spark_conf": {},
+            "node_type_id": "Standard_D3_v2",
+            "ssh_public_keys": [],
+            "custom_tags": {},
             "spark_env_vars": {"PYSPARK_PYTHON": "/databricks/python3/bin/python3"},
-            "enable_elastic_disk": False,
-            "data_security_mode": "LEGACY_SINGLE_USER_STANDARD",
-            "runtime_engine": "STANDARD",
-            "num_workers": 8,
+            "cluster_source": "JOB",
+            "init_scripts": [],
         },
     }
 ]
+
 dag = DAG(
     dag_id="example_databricks_workflow",
     start_date=datetime(2022, 1, 1),
@@ -113,7 +114,7 @@ with dag:
 
         task_operator_nb_1 = DatabricksTaskOperator(
             task_id="nb_1",
-            databricks_conn_id="databricks_conn",
+            databricks_conn_id=DATABRICKS_CONN_ID,
             job_cluster_key="Shared_job_cluster",
             task_config={
                 "notebook_task": {
@@ -122,14 +123,13 @@ with dag:
                 },
                 "libraries": [
                     {"pypi": {"package": "Faker"}},
-                    {"pypi": {"package": "simplejson"}},
                 ],
             },
         )
 
         sql_query = DatabricksTaskOperator(
             task_id="sql_query",
-            databricks_conn_id="databricks_conn",
+            databricks_conn_id=DATABRICKS_CONN_ID,
             task_config={
                 "sql_task": {
                     "query": {

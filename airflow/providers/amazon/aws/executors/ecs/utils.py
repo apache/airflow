@@ -40,6 +40,9 @@ CommandType = List[str]
 ExecutorConfigFunctionType = Callable[[CommandType], dict]
 ExecutorConfigType = Dict[str, Any]
 
+ECS_LAUNCH_TYPE_EC2 = "EC2"
+ECS_LAUNCH_TYPE_FARGATE = "FARGATE"
+
 CONFIG_GROUP_NAME = "aws_ecs_executor"
 
 CONFIG_DEFAULTS = {
@@ -247,9 +250,12 @@ def _recursive_flatten_dict(nested_dict):
     return dict(items)
 
 
-def parse_assign_public_ip(assign_public_ip):
+def parse_assign_public_ip(assign_public_ip, is_launch_type_ec2=False):
     """Convert "assign_public_ip" from True/False to ENABLE/DISABLE."""
-    return "ENABLED" if assign_public_ip == "True" else "DISABLED"
+    # If the launch type is EC2, you cannot/should not provide the assignPublicIp parameter (which is
+    # specific to Fargate)
+    if not is_launch_type_ec2:
+        return "ENABLED" if assign_public_ip == "True" else "DISABLED"
 
 
 def camelize_dict_keys(nested_dict) -> dict:

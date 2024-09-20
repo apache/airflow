@@ -35,6 +35,13 @@
     :caption: Guides
 
     Auth manager <auth-manager/index>
+    Upgrading <upgrading>
+
+.. toctree::
+    :hidden:
+    :caption: Internal DB details
+
+    Database Migrations <migrations-ref>
 
 .. toctree::
     :hidden:
@@ -76,7 +83,7 @@ apache-airflow-providers-fab package
 `Flask App Builder <https://flask-appbuilder.readthedocs.io/>`__
 
 
-Release: 1.2.2
+Release: 1.3.0
 
 Provider package
 ----------------

@@ -18,8 +18,9 @@
 import datetime
 from typing import Any, Dict, Optional
 
+from pydantic import BaseModel as BaseModelPydantic, ConfigDict
+
 from airflow.utils import timezone
-from airflow.utils.pydantic import BaseModel as BaseModelPydantic, ConfigDict
 
 
 class TriggerPydantic(BaseModelPydantic):

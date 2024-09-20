@@ -60,11 +60,18 @@ const XcomEntry = ({
     content = <Spinner />;
   } else if (error) {
     content = <ErrorAlert error={error} />;
-  } else if (!xcom || !xcom.value) {
+  } else if (!xcom) {
     content = (
       <Alert status="info">
         <AlertIcon />
         No value found for XCom key
+      </Alert>
+    );
+  } else if (xcom.value === undefined || xcom.value === null) {
+    content = (
+      <Alert status="info">
+        <AlertIcon />
+        Value is NULL
       </Alert>
     );
   } else {

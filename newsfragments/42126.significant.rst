@@ -1,0 +1,14 @@
+Removed deprecated database configuration.
+
+  * Removed deprecated configuration ``sql_alchemy_conn`` from ``core``. Please use ``sql_alchemy_conn`` from ``database`` instead.
+  * Removed deprecated configuration ``sql_engine_encoding`` from ``core``. Please use ``sql_engine_encoding`` from ``database`` instead.
+  * Removed deprecated configuration ``sql_engine_collation_for_ids`` from ``core``. Please use ``sql_engine_collation_for_ids`` from ``database`` instead.
+  * Removed deprecated configuration ``sql_alchemy_pool_enabled`` from ``core``. Please use ``sql_alchemy_pool_enabled`` from ``database`` instead.
+  * Removed deprecated configuration ``sql_alchemy_pool_size`` from ``core``. Please use ``sql_alchemy_pool_size`` from ``database`` instead.
+  * Removed deprecated configuration ``sql_alchemy_max_overflow`` from ``core``. Please use ``sql_alchemy_max_overflow`` from ``database`` instead.
+  * Removed deprecated configuration ``sql_alchemy_pool_recycle`` from ``core``. Please use ``sql_alchemy_pool_recycle`` from ``database`` instead.
+  * Removed deprecated configuration ``sql_alchemy_pool_pre_ping`` from ``core``. Please use ``sql_alchemy_pool_pre_ping`` from ``database`` instead.
+  * Removed deprecated configuration ``sql_alchemy_schema`` from ``core``. Please use ``sql_alchemy_schema`` from ``database`` instead.
+  * Removed deprecated configuration ``sql_alchemy_connect_args`` from ``core``. Please use ``sql_alchemy_connect_args`` from ``database`` instead.
+  * Removed deprecated configuration ``load_default_connections`` from ``core``. Please use ``load_default_connections`` from ``database`` instead.
+  * Removed deprecated configuration ``max_db_retries`` from ``core``. Please use ``max_db_retries`` from ``database`` instead.

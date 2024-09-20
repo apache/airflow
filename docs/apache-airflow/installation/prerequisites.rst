@@ -56,5 +56,4 @@ wildly on the deployment options you have
   but it is not a high priority. You should only use Linux-based distros as "Production" execution environment
   as this is the only environment that is supported. The only distro that is used in our CI tests and that
   is used in the `Community managed DockerHub image <https://hub.docker.com/p/apache/airflow>`__ is
-  ``Debian Bookworm``. We also build ``Debian Bullseye`` images in Airflow 2.8 but we do not use them for
-  CI tests and they will be dropped in Airflow 2.9.
+  ``Debian Bookworm``.

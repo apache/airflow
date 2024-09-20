@@ -1,5 +1,0 @@
-``/logout`` endpoint in FAB Auth Manager is now CSRF protected
-
-The ``/logout`` endpoint's method in FAB Auth Manager has been changed from ``GET`` to ``POST`` in all existing
-AuthViews (``AuthDBView``, ``AuthLDAPView``, ``AuthOAuthView``, ``AuthOIDView``, ``AuthRemoteUserView``), and
-now includes CSRF protection to enhance security and prevent unauthorized logouts.

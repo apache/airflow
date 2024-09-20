@@ -55,6 +55,7 @@ SSL_CA_CERT = "TEST_SSL_CA_CERT_CONTENT"
 FAILED_RESULT_MSG = "Test message that appears when trigger have failed event."
 BASE_CONTAINER_NAME = "base"
 ON_FINISH_ACTION = "delete_pod"
+XCOM_PUSH = False
 
 OPERATION_NAME = "test-operation-name"
 PROJECT_ID = "test-project-id"
@@ -92,9 +93,14 @@ def job_trigger():
         ssl_ca_cert=SSL_CA_CERT,
         job_name=JOB_NAME,
         job_namespace=NAMESPACE,
+        pod_name=POD_NAME,
+        pod_namespace=NAMESPACE,
+        base_container_name=BASE_CONTAINER_NAME,
         gcp_conn_id=GCP_CONN_ID,
         poll_interval=POLL_INTERVAL,
         impersonation_chain=IMPERSONATION_CHAIN,
+        get_logs=GET_LOGS,
+        do_xcom_push=XCOM_PUSH,
     )
 
 
@@ -472,9 +478,14 @@ class TestGKEStartJobTrigger:
             "ssl_ca_cert": SSL_CA_CERT,
             "job_name": JOB_NAME,
             "job_namespace": NAMESPACE,
+            "pod_name": POD_NAME,
+            "pod_namespace": NAMESPACE,
+            "base_container_name": BASE_CONTAINER_NAME,
             "gcp_conn_id": GCP_CONN_ID,
             "poll_interval": POLL_INTERVAL,
             "impersonation_chain": IMPERSONATION_CHAIN,
+            "get_logs": GET_LOGS,
+            "do_xcom_push": XCOM_PUSH,
         }
 
     @pytest.mark.asyncio
@@ -485,6 +496,11 @@ class TestGKEStartJobTrigger:
         mock_job.metadata.namespace = NAMESPACE
         mock_hook.wait_until_job_complete.side_effect = mock.AsyncMock(return_value=mock_job)
 
+        mock_pod = mock.MagicMock()
+        mock_pod.metadata.name = POD_NAME
+        mock_pod.metadata.namespace = NAMESPACE
+        mock_hook.get_pod.side_effect = mock.AsyncMock(return_value=mock_pod)
+
         mock_is_job_failed = mock_hook.is_job_failed
         mock_is_job_failed.return_value = False
 
@@ -492,16 +508,21 @@ class TestGKEStartJobTrigger:
 
         event_actual = await job_trigger.run().asend(None)
 
-        mock_hook.wait_until_job_complete.assert_called_once_with(name=JOB_NAME, namespace=NAMESPACE)
+        mock_hook.wait_until_job_complete.assert_called_once_with(
+            name=JOB_NAME, namespace=NAMESPACE, poll_interval=POLL_INTERVAL
+        )
         mock_job.to_dict.assert_called_once()
         mock_is_job_failed.assert_called_once_with(job=mock_job)
         assert event_actual == TriggerEvent(
             {
                 "name": JOB_NAME,
                 "namespace": NAMESPACE,
+                "pod_name": POD_NAME,
+                "pod_namespace": NAMESPACE,
                 "status": "success",
                 "message": "Job completed successfully",
                 "job": mock_job_dict,
+                "xcom_result": None,
             }
         )
 
@@ -513,6 +534,11 @@ class TestGKEStartJobTrigger:
         mock_job.metadata.namespace = NAMESPACE
         mock_hook.wait_until_job_complete.side_effect = mock.AsyncMock(return_value=mock_job)
 
+        mock_pod = mock.MagicMock()
+        mock_pod.metadata.name = POD_NAME
+        mock_pod.metadata.namespace = NAMESPACE
+        mock_hook.get_pod.side_effect = mock.AsyncMock(return_value=mock_pod)
+
         mock_is_job_failed = mock_hook.is_job_failed
         mock_is_job_failed.return_value = "Error"
 
@@ -520,16 +546,21 @@ class TestGKEStartJobTrigger:
 
         event_actual = await job_trigger.run().asend(None)
 
-        mock_hook.wait_until_job_complete.assert_called_once_with(name=JOB_NAME, namespace=NAMESPACE)
+        mock_hook.wait_until_job_complete.assert_called_once_with(
+            name=JOB_NAME, namespace=NAMESPACE, poll_interval=POLL_INTERVAL
+        )
         mock_job.to_dict.assert_called_once()
         mock_is_job_failed.assert_called_once_with(job=mock_job)
         assert event_actual == TriggerEvent(
             {
                 "name": JOB_NAME,
                 "namespace": NAMESPACE,
+                "pod_name": POD_NAME,
+                "pod_namespace": NAMESPACE,
                 "status": "error",
                 "message": "Job failed with error: Error",
                 "job": mock_job_dict,
+                "xcom_result": None,
             }
         )
 

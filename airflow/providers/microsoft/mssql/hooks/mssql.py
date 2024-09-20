@@ -19,17 +19,13 @@
 
 from __future__ import annotations
 
-from functools import cached_property
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pymssql
 from methodtools import lru_cache
 from pymssql import Connection as PymssqlConnection
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook, fetch_all_handler
-
-if TYPE_CHECKING:
-    from airflow.models import Connection
 
 
 class MsSqlHook(DbApiHook):
@@ -58,24 +54,6 @@ class MsSqlHook(DbApiHook):
         super().__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
         self._sqlalchemy_scheme = sqlalchemy_scheme
-
-    @cached_property
-    def connection(self) -> Connection:
-        """
-        Get the airflow connection object.
-
-        :return: The connection object.
-        """
-        return self.get_connection(self.get_conn_id())
-
-    @property
-    def connection_extra_lower(self) -> dict:
-        """
-        ``connection.extra_dejson`` but where keys are converted to lower case.
-
-        This is used internally for case-insensitive access of mssql params.
-        """
-        return {k.lower(): v for k, v in self.connection.extra_dejson.items()}
 
     @property
     def sqlalchemy_scheme(self) -> str:

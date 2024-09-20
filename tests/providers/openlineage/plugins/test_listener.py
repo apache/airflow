@@ -18,23 +18,31 @@ from __future__ import annotations
 
 import datetime as dt
 import uuid
+from concurrent.futures import Future
 from contextlib import suppress
 from typing import Callable
 from unittest import mock
-from unittest.mock import ANY, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pandas as pd
 import pytest
+from openlineage.client import OpenLineageClient
+from openlineage.client.transport import ConsoleTransport
+from openlineage.client.transport.console import ConsoleConfig
 
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.python import PythonOperator
+from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter
 from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.plugins.listener import OpenLineageListener
 from airflow.providers.openlineage.utils.selective_enable import disable_lineage, enable_lineage
-from airflow.utils.state import State
-from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
+from airflow.utils.state import DagRunState, State
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 from tests.test_utils.config import conf_vars
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = pytest.mark.db_test
 
@@ -80,7 +88,12 @@ def test_listener_does_not_change_task_instance(render_mock, xcom_push_mock):
     )
     t = TemplateOperator(task_id="template_op", dag=dag, do_xcom_push=True, df=dag.param("df"))
     run_id = str(uuid.uuid1())
-    dag.create_dagrun(state=State.NONE, run_id=run_id)
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    dag.create_dagrun(
+        state=State.NONE,
+        run_id=run_id,
+        **triggered_by_kwargs,
+    )
     ti = TaskInstance(t, run_id=run_id)
     ti.check_and_change_state_before_execution()  # make listener hook on running event
     ti._run_raw_task()
@@ -150,7 +163,12 @@ def _create_test_dag_and_task(python_callable: Callable, scenario_name: str) -> 
     )
     t = PythonOperator(task_id=f"test_task_{scenario_name}", dag=dag, python_callable=python_callable)
     run_id = str(uuid.uuid1())
-    dagrun = dag.create_dagrun(state=State.NONE, run_id=run_id)  # type: ignore
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    dagrun = dag.create_dagrun(
+        state=State.NONE,  # type: ignore
+        run_id=run_id,
+        **triggered_by_kwargs,  # type: ignore
+    )
     task_instance = TaskInstance(t, run_id=run_id)
     return dagrun, task_instance
 
@@ -170,8 +188,8 @@ def _create_listener_and_task_instance() -> tuple[OpenLineageListener, TaskInsta
         # Now you can use listener and task_instance in your tests to simulate their interaction.
     """
 
-    def mock_dag_id(dag_id, execution_date):
-        return f"{execution_date}.{dag_id}"
+    def mock_dag_id(dag_id, logical_date):
+        return f"{logical_date}.{dag_id}"
 
     def mock_task_id(dag_id, task_id, try_number, execution_date):
         return f"{execution_date}.{dag_id}.{task_id}.{try_number}"
@@ -197,7 +215,7 @@ def _create_listener_and_task_instance() -> tuple[OpenLineageListener, TaskInsta
     task_instance.dag_run.run_id = "dag_run_run_id"
     task_instance.dag_run.data_interval_start = None
     task_instance.dag_run.data_interval_end = None
-    task_instance.dag_run.execution_date = "execution_date"
+    task_instance.dag_run.execution_date = "logical_date"
     task_instance.task = mock.Mock()
     task_instance.task.task_id = "task_id"
     task_instance.task.dag = mock.Mock()
@@ -210,7 +228,7 @@ def _create_listener_and_task_instance() -> tuple[OpenLineageListener, TaskInsta
     task_instance.state = State.RUNNING
     task_instance.start_date = dt.datetime(2023, 1, 1, 13, 1, 1)
     task_instance.end_date = dt.datetime(2023, 1, 3, 13, 1, 1)
-    task_instance.execution_date = "execution_date"
+    task_instance.execution_date = "2020-01-01T01:01:01"
     task_instance.next_method = None  # Ensure this is None to reach start_task
 
     return listener, task_instance
@@ -248,12 +266,12 @@ def test_adapter_start_task_is_called_with_proper_arguments(
 
     listener.on_task_instance_running(None, task_instance, None)
     listener.adapter.start_task.assert_called_once_with(
-        run_id="execution_date.dag_id.task_id.1",
+        run_id="2020-01-01T01:01:01.dag_id.task_id.1",
         job_name="job_name",
         job_description="Test DAG Description",
         event_time="2023-01-01T13:01:01",
         parent_job_name="dag_id",
-        parent_run_id="execution_date.dag_id",
+        parent_run_id="2020-01-01T01:01:01.dag_id",
         code_location=None,
         nominal_start_time=None,
         nominal_end_time=None,
@@ -291,8 +309,8 @@ def test_adapter_fail_task_is_called_with_proper_arguments(
     failure events, thus confirming that the adapter's failure handling is functioning as expected.
     """
 
-    def mock_dag_id(dag_id, execution_date):
-        return f"{execution_date}.{dag_id}"
+    def mock_dag_id(dag_id, logical_date):
+        return f"{logical_date}.{dag_id}"
 
     def mock_task_id(dag_id, task_id, try_number, execution_date):
         return f"{execution_date}.{dag_id}.{task_id}.{try_number}"
@@ -316,8 +334,8 @@ def test_adapter_fail_task_is_called_with_proper_arguments(
         end_time="2023-01-03T13:01:01",
         job_name="job_name",
         parent_job_name="dag_id",
-        parent_run_id="execution_date.dag_id",
-        run_id="execution_date.dag_id.task_id.1",
+        parent_run_id="2020-01-01T01:01:01.dag_id",
+        run_id="2020-01-01T01:01:01.dag_id.task_id.1",
         task=listener.extractor_manager.extract_metadata(),
         run_facets={
             "custom_user_facet": 2,
@@ -352,8 +370,8 @@ def test_adapter_complete_task_is_called_with_proper_arguments(
     during the task's lifecycle events.
     """
 
-    def mock_dag_id(dag_id, execution_date):
-        return f"{execution_date}.{dag_id}"
+    def mock_dag_id(dag_id, logical_date):
+        return f"{logical_date}.{dag_id}"
 
     def mock_task_id(dag_id, task_id, try_number, execution_date):
         return f"{execution_date}.{dag_id}.{task_id}.{try_number}"
@@ -375,8 +393,8 @@ def test_adapter_complete_task_is_called_with_proper_arguments(
         end_time="2023-01-03T13:01:01",
         job_name="job_name",
         parent_job_name="dag_id",
-        parent_run_id="execution_date.dag_id",
-        run_id=f"execution_date.dag_id.task_id.{EXPECTED_TRY_NUMBER_1}",
+        parent_run_id="2020-01-01T01:01:01.dag_id",
+        run_id=f"2020-01-01T01:01:01.dag_id.task_id.{EXPECTED_TRY_NUMBER_1}",
         task=listener.extractor_manager.extract_metadata(),
         run_facets={
             "custom_user_facet": 2,
@@ -399,7 +417,7 @@ def test_on_task_instance_running_correctly_calls_openlineage_adapter_run_id_met
     listener.adapter.build_task_instance_run_id.assert_called_once_with(
         dag_id="dag_id",
         task_id="task_id",
-        execution_date="execution_date",
+        execution_date="2020-01-01T01:01:01",
         try_number=1,
     )
 
@@ -422,7 +440,7 @@ def test_on_task_instance_failed_correctly_calls_openlineage_adapter_run_id_meth
     mock_adapter.build_task_instance_run_id.assert_called_once_with(
         dag_id="dag_id",
         task_id="task_id",
-        execution_date="execution_date",
+        execution_date="2020-01-01T01:01:01",
         try_number=1,
     )
 
@@ -441,7 +459,7 @@ def test_on_task_instance_success_correctly_calls_openlineage_adapter_run_id_met
     mock_adapter.build_task_instance_run_id.assert_called_once_with(
         dag_id="dag_id",
         task_id="task_id",
-        execution_date="execution_date",
+        execution_date="2020-01-01T01:01:01",
         try_number=EXPECTED_TRY_NUMBER_1,
     )
 
@@ -588,6 +606,36 @@ def test_listener_on_dag_run_state_changes_configure_process_pool_size(mock_exec
     mock_executor.return_value.submit.assert_called_once()
 
 
+def test_listener_logs_failed_serialization():
+    listener = OpenLineageListener()
+    callback_future = Future()
+
+    def set_result(*args, **kwargs):
+        callback_future.set_result(True)
+
+    listener.log = MagicMock()
+    listener.log.warning = MagicMock(side_effect=set_result)
+    listener.adapter = OpenLineageAdapter(
+        client=OpenLineageClient(transport=ConsoleTransport(config=ConsoleConfig()))
+    )
+    event_time = dt.datetime.now()
+    fut = listener.submit_callable(
+        listener.adapter.dag_failed,
+        dag_id="",
+        run_id="",
+        end_date=event_time,
+        execution_date=callback_future,
+        dag_run_state=DagRunState.FAILED,
+        task_ids=["task_id"],
+        msg="",
+    )
+    assert fut.exception(10)
+    callback_future.result(10)
+    assert callback_future.done()
+    listener.log.debug.assert_not_called()
+    listener.log.warning.assert_called_once()
+
+
 class TestOpenLineageSelectiveEnable:
     def setup_method(self):
         self.dag = DAG(
@@ -606,7 +654,12 @@ class TestOpenLineageSelectiveEnable:
             task_id="test_task_selective_enable_2", dag=self.dag, python_callable=simple_callable
         )
         run_id = str(uuid.uuid1())
-        self.dagrun = self.dag.create_dagrun(state=State.NONE, run_id=run_id)  # type: ignore
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+        self.dagrun = self.dag.create_dagrun(
+            state=State.NONE,
+            run_id=run_id,
+            **triggered_by_kwargs,
+        )  # type: ignore
         self.task_instance_1 = TaskInstance(self.task_1, run_id=run_id)
         self.task_instance_2 = TaskInstance(self.task_2, run_id=run_id)
         self.task_instance_1.dag_run = self.task_instance_2.dag_run = self.dagrun

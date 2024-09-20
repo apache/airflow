@@ -27,6 +27,46 @@
 Changelog
 ---------
 
+Main
+.......
+
+.. warning::
+  The previous Search Ads 360 Reporting API <https://developers.google.com/search-ads/v2/how-tos/reporting>
+  (which is currently in use in google-provider) was already decommissioned on June 30, 2024
+  (see details <https://developers.google.com/search-ads/v2/migration>).
+  All new reporting development should use the new Search Ads 360 Reporting API.
+  Currently, the Reporting operators, sensors and hooks are failing due to the decommission.
+  The new API is not a replacement for the old one, it has a different approach and endpoints.
+  Therefore, new operators implemented for the new API.
+
+10.22.0
+.......
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add 'CloudRunServiceHook' and 'CloudRunCreateServiceOperator' (#40008)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/google): add missing sync_hook_class to CloudDataTransferServiceAsyncHook (#41417)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+* ``Refactor 'DataprocCreateBatchOperator' (#41527)``
+* ``Upgrade package gcloud-aio-auth>=5.2.0 (#41262)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 10.21.1
 .......
 

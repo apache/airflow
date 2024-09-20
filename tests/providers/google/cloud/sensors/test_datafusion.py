@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.google.cloud.hooks.datafusion import PipelineStates
 from airflow.providers.google.cloud.sensors.datafusion import CloudDataFusionPipelineStateSensor
 
@@ -74,11 +74,8 @@ class TestCloudDataFusionPipelineStateSensor:
             instance_name=INSTANCE_NAME, location=LOCATION, project_id=PROJECT_ID
         )
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @mock.patch("airflow.providers.google.cloud.sensors.datafusion.DataFusionHook")
-    def test_assertion(self, mock_hook, soft_fail, expected_exception):
+    def test_assertion(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = {"apiEndpoint": INSTANCE_URL}
 
         task = CloudDataFusionPipelineStateSensor(
@@ -92,21 +89,17 @@ class TestCloudDataFusionPipelineStateSensor:
             location=LOCATION,
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
-            soft_fail=soft_fail,
         )
 
         mock_hook.return_value.get_pipeline_workflow.return_value = {"status": "FAILED"}
         with pytest.raises(
-            expected_exception,
+            AirflowException,
             match=f"Pipeline with id '{PIPELINE_ID}' state is: FAILED. Terminating sensor...",
         ):
             task.poke(mock.MagicMock())
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @mock.patch("airflow.providers.google.cloud.sensors.datafusion.DataFusionHook")
-    def test_not_found_exception(self, mock_hook, soft_fail, expected_exception):
+    def test_not_found_exception(self, mock_hook):
         mock_hook.return_value.get_instance.return_value = {"apiEndpoint": INSTANCE_URL}
         mock_hook.return_value.get_pipeline_workflow.side_effect = AirflowNotFoundException()
 
@@ -121,11 +114,10 @@ class TestCloudDataFusionPipelineStateSensor:
             location=LOCATION,
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
-            soft_fail=soft_fail,
         )
 
         with pytest.raises(
-            expected_exception,
+            AirflowException,
             match="Specified Pipeline ID was not found.",
         ):
             task.poke(mock.MagicMock())

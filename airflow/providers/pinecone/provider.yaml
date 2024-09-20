@@ -24,10 +24,11 @@ description: |
     `Pinecone <https://docs.pinecone.io/docs/overview>`__
 
 state: ready
-source-date-epoch: 1718605302
+source-date-epoch: 1723970514
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 2.1.0
   - 2.0.1
   - 2.0.0
   - 1.1.2

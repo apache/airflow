@@ -18,14 +18,12 @@ from __future__ import annotations
 
 import datetime
 
-import pytest
 from dateutil import relativedelta
 
 from airflow.api_connexion.schemas.common_schema import (
     CronExpression,
     CronExpressionSchema,
     RelativeDeltaSchema,
-    ScheduleIntervalSchema,
     TimeDeltaSchema,
 )
 
@@ -84,61 +82,3 @@ class TestCronExpressionSchema:
         result = schema_instance.load(instance)
         expected_instance = CronExpression("5 4 * * *")
         assert expected_instance == result
-
-
-class TestScheduleIntervalSchema:
-    def test_should_serialize_timedelta(self):
-        instance = datetime.timedelta(days=12)
-        schema_instance = ScheduleIntervalSchema()
-        result = schema_instance.dump(instance)
-        assert {"__type": "TimeDelta", "days": 12, "seconds": 0, "microseconds": 0} == result
-
-    def test_should_deserialize_timedelta(self):
-        instance = {"__type": "TimeDelta", "days": 12, "seconds": 0, "microseconds": 0}
-        schema_instance = ScheduleIntervalSchema()
-        result = schema_instance.load(instance)
-        expected_instance = datetime.timedelta(days=12)
-        assert expected_instance == result
-
-    def test_should_serialize_relative_delta(self):
-        instance = relativedelta.relativedelta(days=+12)
-        schema_instance = ScheduleIntervalSchema()
-        result = schema_instance.dump(instance)
-        assert {
-            "__type": "RelativeDelta",
-            "day": None,
-            "days": 12,
-            "hour": None,
-            "hours": 0,
-            "leapdays": 0,
-            "microsecond": None,
-            "microseconds": 0,
-            "minute": None,
-            "minutes": 0,
-            "month": None,
-            "months": 0,
-            "second": None,
-            "seconds": 0,
-            "year": None,
-            "years": 0,
-        } == result
-
-    def test_should_deserialize_relative_delta(self):
-        instance = {"__type": "RelativeDelta", "days": 12, "seconds": 0}
-        schema_instance = ScheduleIntervalSchema()
-        result = schema_instance.load(instance)
-        expected_instance = relativedelta.relativedelta(days=+12)
-        assert expected_instance == result
-
-    def test_should_serialize_cron_expression(self):
-        instance = "5 4 * * *"
-        schema_instance = ScheduleIntervalSchema()
-        result = schema_instance.dump(instance)
-        expected_instance = {"__type": "CronExpression", "value": "5 4 * * *"}
-        assert expected_instance == result
-
-    def test_should_error_unknown_obj_type(self):
-        instance = 342
-        schema_instance = ScheduleIntervalSchema()
-        with pytest.raises(TypeError, match="Unknown object type: int"):
-            schema_instance.dump(instance)

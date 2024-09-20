@@ -24,7 +24,7 @@ from unittest import mock
 import pendulum
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
@@ -160,14 +160,10 @@ class TestWasbBlobAsyncSensor:
                 self.SENSOR.execute_complete(context={}, event=event)
             mock_log_info.assert_called_with(event["message"])
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
-    def test_wasb_blob_sensor_execute_complete_failure(self, soft_fail, expected_exception):
+    def test_wasb_blob_sensor_execute_complete_failure(self):
         """Assert execute_complete method raises an exception when the triggerer fires an error event."""
 
-        self.SENSOR.soft_fail = soft_fail
-        with pytest.raises(expected_exception):
+        with pytest.raises(AirflowException):
             self.SENSOR.execute_complete(context={}, event={"status": "error", "message": ""})
 
 
@@ -289,12 +285,8 @@ class TestWasbPrefixAsyncSensor:
                 self.SENSOR.execute_complete(context={}, event=event)
             mock_log_info.assert_called_with(event["message"])
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
-    def test_wasb_prefix_sensor_execute_complete_failure(self, soft_fail, expected_exception):
+    def test_wasb_prefix_sensor_execute_complete_failure(self):
         """Assert execute_complete method raises an exception when the triggerer fires an error event."""
 
-        self.SENSOR.soft_fail = soft_fail
         with pytest.raises(AirflowException):
             self.SENSOR.execute_complete(context={}, event={"status": "error", "message": ""})
