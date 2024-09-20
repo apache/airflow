@@ -2652,7 +2652,7 @@ class DAG(LoggingMixin):
         if not dags:
             return
 
-        from airflow.dag_processing.collection import DagModelOperation, DatasetModelOperation
+        from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
 
         log.info("Sync %s DAGs", len(dags))
         dag_op = DagModelOperation({dag.dag_id: dag for dag in dags})
@@ -2661,15 +2661,15 @@ class DAG(LoggingMixin):
         dag_op.update_dags(orm_dags, processor_subdir=processor_subdir, session=session)
         DagCode.bulk_sync_to_db((dag.fileloc for dag in dags), session=session)
 
-        dataset_op = DatasetModelOperation.collect(dag_op.dags)
+        asset_op = AssetModelOperation.collect(dag_op.dags)
 
-        orm_datasets = dataset_op.add_datasets(session=session)
-        orm_dataset_aliases = dataset_op.add_dataset_aliases(session=session)
+        orm_assets = asset_op.add_assets(session=session)
+        orm_asset_aliases = asset_op.add_asset_aliases(session=session)
         session.flush()  # This populates id so we can create fks in later calls.
 
-        dataset_op.add_dag_dataset_references(orm_dags, orm_datasets, session=session)
-        dataset_op.add_dag_dataset_alias_references(orm_dags, orm_dataset_aliases, session=session)
-        dataset_op.add_task_dataset_references(orm_dags, orm_datasets, session=session)
+        asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+        asset_op.add_dag_asset_alias_references(orm_dags, orm_asset_aliases, session=session)
+        asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
         session.flush()
 
     @provide_session
