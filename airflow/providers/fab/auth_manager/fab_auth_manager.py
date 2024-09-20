@@ -40,7 +40,6 @@ from airflow.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
-from airflow.auth.managers.utils.fab import get_fab_action_from_method_map, get_method_from_fab_action_map
 from airflow.cli.cli_config import (
     DefaultHelpParser,
     GroupCommand,
@@ -57,6 +56,11 @@ from airflow.providers.fab.auth_manager.cli_commands.definition import (
 from airflow.providers.fab.auth_manager.models import Permission, Role, User
 from airflow.security import permissions
 from airflow.security.permissions import (
+    ACTION_CAN_ACCESS_MENU,
+    ACTION_CAN_CREATE,
+    ACTION_CAN_DELETE,
+    ACTION_CAN_EDIT,
+    ACTION_CAN_READ,
     RESOURCE_AUDIT_LOG,
     RESOURCE_CLUSTER_ACTIVITY,
     RESOURCE_CONFIG,
@@ -123,6 +127,27 @@ _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
     AccessView.TRIGGERS: RESOURCE_TRIGGER,
     AccessView.WEBSITE: RESOURCE_WEBSITE,
 }
+
+# Convert methods to FAB action name
+_MAP_METHOD_NAME_TO_FAB_ACTION_NAME: dict[ResourceMethod, str] = {
+    "POST": ACTION_CAN_CREATE,
+    "GET": ACTION_CAN_READ,
+    "PUT": ACTION_CAN_EDIT,
+    "DELETE": ACTION_CAN_DELETE,
+    "MENU": ACTION_CAN_ACCESS_MENU,
+}
+
+
+def get_fab_action_from_method_map():
+    """Return the map associating a method to a FAB action."""
+    return _MAP_METHOD_NAME_TO_FAB_ACTION_NAME
+
+
+def get_method_from_fab_action_map():
+    """Return the map associating a FAB action to a method."""
+    return {
+        **{v: k for k, v in _MAP_METHOD_NAME_TO_FAB_ACTION_NAME.items()},
+    }
 
 
 class FabAuthManager(BaseAuthManager):
