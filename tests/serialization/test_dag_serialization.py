@@ -260,6 +260,7 @@ serialized_simple_dag_ground_truth = {
         "edge_info": {},
         "dag_dependencies": [],
         "params": [],
+        "tags": [],
     },
 }
 
