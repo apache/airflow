@@ -192,7 +192,7 @@ class BaseAsset:
     def iter_assets(self) -> Iterator[tuple[str, Asset]]:
         raise NotImplementedError
 
-    def iter_dataset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
+    def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         raise NotImplementedError
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
@@ -213,7 +213,7 @@ class AssetAlias(BaseAsset):
     def iter_assets(self) -> Iterator[tuple[str, Asset]]:
         return iter(())
 
-    def iter_dataset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
+    def iter_asset_aliases(self) -> Iterator[tuple[str, AssetAlias]]:
         yield self.name, self
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
