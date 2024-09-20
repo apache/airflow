@@ -1093,9 +1093,7 @@ class Airflow(AirflowBaseView):
             section="webserver", key="instance_name_has_markup", fallback=False
         )
 
-        dashboard_alerts = [
-            fm for fm in settings.DASHBOARD_UIALERTS if fm.should_show(get_airflow_app().appbuilder)
-        ]
+        dashboard_alerts = [fm for fm in settings.DASHBOARD_UIALERTS if fm.should_show()]
 
         def _iter_parsed_moved_data_table_names():
             for table_name in inspect(session.get_bind()).get_table_names():
