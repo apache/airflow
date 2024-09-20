@@ -37,6 +37,14 @@ If you want to check which auth manager is currently set, you can use the
     $ airflow config get-value core auth_manager
     airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
 
+Available auth managers to use
+------------------------------
+
+Here is the list of auth managers available today you can use in your Airflow environment.
+
+* :doc:`/core-concepts/auth-manager/auth-manager/index`
+* :doc:`apache-airflow-providers-fab:auth-manager/index`
+* :doc:`apache-airflow-providers-amazon:auth-manager/index`
 
 Why pluggable auth managers?
 ----------------------------
