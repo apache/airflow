@@ -4654,24 +4654,13 @@
                 },
                 "env": {
                         "description": "Add additional env vars to migrateDatabaseJob.",
+                        "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                        },
                         "type": "array",
                         "default": [],
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "name": {
-                                    "type": "string"
-                                },
-                                "value": {
-                                    "type": "string"
-                                }
-                            },
-                            "required": [
-                                "name",
-                                "value"
-                            ],
-                            "additionalProperties": false
-                        }
+                        "x-kubernetes-patch-merge-key": "name",
+                        "x-kubernetes-patch-strategy": "merge"
                     }
             }
         },
