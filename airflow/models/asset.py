@@ -526,7 +526,7 @@ class AssetEvent(Base):
 
     __tablename__ = "asset_event"
     __table_args__ = (
-        Index("idx_dataset_id_timestamp", dataset_id, timestamp),
+        Index("idx_asset_id_timestamp", dataset_id, timestamp),
         {"sqlite_autoincrement": True},  # ensures PK values not reused
     )
 
