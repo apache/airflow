@@ -171,8 +171,9 @@ class TestDatasetManager:
 
         ds = Dataset(uri="test_dataset_uri_3")
 
-        dsm = dsem.create_datasets([ds], session)
+        dsms = dsem.create_datasets([ds], session=session)
 
         # Ensure the listener was notified
         assert len(dataset_listener.created) == 1
-        assert dataset_listener.created[0].uri == ds.uri == dsm.uri
+        assert len(dsms) == 1
+        assert dataset_listener.created[0].uri == ds.uri == dsms[0].uri

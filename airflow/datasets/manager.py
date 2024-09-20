@@ -90,21 +90,10 @@ class DatasetManager(LoggingMixin):
         return models
 
     @classmethod
-    def _slow_path_add_dataset_alias_association(
-        cls,
-        alias_names: Iterable[str],
-        dataset_model: DatasetModel,
-    ) -> None:
-        # For databases not supporting ON CONFLICT DO NOTHING, we need to fetch
-        # the existing names to figure out what we can add.
-        existing = {alias.name for alias in dataset_model.aliases}
-        dataset_model.aliases.extend(DatasetAliasModel(name=n) for n in alias_names if n not in existing)
-
-    @classmethod
     def _postgres_add_dataset_alias_association(
         cls,
         alias_names: Iterable[str],
-        dataset_id: int,
+        dataset: DatasetModel,
         *,
         session: Session,
     ) -> None:
@@ -116,10 +105,28 @@ class DatasetManager(LoggingMixin):
             insert(DatasetAliasModel.datasets.prop.secondary)
             .from_select(
                 ["alias_id", "dataset_id"],
-                select(DatasetAliasModel.id, dataset_id).where(DatasetAliasModel.name.in_(alias_names)),
+                select(DatasetAliasModel.id, dataset.id).where(DatasetAliasModel.name.in_(alias_names)),
             )
             .on_conflict_do_nothing()
         )
+
+    @classmethod
+    def _slow_path_add_dataset_alias_association(
+        cls,
+        alias_names: Collection[str],
+        dataset: DatasetModel,
+        *,
+        session: Session,
+    ) -> None:
+        # For databases not supporting ON CONFLICT DO NOTHING, we need to fetch
+        # the existing names to figure out what we can add.
+        already_related = {m.name for m in dataset.aliases}
+        existing_not_related = {
+            m.name: m
+            for m in session.scalars(select(DatasetAliasModel).where(DatasetAliasModel.name.in_(alias_names)))
+            if m.name not in already_related
+        }
+        dataset.aliases.extend(existing_not_related.get(n, DatasetAliasModel(name=n)) for n in alias_names)
 
     @classmethod
     @internal_api_call
@@ -145,7 +152,10 @@ class DatasetManager(LoggingMixin):
         dataset_model = session.scalar(
             select(DatasetModel)
             .where(DatasetModel.uri == dataset.uri)
-            .options(joinedload(DatasetModel.consuming_dags).joinedload(DagScheduleDatasetReference.dag))
+            .options(
+                joinedload(DatasetModel.aliases),
+                joinedload(DatasetModel.consuming_dags).joinedload(DagScheduleDatasetReference.dag),
+            )
         )
         if not dataset_model:
             cls.logger().warning("DatasetModel %s not found", dataset)
@@ -153,10 +163,12 @@ class DatasetManager(LoggingMixin):
 
         if session.bind.dialect.name == "postgresql":
             cls._postgres_add_dataset_alias_association(
-                (alias.name for alias in aliases), dataset_model.id, session=session
+                (alias.name for alias in aliases), dataset_model, session=session
             )
         else:
-            cls._slow_path_add_dataset_alias_association((alias.name for alias in aliases), dataset_model)
+            cls._slow_path_add_dataset_alias_association(
+                {alias.name for alias in aliases}, dataset_model, session=session
+            )
 
         event_kwargs = {
             "dataset_id": dataset_model.id,
