@@ -262,9 +262,9 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
     session.add(task_ds_ref)
     task_ds_ref.dataset = ds1
 
-    dr.consumed_dataset_events.append(asset1_event)
-    dr.consumed_dataset_events.append(asset2_event_1)
-    dr.consumed_dataset_events.append(asset2_event_2)
+    dr.consumed_asset_events.append(asset1_event)
+    dr.consumed_asset_events.append(asset2_event_1)
+    dr.consumed_asset_events.append(asset2_event_2)
     session.commit()
     TracebackSessionForTests.set_allow_db_access(session, False)
 
@@ -294,4 +294,4 @@ def test_serializing_pydantic_dataset_event(session, create_task_instance, creat
     assert len(deserialized_model2.dataset.producing_tasks) == 0
 
     deserialized_dr = DagRunPydantic.model_validate_json(json_string_dr)
-    assert len(deserialized_dr.consumed_dataset_events) == 3
+    assert len(deserialized_dr.consumed_asset_events) == 3
