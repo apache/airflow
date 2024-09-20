@@ -457,7 +457,7 @@ class TestMigrateDatabaseJobServiceAccount:
         assert jmespath.search("automountServiceAccountToken", docs[0]) is False
 
     def test_should_add_component_specific_env(self):
-        env = {"name": "test_env_key","value":"test_env_value"}
+        env = {"name": "test_env_key", "value": "test_env_value"}
         docs = render_chart(
             values={
                 "migrateDatabaseJob": {
