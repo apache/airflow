@@ -45,7 +45,7 @@ alias_association_table = Table(
     Column("alias_id", ForeignKey("asset_alias.id", ondelete="CASCADE"), primary_key=True),
     Column("dataset_id", ForeignKey("dataset.id", ondelete="CASCADE"), primary_key=True),
     Index("idx_asset_alias_asset_alias_id", "alias_id"),
-    Index("idx_asset_alias_asset_dataset_id", "dataset_id"),
+    Index("idx_asset_alias_asset_asset_id", "dataset_id"),
     ForeignKeyConstraint(
         ("alias_id",),
         ["asset_alias.id"],
@@ -455,6 +455,7 @@ class AssetDagRunQueue(Base):
     target_dag_id = Column(StringID(), primary_key=True, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     dataset = relationship("AssetModel", viewonly=True)
+
     __tablename__ = "asset_dag_run_queue"
     __table_args__ = (
         PrimaryKeyConstraint(dataset_id, target_dag_id, name="datasetdagrunqueue_pkey"),
