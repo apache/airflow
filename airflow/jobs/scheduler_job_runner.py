@@ -200,6 +200,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         """Register signals that stop child processes."""
         signal.signal(signal.SIGINT, self._exit_gracefully)
         signal.signal(signal.SIGTERM, self._exit_gracefully)
+        signal.signal(signal.SIGUSR1, self._log_memory_usage)
         signal.signal(signal.SIGUSR2, self._debug_dump)
 
     def _exit_gracefully(self, signum: int, frame: FrameType | None) -> None:
@@ -212,6 +213,20 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         if self.processor_agent:
             self.processor_agent.end()
         sys.exit(os.EX_OK)
+
+    def _log_memory_usage(self, signum: int, frame: FrameType | None) -> None:
+        import tracemalloc
+
+        tracemalloc.start()
+        snapshot = tracemalloc.take_snapshot()
+        top_stats = snapshot.statistics("lineno")
+        n = 10
+        self.log.error(
+            "executor memory usgae:\n Top %d\n %s",
+            n,
+            "\n\t".join(map(str, top_stats[:n])),
+        )
+        tracemalloc.stop()
 
     def _debug_dump(self, signum: int, frame: FrameType | None) -> None:
         if not _is_parent_process():
