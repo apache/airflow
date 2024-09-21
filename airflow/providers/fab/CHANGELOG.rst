@@ -46,6 +46,10 @@ Misc
    * ``Add TODOs in providers code for Subdag code removal (#41963)``
    * ``Add fixes by breeze/precommit-lint static checks (#41604) (#41618)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Fix pre-commit for auto update of fab migration versions (#42382)``
+   * ``Handle 'AUTH_ROLE_PUBLIC' in FAB auth manager (#42280)``
+
 1.3.0
 .....
 

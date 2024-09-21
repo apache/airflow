@@ -38,11 +38,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 1.4.0
 .....
 
-Latest change: 2024-09-19
+Latest change: 2024-09-21
 
 =================================================================================================  ===========  ===================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================
+`6a527c9fac <https://github.com/apache/airflow/commit/6a527c9facc649b3d64f36459cd655bcb03a9cb1>`_  2024-09-21   ``Fix pre-commit for auto update of fab migration versions (#42382)``
+`8741e9c176 <https://github.com/apache/airflow/commit/8741e9c1761931c7cff135d53b589053a04f58c1>`_  2024-09-20   ``Handle 'AUTH_ROLE_PUBLIC' in FAB auth manager (#42280)``
 `9f167bbc34 <https://github.com/apache/airflow/commit/9f167bbc34ba4f0f64a6edab90d436275949fc56>`_  2024-09-19   ``Add FAB migration commands (#41804)``
 `db7f92787a <https://github.com/apache/airflow/commit/db7f92787ab6f0e9646cc0e2a7ad5044f1d9ade8>`_  2024-09-17   ``Deprecated kerberos auth removed (#41693)``
 `d1e500c450 <https://github.com/apache/airflow/commit/d1e500c45069dc42254d55d8175e2c494cb41167>`_  2024-09-16   ``Deprecated configuration removed (#42129)``
