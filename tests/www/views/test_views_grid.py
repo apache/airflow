@@ -239,6 +239,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                 "run_type": "scheduled",
                 "start_date": "2016-01-01T00:00:00+00:00",
                 "state": "success",
+                "triggered_by": "test",
             },
             {
                 "conf": None,
@@ -255,6 +256,7 @@ def test_one_run(admin_client, dag_with_runs: list[DagRun], session):
                 "run_type": "scheduled",
                 "start_date": "2016-01-01T00:00:00+00:00",
                 "state": "running",
+                "triggered_by": "test",
             },
         ],
         "groups": {

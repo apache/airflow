@@ -16,9 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
-from azure.servicebus import ServiceBusClient, ServiceBusMessage, ServiceBusSender
+from azure.servicebus import (
+    ServiceBusClient,
+    ServiceBusMessage,
+    ServiceBusReceivedMessage,
+    ServiceBusReceiver,
+    ServiceBusSender,
+)
 from azure.servicebus.management import QueueProperties, ServiceBusAdministrationClient
 
 from airflow.hooks.base import BaseHook
@@ -27,6 +33,9 @@ from airflow.providers.microsoft.azure.utils import (
     get_field,
     get_sync_default_azure_credential,
 )
+
+MessageCallback = Callable[[ServiceBusMessage], None]
+
 
 if TYPE_CHECKING:
     from azure.identity import DefaultAzureCredential
@@ -270,7 +279,11 @@ class MessageHook(BaseAzureServiceBusHook):
         sender.send_messages(batch_message)
 
     def receive_message(
-        self, queue_name, max_message_count: int | None = 1, max_wait_time: float | None = None
+        self,
+        queue_name: str,
+        max_message_count: int | None = 1,
+        max_wait_time: float | None = None,
+        message_callback: MessageCallback | None = None,
     ):
         """
         Receive a batch of messages at once in a specified Queue name.
@@ -278,6 +291,9 @@ class MessageHook(BaseAzureServiceBusHook):
         :param queue_name: The name of the queue name or a QueueProperties with name.
         :param max_message_count: Maximum number of messages in the batch.
         :param max_wait_time: Maximum time to wait in seconds for the first message to arrive.
+        :param message_callback: Optional callback to process each message. If not provided, then
+            the message will be logged and completed. If provided, and throws an exception, the
+            message will be abandoned for future redelivery.
         """
         if queue_name is None:
             raise TypeError("Queue name cannot be None.")
@@ -289,8 +305,7 @@ class MessageHook(BaseAzureServiceBusHook):
                 max_message_count=max_message_count, max_wait_time=max_wait_time
             )
             for msg in received_msgs:
-                self.log.info(msg)
-                receiver.complete_message(msg)
+                self._process_message(msg, message_callback, receiver)
 
     def receive_subscription_message(
         self,
@@ -298,6 +313,7 @@ class MessageHook(BaseAzureServiceBusHook):
         subscription_name: str,
         max_message_count: int | None,
         max_wait_time: float | None,
+        message_callback: MessageCallback | None = None,
     ):
         """
         Receive a batch of subscription message at once.
@@ -326,5 +342,32 @@ class MessageHook(BaseAzureServiceBusHook):
                 max_message_count=max_message_count, max_wait_time=max_wait_time
             )
             for msg in received_msgs:
-                self.log.info(msg)
-                subscription_receiver.complete_message(msg)
+                self._process_message(msg, message_callback, subscription_receiver)
+
+    def _process_message(
+        self,
+        msg: ServiceBusReceivedMessage,
+        message_callback: MessageCallback | None,
+        receiver: ServiceBusReceiver,
+    ):
+        """
+        Process the message by calling the message_callback or logging the message.
+
+        :param msg: The message to process.
+        :param message_callback: Optional callback to process each message. If not provided, then
+            the message will be logged and completed. If provided, and throws an exception, the
+            message will be abandoned for future redelivery.
+        :param receiver: The receiver that received the message.
+        """
+        if message_callback is None:
+            self.log.info(msg)
+            receiver.complete_message(msg)
+        else:
+            try:
+                message_callback(msg)
+            except Exception as e:
+                self.log.error("Error processing message: %s", e)
+                receiver.abandon_message(msg)
+                raise e
+            else:
+                receiver.complete_message(msg)

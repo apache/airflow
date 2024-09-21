@@ -19,15 +19,22 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+import time
+from typing import TYPE_CHECKING, Sequence
 
 import vertexai
-from deprecated import deprecated
 from vertexai.generative_models import GenerativeModel, Part
 from vertexai.language_models import TextEmbeddingModel, TextGenerationModel
+from vertexai.preview.evaluation import EvalResult, EvalTask
+from vertexai.preview.tuning import sft
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+
+if TYPE_CHECKING:
+    from google.cloud.aiplatform_v1 import types as types_v1
+    from google.cloud.aiplatform_v1beta1 import types as types_v1beta1
 
 
 class GenerativeModelHook(GoogleBaseHook):
@@ -56,15 +63,43 @@ class GenerativeModelHook(GoogleBaseHook):
         model = TextEmbeddingModel.from_pretrained(pretrained_model)
         return model
 
-    def get_generative_model(self, pretrained_model: str) -> GenerativeModel:
+    def get_generative_model(
+        self,
+        pretrained_model: str,
+        system_instruction: str | None = None,
+        generation_config: dict | None = None,
+        safety_settings: dict | None = None,
+        tools: list | None = None,
+    ) -> GenerativeModel:
         """Return a Generative Model object."""
-        model = GenerativeModel(pretrained_model)
+        model = GenerativeModel(
+            model_name=pretrained_model,
+            system_instruction=system_instruction,
+            generation_config=generation_config,
+            safety_settings=safety_settings,
+            tools=tools,
+        )
         return model
 
+    def get_eval_task(
+        self,
+        dataset: dict,
+        metrics: list,
+        experiment: str,
+    ) -> EvalTask:
+        """Return an EvalTask object."""
+        eval_task = EvalTask(
+            dataset=dataset,
+            metrics=metrics,
+            experiment=experiment,
+        )
+        return eval_task
+
     @deprecated(
-        reason=(
-            "The `get_generative_model_part` method is deprecated and will be removed after 01.01.2025, please include `Part` objects in `contents` parameter of `airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.generative_model_generate_content`"
-        ),
+        planned_removal_date="January 01, 2025",
+        use_instead="Part objects included in contents parameter of "
+        "airflow.providers.google.cloud.hooks.generative_model."
+        "GenerativeModelHook.generative_model_generate_content",
         category=AirflowProviderDeprecationWarning,
     )
     def get_generative_model_part(self, content_gcs_path: str, content_mime_type: str | None = None) -> Part:
@@ -73,9 +108,9 @@ class GenerativeModelHook(GoogleBaseHook):
         return part
 
     @deprecated(
-        reason=(
-            "The `prompt_language_model` method is deprecated and will be removed after 01.01.2025, please use `airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.text_generation_model_predict` method."
-        ),
+        planned_removal_date="January 01, 2025",
+        use_instead="airflow.providers.google.cloud.hooks.generative_model."
+        "GenerativeModelHook.text_generation_model_predict",
         category=AirflowProviderDeprecationWarning,
     )
     @GoogleBaseHook.fallback_to_default_project_id
@@ -93,6 +128,8 @@ class GenerativeModelHook(GoogleBaseHook):
         """
         Use the Vertex AI PaLM API to generate natural language text.
 
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param prompt: Required. Inputs or queries that a user or a program gives
             to the Vertex AI PaLM API, in order to elicit a specific response.
         :param pretrained_model: A pre-trained model optimized for performing natural
@@ -106,8 +143,6 @@ class GenerativeModelHook(GoogleBaseHook):
             of their probabilities equals the top_p value. Defaults to 0.8.
         :param top_k: A top_k of 1 means the selected token is the most probable
             among all tokens.
-        :param location: Required. The ID of the Google Cloud location that the service belongs to.
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         """
         vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
 
@@ -127,9 +162,9 @@ class GenerativeModelHook(GoogleBaseHook):
         return response.text
 
     @deprecated(
-        reason=(
-            "The `generate_text_embeddings` method is deprecated and will be removed after 01.01.2025, please use `airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.text_embedding_model_get_embeddings` method."
-        ),
+        planned_removal_date="January 01, 2025",
+        use_instead="airflow.providers.google.cloud.hooks.generative_model."
+        "GenerativeModelHook.text_embedding_model_get_embeddings",
         category=AirflowProviderDeprecationWarning,
     )
     @GoogleBaseHook.fallback_to_default_project_id
@@ -143,11 +178,11 @@ class GenerativeModelHook(GoogleBaseHook):
         """
         Use the Vertex AI PaLM API to generate text embeddings.
 
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param prompt: Required. Inputs or queries that a user or a program gives
             to the Vertex AI PaLM API, in order to elicit a specific response.
         :param pretrained_model: A pre-trained model optimized for generating text embeddings.
-        :param location: Required. The ID of the Google Cloud location that the service belongs to.
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         """
         vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
         model = self.get_text_embedding_model(pretrained_model)
@@ -157,9 +192,9 @@ class GenerativeModelHook(GoogleBaseHook):
         return response.values
 
     @deprecated(
-        reason=(
-            "The `prompt_multimodal_model` method is deprecated and will be removed after 01.01.2025, please use `airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.generative_model_generate_content` method."
-        ),
+        planned_removal_date="January 01, 2025",
+        use_instead="airflow.providers.google.cloud.hooks.generative_model."
+        "GenerativeModelHook.generative_model_generate_content",
         category=AirflowProviderDeprecationWarning,
     )
     @GoogleBaseHook.fallback_to_default_project_id
@@ -175,16 +210,16 @@ class GenerativeModelHook(GoogleBaseHook):
         """
         Use the Vertex AI Gemini Pro foundation model to generate natural language text.
 
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param prompt: Required. Inputs or queries that a user or a program gives
             to the Multi-modal model, in order to elicit a specific response.
-        :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param generation_config: Optional. Generation configuration settings.
         :param safety_settings: Optional. Per request settings for blocking unsafe content.
         :param pretrained_model: By default uses the pre-trained model `gemini-pro`,
             supporting prompts with text-only input, including natural language
             tasks, multi-turn text and code chat, and code generation. It can
             output text and code.
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         """
         vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
 
@@ -196,9 +231,9 @@ class GenerativeModelHook(GoogleBaseHook):
         return response.text
 
     @deprecated(
-        reason=(
-            "The `prompt_multimodal_model_with_media` method is deprecated and will be removed after 01.01.2025, please use `airflow.providers.google.cloud.hooks.generative_model.GenerativeModelHook.generative_model_generate_content` method."
-        ),
+        planned_removal_date="January 01, 2025",
+        use_instead="airflow.providers.google.cloud.hooks.generative_model."
+        "GenerativeModelHook.generative_model_generate_content",
         category=AirflowProviderDeprecationWarning,
     )
     @GoogleBaseHook.fallback_to_default_project_id
@@ -216,6 +251,8 @@ class GenerativeModelHook(GoogleBaseHook):
         """
         Use the Vertex AI Gemini Pro foundation model to generate natural language text.
 
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param prompt: Required. Inputs or queries that a user or a program gives
             to the Multi-modal model, in order to elicit a specific response.
         :param generation_config: Optional. Generation configuration settings.
@@ -227,8 +264,6 @@ class GenerativeModelHook(GoogleBaseHook):
         :param media_gcs_path: A GCS path to a content file such as an image or a video.
             Can be passed to the multi-modal model as part of the prompt. Used with vision models.
         :param mime_type: Validates the media type presented by the file in the media_gcs_path.
-        :param location: Required. The ID of the Google Cloud location that the service belongs to.
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         """
         vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
 
@@ -255,6 +290,8 @@ class GenerativeModelHook(GoogleBaseHook):
         """
         Use the Vertex AI PaLM API to generate natural language text.
 
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param prompt: Required. Inputs or queries that a user or a program gives
             to the Vertex AI PaLM API, in order to elicit a specific response.
         :param pretrained_model: A pre-trained model optimized for performing natural
@@ -268,8 +305,6 @@ class GenerativeModelHook(GoogleBaseHook):
             of their probabilities equals the top_p value. Defaults to 0.8.
         :param top_k: A top_k of 1 means the selected token is the most probable
             among all tokens.
-        :param location: Required. The ID of the Google Cloud location that the service belongs to.
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         """
         vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
 
@@ -299,11 +334,11 @@ class GenerativeModelHook(GoogleBaseHook):
         """
         Use the Vertex AI PaLM API to generate text embeddings.
 
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param prompt: Required. Inputs or queries that a user or a program gives
             to the Vertex AI PaLM API, in order to elicit a specific response.
         :param pretrained_model: A pre-trained model optimized for generating text embeddings.
-        :param location: Required. The ID of the Google Cloud location that the service belongs to.
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         """
         vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
         model = self.get_text_embedding_model(pretrained_model)
@@ -320,26 +355,31 @@ class GenerativeModelHook(GoogleBaseHook):
         tools: list | None = None,
         generation_config: dict | None = None,
         safety_settings: dict | None = None,
+        system_instruction: str | None = None,
         pretrained_model: str = "gemini-pro",
         project_id: str = PROVIDE_PROJECT_ID,
     ) -> str:
         """
         Use the Vertex AI Gemini Pro foundation model to generate natural language text.
 
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param contents: Required. The multi-part content of a message that a user or a program
             gives to the generative model, in order to elicit a specific response.
-        :param location: Required. The ID of the Google Cloud location that the service belongs to.
         :param generation_config: Optional. Generation configuration settings.
         :param safety_settings: Optional. Per request settings for blocking unsafe content.
+        :param tools: Optional. A list of tools available to the model during evaluation, such as a data store.
+        :param system_instruction: Optional. An instruction given to the model to guide its behavior.
         :param pretrained_model: By default uses the pre-trained model `gemini-pro`,
             supporting prompts with text-only input, including natural language
             tasks, multi-turn text and code chat, and code generation. It can
             output text and code.
-        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         """
         vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
 
-        model = self.get_generative_model(pretrained_model)
+        model = self.get_generative_model(
+            pretrained_model=pretrained_model, system_instruction=system_instruction
+        )
         response = model.generate_content(
             contents=contents,
             tools=tools,
@@ -348,3 +388,143 @@ class GenerativeModelHook(GoogleBaseHook):
         )
 
         return response.text
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def supervised_fine_tuning_train(
+        self,
+        source_model: str,
+        train_dataset: str,
+        location: str,
+        tuned_model_display_name: str | None = None,
+        validation_dataset: str | None = None,
+        epochs: int | None = None,
+        adapter_size: int | None = None,
+        learning_rate_multiplier: float | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+    ) -> types_v1.TuningJob:
+        """
+        Use the Supervised Fine Tuning API to create a tuning job.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
+        :param source_model: Required. A pre-trained model optimized for performing natural
+            language tasks such as classification, summarization, extraction, content
+            creation, and ideation.
+        :param train_dataset: Required. Cloud Storage URI of your training dataset. The dataset
+            must be formatted as a JSONL file. For best results, provide at least 100 to 500 examples.
+        :param tuned_model_display_name: Optional. Display name of the TunedModel. The name can be up
+            to 128 characters long and can consist of any UTF-8 characters.
+        :param validation_dataset: Optional. Cloud Storage URI of your training dataset. The dataset must be
+            formatted as a JSONL file. For best results, provide at least 100 to 500 examples.
+        :param epochs: Optional. To optimize performance on a specific dataset, try using a higher
+          epoch value. Increasing the number of epochs might improve results. However, be cautious
+          about over-fitting, especially when dealing with small datasets. If over-fitting occurs,
+          consider lowering the epoch number.
+        :param adapter_size: Optional. Adapter size for tuning.
+        :param learning_rate_multiplier: Optional. Multiplier for adjusting the default learning rate.
+        """
+        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+
+        sft_tuning_job = sft.train(
+            source_model=source_model,
+            train_dataset=train_dataset,
+            validation_dataset=validation_dataset,
+            epochs=epochs,
+            adapter_size=adapter_size,
+            learning_rate_multiplier=learning_rate_multiplier,
+            tuned_model_display_name=tuned_model_display_name,
+        )
+
+        # Polling for job completion
+        while not sft_tuning_job.has_ended:
+            time.sleep(60)
+            sft_tuning_job.refresh()
+
+        return sft_tuning_job
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def count_tokens(
+        self,
+        contents: list,
+        location: str,
+        pretrained_model: str = "gemini-pro",
+        project_id: str = PROVIDE_PROJECT_ID,
+    ) -> types_v1beta1.CountTokensResponse:
+        """
+        Use the Vertex AI Count Tokens API to calculate the number of input tokens before sending a request to the Gemini API.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
+        :param contents: Required. The multi-part content of a message that a user or a program
+            gives to the generative model, in order to elicit a specific response.
+        :param pretrained_model: By default uses the pre-trained model `gemini-pro`,
+            supporting prompts with text-only input, including natural language
+            tasks, multi-turn text and code chat, and code generation. It can
+            output text and code.
+        """
+        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+
+        model = self.get_generative_model(pretrained_model=pretrained_model)
+        response = model.count_tokens(
+            contents=contents,
+        )
+
+        return response
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def run_evaluation(
+        self,
+        pretrained_model: str,
+        eval_dataset: dict,
+        metrics: list,
+        experiment_name: str,
+        experiment_run_name: str,
+        prompt_template: str,
+        location: str,
+        generation_config: dict | None = None,
+        safety_settings: dict | None = None,
+        system_instruction: str | None = None,
+        tools: list | None = None,
+        project_id: str = PROVIDE_PROJECT_ID,
+    ) -> EvalResult:
+        """
+        Use the Rapid Evaluation API to evaluate a model.
+
+        :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
+        :param location: Required. The ID of the Google Cloud location that the service belongs to.
+        :param pretrained_model: Required. A pre-trained model optimized for performing natural
+            language tasks such as classification, summarization, extraction, content
+            creation, and ideation.
+        :param eval_dataset: Required. A fixed dataset for evaluating a model against. Adheres to Rapid Evaluation API.
+        :param metrics: Required. A list of evaluation metrics to be used in the experiment. Adheres to Rapid Evaluation API.
+        :param experiment_name: Required. The name of the evaluation experiment.
+        :param experiment_run_name: Required. The specific run name or ID for this experiment.
+        :param prompt_template: Required. The template used to format the model's prompts during evaluation. Adheres to Rapid Evaluation API.
+        :param generation_config: Optional. A dictionary containing generation parameters for the model.
+        :param safety_settings: Optional. A dictionary specifying harm category thresholds for blocking model outputs.
+        :param system_instruction: Optional. An instruction given to the model to guide its behavior.
+        :param tools: Optional. A list of tools available to the model during evaluation, such as a data store.
+        """
+        vertexai.init(project=project_id, location=location, credentials=self.get_credentials())
+
+        model = self.get_generative_model(
+            pretrained_model=pretrained_model,
+            system_instruction=system_instruction,
+            generation_config=generation_config,
+            safety_settings=safety_settings,
+            tools=tools,
+        )
+
+        eval_task = self.get_eval_task(
+            dataset=eval_dataset,
+            metrics=metrics,
+            experiment=experiment_name,
+        )
+
+        eval_result = eval_task.evaluate(
+            model=model,
+            prompt_template=prompt_template,
+            experiment_run_name=experiment_run_name,
+        )
+
+        return eval_result

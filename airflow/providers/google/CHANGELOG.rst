@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+Main
+.......
+
+.. warning::
+  The previous Search Ads 360 Reporting API <https://developers.google.com/search-ads/v2/how-tos/reporting>
+  (which is currently in use in google-provider) was already decommissioned on June 30, 2024
+  (see details <https://developers.google.com/search-ads/v2/migration>).
+  All new reporting development should use the new Search Ads 360 Reporting API.
+  Currently, the Reporting operators, sensors and hooks are failing due to the decommission.
+  The new API is not a replacement for the old one, it has a different approach and endpoints.
+  Therefore, new operators implemented for the new API.
+
 10.22.0
 .......
 

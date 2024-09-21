@@ -526,20 +526,14 @@ class DagFileProcessorManager(LoggingMixin):
         dags_parsed = session.execute(query)
 
         for dag in dags_parsed:
-            # When the DAG processor runs as part of the scheduler, and the user changes the DAGs folder,
-            # DAGs from the previous DAGs folder will be marked as stale. Note that this change has no impact
-            # on standalone DAG processors.
-            dag_not_in_current_dag_folder = os.path.commonpath([dag.fileloc, dag_directory]) != dag_directory
             # The largest valid difference between a DagFileStat's last_finished_time and a DAG's
             # last_parsed_time is the processor_timeout. Longer than that indicates that the DAG is
             # no longer present in the file. We have a stale_dag_threshold configured to prevent a
             # significant delay in deactivation of stale dags when a large timeout is configured
-            dag_removed_from_dag_folder_or_file = (
+            if (
                 dag.fileloc in last_parsed
                 and (dag.last_parsed_time + timedelta(seconds=stale_dag_threshold)) < last_parsed[dag.fileloc]
-            )
-
-            if dag_not_in_current_dag_folder or dag_removed_from_dag_folder_or_file:
+            ):
                 cls.logger().info("DAG %s is missing and will be deactivated.", dag.dag_id)
                 to_deactivate.add(dag.dag_id)
 
@@ -1141,7 +1135,8 @@ class DagFileProcessorManager(LoggingMixin):
             while not processor.done:
                 time.sleep(0.1)
 
-    def _collect_results_from_processor(self, processor) -> None:
+    @provide_session
+    def _collect_results_from_processor(self, processor, session: Session = NEW_SESSION) -> None:
         self.log.debug("Processor for %s finished", processor.file_path)
         Stats.decr("dag_processing.processes", tags={"file_path": processor.file_path, "action": "finish"})
         last_finish_time = timezone.utcnow()
@@ -1182,6 +1177,19 @@ class DagFileProcessorManager(LoggingMixin):
             span.set_attribute("import_errors", count_import_errors)
             if count_import_errors > 0:
                 span.set_attribute("error", True)
+                import_errors = session.scalars(
+                    select(ParseImportError).where(ParseImportError.filename == processor.file_path)
+                ).all()
+                for import_error in import_errors:
+                    span.add_event(
+                        name="exception",
+                        attributes={
+                            "filename": import_error.filename,
+                            "exception.type": "ParseImportError",
+                            "exception.name": "Import error when processing DAG file",
+                            "exception.stacktrace": import_error.stacktrace,
+                        },
+                    )
 
         span.end(end_time=datetime_to_nano(last_finish_time))
 

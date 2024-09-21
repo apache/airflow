@@ -74,12 +74,12 @@ from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
+    AirflowProviderDeprecationWarning,
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTerminated,
     AirflowTaskTimeout,
-    RemovedInAirflow3Warning,
     TaskDeferralError,
     TaskDeferred,
     UnmappableXComLengthPushed,
@@ -168,6 +168,14 @@ if TYPE_CHECKING:
 
 
 PAST_DEPENDS_MET = "past_depends_met"
+
+metrics_consistency_on = conf.getboolean("metrics", "metrics_consistency_on", fallback=True)
+if not metrics_consistency_on:
+    warnings.warn(
+        "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
+        AirflowProviderDeprecationWarning,
+        stacklevel=2,
+    )
 
 
 class TaskReturnCode(Enum):
@@ -929,7 +937,7 @@ def _get_template_context(
     Return TI Context.
 
     :param task_instance: the task instance for the task
-    :param dag for the task
+    :param dag: dag for the task
     :param session: SQLAlchemy ORM Session
     :param ignore_param_exceptions: flag to suppress value exceptions while initializing the ParamsDict
 
@@ -1048,9 +1056,13 @@ def _get_template_context(
         # for manually triggered tasks, i.e. triggered_date == execution_date.
         if dag_run.external_trigger:
             return logical_date
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
-            return dag.previous_schedule(logical_date)
+
+        # Workaround code copy until deprecated context fields are removed in Airflow 3
+        from airflow.timetables.interval import _DataIntervalTimetable
+
+        if not isinstance(dag.timetable, _DataIntervalTimetable):
+            return None
+        return dag.timetable._get_prev(timezone.coerce_datetime(logical_date))
 
     @cache
     def get_prev_ds() -> str | None:
@@ -2806,7 +2818,10 @@ class TaskInstance(Base, LoggingMixin):
                     self.task_id,
                 )
                 return
-            timing = timezone.utcnow() - self.queued_dttm
+            if metrics_consistency_on:
+                timing = timezone.utcnow() - self.queued_dttm
+            else:
+                timing = (timezone.utcnow() - self.queued_dttm).total_seconds()
         elif new_state == TaskInstanceState.QUEUED:
             metric_name = "scheduled_duration"
             if self.start_date is None:
@@ -2819,7 +2834,10 @@ class TaskInstance(Base, LoggingMixin):
                     self.task_id,
                 )
                 return
-            timing = timezone.utcnow() - self.start_date
+            if metrics_consistency_on:
+                timing = timezone.utcnow() - self.start_date
+            else:
+                timing = (timezone.utcnow() - self.start_date).total_seconds()
         else:
             raise NotImplementedError("no metric emission setup for state %s", new_state)
 
@@ -2887,11 +2905,11 @@ class TaskInstance(Base, LoggingMixin):
                     session=session,
                 )
             elif isinstance(obj, DatasetAlias):
-                if dataset_alias_event := events[obj].dataset_alias_event:
-                    dataset_uri = dataset_alias_event["dest_dataset_uri"]
-                    extra = events[obj].extra
-                    frozen_extra = frozenset(extra.items())
+                for dataset_alias_event in events[obj].dataset_alias_events:
                     dataset_alias_name = dataset_alias_event["source_alias_name"]
+                    dataset_uri = dataset_alias_event["dest_dataset_uri"]
+                    extra = dataset_alias_event["extra"]
+                    frozen_extra = frozenset(extra.items())
 
                     dataset_tuple_to_alias_names_mapping[(dataset_uri, frozen_extra)].add(dataset_alias_name)
 
@@ -2907,6 +2925,7 @@ class TaskInstance(Base, LoggingMixin):
                 dataset_obj = DatasetModel(uri=uri)
                 dataset_manager.create_datasets(dataset_models=[dataset_obj], session=session)
                 self.log.warning("Created a new %r as it did not exist.", dataset_obj)
+                session.flush()
                 dataset_objs_cache[uri] = dataset_obj
 
             for alias in alias_names:
@@ -3469,7 +3488,6 @@ class TaskInstance(Base, LoggingMixin):
         self,
         key: str,
         value: Any,
-        execution_date: datetime | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -3479,19 +3497,7 @@ class TaskInstance(Base, LoggingMixin):
         :param value: Value to store. What types are possible depends on whether
             ``enable_xcom_pickling`` is true or not. If so, this can be any
             picklable object; only be JSON-serializable may be used otherwise.
-        :param execution_date: Deprecated parameter that has no effect.
         """
-        if execution_date is not None:
-            self_execution_date = self.get_dagrun(session).execution_date
-            if execution_date < self_execution_date:
-                raise ValueError(
-                    f"execution_date can not be in the past (current execution_date is "
-                    f"{self_execution_date}; received {execution_date})"
-                )
-            elif execution_date is not None:
-                message = "Passing 'execution_date' to 'TaskInstance.xcom_push()' is deprecated."
-                warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
-
         XCom.set(
             key=key,
             value=value,

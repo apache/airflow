@@ -35,6 +35,13 @@
     :caption: Guides
 
     Auth manager <auth-manager/index>
+    Upgrading <upgrading>
+
+.. toctree::
+    :hidden:
+    :caption: Internal DB details
+
+    Database Migrations <migrations-ref>
 
 .. toctree::
     :hidden:

@@ -59,6 +59,7 @@ We have the following Groups of files for CI that determine which tests are run:
   provider and `hatch_build.py` for all regular dependencies.
 * `DOC files` - change in those files indicate that we should run documentation builds (both airflow sources
   and airflow documentation)
+* `UI files` - those are files for the new full React UI (useful to determine if UI tests should run)
 * `WWW files` - those are files for the WWW part of our UI (useful to determine if UI tests should run)
 * `System test files` - those are the files that are part of system tests (system tests are not automatically
   run in our CI, but Airflow stakeholders are running the tests and expose dashboards for them at
@@ -143,6 +144,7 @@ when some files are not changed. Those are the rules implemented:
   * if no `All Airflow Python files` changed - `mypy-airflow` check is skipped
   * if no `All Docs Python files` changed - `mypy-docs` check is skipped
   * if no `All Dev Python files` changed - `mypy-dev` check is skipped
+  * if no `UI files` changed - `ts-compile-format-lint-ui` check is skipped
   * if no `WWW files` changed - `ts-compile-format-lint-www` check is skipped
   * if no `All Python files` changed - `flynt` check is skipped
   * if no `Helm files` changed - `lint-helm-chart` check is skipped
@@ -222,6 +224,7 @@ Github Actions to pass the list of parameters to a command to execute
 | run-amazon-tests                       | Whether Amazon tests should be run ("true"/"false")                                                  | true                                      |                |
 | run-kubernetes-tests                   | Whether Kubernetes tests should be run ("true"/"false")                                              | true                                      |                |
 | run-tests                              | Whether unit tests should be run ("true"/"false")                                                    | true                                      |                |
+| run-ui-tests                           | Whether WWW tests should be run ("true"/"false")                                                     | true                                      |                |
 | run-www-tests                          | Whether WWW tests should be run ("true"/"false")                                                     | true                                      |                |
 | runs-on-as-json-default                | List of labels assigned for runners for that build for default runs for that build (as string)       | ["ubuntu-22.04"]                          |                |
 | runs-on-as-json-self-hosted            | List of labels assigned for runners for that build for self hosted runners                           | ["self-hosted", "Linux", "X64"]           |                |

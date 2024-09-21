@@ -96,6 +96,8 @@ from airflow.utils.types import NOTSET, ArgNotSet, AttributeRemoved
 if TYPE_CHECKING:
     from inspect import Parameter
 
+    from pydantic import BaseModel
+
     from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.expandinput import ExpandInput
     from airflow.models.operator import Operator
@@ -103,7 +105,6 @@ if TYPE_CHECKING:
     from airflow.serialization.json_schema import Validator
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.timetables.base import Timetable
-    from airflow.utils.pydantic import BaseModel
 
     HAS_KUBERNETES: bool
     try:
@@ -284,15 +285,24 @@ def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
     raw_key = var.raw_key
     return {
         "extra": var.extra,
-        "dataset_alias_event": var.dataset_alias_event,
+        "dataset_alias_events": var.dataset_alias_events,
         "raw_key": BaseSerialization.serialize(raw_key),
     }
 
 
 def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
-    raw_key = BaseSerialization.deserialize(var["raw_key"])
-    outlet_event_accessor = OutletEventAccessor(extra=var["extra"], raw_key=raw_key)
-    outlet_event_accessor.dataset_alias_event = var["dataset_alias_event"]
+    # This is added for compatibility. The attribute used to be dataset_alias_event and
+    # is now dataset_alias_events.
+    if dataset_alias_event := var.get("dataset_alias_event", None):
+        dataset_alias_events = [dataset_alias_event]
+    else:
+        dataset_alias_events = var.get("dataset_alias_events", [])
+
+    outlet_event_accessor = OutletEventAccessor(
+        extra=var["extra"],
+        raw_key=BaseSerialization.deserialize(var["raw_key"]),
+        dataset_alias_events=dataset_alias_events,
+    )
     return outlet_event_accessor
 
 
@@ -364,8 +374,8 @@ def encode_start_trigger_args(var: StartTriggerArgs) -> dict[str, Any]:
 
     :meta private:
     """
-    serialize_kwargs = (
-        lambda key: BaseSerialization.serialize(getattr(var, key)) if getattr(var, key) is not None else None
+    serialize_kwargs = lambda key: (
+        BaseSerialization.serialize(getattr(var, key)) if getattr(var, key) is not None else None
     )
     return {
         "__type": "START_TRIGGER_ARGS",
@@ -1268,10 +1278,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
 
         for k, v in encoded_op.items():
-            # Todo: TODO: Remove in Airflow 3.0 when dummy operator is removed
-            if k == "_is_dummy":
-                k = "_is_empty"
-
             if k in ("_outlets", "_inlets"):
                 # `_outlets` -> `outlets`
                 k = k[1:]
@@ -1648,8 +1654,6 @@ class SerializedDAG(DAG, BaseSerialization):
                     if obj.get(Encoding.TYPE) == DAT.OP:
                         deser = SerializedBaseOperator.deserialize_operator(obj[Encoding.VAR])
                         tasks[deser.task_id] = deser
-                    else:  # todo: remove in Airflow 3.0 (backcompat for pre-2.10)
-                        tasks[obj["task_id"]] = SerializedBaseOperator.deserialize_operator(obj)
                 k = "task_dict"
                 v = tasks
             elif k == "timezone":

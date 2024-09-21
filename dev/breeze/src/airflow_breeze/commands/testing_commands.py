@@ -34,6 +34,7 @@ from airflow_breeze.commands.common_options import (
     option_downgrade_pendulum,
     option_downgrade_sqlalchemy,
     option_dry_run,
+    option_excluded_providers,
     option_force_lowest_dependencies,
     option_forward_credentials,
     option_github_repository,
@@ -47,7 +48,6 @@ from airflow_breeze.commands.common_options import (
     option_no_db_cleanup,
     option_parallelism,
     option_postgres_version,
-    option_pydantic,
     option_python,
     option_run_db_tests_only,
     option_run_in_parallel,
@@ -190,29 +190,32 @@ def _run_test(
         "--rm",
         "airflow",
     ]
-    run_cmd.extend(
-        generate_args_for_pytest(
-            test_type=shell_params.test_type,
-            test_timeout=test_timeout,
-            skip_provider_tests=shell_params.skip_provider_tests,
-            skip_db_tests=shell_params.skip_db_tests,
-            run_db_tests_only=shell_params.run_db_tests_only,
-            backend=shell_params.backend,
-            use_xdist=shell_params.use_xdist,
-            enable_coverage=shell_params.enable_coverage,
-            collect_only=shell_params.collect_only,
-            parallelism=shell_params.parallelism,
-            python_version=python_version,
-            parallel_test_types_list=shell_params.parallel_test_types_list,
-            helm_test_package=None,
-            keep_env_variables=shell_params.keep_env_variables,
-            no_db_cleanup=shell_params.no_db_cleanup,
-        )
+    pytest_args = generate_args_for_pytest(
+        test_type=shell_params.test_type,
+        test_timeout=test_timeout,
+        skip_provider_tests=shell_params.skip_provider_tests,
+        skip_db_tests=shell_params.skip_db_tests,
+        run_db_tests_only=shell_params.run_db_tests_only,
+        backend=shell_params.backend,
+        use_xdist=shell_params.use_xdist,
+        enable_coverage=shell_params.enable_coverage,
+        collect_only=shell_params.collect_only,
+        parallelism=shell_params.parallelism,
+        python_version=python_version,
+        parallel_test_types_list=shell_params.parallel_test_types_list,
+        helm_test_package=None,
+        keep_env_variables=shell_params.keep_env_variables,
+        no_db_cleanup=shell_params.no_db_cleanup,
     )
-    run_cmd.extend(list(extra_pytest_args))
+    pytest_args.extend(extra_pytest_args)
     # Skip "FOLDER" in case "--ignore=FOLDER" is passed as an argument
     # Which might be the case if we are ignoring some providers during compatibility checks
-    run_cmd = [arg for arg in run_cmd if f"--ignore={arg}" not in run_cmd]
+    pytest_args_before_skip = pytest_args
+    pytest_args = [arg for arg in pytest_args if f"--ignore={arg}" not in pytest_args]
+    # Double check: If no test is leftover we can skip running the test
+    if pytest_args_before_skip != pytest_args and pytest_args[0].startswith("--"):
+        return 0, f"Skipped test, no tests needed: {shell_params.test_type}"
+    run_cmd.extend(pytest_args)
     try:
         remove_docker_networks(networks=[f"{compose_project_name}_default"])
         result = run_command(
@@ -514,6 +517,7 @@ option_force_sa_warnings = click.option(
 @option_downgrade_sqlalchemy
 @option_dry_run
 @option_enable_coverage
+@option_excluded_providers
 @option_excluded_parallel_test_types
 @option_force_sa_warnings
 @option_force_lowest_dependencies
@@ -533,7 +537,6 @@ option_force_sa_warnings = click.option(
 @option_postgres_version
 @option_providers_constraints_location
 @option_providers_skip_constraints
-@option_pydantic
 @option_python
 @option_remove_arm_packages
 @option_run_db_tests_only
@@ -576,6 +579,7 @@ def command_for_tests(**kwargs):
 @option_dry_run
 @option_enable_coverage
 @option_excluded_parallel_test_types
+@option_excluded_providers
 @option_forward_credentials
 @option_force_lowest_dependencies
 @option_github_repository
@@ -592,7 +596,6 @@ def command_for_tests(**kwargs):
 @option_postgres_version
 @option_providers_constraints_location
 @option_providers_skip_constraints
-@option_pydantic
 @option_python
 @option_remove_arm_packages
 @option_skip_cleanup
@@ -638,6 +641,7 @@ def command_for_db_tests(**kwargs):
 @option_dry_run
 @option_enable_coverage
 @option_excluded_parallel_test_types
+@option_excluded_providers
 @option_forward_credentials
 @option_force_lowest_dependencies
 @option_github_repository
@@ -652,7 +656,6 @@ def command_for_db_tests(**kwargs):
 @option_parallelism
 @option_providers_constraints_location
 @option_providers_skip_constraints
-@option_pydantic
 @option_python
 @option_remove_arm_packages
 @option_skip_cleanup
@@ -694,6 +697,7 @@ def _run_test_command(
     downgrade_pendulum: bool,
     enable_coverage: bool,
     excluded_parallel_test_types: str,
+    excluded_providers: str,
     extra_pytest_args: tuple,
     force_sa_warnings: bool,
     forward_credentials: bool,
@@ -711,7 +715,6 @@ def _run_test_command(
     package_format: str,
     providers_constraints_location: str,
     providers_skip_constraints: bool,
-    pydantic: str,
     python: str,
     remove_arm_packages: bool,
     run_db_tests_only: bool,
@@ -750,6 +753,7 @@ def _run_test_command(
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         downgrade_pendulum=downgrade_pendulum,
         enable_coverage=enable_coverage,
+        excluded_providers=excluded_providers,
         force_sa_warnings=force_sa_warnings,
         force_lowest_dependencies=force_lowest_dependencies,
         forward_credentials=forward_credentials,
@@ -768,7 +772,6 @@ def _run_test_command(
         postgres_version=postgres_version,
         providers_constraints_location=providers_constraints_location,
         providers_skip_constraints=providers_skip_constraints,
-        pydantic=pydantic,
         python=python,
         remove_arm_packages=remove_arm_packages,
         run_db_tests_only=run_db_tests_only,
@@ -786,11 +789,6 @@ def _run_test_command(
     fix_ownership_using_docker()
     cleanup_python_generated_files()
     perform_environment_checks()
-    if pydantic != "v2":
-        # Avoid edge cases when there are no available tests, e.g. No-Pydantic for Weaviate provider.
-        # https://docs.pytest.org/en/stable/reference/exit-codes.html
-        # https://github.com/apache/airflow/pull/38402#issuecomment-2014938950
-        extra_pytest_args = (*extra_pytest_args, "--suppress-no-test-exit-code")
     if skip_providers:
         ignored_path_list = [
             f"--ignore=tests/providers/{provider_id.replace('.','/')}"

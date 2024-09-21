@@ -29,7 +29,11 @@ from airflow.models import DagRun
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.db import clear_db_runs
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 DEFAULT_TIME = "2020-06-09T13:59:56.336000+00:00"
 
@@ -51,6 +55,7 @@ class TestDAGRunBase:
 class TestDAGRunSchema(TestDAGRunBase):
     @provide_session
     def test_serialize(self, session):
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dagrun_model = DagRun(
             dag_id="my-dag-run",
             run_id="my-dag-run",
@@ -59,13 +64,13 @@ class TestDAGRunSchema(TestDAGRunBase):
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             conf='{"start": "stop"}',
+            **triggered_by_kwargs,
         )
         session.add(dagrun_model)
         session.commit()
         dagrun_model = session.query(DagRun).first()
         deserialized_dagrun = dagrun_schema.dump(dagrun_model)
-
-        assert deserialized_dagrun == {
+        expected_deserialized_dagrun = {
             "dag_id": "my-dag-run",
             "dag_run_id": "my-dag-run",
             "end_date": None,
@@ -81,6 +86,9 @@ class TestDAGRunSchema(TestDAGRunBase):
             "run_type": "manual",
             "note": None,
         }
+        expected_deserialized_dagrun.update({"triggered_by": "test"} if AIRFLOW_V_3_0_PLUS else {})
+
+        assert deserialized_dagrun == expected_deserialized_dagrun
 
     @pytest.mark.parametrize(
         "serialized_dagrun, expected_result",
@@ -135,6 +143,9 @@ class TestDAGRunSchema(TestDAGRunBase):
 class TestDagRunCollection(TestDAGRunBase):
     @provide_session
     def test_serialize(self, session):
+        triggered_by_rest_api_kwargs = (
+            {"triggered_by": DagRunTriggeredByType.REST_API} if AIRFLOW_V_3_0_PLUS else {}
+        )
         dagrun_model_1 = DagRun(
             dag_id="my-dag-run",
             run_id="my-dag-run",
@@ -143,7 +154,9 @@ class TestDagRunCollection(TestDAGRunBase):
             run_type=DagRunType.MANUAL.value,
             start_date=timezone.parse(self.default_time),
             conf='{"start": "stop"}',
+            **triggered_by_rest_api_kwargs,
         )
+        triggered_by_ui_kwargs = {"triggered_by": DagRunTriggeredByType.UI} if AIRFLOW_V_3_0_PLUS else {}
         dagrun_model_2 = DagRun(
             dag_id="my-dag-run",
             run_id="my-dag-run-2",
@@ -151,46 +164,54 @@ class TestDagRunCollection(TestDAGRunBase):
             execution_date=timezone.parse(self.second_time),
             start_date=timezone.parse(self.default_time),
             run_type=DagRunType.MANUAL.value,
+            **triggered_by_ui_kwargs,
         )
         dagruns = [dagrun_model_1, dagrun_model_2]
         session.add_all(dagruns)
         session.commit()
         instance = DAGRunCollection(dag_runs=dagruns, total_entries=2)
         deserialized_dagruns = dagrun_collection_schema.dump(instance)
+        expected_deserialized_dagruns_rest_api = {
+            "dag_id": "my-dag-run",
+            "dag_run_id": "my-dag-run",
+            "end_date": None,
+            "execution_date": self.default_time,
+            "logical_date": self.default_time,
+            "external_trigger": True,
+            "state": "running",
+            "start_date": self.default_time,
+            "conf": {"start": "stop"},
+            "data_interval_end": None,
+            "data_interval_start": None,
+            "last_scheduling_decision": None,
+            "run_type": "manual",
+            "note": None,
+        }
+        expected_deserialized_dagruns_rest_api.update(
+            {"triggered_by": "rest_api"} if AIRFLOW_V_3_0_PLUS else {}
+        )
+        expected_deserialized_dagruns_ui = {
+            "dag_id": "my-dag-run",
+            "dag_run_id": "my-dag-run-2",
+            "end_date": None,
+            "state": "running",
+            "execution_date": self.second_time,
+            "logical_date": self.second_time,
+            "external_trigger": True,
+            "start_date": self.default_time,
+            "conf": {},
+            "data_interval_end": None,
+            "data_interval_start": None,
+            "last_scheduling_decision": None,
+            "run_type": "manual",
+            "note": None,
+        }
+        expected_deserialized_dagruns_ui.update({"triggered_by": "ui"} if AIRFLOW_V_3_0_PLUS else {})
+
         assert deserialized_dagruns == {
             "dag_runs": [
-                {
-                    "dag_id": "my-dag-run",
-                    "dag_run_id": "my-dag-run",
-                    "end_date": None,
-                    "execution_date": self.default_time,
-                    "logical_date": self.default_time,
-                    "external_trigger": True,
-                    "state": "running",
-                    "start_date": self.default_time,
-                    "conf": {"start": "stop"},
-                    "data_interval_end": None,
-                    "data_interval_start": None,
-                    "last_scheduling_decision": None,
-                    "run_type": "manual",
-                    "note": None,
-                },
-                {
-                    "dag_id": "my-dag-run",
-                    "dag_run_id": "my-dag-run-2",
-                    "end_date": None,
-                    "state": "running",
-                    "execution_date": self.second_time,
-                    "logical_date": self.second_time,
-                    "external_trigger": True,
-                    "start_date": self.default_time,
-                    "conf": {},
-                    "data_interval_end": None,
-                    "data_interval_start": None,
-                    "last_scheduling_decision": None,
-                    "run_type": "manual",
-                    "note": None,
-                },
+                expected_deserialized_dagruns_rest_api,
+                expected_deserialized_dagruns_ui,
             ],
             "total_entries": 2,
         }
