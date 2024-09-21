@@ -24,11 +24,11 @@
 - [CI run types](#ci-run-types)
   - [Pull request run](#pull-request-run)
   - [Canary run](#canary-run)
-  - [Scheduled runs](#scheduled-runs)
+  - [Scheduled run](#scheduled-run)
 - [Workflows](#workflows)
   - [Build Images Workflow](#build-images-workflow)
   - [Differences for main and release branches](#differences-for-main-and-release-branches)
-  - [Committer vs. non-committer PRs](#committer-vs-non-committer-prs)
+  - [Committer vs. Non-committer PRs](#committer-vs-non-committer-prs)
   - [Tests Workflow](#tests-workflow)
   - [CodeQL scan](#codeql-scan)
   - [Publishing documentation](#publishing-documentation)
@@ -101,7 +101,7 @@ pushes a preview of the CI/PROD image cache to the GitHub Registry. This
 allows pull requests to quickly utilize the new cache, which is
 particularly beneficial when the Dockerfile or installation scripts have
 been modified. Even if some tests fail, this cache will already include
-the latest Dockerfile and scripts.Upon successful execution, the run
+the latest Dockerfile and scripts. Upon successful execution, the run
 updates the constraint files in the "constraints-main" branch with the
 latest constraints and pushes both the cache and the latest CI/PROD
 images to the GitHub Registry.
@@ -116,7 +116,7 @@ constraints will not be updated, meaning that regular PRs will continue
 using the older version of dependencies that passed one of the previous
 "Canary" runs.
 
-## Scheduled runs
+## Scheduled run
 
 The "scheduled" workflow, which is designed to run regularly (typically
 overnight), is triggered when a scheduled run occurs. This workflow is
@@ -130,35 +130,35 @@ of a "Canary" run, no separate diagram is necessary to illustrate it.
 # Workflows
 
 A general note about cancelling duplicated workflows: for the
-`Build Images`, `Tests` and `CodeQL` workflows we use the `concurrency`
+`Build Images`, `Tests` and `CodeQL` workflows, we use the `concurrency`
 feature of GitHub actions to automatically cancel "old" workflow runs of
-each type -- meaning if you push a new commit to a branch or to a pull
-request and there is a workflow running, GitHub Actions will cancel the
-old workflow run automatically.
+each type. This means that if you push a new commit to a branch or to a pull
+request while a workflow is already running, GitHub Actions will automatically cancel the
+old workflow run.
 
 ## Build Images Workflow
 
-This workflow builds images for the CI Workflow for Pull Requests coming
+This workflow builds images for the CI Workflow for pull requests coming
 from forks.
 
-It's a special type of workflow: `pull_request_target` which means that
+The GitHub Actions event that trigger this workflow is `pull_request_target`, which means that
 it is triggered when a pull request is opened. This also means that the
-workflow has Write permission to push to the GitHub registry the images
-used by CI jobs which means that the images can be built only once and
-reused by all the CI jobs (including the matrix jobs). We've implemented
-it so that the `Tests` workflow waits until the images are built by the
+workflow has Write permission to push to the GitHub registry the images, which are
+used by CI jobs. As a result, the images can be built only once and
+reused by all CI jobs (including matrix jobs). We've implemented
+it so that the `Tests` workflow waits for the images to be built by the
 `Build Images` workflow before running.
 
-Those "Build Image" steps are skipped in case Pull Requests do not come
-from "forks" (i.e. those are internal PRs for Apache Airflow repository.
-This is because in case of PRs coming from Apache Airflow (only
+Those "Build Image" steps are skipped for pull requests that do not come
+from "forks" (i.e. internal PRs for the Apache Airflow repository).
+This is because, in case of PRs originating from Apache Airflow (which only
 committers can create those) the "pull_request" workflows have enough
 permission to push images to GitHub Registry.
 
-This workflow is not triggered on normal pushes to our "main" branches,
-i.e. after a pull request is merged and whenever `scheduled` run is
-triggered. Again in this case the "CI" workflow has enough permissions
-to push the images. In this case we simply do not run this workflow.
+This workflow is not triggered by normal pushes to our "main" branches,
+i.e., after a pull request is merged or when a `scheduled` run is
+triggered. In these cases, the "CI" workflow has enough permissions
+to push the images, so this workflow is simply not run.
 
 The workflow has the following jobs:
 
@@ -169,50 +169,32 @@ The workflow has the following jobs:
 | Build PROD images | Builds all configured PROD images           |
 
 The images are stored in the [GitHub Container
-Registry](https://github.com/orgs/apache/packages?repo_name=airflow) and the names of those images follow the patterns
+Registry](https://github.com/orgs/apache/packages?repo_name=airflow), and their names follow the patterns
 described in [Images](02_images.md#naming-conventions)
 
-Image building is configured in "fail-fast" mode. When any of the images
-fails to build, it cancels other builds and the source `Tests` workflow
+Image building is configured in "fail-fast" mode. If any image
+fails to build, it cancels the other builds and the `Tests` workflow
 run that triggered it.
 
 ## Differences for main and release branches
 
 The type of tests executed varies depending on the version or branch
-under test. For the "main" development branch, we run all tests to
+being tested. For the "main" development branch, we run all tests to
 maintain the quality of Airflow. However, when releasing patch-level
-updates on older branches, we only run a subset of these tests. This is
-because older branches are exclusively used for releasing Airflow and
-its corresponding image, not for releasing providers or helm charts.
+updates on older branches, we only run a subset of tests. This is
+because older branches are used exclusively for releasing Airflow and
+its corresponding image, not for releasing providers or Helm charts.
 
 This behaviour is controlled by `default-branch` output of the
-build-info job. Whenever we create a branch for old version we update
+build-info job. Whenever we create a branch for an older version, we update
 the `AIRFLOW_BRANCH` in `airflow_breeze/branch_defaults.py` to point to
-the new branch and there are a few places where selection of tests is
-based on whether this output is `main`. They are marked as - in the
-"Release branches" column of the table below.
+the new branch. In several places, the selection of tests is
+based on whether this output is `main`. They are marked in the "Release branches" column of
+the table below.
 
-## Committer vs. non-committer PRs
+## Committer vs. Non-committer PRs
 
-There is a difference in how the CI jobs are run for committer and non-committer PRs from forks.
-Main reason is security - we do not want to run untrusted code on our infrastructure for self-hosted runners,
-but also we do not want to run unverified code during the `Build imaage` workflow, because that workflow has
-access to GITHUB_TOKEN that has access to write to the Github Registry of ours (which is used to cache
-images between runs). Also those images are build on self-hosted runners and we have to make sure that
-those runners are not used to (fore example) mine cryptocurrencies on behalf of the person who opened the
-pull request from their newly opened fork of airflow.
-
-This is why the `Build Images` workflow checks if the actor of the PR (GITHUB_ACTOR) is one of the committers,
-and if not, then workflows and scripts used to run image building are coming  only from the ``target`` branch
-of the repository, where such scripts were reviewed and approved by the committers before being merged.
-
-This is controlled by `Selective checks <04_selective_checks.md>`__ that set appropriate output in
-the build-info job of the workflow (see`is-committer-build` to `true`) if the actor is in the committer's
-list and can be overridden by `non committer build` label in the PR.
-
-Also, for most of the jobs, committer builds by default use "Self-hosted" runners, while non-committer
-builds use "Public" runners. For committers, this can be overridden by setting the
-`use public runners` label in the PR.
+Please refer to the appropriate section in [selective CI checks](04_selective_checks.md#committer-vs-non-committer-prs) docs.
 
 ## Tests Workflow
 
