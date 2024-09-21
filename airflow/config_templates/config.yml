@@ -1254,7 +1254,7 @@ metrics:
     otel_service:
       description: |
         The default service name of traces.
-      version_added: 2.10.1
+      version_added: 2.10.3
       type: string
       example: ~
       default: "Airflow"
