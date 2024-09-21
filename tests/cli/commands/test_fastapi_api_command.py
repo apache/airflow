@@ -27,13 +27,14 @@ import pytest
 from rich.console import Console
 
 from airflow.cli.commands import fastapi_api_command
+from airflow.exceptions import AirflowConfigException
 from tests.cli.commands._common_cli_classes import _CommonCLIGunicornTestClass
 
 console = Console(width=400, color_system="standard")
 
 
 @pytest.mark.db_test
-class TestCliInternalAPI(_CommonCLIGunicornTestClass):
+class TestCliFastAPI(_CommonCLIGunicornTestClass):
     main_process_regexp = r"airflow fastapi-api"
 
     @pytest.mark.execution_timeout(210)
@@ -46,7 +47,7 @@ class TestCliInternalAPI(_CommonCLIGunicornTestClass):
         stderr = parent_path / "airflow-fastapi-api.err"
         logfile = parent_path / "airflow-fastapi-api.log"
         try:
-            # Run internal-api as daemon in background. Note that the wait method is not called.
+            # Run fastapi-api as daemon in background. Note that the wait method is not called.
             console.print("[magenta]Starting airflow fastapi-api --daemon")
             env = os.environ.copy()
             proc = subprocess.Popen(
@@ -168,3 +169,22 @@ class TestCliInternalAPI(_CommonCLIGunicornTestClass):
                 ],
                 close_fds=True,
             )
+
+    @pytest.mark.parametrize(
+        "ssl_arguments",
+        [["--ssl-cert", "_.crt", "--ssl-key", "_.key"], ["--ssl-cert", "_.crt"], ["--ssl-key", "_.key"]],
+    )
+    def test_get_ssl_cert_and_key_filepaths_with_incorrect_usage(self, ssl_arguments):
+        args = self.parser.parse_args(["fastapi-api"] + ssl_arguments)
+        with pytest.raises(AirflowConfigException):
+            fastapi_api_command._get_ssl_cert_and_key_filepaths(args)
+
+    def test_get_ssl_cert_and_key_filepaths_with_correct_usage(self, tmp_path):
+        cert_path, key_path = tmp_path / "_.crt", tmp_path / "_.key"
+        cert_path.touch()
+        key_path.touch()
+
+        args = self.parser.parse_args(
+            ["fastapi-api"] + ["--ssl-cert", str(cert_path), "--ssl-key", str(key_path)]
+        )
+        fastapi_api_command._get_ssl_cert_and_key_filepaths(args)
