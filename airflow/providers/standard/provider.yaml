@@ -40,13 +40,13 @@ integrations:
 operators:
   - integration-name: Standard
     python-modules:
-      - airflow.providers.standard.time.operators.datetime
-      - airflow.providers.standard.time.operators.weekday
+      - airflow.providers.standard.operators.datetime
+      - airflow.providers.standard.operators.weekday
 
 sensors:
   - integration-name: Standard
     python-modules:
-      - airflow.providers.standard.time.sensors.date_time
-      - airflow.providers.standard.time.sensors.time_delta
-      - airflow.providers.standard.time.sensors.time
-      - airflow.providers.standard.time.sensors.weekday
+      - airflow.providers.standard.sensors.date_time
+      - airflow.providers.standard.sensors.time_delta
+      - airflow.providers.standard.sensors.time
+      - airflow.providers.standard.sensors.weekday
