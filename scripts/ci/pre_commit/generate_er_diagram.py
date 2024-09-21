@@ -30,26 +30,6 @@ import subprocess
 from rich.console import Console
 
 SVG_FILE = Path("docs") / "apache-airflow" / "img" / "airflow_erd.svg"
-MARKDOWN_FILE = "README.md"
-
-def inject_mermaid_diagram():
-    console = Console(width=400, color_system="standard")
-    try:
-        paracelsus_process = subprocess.run(
-            ['paracelsus', 'inject', MARKDOWN_FILE, 'airflow.models.base:Base', '--import-module', 'airflow.models:*'],
-            capture_output=True,
-            text=True
-        )
-        if paracelsus_process.returncode != 0:
-            console.print("[red]Error running paracelsus command:", paracelsus_process.stderr)
-            return
-        
-        console.print(f"[green]The mermaid diagram was injecte in {MARKDOWN_FILE}. Please commit the changes!")
-    except FileNotFoundError as fnf_error:
-        console.print("[red]Command not found:", fnf_error)
-    except Exception as e:
-        console.print("An error occurred:", str(e))
-
 
 def generate_svg():
     console = Console(width=400, color_system="standard")
@@ -92,4 +72,3 @@ def generate_svg():
 
 if __name__ == "__main__":
     generate_svg()
-    inject_mermaid_diagram()
