@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+4.2.1
+.....
+
+Misc
+~~~~
+
+* ``Adjust typing in Mongo hook to prevent mypy errors (#42354)``
+* ``Improve Mongo connection validation and UI (#41717)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.2.0
 .....
 

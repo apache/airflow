@@ -42,6 +42,7 @@ from typing import (
     Iterable,
     Iterator,
     List,
+    MutableSet,
     Pattern,
     Sequence,
     Union,
@@ -351,7 +352,7 @@ DAG_ARGS_EXPECTED_TYPES = {
     "doc_md": str,
     "is_paused_upon_creation": bool,
     "render_template_as_native_obj": bool,
-    "tags": list,
+    "tags": Collection,
     "auto_register": bool,
     "fail_stop": bool,
     "dag_display_name": str,
@@ -528,7 +529,7 @@ class DAG(LoggingMixin):
         is_paused_upon_creation: bool | None = None,
         jinja_environment_kwargs: dict | None = None,
         render_template_as_native_obj: bool = False,
-        tags: list[str] | None = None,
+        tags: Collection[str] | None = None,
         owner_links: dict[str, str] | None = None,
         auto_register: bool = True,
         fail_stop: bool = False,
@@ -678,7 +679,7 @@ class DAG(LoggingMixin):
 
         self.doc_md = self.get_doc_md(doc_md)
 
-        self.tags = tags or []
+        self.tags: MutableSet[str] = set(tags or [])
         self._task_group = TaskGroup.create_root(self)
         self.validate_schedule_and_params()
         wrong_links = dict(self.iter_invalid_owner_links())
@@ -3311,7 +3312,7 @@ def dag(
     is_paused_upon_creation: bool | None = None,
     jinja_environment_kwargs: dict | None = None,
     render_template_as_native_obj: bool = False,
-    tags: list[str] | None = None,
+    tags: Collection[str] | None = None,
     owner_links: dict[str, str] | None = None,
     auto_register: bool = True,
     fail_stop: bool = False,
