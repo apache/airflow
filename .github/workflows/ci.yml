@@ -40,6 +40,7 @@ env:
   GITHUB_USERNAME: ${{ github.actor }}
   IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
   VERBOSE: "true"
+  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -669,3 +670,19 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
+
+  notify-slack-failure:
+    name: "Notify Slack on Failure"
+    # if: failure()
+    runs-on: ["ubuntu-22.04"]
+    steps:
+      - name: Notify Slack
+        run: |
+          curl -X POST -H 'Content-type: application/json' --data '{
+            "text": "The GitLab CI workflow *Tests* has failed.\n
+                    Repository: ${{ github.repository }}\n
+                    Branch: ${{ github.ref_name }}\n
+                    Commit: ${{ github.sha }}\n
+                    Check the details at:
+                    ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          }' ${{ env.SLACK_WEBHOOK_URL }}
