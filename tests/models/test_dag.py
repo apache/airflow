@@ -805,7 +805,7 @@ class TestDag:
             DAG.bulk_write_to_db(dags)
         # Adding tags
         for dag in dags:
-            dag.tags.append("test-dag2")
+            dag.tags.add("test-dag2")
         with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
@@ -843,7 +843,7 @@ class TestDag:
 
         # Removing all tags
         for dag in dags:
-            dag.tags = None
+            dag.tags = set()
         with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
@@ -3381,6 +3381,42 @@ def test__tags_length(tags: list[str], should_pass: bool):
     else:
         with pytest.raises(AirflowException):
             DAG("test-dag", schedule=None, tags=tags)
+
+
+@pytest.mark.parametrize(
+    "input_tags, expected_result",
+    [
+        pytest.param([], set(), id="empty tags"),
+        pytest.param(
+            ["a normal tag"],
+            {"a normal tag"},
+            id="one tag",
+        ),
+        pytest.param(
+            ["a normal tag", "another normal tag"],
+            {"a normal tag", "another normal tag"},
+            id="two different tags",
+        ),
+        pytest.param(
+            ["a", "a"],
+            {"a"},
+            id="two same tags",
+        ),
+    ],
+)
+def test__tags_duplicates(input_tags: list[str], expected_result: set[str]):
+    result = DAG("test-dag", tags=input_tags)
+    assert result.tags == expected_result
+
+
+def test__tags_mutable():
+    expected_tags = {"6", "7"}
+    test_dag = DAG("test-dag")
+    test_dag.tags.add("6")
+    test_dag.tags.add("7")
+    test_dag.tags.add("8")
+    test_dag.tags.remove("8")
+    assert test_dag.tags == expected_tags
 
 
 @pytest.mark.need_serialized_dag
