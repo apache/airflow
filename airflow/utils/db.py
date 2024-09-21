@@ -476,6 +476,16 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id="opensearch_default",
+            conn_type="opensearch",
+            host="localhost",
+            schema="http",
+            port=9200,
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="opsgenie_default",
             conn_type="http",
             host="",
