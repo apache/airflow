@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.standard.core.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 
 with DAG(
     dag_id="child_dag",

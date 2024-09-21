@@ -29,7 +29,7 @@ from kubernetes.client import models as k8s
 from airflow import DAG
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.secret import Secret
-from airflow.providers.standard.core.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 
 # [START howto_operator_k8s_cluster_resources]
 secret_file = Secret("volume", "/etc/sql_conn", "airflow-secrets", "sql_alchemy_conn")

@@ -52,7 +52,7 @@ from airflow.providers.google.cloud.operators.vertex_ai.model_service import (
     ListModelVersionsOperator,
     SetDefaultVersionOnModelOperator,
 )
-from airflow.providers.standard.core.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")

@@ -20,7 +20,7 @@ from __future__ import annotations
 import datetime
 
 from airflow.models.dag import DAG
-from airflow.providers.standard.core.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 
 args = {"owner": "airflow", "retries": 3, "start_date": datetime.datetime(2022, 1, 1)}
 

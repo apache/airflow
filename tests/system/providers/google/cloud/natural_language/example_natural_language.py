@@ -33,7 +33,7 @@ from airflow.providers.google.cloud.operators.natural_language import (
     CloudNaturalLanguageAnalyzeSentimentOperator,
     CloudNaturalLanguageClassifyTextOperator,
 )
-from airflow.providers.standard.core.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "gcp_natural_language"

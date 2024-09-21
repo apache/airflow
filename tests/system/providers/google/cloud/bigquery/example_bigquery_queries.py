@@ -37,7 +37,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryTableCheckOperator,
     BigQueryValueCheckOperator,
 )
-from airflow.providers.standard.core.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 

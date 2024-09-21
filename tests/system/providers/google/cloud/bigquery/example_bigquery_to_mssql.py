@@ -50,7 +50,7 @@ from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineInsertInstanceOperator,
 )
 from airflow.providers.ssh.operators.ssh import SSHOperator
-from airflow.providers.standard.core.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 

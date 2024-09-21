@@ -30,7 +30,7 @@ from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator
 from airflow.providers.google.cloud.transfers.sheets_to_gcs import GoogleSheetsToGCSOperator
 from airflow.providers.google.suite.operators.sheets import GoogleSheetsCreateSpreadsheetOperator
 from airflow.providers.google.suite.transfers.gcs_to_sheets import GCSToGoogleSheetsOperator
-from airflow.providers.standard.core.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.settings import Session
 from airflow.utils.trigger_rule import TriggerRule
 

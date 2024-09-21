@@ -46,7 +46,7 @@ from airflow.utils.types import DagRunType
 from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS, BashOperator
 from tests.test_utils.mock_operators import MockOperator
 
-BASH_OPERATOR_PATH = "airflow.providers.standard.core.operators.bash"
+BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
 if not AIRFLOW_V_2_10_PLUS:
     BASH_OPERATOR_PATH = "airflow.operators.bash"
 

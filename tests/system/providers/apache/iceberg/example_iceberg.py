@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.providers.apache.iceberg.hooks.iceberg import IcebergHook
-from airflow.providers.standard.core.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 
 bash_command = f"""
 echo "Our token: {IcebergHook().get_token_macro()}"

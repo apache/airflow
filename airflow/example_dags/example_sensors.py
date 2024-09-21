@@ -22,11 +22,11 @@ import datetime
 import pendulum
 
 from airflow.models.dag import DAG
-from airflow.providers.standard.core.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.sensors.bash import BashSensor
 from airflow.providers.standard.sensors.time import TimeSensor, TimeSensorAsync
 from airflow.providers.standard.sensors.time_delta import TimeDeltaSensor, TimeDeltaSensorAsync
 from airflow.providers.standard.sensors.weekday import DayOfWeekSensor
-from airflow.providers.standard.core.sensors.bash import BashSensor
 from airflow.sensors.filesystem import FileSensor
 from airflow.sensors.python import PythonSensor
 from airflow.utils.trigger_rule import TriggerRule

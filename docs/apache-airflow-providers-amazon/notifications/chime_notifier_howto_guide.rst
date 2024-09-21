@@ -31,7 +31,7 @@ Example Code:
 
     from datetime import datetime
     from airflow import DAG
-    from airflow.providers.standard.core.operators.bash import BashOperator
+    from airflow.providers.standard.operators.bash import BashOperator
     from airflow.providers.amazon.aws.notifications.chime import send_chime_notification
 
     with DAG(

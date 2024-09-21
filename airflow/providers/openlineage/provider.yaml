@@ -84,7 +84,7 @@ config:
           Exclude some Operators from emitting OpenLineage events by passing a string of semicolon separated
           full import paths of Operators to disable.
         type: string
-        example: "airflow.providers.standard.core.operators.bash.BashOperator;
+        example: "airflow.providers.standard.operators.bash.BashOperator;
           airflow.operators.python.PythonOperator"
         default: ""
         version_added: 1.1.0

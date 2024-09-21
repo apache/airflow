@@ -31,7 +31,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryGetDatasetOperator,
     BigQueryUpdateDatasetOperator,
 )
-from airflow.providers.standard.core.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")

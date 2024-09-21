@@ -36,7 +36,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 
 try:
-    from airflow.providers.standard.core.operators.bash import BashOperator
+    from airflow.providers.standard.operators.bash import BashOperator
 except ImportError:
     from airflow.operators.bash import BashOperator  # type: ignore[no-redef,attr-defined]
 

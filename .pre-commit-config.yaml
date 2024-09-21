@@ -729,7 +729,7 @@ repos:
         files: >
           (?x)
           ^airflow/providers/.*\.py$
-        exclude: ^.*/.*_vendor/|airflow/providers/standard/core/operators/bash.py
+        exclude: ^.*/.*_vendor/|airflow/providers/standard/operators/bash.py
       - id: check-get-lineage-collector-providers
         language: python
         name: Check providers import hook lineage code from compat

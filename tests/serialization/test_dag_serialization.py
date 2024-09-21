@@ -62,8 +62,8 @@ from airflow.models.param import Param, ParamsDict
 from airflow.models.xcom import XCom
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-from airflow.providers.standard.core.operators.bash import BashOperator
-from airflow.providers.standard.core.sensors.bash import BashSensor
+from airflow.providers.standard.operators.bash import BashOperator
+from airflow.providers.standard.sensors.bash import BashSensor
 from airflow.security import permissions
 from airflow.serialization.enums import Encoding
 from airflow.serialization.json_schema import load_dag_schema_dict
@@ -154,7 +154,7 @@ serialized_simple_dag_ground_truth = {
                     "template_fields_renderers": {"bash_command": "bash", "env": "json"},
                     "bash_command": "echo {{ task.task_id }}",
                     "_task_type": "BashOperator",
-                    "_task_module": "airflow.providers.standard.core.operators.bash",
+                    "_task_module": "airflow.providers.standard.operators.bash",
                     "pool": "default_pool",
                     "is_setup": False,
                     "is_teardown": False,
@@ -2284,7 +2284,7 @@ def test_operator_expand_serde():
         "_is_empty": False,
         "_is_mapped": True,
         "_needs_expansion": True,
-        "_task_module": "airflow.providers.standard.core.operators.bash",
+        "_task_module": "airflow.providers.standard.operators.bash",
         "_task_type": "BashOperator",
         "start_trigger_args": None,
         "start_from_trigger": False,

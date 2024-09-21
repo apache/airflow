@@ -48,7 +48,7 @@ from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS, Bas
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType
 
-BASH_OPERATOR_PATH = "airflow.providers.standard.core.operators.bash"
+BASH_OPERATOR_PATH = "airflow.providers.standard.operators.bash"
 if not AIRFLOW_V_2_10_PLUS:
     BASH_OPERATOR_PATH = "airflow.operators.bash"
 

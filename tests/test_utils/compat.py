@@ -18,9 +18,7 @@ from __future__ import annotations
 
 import contextlib
 import json
-import os
-from importlib.metadata import version
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 
 from packaging.version import Version
 
@@ -53,9 +51,9 @@ except ImportError:
     from airflow.models.baseoperator import BaseOperatorLink
 
 try:
-    from airflow.providers.standard.core.operators.bash import BashOperator
-    from airflow.providers.standard.core.sensors.bash import BashSensor
-    from airflow.providers.standard.time.sensors.date_time import DateTimeSensor
+    from airflow.providers.standard.operators.bash import BashOperator
+    from airflow.providers.standard.sensors.bash import BashSensor
+    from airflow.providers.standard.sensors.date_time import DateTimeSensor
 except ImportError:
     # Compatibility for Airflow < 2.10.*
     from airflow.operators.bash import BashOperator  # type: ignore[no-redef,attr-defined]

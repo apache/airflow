@@ -22,7 +22,7 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.opsgenie.notifications.opsgenie import send_opsgenie_notification
-from airflow.providers.standard.core.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 
 with DAG(
     "opsgenie_notifier",

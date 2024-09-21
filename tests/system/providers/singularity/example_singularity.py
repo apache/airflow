@@ -22,7 +22,7 @@ from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.providers.singularity.operators.singularity import SingularityOperator
-from airflow.providers.standard.core.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "singularity_sample"

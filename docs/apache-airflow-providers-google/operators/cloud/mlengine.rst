@@ -96,7 +96,7 @@ instead.
 You can use :ref:`Jinja templating <concepts:jinja-templating>` with the ``project_id`` and ``model``
 fields to dynamically determine their values. The result are saved to :ref:`XCom <concepts:xcom>`,
 allowing them to be used by other operators. In this case, the
-:class:`~airflow.providers.standard.core.operators.bash.BashOperator` is used to print the model information.
+:class:`~airflow.providers.standard.operators.bash.BashOperator` is used to print the model information.
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/ml_engine/example_mlengine.py
     :language: python

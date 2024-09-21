@@ -38,7 +38,7 @@ from airflow.models.taskmap import TaskMap
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import ShortCircuitOperator
-from airflow.providers.standard.core.operators.bash import BashOperator
+from airflow.providers.standard.operators.bash import BashOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.triggers.base import StartTriggerArgs

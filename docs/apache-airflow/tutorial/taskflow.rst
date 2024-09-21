@@ -437,7 +437,7 @@ the parameter value is used.
 Adding dependencies between decorated and traditional tasks
 -----------------------------------------------------------
 The above tutorial shows how to create dependencies between TaskFlow functions. However, dependencies can also
-be set between traditional tasks (such as :class:`~airflow.providers.standard.core.operators.bash.BashOperator`
+be set between traditional tasks (such as :class:`~airflow.providers.standard.operators.bash.BashOperator`
 or :class:`~airflow.sensors.filesystem.FileSensor`) and TaskFlow functions.
 
 Building this dependency is shown in the code below:

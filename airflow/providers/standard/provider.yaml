@@ -42,7 +42,7 @@ operators:
     python-modules:
       - airflow.providers.standard.operators.datetime
       - airflow.providers.standard.operators.weekday
-      - airflow.providers.standard.core.operators.bash
+      - airflow.providers.standard.operators.bash
 
 sensors:
   - integration-name: Standard
@@ -51,4 +51,4 @@ sensors:
       - airflow.providers.standard.sensors.time_delta
       - airflow.providers.standard.sensors.time
       - airflow.providers.standard.sensors.weekday
-      - airflow.providers.standard.core.sensors.bash
+      - airflow.providers.standard.sensors.bash
