@@ -25,6 +25,7 @@ state: ready
 source-date-epoch: 1722663036
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 9.0.0
   - 8.3.4
   - 8.3.3
   - 8.3.2
