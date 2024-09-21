@@ -546,6 +546,14 @@ repos:
         description: The core example DAGs have no dependencies other than core Airflow
         entry: "^\\s*from airflow\\.providers.*"
         pass_filenames: true
+        exclude: >
+          (?x)
+          ^airflow/example_dags/example_branch_datetime_operator.py|
+          ^airflow/example_dags/example_branch_day_of_week_operator.py|
+          ^airflow/example_dags/example_sensors.py|
+          ^airflow/example_dags/example_sensors.py|
+          ^airflow/example_dags/example_sensors.py|
+          ^airflow/example_dags/example_time_delta_sensor_async.py
         files: ^airflow/example_dags/.*\.py$
       - id: check-no-airflow-deprecation-in-providers
         language: pygrep
@@ -1342,5 +1350,5 @@ repos:
         entry: ./scripts/ci/pre_commit/generate_er_diagram.py
         pass_filenames: false
         files: ^airflow/models/.*\.py$
-        additional_dependencies: ['rich>=12.4.4']       
+        additional_dependencies: ['rich>=12.4.4', 'paracelsus>=0.7.0']       
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE
