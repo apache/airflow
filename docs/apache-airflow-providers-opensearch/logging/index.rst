@@ -20,6 +20,9 @@
 Writing logs to Opensearch
 -----------------------------
 
+*Added in provider version 1.5.0*
+Available only with Airflow>=3.0
+
 Airflow can be configured to read task logs from Opensearch and optionally write logs to stdout in standard or json format. These logs can later be collected and forwarded to the cluster using tools like fluentd, logstash or others.
 
 You can choose to have all task logs from workers output to the highest parent level process, instead of the standard file locations. This allows for some additional flexibility in container environments like Kubernetes, where container stdout is already being logged to the host nodes. From there a log shipping tool can be used to forward them along to Opensearch. To use this feature, set the ``write_stdout`` option in ``airflow.cfg``.
