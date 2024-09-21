@@ -23,9 +23,10 @@ description: |
   `Simple Mail Transfer Protocol (SMTP) <https://tools.ietf.org/html/rfc5321>`__
 
 state: ready
-source-date-epoch: 1716289086
+source-date-epoch: 1723970570
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.8.0
   - 1.7.1
   - 1.7.0
   - 1.6.1

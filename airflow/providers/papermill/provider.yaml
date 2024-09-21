@@ -21,15 +21,12 @@ name: Papermill
 description: |
     `Papermill <https://github.com/nteract/papermill>`__
 
-# Papermill is technically compliant with 3.12, but it's 2.5.0 version that is compliant, requires pinned
-# version of aiohttp which conflicts with other providers. The fix for that is implemented extra-links:
-# https://github.com/nteract/papermill/pull/771 and waits for new Papermill release
-excluded-python-versions: ['3.12']
-
 state: ready
-source-date-epoch: 1718605283
+source-date-epoch: 1726861106
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 3.8.1
+  - 3.8.0
   - 3.7.2
   - 3.7.1
   - 3.7.0
@@ -56,12 +53,11 @@ versions:
 
 dependencies:
   - apache-airflow>=2.8.0
-  - papermill[all]>=2.4.0
+  - papermill[all]>=2.6.0
   - scrapbook[all]
   - ipykernel
   - pandas>=2.1.2,<2.2;python_version>="3.9"
   - pandas>=1.5.3,<2.2;python_version<"3.9"
-
 
 integrations:
   - integration-name: Papermill

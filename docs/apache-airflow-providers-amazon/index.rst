@@ -86,7 +86,7 @@ apache-airflow-providers-amazon package
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 
-Release: 8.27.0
+Release: 8.29.0
 
 Provider package
 ----------------
@@ -104,27 +104,27 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
-==========================================  ==================
+==========================================  ======================
 PIP package                                 Version required
-==========================================  ==================
-``apache-airflow``                          ``>=2.7.0``
+==========================================  ======================
+``apache-airflow``                          ``>=2.8.0``
 ``apache-airflow-providers-common-compat``  ``>=1.1.0``
 ``apache-airflow-providers-common-sql``     ``>=1.3.1``
 ``apache-airflow-providers-http``
-``apache-airflow-providers-common-compat``  ``>=1.1.0``
 ``boto3``                                   ``>=1.34.90``
 ``botocore``                                ``>=1.34.90``
 ``inflection``                              ``>=0.5.1``
-``watchtower``                              ``>=3.0.0,<4``
+``watchtower``                              ``>=3.0.0,!=3.3.0,<4``
 ``jsonpath_ng``                             ``>=1.5.3``
 ``redshift_connector``                      ``>=2.0.918``
 ``sqlalchemy_redshift``                     ``>=0.8.6``
 ``asgiref``                                 ``>=2.3.0``
 ``PyAthena``                                ``>=3.0.10``
 ``jmespath``                                ``>=0.7.0``
-==========================================  ==================
+``python3-saml``                            ``>=1.16.0``
+==========================================  ======================
 
 Cross provider package dependencies
 -----------------------------------
@@ -164,5 +164,5 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-amazon 8.27.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.27.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.27.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.27.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-amazon 8.27.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.27.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.27.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.27.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-amazon 8.29.0 sdist package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.29.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.29.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.29.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-amazon 8.29.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.29.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.29.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-8.29.0-py3-none-any.whl.sha512>`__)

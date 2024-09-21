@@ -63,7 +63,7 @@ on:  # yamllint disable-line rule:truthy
         required: true
         type: string
       debian-version:
-        description: "Base Debian distribution to use for the build (bookworm/bullseye)"
+        description: "Base Debian distribution to use for the build (bookworm)"
         type: string
         default: "bookworm"
       install-mysql-client-type:

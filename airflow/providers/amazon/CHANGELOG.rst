@@ -26,19 +26,76 @@
 Changelog
 ---------
 
-Main
+8.29.0
 ......
 
-.. warning:: When deferrable mode was introduced for ``RedshiftDataOperator``, in version 8.17.0, tasks configured with
-  ``deferrable=True`` and ``wait_for_completion=True`` wouldn't enter the deferred state. Instead, the task would occupy
-  an executor slot until the statement was completed. A workaround may have been to set ``wait_for_completion=False``.
-  In this version, tasks set up with ``wait_for_completion=False`` will not wait anymore, regardless of the value of
-  ``deferrable``.
+Features
+~~~~~~~~
+
+* ``Adding support for volume configurations in ECSRunTaskOperator (#42087)``
+* ``Openlineage s3 to redshift operator integration (#41575)``
 
 Bug Fixes
 ~~~~~~~~~
 
-* ``Fix deferred mode for 'RedshiftDataOperator' (#41206)``
+* ``ECSExecutor: Drop params that aren't compatible with EC2 (#42228)``
+* ``Fix 'GlueDataBrewStartJobOperator' template fields (#42073)``
+* ``validate aws service exceptions in waiters (#41941)``
+* ``Fix treatment of "#" in S3Hook.parse_s3_url() (#41796)``
+* ``fix: remove part of openlineage extraction from S3ToRedshiftOperator (#41631)``
+* ``filename template arg in providers file task handlers backward compitability support (#41633)``
+* ``fix: select_query should have precedence over default query in RedshiftToS3Operator (#41634)``
+
+Misc
+~~~~
+
+* ``Actually move saml to amazon provider (mistakenly added in papermill) (#42148)``
+* ``Use base aws classes in AWS Glue DataBrew Operators/Triggers (#41848)``
+* ``Move 'register_views' to auth manager interface (#41777)``
+* ``airflow.models.taskinstance deprecations removed (#41784)``
+* ``remove deprecated soft_fail from providers (#41710)``
+* ``remove deprecated soft_fail from providers part2 (#41727)``
+* ``Limit watchtower as depenendcy as 3.3.0 breaks moin. (#41612)``
+* ``Remove deprecated log handler argument filename_template (#41552)``
+
+8.28.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+.. warning:: When deferrable mode was introduced for ``RedshiftDataOperator``, in version 8.17.0, tasks configured with
+  ``deferrable=True`` and ``wait_for_completion=True`` would not enter the deferred state. Instead, the task would occupy
+  an executor slot until the statement was completed. A workaround may have been to set ``wait_for_completion=False``.
+  In this version, tasks set up with ``wait_for_completion=False`` will not wait anymore, regardless of the value of
+  ``deferrable``.
+
+Features
+~~~~~~~~
+
+* ``Add incremental export and cross account export functionality in 'DynamoDBToS3Operator' (#41304)``
+* ``EKS Overrides for AWS Batch submit_job (#40718)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'AwsTaskLogFetcher' missing logs (#41515)``
+* ``Fix the Exception name and unpin dependency in 'RdsHook' (#41256)``
+* ``Fix RedshiftDataOperator not running in deferred mode as expected (#41206)``
+
+Misc
+~~~~
+
+* ``Partial fix for example_dynamodb_to_s3.py (#41517)``
+* ``Remove deprecated code is AWS provider (#41407)``
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+* ``Limit moto temporarily - 5.0.12 is breaking our tests (#41244)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``typo (#41381)``
 
 8.27.0
 ......

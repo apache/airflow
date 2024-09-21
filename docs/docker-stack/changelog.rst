@@ -34,6 +34,10 @@ the Airflow team.
        any Airflow version from the ``Airflow 2`` line. There is no guarantee that it will work, but if it does,
        then you can use latest features from that image to build images for previous Airflow versions.
 
+Airflow 2.10
+~~~~~~~~~~~~
+  * The image does not support Debian-Bullseye(11) anymore. The image is based on Debian-Bookworm (12).
+
 Airflow 2.9
 ~~~~~~~~~~~
 

@@ -27,6 +27,52 @@
 Changelog
 ---------
 
+10.5.0
+......
+
+Features
+~~~~~~~~
+
+* ``Allow custom api versions in MSGraphAsyncOperator (#41331)``
+* `` Add callback to process Azure Service Bus message contents (#41601)``
+
+Misc
+~~~~
+
+* ``remove deprecated soft_fail from providers (#41710)``
+* ``Remove deprecated log handler argument filename_template (#41552)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+10.4.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Microsoft Power BI operator to refresh the dataset (#40356)``
+* ``Export Azure Container Instance log messages to XCOM (#41142)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mypy checks for new azure libraries (#41386)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 10.3.0
 ......
 

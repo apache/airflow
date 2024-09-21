@@ -46,7 +46,6 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         (
             "Integration",
             [
-                "tests/integration/api_experimental",
                 "tests/integration/cli",
                 "tests/integration/executors",
                 "tests/integration/security",
@@ -55,7 +54,7 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         ),
         (
             "API",
-            ["tests/api", "tests/api_experimental", "tests/api_connexion", "tests/api_internal"],
+            ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_fastapi"],
             False,
         ),
         (
@@ -189,7 +188,6 @@ def test_pytest_args_for_regular_test_types(
         convert_test_type_to_pytest_args(
             test_type=test_type,
             skip_provider_tests=skip_provider_tests,
-            python_version=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         )
         == pytest_args
     )
@@ -200,7 +198,6 @@ def test_pytest_args_for_missing_provider():
         convert_test_type_to_pytest_args(
             test_type="Providers[missing.provider]",
             skip_provider_tests=False,
-            python_version=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         )
 
 
@@ -227,7 +224,6 @@ def test_pytest_args_for_helm_test_types(helm_test_package: str, pytest_args: li
             test_type="Helm",
             skip_provider_tests=False,
             helm_test_package=helm_test_package,
-            python_version=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         )
         == pytest_args
     )
@@ -238,7 +234,7 @@ def test_pytest_args_for_helm_test_types(helm_test_package: str, pytest_args: li
     [
         (
             "API",
-            ["tests/api", "tests/api_experimental", "tests/api_connexion", "tests/api_internal"],
+            ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_fastapi"],
             False,
         ),
         (
@@ -252,9 +248,9 @@ def test_pytest_args_for_helm_test_types(helm_test_package: str, pytest_args: li
             "API CLI",
             [
                 "tests/api",
-                "tests/api_experimental",
                 "tests/api_connexion",
                 "tests/api_internal",
+                "tests/api_fastapi",
                 "tests/cli",
             ],
             False,

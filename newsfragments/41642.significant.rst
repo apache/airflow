@@ -1,0 +1,3 @@
+Removed deprecated secrets backend methods ``get_conn_uri`` and ``get_connections``.
+
+Please use ``get_conn_value`` and ``get_connection`` instead.

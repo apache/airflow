@@ -20,8 +20,16 @@ from __future__ import annotations
 
 import ast
 import sys
+from datetime import date
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
+
+from dateutil.relativedelta import relativedelta
+from rich.console import Console
+
+console = Console(color_system="standard", width=200)
+
 
 allowed_warnings: dict[str, tuple[str, ...]] = {
     "airflow": (
@@ -38,8 +46,48 @@ compatible_decorators: frozenset[tuple[str, ...]] = frozenset(
         # `Deprecated` package decorators
         ("deprecated", "deprecated"),
         ("deprecated", "classic", "deprecated"),
+        # Experimental Google Provider's decorator with structured deprecation details
+        ("airflow", "providers", "google", "common", "deprecated", "deprecated"),
     ]
 )
+end_of_life_deprecation_warnings: dict[str, tuple[str, ...]] = {
+    "airflow/providers/google/": ("AirflowProviderDeprecationWarning",),
+}
+
+
+def is_file_under_eol_deprecation(file_path: str, warning_class: str) -> bool:
+    for prefix, warnings in end_of_life_deprecation_warnings.items():
+        if file_path.startswith(prefix):
+            return bool(warning_class in warnings)
+    return False
+
+
+def validate_end_of_life_deprecation_warnings(file_path: str, decorator: Any, warning_class: str) -> int:
+    _errors = 0
+    if not is_file_under_eol_deprecation(file_path=file_path, warning_class=warning_class):
+        return 0
+
+    if not get_decorator_argument(decorator, "planned_removal_date"):
+        expected_date = date.today() + relativedelta(months=6)
+        if expected_date.day > 1:
+            _date = date.today() + relativedelta(months=7)
+            expected_date = date(day=1, month=_date.month, year=_date.year)
+        expected_date_str: str = expected_date.strftime("%B %d, %Y")
+
+        _errors += 1
+        console.print(
+            f"{file_path}:{decorator.lineno}: "
+            "The 'planned_removal_date' parameter is missing in the `@deprecated(...)` call.\n"
+            "Please provide the date in the format 'Month DD, YYYY' "
+            "after which the deprecated object should be removed.\n"
+            "The recommended date is at least six months ahead: "
+            f"'planned_removal_date=\"{expected_date_str}\"'"
+        )
+    return _errors
+
+
+def get_decorator_argument(decorator: ast.Call, argument_name: str) -> ast.keyword | None:
+    return next(filter(lambda k: k and k.arg == argument_name, decorator.keywords), None)  # type: ignore[arg-type]
 
 
 @lru_cache(maxsize=None)
@@ -137,9 +185,7 @@ def check_decorators(mod: ast.Module, file: str, file_group: str) -> int:
                 continue
 
             expected_types, warns_types = allowed_group_warnings(file_group)
-            category_keyword: ast.keyword | None = next(
-                filter(lambda k: k and k.arg == "category", decorator.keywords), None
-            )
+            category_keyword = get_decorator_argument(decorator, "category")
             if category_keyword is None:
                 errors += 1
                 print(
@@ -160,6 +206,9 @@ def check_decorators(mod: ast.Module, file: str, file_group: str) -> int:
                         f"{file}:{category_keyword.lineno}: "
                         f"category={category_value}, but {expected_types}"
                     )
+                errors += validate_end_of_life_deprecation_warnings(
+                    file_path=file, decorator=decorator, warning_class=category_value
+                )
             elif isinstance(category_value_ast, ast.Constant):
                 errors += 1
                 print(

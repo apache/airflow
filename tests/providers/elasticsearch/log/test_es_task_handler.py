@@ -655,6 +655,17 @@ class TestElasticsearchTaskHandler:
             mock_callable.assert_called_once_with({})
             assert result == "callable_index_pattern"
 
+    def test_filename_template_for_backward_compatibility(self):
+        # filename_template arg support for running the latest provider on airflow 2
+        ElasticsearchTaskHandler(
+            base_log_folder="local/log/location",
+            end_of_log_mark="end_of_log\n",
+            write_stdout=False,
+            json_format=False,
+            json_fields="asctime,filename,lineno,levelname,message,exc_text",
+            filename_template=None,
+        )
+
 
 def test_safe_attrgetter():
     class A: ...

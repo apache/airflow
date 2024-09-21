@@ -108,43 +108,32 @@ def test_paths(test_type: str, backend: str, helm_test_package: str | None) -> t
     return result_log_file, warnings_file, coverage_file
 
 
-def get_suspended_provider_args() -> list[str]:
-    pytest_args = []
-    suspended_folders = get_suspended_provider_folders()
-    for providers in suspended_folders:
-        pytest_args.extend(
+def get_ignore_switches_for_provider(provider_folders: list[str]) -> list[str]:
+    args = []
+    for providers in provider_folders:
+        args.extend(
             [
-                "--ignore",
-                f"tests/providers/{providers}",
-                "--ignore",
-                f"tests/system/providers/{providers}",
-                "--ignore",
-                f"tests/integration/providers/{providers}",
+                f"--ignore=tests/providers/{providers}",
+                f"--ignore=tests/system/providers/{providers}",
+                f"--ignore=tests/integration/providers/{providers}",
             ]
         )
-    return pytest_args
+    return args
+
+
+def get_suspended_provider_args() -> list[str]:
+    suspended_folders = get_suspended_provider_folders()
+    return get_ignore_switches_for_provider(suspended_folders)
 
 
 def get_excluded_provider_args(python_version: str) -> list[str]:
-    pytest_args = []
     excluded_folders = get_excluded_provider_folders(python_version)
-    for providers in excluded_folders:
-        pytest_args.extend(
-            [
-                "--ignore",
-                f"tests/providers/{providers}",
-                "--ignore",
-                f"tests/system/providers/{providers}",
-                "--ignore",
-                f"tests/integration/providers/{providers}",
-            ]
-        )
-    return pytest_args
+    return get_ignore_switches_for_provider(excluded_folders)
 
 
 TEST_TYPE_MAP_TO_PYTEST_ARGS: dict[str, list[str]] = {
     "Always": ["tests/always"],
-    "API": ["tests/api", "tests/api_experimental", "tests/api_connexion", "tests/api_internal"],
+    "API": ["tests/api", "tests/api_connexion", "tests/api_internal", "tests/api_fastapi"],
     "BranchPythonVenv": [
         "tests/operators/test_python.py::TestBranchPythonVirtualenvOperator",
     ],
@@ -235,7 +224,6 @@ def convert_test_type_to_pytest_args(
     *,
     test_type: str,
     skip_provider_tests: bool,
-    python_version: str,
     helm_test_package: str | None = None,
 ) -> list[str]:
     if test_type == "None":
@@ -252,7 +240,6 @@ def convert_test_type_to_pytest_args(
     if test_type == "Integration":
         if skip_provider_tests:
             return [
-                "tests/integration/api_experimental",
                 "tests/integration/cli",
                 "tests/integration/executors",
                 "tests/integration/security",
@@ -289,7 +276,7 @@ def convert_test_type_to_pytest_args(
         return find_all_other_tests()
     test_dirs = TEST_TYPE_MAP_TO_PYTEST_ARGS.get(test_type)
     if test_dirs:
-        return test_dirs
+        return test_dirs.copy()
     get_console().print(f"[error]Unknown test type: {test_type}[/]")
     sys.exit(1)
 
@@ -325,7 +312,6 @@ def generate_args_for_pytest(
             test_type=test_type,
             skip_provider_tests=skip_provider_tests,
             helm_test_package=helm_test_package,
-            python_version=python_version,
         )
     args.extend(
         [
@@ -336,8 +322,7 @@ def generate_args_for_pytest(
             "--color=yes",
             f"--junitxml={result_log_file}",
             # timeouts in seconds for individual tests
-            "--timeouts-order",
-            "moi",
+            "--timeouts-order=moi",
             f"--setup-timeout={test_timeout}",
             f"--execution-timeout={test_timeout}",
             f"--teardown-timeout={test_timeout}",
@@ -414,7 +399,6 @@ def convert_parallel_types_to_folders(
                 test_type=_test_type,
                 skip_provider_tests=skip_provider_tests,
                 helm_test_package=None,
-                python_version=python_version,
             )
         )
     # leave only folders, strip --pytest-args that exclude some folders with `-' prefix

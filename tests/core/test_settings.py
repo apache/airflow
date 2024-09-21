@@ -115,21 +115,42 @@ class TestLocalSettings:
         for mod in [m for m in sys.modules if m not in self.old_modules]:
             del sys.modules[mod]
 
+    @mock.patch("airflow.settings.prepare_syspath_for_config_and_plugins")
     @mock.patch("airflow.settings.import_local_settings")
-    @mock.patch("airflow.settings.prepare_syspath")
-    def test_initialize_order(self, prepare_syspath, import_local_settings):
+    @mock.patch("airflow.settings.prepare_syspath_for_dags_folder")
+    def test_initialize_order(
+        self,
+        mock_prepare_syspath_for_dags_folder,
+        mock_import_local_settings,
+        mock_prepare_syspath_for_config_and_plugins,
+    ):
         """
-        Tests that import_local_settings is called after prepare_classpath
+        Tests that import_local_settings is called between prepare_syspath_for_config_and_plugins
+        and prepare_syspath_for_dags_folder
         """
         mock_local_settings = mock.Mock()
-        mock_local_settings.attach_mock(prepare_syspath, "prepare_syspath")
-        mock_local_settings.attach_mock(import_local_settings, "import_local_settings")
+
+        mock_local_settings.attach_mock(
+            mock_prepare_syspath_for_config_and_plugins, "prepare_syspath_for_config_and_plugins"
+        )
+        mock_local_settings.attach_mock(mock_import_local_settings, "import_local_settings")
+        mock_local_settings.attach_mock(
+            mock_prepare_syspath_for_dags_folder, "prepare_syspath_for_dags_folder"
+        )
 
         import airflow.settings
 
         airflow.settings.initialize()
 
-        mock_local_settings.assert_has_calls([call.prepare_syspath(), call.import_local_settings()])
+        expected_calls = [
+            call.prepare_syspath_for_config_and_plugins(),
+            call.import_local_settings(),
+            call.prepare_syspath_for_dags_folder(),
+        ]
+
+        mock_local_settings.assert_has_calls(expected_calls)
+
+        assert mock_local_settings.mock_calls == expected_calls
 
     def test_import_with_dunder_all_not_specified(self):
         """
@@ -213,21 +234,15 @@ class TestLocalSettings:
 
 
 class TestUpdatedConfigNames:
-    @conf_vars(
-        {("webserver", "session_lifetime_days"): "5", ("webserver", "session_lifetime_minutes"): "43200"}
-    )
-    def test_updates_deprecated_session_timeout_config_val_when_new_config_val_is_default(self):
+    @conf_vars({("webserver", "session_lifetime_minutes"): "43200"})
+    def test_config_val_is_default(self):
         from airflow import settings
 
-        with pytest.warns(DeprecationWarning):
-            session_lifetime_config = settings.get_session_lifetime_config()
-            minutes_in_five_days = 5 * 24 * 60
-            assert session_lifetime_config == minutes_in_five_days
+        session_lifetime_config = settings.get_session_lifetime_config()
+        assert session_lifetime_config == 43200
 
-    @conf_vars(
-        {("webserver", "session_lifetime_days"): "5", ("webserver", "session_lifetime_minutes"): "43201"}
-    )
-    def test_uses_updated_session_timeout_config_when_val_is_not_default(self):
+    @conf_vars({("webserver", "session_lifetime_minutes"): "43201"})
+    def test_config_val_is_not_default(self):
         from airflow import settings
 
         session_lifetime_config = settings.get_session_lifetime_config()

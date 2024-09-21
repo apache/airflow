@@ -21,7 +21,7 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
     AzureDataFactoryPipelineRunException,
@@ -85,17 +85,11 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         )
 
         if pipeline_run_status == AzureDataFactoryPipelineRunStatus.FAILED:
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Pipeline run {self.run_id} has failed."
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AzureDataFactoryPipelineRunException(message)
 
         if pipeline_run_status == AzureDataFactoryPipelineRunStatus.CANCELLED:
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Pipeline run {self.run_id} has been cancelled."
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise AzureDataFactoryPipelineRunException(message)
 
         return pipeline_run_status == AzureDataFactoryPipelineRunStatus.SUCCEEDED
@@ -131,9 +125,6 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         """
         if event:
             if event["status"] == "error":
-                # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-                if self.soft_fail:
-                    raise AirflowSkipException(event["message"])
                 raise AirflowException(event["message"])
             self.log.info(event["message"])
         return None

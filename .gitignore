@@ -127,9 +127,6 @@ ENV/
 .idea/
 *.iml
 
-# Visual Studio Code
-.vscode/
-
 # vim
 *.swp
 
@@ -165,6 +162,15 @@ node_modules
 npm-debug.log*
 derby.log
 metastore_db
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.vscode/*
+!.vscode/extensions.json
+/.vite/
+.pnpm-store
+*.tsbuildinfo
 
 # Airflow log files when airflow is run locally
 airflow-*.err

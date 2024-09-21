@@ -60,10 +60,8 @@ const DatasetEventCard = ({
   const selectedUri = decodeURIComponent(searchParams.get("uri") || "");
   const containerRef = useContainerRef();
 
-  const { fromRestApi, ...extra } = datasetEvent?.extra as Record<
-    string,
-    string
-  >;
+  const { from_rest_api: fromRestApi, ...extra } =
+    datasetEvent?.extra as Record<string, string>;
 
   return (
     <Box>

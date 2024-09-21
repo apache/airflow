@@ -24,10 +24,11 @@ description: |
     `Qdrant <https://qdrant.tech/documentation>`__
 
 state: ready
-source-date-epoch: 1722665002
+source-date-epoch: 1723970532
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.2.0
   - 1.1.2
   - 1.1.1
   - 1.1.0

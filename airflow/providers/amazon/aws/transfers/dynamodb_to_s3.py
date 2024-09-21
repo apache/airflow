@@ -148,7 +148,7 @@ class DynamoDBToS3Operator(AwsToAwsBaseOperator):
         self.point_in_time_export = point_in_time_export
         self.export_time = export_time
         self.export_format = export_format
-        self.export_table_to_point_in_time_kwargs = export_table_to_point_in_time_kwargs
+        self.export_table_to_point_in_time_kwargs = export_table_to_point_in_time_kwargs or {}
         self.check_interval = check_interval
         self.max_attempts = max_attempts
 

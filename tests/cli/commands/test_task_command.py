@@ -51,8 +51,12 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.types import DagRunType
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools, clear_db_runs
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -97,12 +101,14 @@ class TestCliTasks:
         cls.dag = cls.dagbag.get_dag(cls.dag_id)
         cls.dagbag.sync_to_db()
         data_interval = cls.dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE)
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.CLI} if AIRFLOW_V_3_0_PLUS else {}
         cls.dag_run = cls.dag.create_dagrun(
             state=State.NONE,
             run_id=cls.run_id,
             run_type=DagRunType.MANUAL,
             execution_date=DEFAULT_DATE,
             data_interval=data_interval,
+            **triggered_by_kwargs,
         )
 
     @classmethod
@@ -114,9 +120,6 @@ class TestCliTasks:
         for dag_id in self.dagbag.dags:
             args = self.parser.parse_args(["tasks", "list", dag_id])
             task_command.task_list(args)
-
-        args = self.parser.parse_args(["tasks", "list", "example_bash_operator", "--tree"])
-        task_command.task_list(args)
 
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
     def test_test(self):
@@ -197,6 +200,7 @@ class TestCliTasks:
 
         execution_date = pendulum.now("UTC")
         data_interval = dag.timetable.infer_manual_data_interval(run_after=execution_date)
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag.create_dagrun(
             state=State.NONE,
             run_id="abc123",
@@ -204,6 +208,7 @@ class TestCliTasks:
             execution_date=execution_date,
             data_interval=data_interval,
             session=session,
+            **triggered_by_kwargs,
         )
         session.commit()
 
@@ -395,8 +400,10 @@ class TestCliTasks:
     @mock.patch("airflow.triggers.file.glob", return_value=["/tmp/test"])
     @mock.patch("airflow.triggers.file.os.path.isfile", return_value=True)
     @mock.patch("airflow.sensors.filesystem.FileSensor.poke", return_value=False)
-    def test_cli_test_with_deferrable_operator(self, mock_pock, mock_is_file, mock_glob, mock_getmtime):
-        with redirect_stdout(StringIO()) as stdout:
+    def test_cli_test_with_deferrable_operator(
+        self, mock_pock, mock_is_file, mock_glob, mock_getmtime, caplog
+    ):
+        with caplog.at_level(level=logging.INFO):
             task_command.task_test(
                 self.parser.parse_args(
                     [
@@ -408,14 +415,13 @@ class TestCliTasks:
                     ]
                 )
             )
-        output = stdout.getvalue()
+            output = caplog.text
         assert "wait_for_file_async completed successfully as /tmp/temporary_file_for_testing found" in output
 
     @pytest.mark.parametrize(
         "option",
         [
             "--ignore-all-dependencies",
-            "--ignore-depends-on-past",
             "--ignore-dependencies",
             "--force",
         ],
@@ -637,12 +643,14 @@ class TestCliTasks:
         default_date2 = timezone.datetime(2016, 1, 9)
         dag2.clear()
         data_interval = dag2.timetable.infer_manual_data_interval(run_after=default_date2)
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.CLI} if AIRFLOW_V_3_0_PLUS else {}
         dagrun = dag2.create_dagrun(
             state=State.RUNNING,
             execution_date=default_date2,
             data_interval=data_interval,
             run_type=DagRunType.MANUAL,
             external_trigger=True,
+            **triggered_by_kwargs,
         )
         ti2 = TaskInstance(task2, run_id=dagrun.run_id)
         ti2.set_state(State.SUCCESS)
@@ -716,6 +724,7 @@ class TestLogsfromTaskRunCommand:
 
         dag = DagBag().get_dag(self.dag_id)
         data_interval = dag.timetable.infer_manual_data_interval(run_after=self.execution_date)
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         self.dr = dag.create_dagrun(
             run_id=self.run_id,
             execution_date=self.execution_date,
@@ -723,6 +732,7 @@ class TestLogsfromTaskRunCommand:
             start_date=timezone.utcnow(),
             state=State.RUNNING,
             run_type=DagRunType.MANUAL,
+            **triggered_by_kwargs,
         )
         self.tis = self.dr.get_task_instances()
         assert len(self.tis) == 1
@@ -1021,6 +1031,7 @@ def test_context_with_run():
 
     dag = DagBag().get_dag(dag_id)
     data_interval = dag.timetable.infer_manual_data_interval(run_after=execution_date)
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dag.create_dagrun(
         run_id=run_id,
         execution_date=execution_date,
@@ -1028,6 +1039,7 @@ def test_context_with_run():
         start_date=timezone.utcnow(),
         state=State.RUNNING,
         run_type=DagRunType.MANUAL,
+        **triggered_by_kwargs,
     )
     with conf_vars({("core", "dags_folder"): dag_path}):
         task_command.task_run(parser.parse_args(task_args))

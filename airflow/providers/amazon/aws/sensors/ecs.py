@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-def _check_failed(current_state, target_state, failure_states, soft_fail: bool) -> None:
+def _check_failed(current_state, target_state, failure_states) -> None:
     if (current_state != target_state) and (current_state in failure_states):
         raise AirflowException(
             f"Terminal state reached. Current state: {current_state}, Expected state: {target_state}"
@@ -86,7 +86,7 @@ class EcsClusterStateSensor(EcsBaseSensor):
         cluster_state = EcsClusterStates(self.hook.get_cluster_state(cluster_name=self.cluster_name))
 
         self.log.info("Cluster state: %s, waiting for: %s", cluster_state, self.target_state)
-        _check_failed(cluster_state, self.target_state, self.failure_states, self.soft_fail)
+        _check_failed(cluster_state, self.target_state, self.failure_states)
 
         return cluster_state == self.target_state
 
@@ -132,7 +132,7 @@ class EcsTaskDefinitionStateSensor(EcsBaseSensor):
         )
 
         self.log.info("Task Definition state: %s, waiting for: %s", task_definition_state, self.target_state)
-        _check_failed(task_definition_state, self.target_state, [self.failure_states], self.soft_fail)
+        _check_failed(task_definition_state, self.target_state, [self.failure_states])
         return task_definition_state == self.target_state
 
 
@@ -172,5 +172,5 @@ class EcsTaskStateSensor(EcsBaseSensor):
         task_state = EcsTaskStates(self.hook.get_task_state(cluster=self.cluster, task=self.task))
 
         self.log.info("Task state: %s, waiting for: %s", task_state, self.target_state)
-        _check_failed(task_state, self.target_state, self.failure_states, self.soft_fail)
+        _check_failed(task_state, self.target_state, self.failure_states)
         return task_state == self.target_state

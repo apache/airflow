@@ -35,14 +35,39 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.11.0
+......
+
+Latest change: 2024-09-17
+
+=================================================================================================  ===========  =========================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =========================================================================================
+`1f10532163 <https://github.com/apache/airflow/commit/1f1053216323db326746745d3e4d50cc46681436>`_  2024-09-17   ``Add kerberos related connection fields(principal, keytab) on SparkSubmitHook (#40757)``
+=================================================================================================  ===========  =========================================================================================
+
+4.10.0
+......
+
+Latest change: 2024-08-19
+
+=================================================================================================  ===========  ==============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================
+`75fb7acbac <https://github.com/apache/airflow/commit/75fb7acbaca09a040067f0a5a37637ff44eb9e14>`_  2024-08-19   ``Prepare docs for Aug 2nd wave of providers (#41559)``
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+`7f5b8a57df <https://github.com/apache/airflow/commit/7f5b8a57df2c6ec90da8dae0f3ef998a85eca2ca>`_  2024-08-09   ``Resolve 'AirflowProviderDeprecationWarning' in 'SparkSqlOperator' (#41358)``
+=================================================================================================  ===========  ==============================================================================
+
 4.9.0
 .....
 
-Latest change: 2024-07-14
+Latest change: 2024-07-21
 
 =================================================================================================  ===========  ========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ========================================================================
+`0b0f8f0fc9 <https://github.com/apache/airflow/commit/0b0f8f0fc91891c9aa06fc6c23130a916e841872>`_  2024-07-21   ``Prepare Providers docs RC1 2nd (ad-hoc) wave July 2024 (#40908)``
 `469beef0a0 <https://github.com/apache/airflow/commit/469beef0a05a59564d4066e3d36f958329476671>`_  2024-07-14   ``Add 'kubernetes_application_id' to 'SparkSubmitHook' (#40753)``
 `7d5f804ac2 <https://github.com/apache/airflow/commit/7d5f804ac213c4bff8aca2b4459b4df60e6a7d29>`_  2024-07-11   ``(fix): spark submit pod name with driver as part of its name(#40732)``
 `09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``
