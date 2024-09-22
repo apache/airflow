@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-21T13:40:11.305549
+# This constraints file was automatically generated on 2024-09-22T07:39:18.080536
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -117,7 +117,7 @@ babel==2.16.0
 backoff==2.2.1
 bcrypt==4.2.0
 beautifulsoup4==4.12.3
-billiard==4.2.0
+billiard==4.2.1
 bitarray==2.9.2
 black==24.8.0
 blinker==1.8.2
@@ -476,7 +476,7 @@ python-dotenv==1.0.1
 python-http-client==3.3.7
 python-jenkins==1.8.2
 python-ldap==3.4.4
-python-multipart==0.0.9
+python-multipart==0.0.10
 python-nvd3==0.16.0
 python-slugify==8.0.4
 python-telegram-bot==21.6
@@ -626,7 +626,7 @@ watchtower==3.3.1
 wcwidth==0.2.13
 weaviate-client==4.8.0
 websocket-client==1.8.0
-websockets==13.0.1
+websockets==13.1
 wheel==0.44.0
 wirerope==0.4.7
 wrapt==1.16.0

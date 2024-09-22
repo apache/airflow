@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-21T13:40:17.947345
+# This constraints file was automatically generated on 2024-09-22T07:39:24.635239
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -153,7 +153,7 @@ python-daemon==3.0.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 python-ldap==3.4.4
-python-multipart==0.0.9
+python-multipart==0.0.10
 python-nvd3==0.16.0
 python-slugify==8.0.4
 pytz==2024.2
@@ -194,7 +194,7 @@ uvloop==0.20.0
 vine==5.1.0
 virtualenv==20.26.5
 watchfiles==0.24.0
-websockets==13.0.1
+websockets==13.1
 wirerope==0.4.7
 wrapt==1.16.0
 yarl==1.11.1
