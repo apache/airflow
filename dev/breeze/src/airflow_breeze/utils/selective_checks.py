@@ -21,6 +21,7 @@ import json
 import os
 import re
 import sys
+from collections import defaultdict
 from enum import Enum
 from functools import cached_property, lru_cache
 from pathlib import Path
@@ -79,7 +80,6 @@ NON_COMMITTER_BUILD_LABEL = "non committer build"
 UPGRADE_TO_NEWER_DEPENDENCIES_LABEL = "upgrade to newer dependencies"
 USE_PUBLIC_RUNNERS_LABEL = "use public runners"
 USE_SELF_HOSTED_RUNNERS_LABEL = "use self-hosted runners"
-
 
 ALL_CI_SELECTIVE_TEST_TYPES = (
     "API Always BranchExternalPython BranchPythonVenv "
@@ -264,9 +264,11 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^airflow/api/",
             r"^airflow/api_connexion/",
             r"^airflow/api_internal/",
+            r"^airflow/api_fastapi/",
             r"^tests/api/",
             r"^tests/api_connexion/",
             r"^tests/api_internal/",
+            r"^tests/api_fastapi/",
         ],
         SelectiveUnitTestTypes.CLI: [
             r"^airflow/cli/",
@@ -871,7 +873,9 @@ class SelectiveChecks:
         current_test_types = set(self._get_test_types_to_run(split_to_individual_providers=True))
         if "Providers" in current_test_types:
             current_test_types.remove("Providers")
-            current_test_types.update({f"Providers[{provider}]" for provider in get_available_packages()})
+            current_test_types.update(
+                {f"Providers[{provider}]" for provider in get_available_packages(include_not_ready=True)}
+            )
         if self.skip_provider_tests:
             current_test_types = {
                 test_type for test_type in current_test_types if not test_type.startswith("Providers")
@@ -1267,6 +1271,18 @@ class SelectiveChecks:
                 if check["python-version"] in self.python_versions
             ]
         )
+
+    @cached_property
+    def excluded_providers_as_string(self) -> str:
+        providers_to_exclude = defaultdict(list)
+        for provider, provider_info in DEPENDENCIES.items():
+            if "excluded-python-versions" in provider_info:
+                for python_version in provider_info["excluded-python-versions"]:
+                    providers_to_exclude[python_version].append(provider)
+        sorted_providers_to_exclude = dict(
+            sorted(providers_to_exclude.items(), key=lambda item: int(item[0].split(".")[1]))
+        )  # ^ sort by Python minor version
+        return json.dumps(sorted_providers_to_exclude)
 
     @cached_property
     def testable_integrations(self) -> list[str]:

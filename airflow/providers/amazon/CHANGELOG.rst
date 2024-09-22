@@ -26,6 +26,38 @@
 Changelog
 ---------
 
+8.29.0
+......
+
+Features
+~~~~~~~~
+
+* ``Adding support for volume configurations in ECSRunTaskOperator (#42087)``
+* ``Openlineage s3 to redshift operator integration (#41575)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``ECSExecutor: Drop params that aren't compatible with EC2 (#42228)``
+* ``Fix 'GlueDataBrewStartJobOperator' template fields (#42073)``
+* ``validate aws service exceptions in waiters (#41941)``
+* ``Fix treatment of "#" in S3Hook.parse_s3_url() (#41796)``
+* ``fix: remove part of openlineage extraction from S3ToRedshiftOperator (#41631)``
+* ``filename template arg in providers file task handlers backward compitability support (#41633)``
+* ``fix: select_query should have precedence over default query in RedshiftToS3Operator (#41634)``
+
+Misc
+~~~~
+
+* ``Actually move saml to amazon provider (mistakenly added in papermill) (#42148)``
+* ``Use base aws classes in AWS Glue DataBrew Operators/Triggers (#41848)``
+* ``Move 'register_views' to auth manager interface (#41777)``
+* ``airflow.models.taskinstance deprecations removed (#41784)``
+* ``remove deprecated soft_fail from providers (#41710)``
+* ``remove deprecated soft_fail from providers part2 (#41727)``
+* ``Limit watchtower as depenendcy as 3.3.0 breaks moin. (#41612)``
+* ``Remove deprecated log handler argument filename_template (#41552)``
+
 8.28.0
 ......
 
@@ -34,7 +66,7 @@ Changelog
   `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
 
 .. warning:: When deferrable mode was introduced for ``RedshiftDataOperator``, in version 8.17.0, tasks configured with
-  ``deferrable=True`` and ``wait_for_completion=True`` wouldn't enter the deferred state. Instead, the task would occupy
+  ``deferrable=True`` and ``wait_for_completion=True`` would not enter the deferred state. Instead, the task would occupy
   an executor slot until the statement was completed. A workaround may have been to set ``wait_for_completion=False``.
   In this version, tasks set up with ``wait_for_completion=False`` will not wait anymore, regardless of the value of
   ``deferrable``.

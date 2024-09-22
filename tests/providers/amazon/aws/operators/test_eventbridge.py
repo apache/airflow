@@ -29,6 +29,7 @@ from airflow.providers.amazon.aws.operators.eventbridge import (
     EventBridgePutEventsOperator,
     EventBridgePutRuleOperator,
 )
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 if TYPE_CHECKING:
     from unittest.mock import MagicMock
@@ -96,6 +97,13 @@ class TestEventBridgePutEventsOperator:
         with pytest.raises(AirflowException):
             operator.execute(context={})
 
+    def test_template_fields(self):
+        operator = EventBridgePutEventsOperator(
+            task_id="failed_put_events_job",
+            entries=ENTRIES,
+        )
+        validate_template_fields(operator)
+
 
 class TestEventBridgePutRuleOperator:
     def test_init(self):
@@ -150,6 +158,12 @@ class TestEventBridgePutRuleOperator:
         with pytest.raises(ValueError):
             operator.execute(None)
 
+    def test_template_fields(self):
+        operator = EventBridgePutRuleOperator(
+            task_id="events_put_rule_job", name=RULE_NAME, event_pattern=EVENT_PATTERN
+        )
+        validate_template_fields(operator)
+
 
 class TestEventBridgeEnableRuleOperator:
     def test_init(self):
@@ -186,6 +200,13 @@ class TestEventBridgeEnableRuleOperator:
         enable_rule.execute(context={})
         mock_conn.enable_rule.assert_called_with(Name=RULE_NAME)
 
+    def test_template_fields(self):
+        operator = EventBridgeEnableRuleOperator(
+            task_id="events_enable_rule_job",
+            name=RULE_NAME,
+        )
+        validate_template_fields(operator)
+
 
 class TestEventBridgeDisableRuleOperator:
     def test_init(self):
@@ -221,3 +242,10 @@ class TestEventBridgeDisableRuleOperator:
 
         disable_rule.execute(context={})
         mock_conn.disable_rule.assert_called_with(Name=RULE_NAME)
+
+    def test_template_fields(self):
+        operator = EventBridgeDisableRuleOperator(
+            task_id="events_disable_rule_job",
+            name=RULE_NAME,
+        )
+        validate_template_fields(operator)

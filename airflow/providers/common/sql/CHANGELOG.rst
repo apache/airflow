@@ -25,6 +25,25 @@
 Changelog
 ---------
 
+1.17.0
+......
+
+Features
+~~~~~~~~
+
+.. note::
+  Connection in DB Hook is now cached to avoid multiple lookups when properties
+  from extras have to be resolved.
+
+* ``Generalize caching of connection in DbApiHook to improve performance (#40751)``
+
+Misc
+~~~~
+
+* ``feat: log client db messages for provider postgres (#40171)``
+* ``remove deprecated soft_fail from providers (#41710)``
+
+
 1.16.0
 ......
 

@@ -20,13 +20,16 @@ import os
 from typing import TYPE_CHECKING
 
 from alembic import command
+from sqlalchemy import inspect
 
+from airflow import settings
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 
 if TYPE_CHECKING:
+    from alembic.script import ScriptDirectory
     from sqlalchemy import MetaData
 
 
@@ -54,14 +57,34 @@ class BaseDBManager(LoggingMixin):
         config.set_main_option("sqlalchemy.url", settings.SQL_ALCHEMY_CONN.replace("%", "%%"))
         return config
 
-    def get_current_revision(self):
+    def get_script_object(self, config=None) -> ScriptDirectory:
+        from alembic.script import ScriptDirectory
+
+        if not config:
+            config = self.get_alembic_config()
+        return ScriptDirectory.from_config(config)
+
+    def _get_migration_ctx(self):
         from alembic.migration import MigrationContext
 
         conn = self.session.connection()
 
-        migration_ctx = MigrationContext.configure(conn, opts={"version_table": self.version_table_name})
+        return MigrationContext.configure(conn, opts={"version_table": self.version_table_name})
 
-        return migration_ctx.get_current_revision()
+    def get_current_revision(self):
+        return self._get_migration_ctx().get_current_revision()
+
+    def check_migration(self):
+        """Check migration done."""
+        script_heads = self.get_script_object().get_heads()
+        db_heads = self.get_current_revision()
+        if db_heads:
+            db_heads = {db_heads}
+        if not db_heads and not script_heads:
+            return True
+        if set(script_heads) == db_heads:
+            return True
+        return False
 
     def _create_db_from_orm(self):
         """Create database from ORM."""
@@ -69,6 +92,22 @@ class BaseDBManager(LoggingMixin):
         self.metadata.create_all(engine)
         config = self.get_alembic_config()
         command.stamp(config, "head")
+
+    def drop_tables(self, connection):
+        self.metadata.drop_all(connection)
+        version = self._get_migration_ctx()._version
+        if inspect(connection).has_table(version.name):
+            version.drop(connection)
+
+    def resetdb(self, skip_init=False):
+        from airflow.utils.db import DBLocks, create_global_lock
+
+        connection = settings.engine.connect()
+
+        with create_global_lock(self.session, lock=DBLocks.MIGRATIONS), connection.begin():
+            self.drop_tables(connection)
+        if not skip_init:
+            self.initdb()
 
     def initdb(self):
         """Initialize the database."""
@@ -78,14 +117,14 @@ class BaseDBManager(LoggingMixin):
         else:
             self._create_db_from_orm()
 
-    def upgradedb(self, to_version=None, from_version=None, show_sql_only=False):
+    def upgradedb(self, to_revision=None, from_revision=None, show_sql_only=False):
         """Upgrade the database."""
         self.log.info("Upgrading the %s database", self.__class__.__name__)
 
         config = self.get_alembic_config()
-        command.upgrade(config, revision=to_version or "heads", sql=show_sql_only)
+        command.upgrade(config, revision=to_revision or "heads", sql=show_sql_only)
 
-    def downgradedb(self, to_version, from_version=None, show_sql_only=False):
+    def downgrade(self, to_version, from_version=None, show_sql_only=False):
         """Downgrade the database."""
         raise NotImplementedError
 
@@ -141,6 +180,14 @@ class RunDBManager(LoggingMixin):
         if manager.version_table_name == "alembic_version":
             raise AirflowException(f"{manager}.version_table_name cannot be 'alembic_version'")
 
+    def check_migration(self, session):
+        """Check the external database migration."""
+        return_value = []
+        for manager in self._managers:
+            m = manager(session)
+            return_value.append(m.check_migration)
+        return all([x() for x in return_value])
+
     def initdb(self, session):
         """Initialize the external database managers."""
         for manager in self._managers:
@@ -153,14 +200,15 @@ class RunDBManager(LoggingMixin):
             m = manager(session)
             m.upgradedb()
 
-    def downgradedb(self, session):
+    def downgrade(self, session):
         """Downgrade the external database managers."""
         for manager in self._managers:
             m = manager(session)
-            m.downgradedb()
+            m.downgrade()
 
-    def drop_tables(self, connection):
+    def drop_tables(self, session, connection):
         """Drop the external database managers."""
         for manager in self._managers:
             if manager.supports_table_dropping:
-                manager.metadata.drop_all(connection)
+                m = manager(session)
+                m.drop_tables(connection)

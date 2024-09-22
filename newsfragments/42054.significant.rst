@@ -1,0 +1,4 @@
+Dataset and DatasetAlias are no longer hashable
+
+This means they can no longer be used as dict keys or put into a set. Dataset's
+equality logic is also tweaked slightly to consider the extra dict.

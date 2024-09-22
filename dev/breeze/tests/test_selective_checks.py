@@ -43,7 +43,9 @@ ANSI_COLORS_MATCHER = re.compile(r"(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]")
 
 ALL_DOCS_SELECTED_FOR_BUILD = ""
 ALL_PROVIDERS_AFFECTED = ""
-LIST_OF_ALL_PROVIDER_TESTS = " ".join(f"Providers[{provider}]" for provider in get_available_packages())
+LIST_OF_ALL_PROVIDER_TESTS = " ".join(
+    f"Providers[{provider}]" for provider in get_available_packages(include_not_ready=True)
+)
 
 
 # commit that is neutral - allows to keep pyproject.toml-changing PRS neutral for unit tests
@@ -179,7 +181,32 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow']",
                 },
-                id="Only API tests and DOCS should run (no provider tests) when only internal_api changed",
+                id="Only API tests and DOCS should run (no provider tests) when only internal api changed",
+            )
+        ),
+        (
+            pytest.param(
+                ("airflow/api_fastapi/file.py",),
+                {
+                    "all-python-versions": "['3.8']",
+                    "all-python-versions-list-as-string": "3.8",
+                    "python-versions": "['3.8']",
+                    "python-versions-list-as-string": "3.8",
+                    "ci-image-build": "true",
+                    "prod-image-build": "false",
+                    "needs-helm-tests": "false",
+                    "run-tests": "true",
+                    "run-amazon-tests": "false",
+                    "docs-build": "true",
+                    "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
+                    "mypy-docs,mypy-providers,ts-compile-format-lint-ui,ts-compile-format-lint-www",
+                    "upgrade-to-newer-dependencies": "false",
+                    "parallel-test-types-list-as-string": "API Always",
+                    "separate-test-types-list-as-string": "API Always",
+                    "needs-mypy": "true",
+                    "mypy-folders": "['airflow']",
+                },
+                id="Only API tests and DOCS should run (no provider tests) when only ui api changed",
             )
         ),
         (
@@ -820,6 +847,22 @@ def test_hatch_build_py_changes():
     )
 
 
+def test_excluded_providers():
+    stderr = SelectiveChecks(
+        files=(),
+        github_event=GithubEvents.PULL_REQUEST,
+        default_branch="main",
+    )
+    assert_outputs_are_printed(
+        {
+            "excluded-providers-as-string": json.dumps(
+                {"3.8": ["cloudant"], "3.9": ["cloudant"], "3.12": ["apache.beam"]}
+            ),
+        },
+        str(stderr),
+    )
+
+
 @pytest.mark.parametrize(
     "files, expected_outputs",
     [
@@ -1078,7 +1121,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
                 },
-                id="Everything should run including full providers when"
+                id="Everything should run including full providers when "
                 "full tests are needed even if no files are changed",
             )
         ),

@@ -109,21 +109,6 @@ class TestEventLogEndpoint:
     def teardown_method(self) -> None:
         clear_db_logs()
 
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, log_model):
-        event_log_id = log_model.id
-        response = self.client.get(
-            f"/api/v1/eventLogs/{event_log_id}", environ_overrides={"REMOTE_USER": "test"}
-        )
-
-        response = self.client.get("/api/v1/eventLogs")
-
-        assert response.status_code == expected_status_code
-
 
 class TestGetEventLog(TestEventLogEndpoint):
     def test_should_respond_200(self, log_model):
@@ -170,18 +155,6 @@ class TestGetEventLog(TestEventLogEndpoint):
             "/api/v1/eventLogs", environ_overrides={"REMOTE_USER": "test_no_permissions"}
         )
         assert response.status_code == 403
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, log_model):
-        event_log_id = log_model.id
-
-        response = self.client.get(f"/api/v1/eventLogs/{event_log_id}")
-
-        assert response.status_code == expected_status_code
 
 
 class TestGetEventLogs(TestEventLogEndpoint):
@@ -391,23 +364,6 @@ class TestGetEventLogs(TestEventLogEndpoint):
         assert len(response_data["event_logs"]) == 1
         assert response_data["total_entries"] == 1
         assert {"cli_scheduler"} == {x["event"] for x in response_data["event_logs"]}
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(
-        self, set_auto_role_public, expected_status_code, create_log_model, session
-    ):
-        log_model_3 = Log(event="cli_scheduler", owner="root", extra='{"host_name": "e24b454f002a"}')
-        log_model_3.dttm = self.default_time_2
-
-        session.add(log_model_3)
-        session.flush()
-        response = self.client.get("/api/v1/eventLogs")
-
-        assert response.status_code == expected_status_code
 
 
 class TestGetEventLogPagination(TestEventLogEndpoint):

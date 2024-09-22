@@ -34,7 +34,14 @@ def minimal_app_for_auth_api():
         ]
     )
     def factory():
-        with conf_vars({("api", "auth_backends"): "tests.test_utils.remote_user_api_auth_backend"}):
+        with conf_vars(
+            {
+                (
+                    "api",
+                    "auth_backends",
+                ): "tests.test_utils.remote_user_api_auth_backend,airflow.api.auth.backend.session"
+            }
+        ):
             _app = app.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
             _app.config["AUTH_ROLE_PUBLIC"] = None
             return _app

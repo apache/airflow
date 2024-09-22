@@ -618,6 +618,46 @@ class TestDagBag:
             assert "SerializationError" in err
             session.rollback()
 
+    def test_timeout_dag_errors_are_import_errors(self, tmp_path, caplog):
+        """
+        Test that if the DAG contains Timeout error it will be still loaded to DB as import_errors
+        """
+        code_to_save = """
+# Define Dag to load
+import datetime
+import time
+
+import airflow
+from airflow.operators.python import PythonOperator
+
+time.sleep(31)
+
+with airflow.DAG(
+    "import_timeout",
+    start_date=datetime.datetime(2022, 1, 1),
+    schedule=None) as dag:
+    def f():
+        print("Sleeping")
+        time.sleep(2)
+
+
+    for ind in range(10):
+        PythonOperator(
+            dag=dag,
+            task_id=f"sleep_2_{ind}",
+            python_callable=f,
+        )
+        """
+        with open("tmp_file.py", "w") as f:
+            f.write(code_to_save)
+
+        dagbag = DagBag(dag_folder=os.fspath("tmp_file.py"), include_examples=False)
+        dag = dagbag._load_modules_from_file("tmp_file.py", safe_mode=False)
+
+        assert dag is not None
+        assert "tmp_file.py" in dagbag.import_errors
+        assert "DagBag import timeout for" in caplog.text
+
     @patch("airflow.models.dagbag.DagBag.collect_dags")
     @patch("airflow.models.serialized_dag.SerializedDagModel.write_dag")
     @patch("airflow.models.dag.DAG.bulk_write_to_db")
@@ -790,7 +830,7 @@ class TestDagBag:
         # from DB
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 4)), tick=False):
             with assert_queries_count(0):
-                assert dag_bag.get_dag("example_bash_operator").tags == ["example", "example2"]
+                assert dag_bag.get_dag("example_bash_operator").tags == {"example", "example2"}
 
         # Make a change in the DAG and write Serialized DAG to the DB
         with time_machine.travel((tz.datetime(2020, 1, 5, 0, 0, 6)), tick=False):
@@ -829,7 +869,7 @@ class TestDagBag:
                 ser_dag = dag_bag.get_dag("example_bash_operator")
 
             ser_dag_update_time = dag_bag.dags_last_fetched["example_bash_operator"]
-            assert ser_dag.tags == ["example", "example2"]
+            assert ser_dag.tags == {"example", "example2"}
             assert ser_dag_update_time == tz.datetime(2020, 1, 5, 1, 0, 10)
 
             with create_session() as session:

@@ -253,7 +253,7 @@ REDIS_HOST_PORT = "26379"
 SSH_PORT = "12322"
 WEBSERVER_HOST_PORT = "28080"
 VITE_DEV_PORT = "5173"
-UI_API_HOST_PORT = "29091"
+FASTAPI_API_HOST_PORT = "29091"
 
 CELERY_BROKER_URLS_MAP = {"rabbitmq": "amqp://guest:guest@rabbitmq:5672", "redis": "redis://redis:6379/0"}
 SQLITE_URL = "sqlite:////root/airflow/sqlite/airflow.db"
@@ -509,19 +509,19 @@ BASE_PROVIDERS_COMPATIBILITY_CHECKS: list[dict[str, str | list[str]]] = [
     {
         "python-version": "3.8",
         "airflow-version": "2.8.4",
-        "remove-providers": "fab",
+        "remove-providers": "cloudant fab edge standard",
         "run-tests": "true",
     },
     {
         "python-version": "3.8",
         "airflow-version": "2.9.3",
-        "remove-providers": "",
+        "remove-providers": "cloudant edge standard",
         "run-tests": "true",
     },
     {
         "python-version": "3.8",
-        "airflow-version": "2.10.0",
-        "remove-providers": "",
+        "airflow-version": "2.10.1",
+        "remove-providers": "cloudant",
         "run-tests": "true",
     },
 ]

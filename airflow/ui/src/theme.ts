@@ -16,10 +16,59 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { tableAnatomy } from "@chakra-ui/anatomy";
+import { createMultiStyleConfigHelpers, extendTheme } from "@chakra-ui/react";
 
-import { extendTheme } from "@chakra-ui/react";
+// Chakra has bad types for this util, so is registered as unbound
+// eslint-disable-next-line @typescript-eslint/unbound-method
+const { defineMultiStyleConfig, definePartsStyle } =
+  createMultiStyleConfigHelpers(tableAnatomy.keys);
+
+const baseStyle = definePartsStyle((props) => {
+  const { colorMode, colorScheme } = props;
+
+  return {
+    tbody: {
+      tr: {
+        "&:nth-of-type(even)": {
+          "th, td": {
+            borderBottomWidth: "0px",
+          },
+        },
+        "&:nth-of-type(odd)": {
+          td: {
+            background:
+              colorMode === "light" ? `${colorScheme}.50` : `gray.900`,
+          },
+          "th, td": {
+            borderBottomWidth: "0px",
+            borderColor:
+              colorMode === "light" ? `${colorScheme}.50` : `gray.900`,
+          },
+        },
+      },
+    },
+    thead: {
+      tr: {
+        th: {
+          borderBottomWidth: 0,
+        },
+      },
+    },
+  };
+});
+
+export const tableTheme = defineMultiStyleConfig({ baseStyle });
 
 const theme = extendTheme({
+  components: {
+    Table: tableTheme,
+    Tooltip: {
+      baseStyle: {
+        fontSize: "md",
+      },
+    },
+  },
   config: {
     useSystemColorMode: true,
   },
@@ -27,13 +76,6 @@ const theme = extendTheme({
     global: {
       "*, *::before, &::after": {
         borderColor: "gray.200",
-      },
-    },
-  },
-  components: {
-    Tooltip: {
-      baseStyle: {
-        fontSize: "md",
       },
     },
   },

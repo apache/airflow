@@ -24,7 +24,7 @@ from airflow.typing_compat import Protocol, runtime_checkable
 if TYPE_CHECKING:
     from pendulum import DateTime
 
-    from airflow.datasets import Dataset
+    from airflow.datasets import Dataset, DatasetAlias
     from airflow.serialization.dag_dependency import DagDependency
     from airflow.utils.types import DagRunType
 
@@ -55,6 +55,9 @@ class _NullDataset(BaseDataset):
         return False
 
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
+        return iter(())
+
+    def iter_dataset_aliases(self) -> Iterator[tuple[str, DatasetAlias]]:
         return iter(())
 
     def iter_dag_dependencies(self, source, target) -> Iterator[DagDependency]:
