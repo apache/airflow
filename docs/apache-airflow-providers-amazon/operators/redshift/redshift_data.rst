@@ -55,7 +55,7 @@ the necessity of a Postgres connection.
     :end-before: [END howto_operator_redshift_data]
 
 Reuse a session when executing multiple statements
-=================================================
+==================================================
 
 Specify the ``session_keep_alive_seconds`` parameter on an upstream task. In a downstream task, get the session ID from
 the XCom and pass it to the ``session_id`` parameter. This is useful when you work with temporary tables.

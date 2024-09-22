@@ -37,16 +37,19 @@ Breaking changes
 
   The ``database`` argument is now optional and as a result was moved after the ``sql`` argument which is a positional
   one. Update your DAGs accordingly if they rely on argument order. Applies to:
-    - ``RedshiftDataHook``'s ``execute_query`` method
-    - ``RedshiftDataOperator``
+    * ``RedshiftDataHook``'s ``execute_query`` method
+    * ``RedshiftDataOperator``
 
   ``RedshiftDataHook``'s ``execute_query`` method now returns a ``QueryExecutionOutput`` object instead of just the
   statement ID as a string.
 
   ``RedshiftDataHook``'s ``parse_statement_resposne`` method was renamed to ``parse_statement_response``.
 
+  ``S3ToRedshiftOperator``'s ``schema`` argument is now optional and was moved after the ``s3_key`` positional argument.
+  Update your DAGs accordingly if they rely on argument order.
+
 Features
-~~~~~~~~~
+~~~~~~~~
 
 * ``Support session reuse in RedshiftDataOperator, RedshiftToS3Operator and S3ToRedshiftOperator (#42218)``
 
