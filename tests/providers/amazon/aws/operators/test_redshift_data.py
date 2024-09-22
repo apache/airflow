@@ -225,6 +225,7 @@ class TestRedshiftDataOperator:
         mock_ti.xcom_push.assert_called_once_with(
             key="session_id",
             value=SESSION_ID,
+            execution_date=None,
         )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
