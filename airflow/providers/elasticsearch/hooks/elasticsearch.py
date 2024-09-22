@@ -23,7 +23,6 @@ from urllib import parse
 
 from deprecated import deprecated
 from elasticsearch import Elasticsearch
-from elasticsearch.client import SqlClient
 
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
@@ -70,11 +69,10 @@ class ESConnection:
             self.es = Elasticsearch(self.url, http_auth=(user, password), **self.kwargs)
         else:
             self.es = Elasticsearch(self.url, **self.kwargs)
-        self.es_sql_client = SqlClient(self.es)
 
     def execute_sql(self, query: str) -> ObjectApiResponse:
         sql_query = {"query": query}
-        return self.es_sql_client.query(body=sql_query)
+        return self.es.sql.query(body=sql_query)
 
 
 class ElasticsearchSQLHook(DbApiHook):
@@ -95,12 +93,11 @@ class ElasticsearchSQLHook(DbApiHook):
     def __init__(self, schema: str = "http", connection: AirflowConnection | None = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.schema = schema
-        self.connection = connection
+        self._connection = connection
 
     def get_conn(self) -> ESConnection:
         """Return an elasticsearch connection object."""
-        conn_id = self.get_conn_id()
-        conn = self.connection or self.get_connection(conn_id)
+        conn = self.connection
 
         conn_args = {
             "host": conn.host,
@@ -119,8 +116,7 @@ class ElasticsearchSQLHook(DbApiHook):
         return connect(**conn_args)
 
     def get_uri(self) -> str:
-        conn_id = self.get_conn_id()
-        conn = self.connection or self.get_connection(conn_id)
+        conn = self.connection
 
         login = ""
         if conn.login:

@@ -22,7 +22,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from deprecated import deprecated
 from google.api_core.exceptions import NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.aiplatform import datasets
@@ -37,6 +36,7 @@ from airflow.providers.google.cloud.links.vertex_ai import (
     VertexAITrainingPipelinesLink,
 )
 from airflow.providers.google.cloud.operators.cloud_base import GoogleCloudBaseOperator
+from airflow.providers.google.common.deprecated import deprecated
 
 if TYPE_CHECKING:
     from google.api_core.retry import Retry
@@ -455,8 +455,22 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         return result
 
 
+@deprecated(
+    planned_removal_date="September 15, 2024",
+    use_instead="SupervisedFineTuningTrainOperator",
+    instructions=(
+        "Please consider using Fine Tuning over the Gemini model. "
+        "More info: https://cloud.google.com/vertex-ai/docs/start/automl-gemini-comparison"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class CreateAutoMLTextTrainingJobOperator(AutoMLTrainingJobBaseOperator):
-    """Create Auto ML Text Training job."""
+    """
+    Create Auto ML Text Training job.
+
+    WARNING: Text creation API is deprecated since September 15, 2024
+        (https://cloud.google.com/vertex-ai/docs/tutorials/text-classification-automl/overview).
+    """
 
     template_fields = [
         "parent_model",
@@ -642,8 +656,8 @@ class DeleteAutoMLTrainingJobOperator(GoogleCloudBaseOperator):
 
     @property
     @deprecated(
-        reason="`training_pipeline` is deprecated and will be removed in the future. "
-        "Please use `training_pipeline_id` instead.",
+        planned_removal_date="March 01, 2025",
+        use_instead="training_pipeline_id",
         category=AirflowProviderDeprecationWarning,
     )
     def training_pipeline(self):

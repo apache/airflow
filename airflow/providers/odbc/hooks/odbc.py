@@ -80,13 +80,6 @@ class OdbcHook(DbApiHook):
         self._connect_kwargs = connect_kwargs
 
     @property
-    def connection(self):
-        """The Connection object with ID ``odbc_conn_id``."""
-        if not self._connection:
-            self._connection = self.get_connection(self.get_conn_id())
-        return self._connection
-
-    @property
     def database(self) -> str | None:
         """Database provided in init if exists; otherwise, ``schema`` from ``Connection`` object."""
         return self._database or self.connection.schema
@@ -98,15 +91,6 @@ class OdbcHook(DbApiHook):
         if not self._sqlalchemy_scheme and extra_scheme and (":" in extra_scheme or "/" in extra_scheme):
             raise RuntimeError("sqlalchemy_scheme in connection extra should not contain : or / characters")
         return self._sqlalchemy_scheme or extra_scheme or self.DEFAULT_SQLALCHEMY_SCHEME
-
-    @property
-    def connection_extra_lower(self) -> dict:
-        """
-        ``connection.extra_dejson`` but where keys are converted to lower case.
-
-        This is used internally for case-insensitive access of odbc params.
-        """
-        return {k.lower(): v for k, v in self.connection.extra_dejson.items()}
 
     @property
     def driver(self) -> str | None:
@@ -166,9 +150,7 @@ class OdbcHook(DbApiHook):
                 conn_str += f"PORT={self.connection.port};"
 
             extra_exclude = {"driver", "dsn", "connect_kwargs", "sqlalchemy_scheme", "placeholder"}
-            extra_params = {
-                k: v for k, v in self.connection.extra_dejson.items() if k.lower() not in extra_exclude
-            }
+            extra_params = {k: v for k, v in self.connection_extra.items() if k.lower() not in extra_exclude}
             for k, v in extra_params.items():
                 conn_str += f"{k}={v};"
 

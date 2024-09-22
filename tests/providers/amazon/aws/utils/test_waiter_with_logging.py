@@ -108,6 +108,41 @@ class TestWaiter:
         assert mock_waiter.wait.call_count == 3
         assert caplog.messages == ["test status message: Pending", "test status message: Pending"]
 
+    @pytest.mark.asyncio
+    async def test_async_wait_with_unknown_failure(self):
+        mock_waiter = mock.MagicMock()
+        service_exception = WaiterError(
+            name="test_waiter",
+            reason="An error occurred",
+            last_response={
+                "Error": {
+                    "Message": "Not authorized to perform: states:DescribeExecution on resource",
+                    "Code": "AccessDeniedException",
+                }
+            },
+        )
+        mock_waiter.wait = AsyncMock()
+        mock_waiter.wait.side_effect = [service_exception]
+        with pytest.raises(AirflowException) as exc:
+            await async_wait(
+                waiter=mock_waiter,
+                waiter_delay=0,
+                waiter_max_attempts=456,
+                args={"test_arg": "test_value"},
+                failure_message="test failure message",
+                status_message="test status message",
+                status_args=["Status.State"],
+            )
+
+        mock_waiter.wait.assert_called_with(
+            **{"test_arg": "test_value"},
+            WaiterConfig={
+                "MaxAttempts": 1,
+            },
+        )
+        assert "An error occurred" in str(exc)
+        assert mock_waiter.wait.call_count == 1
+
     @mock.patch("time.sleep")
     def test_wait_max_attempts_exceeded(self, mock_sleep, caplog):
         mock_sleep.return_value = True
@@ -186,6 +221,42 @@ class TestWaiter:
         )
         assert mock_waiter.wait.call_count == 4
         assert caplog.messages == ["test status message: Pending"] * 3 + ["test failure message: Failure"]
+
+    @mock.patch("time.sleep")
+    def test_wait_with_unknown_failure(self, mock_sleep):
+        mock_sleep.return_value = True
+        mock_waiter = mock.MagicMock()
+        service_exception = WaiterError(
+            name="test_waiter",
+            reason="An error occurred",
+            last_response={
+                "Error": {
+                    "Message": "Not authorized to perform: states:DescribeExecution on resource",
+                    "Code": "AccessDeniedException",
+                }
+            },
+        )
+        mock_waiter.wait.side_effect = [service_exception]
+
+        with pytest.raises(AirflowException) as exc:
+            wait(
+                waiter=mock_waiter,
+                waiter_delay=123,
+                waiter_max_attempts=10,
+                args={"test_arg": "test_value"},
+                failure_message="test failure message",
+                status_message="test status message",
+                status_args=["Status.State"],
+            )
+
+        assert "An error occurred" in str(exc)
+        mock_waiter.wait.assert_called_with(
+            **{"test_arg": "test_value"},
+            WaiterConfig={
+                "MaxAttempts": 1,
+            },
+        )
+        assert mock_waiter.wait.call_count == 1
 
     @mock.patch("time.sleep")
     def test_wait_with_list_response(self, mock_sleep, caplog):

@@ -55,7 +55,7 @@ apache-airflow-providers-cloudant package
 `IBM Cloudant <https://www.ibm.com/cloud/cloudant>`__
 
 
-Release: 3.6.0
+Release: 4.0.0
 
 Provider package
 ----------------
@@ -79,5 +79,5 @@ The minimum Apache Airflow version supported by this provider package is ``2.8.0
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.8.0``
-``cloudant``        ``>=2.13.0``
+``ibmcloudant``     ``>=0.9.1``
 ==================  ==================

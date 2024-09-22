@@ -260,6 +260,7 @@ serialized_simple_dag_ground_truth = {
         "edge_info": {},
         "dag_dependencies": [],
         "params": [],
+        "tags": [],
     },
 }
 
@@ -317,8 +318,8 @@ def make_user_defined_macro_filter_dag():
         (2) templates with function macros have been rendered before serialization.
     """
 
-    def compute_next_execution_date(dag, execution_date):
-        return dag.following_schedule(execution_date)
+    def compute_last_dagrun(dag: DAG):
+        return dag.get_last_dagrun(include_externally_triggered=True)
 
     default_args = {"start_date": datetime(2019, 7, 10)}
     dag = DAG(
@@ -326,14 +327,14 @@ def make_user_defined_macro_filter_dag():
         schedule=None,
         default_args=default_args,
         user_defined_macros={
-            "next_execution_date": compute_next_execution_date,
+            "last_dagrun": compute_last_dagrun,
         },
         user_defined_filters={"hello": lambda name: f"Hello {name}"},
         catchup=False,
     )
     BashOperator(
         task_id="echo",
-        bash_command='echo "{{ next_execution_date(dag, execution_date) }}"',
+        bash_command='echo "{{ last_dagrun(dag) }}"',
         dag=dag,
     )
     return {dag.dag_id: dag}
@@ -587,7 +588,7 @@ class TestStringifiedDAGs:
         roundtripped = SerializedDAG.from_json(SerializedDAG.to_json(dag))
         self.validate_deserialized_dag(roundtripped, dag)
 
-    def validate_deserialized_dag(self, serialized_dag, dag):
+    def validate_deserialized_dag(self, serialized_dag: DAG, dag: DAG):
         """
         Verify that all example DAGs work with DAG Serialization by
         checking fields between Serialized Dags & non-Serialized Dags

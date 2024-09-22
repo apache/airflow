@@ -24,7 +24,6 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 from dateutil import parser
-from deprecated import deprecated
 from google.cloud.orchestration.airflow.service_v1.types import ExecuteAirflowCommandResponse
 
 from airflow.configuration import conf
@@ -35,6 +34,7 @@ from airflow.providers.google.cloud.triggers.cloud_composer import (
     CloudComposerExecutionTrigger,
 )
 from airflow.providers.google.common.consts import GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.state import TaskInstanceState
 
@@ -43,12 +43,13 @@ if TYPE_CHECKING:
 
 
 @deprecated(
-    reason=(
-        "The `CloudComposerEnvironmentSensor` operator is deprecated. "
-        "You can achieve the same functionality "
-        "by using operators in deferrable or non-deferrable mode, since every operator for Cloud "
-        "Composer will wait for the operation to complete."
-    ),
+    planned_removal_date="November 01, 2024",
+    use_instead="CloudComposerCreateEnvironmentOperator, CloudComposerDeleteEnvironmentOperator, "
+    "CloudComposerUpdateEnvironmentOperator",
+    instructions="Please use CloudComposerCreateEnvironmentOperator, CloudComposerDeleteEnvironmentOperator "
+    "or CloudComposerUpdateEnvironmentOperator in deferrable or non-deferrable mode, "
+    "since since every operator gives user a possibility to wait (asynchronously or synchronously) "
+    "until the Operation is finished.",
     category=AirflowProviderDeprecationWarning,
 )
 class CloudComposerEnvironmentSensor(BaseSensorOperator):

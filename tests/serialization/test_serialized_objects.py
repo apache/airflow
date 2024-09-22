@@ -29,6 +29,7 @@ import pytest
 from dateutil import relativedelta
 from kubernetes.client import models as k8s
 from pendulum.tz.timezone import Timezone
+from pydantic import BaseModel
 
 from airflow.datasets import Dataset, DatasetAlias, DatasetAliasEvent
 from airflow.exceptions import (
@@ -63,7 +64,6 @@ from airflow.utils import timezone
 from airflow.utils.context import OutletEventAccessor, OutletEventAccessors
 from airflow.utils.db import LazySelectSequence
 from airflow.utils.operator_resources import Resources
-from airflow.utils.pydantic import BaseModel
 from airflow.utils.state import DagRunState, State
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
@@ -163,7 +163,7 @@ def equal_exception(a: AirflowException, b: AirflowException) -> bool:
 
 
 def equal_outlet_event_accessor(a: OutletEventAccessor, b: OutletEventAccessor) -> bool:
-    return a.raw_key == b.raw_key and a.extra == b.extra and a.dataset_alias_event == b.dataset_alias_event
+    return a.raw_key == b.raw_key and a.extra == b.extra and a.dataset_alias_events == b.dataset_alias_events
 
 
 class MockLazySelectSequence(LazySelectSequence):
@@ -240,9 +240,7 @@ class MockLazySelectSequence(LazySelectSequence):
             lambda a, b: a.get_uri() == b.get_uri(),
         ),
         (
-            OutletEventAccessor(
-                raw_key=Dataset(uri="test"), extra={"key": "value"}, dataset_alias_event=None
-            ),
+            OutletEventAccessor(raw_key=Dataset(uri="test"), extra={"key": "value"}, dataset_alias_events=[]),
             DAT.DATASET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
         ),
@@ -250,15 +248,15 @@ class MockLazySelectSequence(LazySelectSequence):
             OutletEventAccessor(
                 raw_key=DatasetAlias(name="test_alias"),
                 extra={"key": "value"},
-                dataset_alias_event=DatasetAliasEvent(
-                    source_alias_name="test_alias", dest_dataset_uri="test_uri"
-                ),
+                dataset_alias_events=[
+                    DatasetAliasEvent(source_alias_name="test_alias", dest_dataset_uri="test_uri", extra={})
+                ],
             ),
             DAT.DATASET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
         ),
         (
-            OutletEventAccessor(raw_key="test", extra={"key": "value"}),
+            OutletEventAccessor(raw_key="test", extra={"key": "value"}, dataset_alias_events=[]),
             DAT.DATASET_EVENT_ACCESSOR,
             equal_outlet_event_accessor,
         ),

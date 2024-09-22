@@ -51,7 +51,7 @@ from airflow.utils.configuration import tmp_configuration_copy
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State, TaskInstanceState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 if TYPE_CHECKING:
     import datetime
@@ -393,6 +393,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
             conf=self.conf,
             run_type=DagRunType.BACKFILL_JOB,
             creating_job_id=self.job.id,
+            triggered_by=DagRunTriggeredByType.TIMETABLE,
         )
 
         # set required transient field
