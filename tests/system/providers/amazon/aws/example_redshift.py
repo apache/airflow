@@ -50,7 +50,6 @@ DB_PASS = "MyAmazonPassword1"
 DB_NAME = "dev"
 POLL_INTERVAL = 10
 
-
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
@@ -195,9 +194,6 @@ with DAG(
 
     insert_data_reuse_session = RedshiftDataOperator(
         task_id="insert_data_reuse_session",
-        cluster_identifier=redshift_cluster_identifier,
-        database=DB_NAME,
-        db_user=DB_LOGIN,
         sql="""
             INSERT INTO tmp_people VALUES ( 1, 'Bob', 30);
             INSERT INTO tmp_people VALUES ( 2, 'Alice', 35);
@@ -239,10 +235,16 @@ with DAG(
         wait_cluster_available_after_resume,
         create_table_redshift_data,
         insert_data,
+        delete_cluster_snapshot,
+        delete_cluster,
+    )
+
+    # Test session reuse in parallel
+    chain(
+        wait_cluster_available_after_resume,
         create_tmp_table_data_api,
         insert_data_reuse_session,
         delete_cluster_snapshot,
-        delete_cluster,
     )
 
     from tests.system.utils.watcher import watcher
@@ -250,7 +252,6 @@ with DAG(
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
-
 
 from tests.system.utils import get_test_run  # noqa: E402
 
