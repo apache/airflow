@@ -21,7 +21,11 @@
                 "ecmel.vscode-html-css",
                 "timonwong.shellcheck",
                 "redhat.vscode-yaml",
-                "rogalmic.bash-debug"
+                "rogalmic.bash-debug",
+                "tamasfe.even-better-toml",
+                "ms-python.debugpy",
+                "charliermarsh.ruff",
+                "ms-python.mypy-type-checker"
             ]
         }
     },
