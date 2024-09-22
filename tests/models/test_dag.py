@@ -23,7 +23,6 @@ import logging
 import os
 import pickle
 import re
-import warnings
 import weakref
 from datetime import timedelta
 from importlib import reload
@@ -37,7 +36,6 @@ import pendulum
 import pytest
 import time_machine
 from sqlalchemy import inspect, select
-from sqlalchemy.exc import SAWarning
 
 from airflow import settings
 from airflow.configuration import conf
@@ -807,7 +805,7 @@ class TestDag:
             DAG.bulk_write_to_db(dags)
         # Adding tags
         for dag in dags:
-            dag.tags.append("test-dag2")
+            dag.tags.add("test-dag2")
         with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
@@ -845,7 +843,7 @@ class TestDag:
 
         # Removing all tags
         for dag in dags:
-            dag.tags = None
+            dag.tags = set()
         with assert_queries_count(9):
             DAG.bulk_write_to_db(dags)
         with create_session() as session:
@@ -3385,6 +3383,42 @@ def test__tags_length(tags: list[str], should_pass: bool):
             DAG("test-dag", schedule=None, tags=tags)
 
 
+@pytest.mark.parametrize(
+    "input_tags, expected_result",
+    [
+        pytest.param([], set(), id="empty tags"),
+        pytest.param(
+            ["a normal tag"],
+            {"a normal tag"},
+            id="one tag",
+        ),
+        pytest.param(
+            ["a normal tag", "another normal tag"],
+            {"a normal tag", "another normal tag"},
+            id="two different tags",
+        ),
+        pytest.param(
+            ["a", "a"],
+            {"a"},
+            id="two same tags",
+        ),
+    ],
+)
+def test__tags_duplicates(input_tags: list[str], expected_result: set[str]):
+    result = DAG("test-dag", tags=input_tags)
+    assert result.tags == expected_result
+
+
+def test__tags_mutable():
+    expected_tags = {"6", "7"}
+    test_dag = DAG("test-dag")
+    test_dag.tags.add("6")
+    test_dag.tags.add("7")
+    test_dag.tags.add("8")
+    test_dag.tags.remove("8")
+    assert test_dag.tags == expected_tags
+
+
 @pytest.mark.need_serialized_dag
 def test_get_dataset_triggered_next_run_info(dag_maker, clear_datasets):
     dataset1 = Dataset(uri="ds1")
@@ -3433,6 +3467,22 @@ def test_get_dataset_triggered_next_run_info(dag_maker, clear_datasets):
         "total": 3,
         "uri": "",
     }
+
+
+@pytest.mark.need_serialized_dag
+def test_get_dataset_triggered_next_run_info_with_unresolved_dataset_alias(dag_maker, clear_datasets):
+    dataset_alias1 = DatasetAlias(name="alias")
+    with dag_maker(dag_id="dag-1", schedule=[dataset_alias1]):
+        pass
+    dag1 = dag_maker.dag
+    session = dag_maker.session
+    session.flush()
+
+    info = get_dataset_triggered_next_run_info([dag1.dag_id], session=session)
+    assert info == {}
+
+    dag1_model = DagModel.get_dagmodel(dag1.dag_id)
+    assert dag1_model.get_dataset_triggered_next_run_info(session=session) is None
 
 
 def test_dag_uses_timetable_for_run_id(session):
@@ -3992,42 +4042,3 @@ class TestTaskClearingSetupTeardownBehavior:
                 Exception, match="Setup tasks must be followed with trigger rule ALL_SUCCESS."
             ):
                 dag.validate_setup_teardown()
-
-
-def test_statement_latest_runs_one_dag():
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", category=SAWarning)
-
-        stmt = DAG._get_latest_runs_stmt(dags=["fake-dag"])
-        compiled_stmt = str(stmt.compile())
-        actual = [x.strip() for x in compiled_stmt.splitlines()]
-        expected = [
-            "SELECT dag_run.logical_date, dag_run.id, dag_run.dag_id, "
-            "dag_run.data_interval_start, dag_run.data_interval_end",
-            "FROM dag_run",
-            "WHERE dag_run.dag_id = :dag_id_1 AND dag_run.logical_date = ("
-            "SELECT max(dag_run.logical_date) AS max_execution_date",
-            "FROM dag_run",
-            "WHERE dag_run.dag_id = :dag_id_2 AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]))",
-        ]
-        assert actual == expected, compiled_stmt
-
-
-def test_statement_latest_runs_many_dag():
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", category=SAWarning)
-
-        stmt = DAG._get_latest_runs_stmt(dags=["fake-dag-1", "fake-dag-2"])
-        compiled_stmt = str(stmt.compile())
-        actual = [x.strip() for x in compiled_stmt.splitlines()]
-        expected = [
-            "SELECT dag_run.logical_date, dag_run.id, dag_run.dag_id, "
-            "dag_run.data_interval_start, dag_run.data_interval_end",
-            "FROM dag_run, (SELECT dag_run.dag_id AS dag_id, "
-            "max(dag_run.logical_date) AS max_execution_date",
-            "FROM dag_run",
-            "WHERE dag_run.dag_id IN (__[POSTCOMPILE_dag_id_1]) "
-            "AND dag_run.run_type IN (__[POSTCOMPILE_run_type_1]) GROUP BY dag_run.dag_id) AS anon_1",
-            "WHERE dag_run.dag_id = anon_1.dag_id AND dag_run.logical_date = anon_1.max_execution_date",
-        ]
-        assert actual == expected, compiled_stmt

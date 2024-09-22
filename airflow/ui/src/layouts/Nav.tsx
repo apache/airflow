@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import {
   Box,
   Flex,
@@ -27,8 +26,6 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import { motion } from "framer-motion";
-
-import { AirflowPin } from "../assets/AirflowPin";
 import {
   FiBarChart2,
   FiCornerUpLeft,
@@ -39,69 +36,72 @@ import {
   FiSettings,
   FiSun,
 } from "react-icons/fi";
+
+import { AirflowPin } from "../assets/AirflowPin";
 import { DagIcon } from "../assets/DagIcon";
 import { NavButton } from "./NavButton";
 
 export const Nav = () => {
   const { colorMode, toggleColorMode } = useColorMode();
   const navBg = useColorModeValue("blue.100", "blue.900");
+
   return (
     <VStack
-      py={3}
-      width={24}
-      height="100%"
-      position="fixed"
-      top={0}
-      left={0}
-      zIndex={1}
-      bg={navBg}
-      justifyContent="space-between"
       alignItems="center"
+      bg={navBg}
+      height="100%"
+      justifyContent="space-between"
+      left={0}
+      position="fixed"
+      py={3}
+      top={0}
+      width={24}
+      zIndex={1}
     >
-      <Flex width="100%" flexDir="column" alignItems="center">
+      <Flex alignItems="center" flexDir="column" width="100%">
         <Box
           as={motion.div}
+          mb={3}
           whileHover={{
             transform: ["rotate(0)", "rotate(360deg)"],
-            transition: { duration: 1.5, repeat: Infinity, ease: "linear" },
+            transition: { duration: 1.5, ease: "linear", repeat: Infinity },
           }}
-          mb={3}
         >
           <Icon as={AirflowPin} height="35px" width="35px" />
         </Box>
-        <NavButton title="Home" icon={<FiHome size="1.75rem" />} isDisabled />
+        <NavButton icon={<FiHome size="1.75rem" />} isDisabled title="Home" />
         <NavButton
+          icon={<DagIcon height={7} width={7} />}
           title="DAGs"
           to="dags"
-          icon={<DagIcon height={7} width={7} />}
         />
         <NavButton
-          title="Datasets"
           icon={<FiDatabase size="1.75rem" />}
           isDisabled
+          title="Datasets"
         />
         <NavButton
-          title="DAG Runs"
           icon={<FiBarChart2 size="1.75rem" />}
           isDisabled
+          title="DAG Runs"
         />
         <NavButton
-          title="Browse"
           icon={<FiGlobe size="1.75rem" />}
           isDisabled
+          title="Browse"
         />
         <NavButton
-          title="Admin"
           icon={<FiSettings size="1.75rem" />}
           isDisabled
+          title="Admin"
         />
       </Flex>
       <Flex flexDir="column">
         <NavButton
-          title="Return to legacy UI"
-          icon={<FiCornerUpLeft size="1.5rem" />}
           as={Link}
           href="/"
+          icon={<FiCornerUpLeft size="1.5rem" />}
+          title="Return to legacy UI"
         />
         <NavButton
           icon={

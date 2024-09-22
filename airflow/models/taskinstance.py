@@ -937,7 +937,7 @@ def _get_template_context(
     Return TI Context.
 
     :param task_instance: the task instance for the task
-    :param dag for the task
+    :param dag: dag for the task
     :param session: SQLAlchemy ORM Session
     :param ignore_param_exceptions: flag to suppress value exceptions while initializing the ParamsDict
 
@@ -2905,11 +2905,11 @@ class TaskInstance(Base, LoggingMixin):
                     session=session,
                 )
             elif isinstance(obj, DatasetAlias):
-                if dataset_alias_event := events[obj].dataset_alias_event:
-                    dataset_uri = dataset_alias_event["dest_dataset_uri"]
-                    extra = events[obj].extra
-                    frozen_extra = frozenset(extra.items())
+                for dataset_alias_event in events[obj].dataset_alias_events:
                     dataset_alias_name = dataset_alias_event["source_alias_name"]
+                    dataset_uri = dataset_alias_event["dest_dataset_uri"]
+                    extra = dataset_alias_event["extra"]
+                    frozen_extra = frozenset(extra.items())
 
                     dataset_tuple_to_alias_names_mapping[(dataset_uri, frozen_extra)].add(dataset_alias_name)
 
@@ -2925,6 +2925,7 @@ class TaskInstance(Base, LoggingMixin):
                 dataset_obj = DatasetModel(uri=uri)
                 dataset_manager.create_datasets(dataset_models=[dataset_obj], session=session)
                 self.log.warning("Created a new %r as it did not exist.", dataset_obj)
+                session.flush()
                 dataset_objs_cache[uri] = dataset_obj
 
             for alias in alias_names:

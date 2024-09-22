@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import type { SortingState } from "@tanstack/react-table";
 
 import type { TableState } from "./types";
@@ -25,31 +24,30 @@ export const LIMIT_PARAM = "limit";
 export const OFFSET_PARAM = "offset";
 export const SORT_PARAM = "sort";
 
+// eslint-disable-next-line max-statements
 export const stateToSearchParams = (
   state: TableState,
-  defaultTableState?: TableState
+  defaultTableState?: TableState,
 ): URLSearchParams => {
-  const queryParams = new URLSearchParams(window.location.search);
+  const queryParams = new URLSearchParams(globalThis.location.search);
 
   if (state.pagination.pageSize === defaultTableState?.pagination.pageSize) {
     queryParams.delete(LIMIT_PARAM);
-  } else if (state.pagination) {
+  } else if (state.pagination.pageSize) {
     queryParams.set(LIMIT_PARAM, `${state.pagination.pageSize}`);
   }
 
   if (state.pagination.pageIndex === defaultTableState?.pagination.pageIndex) {
     queryParams.delete(OFFSET_PARAM);
-  } else if (state.pagination) {
+  } else if (state.pagination.pageIndex) {
     queryParams.set(OFFSET_PARAM, `${state.pagination.pageIndex}`);
   }
 
-  if (!state.sorting.length) {
-    queryParams.delete(SORT_PARAM);
-  } else {
-    state.sorting.forEach(({ id, desc }) => {
+  if (state.sorting.length) {
+    state.sorting.forEach(({ desc, id }) => {
       if (
         defaultTableState?.sorting.find(
-          (sort) => sort.id === id && sort.desc === desc
+          (sort) => sort.id === id && sort.desc === desc,
         )
       ) {
         queryParams.delete(SORT_PARAM, `${desc ? "-" : ""}${id}`);
@@ -57,6 +55,8 @@ export const stateToSearchParams = (
         queryParams.set(SORT_PARAM, `${desc ? "-" : ""}${id}`);
       }
     });
+  } else {
+    queryParams.delete(SORT_PARAM);
   }
 
   return queryParams;
@@ -64,34 +64,31 @@ export const stateToSearchParams = (
 
 export const searchParamsToState = (
   searchParams: URLSearchParams,
-  defaultState: TableState
+  defaultState: TableState,
 ) => {
   let urlState: Partial<TableState> = {};
-  const pageIndex = searchParams.get(OFFSET_PARAM);
-  const pageSize = searchParams.get(LIMIT_PARAM);
+  const pageIndex = searchParams.get(OFFSET_PARAM) ?? "";
+  const pageSize = searchParams.get(LIMIT_PARAM) ?? "";
 
-  if (pageIndex) {
+  if (pageIndex !== "") {
     urlState = {
       ...urlState,
       pagination: {
         pageIndex: parseInt(pageIndex, 10),
-        pageSize: pageSize
-          ? parseInt(pageSize, 10)
-          : defaultState.pagination.pageSize,
+        pageSize:
+          pageSize === ""
+            ? defaultState.pagination.pageSize
+            : parseInt(pageSize, 10),
       },
     };
   }
   const sorts = searchParams.getAll(SORT_PARAM);
   const sorting: SortingState = sorts.map((sort) => ({
-    id: sort.replace("-", ""),
     desc: sort.startsWith("-"),
+    id: sort.replace("-", ""),
   }));
-  urlState = {
-    ...urlState,
-    sorting,
-  };
-  return {
-    ...defaultState,
-    ...urlState,
-  };
+
+  urlState = { ...urlState, sorting };
+
+  return { ...defaultState, ...urlState };
 };

@@ -114,7 +114,7 @@ class TestGetRoleEndpoint(TestRoleEndpoint):
     )
     def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
         response = self.client.get("/auth/fab/v1/roles/Admin")
-        assert response.status_code == expected_status_code
+        assert response.status_code == expected_status_code, response.json
 
 
 class TestGetRolesEndpoint(TestRoleEndpoint):
@@ -152,7 +152,7 @@ class TestGetRolesEndpoint(TestRoleEndpoint):
     )
     def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
         response = self.client.get("/auth/fab/v1/roles")
-        assert response.status_code == expected_status_code
+        assert response.status_code == expected_status_code, response.json
 
 
 class TestGetRolesEndpointPaginationandFilter(TestRoleEndpoint):
@@ -214,7 +214,7 @@ class TestGetPermissionsEndpoint(TestRoleEndpoint):
     )
     def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
         response = self.client.get("/auth/fab/v1/permissions")
-        assert response.status_code == expected_status_code
+        assert response.status_code == expected_status_code, response.json
 
 
 class TestPostRole(TestRoleEndpoint):
@@ -356,7 +356,7 @@ class TestPostRole(TestRoleEndpoint):
             "actions": [{"resource": {"name": "Connections"}, "action": {"name": "can_create"}}],
         }
         response = self.client.post("/auth/fab/v1/roles", json=payload)
-        assert response.status_code == expected_status_code
+        assert response.status_code == expected_status_code, response.json
 
 
 class TestDeleteRole(TestRoleEndpoint):
@@ -400,7 +400,7 @@ class TestDeleteRole(TestRoleEndpoint):
     def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
         role = create_role(self.app, "mytestrole")
         response = self.client.delete(f"/auth/fab/v1/roles/{role.name}")
-        assert response.status_code == expected_status_code
+        assert response.status_code == expected_status_code, response.location
 
 
 class TestPatchRole(TestRoleEndpoint):
@@ -589,4 +589,4 @@ class TestPatchRole(TestRoleEndpoint):
             f"/auth/fab/v1/roles/{role.name}",
             json={"name": "mytest"},
         )
-        assert response.status_code == expected_status_code
+        assert response.status_code == expected_status_code, response.json
