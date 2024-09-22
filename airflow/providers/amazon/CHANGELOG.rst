@@ -37,8 +37,8 @@ Breaking changes
 
   The ``database`` argument is now optional and as a result was moved after the ``sql`` argument which is a positional
   one. Update your DAGs accordingly if they rely on argument order. Applies to:
-    * ``RedshiftDataHook``'s ``execute_query`` method
-    * ``RedshiftDataOperator``
+  * ``RedshiftDataHook``'s ``execute_query`` method
+  * ``RedshiftDataOperator``
 
   ``RedshiftDataHook``'s ``execute_query`` method now returns a ``QueryExecutionOutput`` object instead of just the
   statement ID as a string.
