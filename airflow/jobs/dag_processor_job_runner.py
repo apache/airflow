@@ -21,9 +21,13 @@ from typing import TYPE_CHECKING, Any
 
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
+from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
     from airflow.dag_processing.manager import DagFileProcessorManager
 
 
@@ -52,7 +56,7 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
         self.processor = processor
         self.processor.heartbeat = lambda: perform_heartbeat(
             job=self.job,
-            heartbeat_callback=empty_callback,
+            heartbeat_callback=self.heartbeat_callback,
             only_if_necessary=True,
         )
 
@@ -67,3 +71,7 @@ class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
             self.processor.terminate()
             self.processor.end()
         return None
+
+    @provide_session
+    def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
+        Stats.incr("dag_processor_heartbeat", 1, 1)
