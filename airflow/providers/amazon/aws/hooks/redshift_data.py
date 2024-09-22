@@ -77,8 +77,8 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
 
     def execute_query(
         self,
-        database: str | None,
         sql: str | list[str],
+        database: str | None = None,
         cluster_identifier: str | None = None,
         db_user: str | None = None,
         parameters: Iterable | None = None,
@@ -94,8 +94,8 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         """
         Execute a statement against Amazon Redshift.
 
-        :param database: the name of the database
         :param sql: the SQL statement or list of  SQL statement to run
+        :param database: the name of the database
         :param cluster_identifier: unique identifier of a cluster
         :param db_user: the database username
         :param parameters: the parameters for the SQL statement
