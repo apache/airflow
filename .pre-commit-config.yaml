@@ -550,29 +550,9 @@ repos:
       - id: check-no-providers-in-core-examples
         language: pygrep
         name: No providers imports in core example DAGs
-        description: The core example DAGs have no dependencies other than core Airflow
-        entry: "^\\s*from airflow\\.providers.*"
+        description: The core example DAGs have no dependencies other than standard provider or core Airflow
+        entry: "^\\s*from airflow\\.providers.(?!standard.)"
         pass_filenames: true
-        exclude: >
-          (?x)
-          ^airflow/example_dags/example_branch_datetime_operator.py|
-          ^airflow/example_dags/example_branch_day_of_week_operator.py|
-          ^airflow/example_dags/example_sensors.py|
-          ^airflow/example_dags/example_sensors.py|
-          ^airflow/example_dags/example_sensors.py|
-          ^airflow/example_dags/example_time_delta_sensor_async.py|
-          ^airflow/example_dags/example_bash_operator.py|
-          ^airflow/example_dags/example_complex.py|
-          ^airflow/example_dags/example_datasets.py|
-          ^airflow/example_dags/example_inlet_event_extra.py|
-          ^airflow/example_dags/example_outlet_event_extra.py|
-          ^airflow/example_dags/example_passing_params_via_test_command.py|
-          ^airflow/example_dags/example_setup_teardown.py|
-          ^airflow/example_dags/example_task_group.py|
-          ^airflow/example_dags/example_trigger_target_dag.py|
-          ^airflow/example_dags/example_xcom.py|
-          ^airflow/example_dags/example_xcomargs.py|
-          ^airflow/example_dags/tutorial.py
         files: ^airflow/example_dags/.*\.py$
       - id: check-no-airflow-deprecation-in-providers
         language: pygrep
