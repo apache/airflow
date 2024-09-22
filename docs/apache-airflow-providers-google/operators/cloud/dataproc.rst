@@ -249,7 +249,7 @@ Submit a job to a cluster
 -------------------------
 
 Dataproc supports submitting jobs of different big data components.
-The list currently includes Spark, Hadoop, Pig and Hive.
+The list currently includes Spark, PySpark, Hadoop, Trino, Pig, Flink and Hive.
 For more information on versions and images take a look at `Cloud Dataproc Image version list <https://cloud.google.com/dataproc/docs/concepts/versioning/dataproc-versions>`__
 
 To submit a job to the cluster you need to provide a job source file. The job source file can be on GCS, the cluster or on your local
@@ -350,6 +350,14 @@ Example of the configuration for a Trino Job:
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_trino_config]
     :end-before: [END how_to_cloud_dataproc_trino_config]
+
+Example of the configuration for a Flink Job:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_flink.py
+    :language: python
+    :dedent: 0
+    :start-after: [START how_to_cloud_dataproc_flink_config]
+    :end-before: [END how_to_cloud_dataproc_flink_config]
 
 Working with workflows templates
 --------------------------------

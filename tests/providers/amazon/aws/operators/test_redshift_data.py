@@ -25,6 +25,7 @@ from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarni
 from airflow.providers.amazon.aws.hooks.redshift_data import QueryExecutionOutput
 from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
 from airflow.providers.amazon.aws.triggers.redshift_data import RedshiftDataTrigger
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 CONN_ID = "aws_conn_test"
 TASK_ID = "task_id"
@@ -419,3 +420,14 @@ class TestRedshiftDataOperator:
 
             assert not mock_check_query_is_finished.called
             assert not mock_defer.called
+
+    def test_template_fields(self):
+        operator = RedshiftDataOperator(
+            aws_conn_id=CONN_ID,
+            task_id=TASK_ID,
+            cluster_identifier="cluster_identifier",
+            sql=SQL,
+            database=DATABASE,
+            wait_for_completion=False,
+        )
+        validate_template_fields(operator)

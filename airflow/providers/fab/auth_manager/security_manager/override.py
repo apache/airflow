@@ -609,7 +609,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     @property
     def auth_role_public(self):
         """Get the public role."""
-        return self.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]
+        return self.appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None)
 
     @property
     def oauth_providers(self):
@@ -832,7 +832,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         app = self.appbuilder.get_app
         # Base Security Config
         app.config.setdefault("AUTH_ROLE_ADMIN", "Admin")
-        app.config.setdefault("AUTH_ROLE_PUBLIC", "Public")
         app.config.setdefault("AUTH_TYPE", AUTH_DB)
         # Self Registration
         app.config.setdefault("AUTH_USER_REGISTRATION", False)
@@ -955,7 +954,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self.add_role(role_name)
             if self.auth_role_admin not in self._builtin_roles:
                 self.add_role(self.auth_role_admin)
-            self.add_role(self.auth_role_public)
+            if self.auth_role_public:
+                self.add_role(self.auth_role_public)
             if self.count_users() == 0 and self.auth_role_public != self.auth_role_admin:
                 log.warning(const.LOGMSG_WAR_SEC_NO_USER)
         except Exception:

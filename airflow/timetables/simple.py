@@ -161,6 +161,8 @@ class DatasetTriggeredTimetable(_TrivialTimetable):
     :meta private:
     """
 
+    UNRESOLVED_ALIAS_SUMMARY = "Unresolved DatasetAlias"
+
     description: str = "Triggered by datasets"
 
     def __init__(self, datasets: BaseDataset) -> None:
@@ -170,7 +172,7 @@ class DatasetTriggeredTimetable(_TrivialTimetable):
             self.dataset_condition = _DatasetAliasCondition(self.dataset_condition.name)
 
         if not next(self.dataset_condition.iter_datasets(), False):
-            self._summary = "Unresolved DatasetAlias"
+            self._summary = DatasetTriggeredTimetable.UNRESOLVED_ALIAS_SUMMARY
         else:
             self._summary = "Dataset"
 
