@@ -51,11 +51,7 @@ class InstanceFieldExtractor(ast.NodeVisitor):
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
         if node.name == "__init__":
-            for body in node.body:
-                if isinstance(body, ast.Assign):
-                    self.visit_Assign(body)
-                elif isinstance(body, ast.AnnAssign):
-                    self.visit_AnnAssign(body)
+            self.generic_visit(node)
         return node
 
     def visit_Assign(self, node: ast.Assign) -> ast.Assign:
