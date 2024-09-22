@@ -56,6 +56,9 @@ class RedshiftDataOperator(AwsBaseOperator[RedshiftDataHook]):
     :param workgroup_name: name of the Redshift Serverless workgroup. Mutually exclusive with
         `cluster_identifier`. Specify this parameter to query Redshift Serverless. More info
         https://docs.aws.amazon.com/redshift/latest/mgmt/working-with-serverless.html
+    :param session_id: the session identifier of the query
+    :param session_keep_alive_seconds: duration in seconds to keep the session alive after the query
+        finishes. The maximum time a session can keep alive is 24 hours
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is ``None`` or empty then the default boto3 behaviour is used. If
         running Airflow in a distributed manner and aws_conn_id is None or
