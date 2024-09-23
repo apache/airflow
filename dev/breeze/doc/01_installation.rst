@@ -234,14 +234,14 @@ In case of disk space errors on macOS, increase the disk space available for Doc
 
 Installation
 ============
-First, clone the Airflow repository, but ensure you do not clone it into your home directory. Doing so will trigger the following error:
-'Your Airflow sources are checked out in /Users/username/airflow, which is also your AIRFLOW_HOME where Airflow writes logs and database files. This setup is problematic because Airflow might overwrite or clean up your source code and .git repository.'
+First, clone the Airflow repository, but make sure not to clone it into your home directory. Cloning it into your home directory will cause the following error:
+`Your Airflow sources are checked out in /Users/username/airflow, which is also your AIRFLOW_HOME where Airflow writes logs and database files. This setup is problematic because Airflow might overwrite or clean up your source code and .git repository.`
 
 .. code-block:: bash
 
     git clone https://github.com/apache/airflow.git
 
-Then set your working directory to root of (this) cloned repository.
+Set your working directory to the root of this cloned repository.
 
 .. code-block:: bash
 
