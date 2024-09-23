@@ -18,14 +18,16 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Generic, List, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, List, TypeVar, Union
 
-from fastapi import Depends, HTTPException, Query as Query
+from fastapi import Depends, HTTPException, Query
 from sqlalchemy import or_
-from sqlalchemy.sql import ColumnElement, Select
 from typing_extensions import Annotated, Self
 
 from airflow.models.dag import DagModel, DagTag
+
+if TYPE_CHECKING:
+    from sqlalchemy.sql import ColumnElement, Select
 
 T = TypeVar("T")
 
@@ -60,9 +62,7 @@ class _LimitFilter(BaseParam[int]):
         return select.limit(self.value)
 
     def __call__(self, limit: int = 100) -> _LimitFilter:
-        self.value = limit
-
-        return self
+        return self.set_value(limit)
 
 
 class _OffsetFilter(BaseParam[int]):
@@ -74,9 +74,7 @@ class _OffsetFilter(BaseParam[int]):
         return select.offset(self.value)
 
     def __call__(self, offset: int = 0) -> _OffsetFilter:
-        self.value = offset
-
-        return self
+        return self.set_value(offset)
 
 
 class _PausedFilter(BaseParam[Union[bool, None]]):
@@ -137,7 +135,6 @@ class SortParam(BaseParam[Union[str]]):
             return select.order_by(getattr(DagModel, lstriped_orderby).desc())
         else:
             return select.order_by(getattr(DagModel, lstriped_orderby).asc())
-        return select
 
     def __call__(self, order_by: str = Query(default="dag_id")) -> SortParam:
         return self.set_value(order_by)
@@ -147,11 +144,11 @@ class _TagsFilter(BaseParam[List[str]]):
     """Filter on tags."""
 
     def to_orm(self, select: Select) -> Select:
-        if self.value:
-            conditions = [DagModel.tags.any(DagTag.name == tag) for tag in self.value]
-            return select.where(or_(*conditions))
+        if self.value is None:
+            return select
 
-        return select
+        conditions = [DagModel.tags.any(DagTag.name == tag) for tag in self.value]
+        return select.where(or_(*conditions))
 
     def __call__(self, tags: list[str] = Query(default_factory=list)) -> _TagsFilter:
         return self.set_value(tags)

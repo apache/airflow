@@ -19,13 +19,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy.sql import Select
-
-from airflow.api_fastapi.parameters import BaseParam
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+    from sqlalchemy.sql import Select
+
+    from airflow.api_fastapi.parameters import BaseParam
 
 
 async def get_session() -> Session:
