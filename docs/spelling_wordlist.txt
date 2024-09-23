@@ -32,6 +32,7 @@ airbyte
 AirflowException
 airflowignore
 ajax
+aks
 AlertApi
 alertPolicies
 Alibaba
@@ -60,7 +61,6 @@ ans
 Ansible
 apache
 api
-aks
 apikey
 apis
 AppBuilder
