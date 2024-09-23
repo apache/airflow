@@ -3,25 +3,25 @@ import type { CancelablePromise } from "./core/CancelablePromise";
 import { OpenAPI } from "./core/OpenAPI";
 import { request as __request } from "./core/request";
 import type {
-  NextRunDatasetsUiNextRunDatasetsDagIdGetData,
-  NextRunDatasetsUiNextRunDatasetsDagIdGetResponse,
+  NextRunAssetsUiNextRunDatasetsDagIdGetData,
+  NextRunAssetsUiNextRunDatasetsDagIdGetResponse,
   GetDagsPublicDagsGetData,
   GetDagsPublicDagsGetResponse,
   PatchDagPublicDagsDagIdPatchData,
   PatchDagPublicDagsDagIdPatchResponse,
 } from "./types.gen";
 
-export class DatasetService {
+export class AssetService {
   /**
-   * Next Run Datasets
+   * Next Run Assets
    * @param data The data for the request.
    * @param data.dagId
    * @returns unknown Successful Response
    * @throws ApiError
    */
-  public static nextRunDatasetsUiNextRunDatasetsDagIdGet(
-    data: NextRunDatasetsUiNextRunDatasetsDagIdGetData,
-  ): CancelablePromise<NextRunDatasetsUiNextRunDatasetsDagIdGetResponse> {
+  public static nextRunAssetsUiNextRunDatasetsDagIdGet(
+    data: NextRunAssetsUiNextRunDatasetsDagIdGetData,
+  ): CancelablePromise<NextRunAssetsUiNextRunDatasetsDagIdGetResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/ui/next_run_datasets/{dag_id}",
