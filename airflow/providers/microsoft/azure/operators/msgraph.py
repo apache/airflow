@@ -257,15 +257,14 @@ class MSGraphAsyncOperator(BaseOperator):
             self.xcom_push(context=context, key=self.key, value=value)
 
     @staticmethod
-    def paginate(operator: MSGraphAsyncOperator, response: dict, **context: Context) -> tuple[Any, dict[str, Any] | None]:
+    def paginate(operator: MSGraphAsyncOperator, response: dict, context: Context) -> tuple[Any, dict[str, Any] | None]:
         odata_count = response.get("@odata.count")
         if odata_count and operator.query_parameters:
             query_parameters = deepcopy(operator.query_parameters)
             top = query_parameters.get("$top")
-            odata_count = response.get("@odata.count")
 
             if top and odata_count:
-                if len(response.get("value", [])) == top:
+                if len(response.get("value", [])) == top and context:
                     results = operator.pull_xcom(context=context)
                     skip = (
                         sum(map(lambda result: len(result["value"]), results)) + top

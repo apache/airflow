@@ -26,7 +26,8 @@ from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator
 from airflow.triggers.base import TriggerEvent
 from tests.providers.microsoft.azure.base import Base
-from tests.providers.microsoft.conftest import load_file, load_json, mock_json_response, mock_response
+from tests.providers.microsoft.conftest import load_file, load_json, mock_json_response, mock_response, \
+    mock_context
 
 
 class TestMSGraphAsyncOperator(Base):
@@ -127,3 +128,31 @@ class TestMSGraphAsyncOperator(Base):
 
         for template_field in MSGraphAsyncOperator.template_fields:
             getattr(operator, template_field)
+
+    def test_paginate_without_query_parameters(self):
+        operator = MSGraphAsyncOperator(
+            task_id="user_license_details",
+            conn_id="msgraph_api",
+            url="users",
+        )
+        context = mock_context(task=operator)
+        response = load_json("resources", "users.json")
+        next_link, query_parameters = MSGraphAsyncOperator.paginate(operator, response, context)
+
+        assert next_link == response["@odata.nextLink"]
+        assert query_parameters is None
+
+    def test_paginate_with_context_query_parameters(self):
+        operator = MSGraphAsyncOperator(
+            task_id="user_license_details",
+            conn_id="msgraph_api",
+            url="users",
+            query_parameters={"$top": 12},
+        )
+        context = mock_context(task=operator)
+        response = load_json("resources", "users.json")
+        response["@odata.count"] = 100
+        url, query_parameters = MSGraphAsyncOperator.paginate(operator, response, context)
+
+        assert url == "users"
+        assert query_parameters == {"$skip": 12, "$top": 12}
