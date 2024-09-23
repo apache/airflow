@@ -42,7 +42,15 @@ Available auth managers to use
 
 Here is the list of auth managers available today that you can use in your Airflow environment.
 
-* :doc:`/core-concepts/auth-manager/simple`
+Provided by Airflow:
+
+.. toctree::
+    :maxdepth: 1
+
+    simple
+
+Provided by providers
+
 * :doc:`apache-airflow-providers-fab:auth-manager/index`
 * :doc:`apache-airflow-providers-amazon:auth-manager/index`
 
