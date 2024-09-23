@@ -234,8 +234,18 @@ In case of disk space errors on macOS, increase the disk space available for Doc
 
 Installation
 ============
+First you will need to clone the Airflow repository, and make sure you are not in the home directory, or it may cause some trouble.
 
-Set your working directory to root of (this) cloned repository.
+.. code-block:: bash
+
+    git clone https://github.com/apache/airflow.git
+
+Then set your working directory to root of (this) cloned repository.
+
+.. code-block:: bash
+
+    cd  airflow
+
 Run this command to install Breeze (make sure to use ``-e`` flag):
 
 .. code-block:: bash
