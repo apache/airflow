@@ -18,10 +18,6 @@
 Flask AppBuilder (FAB) auth manager
 ===================================
 
-.. note::
-    Before reading this, you should be familiar with the concept of auth manager.
-    See :doc:`apache-airflow:core-concepts/auth-manager/index`.
-
 FAB auth (for authentication/authorization) manager is the auth manager that comes by default with Airflow. This auth manager defines the user authentication and user authorization by default in Airflow.
 The backend used to store all entities used by the FAB auth manager is the Airflow database: :doc:`apache-airflow:database-erd-ref`.
 
