@@ -235,8 +235,10 @@ def _build_query(
     base_table_alias = "base"
     base_table = aliased(orm_model, name=base_table_alias)
     query = session.query(base_table).with_entities(text(f"{base_table_alias}.*"))
+    delete_query = delete(base_table)
     base_table_recency_col = base_table.c[recency_column.name]
     conditions = [base_table_recency_col < clean_before_timestamp]
+
     if keep_last:
         max_date_col_name = "max_date_per_group"
         group_by_columns = [column(x) for x in keep_last_group_by]
@@ -247,17 +249,25 @@ def _build_query(
             max_date_colname=max_date_col_name,
             session=session,
         )
+        filter_cond = and_(
+            *[base_table.c[x] == subquery.c[x] for x in keep_last_group_by],
+            base_table_recency_col == column(max_date_col_name),
+        )
+        max_date_col_cond = column(max_date_col_name).is_(None)
+
         query = query.select_from(base_table).outerjoin(
             subquery,
-            and_(
-                *[base_table.c[x] == subquery.c[x] for x in keep_last_group_by],
-                base_table_recency_col == column(max_date_col_name),
-            ),
+            filter_cond,
         )
-        conditions.append(column(max_date_col_name).is_(None))
+
+        delete_query = delete_query.filter(
+            subquery.select().filter(and_(filter_cond, max_date_col_cond)).exists()
+        )
+        conditions.append(max_date_col_cond)
+
     query = query.filter(and_(*conditions))
-    delete_stmt = delete(base_table).where(and_(*conditions))
-    return query, delete_stmt
+    delete_query = delete_query.filter(and_(*conditions[0]))
+    return query, delete_query
 
 
 def _cleanup_table(
