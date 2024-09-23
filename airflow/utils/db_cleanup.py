@@ -260,9 +260,7 @@ def _build_query(
             filter_cond,
         )
 
-        delete_query = delete_query.filter(
-            subquery.select().filter(and_(filter_cond, max_date_col_cond)).exists()
-        )
+        delete_query = delete_query.filter(~(subquery.select().filter(and_(filter_cond))).exists())
         conditions.append(max_date_col_cond)
 
     query = query.filter(and_(*conditions))
