@@ -40,7 +40,7 @@ If you want to check which auth manager is currently set, you can use the
 Available auth managers to use
 ------------------------------
 
-Here is the list of auth managers available today you can use in your Airflow environment.
+Here is the list of auth managers available today that you can use in your Airflow environment.
 
 * :doc:`/core-concepts/auth-manager/auth-manager/index`
 * :doc:`apache-airflow-providers-fab:auth-manager/index`
