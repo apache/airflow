@@ -2965,9 +2965,12 @@ class TestSchedulerJob:
         )
         self.null_exec.mock_task_fail(dag_id, "test_dagrun_fail", dr.run_id)
 
-        for _ in _mock_executor(self.null_exec):
-            with pytest.raises(AirflowException):
-                dag.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        # todo: AIP-78 remove this test along with DAG.run()
+        #  this only tests the backfill job runner, not the scheduler
+        with pytest.warns(RemovedInAirflow3Warning):
+            for _ in _mock_executor(self.null_exec):
+                with pytest.raises(AirflowException):
+                    dag.run(start_date=dr.execution_date, end_date=dr.execution_date)
 
         # Mark the successful task as never having run since we want to see if the
         # dagrun will be in a running state despite having an unfinished task.
