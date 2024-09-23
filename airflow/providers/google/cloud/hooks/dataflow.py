@@ -1130,7 +1130,7 @@ class DataflowHook(GoogleBaseHook):
         self,
         name: str,
         project_id: str,
-        location: str,
+        location: str | None = None,
         variables: dict | None = None,
     ) -> bool:
         """
@@ -1149,6 +1149,16 @@ class DataflowHook(GoogleBaseHook):
                 AirflowProviderDeprecationWarning,
                 stacklevel=4,
             )
+
+        if location is None:
+            location = DEFAULT_DATAFLOW_LOCATION
+            warnings.warn(
+                "The location argument setting will be become mandary in future versions. "
+                f"Currenty, it defaults to {DEFAULT_DATAFLOW_LOCATION}. Please set the location explicitly.",
+                AirflowProviderDeprecationWarning,
+                stacklevel=4,
+            )
+
         jobs_controller = _DataflowJobsController(
             dataflow=self.get_conn(),
             project_number=project_id,
