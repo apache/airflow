@@ -104,6 +104,23 @@ class TestDynamoDBValueSensor:
 
         assert self.sensor_pk_sk.poke(None)
 
+    @mock_aws
+    def test_sensor_with_client_error(self):
+        hook = DynamoDBHook(table_name=self.table_name, table_keys=[self.pk_name])
+
+        hook.conn.create_table(
+            TableName=self.table_name,
+            KeySchema=[{"AttributeName": self.pk_name, "KeyType": "HASH"}],
+            AttributeDefinitions=[{"AttributeName": self.pk_name, "AttributeType": "S"}],
+            ProvisionedThroughput={"ReadCapacityUnits": 10, "WriteCapacityUnits": 10},
+        )
+
+        items = [{self.pk_name: self.pk_value, self.attribute_name: self.attribute_value}]
+        hook.write_batch_data(items)
+
+        self.sensor_pk.partition_key_name = "no such key"
+        assert self.sensor_pk.poke(None) is False
+
 
 class TestDynamoDBMultipleValuesSensor:
     def setup_method(self):
