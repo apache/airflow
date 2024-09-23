@@ -23,7 +23,7 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, NamedTuple, TypeVar, cast
 
 import kerberos
-from flask import Response, g, make_response, request
+from flask import Response, current_app, g, make_response, request
 from requests_kerberos import HTTPKerberosAuth
 
 from airflow.configuration import conf
@@ -124,6 +124,10 @@ def requires_authentication(function: T, find_user: Callable[[str], BaseUser] | 
 
     @wraps(function)
     def decorated(*args, **kwargs):
+        if current_app.appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None):
+            response = function(*args, **kwargs)
+            return make_response(response)
+
         header = request.headers.get("Authorization")
         if header:
             token = "".join(header.split()[1:])

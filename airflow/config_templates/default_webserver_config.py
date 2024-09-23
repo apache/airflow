@@ -36,7 +36,7 @@ WTF_CSRF_ENABLED = True
 WTF_CSRF_TIME_LIMIT = None
 
 # ----------------------------------------------------
-# AUTHENTICATION CONFIG
+# AUTHENTICATION CONFIG (specific to FAB auth manager)
 # ----------------------------------------------------
 # For details on how to set up each of the following authentication, see
 # http://flask-appbuilder.readthedocs.io/en/latest/security.html# authentication-methods

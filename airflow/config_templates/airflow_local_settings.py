@@ -208,7 +208,7 @@ REMOTE_LOGGING: bool = conf.getboolean("logging", "remote_logging")
 
 if REMOTE_LOGGING:
     ELASTICSEARCH_HOST: str | None = conf.get("elasticsearch", "HOST")
-
+    OPENSEARCH_HOST: str | None = conf.get("opensearch", "HOST")
     # Storage bucket URL for remote logging
     # S3 buckets should start with "s3://"
     # Cloudwatch log groups should start with "cloudwatch://"
@@ -330,6 +330,35 @@ if REMOTE_LOGGING:
         }
 
         DEFAULT_LOGGING_CONFIG["handlers"].update(ELASTIC_REMOTE_HANDLERS)
+    elif OPENSEARCH_HOST:
+        OPENSEARCH_END_OF_LOG_MARK: str = conf.get_mandatory_value("opensearch", "END_OF_LOG_MARK")
+        OPENSEARCH_PORT: str = conf.get_mandatory_value("opensearch", "PORT")
+        OPENSEARCH_USERNAME: str = conf.get_mandatory_value("opensearch", "USERNAME")
+        OPENSEARCH_PASSWORD: str = conf.get_mandatory_value("opensearch", "PASSWORD")
+        OPENSEARCH_WRITE_STDOUT: bool = conf.getboolean("opensearch", "WRITE_STDOUT")
+        OPENSEARCH_JSON_FORMAT: bool = conf.getboolean("opensearch", "JSON_FORMAT")
+        OPENSEARCH_JSON_FIELDS: str = conf.get_mandatory_value("opensearch", "JSON_FIELDS")
+        OPENSEARCH_HOST_FIELD: str = conf.get_mandatory_value("opensearch", "HOST_FIELD")
+        OPENSEARCH_OFFSET_FIELD: str = conf.get_mandatory_value("opensearch", "OFFSET_FIELD")
+
+        OPENSEARCH_REMOTE_HANDLERS: dict[str, dict[str, str | bool | None]] = {
+            "task": {
+                "class": "airflow.providers.opensearch.log.os_task_handler.OpensearchTaskHandler",
+                "formatter": "airflow",
+                "base_log_folder": str(os.path.expanduser(BASE_LOG_FOLDER)),
+                "end_of_log_mark": OPENSEARCH_END_OF_LOG_MARK,
+                "host": OPENSEARCH_HOST,
+                "port": OPENSEARCH_PORT,
+                "username": OPENSEARCH_USERNAME,
+                "password": OPENSEARCH_PASSWORD,
+                "write_stdout": OPENSEARCH_WRITE_STDOUT,
+                "json_format": OPENSEARCH_JSON_FORMAT,
+                "json_fields": OPENSEARCH_JSON_FIELDS,
+                "host_field": OPENSEARCH_HOST_FIELD,
+                "offset_field": OPENSEARCH_OFFSET_FIELD,
+            },
+        }
+        DEFAULT_LOGGING_CONFIG["handlers"].update(OPENSEARCH_REMOTE_HANDLERS)
     else:
         raise AirflowException(
             "Incorrect remote log configuration. Please check the configuration of option 'host' in "

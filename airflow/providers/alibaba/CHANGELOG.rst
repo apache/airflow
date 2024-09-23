@@ -26,6 +26,15 @@
 Changelog
 ---------
 
+2.9.1
+.....
+
+Misc
+~~~~
+
+* ``remove deprecated soft_fail from providers (#41710)``
+* ``Remove deprecated log handler argument filename_template (#41552)``
+
 2.9.0
 .....
 

@@ -1609,6 +1609,8 @@ def test_sensitive_values():
         ("celery", "broker_url"),
         ("celery", "flower_basic_auth"),
         ("celery", "result_backend"),
+        ("opensearch", "username"),
+        ("opensearch", "password"),
     }
     all_keys = {(s, k) for s, v in conf.configuration_description.items() for k in v.get("options")}
     suspected_sensitive = {(s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))}

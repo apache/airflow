@@ -36,6 +36,7 @@ from uvicorn.workers import UvicornWorker
 from airflow import settings
 from airflow.cli.commands.daemon_utils import run_command_with_daemon_option
 from airflow.cli.commands.webserver_command import GunicornMonitor
+from airflow.exceptions import AirflowConfigException
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import setup_locations
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
@@ -124,6 +125,10 @@ def fastapi_api(args):
             "python:airflow.api_fastapi.gunicorn_config",
         ]
 
+        ssl_cert, ssl_key = _get_ssl_cert_and_key_filepaths(args)
+        if ssl_cert and ssl_key:
+            run_args += ["--certfile", ssl_cert, "--keyfile", ssl_key]
+
         if args.access_logformat and args.access_logformat.strip():
             run_args += ["--access-logformat", str(args.access_logformat)]
 
@@ -199,3 +204,23 @@ def fastapi_api(args):
             should_setup_logging=True,
             pid_file=monitor_pid_file,
         )
+
+
+def _get_ssl_cert_and_key_filepaths(cli_arguments) -> tuple[str | None, str | None]:
+    error_template_1 = "Need both, have provided {} but not {}"
+    error_template_2 = "SSL related file does not exist {}"
+
+    ssl_cert, ssl_key = cli_arguments.ssl_cert, cli_arguments.ssl_key
+    if ssl_cert and ssl_key:
+        if not os.path.isfile(ssl_cert):
+            raise AirflowConfigException(error_template_2.format(ssl_cert))
+        if not os.path.isfile(ssl_key):
+            raise AirflowConfigException(error_template_2.format(ssl_key))
+
+        return (ssl_cert, ssl_key)
+    elif ssl_cert:
+        raise AirflowConfigException(error_template_1.format("SSL certificate", "SSL key"))
+    elif ssl_key:
+        raise AirflowConfigException(error_template_1.format("SSL key", "SSL certificate"))
+
+    return (None, None)
