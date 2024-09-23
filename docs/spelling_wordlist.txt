@@ -60,6 +60,7 @@ ans
 Ansible
 apache
 api
+aks
 apikey
 apis
 AppBuilder
