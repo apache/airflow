@@ -42,7 +42,6 @@
     Logging for Tasks <logging/index>
     Configuration <configurations-ref>
     Executors <executors/index>
-    Auth manager <auth-manager>
     Auth manager <auth-manager/index>
     CLI <cli-ref>
 
