@@ -62,6 +62,7 @@ from airflow.providers.cncf.kubernetes.pod_generator import PodMutationHookExcep
 from airflow.stats import Stats
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.log.logging_mixin import remove_escape_codes
+from airflow.utils.log.task_context_logger import TaskContextLogger
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import TaskInstanceState
 
@@ -143,6 +144,7 @@ class KubernetesExecutor(BaseExecutor):
         self.task_publish_max_retries = conf.getint(
             "kubernetes_executor", "task_publish_max_retries", fallback=0
         )
+        self.task_logger = TaskContextLogger(component_name="kubernetes_executor", call_site_logger=self.log)
         super().__init__(parallelism=self.kube_config.parallelism)
 
     def _list_pods(self, query_kwargs):
@@ -396,9 +398,11 @@ class KubernetesExecutor(BaseExecutor):
                     self.kube_scheduler.run_next(task)
                     self.task_publish_retries.pop(key, None)
                 except PodReconciliationError as e:
-                    self.log.exception(
+                    self.task_logger.exception(
                         "Pod reconciliation failed, likely due to kubernetes library upgrade. "
-                        "Try clearing the task to re-run.",
+                        "Try clearing the task to re-run. Details: %s",
+                        e.__cause__,
+                        ti=key,
                     )
                     self.fail(task[0], e)
                 except ApiException as e:
@@ -410,27 +414,34 @@ class KubernetesExecutor(BaseExecutor):
                         and "exceeded quota" in body["message"]
                         and (self.task_publish_max_retries == -1 or retries < self.task_publish_max_retries)
                     ):
-                        self.log.warning(
+                        self.task_logger.warning(
                             "[Try %s of %s] Kube ApiException for Task: (%s). Reason: %r. Message: %s",
                             self.task_publish_retries[key] + 1,
                             self.task_publish_max_retries,
                             key,
                             e.reason,
                             body["message"],
+                            ti=key,
                         )
                         self.task_queue.put(task)
                         self.task_publish_retries[key] = retries + 1
                     else:
-                        self.log.error("Pod creation failed with reason %r. Failing task", e.reason)
+                        self.task_logger.error(
+                            "Pod creation failed with reason: %r, message: '%s'. Failing task",
+                            e.reason,
+                            body["message"],
+                            ti=key,
+                        )
                         key, _, _, _ = task
                         self.fail(key, e)
                         self.task_publish_retries.pop(key, None)
                 except PodMutationHookException as e:
                     key, _, _, _ = task
-                    self.log.error(
+                    self.task_logger.error(
                         "Pod Mutation Hook failed for the task %s. Failing task. Details: %s",
                         key,
                         e.__cause__,
+                        ti=key,
                     )
                     self.fail(key, e)
                 finally:
