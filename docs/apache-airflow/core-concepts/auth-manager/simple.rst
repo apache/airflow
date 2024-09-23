@@ -48,7 +48,7 @@ Each user needs two pieces of information:
 * **username**. The user's username
 * **role**. The role associated to the user. For more information about these roles, :ref:`see next section <roles-permissions>`.
 
-The password is auto-generated for each users and printed out in the webserver logs.
+The password is auto-generated for each user and printed out in the webserver logs.
 When generated, these passwords are also saved in your environment, therefore they will not change if you stop or restart your environment.
 
 .. _roles-permissions:
