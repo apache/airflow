@@ -386,20 +386,24 @@ class DagRun(Base, LoggingMixin):
     def active_runs_of_dags(
         cls,
         dag_ids: Iterable[str] | None = None,
-        only_running: bool = False,
+        include_backfill=False,
         session: Session = NEW_SESSION,
     ) -> dict[str, int]:
         """Get the number of active dag runs for each dag."""
-        query = select(cls.dag_id, func.count("*"))
+        query = (
+            select(
+                cls.dag_id,
+                func.count("*"),
+            )
+            .where(
+                cls.state.in_((DagRunState.RUNNING, DagRunState.QUEUED)),
+            )
+            .group_by(cls.dag_id)
+        )
+        if not include_backfill:
+            query = query.where(cls.run_type != DagRunType.BACKFILL_JOB)
         if dag_ids is not None:
-            # 'set' called to avoid duplicate dag_ids, but converted back to 'list'
-            # because SQLAlchemy doesn't accept a set here.
             query = query.where(cls.dag_id.in_(set(dag_ids)))
-        if only_running:
-            query = query.where(cls.state == DagRunState.RUNNING)
-        else:
-            query = query.where(cls.state.in_((DagRunState.RUNNING, DagRunState.QUEUED)))
-        query = query.group_by(cls.dag_id)
         return dict(iter(session.execute(query)))
 
     @classmethod
