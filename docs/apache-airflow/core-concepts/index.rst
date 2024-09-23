@@ -40,6 +40,7 @@ Here you can find detailed documentation about each one of the core concepts of 
     sensors
     taskflow
     executor/index
+    auth-manager
     auth-manager/index
     objectstorage
 
