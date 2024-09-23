@@ -44,7 +44,7 @@ def trigger():
     )
 
 
-async def generate_messages(count):
+async def generate_messages(count: int) -> list[ReceivedMessage]:
     return [
         ReceivedMessage(
             ack_id=f"{i}",

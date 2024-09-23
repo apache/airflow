@@ -214,9 +214,8 @@ class TestPubSubPullSensor:
                 "delivery_attempt": 0,
             }
         ]
-        received_message_format = []
-        for msg in test_message:
-            received_message_format.append(pubsub_v1.types.ReceivedMessage(msg))
+
+        received_messages = [pubsub_v1.types.ReceivedMessage(msg) for msg in test_message]
 
         messages_callback_return_value = "custom_message_from_callback"
 
@@ -224,15 +223,13 @@ class TestPubSubPullSensor:
             pulled_messages: list[ReceivedMessage],
             context: dict[str, Any],
         ):
-            assert pulled_messages == received_message_format
+            assert pulled_messages == received_messages
 
             assert isinstance(context, dict)
             for key in context.keys():
                 assert isinstance(key, str)
 
             return messages_callback_return_value
-
-        messages_callback = mock.Mock(side_effect=messages_callback)
 
         operator = PubSubPullSensor(
             task_id="test_task",
@@ -242,7 +239,7 @@ class TestPubSubPullSensor:
             deferrable=True,
             messages_callback=messages_callback,
         )
-        mock_hook.return_value.pull.return_value = received_message_format
+        mock_hook.return_value.pull.return_value = received_messages
 
         with mock.patch.object(operator.log, "info") as mock_log_info:
             resp = operator.execute_complete(context={}, event={"status": "success", "message": test_message})

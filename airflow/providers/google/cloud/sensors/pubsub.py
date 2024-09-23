@@ -35,6 +35,10 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+class PubSubMessageTransformException(AirflowException):
+    """Raise when messages failed to convert pubsub received format."""
+
+
 class PubSubPullSensor(BaseSensorOperator):
     """
     Pulls messages from a PubSub subscription and passes them through XCom.
@@ -183,21 +187,20 @@ class PubSubPullSensor(BaseSensorOperator):
         if event["status"] == "success":
             self.log.info("Sensor pulls messages: %s", event["message"])
             if self.messages_callback:
-                received_message_fmt = self._convert_to_received_message(event["message"])
-                message_callback_response = self.messages_callback(received_message_fmt, context)
-
-                return message_callback_response
+                received_messages = self._convert_to_received_messages(event["message"])
+                _return_value = self.messages_callback(received_messages, context)
+                return _return_value
 
             return event["message"]
         self.log.info("Sensor failed: %s", event["message"])
         raise AirflowException(event["message"])
 
-    def _convert_to_received_message(self, messages: Any) -> list[Any]:
+    def _convert_to_received_messages(self, messages: Any) -> list[ReceivedMessage]:
         try:
             received_messages = [pubsub_v1.types.ReceivedMessage(msg) for msg in messages]
             return received_messages
         except Exception as e:
-            raise AirflowException(
+            raise PubSubMessageTransformException(
                 f"Error converting triggerer event message back to received message format: {e}"
             )
 
