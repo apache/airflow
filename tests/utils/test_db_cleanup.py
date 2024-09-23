@@ -207,7 +207,7 @@ class TestDBCleanup:
         target_table_name = "_airflow_temp_table_name"
         with create_session() as session:
             clean_before_date = base_date.add(**date_add_kwargs)
-            query = _build_query(
+            query, delete_stmt = _build_query(
                 **config_dict[table_name].__dict__,
                 clean_before_timestamp=clean_before_date,
                 session=session,
