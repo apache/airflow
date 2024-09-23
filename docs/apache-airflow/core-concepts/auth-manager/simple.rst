@@ -23,7 +23,7 @@ Simple auth manager
     See :doc:`apache-airflow:core-concepts/auth-manager/index`.
 
 .. warning::
-  The simple auth manager is intended to be used for development and testing purposes. It should not be used in production environment.
+  The simple auth manager is intended to be used for development and testing purposes. It should not be used in a production environment.
 
 The simple auth manager is the auth manager that comes by default in Airflow 3. As its name suggests,
 the logic and implementation of the simple auth manager is **simple**.
