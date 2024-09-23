@@ -273,6 +273,100 @@ class TestSparkKubernetesOperator:
             version="v1beta2",
         )
 
+    def test_create_application_from_yaml_json_and_use_name_from_metadata(
+        self,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_start,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+    ):
+        op = SparkKubernetesOperator(
+            application_file=data_file("spark/application_test.yaml").as_posix(),
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id="default_yaml",
+        )
+        context = create_context(op)
+        op.execute(context)
+        TEST_APPLICATION_DICT["metadata"]["name"] = op.name
+        mock_create_namespaced_crd.assert_called_with(
+            body=TEST_APPLICATION_DICT,
+            group="sparkoperator.k8s.io",
+            namespace="default",
+            plural="sparkapplications",
+            version="v1beta2",
+        )
+
+        op = SparkKubernetesOperator(
+            application_file=data_file("spark/application_test.json").as_posix(),
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id="default_json",
+        )
+        context = create_context(op)
+        op.execute(context)
+        TEST_APPLICATION_DICT["metadata"]["name"] = op.name
+        mock_create_namespaced_crd.assert_called_with(
+            body=TEST_APPLICATION_DICT,
+            group="sparkoperator.k8s.io",
+            namespace="default",
+            plural="sparkapplications",
+            version="v1beta2",
+        )
+
+    def test_create_application_from_yaml_json_and_use_name_from_operator_args(
+        self,
+        mock_create_namespaced_crd,
+        mock_get_namespaced_custom_object_status,
+        mock_cleanup,
+        mock_create_job_name,
+        mock_get_kube_client,
+        mock_create_pod,
+        mock_await_pod_start,
+        mock_await_pod_completion,
+        mock_fetch_requested_container_logs,
+        data_file,
+    ):
+        op = SparkKubernetesOperator(
+            application_file=data_file("spark/application_test.yaml").as_posix(),
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id="default_yaml",
+            name="test-spark",
+        )
+        context = create_context(op)
+        op.execute(context)
+        TEST_APPLICATION_DICT["metadata"]["name"] = op.name
+        mock_create_namespaced_crd.assert_called_with(
+            body=TEST_APPLICATION_DICT,
+            group="sparkoperator.k8s.io",
+            namespace="default",
+            plural="sparkapplications",
+            version="v1beta2",
+        )
+        assert op.name.startswith("test-spark")
+
+        op = SparkKubernetesOperator(
+            application_file=data_file("spark/application_test.json").as_posix(),
+            kubernetes_conn_id="kubernetes_default_kube_config",
+            task_id="default_json",
+            name="test-spark",
+        )
+        context = create_context(op)
+        op.execute(context)
+        TEST_APPLICATION_DICT["metadata"]["name"] = op.name
+        mock_create_namespaced_crd.assert_called_with(
+            body=TEST_APPLICATION_DICT,
+            group="sparkoperator.k8s.io",
+            namespace="default",
+            plural="sparkapplications",
+            version="v1beta2",
+        )
+        assert op.name.startswith("test-spark")
+
     def test_new_template_from_yaml(
         self,
         mock_create_namespaced_crd,

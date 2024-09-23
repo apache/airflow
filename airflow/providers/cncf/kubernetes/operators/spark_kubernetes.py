@@ -83,7 +83,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         image: str | None = None,
         code_path: str | None = None,
         namespace: str = "default",
-        name: str = "default",
+        name: str | None = None,
         application_file: str | None = None,
         template_spec=None,
         get_logs: bool = True,
@@ -103,7 +103,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         self.code_path = code_path
         self.application_file = application_file
         self.template_spec = template_spec
-        self.name = self.create_job_name()
         self.kubernetes_conn_id = kubernetes_conn_id
         self.startup_timeout_seconds = startup_timeout_seconds
         self.reattach_on_restart = reattach_on_restart
@@ -161,8 +160,25 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return template_body
 
     def create_job_name(self):
-        initial_name = add_unique_suffix(name=self.task_id, max_len=MAX_LABEL_LEN)
-        return re.sub(r"[^a-z0-9-]+", "-", initial_name.lower())
+        """
+        Spark name is created based on the following order of precedence.
+
+        Check the name argument in the operator parameters.
+        Check the name specified in the YAML file.
+        If neither is available, use the task ID as the name.
+
+        It adds default random id characters for the name provided suffix.
+        """
+        name = self.template_body.get("spark", {}).get("metadata", {}).get("name")
+
+        if self.name:
+            name = self.name
+        elif not name:
+            name = self.task_id
+
+        updated_name = add_unique_suffix(name=name, max_len=MAX_LABEL_LEN)
+
+        return re.sub(r"[^a-z0-9-]+", "-", updated_name.lower())
 
     @staticmethod
     def _get_pod_identifying_label_string(labels) -> str:
@@ -282,6 +298,8 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return CustomObjectsApi()
 
     def execute(self, context: Context):
+        self.name = self.create_job_name()
+
         self.log.info("Creating sparkApplication.")
         self.launcher = CustomObjectLauncher(
             name=self.name,
