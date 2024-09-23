@@ -102,26 +102,36 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
                 console.print(file.read_text())
             raise
 
-    def test_cli_fastapi_api_debug(self, app):
-        with mock.patch("subprocess.Popen") as Popen, mock.patch.object(
+    @pytest.mark.parametrize(
+        "ssl_flags, ssl_kwargs",
+        [
+            (
+                ["--ssl-cert", "_.crt", "--ssl-key", "_.key"],
+                {"ssl_certfile": "_.crt", "ssl_keyfile": "_.key"},
+            ),
+            ([], {}),
+        ],
+    )
+    def test_cli_fastapi_api_debug(self, ssl_flags, ssl_kwargs, ssl_cert_and_key, tmp_path, app):
+        os.chdir(tmp_path)
+
+        with mock.patch("uvicorn.run") as uvicorn_run, mock.patch.object(
             fastapi_api_command, "GunicornMonitor"
         ):
-            port = "9092"
+            port = 9092
             hostname = "somehost"
-            args = self.parser.parse_args(["fastapi-api", "--port", port, "--hostname", hostname, "--debug"])
+            args = self.parser.parse_args(
+                ["fastapi-api", "--port", str(port), "--hostname", hostname, "--debug"] + ssl_flags
+            )
             fastapi_api_command.fastapi_api(args)
-
-            Popen.assert_called_with(
-                [
-                    "fastapi",
-                    "dev",
-                    "airflow/api_fastapi/main.py",
-                    "--port",
-                    port,
-                    "--host",
-                    hostname,
-                ],
-                close_fds=True,
+            uvicorn_run.assert_called_with(
+                "airflow.api_fastapi.app:cached_app",
+                factory=True,
+                port=port,
+                host=hostname,
+                reload=True,
+                proxy_headers=True,
+                **ssl_kwargs,
             )
 
     def test_cli_fastapi_api_args(self, ssl_cert_and_key):
@@ -168,12 +178,12 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
                     "-",
                     "--config",
                     "python:airflow.api_fastapi.gunicorn_config",
+                    "--access-logformat",
+                    "custom_log_format",
                     "--certfile",
                     str(cert_path),
                     "--keyfile",
                     str(key_path),
-                    "--access-logformat",
-                    "custom_log_format",
                     "airflow.api_fastapi.app:cached_app()",
                     "--preload",
                 ],
@@ -193,13 +203,20 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
         with pytest.raises(AirflowConfigException, match=error_pattern):
             fastapi_api_command._get_ssl_cert_and_key_filepaths(args)
 
-    def test_get_ssl_cert_and_key_filepaths_with_correct_usage(self, ssl_cert_and_key):
-        cert_path, key_path = ssl_cert_and_key
+    @pytest.mark.parametrize(
+        "ssl_flags, ssl_paths",
+        [
+            (["--ssl-cert", "_.crt", "--ssl-key", "_.key"], ("_.crt", "_.key")),
+            ([], (None, None)),
+        ],
+    )
+    def test_get_ssl_cert_and_key_filepaths_with_correct_usage(
+        self, ssl_flags, ssl_paths, ssl_cert_and_key, tmp_path
+    ):
+        os.chdir(tmp_path)
 
-        args = self.parser.parse_args(
-            ["fastapi-api"] + ["--ssl-cert", str(cert_path), "--ssl-key", str(key_path)]
-        )
-        assert fastapi_api_command._get_ssl_cert_and_key_filepaths(args) == (str(cert_path), str(key_path))
+        args = self.parser.parse_args(["fastapi-api"] + ssl_flags)
+        assert fastapi_api_command._get_ssl_cert_and_key_filepaths(args) == ssl_paths
 
     @pytest.fixture
     def ssl_cert_and_key(self, tmp_path):
