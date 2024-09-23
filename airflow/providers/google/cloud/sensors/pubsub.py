@@ -179,7 +179,7 @@ class PubSubPullSensor(BaseSensorOperator):
             )
 
     def execute_complete(self, context: Context, event: dict[str, str | list[str]]) -> Any:
-        """Return immediately and relies on trigger to throw a success event. Callback for the trigger."""
+        """If messages_callback is provided, execute it; otherwise, return immediately with trigger event message."""
         if event["status"] == "success":
             self.log.info("Sensor pulls messages: %s", event["message"])
             if self.messages_callback:
@@ -192,14 +192,9 @@ class PubSubPullSensor(BaseSensorOperator):
         self.log.info("Sensor failed: %s", event["message"])
         raise AirflowException(event["message"])
 
-    def _convert_to_received_message(self, messages: Any):
+    def _convert_to_received_message(self, messages: Any) -> list[Any]:
         try:
-            received_messages = []
-            for msg in messages:
-                received_message = pubsub_v1.types.ReceivedMessage(msg)
-
-                received_messages.append(received_message)
-
+            received_messages = [pubsub_v1.types.ReceivedMessage(msg) for msg in messages]
             return received_messages
         except Exception as e:
             raise AirflowException(
