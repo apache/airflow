@@ -17,16 +17,11 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import TYPE_CHECKING
 
-from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from tests.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.security_manager.override import EXISTING_ROLES
-
-if TYPE_CHECKING:
-    from flask import Flask
 
 
 @contextmanager
@@ -56,19 +51,26 @@ def create_user_scope(app, username, **kwargs):
         delete_user(app, username)
 
 
-def create_user(app: Flask, username: str, role_name: str | None):
+def create_user(app, username, role_name=None, email=None, permissions=None):
+    appbuilder = app.appbuilder
+
     # Removes user and role so each test has isolated test data.
     delete_user(app, username)
+    role = None
+    if role_name:
+        delete_role(app, role_name)
+        role = create_role(app, role_name, permissions)
+    else:
+        role = []
 
-    users = app.config.get("SIMPLE_AUTH_MANAGER_USERS", [])
-    users.append(
-        {
-            "username": username,
-            "role": role_name,
-        }
+    return appbuilder.sm.add_user(
+        username=username,
+        first_name=username,
+        last_name=username,
+        email=email or f"{username}@example.org",
+        role=role,
+        password=username,
     )
-
-    app.config["SIMPLE_AUTH_MANAGER_USERS"] = users
 
 
 def create_role(app, name, permissions=None):
@@ -103,23 +105,17 @@ def delete_roles(app):
         delete_role(app, role.name)
 
 
-def delete_user(app: Flask, username):
-    users = app.config.get("SIMPLE_AUTH_MANAGER_USERS", [])
-    users = [user for user in users if user["username"] != username]
-
-    app.config["SIMPLE_AUTH_MANAGER_USERS"] = users
+def delete_user(app, username):
+    appbuilder = app.appbuilder
+    for user in appbuilder.sm.get_all_users():
+        if user.username == username:
+            _ = [
+                delete_role(app, role.name) for role in user.roles if role and role.name not in EXISTING_ROLES
+            ]
+            appbuilder.sm.del_register_user(user)
+            break
 
 
 def delete_users(app):
     for user in app.appbuilder.sm.get_all_users():
         delete_user(app, user.username)
-
-
-def assert_401(response):
-    assert response.status_code == 401, f"Current code: {response.status_code}"
-    assert response.json == {
-        "detail": None,
-        "status": 401,
-        "title": "Unauthorized",
-        "type": EXCEPTIONS_LINK_MAP[401],
-    }

@@ -15,15 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Default authentication backend - everything is allowed"""
+
 from __future__ import annotations
 
 import logging
 from functools import wraps
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
-from flask import Response, request, session
+from flask import Response, request
+from flask_login import login_user
 
-from airflow.auth.managers.simple.user import SimpleAuthManagerUser
 from airflow.utils.airflow_flask_app import get_airflow_app
 
 if TYPE_CHECKING:
@@ -34,15 +36,25 @@ log = logging.getLogger(__name__)
 CLIENT_AUTH: tuple[str, str] | AuthBase | None = None
 
 
-def init_app(_): ...
+def init_app(_):
+    """Initializes authentication backend"""
 
 
 T = TypeVar("T", bound=Callable)
 
 
-def _lookup_user(username: str):
-    users = get_airflow_app().config.get("SIMPLE_AUTH_MANAGER_USERS", [])
-    return next((user for user in users if user["username"] == username), None)
+def _lookup_user(user_email_or_username: str):
+    security_manager = get_airflow_app().appbuilder.sm
+    user = security_manager.find_user(email=user_email_or_username) or security_manager.find_user(
+        username=user_email_or_username
+    )
+    if not user:
+        return None
+
+    if not user.is_active:
+        return None
+
+    return user
 
 
 def requires_authentication(function: T):
@@ -57,13 +69,13 @@ def requires_authentication(function: T):
 
         log.debug("Looking for user: %s", user_id)
 
-        user_dict = _lookup_user(user_id)
-        if not user_dict:
+        user = _lookup_user(user_id)
+        if not user:
             return Response("Forbidden", 403)
 
-        log.debug("Found user: %s", user_dict)
-        session["user"] = SimpleAuthManagerUser(username=user_dict["username"], role=user_dict["role"])
+        log.debug("Found user: %s", user)
 
+        login_user(user, remember=False)
         return function(*args, **kwargs)
 
     return cast(T, decorated)

@@ -221,7 +221,12 @@ class SimpleAuthManager(BaseAuthManager):
         user = self.get_user()
         if not user:
             return False
-        role_str = user.get_role().upper()
+
+        user_role = user.get_role()
+        if not user_role:
+            return False
+
+        role_str = user_role.upper()
         role = SimpleAuthManagerRole[role_str]
         if role == SimpleAuthManagerRole.ADMIN:
             return True
