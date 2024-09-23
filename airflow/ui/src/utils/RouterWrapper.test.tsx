@@ -16,33 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-import react from "@vitejs/plugin-react-swc";
-import { defineConfig } from "vitest/config";
+import { render } from "@testing-library/react";
+import { describe, it, expect } from "vitest";
 
-// https://vitejs.dev/config/
-export default defineConfig({
-  build: { chunkSizeWarningLimit: 1600, manifest: true },
-  plugins: [
-    react(),
-    // Replace the directory to work with the flask plugin generation
-    {
-      name: "transform-url-src",
-      transformIndexHtml: (html) =>
-        html
-          .replace(`src="/assets/`, `src="/ui/assets/`)
-          .replace(`href="/`, `href="/ui/`),
-    },
-  ],
-  resolve: { alias: { openapi: "/openapi-gen", src: "/src" } },
-  test: {
-    coverage: {
-      include: ["src/**/*.ts", "src/**/*.tsx"],
-    },
-    css: true,
-    environment: "happy-dom",
-    globals: true,
-    mockReset: true,
-    restoreMocks: true,
-    setupFiles: "./testsSetup.ts",
-  },
+import { RouterWrapper } from "src/utils/RouterWrapper.tsx";
+
+describe("RouterWrapper", () => {
+  it("renders children correctly", () => {
+    const { getByText } = render(
+      <RouterWrapper>
+        <div>Test Child</div>
+      </RouterWrapper>,
+    );
+
+    expect(getByText("Test Child")).toBeInTheDocument();
+  });
+
+  it("renders without children", () => {
+    const { container } = render(<RouterWrapper />);
+
+    expect(container).toBeInTheDocument();
+  });
 });
