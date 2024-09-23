@@ -18,7 +18,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Sequence
 
 from sqlalchemy import delete
 
@@ -150,6 +150,18 @@ class EdgeExecutor(BaseExecutor):
         :return: List of readable task instances for a warning message
         """
         raise NotImplementedError()
+
+    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
+        """
+        Try to adopt running task instances that have been abandoned by a SchedulerJob dying.
+
+        Anything that is not adopted will be cleared by the scheduler (and then become eligible for
+        re-scheduling)
+
+        :return: any TaskInstances that were unable to be adopted
+        """
+        # We handle all running tasks from the DB in sync, no adoption logic needed.
+        return []
 
     @staticmethod
     def get_cli_commands() -> list[GroupCommand]:
