@@ -266,7 +266,7 @@ def _build_query(
         conditions.append(max_date_col_cond)
 
     query = query.filter(and_(*conditions))
-    delete_query = delete_query.filter(and_(*conditions[0]))
+    delete_query = delete_query.filter(and_(conditions[0]))
     return query, delete_query
 
 
