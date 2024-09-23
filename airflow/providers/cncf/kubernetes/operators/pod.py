@@ -80,7 +80,6 @@ from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodNotFoundException,
     PodOperatorHookProtocol,
     PodPhase,
-    check_exception_is_kubernetes_api_unauthorized,
     container_is_succeeded,
     get_container_termination_message,
 )
@@ -111,6 +110,7 @@ class PodEventType(Enum):
 
 class PodReattachFailure(AirflowException):
     """When we expect to be able to find a pod but cannot."""
+
 
 class PodCredentialsExpiredFailure(AirflowException):
     """When pod fails to refresh credentials."""
@@ -653,7 +653,7 @@ class KubernetesPodOperator(BaseOperator):
 
         if self.do_xcom_push:
             return result
-        
+
     @tenacity.retry(
         wait=tenacity.wait_exponential(max=15),
         retry=tenacity.retry_if_exception_type(PodCredentialsExpiredFailure),
@@ -677,7 +677,9 @@ class KubernetesPodOperator(BaseOperator):
                     "Failed to check container status due to permission error. Refreshing credentials and retrying."
                 )
                 self._refresh_cached_properties()
-                self.pod_manager.read_pod(pod=pod) # attempt using refreshed credentials, raises if still invalid
+                self.pod_manager.read_pod(
+                    pod=pod
+                )  # attempt using refreshed credentials, raises if still invalid
                 raise PodCredentialsExpiredFailure("Kubernetes credentials expired, retrying after refresh.")
             raise exc
 

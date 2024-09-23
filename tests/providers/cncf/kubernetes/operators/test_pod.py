@@ -1672,10 +1672,10 @@ class TestKubernetesPodOperator:
 
         mock_await_container_completion.side_effect = [ApiException(status=401)]
         mock_read_pod.side_effect = [ApiException(status=401)]
-        
+
         with pytest.raises(ApiException):
             k.await_pod_completion(pod)
-        
+
         mock_read_pod.assert_called()
         # assert cache was refreshed
         assert client != k.client
