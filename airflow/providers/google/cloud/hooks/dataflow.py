@@ -1153,8 +1153,8 @@ class DataflowHook(GoogleBaseHook):
         if location is None:
             location = DEFAULT_DATAFLOW_LOCATION
             warnings.warn(
-                "The location argument setting will be become mandary in future versions. "
-                f"Currenty, it defaults to {DEFAULT_DATAFLOW_LOCATION}. Please set the location explicitly.",
+                "The location argument will be become mandatory in future versions, "
+                f"currently, it defaults to {DEFAULT_DATAFLOW_LOCATION}, please set the location explicitly.",
                 AirflowProviderDeprecationWarning,
                 stacklevel=4,
             )
