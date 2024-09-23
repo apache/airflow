@@ -122,7 +122,6 @@ class MSGraphAsyncOperator(BaseOperator):
         self.pagination_function = pagination_function or self.paginate
         self.result_processor = result_processor
         self.serializer: ResponseSerializer = serializer()
-        self.results: list[Any] | None = None
 
     def execute(self, context: Context) -> None:
         self.defer(
@@ -166,6 +165,8 @@ class MSGraphAsyncOperator(BaseOperator):
 
             self.log.debug("response: %s", response)
 
+            results = self.pull_xcom(context=context)
+
             if response:
                 response = self.serializer.deserialize(response)
 
@@ -180,37 +181,42 @@ class MSGraphAsyncOperator(BaseOperator):
                 try:
                     self.trigger_next_link(response=response, method_name=self.execute_complete.__name__)
                 except TaskDeferred as exception:
-                    self.results = self.pull_xcom(context=context)
                     self.append_result(
+                        results=results,
                         result=result,
                         append_result_as_list_if_absent=True,
                     )
-                    self.push_xcom(context=context, value=self.results)
+                    self.push_xcom(context=context, value=results)
                     raise exception
 
-                self.append_result(result=result)
+                if not results:
+                    return result
 
-                return self.results
+                self.append_result(results=results, result=result)
+            return results
         return None
 
+    @classmethod
     def append_result(
-        self,
+        cls,
+        results: list[Any],
         result: Any,
         append_result_as_list_if_absent: bool = False,
-    ):
-        if isinstance(self.results, list):
+    ) -> list[Any]:
+        if isinstance(results, list):
             if isinstance(result, list):
-                self.results.extend(result)
+                results.extend(result)
             else:
-                self.results.append(result)
+                results.append(result)
         else:
             if append_result_as_list_if_absent:
                 if isinstance(result, list):
-                    self.results = result
+                    return result
                 else:
-                    self.results = [result]
+                    return [result]
             else:
-                self.results = result
+                return result
+        return results
 
     def pull_xcom(self, context: Context) -> list:
         map_index = context["ti"].map_index
