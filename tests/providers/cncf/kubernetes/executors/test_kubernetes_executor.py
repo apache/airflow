@@ -1202,6 +1202,12 @@ class TestKubernetesExecutor:
             items=[
                 k8s.V1Pod(
                     metadata=k8s.V1ObjectMeta(
+                        annotations={
+                            "dag_id": "test_cleanup_stuck_queued_tasks",
+                            "task_id": "bash",
+                            "run_id": "test",
+                            "try_number": 0,
+                        },
                         labels={
                             "role": "airflow-worker",
                             "dag_id": "test_cleanup_stuck_queued_tasks",
@@ -1310,6 +1316,11 @@ class TestKubernetesExecutor:
             items=[
                 k8s.V1Pod(
                     metadata=k8s.V1ObjectMeta(
+                        annotations={
+                            "dag_id": "test_clear",
+                            "task_id": "task1",
+                            "run_id": "test",
+                        },
                         labels={
                             "role": "airflow-worker",
                             "dag_id": "test_clear",
@@ -1357,6 +1368,12 @@ class TestKubernetesExecutor:
                 items=[
                     k8s.V1Pod(
                         metadata=k8s.V1ObjectMeta(
+                            annotations={
+                                "dag_id": "test_clear",
+                                "task_id": "bash",
+                                "run_id": "test",
+                                "map_index": 0,
+                            },
                             labels={
                                 "role": "airflow-worker",
                                 "dag_id": "test_clear",
