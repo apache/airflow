@@ -932,9 +932,9 @@ class TestDagRun:
         )
 
         if state == DagRunState.RUNNING:
-            func = DagRun.running_dag_runs_to_examine
+            func = DagRun.get_running_dag_runs_to_examine
         else:
-            func = DagRun.queued_dag_runs_to_set_running
+            func = DagRun.get_queued_dag_runs_to_set_running
         runs = func(session).all()
 
         assert runs == [dr]

@@ -1195,7 +1195,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             # Bulk fetch the currently active dag runs for the dags we are
             # examining, rather than making one query per DagRun
-            dag_runs = DagRun.running_dag_runs_to_examine(session=session)
+            dag_runs = DagRun.get_running_dag_runs_to_examine(session=session)
 
             callback_tuples = self._schedule_all_dag_runs(guard, dag_runs, session)
 
@@ -1482,7 +1482,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _start_queued_dagruns(self, session: Session) -> None:
         """Find DagRuns in queued state and decide moving them to running state."""
         # added all() to save runtime, otherwise query is executed more than once
-        dag_runs: Collection[DagRun] = DagRun.queued_dag_runs_to_set_running(session).all()
+        dag_runs: Collection[DagRun] = DagRun.get_queued_dag_runs_to_set_running(session).all()
 
         active_runs_of_dags = Counter(
             DagRun.active_runs_of_dags((dr.dag_id for dr in dag_runs), only_running=True, session=session),
