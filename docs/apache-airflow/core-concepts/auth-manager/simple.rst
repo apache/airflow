@@ -20,7 +20,7 @@ Simple auth manager
 
 .. note::
     Before reading this, you should be familiar with the concept of auth manager.
-    See :doc:`apache-airflow:core-concepts/auth-manager/index`.
+    See :doc:`/core-concepts/auth-manager/index`.
 
 .. warning::
   The simple auth manager is intended to be used for development and testing purposes. It should not be used in a production environment.
