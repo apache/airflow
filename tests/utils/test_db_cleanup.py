@@ -155,7 +155,7 @@ class TestDBCleanup:
         "dry_run",
         [None, True, False],
     )
-    @patch("airflow.utils.db_cleanup._build_query", MagicMock(MagicMock(), MagicMock()))
+    @patch("airflow.utils.db_cleanup._build_query", MagicMock(return_value=(MagicMock(), MagicMock())))
     @patch("airflow.utils.db_cleanup._confirm_delete", MagicMock())
     @patch("airflow.utils.db_cleanup._check_for_rows")
     @patch("airflow.utils.db_cleanup._do_delete")
