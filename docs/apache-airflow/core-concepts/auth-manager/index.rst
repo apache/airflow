@@ -22,10 +22,14 @@ Auth (for authentication/authorization) manager is the component in Airflow to h
 API and are "pluggable", meaning you can swap auth managers based on your installation needs.
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 .. image:: ../../img/diagram_auth_manager_airflow_architecture.png
 =======
 .. image:: ../img/diagram_auth_manager_airflow_architecture.png
 >>>>>>> 7a07034b61 (Simple auth manager documentation)
+=======
+.. image:: ../../img/diagram_auth_manager_airflow_architecture.png
+>>>>>>> b741090a8f (Fix docs)
 
 Airflow can only have one auth manager configured at a time; this is set by the ``auth_manager`` option in the
 ``[core]`` section of :doc:`the configuration file </howto/set-config>`.
