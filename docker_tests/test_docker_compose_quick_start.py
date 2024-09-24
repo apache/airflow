@@ -37,7 +37,7 @@ from docker_tests.test_prod_image import REGULAR_IMAGE_PROVIDERS
 
 AIRFLOW_WWW_USER_USERNAME = os.environ.get("_AIRFLOW_WWW_USER_USERNAME", "airflow")
 AIRFLOW_WWW_USER_PASSWORD = os.environ.get("_AIRFLOW_WWW_USER_PASSWORD", "airflow")
-DAG_ID = "example_bash_operator" if "standard" in REGULAR_IMAGE_PROVIDERS else "example_empty_operator"
+DAG_ID = "example_bash_operator"
 DAG_RUN_ID = "test_dag_run_id"
 
 
@@ -66,6 +66,10 @@ def wait_for_terminal_dag_state(dag_id, dag_run_id):
             break
 
 
+@pytest.mark.skipif(
+    "standard" not in REGULAR_IMAGE_PROVIDERS,
+    reason="Skipping temporarily due to standard provider not available.",
+)
 def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory, monkeypatch):
     """Simple test which reproduce setup docker-compose environment and trigger example dag."""
     tmp_dir = tmp_path_factory.mktemp("airflow-quick-start")
