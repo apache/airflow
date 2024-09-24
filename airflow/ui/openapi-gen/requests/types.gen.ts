@@ -70,13 +70,15 @@ export type NextRunDatasetsUiNextRunDatasetsDagIdGetResponse = {
 };
 
 export type GetDagsPublicDagsGetData = {
+  dagDisplayNamePattern?: string | null;
   dagIdPattern?: string | null;
   limit?: number;
   offset?: number;
   onlyActive?: boolean;
   orderBy?: string;
+  owners?: Array<string>;
   paused?: boolean | null;
-  tags?: Array<string> | null;
+  tags?: Array<string>;
 };
 
 export type GetDagsPublicDagsGetResponse = DAGCollectionResponse;

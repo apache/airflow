@@ -21,7 +21,7 @@ Auth manager
 Auth (for authentication/authorization) manager is the component in Airflow to handle user authentication and user authorization. They have a common
 API and are "pluggable", meaning you can swap auth managers based on your installation needs.
 
-.. image:: ../img/diagram_auth_manager_airflow_architecture.png
+.. image:: ../../img/diagram_auth_manager_airflow_architecture.png
 
 Airflow can only have one auth manager configured at a time; this is set by the ``auth_manager`` option in the
 ``[core]`` section of :doc:`the configuration file </howto/set-config>`.
@@ -37,6 +37,22 @@ If you want to check which auth manager is currently set, you can use the
     $ airflow config get-value core auth_manager
     airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
 
+Available auth managers to use
+------------------------------
+
+Here is the list of auth managers available today that you can use in your Airflow environment.
+
+Provided by Airflow:
+
+.. toctree::
+    :maxdepth: 1
+
+    simple
+
+Provided by providers:
+
+* :doc:`apache-airflow-providers-fab:auth-manager/index`
+* :doc:`apache-airflow-providers-amazon:auth-manager/index`
 
 Why pluggable auth managers?
 ----------------------------

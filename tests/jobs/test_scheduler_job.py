@@ -42,7 +42,7 @@ from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.datasets import Dataset
 from airflow.datasets.manager import DatasetManager
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, RemovedInAirflow3Warning
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import MOCK_EXECUTOR
 from airflow.executors.executor_loader import ExecutorLoader
@@ -2838,6 +2838,10 @@ class TestSchedulerJob:
         This is hackish: a dag run is created but its tasks are
         run by a backfill.
         """
+
+        # todo: AIP-78 remove along with DAG.run()
+        #  this only tests the backfill job runner, not the scheduler
+
         if run_kwargs is None:
             run_kwargs = {}
 
@@ -2898,40 +2902,49 @@ class TestSchedulerJob:
         """
         DagRuns with one failed and one incomplete root task -> FAILED
         """
-        self.evaluate_dagrun(
-            dag_id="test_dagrun_states_fail",
-            expected_task_states={
-                "test_dagrun_fail": State.FAILED,
-                "test_dagrun_succeed": State.UPSTREAM_FAILED,
-            },
-            dagrun_state=State.FAILED,
-        )
+        # todo: AIP-78 remove along with DAG.run()
+        #  this only tests the backfill job runner, not the scheduler
+        with pytest.warns(RemovedInAirflow3Warning):
+            self.evaluate_dagrun(
+                dag_id="test_dagrun_states_fail",
+                expected_task_states={
+                    "test_dagrun_fail": State.FAILED,
+                    "test_dagrun_succeed": State.UPSTREAM_FAILED,
+                },
+                dagrun_state=State.FAILED,
+            )
 
     def test_dagrun_success(self):
         """
         DagRuns with one failed and one successful root task -> SUCCESS
         """
-        self.evaluate_dagrun(
-            dag_id="test_dagrun_states_success",
-            expected_task_states={
-                "test_dagrun_fail": State.FAILED,
-                "test_dagrun_succeed": State.SUCCESS,
-            },
-            dagrun_state=State.SUCCESS,
-        )
+        # todo: AIP-78 remove along with DAG.run()
+        #  this only tests the backfill job runner, not the scheduler
+        with pytest.warns(RemovedInAirflow3Warning):
+            self.evaluate_dagrun(
+                dag_id="test_dagrun_states_success",
+                expected_task_states={
+                    "test_dagrun_fail": State.FAILED,
+                    "test_dagrun_succeed": State.SUCCESS,
+                },
+                dagrun_state=State.SUCCESS,
+            )
 
     def test_dagrun_root_fail(self):
         """
         DagRuns with one successful and one failed root task -> FAILED
         """
-        self.evaluate_dagrun(
-            dag_id="test_dagrun_states_root_fail",
-            expected_task_states={
-                "test_dagrun_succeed": State.SUCCESS,
-                "test_dagrun_fail": State.FAILED,
-            },
-            dagrun_state=State.FAILED,
-        )
+        # todo: AIP-78 remove along with DAG.run()
+        #  this only tests the backfill job runner, not the scheduler
+        with pytest.warns(RemovedInAirflow3Warning):
+            self.evaluate_dagrun(
+                dag_id="test_dagrun_states_root_fail",
+                expected_task_states={
+                    "test_dagrun_succeed": State.SUCCESS,
+                    "test_dagrun_fail": State.FAILED,
+                },
+                dagrun_state=State.FAILED,
+            )
 
     def test_dagrun_root_fail_unfinished(self):
         """
@@ -2952,9 +2965,12 @@ class TestSchedulerJob:
         )
         self.null_exec.mock_task_fail(dag_id, "test_dagrun_fail", dr.run_id)
 
-        for _ in _mock_executor(self.null_exec):
-            with pytest.raises(AirflowException):
-                dag.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        # todo: AIP-78 remove this test along with DAG.run()
+        #  this only tests the backfill job runner, not the scheduler
+        with pytest.warns(RemovedInAirflow3Warning):
+            for _ in _mock_executor(self.null_exec):
+                with pytest.raises(AirflowException):
+                    dag.run(start_date=dr.execution_date, end_date=dr.execution_date)
 
         # Mark the successful task as never having run since we want to see if the
         # dagrun will be in a running state despite having an unfinished task.
@@ -2994,16 +3010,19 @@ class TestSchedulerJob:
         if ignore_first_depends_on_past=True and the dagrun execution_date
         is after the start_date.
         """
-        self.evaluate_dagrun(
-            dag_id="test_dagrun_states_deadlock",
-            expected_task_states={
-                "test_depends_on_past": State.SUCCESS,
-                "test_depends_on_past_2": State.SUCCESS,
-            },
-            dagrun_state=State.SUCCESS,
-            advance_execution_date=True,
-            run_kwargs=dict(ignore_first_depends_on_past=True),
-        )
+        # todo: AIP-78 remove along with DAG.run()
+        #  this only tests the backfill job runner, not the scheduler
+        with pytest.warns(RemovedInAirflow3Warning):
+            self.evaluate_dagrun(
+                dag_id="test_dagrun_states_deadlock",
+                expected_task_states={
+                    "test_depends_on_past": State.SUCCESS,
+                    "test_depends_on_past_2": State.SUCCESS,
+                },
+                dagrun_state=State.SUCCESS,
+                advance_execution_date=True,
+                run_kwargs=dict(ignore_first_depends_on_past=True),
+            )
 
     def test_dagrun_deadlock_ignore_depends_on_past(self):
         """
@@ -3012,15 +3031,18 @@ class TestSchedulerJob:
         test_dagrun_deadlock_ignore_depends_on_past_advance_ex_date except
         that start_date == execution_date so depends_on_past is irrelevant).
         """
-        self.evaluate_dagrun(
-            dag_id="test_dagrun_states_deadlock",
-            expected_task_states={
-                "test_depends_on_past": State.SUCCESS,
-                "test_depends_on_past_2": State.SUCCESS,
-            },
-            dagrun_state=State.SUCCESS,
-            run_kwargs=dict(ignore_first_depends_on_past=True),
-        )
+        # todo: AIP-78 remove along with DAG.run()
+        #  this only tests the backfill job runner, not the scheduler
+        with pytest.warns(RemovedInAirflow3Warning):
+            self.evaluate_dagrun(
+                dag_id="test_dagrun_states_deadlock",
+                expected_task_states={
+                    "test_depends_on_past": State.SUCCESS,
+                    "test_depends_on_past_2": State.SUCCESS,
+                },
+                dagrun_state=State.SUCCESS,
+                run_kwargs=dict(ignore_first_depends_on_past=True),
+            )
 
     @pytest.mark.parametrize(
         "configs",
@@ -6014,7 +6036,9 @@ class TestSchedulerJobQueriesCount:
             self.job_runner.processor_agent = mock_agent
 
             with assert_queries_count(expected_query_count, margin=15):
-                with mock.patch.object(DagRun, "next_dagruns_to_examine") as mock_dagruns:
+                with mock.patch.object(
+                    DagRun, DagRun.get_running_dag_runs_to_examine.__name__
+                ) as mock_dagruns:
                     query = MagicMock()
                     query.all.return_value = dagruns
                     mock_dagruns.return_value = query
