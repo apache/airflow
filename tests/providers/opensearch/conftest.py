@@ -50,7 +50,7 @@ class MockSearch(OpenSearchHook):
         return doc_id
 
 
-class MockClient(OpenSearch):
+class MockClient:
     def count(self, index: Any = None, body: Any = None):
         return {"count": 1, "_shards": {"total": 1, "successful": 1, "skipped": 0, "failed": 0}}
 
