@@ -181,6 +181,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         self.do_pickle = do_pickle
 
+        self._enable_tracemalloc = conf.getboolean("scheduler", "enable_tracemalloc")
+        if self._enable_tracemalloc:
+            import tracemalloc
+
+            tracemalloc.start()
+
         if log:
             self._log = log
 
@@ -202,16 +208,36 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         signal.signal(signal.SIGTERM, self._exit_gracefully)
         signal.signal(signal.SIGUSR2, self._debug_dump)
 
+        if self._enable_tracemalloc:
+            signal.signal(signal.SIGUSR1, self._log_memory_usage)
+
     def _exit_gracefully(self, signum: int, frame: FrameType | None) -> None:
         """Clean up processor_agent to avoid leaving orphan processes."""
         if not _is_parent_process():
             # Only the parent process should perform the cleanup.
             return
 
+        if self._enable_tracemalloc:
+            import tracemalloc
+
+            tracemalloc.stop()
+
         self.log.info("Exiting gracefully upon receiving signal %s", signum)
         if self.processor_agent:
             self.processor_agent.end()
         sys.exit(os.EX_OK)
+
+    def _log_memory_usage(self, signum: int, frame: FrameType | None) -> None:
+        import tracemalloc
+
+        snapshot = tracemalloc.take_snapshot()
+        top_stats = snapshot.statistics("lineno")
+        n = 10
+        self.log.error(
+            "scheduler memory usgae:\n Top %d\n %s",
+            n,
+            "\n\t".join(map(str, top_stats[:n])),
+        )
 
     def _debug_dump(self, signum: int, frame: FrameType | None) -> None:
         if not _is_parent_process():
@@ -1192,9 +1218,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             self._start_queued_dagruns(session)
             guard.commit()
-            dag_runs = self._get_next_dagruns_to_examine(DagRunState.RUNNING, session)
+
             # Bulk fetch the currently active dag runs for the dags we are
             # examining, rather than making one query per DagRun
+            dag_runs = DagRun.get_running_dag_runs_to_examine(session=session)
 
             callback_tuples = self._schedule_all_dag_runs(guard, dag_runs, session)
 
@@ -1247,11 +1274,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             guard.commit()
 
         return num_queued_tis
-
-    @retry_db_transaction
-    def _get_next_dagruns_to_examine(self, state: DagRunState, session: Session) -> Query:
-        """Get Next DagRuns to Examine with retries."""
-        return DagRun.next_dagruns_to_examine(state, session)
 
     @retry_db_transaction
     def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:
@@ -1486,7 +1508,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _start_queued_dagruns(self, session: Session) -> None:
         """Find DagRuns in queued state and decide moving them to running state."""
         # added all() to save runtime, otherwise query is executed more than once
-        dag_runs: Collection[DagRun] = self._get_next_dagruns_to_examine(DagRunState.QUEUED, session).all()
+        dag_runs: Collection[DagRun] = DagRun.get_queued_dag_runs_to_set_running(session).all()
 
         active_runs_of_dags = Counter(
             DagRun.active_runs_of_dags((dr.dag_id for dr in dag_runs), only_running=True, session=session),

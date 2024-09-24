@@ -35,6 +35,9 @@ export default defineConfig({
   ],
   resolve: { alias: { openapi: "/openapi-gen", src: "/src" } },
   test: {
+    coverage: {
+      include: ["src/**/*.ts", "src/**/*.tsx"],
+    },
     css: true,
     environment: "happy-dom",
     globals: true,

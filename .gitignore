@@ -12,6 +12,7 @@ airflow.db
 airflow/git_version
 airflow/www/static/coverage/
 airflow/www/*.log
+airflow/ui/coverage/
 logs/
 airflow-webserver.pid
 standalone_admin_password.txt

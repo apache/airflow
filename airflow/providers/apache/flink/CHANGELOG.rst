@@ -26,6 +26,14 @@
 Changelog
 ---------
 
+1.5.1
+.....
+
+Misc
+~~~~
+
+* ``remove deprecated soft_fail from providers (#41710)``
+
 1.5.0
 .....
 

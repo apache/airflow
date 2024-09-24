@@ -1669,6 +1669,8 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = cls.deserialize(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
+            elif k == "tags":
+                v = set(v)
             # else use v as it is
 
             setattr(dag, k, v)

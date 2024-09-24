@@ -974,6 +974,7 @@ loglevel
 Logstash
 logstash
 longblob
+lookups
 Lowin
 lshift
 lxml
@@ -1443,6 +1444,7 @@ Seedlist
 seedlist
 seekable
 segmentGranularity
+selectin
 Sendgrid
 sendgrid
 sentimentMax
@@ -1682,6 +1684,7 @@ tooltip
 tooltips
 traceback
 tracebacks
+tracemalloc
 TrainingPipeline
 travis
 triage

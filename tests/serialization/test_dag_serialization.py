@@ -257,6 +257,7 @@ serialized_simple_dag_ground_truth = {
         "edge_info": {},
         "dag_dependencies": [],
         "params": [],
+        "tags": [],
     },
 }
 
@@ -583,7 +584,7 @@ class TestStringifiedDAGs:
         roundtripped = SerializedDAG.from_json(SerializedDAG.to_json(dag))
         self.validate_deserialized_dag(roundtripped, dag)
 
-    def validate_deserialized_dag(self, serialized_dag, dag):
+    def validate_deserialized_dag(self, serialized_dag: DAG, dag: DAG):
         """
         Verify that all example DAGs work with DAG Serialization by
         checking fields between Serialized Dags & non-Serialized Dags
