@@ -1657,6 +1657,7 @@ class TestKubernetesJobWatcher:
             )
         )
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         "raw_object, is_watcher_queue_called",
         [
@@ -1838,6 +1839,7 @@ class TestKubernetesJobWatcher:
         else:
             self.watcher.watcher_queue.put.assert_not_called()
 
+    @pytest.mark.db_test
     def test_process_status_pending_deleted(self, task_instance):
         self.events.append({"type": "DELETED", "object": self.pod})
         self.pod.metadata.deletion_timestamp = timezone.utcnow()
@@ -1845,6 +1847,7 @@ class TestKubernetesJobWatcher:
         self._run()
         self.assert_watcher_queue_called_once_with_state(State.FAILED)
 
+    @pytest.mark.db_test
     def test_process_status_failed(self, task_instance):
         self.pod.status.phase = "Failed"
         self.events.append({"type": "MODIFIED", "object": self.pod})
@@ -1852,6 +1855,7 @@ class TestKubernetesJobWatcher:
         self._run()
         self.assert_watcher_queue_called_once_with_state(State.FAILED)
 
+    @pytest.mark.db_test
     def test_process_status_provider_failed(self, task_instance):
         self.pod.status.reason = "ProviderFailed"
         self.events.append({"type": "MODIFIED", "object": self.pod})
@@ -1901,6 +1905,7 @@ class TestKubernetesJobWatcher:
             )
         )
 
+    @pytest.mark.db_test
     def test_process_status_running_deleted(self, task_instance):
         self.pod.status.phase = "Running"
         self.pod.metadata.deletion_timestamp = timezone.utcnow()
