@@ -12,7 +12,8 @@
     "format": "pnpm prettier --write .",
     "preview": "vite preview",
     "codegen": "openapi-rq -i \"../api_fastapi/openapi/v1-generated.yaml\" -c axios --format prettier -o openapi-gen",
-    "test": "vitest run"
+    "test": "vitest run",
+    "coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@chakra-ui/anatomy": "^2.2.2",
@@ -41,6 +42,7 @@
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react-swc": "^3.7.0",
+    "@vitest/coverage-v8": "^2.1.1",
     "eslint": "^9.10.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-jsx-a11y": "^6.10.0",
@@ -56,6 +58,6 @@
     "typescript": "~5.5.4",
     "typescript-eslint": "^8.5.0",
     "vite": "^5.4.4",
-    "vitest": "^2.0.5"
+    "vitest": "^2.1.1"
   }
 }

@@ -147,3 +147,6 @@ SIMPLE_AUTH_MANAGER_USERS = [
         "role": "admin",
     }
 ]
+
+# Turn this flag on to disable authentication and allow everyone as admin
+SIMPLE_AUTH_MANAGER_ALL_ADMINS = False
