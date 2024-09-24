@@ -24,10 +24,12 @@ from typing_extensions import Annotated
 
 from airflow.api_fastapi.db import apply_filters_to_select, get_session
 from airflow.api_fastapi.parameters import (
+    QueryDagDisplayNamePatternSearch,
     QueryDagIdPatternSearch,
     QueryLimit,
     QueryOffset,
     QueryOnlyActiveFilter,
+    QueryOwnersFilter,
     QueryPausedFilter,
     QueryTagsFilter,
     SortParam,
@@ -45,16 +47,20 @@ async def get_dags(
     limit: QueryLimit,
     offset: QueryOffset,
     tags: QueryTagsFilter,
+    owners: QueryOwnersFilter,
     dag_id_pattern: QueryDagIdPatternSearch,
+    dag_display_name_pattern: QueryDagDisplayNamePatternSearch,
     only_active: QueryOnlyActiveFilter,
     paused: QueryPausedFilter,
-    order_by: Annotated[SortParam, Depends(SortParam(["dag_id"]))],
+    order_by: Annotated[SortParam, Depends(SortParam(["dag_id", "dag_display_name", "next_dagrun"]))],
     session: Annotated[Session, Depends(get_session)],
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
     dags_query = select(DagModel)
 
-    dags_query = apply_filters_to_select(dags_query, [only_active, paused, dag_id_pattern, tags])
+    dags_query = apply_filters_to_select(
+        dags_query, [only_active, paused, dag_id_pattern, dag_display_name_pattern, tags, owners]
+    )
 
     # TODO: Re-enable when permissions are handled.
     # readable_dags = get_auth_manager().get_permitted_dag_ids(user=g.user)
