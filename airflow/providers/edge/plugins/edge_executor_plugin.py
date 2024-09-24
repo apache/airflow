@@ -55,7 +55,7 @@ def _get_api_endpoints() -> Blueprint:
         validate_responses=True,
         validator_map={"body": _CustomErrorRequestBodyValidator},
     ).blueprint
-    # Need to excemp CSRF to make API usable
+    # Need to exempt CSRF to make API usable
     from airflow.www.app import csrf
 
     csrf.exempt(bp)

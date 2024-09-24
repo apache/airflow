@@ -57,7 +57,6 @@ def _initialize_method_map() -> dict[str, Callable]:
 
     internal_api_functions = initialize_method_map().values()
     functions: list[Callable] = [
-        # TODO Trim down functions really needed by Edge Worker
         *internal_api_functions,
         # Additional things from EdgeExecutor
         EdgeJob.reserve_task,
