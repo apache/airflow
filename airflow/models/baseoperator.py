@@ -966,6 +966,11 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             dag_str = f" in dag {dag.dag_id}" if dag else ""
             raise ValueError(f"pool slots for {self.task_id}{dag_str} cannot be less than 1")
 
+        if sla:
+            self.log.warning(
+                "The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1"
+            )
+
         if not TriggerRule.is_valid(trigger_rule):
             raise AirflowException(
                 f"The trigger_rule must be one of {TriggerRule.all_triggers()},"
