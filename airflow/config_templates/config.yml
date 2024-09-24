@@ -1238,6 +1238,13 @@ metrics:
       type: string
       example: ~
       default: "False"
+    otel_service:
+      description: |
+        The default service name of traces.
+      version_added: 2.10.3
+      type: string
+      example: ~
+      default: "Airflow"
     otel_ssl_active:
       description: |
         If ``True``, SSL will be enabled. Defaults to ``False``.
