@@ -54,6 +54,18 @@ the necessity of a Postgres connection.
     :start-after: [START howto_operator_redshift_data]
     :end-before: [END howto_operator_redshift_data]
 
+Reuse a session when executing multiple statements
+==================================================
+
+Specify the ``session_keep_alive_seconds`` parameter on an upstream task. In a downstream task, get the session ID from
+the XCom and pass it to the ``session_id`` parameter. This is useful when you work with temporary tables.
+
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_redshift.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_redshift_data_session_reuse]
+    :end-before: [END howto_operator_redshift_data_session_reuse]
+
 Reference
 ---------
 

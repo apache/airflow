@@ -86,7 +86,9 @@ def get_facets_from_redshift_table(
             ]
         )
     else:
-        statement_id = redshift_hook.execute_query(sql=sql, poll_interval=1, **redshift_data_api_kwargs)
+        statement_id = redshift_hook.execute_query(
+            sql=sql, poll_interval=1, **redshift_data_api_kwargs
+        ).statement_id
         response = redshift_hook.conn.get_statement_result(Id=statement_id)
 
         table_schema = SchemaDatasetFacet(

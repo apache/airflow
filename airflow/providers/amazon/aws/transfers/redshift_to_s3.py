@@ -45,7 +45,8 @@ class RedshiftToS3Operator(BaseOperator):
     :param s3_key: reference to a specific S3 key. If ``table_as_file_name`` is set
         to False, this param must include the desired file name
     :param schema: reference to a specific schema in redshift database,
-        used when ``table`` param provided and ``select_query`` param not provided
+        used when ``table`` param provided and ``select_query`` param not provided.
+        Do not provide when unloading a temporary table
     :param table: reference to a specific table in redshift database,
         used when ``schema`` param provided and ``select_query`` param not provided
     :param select_query: custom select query to fetch data from redshift database,
@@ -55,8 +56,8 @@ class RedshiftToS3Operator(BaseOperator):
         If the AWS connection contains 'aws_iam_role' in ``extras``
         the operator will use AWS STS credentials with a token
         https://docs.aws.amazon.com/redshift/latest/dg/copy-parameters-authorization.html#copy-credentials
-    :param verify: Whether or not to verify SSL certificates for S3 connection.
-        By default SSL certificates are verified.
+    :param verify: Whether to verify SSL certificates for S3 connection.
+        By default, SSL certificates are verified.
         You can provide the following values:
 
         - ``False``: do not validate SSL certificates. SSL will still be used
@@ -67,7 +68,7 @@ class RedshiftToS3Operator(BaseOperator):
                  CA cert bundle than the one used by botocore.
     :param unload_options: reference to a list of UNLOAD options
     :param autocommit: If set to True it will automatically commit the UNLOAD statement.
-        Otherwise it will be committed right before the redshift connection gets closed.
+        Otherwise, it will be committed right before the redshift connection gets closed.
     :param include_header: If set to True the s3 file contains the header columns.
     :param parameters: (optional) the parameters to render the SQL query with.
     :param table_as_file_name: If set to True, the s3 file will be named as the table.
@@ -141,9 +142,15 @@ class RedshiftToS3Operator(BaseOperator):
 
     @property
     def default_select_query(self) -> str | None:
-        if self.schema and self.table:
-            return f"SELECT * FROM {self.schema}.{self.table}"
-        return None
+        if not self.table:
+            return None
+
+        if self.schema:
+            table = f"{self.schema}.{self.table}"
+        else:
+            # Relevant when unloading a temporary table
+            table = self.table
+        return f"SELECT * FROM {table}"
 
     def execute(self, context: Context) -> None:
         if self.table and self.table_as_file_name:
@@ -152,9 +159,7 @@ class RedshiftToS3Operator(BaseOperator):
         self.select_query = self.select_query or self.default_select_query
 
         if self.select_query is None:
-            raise ValueError(
-                "Please provide both `schema` and `table` params or `select_query` to fetch the data."
-            )
+            raise ValueError("Please specify either a table or `select_query` to fetch the data.")
 
         if self.include_header and "HEADER" not in [uo.upper().strip() for uo in self.unload_options]:
             self.unload_options = [*self.unload_options, "HEADER"]

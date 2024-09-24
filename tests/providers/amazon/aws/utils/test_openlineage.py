@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
+from airflow.providers.amazon.aws.hooks.redshift_data import QueryExecutionOutput, RedshiftDataHook
 from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
 from airflow.providers.amazon.aws.utils.openlineage import (
     get_facets_from_redshift_table,
@@ -58,7 +58,7 @@ def test_get_facets_from_redshift_table_sql_hook(mock_get_records):
 @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
 @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
 def test_get_facets_from_redshift_table_data_hook(mock_connection, mock_execute_query):
-    mock_execute_query.return_value = "statement_id"
+    mock_execute_query.return_value = QueryExecutionOutput(statement_id="statement_id", session_id=None)
     mock_connection.get_statement_result.return_value = {
         "Records": [
             [

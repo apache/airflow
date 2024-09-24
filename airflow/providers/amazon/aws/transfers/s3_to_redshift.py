@@ -28,7 +28,6 @@ from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-
 AVAILABLE_METHODS = ["APPEND", "REPLACE", "UPSERT"]
 
 
@@ -40,17 +39,18 @@ class S3ToRedshiftOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:S3ToRedshiftOperator`
 
-    :param schema: reference to a specific schema in redshift database
     :param table: reference to a specific table in redshift database
     :param s3_bucket: reference to a specific S3 bucket
     :param s3_key: key prefix that selects single or multiple objects from S3
+    :param schema: reference to a specific schema in redshift database.
+        Do not provide when copying into a temporary table
     :param redshift_conn_id: reference to a specific redshift database OR a redshift data-api connection
     :param aws_conn_id: reference to a specific S3 connection
         If the AWS connection contains 'aws_iam_role' in ``extras``
         the operator will use AWS STS credentials with a token
         https://docs.aws.amazon.com/redshift/latest/dg/copy-parameters-authorization.html#copy-credentials
-    :param verify: Whether or not to verify SSL certificates for S3 connection.
-        By default SSL certificates are verified.
+    :param verify: Whether to verify SSL certificates for S3 connection.
+        By default, SSL certificates are verified.
         You can provide the following values:
 
         - ``False``: do not validate SSL certificates. SSL will still be used
@@ -87,10 +87,10 @@ class S3ToRedshiftOperator(BaseOperator):
     def __init__(
         self,
         *,
-        schema: str,
         table: str,
         s3_bucket: str,
         s3_key: str,
+        schema: str | None = None,
         redshift_conn_id: str = "redshift_default",
         aws_conn_id: str | None = "aws_default",
         verify: bool | str | None = None,
@@ -160,7 +160,7 @@ class S3ToRedshiftOperator(BaseOperator):
             credentials_block = build_credentials_block(credentials)
 
         copy_options = "\n\t\t\t".join(self.copy_options)
-        destination = f"{self.schema}.{self.table}"
+        destination = f"{self.schema}.{self.table}" if self.schema else self.table
         copy_destination = f"#{self.table}" if self.method == "UPSERT" else destination
 
         copy_statement = self._build_copy_query(
