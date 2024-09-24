@@ -351,7 +351,7 @@ class ExternalTaskSensor(BaseSensorOperator):
                     external_dag_id=self.external_dag_id,
                     external_task_group_id=self.external_task_group_id,
                     external_task_ids=self.external_task_ids,
-                    execution_dates=self._get_dttm_filter(context),
+                    logical_dates=self._get_dttm_filter(context),
                     allowed_states=self.allowed_states,
                     poke_interval=self.poll_interval,
                     soft_fail=self.soft_fail,

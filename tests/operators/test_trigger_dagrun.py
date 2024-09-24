@@ -562,7 +562,7 @@ class TestDagRunOperator:
             assert len(dagruns) == 1
         trigger = DagStateTrigger(
             dag_id="down_stream",
-            execution_dates=[DEFAULT_DATE],
+            logical_dates=[DEFAULT_DATE],
             poll_interval=20,
             states=["success", "failed"],
         )
@@ -596,7 +596,7 @@ class TestDagRunOperator:
 
         trigger = DagStateTrigger(
             dag_id="down_stream",
-            execution_dates=[DEFAULT_DATE],
+            logical_dates=[DEFAULT_DATE],
             poll_interval=20,
             states=["success", "failed"],
         )
@@ -634,7 +634,7 @@ class TestDagRunOperator:
 
         trigger = DagStateTrigger(
             dag_id="down_stream",
-            execution_dates=[DEFAULT_DATE],
+            logical_dates=[DEFAULT_DATE],
             poll_interval=20,
             states=["success", "failed"],
         )
@@ -675,7 +675,7 @@ class TestDagRunOperator:
             dagruns = session.query(DagRun).filter(DagRun.dag_id == TRIGGERED_DAG_ID).all()
             assert len(dagruns) == 1
 
-        assert mock_task_defer.call_args_list[0].kwargs["trigger"].execution_dates == [
+        assert mock_task_defer.call_args_list[0].kwargs["trigger"].logical_dates == [
             pendulum.instance(dagruns[0].logical_date)
         ]
 
@@ -707,7 +707,7 @@ class TestDagRunOperator:
             triggered_logical_date = dagruns[0].logical_date
             assert len(dagruns) == 1
 
-        assert mock_task_defer.call_args_list[0].kwargs["trigger"].execution_dates == [
+        assert mock_task_defer.call_args_list[0].kwargs["trigger"].logical_dates == [
             pendulum.instance(triggered_logical_date)
         ]
 
@@ -725,7 +725,7 @@ class TestDagRunOperator:
             assert len(dagruns) == 1
 
         # The second DagStateTrigger call should still use the original `logical_date` value.
-        assert mock_task_defer.call_args_list[1].kwargs["trigger"].execution_dates == [
+        assert mock_task_defer.call_args_list[1].kwargs["trigger"].logical_dates == [
             pendulum.instance(triggered_logical_date)
         ]
 

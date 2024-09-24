@@ -141,7 +141,7 @@ def trigger_dag(
         dag_bag=dagbag,
         run_id=run_id,
         conf=conf,
-        execution_date=execution_date,
+        logical_date=execution_date,
         replace_microseconds=replace_microseconds,
         triggered_by=triggered_by,
     )
