@@ -62,8 +62,6 @@ class DatasetManager(LoggingMixin):
         """Create new datasets."""
         for dataset_model in dataset_models:
             session.add(dataset_model)
-        session.flush()
-
         for dataset_model in dataset_models:
             self.notify_dataset_created(dataset=Dataset(uri=dataset_model.uri, extra=dataset_model.extra))
 

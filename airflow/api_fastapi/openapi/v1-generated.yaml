@@ -60,12 +60,18 @@ paths:
         in: query
         required: false
         schema:
-          anyOf:
-          - type: array
-            items:
-              type: string
-          - type: 'null'
+          type: array
+          items:
+            type: string
           title: Tags
+      - name: owners
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Owners
       - name: dag_id_pattern
         in: query
         required: false
@@ -74,6 +80,14 @@ paths:
           - type: string
           - type: 'null'
           title: Dag Id Pattern
+      - name: dag_display_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Display Name Pattern
       - name: only_active
         in: query
         required: false

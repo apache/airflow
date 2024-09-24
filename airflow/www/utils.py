@@ -61,8 +61,6 @@ if TYPE_CHECKING:
     from sqlalchemy.sql import Select
     from sqlalchemy.sql.operators import ColumnOperators
 
-    from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
-
 
 TI = TaskInstance
 
@@ -924,21 +922,16 @@ class UIAlert:
         self.html = html
         self.message = Markup(message) if html else message
 
-    def should_show(self, appbuilder: AirflowAppBuilder) -> bool:
+    def should_show(self) -> bool:
         """
         Determine if the user should see the message.
 
-        The decision is based on the user's role. If ``AUTH_ROLE_PUBLIC`` is
-        set in ``webserver_config.py``, An anonymous user would have the
-        ``AUTH_ROLE_PUBLIC`` role.
+        The decision is based on the user's role.
         """
         if self.roles:
             current_user = get_auth_manager().get_user()
             if current_user is not None:
                 user_roles = {r.name for r in getattr(current_user, "roles", [])}
-            elif "AUTH_ROLE_PUBLIC" in appbuilder.get_app.config:
-                # If the current_user is anonymous, assign AUTH_ROLE_PUBLIC role (if it exists) to them
-                user_roles = {appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]}
             else:
                 # Unable to obtain user role - default to not showing
                 return False
