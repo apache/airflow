@@ -1021,11 +1021,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             #. Heartbeat executor
                 #. Execute queued tasks in executor asynchronously
                 #. Sync on the states of running tasks
-
-        Following is a graphic representation of these steps.
-
-        .. image:: ../docs/apache-airflow/img/scheduler_loop.jpg
-
         """
         if not self.processor_agent and not self._standalone_dag_processor:
             raise ValueError("Processor agent is not started.")

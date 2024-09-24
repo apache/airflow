@@ -221,7 +221,7 @@ class SQLExecuteQueryOperator(BaseSQLOperator):
         sql: str | list[str],
         autocommit: bool = False,
         parameters: Mapping | Iterable | None = None,
-        handler: Callable[[Any], Any] = fetch_all_handler,
+        handler: Callable[[Any], list[tuple] | None] = fetch_all_handler,
         conn_id: str | None = None,
         database: str | None = None,
         split_statements: bool | None = None,

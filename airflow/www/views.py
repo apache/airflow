@@ -120,6 +120,7 @@ from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.timetables.simple import ContinuousTimetable
 from airflow.utils import json as utils_json, timezone, usage_data_collection, yaml
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.db import get_query_count
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
@@ -1092,9 +1093,7 @@ class Airflow(AirflowBaseView):
             section="webserver", key="instance_name_has_markup", fallback=False
         )
 
-        dashboard_alerts = [
-            fm for fm in settings.DASHBOARD_UIALERTS if fm.should_show(get_airflow_app().appbuilder)
-        ]
+        dashboard_alerts = [fm for fm in settings.DASHBOARD_UIALERTS if fm.should_show()]
 
         def _iter_parsed_moved_data_table_names():
             for table_name in inspect(session.get_bind()).get_table_names():
@@ -3409,6 +3408,7 @@ class Airflow(AirflowBaseView):
     @expose("/object/next_run_datasets/<string:dag_id>")
     @auth.has_access_dag("GET", DagAccessEntity.RUN)
     @auth.has_access_dataset("GET")
+    @mark_fastapi_migration_done
     def next_run_datasets(self, dag_id):
         """Return datasets necessary, and their status, for the next dag run."""
         dag = get_airflow_app().dag_bag.get_dag(dag_id)

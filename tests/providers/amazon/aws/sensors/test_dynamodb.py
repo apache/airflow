@@ -36,7 +36,7 @@ class TestDynamoDBValueSensor:
         self.attribute_name = "Foo"
         self.attribute_value = "Bar"
 
-        self.sensor = DynamoDBValueSensor(
+        self.sensor_pk_sk = DynamoDBValueSensor(
             task_id="dynamodb_value_sensor",
             table_name=self.table_name,
             partition_key_name=self.pk_name,
@@ -45,6 +45,15 @@ class TestDynamoDBValueSensor:
             attribute_value=self.attribute_value,
             sort_key_name=self.sk_name,
             sort_key_value=self.sk_value,
+        )
+
+        self.sensor_pk = DynamoDBValueSensor(
+            task_id="dynamodb_value_sensor",
+            table_name=self.table_name,
+            partition_key_name=self.pk_name,
+            partition_key_value=self.pk_value,
+            attribute_name=self.attribute_name,
+            attribute_value=self.attribute_value,
         )
 
     @mock_aws
@@ -58,12 +67,12 @@ class TestDynamoDBValueSensor:
             ProvisionedThroughput={"ReadCapacityUnits": 10, "WriteCapacityUnits": 10},
         )
 
-        assert not self.sensor.poke(None)
+        assert not self.sensor_pk.poke(None)
 
         items = [{self.pk_name: self.pk_value, self.attribute_name: self.attribute_value}]
         hook.write_batch_data(items)
 
-        assert self.sensor.poke(None)
+        assert self.sensor_pk.poke(None)
 
     @mock_aws
     def test_sensor_with_pk_and_sk(self):
@@ -82,7 +91,7 @@ class TestDynamoDBValueSensor:
             ProvisionedThroughput={"ReadCapacityUnits": 10, "WriteCapacityUnits": 10},
         )
 
-        assert not self.sensor.poke(None)
+        assert not self.sensor_pk_sk.poke(None)
 
         items = [
             {
@@ -93,7 +102,7 @@ class TestDynamoDBValueSensor:
         ]
         hook.write_batch_data(items)
 
-        assert self.sensor.poke(None)
+        assert self.sensor_pk_sk.poke(None)
 
 
 class TestDynamoDBMultipleValuesSensor:
@@ -115,6 +124,14 @@ class TestDynamoDBMultipleValuesSensor:
             attribute_value=self.attribute_value,
             sort_key_name=self.sk_name,
             sort_key_value=self.sk_value,
+        )
+        self.sensor_pk = DynamoDBValueSensor(
+            task_id="dynamodb_value_sensor",
+            table_name=self.table_name,
+            partition_key_name=self.pk_name,
+            partition_key_value=self.pk_value,
+            attribute_name=self.attribute_name,
+            attribute_value=self.attribute_value,
         )
 
     def test_init(self):
@@ -167,12 +184,12 @@ class TestDynamoDBMultipleValuesSensor:
             ProvisionedThroughput={"ReadCapacityUnits": 10, "WriteCapacityUnits": 10},
         )
 
-        assert not self.sensor.poke(None)
+        assert not self.sensor_pk.poke(None)
 
         items = [{self.pk_name: self.pk_value, self.attribute_name: self.attribute_value[1]}]
         hook.write_batch_data(items)
 
-        assert self.sensor.poke(None)
+        assert self.sensor_pk.poke(None)
 
     @mock_aws
     def test_sensor_with_pk_and_sk(self):
