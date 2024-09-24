@@ -34,6 +34,7 @@ from tests.providers.microsoft.conftest import (
     mock_response,
 )
 
+
 class TestMSGraphAsyncOperator(Base):
     @pytest.mark.db_test
     def test_execute(self):
