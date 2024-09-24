@@ -2566,6 +2566,16 @@ scheduler:
       example: ~
       default: "True"
       see_also: ":ref:`Differences between the two cron timetables`"
+    enable_tracemalloc:
+      description: |
+        Whether to enable memory allocation tracing in the scheduler. If enabled, Airflow will start
+        tracing memory allocation and log the top 10 memory usages at the error level upon receiving the
+        signal SIGUSR1.
+        This is an expensive operation and generally should not be used except for debugging purposes.
+      version_added: 3.0.0
+      type: boolean
+      example: ~
+      default: "False"
 triggerer:
   description: ~
   options:
