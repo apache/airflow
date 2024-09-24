@@ -289,7 +289,7 @@ class TestSparkKubernetesOperator:
         op = SparkKubernetesOperator(
             application_file=data_file("spark/application_test.yaml").as_posix(),
             kubernetes_conn_id="kubernetes_default_kube_config",
-            task_id="default_yaml",
+            task_id="create_app_and_use_name_from_metadata",
         )
         context = create_context(op)
         op.execute(context)
@@ -301,11 +301,12 @@ class TestSparkKubernetesOperator:
             plural="sparkapplications",
             version="v1beta2",
         )
+        assert op.name.startswith("default_yaml")
 
         op = SparkKubernetesOperator(
             application_file=data_file("spark/application_test.json").as_posix(),
             kubernetes_conn_id="kubernetes_default_kube_config",
-            task_id="default_json",
+            task_id="create_app_and_use_name_from_metadata",
         )
         context = create_context(op)
         op.execute(context)
@@ -317,6 +318,7 @@ class TestSparkKubernetesOperator:
             plural="sparkapplications",
             version="v1beta2",
         )
+        assert op.name.startswith("default_json")
 
     def test_create_application_from_yaml_json_and_use_name_from_operator_args(
         self,

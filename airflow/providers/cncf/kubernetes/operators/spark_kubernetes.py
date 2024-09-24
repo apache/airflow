@@ -160,21 +160,9 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return template_body
 
     def create_job_name(self):
-        """
-        Spark name is created based on the following order of precedence.
-
-        Check the name argument in the operator parameters.
-        Check the name specified in the YAML file.
-        If neither is available, use the task ID as the name.
-
-        It adds default random id characters for the name provided suffix.
-        """
-        name = self.template_body.get("spark", {}).get("metadata", {}).get("name")
-
-        if self.name:
-            name = self.name
-        elif not name:
-            name = self.task_id
+        name = (
+            self.name or self.template_body.get("spark", {}).get("metadata", {}).get("name") or self.task_id
+        )
 
         updated_name = add_unique_suffix(name=name, max_len=MAX_LABEL_LEN)
 
