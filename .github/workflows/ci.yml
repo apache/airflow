@@ -39,7 +39,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_USERNAME: ${{ github.actor }}
   IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
-  # This webhook url is to this slack channel https://apache-airflow.slack.com/archives/C015SLQF059
+  # This webhook url is to this slack channel https://apache-airflow.slack.com/archives/C07MWFASWJ1
   SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
   VERBOSE: "true"
 
