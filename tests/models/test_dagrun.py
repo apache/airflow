@@ -931,14 +931,18 @@ class TestDagRun:
             **triggered_by_kwargs,
         )
 
-        runs = DagRun.next_dagruns_to_examine(state, session).all()
+        if state == DagRunState.RUNNING:
+            func = DagRun.get_running_dag_runs_to_examine
+        else:
+            func = DagRun.get_queued_dag_runs_to_set_running
+        runs = func(session).all()
 
         assert runs == [dr]
 
         orm_dag.is_paused = True
         session.flush()
 
-        runs = DagRun.next_dagruns_to_examine(state, session).all()
+        runs = func(session).all()
         assert runs == []
 
     @mock.patch.object(Stats, "timing")
