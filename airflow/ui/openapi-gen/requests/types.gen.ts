@@ -76,7 +76,7 @@ export type GetDagsPublicDagsGetData = {
   onlyActive?: boolean;
   orderBy?: string;
   paused?: boolean | null;
-  tags?: Array<string> | null;
+  tags?: Array<string>;
 };
 
 export type GetDagsPublicDagsGetResponse = DAGCollectionResponse;

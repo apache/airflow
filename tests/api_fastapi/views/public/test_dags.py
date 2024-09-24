@@ -27,9 +27,12 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialize
 
 pytestmark = pytest.mark.db_test
 
-DAG_ID = "test_dag1"
+DAG1_ID = "test_dag1"
+DAG1_DISPLAY_NAME = "a"
 DAG2_ID = "test_dag2"
+DAG2_DISPLAY_NAME = "b"
 DAG3_ID = "test_dag3"
+DAG3_DISPLAY_NAME = "c"
 TASK_ID = "op1"
 
 
@@ -52,7 +55,7 @@ def setup() -> None:
     clear_db_serialized_dags()
 
     with DAG(
-        DAG_ID,
+        DAG1_ID,
         schedule=None,
         start_date=datetime(2020, 6, 15),
         doc_md="details",

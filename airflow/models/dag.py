@@ -28,6 +28,7 @@ import pickle
 import sys
 import time
 import traceback
+import warnings
 import weakref
 from collections import abc, defaultdict, deque
 from contextlib import ExitStack
@@ -88,6 +89,7 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     FailStopDagInvalidTriggerRule,
     ParamValidationError,
+    RemovedInAirflow3Warning,
     TaskDeferred,
     TaskNotFound,
     UnknownExecutorException,
@@ -2331,6 +2333,13 @@ class DAG(LoggingMixin):
         :param run_at_least_once: If true, always run the DAG at least once even
             if no logical run exists within the time range.
         """
+        warnings.warn(
+            "`DAG.run()` is deprecated and will be removed in Airflow 3.0. Consider "
+            "using `DAG.test()` instead, or trigger your dag via API.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+
         from airflow.executors.executor_loader import ExecutorLoader
         from airflow.jobs.backfill_job_runner import BackfillJobRunner
 
@@ -2644,28 +2653,16 @@ class DAG(LoggingMixin):
         if not dags:
             return
 
-        from airflow.dag_processing.collection import (
-            DatasetModelOperation,
-            collect_orm_dags,
-            create_orm_dag,
-            update_orm_dags,
-        )
+        from airflow.dag_processing.collection import DagModelOperation, DatasetModelOperation
 
         log.info("Sync %s DAGs", len(dags))
-        dags_by_ids = {dag.dag_id: dag for dag in dags}
-        del dags
+        dag_op = DagModelOperation({dag.dag_id: dag for dag in dags})
 
-        orm_dags = collect_orm_dags(dags_by_ids, session=session)
-        orm_dags.update(
-            (dag_id, create_orm_dag(dag, session=session))
-            for dag_id, dag in dags_by_ids.items()
-            if dag_id not in orm_dags
-        )
+        orm_dags = dag_op.add_dags(session=session)
+        dag_op.update_dags(orm_dags, processor_subdir=processor_subdir, session=session)
+        DagCode.bulk_sync_to_db((dag.fileloc for dag in dags), session=session)
 
-        update_orm_dags(dags_by_ids, orm_dags, processor_subdir=processor_subdir, session=session)
-        DagCode.bulk_sync_to_db((dag.fileloc for dag in dags_by_ids.values()), session=session)
-
-        dataset_op = DatasetModelOperation.collect(dags_by_ids)
+        dataset_op = DatasetModelOperation.collect(dag_op.dags)
 
         orm_datasets = dataset_op.add_datasets(session=session)
         orm_dataset_aliases = dataset_op.add_dataset_aliases(session=session)
