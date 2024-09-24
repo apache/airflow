@@ -20,9 +20,17 @@ import time
 
 import pytest
 
-from kubernetes_tests.test_base import EXECUTOR, BaseK8STest  # isort:skip (needed to workaround isort bug)
+from kubernetes_tests.test_base import (
+    EXECUTOR,
+    PROD_IMAGE_PROVIDERS,  # isort:skip (needed to workaround isort bug)
+    BaseK8STest,
+)
 
 
+@pytest.mark.skipif(
+    "standard" not in PROD_IMAGE_PROVIDERS,
+    reason="Skipping temporarily due to standard provider not available",
+)
 @pytest.mark.skipif(EXECUTOR != "KubernetesExecutor", reason="Only runs on KubernetesExecutor")
 class TestKubernetesExecutor(BaseK8STest):
     @pytest.mark.execution_timeout(300)

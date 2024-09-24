@@ -20,12 +20,20 @@ import time
 
 import pytest
 
-from kubernetes_tests.test_base import EXECUTOR, BaseK8STest  # isort:skip (needed to workaround isort bug)
+from kubernetes_tests.test_base import (
+    EXECUTOR,
+    PROD_IMAGE_PROVIDERS,  # isort:skip (needed to workaround isort bug)
+    BaseK8STest,
+)
 
 
 # These tests are here because only KubernetesExecutor can run the tests in
 # test_kubernetes_executor.py
 # Also, the skipping is necessary as there's no gain in running these tests in KubernetesExecutor
+@pytest.mark.skipif(
+    "standard" not in PROD_IMAGE_PROVIDERS,
+    reason="Skipping temporarily due to standard provider not available",
+)
 @pytest.mark.skipif(EXECUTOR == "KubernetesExecutor", reason="Does not run on KubernetesExecutor")
 class TestCeleryAndLocalExecutor(BaseK8STest):
     def test_integration_run_dag(self):

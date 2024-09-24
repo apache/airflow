@@ -27,4 +27,3 @@ smtp
 snowflake
 sqlite
 ssh
-standard
