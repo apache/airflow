@@ -398,7 +398,7 @@ class KubernetesExecutor(BaseExecutor):
                     self.kube_scheduler.run_next(task)
                     self.task_publish_retries.pop(key, None)
                 except PodReconciliationError as e:
-                    self.task_logger.exception(
+                    self.task_logger.error(
                         "Pod reconciliation failed, likely due to kubernetes library upgrade. "
                         "Try clearing the task to re-run. Details: %s",
                         e.__cause__,

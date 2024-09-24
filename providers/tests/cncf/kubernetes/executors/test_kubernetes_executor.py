@@ -61,6 +61,16 @@ from dev.tests_common.test_utils.config import conf_vars
 pytestmark = pytest.mark.skip_if_database_isolation_mode
 
 
+@pytest.fixture
+def task_instance(session, create_task_instance):
+    return create_task_instance(
+        session=session,
+        dag_id="dag",
+        task_id="task",
+        run_id="run_id",
+    )
+
+
 class TestAirflowKubernetesScheduler:
     @staticmethod
     def _gen_random_string(seed, str_len):
@@ -384,6 +394,7 @@ class TestKubernetesExecutor:
         should_requeue,
         task_expected_state,
         data_file,
+        task_instance,
     ):
         """
         When pod scheduling fails with any reason not yet
@@ -422,8 +433,8 @@ class TestKubernetesExecutor:
             kubernetes_executor.start()
             try:
                 # Execute a task while the Api Throws errors
-                try_number = 1
-                task_instance_key = TaskInstanceKey("dag", "task", "run_id", try_number)
+                task_instance_key = task_instance.key
+
                 kubernetes_executor.execute_async(
                     key=task_instance_key,
                     queue=None,
@@ -459,7 +470,7 @@ class TestKubernetesExecutor:
     )
     @mock.patch("airflow.settings.pod_mutation_hook")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
-    def test_run_next_pmh_error(self, mock_get_kube_client, mock_pmh):
+    def test_run_next_pmh_error(self, mock_get_kube_client, mock_pmh, task_instance):
         """
         Exception during Pod Mutation Hook execution should be handled gracefully.
         """
@@ -473,8 +484,7 @@ class TestKubernetesExecutor:
         kubernetes_executor = self.kubernetes_executor
         kubernetes_executor.start()
         try:
-            try_number = 1
-            task_instance_key = TaskInstanceKey("dag", "task", "run_id", try_number)
+            task_instance_key = task_instance.key
             kubernetes_executor.execute_async(
                 key=task_instance_key,
                 queue=None,
@@ -500,7 +510,7 @@ class TestKubernetesExecutor:
     @mock.patch("airflow.providers.cncf.kubernetes.executors.kubernetes_executor_utils.KubernetesJobWatcher")
     @mock.patch("airflow.providers.cncf.kubernetes.kube_client.get_kube_client")
     def test_run_next_pod_reconciliation_error(
-        self, mock_get_kube_client, mock_kubernetes_job_watcher, data_file
+        self, mock_get_kube_client, mock_kubernetes_job_watcher, data_file, task_instance
     ):
         """
         When construct_pod raises PodReconciliationError, we should fail the task.
@@ -520,8 +530,7 @@ class TestKubernetesExecutor:
             kubernetes_executor.start()
             try:
                 # Execute a task while the Api Throws errors
-                try_number = 1
-                task_instance_key = TaskInstanceKey("dag", "task", "run_id", try_number)
+                task_instance_key = task_instance.key
                 kubernetes_executor.execute_async(
                     key=task_instance_key,
                     queue=None,
@@ -1820,7 +1829,7 @@ class TestKubernetesJobWatcher:
             ),
         ],
     )
-    def test_process_status_pending(self, raw_object, is_watcher_queue_called):
+    def test_process_status_pending(self, raw_object, is_watcher_queue_called, task_instance):
         self.events.append({"type": "MODIFIED", "object": self.pod, "raw_object": raw_object})
 
         self._run()
@@ -1829,21 +1838,21 @@ class TestKubernetesJobWatcher:
         else:
             self.watcher.watcher_queue.put.assert_not_called()
 
-    def test_process_status_pending_deleted(self):
+    def test_process_status_pending_deleted(self, task_instance):
         self.events.append({"type": "DELETED", "object": self.pod})
         self.pod.metadata.deletion_timestamp = timezone.utcnow()
 
         self._run()
         self.assert_watcher_queue_called_once_with_state(State.FAILED)
 
-    def test_process_status_failed(self):
+    def test_process_status_failed(self, task_instance):
         self.pod.status.phase = "Failed"
         self.events.append({"type": "MODIFIED", "object": self.pod})
 
         self._run()
         self.assert_watcher_queue_called_once_with_state(State.FAILED)
 
-    def test_process_status_provider_failed(self):
+    def test_process_status_provider_failed(self, task_instance):
         self.pod.status.reason = "ProviderFailed"
         self.events.append({"type": "MODIFIED", "object": self.pod})
 
@@ -1892,7 +1901,7 @@ class TestKubernetesJobWatcher:
             )
         )
 
-    def test_process_status_running_deleted(self):
+    def test_process_status_running_deleted(self, task_instance):
         self.pod.status.phase = "Running"
         self.pod.metadata.deletion_timestamp = timezone.utcnow()
         self.events.append({"type": "DELETED", "object": self.pod})
