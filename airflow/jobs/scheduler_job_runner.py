@@ -181,6 +181,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         self.do_pickle = do_pickle
 
+        self._enable_tracemalloc = conf.getboolean("scheduler", "enable_tracemalloc")
+        if self._enable_tracemalloc:
+            import tracemalloc
+
+            tracemalloc.start()
+
         if log:
             self._log = log
 
@@ -202,16 +208,36 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         signal.signal(signal.SIGTERM, self._exit_gracefully)
         signal.signal(signal.SIGUSR2, self._debug_dump)
 
+        if self._enable_tracemalloc:
+            signal.signal(signal.SIGUSR1, self._log_memory_usage)
+
     def _exit_gracefully(self, signum: int, frame: FrameType | None) -> None:
         """Clean up processor_agent to avoid leaving orphan processes."""
         if not _is_parent_process():
             # Only the parent process should perform the cleanup.
             return
 
+        if self._enable_tracemalloc:
+            import tracemalloc
+
+            tracemalloc.stop()
+
         self.log.info("Exiting gracefully upon receiving signal %s", signum)
         if self.processor_agent:
             self.processor_agent.end()
         sys.exit(os.EX_OK)
+
+    def _log_memory_usage(self, signum: int, frame: FrameType | None) -> None:
+        import tracemalloc
+
+        snapshot = tracemalloc.take_snapshot()
+        top_stats = snapshot.statistics("lineno")
+        n = 10
+        self.log.error(
+            "scheduler memory usgae:\n Top %d\n %s",
+            n,
+            "\n\t".join(map(str, top_stats[:n])),
+        )
 
     def _debug_dump(self, signum: int, frame: FrameType | None) -> None:
         if not _is_parent_process():
