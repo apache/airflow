@@ -384,7 +384,7 @@ class EksCreateClusterOperator(BaseOperator):
                         waiter_delay=self.waiter_delay,
                         waiter_max_attempts=self.waiter_max_attempts,
                         aws_conn_id=self.aws_conn_id,
-                        region=self.region,
+                        region_name=self.region,
                     ),
                     method_name="execute_complete",
                     timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
@@ -643,7 +643,7 @@ class EksCreateFargateProfileOperator(BaseOperator):
                     aws_conn_id=self.aws_conn_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
-                    region=self.region,
+                    region_name=self.region,
                 ),
                 method_name="execute_complete",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
@@ -955,7 +955,7 @@ class EksDeleteFargateProfileOperator(BaseOperator):
                     aws_conn_id=self.aws_conn_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
-                    region=self.region,
+                    region_name=self.region,
                 ),
                 method_name="execute_complete",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
