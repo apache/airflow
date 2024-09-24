@@ -505,7 +505,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
     with _airflow_parsing_context_manager(dag_id=args.dag_id):
         dag = dag or get_dag(subdir=args.subdir, dag_id=args.dag_id)
     dr: DagRun = dag.test(
-        execution_date=execution_date,
+        logical_date=execution_date,
         run_conf=run_conf,
         use_executor=use_executor,
         mark_success_pattern=mark_success_pattern,

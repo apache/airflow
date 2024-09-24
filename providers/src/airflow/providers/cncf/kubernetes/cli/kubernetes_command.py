@@ -44,7 +44,10 @@ def generate_pod_yaml(args):
     logical_date = args.logical_date
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
     yaml_output_path = args.output_path
-    dr = DagRun(dag.dag_id, logical_date=logical_date)
+    if hasattr(DagRun, "execution_date"):  # Airflow 2.x.
+        dr = DagRun(dag.dag_id, execution_date=logical_date)
+    else:
+        dr = DagRun(dag.dag_id, logical_date=logical_date)
     kube_config = KubeConfig()
     for task in dag.tasks:
         ti = TaskInstance(task, None)
