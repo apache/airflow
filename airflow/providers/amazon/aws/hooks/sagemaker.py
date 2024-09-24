@@ -155,6 +155,7 @@ class SageMakerHook(AwsBaseHook):
     endpoint_non_terminal_states = {"Creating", "Updating", "SystemUpdating", "RollingBack", "Deleting"}
     pipeline_non_terminal_states = {"Executing", "Stopping"}
     failed_states = {"Failed"}
+    training_failed_states = {*failed_states, "Stopped"}
 
     def __init__(self, *args, **kwargs):
         super().__init__(client_type="sagemaker", *args, **kwargs)
@@ -309,7 +310,7 @@ class SageMakerHook(AwsBaseHook):
             self.check_training_status_with_log(
                 config["TrainingJobName"],
                 self.non_terminal_states,
-                self.failed_states,
+                self.training_failed_states,
                 wait_for_completion,
                 check_interval,
                 max_ingestion_time,
