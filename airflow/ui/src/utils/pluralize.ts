@@ -19,12 +19,10 @@
 
 export const pluralize = (
   singularLabel: string,
-  count: number | undefined = 0,
-  pluralLabel?: string | null,
-  omitCount?: boolean
-): string => {
-  const pluralized =
-    count === 1 ? singularLabel : pluralLabel || `${singularLabel}s`;
+  count = 0,
+  pluralLabel = `${singularLabel}s`,
+  omitCount = false,
+  // eslint-disable-next-line @typescript-eslint/max-params
+) =>
   // toLocaleString() will add commas for thousands, millions, etc.
-  return `${omitCount ? "" : `${count.toLocaleString()} `}${pluralized}`;
-};
+  `${omitCount ? "" : `${count.toLocaleString()} `}${count === 1 ? singularLabel : pluralLabel}`;

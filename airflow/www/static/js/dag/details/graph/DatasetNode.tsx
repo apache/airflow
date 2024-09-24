@@ -51,7 +51,10 @@ const DatasetNode = ({
 }: NodeProps<CustomNodeProps>) => {
   const containerRef = useContainerRef();
 
-  const { fromRestApi } = (datasetEvent?.extra || {}) as Record<string, string>;
+  const { from_rest_api: fromRestApi } = (datasetEvent?.extra || {}) as Record<
+    string,
+    string
+  >;
 
   return (
     <Popover>

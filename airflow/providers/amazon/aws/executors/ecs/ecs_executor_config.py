@@ -35,6 +35,8 @@ from json import JSONDecodeError
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.executors.ecs.utils import (
     CONFIG_GROUP_NAME,
+    ECS_LAUNCH_TYPE_EC2,
+    ECS_LAUNCH_TYPE_FARGATE,
     AllEcsConfigKeys,
     RunTaskKwargsConfigKeys,
     camelize_dict_keys,
@@ -56,13 +58,15 @@ def _fetch_config_values() -> dict[str, str]:
 
 
 def build_task_kwargs() -> dict:
+    all_config_keys = AllEcsConfigKeys()
     # This will put some kwargs at the root of the dictionary that do NOT belong there. However,
     # the code below expects them to be there and will rearrange them as necessary.
     task_kwargs = _fetch_config_values()
     task_kwargs.update(_fetch_templated_kwargs())
 
-    has_launch_type: bool = "launch_type" in task_kwargs
-    has_capacity_provider: bool = "capacity_provider_strategy" in task_kwargs
+    has_launch_type: bool = all_config_keys.LAUNCH_TYPE in task_kwargs
+    has_capacity_provider: bool = all_config_keys.CAPACITY_PROVIDER_STRATEGY in task_kwargs
+    is_launch_type_ec2: bool = task_kwargs.get(all_config_keys.LAUNCH_TYPE, None) == ECS_LAUNCH_TYPE_EC2
 
     if has_capacity_provider and has_launch_type:
         raise ValueError(
@@ -75,7 +79,12 @@ def build_task_kwargs() -> dict:
         # the final fallback.
         cluster = EcsHook().conn.describe_clusters(clusters=[task_kwargs["cluster"]])["clusters"][0]
         if not cluster.get("defaultCapacityProviderStrategy"):
-            task_kwargs["launch_type"] = "FARGATE"
+            task_kwargs[all_config_keys.LAUNCH_TYPE] = ECS_LAUNCH_TYPE_FARGATE
+
+    # If you're using the EC2 launch type, you should not/can not provide the platform_version. In this
+    # case we'll drop it on the floor on behalf of the user, instead of throwing an exception.
+    if is_launch_type_ec2:
+        task_kwargs.pop(all_config_keys.PLATFORM_VERSION, None)
 
     # There can only be 1 count of these containers
     task_kwargs["count"] = 1  # type: ignore
@@ -105,7 +114,7 @@ def build_task_kwargs() -> dict:
                 "awsvpcConfiguration": {
                     "subnets": str(subnets).split(",") if subnets else None,
                     "securityGroups": str(security_groups).split(",") if security_groups else None,
-                    "assignPublicIp": parse_assign_public_ip(assign_public_ip),
+                    "assignPublicIp": parse_assign_public_ip(assign_public_ip, is_launch_type_ec2),
                 }
             }
         )

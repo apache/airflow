@@ -39,6 +39,7 @@ from airflow.api_connexion.schemas.dag_schema import (
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.dag import DagModel, DagTag
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.db import get_query_count
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.decorators import action_logging
@@ -89,6 +90,7 @@ def get_dag_details(
     return dag_detail_schema.dump(dag_model)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("GET")
 @format_parameters({"limit": check_limit})
 @provide_session

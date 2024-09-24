@@ -1,7 +1,7 @@
 {
   "airbyte": {
     "deps": [
-      "airbyte-api>=0.51.0",
+      "airbyte-api>=0.52.0",
       "apache-airflow>=2.8.0"
     ],
     "devel-deps": [],
@@ -520,6 +520,17 @@
     "excluded-python-versions": [],
     "state": "ready"
   },
+  "edge": {
+    "deps": [
+      "apache-airflow>=2.10.0",
+      "pydantic>=2.3.0"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "not-ready"
+  },
   "elasticsearch": {
     "deps": [
       "apache-airflow-providers-common-sql>=1.17.0",
@@ -634,7 +645,7 @@
       "google-cloud-dataform>=0.5.0",
       "google-cloud-dataplex>=1.10.0",
       "google-cloud-dataproc-metastore>=1.12.0",
-      "google-cloud-dataproc>=5.8.0",
+      "google-cloud-dataproc>=5.12.0",
       "google-cloud-dlp>=3.12.0",
       "google-cloud-kms>=2.15.0",
       "google-cloud-language>=2.9.0",
@@ -1249,6 +1260,16 @@
     "cross-providers-deps": [],
     "excluded-python-versions": [],
     "state": "ready"
+  },
+  "standard": {
+    "deps": [
+      "apache-airflow>=2.10.0"
+    ],
+    "devel-deps": [],
+    "plugins": [],
+    "cross-providers-deps": [],
+    "excluded-python-versions": [],
+    "state": "not-ready"
   },
   "tableau": {
     "deps": [

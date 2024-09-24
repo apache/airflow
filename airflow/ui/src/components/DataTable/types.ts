@@ -16,10 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { PaginationState, SortingState } from "@tanstack/react-table";
 
-import { PaginationState, SortingState } from "@tanstack/react-table";
-
-export interface TableState {
+export type TableState = {
   pagination: PaginationState;
   sorting: SortingState;
-}
+};
