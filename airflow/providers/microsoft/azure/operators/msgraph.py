@@ -179,7 +179,9 @@ class MSGraphAsyncOperator(BaseOperator):
                 event["response"] = result
 
                 try:
-                    self.trigger_next_link(response=response, method_name=self.execute_complete.__name__, context=context)
+                    self.trigger_next_link(
+                        response=response, method_name=self.execute_complete.__name__, context=context
+                    )
                 except TaskDeferred as exception:
                     self.append_result(
                         results=results,
@@ -227,7 +229,7 @@ class MSGraphAsyncOperator(BaseOperator):
                 dag_id=self.dag_id,
                 map_indexes=map_index,
             )
-            or []  # noqa: W503
+            or []
         )
 
         if map_index:
@@ -257,7 +259,9 @@ class MSGraphAsyncOperator(BaseOperator):
             self.xcom_push(context=context, key=self.key, value=value)
 
     @staticmethod
-    def paginate(operator: MSGraphAsyncOperator, response: dict, context: Context) -> tuple[Any, dict[str, Any] | None]:
+    def paginate(
+        operator: MSGraphAsyncOperator, response: dict, context: Context
+    ) -> tuple[Any, dict[str, Any] | None]:
         odata_count = response.get("@odata.count")
         if odata_count and operator.query_parameters:
             query_parameters = deepcopy(operator.query_parameters)
@@ -266,11 +270,7 @@ class MSGraphAsyncOperator(BaseOperator):
             if top and odata_count:
                 if len(response.get("value", [])) == top and context:
                     results = operator.pull_xcom(context=context)
-                    skip = (
-                        sum(map(lambda result: len(result["value"]), results)) + top
-                        if results
-                        else top
-                    )
+                    skip = sum(map(lambda result: len(result["value"]), results)) + top if results else top
                     query_parameters["$skip"] = skip
                     return operator.url, query_parameters
         return response.get("@odata.nextLink"), operator.query_parameters
@@ -278,7 +278,9 @@ class MSGraphAsyncOperator(BaseOperator):
     def trigger_next_link(self, response, method_name: str, context: Context) -> None:
         if isinstance(response, dict):
             url, query_parameters = self.pagination_function(
-                operator=self, response=response, context=context,
+                operator=self,
+                response=response,
+                context=context,
             )
 
             self.log.debug("url: %s", url)

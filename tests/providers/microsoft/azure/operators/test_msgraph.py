@@ -26,9 +26,13 @@ from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator
 from airflow.triggers.base import TriggerEvent
 from tests.providers.microsoft.azure.base import Base
-from tests.providers.microsoft.conftest import load_file, load_json, mock_json_response, mock_response, \
-    mock_context
-
+from tests.providers.microsoft.conftest import (
+    load_file,
+    load_json,
+    mock_context,
+    mock_json_response,
+    mock_response,
+)
 
 class TestMSGraphAsyncOperator(Base):
     @pytest.mark.db_test
