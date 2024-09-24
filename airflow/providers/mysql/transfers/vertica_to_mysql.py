@@ -133,21 +133,20 @@ class VerticaToMySqlOperator(BaseOperator):
                     count += 1
 
                 tmpfile.flush()
-        self._run_preoperator(mysql)
-        try:
-            self.log.info("Bulk inserting rows into MySQL...")
-            with closing(mysql.get_conn()) as conn, closing(conn.cursor()) as cursor:
-                cursor.execute(
-                    f"LOAD DATA LOCAL INFILE '{tmpfile.name}' "
-                    f"INTO TABLE {self.mysql_table} "
-                    f"LINES TERMINATED BY '\r\n' ({', '.join(selected_columns)})"
-                )
-                conn.commit()
-            tmpfile.close()
-            self.log.info("Inserted rows into MySQL %s", count)
-        except (MySQLdb.Error, MySQLdb.Warning):
-            self.log.info("Inserted rows into MySQL 0")
-            raise
+                self._run_preoperator(mysql)
+                try:
+                    self.log.info("Bulk inserting rows into MySQL...")
+                    with closing(mysql.get_conn()) as conn, closing(conn.cursor()) as cursor:
+                        cursor.execute(
+                            f"LOAD DATA LOCAL INFILE '{tmpfile.name}' "
+                            f"INTO TABLE {self.mysql_table} "
+                            f"LINES TERMINATED BY '\r\n' ({', '.join(selected_columns)})"
+                        )
+                        conn.commit()
+                    self.log.info("Inserted rows into MySQL %s", count)
+                except (MySQLdb.Error, MySQLdb.Warning):
+                    self.log.info("Inserted rows into MySQL 0")
+                    raise
 
     def _run_preoperator(self, mysql):
         if self.mysql_preoperator:
