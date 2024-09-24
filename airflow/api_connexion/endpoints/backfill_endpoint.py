@@ -31,12 +31,10 @@ from airflow.api_connexion.schemas.backfill_schema import (
     backfill_collection_schema,
     backfill_schema,
 )
-from airflow.models import DagRun
-from airflow.models.backfill import Backfill, BackfillDagRun
+from airflow.models.backfill import Backfill
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import DagRunState
 from airflow.www.decorators import action_logging
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
@@ -144,19 +142,6 @@ def cancel_backfill(backfill_id, session):
     # first, pause
     if not br.is_paused:
         br.is_paused = True
-
-    session.commit()
-
-    # now, let's mark all queued dag runs as failed
-    query = (
-        select(DagRun)
-        .join(BackfillDagRun, BackfillDagRun.dag_run_id == DagRun.id, BackfillDagRun.backfill_id == br.id)
-        .where(DagRun.state == DagRunState.QUEUED)
-    )
-    result = session.scalars(query)
-    dr: DagRun
-    for dr in result.all():
-        dr.state = DagRunState.FAILED
     session.commit()
     return backfill_schema.dump(br)
 
