@@ -253,7 +253,7 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
-  
+
   notify-slack-failure:
     name: "Notify Slack on Failure"
     # if: failure()
@@ -269,4 +269,3 @@ jobs:
                     Check the details at:
                     ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           }' ${{ env.SLACK_WEBHOOK_URL }}
-
