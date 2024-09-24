@@ -84,14 +84,17 @@ class RedshiftHook(AwsBaseHook):
             - :external+boto3:py:meth:`Redshift.Client.describe_clusters`
 
         :param cluster_identifier: unique identifier of a cluster
-        :param skip_final_cluster_snapshot: determines cluster snapshot creation
-        :param final_cluster_snapshot_identifier: Optional[str]
         """
         try:
             response = self.get_conn().describe_clusters(ClusterIdentifier=cluster_identifier)["Clusters"]
             return response[0]["ClusterStatus"] if response else None
         except self.get_conn().exceptions.ClusterNotFoundFault:
             return "cluster_not_found"
+
+    async def cluster_status_async(self, cluster_identifier: str) -> str:
+        async with self.async_conn as client:
+            response = await client.describe_clusters(ClusterIdentifier=cluster_identifier)["Clusters"]
+            return response[0]["ClusterStatus"] if response else None
 
     def delete_cluster(
         self,

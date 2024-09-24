@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any, AsyncIterator
 
-from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftAsyncHook, RedshiftHook
+from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -247,13 +247,11 @@ class RedshiftClusterTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Run async until the cluster status matches the target status."""
         try:
-            hook = RedshiftAsyncHook(aws_conn_id=self.aws_conn_id)
+            hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
             while True:
-                res = await hook.cluster_status(self.cluster_identifier)
-                if (res["status"] == "success" and res["cluster_state"] == self.target_status) or res[
-                    "status"
-                ] == "error":
-                    yield TriggerEvent(res)
+                status = await hook.cluster_status_async(self.cluster_identifier)
+                if status == self.target_status:
+                    yield TriggerEvent({"status": "success", "message": "target state met"})
                     return
                 await asyncio.sleep(self.poke_interval)
         except Exception as e:
