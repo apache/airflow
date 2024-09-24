@@ -41,7 +41,9 @@ export class DagService {
    * @param data.limit
    * @param data.offset
    * @param data.tags
+   * @param data.owners
    * @param data.dagIdPattern
+   * @param data.dagDisplayNamePattern
    * @param data.onlyActive
    * @param data.paused
    * @param data.orderBy
@@ -58,7 +60,9 @@ export class DagService {
         limit: data.limit,
         offset: data.offset,
         tags: data.tags,
+        owners: data.owners,
         dag_id_pattern: data.dagIdPattern,
+        dag_display_name_pattern: data.dagDisplayNamePattern,
         only_active: data.onlyActive,
         paused: data.paused,
         order_by: data.orderBy,
