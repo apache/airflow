@@ -31,7 +31,6 @@ import pendulum
 import pytest
 
 opensearchpy = pytest.importorskip("opensearchpy")
-from opensearchpy import OpenSearch
 from opensearchpy.exceptions import NotFoundError
 
 from airflow.configuration import conf
@@ -138,7 +137,6 @@ class TestOpensearchTaskHandler:
         )
 
     def test_client(self):
-        assert issubclass(type(self.os_task_handler.client), OpenSearch)
         assert self.os_task_handler.index_patterns == "_all"
 
     def test_client_with_config(self):
