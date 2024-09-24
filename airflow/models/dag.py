@@ -28,6 +28,7 @@ import pickle
 import sys
 import time
 import traceback
+import warnings
 import weakref
 from collections import abc, defaultdict, deque
 from contextlib import ExitStack
@@ -88,6 +89,7 @@ from airflow.exceptions import (
     DuplicateTaskIdFound,
     FailStopDagInvalidTriggerRule,
     ParamValidationError,
+    RemovedInAirflow3Warning,
     TaskDeferred,
     TaskNotFound,
     UnknownExecutorException,
@@ -2331,6 +2333,13 @@ class DAG(LoggingMixin):
         :param run_at_least_once: If true, always run the DAG at least once even
             if no logical run exists within the time range.
         """
+        warnings.warn(
+            "`DAG.run()` is deprecated and will be removed in Airflow 3.0. Consider "
+            "using `DAG.test()` instead, or trigger your dag via API.",
+            RemovedInAirflow3Warning,
+            stacklevel=2,
+        )
+
         from airflow.executors.executor_loader import ExecutorLoader
         from airflow.jobs.backfill_job_runner import BackfillJobRunner
 

@@ -45,6 +45,7 @@ from airflow.exceptions import (
     AirflowException,
     DuplicateTaskIdFound,
     ParamValidationError,
+    RemovedInAirflow3Warning,
     UnknownExecutorException,
 )
 from airflow.executors import executor_loader
@@ -2733,14 +2734,17 @@ class TestDagModel:
 
     @mock.patch("airflow.models.dag.run_job")
     def test_dag_executors(self, run_job_mock):
-        dag = DAG(dag_id="test", schedule=None)
-        reload(executor_loader)
-        with conf_vars({("core", "executor"): "SequentialExecutor"}):
-            dag.run()
-            assert isinstance(run_job_mock.call_args_list[0].kwargs["job"].executor, SequentialExecutor)
+        # todo: AIP-78 remove along with DAG.run()
+        #  this only tests the backfill job runner, not the scheduler
+        with pytest.warns(RemovedInAirflow3Warning):
+            dag = DAG(dag_id="test", schedule=None)
+            reload(executor_loader)
+            with conf_vars({("core", "executor"): "SequentialExecutor"}):
+                dag.run()
+                assert isinstance(run_job_mock.call_args_list[0].kwargs["job"].executor, SequentialExecutor)
 
-            dag.run(local=True)
-            assert isinstance(run_job_mock.call_args_list[1].kwargs["job"].executor, LocalExecutor)
+                dag.run(local=True)
+                assert isinstance(run_job_mock.call_args_list[1].kwargs["job"].executor, LocalExecutor)
 
 
 class TestQueries:
