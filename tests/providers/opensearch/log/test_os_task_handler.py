@@ -29,6 +29,8 @@ from unittest.mock import Mock, patch
 
 import pendulum
 import pytest
+
+opensearchpy = pytest.importorskip("opensearchpy")
 from opensearchpy import OpenSearch
 from opensearchpy.exceptions import NotFoundError
 
@@ -112,11 +114,6 @@ class TestOpensearchTaskHandler:
         )
 
         self.os_task_handler.client = MockClient()
-        # self.index_name = "test_index"
-        # self.doc_type = "log"
-        # self.test_message = "some random stuff"
-        # self.body = {"message": self.test_message, "log_id": self.LOG_ID, "offset": 1}
-        # self.os.index(index=self.index_name, doc_type=self.doc_type, body=self.body, id=1)
 
     def teardown_method(self):
         shutil.rmtree(self.local_log_location.split(os.path.sep)[0], ignore_errors=True)
