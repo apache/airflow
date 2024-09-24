@@ -277,11 +277,7 @@ class MSGraphAsyncOperator(BaseOperator):
 
     def trigger_next_link(self, response, method_name: str, context: Context) -> None:
         if isinstance(response, dict):
-            url, query_parameters = self.pagination_function(
-                operator=self,
-                response=response,
-                context=context,
-            )
+            url, query_parameters = self.pagination_function(self, response, context)
 
             self.log.debug("url: %s", url)
             self.log.debug("query_parameters: %s", query_parameters)
