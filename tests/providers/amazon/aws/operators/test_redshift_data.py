@@ -222,10 +222,8 @@ class TestRedshiftDataOperator:
             session_id=None,
             session_keep_alive_seconds=123,
         )
-        mock_ti.xcom_push.assert_called_once_with(
-            key="session_id",
-            value=SESSION_ID,
-        )
+        assert mock_ti.xcom_push.call_args.kwargs["key"] == "session_id"
+        assert mock_ti.xcom_push.call_args.kwargs["value"] == SESSION_ID
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
     def test_on_kill_without_query(self, mock_conn):
