@@ -41,7 +41,6 @@ env:
   IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
   INCLUDE_SUCCESS_OUTPUTS: "true"
   USE_SUDO: "true"
-  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
   VERBOSE: "true"
 
 concurrency:
@@ -254,18 +253,3 @@ jobs:
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
 
-  notify-slack-failure:
-    name: "Notify Slack on Failure"
-    # if: failure()
-    runs-on: ["ubuntu-22.04"]
-    steps:
-      - name: Notify Slack
-        run: |
-          curl -X POST -H 'Content-type: application/json' --data '{
-            "text": "The GitLab CI workflow *Tests* has failed.\n
-                    Repository: ${{ github.repository }}\n
-                    Branch: ${{ github.ref_name }}\n
-                    Commit: ${{ github.sha }}\n
-                    Check the details at:
-                    ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          }' ${{ env.SLACK_WEBHOOK_URL }}
