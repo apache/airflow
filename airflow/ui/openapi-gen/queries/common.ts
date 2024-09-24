@@ -35,19 +35,23 @@ export const useDagServiceGetDagsPublicDagsGetKey =
   "DagServiceGetDagsPublicDagsGet";
 export const UseDagServiceGetDagsPublicDagsGetKeyFn = (
   {
+    dagDisplayNamePattern,
     dagIdPattern,
     limit,
     offset,
     onlyActive,
     orderBy,
+    owners,
     paused,
     tags,
   }: {
+    dagDisplayNamePattern?: string;
     dagIdPattern?: string;
     limit?: number;
     offset?: number;
     onlyActive?: boolean;
     orderBy?: string;
+    owners?: string[];
     paused?: boolean;
     tags?: string[];
   } = {},
@@ -55,6 +59,16 @@ export const UseDagServiceGetDagsPublicDagsGetKeyFn = (
 ) => [
   useDagServiceGetDagsPublicDagsGetKey,
   ...(queryKey ?? [
-    { dagIdPattern, limit, offset, onlyActive, orderBy, paused, tags },
+    {
+      dagDisplayNamePattern,
+      dagIdPattern,
+      limit,
+      offset,
+      onlyActive,
+      orderBy,
+      owners,
+      paused,
+      tags,
+    },
   ]),
 ];
