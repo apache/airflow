@@ -41,18 +41,11 @@ class Backfill(Base):
     Controls whether new dag runs will be created for this backfill.
 
     Does not pause existing dag runs.
-    todo: AIP-78 Add test
     """
     max_active_runs = Column(Integer, default=10, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     completed_at = Column(UtcDateTime, nullable=True)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
-
-
-# todo: AIP-78 implement clear_failed_tasks?`
-# todo: AIP-78 implement clear_dag_run?
-
-# todo: (AIP-78) should backfill be supported for things with no schedule, or statically partitioned assets?
 
 
 class BackfillDagRun(Base):
