@@ -611,3 +611,28 @@ class TestPytestSnowflakeHook:
             hook_with_schema_param = SnowflakeHook(snowflake_conn_id="test_conn", schema="my_schema")
             assert hook_with_schema_param.get_openlineage_default_schema() == "my_schema"
             mock_get_first.assert_not_called()
+
+    @mock.patch("snowflake.snowpark.Session.builder")
+    def test_get_snowpark_session(self, mock_session_builder):
+        from airflow import __version__ as airflow_version
+        from airflow.providers.snowflake import __version__ as provider_version
+
+        mock_session = mock.MagicMock()
+        mock_session_builder.configs.return_value.create.return_value = mock_session
+
+        with mock.patch.dict(
+            "os.environ", AIRFLOW_CONN_TEST_CONN=Connection(**BASE_CONNECTION_KWARGS).get_uri()
+        ):
+            hook = SnowflakeHook(snowflake_conn_id="test_conn")
+            session = hook.get_snowpark_session()
+            assert session == mock_session
+
+            mock_session_builder.configs.assert_called_once_with(hook._get_conn_params)
+
+            # Verify that update_query_tag was called with the expected tag dictionary
+            mock_session.update_query_tag.assert_called_once_with(
+                {
+                    "airflow_version": airflow_version,
+                    "airflow_provider_version": provider_version,
+                }
+            )
