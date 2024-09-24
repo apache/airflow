@@ -6014,7 +6014,9 @@ class TestSchedulerJobQueriesCount:
             self.job_runner.processor_agent = mock_agent
 
             with assert_queries_count(expected_query_count, margin=15):
-                with mock.patch.object(DagRun, "running_dag_runs_to_examine") as mock_dagruns:
+                with mock.patch.object(
+                    DagRun, DagRun.get_running_dag_runs_to_examine.__name__
+                ) as mock_dagruns:
                     query = MagicMock()
                     query.all.return_value = dagruns
                     mock_dagruns.return_value = query
