@@ -21,7 +21,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Generic, List, TypeVar, Union
 
 from fastapi import Depends, HTTPException, Query
-from sqlalchemy import nullslast, or_
+from sqlalchemy import case, or_
 from typing_extensions import Annotated, Self
 
 from airflow.models.dag import DagModel, DagTag
@@ -154,10 +154,16 @@ class SortParam(BaseParam[Union[str]]):
                 f"Ordering with '{lstriped_orderby}' is disallowed or "
                 f"the attribute does not exist on the model",
             )
+
+        column = getattr(DagModel, lstriped_orderby)
+
+        # MySQL does not support `nullslast`, and True/False ordering depends on the
+        # database implementation
+        nullscheck = case((column.isnot(None), 0), else_=1)
         if self.value[0] == "-":
-            return select.order_by(nullslast(getattr(DagModel, lstriped_orderby).desc()), DagModel.dag_id)
+            return select.order_by(nullscheck, column.desc(), DagModel.dag_id)
         else:
-            return select.order_by(nullslast(getattr(DagModel, lstriped_orderby)), DagModel.dag_id.asc())
+            return select.order_by(nullscheck, column.asc(), DagModel.dag_id)
 
     def __call__(self, order_by: str = Query(default="dag_id")) -> SortParam:
         return self.set_value(order_by)

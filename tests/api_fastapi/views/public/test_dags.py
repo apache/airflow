@@ -102,7 +102,7 @@ def setup() -> None:
         ({"order_by": "-dag_display_name"}, 2, ["test_dag2", "test_dag1"]),
         ({"order_by": "dag_display_name"}, 2, ["test_dag1", "test_dag2"]),
         ({"order_by": "next_dagrun", "only_active": False}, 3, ["test_dag3", "test_dag1", "test_dag2"]),
-        # # Search
+        # Search
         ({"dag_id_pattern": "1"}, 1, ["test_dag1"]),
         ({"dag_display_name_pattern": "display2"}, 1, ["test_dag2"]),
     ],
