@@ -301,6 +301,7 @@ class AwsConnectionWrapper(LoggingMixin):
         aws_secret_access_key: str | None = None,
         aws_session_token: str | None = None,
         session_kwargs: dict[str, Any] | None = None,
+        **kwargs,
     ) -> tuple[str | None, str | None, str | None]:
         """
         Get AWS credentials from connection login/password and extra.

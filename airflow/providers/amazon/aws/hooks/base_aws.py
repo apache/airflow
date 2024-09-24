@@ -63,10 +63,11 @@ from airflow.utils.log.secrets_masker import mask_secret
 BaseAwsConnection = TypeVar("BaseAwsConnection", bound=Union[boto3.client, boto3.resource])
 
 if TYPE_CHECKING:
+    from aiobotocore.session import AioSession
     from botocore.client import ClientMeta
     from botocore.credentials import ReadOnlyCredentials
 
-    from airflow.models.connection import Connection  # Avoid circular imports.
+    from airflow.models.connection import Connection
 
 _loader = botocore.loaders.Loader()
 """
@@ -170,9 +171,7 @@ class BaseSessionFactory(LoggingMixin):
         session.register_component("data_loader", _loader)
         return session
 
-    def create_session(
-        self, deferrable: bool = False
-    ) -> boto3.session.Session | aiobotocore.session.AioSession:
+    def create_session(self, deferrable: bool = False) -> boto3.session.Session | AioSession:
         """Create boto3 or aiobotocore Session from connection config."""
         if not self.conn:
             self.log.info(
@@ -214,7 +213,7 @@ class BaseSessionFactory(LoggingMixin):
 
     def _create_session_with_assume_role(
         self, session_kwargs: dict[str, Any], deferrable: bool = False
-    ) -> boto3.session.Session | aiobotocore.session.AioSession:
+    ) -> boto3.session.Session | AioSession:
         if self.conn.assume_role_method == "assume_role_with_web_identity":
             # Deferred credentials have no initial credentials
             credential_fetcher = self._get_web_identity_credential_fetcher()
@@ -1027,21 +1026,3 @@ def resolve_session_factory() -> type[BaseSessionFactory]:
 
 
 SessionFactory = resolve_session_factory()
-
-
-def _parse_s3_config(config_file_name: str, config_format: str | None = "boto", profile: str | None = None):
-    """For compatibility with airflow.contrib.hooks.aws_hook."""
-    from airflow.providers.amazon.aws.utils.connection_wrapper import _parse_s3_config
-
-    return _parse_s3_config(
-        config_file_name=config_file_name,
-        config_format=config_format,
-        profile=profile,
-    )
-
-
-try:
-    import aiobotocore.credentials
-    from aiobotocore.session import AioSession, get_session
-except ImportError:
-    pass
