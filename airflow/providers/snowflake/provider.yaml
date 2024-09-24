@@ -90,7 +90,7 @@ dependencies:
   - pyarrow>=14.0.1
   - snowflake-connector-python>=3.7.1
   - snowflake-sqlalchemy>=1.4.0
-  - snowflake-snowpark-python>=1.17.0
+  - snowflake-snowpark-python>=1.17.0;python_version<"3.12"
 
 integrations:
   - integration-name: Snowflake
