@@ -228,6 +228,14 @@ class TestGetBackfill(TestBackfillEndpoint):
             "updated_at": mock.ANY,
         }
 
+    def test_no_exist(self, session):
+        response = self.client.get(
+            f"/api/v1/backfills/{23198409834208}",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert response.status_code == 404
+        assert response.json.get("title") == "Backfill not found"
+
     @pytest.mark.parametrize(
         "user, expected",
         [

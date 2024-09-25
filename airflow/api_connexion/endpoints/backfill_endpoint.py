@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+from functools import wraps
 from typing import TYPE_CHECKING
 
 import pendulum
@@ -25,7 +26,7 @@ from flask import g
 from sqlalchemy import select
 
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import Conflict, NotFound, PermissionDenied
+from airflow.api_connexion.exceptions import Conflict, NotFound
 from airflow.api_connexion.schemas.backfill_schema import (
     BackfillCollection,
     backfill_collection_schema,
@@ -46,6 +47,23 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 RESOURCE_EVENT_PREFIX = "dag"
+
+
+def backfill_to_dag(func):
+    """
+    Enrich the request with dag_id.
+
+    :meta private:
+    """
+
+    @wraps(func)
+    def wrapper(*, backfill_id, session, **kwargs):
+        backfill = session.get(Backfill, backfill_id)
+        if not backfill:
+            raise NotFound("Backfill not found")
+        return func(dag_id=backfill.dag_id, backfill_id=backfill_id, session=session, **kwargs)
+
+    return wrapper
 
 
 @provide_session
@@ -93,13 +111,12 @@ def list_backfills(dag_id, session):
     return backfill_collection_schema.dump(obj)
 
 
-@security.requires_access_dag("GET")
-@action_logging
 @provide_session
-def pause_backfill(backfill_id, session):
+@backfill_to_dag
+@security.requires_access_dag("PUT")
+@action_logging
+def pause_backfill(*, backfill_id, session, **kwargs):
     br = session.get(Backfill, backfill_id)
-    if not _has_access(dag_ids=[br.dag_id], methods="PUT"):
-        raise PermissionDenied()
     if br.completed_at:
         raise Conflict("Backfill is already completed.")
     if br.is_paused is False:
@@ -108,13 +125,12 @@ def pause_backfill(backfill_id, session):
     return backfill_schema.dump(br)
 
 
-@security.requires_access_dag("GET")
-@action_logging
 @provide_session
-def unpause_backfill(backfill_id, session):
+@backfill_to_dag
+@security.requires_access_dag("PUT")
+@action_logging
+def unpause_backfill(*, backfill_id, session, **kwargs):
     br = session.get(Backfill, backfill_id)
-    if not _has_access(dag_ids=[br.dag_id], methods="PUT"):
-        raise PermissionDenied()
     if br.completed_at:
         raise Conflict("Backfill is already completed.")
     if br.is_paused:
@@ -123,14 +139,12 @@ def unpause_backfill(backfill_id, session):
     return backfill_schema.dump(br)
 
 
-@security.requires_access_dag("GET")
-@action_logging
 @provide_session
-def cancel_backfill(backfill_id, session):
+@backfill_to_dag
+@security.requires_access_dag("PUT")
+@action_logging
+def cancel_backfill(*, backfill_id, session, **kwargs):
     br: Backfill = session.get(Backfill, backfill_id)
-    if not _has_access(dag_ids=[br.dag_id], methods="PUT"):
-        raise PermissionDenied()
-
     if br.completed_at is not None:
         raise Conflict("Backfill is already completed.")
 
@@ -143,14 +157,13 @@ def cancel_backfill(backfill_id, session):
     return backfill_schema.dump(br)
 
 
+@provide_session
+@backfill_to_dag
 @security.requires_access_dag("GET")
 @action_logging
-@provide_session
-def get_backfill(backfill_id: int, session: Session = NEW_SESSION):
+def get_backfill(*, backfill_id: int, session: Session = NEW_SESSION, **kwargs):
     backfill = session.get(Backfill, backfill_id)
     if backfill:
-        if not _has_access([backfill.dag_id], methods=["GET"]):
-            raise PermissionDenied()
         return backfill_schema.dump(backfill)
     raise NotFound("Backfill not found")
 
