@@ -49,9 +49,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  notify-slack-failure:
+    uses: slackapi/slack-github-action@v1.27.0
+    name: "Notify Slack on Failure"
+    with:
+      # Slack channel id, channel name, or user id to post message.
+      # See also: https://api.slack.com/methods/chat.postMessage#channels
+      # You can pass in multiple channels to post to by providing a comma-delimited list of channel IDs.
+      channel-id: 'zzz_webhook_test'
+      # For posting a simple plain text message
+      slack-message: "GitHub build result: ${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+
   build-info:
     timeout-minutes: 10
     name: "Build Info"
+    needs: [notify-slack-failure]
     # At build-info stage we do not yet have outputs so we need to hard-code the runs-on to public runners
     runs-on: ["ubuntu-22.04"]
     env:
@@ -253,13 +265,3 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
-  notify-slack-failure:
-      uses: slackapi/slack-github-action@v1.27.0
-      name: "Notify Slack on Failure"
-      with:
-        # Slack channel id, channel name, or user id to post message.
-        # See also: https://api.slack.com/methods/chat.postMessage#channels
-        # You can pass in multiple channels to post to by providing a comma-delimited list of channel IDs.
-        channel-id: 'zzz_webhook_test'
-        # For posting a simple plain text message
-        slack-message: "GitHub build result: ${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
