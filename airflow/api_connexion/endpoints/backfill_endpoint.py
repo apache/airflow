@@ -63,12 +63,10 @@ def _create_backfill(
     if not serdag:
         raise NotFound(f"Could not find dag {dag_id}")
 
-    from_date = pendulum.parse(from_date)
-    to_date = pendulum.parse(to_date)
     br = Backfill(
         dag_id=dag_id,
-        from_date=from_date,
-        to_date=to_date,
+        from_date=pendulum.parse(from_date),
+        to_date=pendulum.parse(to_date),
         max_active_runs=max_active_runs,
         dag_run_conf=dag_run_conf,
     )
