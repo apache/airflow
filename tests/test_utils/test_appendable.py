@@ -29,7 +29,7 @@ T = TypeVar("T", bound=Union[list, tuple, dict])
 class Appendable:
     """
     To be used in flat lists, tuples and dictionaries. Intended to
-    be used with pytest.mark.parametrize. For example, when values
+    be used with `pytest.mark.parametrize`. For example, when values
     want to be relative to `tmp_path`.
     """
 
@@ -45,11 +45,13 @@ class Appendable:
         recursive.
         """
         if isinstance(appendables, list):
-            return cls._onto_list(appendables, base_path)
+            return cls._onto_list(appendables, base_path)  # type: ignore
         elif isinstance(appendables, tuple):
-            return cls._onto_tuple(appendables, base_path)
-        elif isinstance(appendables, dict):
-            return cls._onto_dict(appendables, base_path)
+            return cls._onto_tuple(appendables, base_path)  # type: ignore
+        else:
+            assert isinstance(appendables, dict), "should only supply list, "
+            "tuple or dict to this function."
+            return cls._onto_dict(appendables, base_path)  # type: ignore
 
     def _onto_single(self, base_path: Path) -> str:
         new_path = base_path / self.path
