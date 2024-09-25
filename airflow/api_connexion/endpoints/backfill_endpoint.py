@@ -51,12 +51,12 @@ RESOURCE_EVENT_PREFIX = "dag"
 @provide_session
 def _create_backfill(
     *,
-    dag_id,
-    from_date,
-    to_date,
-    max_active_runs=10,
-    reverse=False,
-    dag_run_conf: dict | None = None,
+    dag_id: str,
+    from_date: str,
+    to_date: str,
+    max_active_runs: int,
+    reverse: bool,
+    dag_run_conf: dict | None,
     session: Session = NEW_SESSION,
 ):
     serdag = session.get(SerializedDagModel, dag_id)
