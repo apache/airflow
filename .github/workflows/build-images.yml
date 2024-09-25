@@ -41,6 +41,7 @@ env:
   IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
   INCLUDE_SUCCESS_OUTPUTS: "true"
   USE_SUDO: "true"
+  SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
   VERBOSE: "true"
 
 concurrency:
@@ -170,7 +171,7 @@ jobs:
           COMMIT_REF: "${{ env.TARGET_COMMIT_SHA }}"
           VERBOSE: "false"
           AIRFLOW_SOURCES_ROOT: "${{ github.workspace }}"
-        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
+        run: exit 1
       - name: env
         run: printenv
         env:
@@ -252,3 +253,17 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+  
+  notify-slack-failure:
+  # github.event_name == 'schedule'
+    if: failure()
+    uses: slackapi/slack-github-action@v1.27.0
+    name: "Notify Slack on Failure"
+    with:
+      # Slack channel id, channel name, or user id to post message.
+      # See also: https://api.slack.com/methods/chat.postMessage#channels
+      # You can pass in multiple channels to post to by providing a comma-delimited list of channel IDs.
+      channel-id: 'zzz_webhook_test'
+      # For posting a simple plain text message
+      slack-message: "GitHub build result: ${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+
