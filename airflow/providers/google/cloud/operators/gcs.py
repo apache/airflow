@@ -795,11 +795,11 @@ class GCSTimeSpanFileTransformOperator(GoogleCloudBaseOperator):
             orig_end = context["data_interval_end"]
         except KeyError:
             orig_start = pendulum.instance(context["execution_date"])
-            following_execution_date = context["dag"].following_schedule(context["execution_date"])
-            if following_execution_date is None:
-                orig_end = None
+            next_dagrun = context["dag"].next_dagrun_info(last_automated_dagrun=None, restricted=False)
+            if next_dagrun and next_dagrun.data_interval and next_dagrun.data_interval.end:
+                orig_end = next_dagrun.data_interval.end
             else:
-                orig_end = pendulum.instance(following_execution_date)
+                orig_end = None
 
         timespan_start = orig_start
         if orig_end is None:  # Only possible in Airflow before 2.2.

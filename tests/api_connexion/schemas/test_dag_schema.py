@@ -42,7 +42,7 @@ def test_serialize_test_dag_schema(url_safe_serializer):
         fileloc="/root/airflow/dags/my_dag.py",
         owners="airflow1,airflow2",
         description="The description",
-        schedule_interval="5 4 * * *",
+        timetable_summary="5 4 * * *",
         tags=[DagTag(name="tag-1"), DagTag(name="tag-2")],
     )
     serialized_dag = DAGSchema().dump(dag_model)
@@ -56,7 +56,7 @@ def test_serialize_test_dag_schema(url_safe_serializer):
         "is_paused": True,
         "is_active": True,
         "owners": ["airflow1", "airflow2"],
-        "schedule_interval": {"__type": "CronExpression", "value": "5 4 * * *"},
+        "timetable_summary": "5 4 * * *",
         "tags": [{"name": "tag-1"}, {"name": "tag-2"}],
         "next_dagrun": None,
         "has_task_concurrency_limits": True,
@@ -93,7 +93,7 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
                 "is_paused": None,
                 "is_active": None,
                 "owners": [],
-                "schedule_interval": None,
+                "timetable_summary": None,
                 "tags": [],
                 "next_dagrun": None,
                 "has_task_concurrency_limits": True,
@@ -121,7 +121,7 @@ def test_serialize_test_dag_collection_schema(url_safe_serializer):
                 "is_active": None,
                 "is_paused": None,
                 "owners": [],
-                "schedule_interval": None,
+                "timetable_summary": None,
                 "tags": [],
                 "next_dagrun": None,
                 "has_task_concurrency_limits": True,
@@ -184,10 +184,13 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
                 "schema": {},
             }
         },
-        "schedule_interval": {"__type": "TimeDelta", "days": 1, "seconds": 0, "microseconds": 0},
         "start_date": "2020-06-19T00:00:00+00:00",
-        "tags": [{"name": "example1"}, {"name": "example2"}],
+        "tags": sorted(
+            [{"name": "example1"}, {"name": "example2"}],
+            key=lambda val: val["name"],
+        ),
         "template_searchpath": None,
+        "timetable_summary": "1 day, 0:00:00",
         "timezone": UTC_JSON_REPR,
         "max_active_runs": 16,
         "max_consecutive_failed_dag_runs": 0,
@@ -198,6 +201,10 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
     }
     obj = schema.dump(dag)
     expected.update({"last_parsed": obj["last_parsed"]})
+    obj["tags"] = sorted(
+        obj["tags"],
+        key=lambda val: val["name"],
+    )
     assert obj == expected
 
 
@@ -242,10 +249,13 @@ def test_serialize_test_dag_with_dataset_schedule_detail_schema(url_safe_seriali
                 "schema": {},
             }
         },
-        "schedule_interval": {"__type": "CronExpression", "value": "Dataset"},
         "start_date": "2020-06-19T00:00:00+00:00",
-        "tags": [{"name": "example1"}, {"name": "example2"}],
+        "tags": sorted(
+            [{"name": "example1"}, {"name": "example2"}],
+            key=lambda val: val["name"],
+        ),
         "template_searchpath": None,
+        "timetable_summary": "Dataset",
         "timezone": UTC_JSON_REPR,
         "max_active_runs": 16,
         "max_consecutive_failed_dag_runs": 0,
@@ -256,4 +266,8 @@ def test_serialize_test_dag_with_dataset_schedule_detail_schema(url_safe_seriali
     }
     obj = schema.dump(dag)
     expected.update({"last_parsed": obj["last_parsed"]})
+    obj["tags"] = sorted(
+        obj["tags"],
+        key=lambda val: val["name"],
+    )
     assert obj == expected

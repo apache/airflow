@@ -92,7 +92,9 @@ class TestClient:
         assert not configuration.verify_ssl
 
     @mock.patch("kubernetes.config.incluster_config.InClusterConfigLoader")
-    @conf_vars({("kubernetes", "api_client_retry_configuration"): '{"total": 3, "backoff_factor": 0.5}'})
+    @conf_vars(
+        {("kubernetes_executor", "api_client_retry_configuration"): '{"total": 3, "backoff_factor": 0.5}'}
+    )
     def test_api_client_retry_configuration_correct_values(self, mock_in_cluster_loader):
         get_kube_client(in_cluster=True)
         client_configuration = mock_in_cluster_loader().load_and_set.call_args.args[0]

@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+3.13.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``SSHHook: check if existing connection is still alive (#41061)``
+
 3.13.0
 ......
 

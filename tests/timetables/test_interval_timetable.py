@@ -74,7 +74,7 @@ def test_no_catchup_first_starts_at_current_time(
     [pytest.param(True, id="catchup_true"), pytest.param(False, id="catchup_false")],
 )
 @time_machine.travel(CURRENT_TIME)
-def test_new_schedule_interval_next_info_starts_at_new_time(
+def test_new_schedule_next_info_starts_at_new_time(
     earliest: pendulum.DateTime | None,
     catchup: bool,
 ) -> None:

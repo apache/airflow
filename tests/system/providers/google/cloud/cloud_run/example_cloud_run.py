@@ -37,14 +37,15 @@ from airflow.providers.google.cloud.operators.cloud_run import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 DAG_ID = "cloud_run"
 
 region = "us-central1"
 job_name_prefix = "cloudrun-system-test-job"
-job1_name = f"{job_name_prefix}1"
-job2_name = f"{job_name_prefix}2"
-job3_name = f"{job_name_prefix}3"
+job1_name = f"{job_name_prefix}1-{ENV_ID}"
+job2_name = f"{job_name_prefix}2-{ENV_ID}"
+job3_name = f"{job_name_prefix}3-{ENV_ID}"
 
 create1_task_name = "create-job1"
 create2_task_name = "create-job2"

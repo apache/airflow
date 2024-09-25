@@ -27,6 +27,14 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Switch cloudant provider from cloudant library to ibmcloudant library (#41555)``
+
 3.6.0
 .....
 

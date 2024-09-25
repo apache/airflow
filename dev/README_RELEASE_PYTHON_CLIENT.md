@@ -58,6 +58,8 @@ cd airflow
 # Checkout the right branch
 git checkout v2-8-test
 export AIRFLOW_REPO_ROOT=$(pwd -P)
+export TEST_BRANCH=v2-8-test
+export STABLE_BRANCH=v2-8-stable
 cd ..
 ```
 
@@ -98,8 +100,19 @@ git log 2.8.0..HEAD --pretty=oneline -- airflow/api_connexion/openapi/v1.yaml
 - Create PR where you add the changelog in `main` branch and cherry-pick it to the `v2-test` branch - same
   as in case of Airflow changelog.
 
-- Merge it to the `v2-*-stable` branch. You will release API client from the latest `v2-*-stable` branch
-  of Airflow repository - same branch that is used to release Airflow.
+- Merge it to the `v2-*-stable` branch with the command below. You will release API client from the latest `v2-*-stable` branch
+  of Airflow repository - same branch that is used to release Airflow:
+
+  ```shell script
+  git checkout ${STABLE_BRANCH}
+  # make sure you are up to date
+  git fetch origin ${STABLE_BRANCH}
+  git reset --hard origin/${STABLE_BRANCH}
+  # merge the changes from the test branch
+  git merge --ff-only ${TEST_BRANCH}
+  # push the changes to the stable branch
+  git push origin ${STABLE_BRANCH}
+  ```
 
 - Build the sdist and wheel packages to be added to SVN and copy generated client sources to the
   Python Client repository.

@@ -33,7 +33,6 @@ from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from deprecated import deprecated
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry, exponential_sleep_generator
@@ -64,6 +63,7 @@ from airflow.providers.google.cloud.triggers.dataproc import (
     DataprocSubmitTrigger,
 )
 from airflow.providers.google.cloud.utils.dataproc import DataprocOperationType
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.utils import timezone
 
@@ -882,7 +882,8 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
 
 # TODO: Remove one day
 @deprecated(
-    reason="Please use `DataprocUpdateClusterOperator` instead.",
+    planned_removal_date="March 01, 2025",
+    use_instead="DataprocUpdateClusterOperator",
     category=AirflowProviderDeprecationWarning,
 )
 class DataprocScaleClusterOperator(GoogleCloudBaseOperator):
@@ -1503,13 +1504,11 @@ class DataprocJobBaseOperator(GoogleCloudBaseOperator):
             self.hook.cancel_job(project_id=self.project_id, job_id=self.dataproc_job_id, region=self.region)
 
 
-# TODO: Remove one day
 @deprecated(
-    reason=(
-        "Please use `DataprocSubmitJobOperator` instead. "
-        "You can use `generate_job` method to generate dictionary representing your job "
-        "and use it with the new operator."
-    ),
+    planned_removal_date="November 01, 2024",
+    use_instead="DataprocSubmitJobOperator",
+    instructions="You can use `generate_job` method to generate dictionary representing your job "
+    "and use it with the new operator.",
     category=AirflowProviderDeprecationWarning,
 )
 class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
@@ -1631,12 +1630,14 @@ class DataprocSubmitPigJobOperator(DataprocJobBaseOperator):
 
 
 # TODO: Remove one day
+
+
+# TODO: Remove one day
 @deprecated(
-    reason=(
-        "Please use `DataprocSubmitJobOperator` instead. "
-        "You can use `generate_job` method to generate dictionary representing your job "
-        "and use it with the new operator."
-    ),
+    planned_removal_date="November 01, 2024",
+    use_instead="DataprocSubmitJobOperator",
+    instructions="You can use `generate_job` method to generate dictionary representing your job "
+    "and use it with the new operator.",
     category=AirflowProviderDeprecationWarning,
 )
 class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
@@ -1725,11 +1726,10 @@ class DataprocSubmitHiveJobOperator(DataprocJobBaseOperator):
 
 # TODO: Remove one day
 @deprecated(
-    reason=(
-        "Please use `DataprocSubmitJobOperator` instead. "
-        "You can use `generate_job` method to generate dictionary representing your job "
-        "and use it with the new operator."
-    ),
+    planned_removal_date="November 01, 2024",
+    use_instead="DataprocSubmitJobOperator",
+    instructions="You can use `generate_job` method to generate dictionary representing your job "
+    "and use it with the new operator.",
     category=AirflowProviderDeprecationWarning,
 )
 class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
@@ -1817,11 +1817,10 @@ class DataprocSubmitSparkSqlJobOperator(DataprocJobBaseOperator):
 
 # TODO: Remove one day
 @deprecated(
-    reason=(
-        "Please use `DataprocSubmitJobOperator` instead. "
-        "You can use `generate_job` method to generate dictionary representing your job "
-        "and use it with the new operator."
-    ),
+    planned_removal_date="November 01, 2024",
+    use_instead="DataprocSubmitJobOperator",
+    instructions="You can use `generate_job` method to generate dictionary representing your job "
+    "and use it with the new operator.",
     category=AirflowProviderDeprecationWarning,
 )
 class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
@@ -1909,11 +1908,10 @@ class DataprocSubmitSparkJobOperator(DataprocJobBaseOperator):
 
 # TODO: Remove one day
 @deprecated(
-    reason=(
-        "Please use `DataprocSubmitJobOperator` instead. "
-        "You can use `generate_job` method to generate dictionary representing your job "
-        "and use it with the new operator."
-    ),
+    planned_removal_date="November 01, 2024",
+    use_instead="DataprocSubmitJobOperator",
+    instructions="You can use `generate_job` method to generate dictionary representing your job "
+    "and use it with the new operator.",
     category=AirflowProviderDeprecationWarning,
 )
 class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
@@ -2001,11 +1999,10 @@ class DataprocSubmitHadoopJobOperator(DataprocJobBaseOperator):
 
 # TODO: Remove one day
 @deprecated(
-    reason=(
-        "Please use `DataprocSubmitJobOperator` instead. "
-        "You can use `generate_job` method to generate dictionary representing your job "
-        "and use it with the new operator."
-    ),
+    planned_removal_date="November 01, 2024",
+    use_instead="DataprocSubmitJobOperator",
+    instructions="You can use `generate_job` method to generate dictionary representing your job "
+    "and use it with the new operator.",
     category=AirflowProviderDeprecationWarning,
 )
 class DataprocSubmitPySparkJobOperator(DataprocJobBaseOperator):

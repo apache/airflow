@@ -61,7 +61,7 @@ Password (optional)
     Used with password authentication.
 
 Host
-    Specify the `Sever URL
+    Specify the `Server URL
     <https://tableau.github.io/server-client-python/docs/api-ref#server>`_ used for Tableau.
 
 Extra (optional)

@@ -112,22 +112,6 @@ class TestDeleteConnection(TestConnectionEndpoint):
         )
         assert response.status_code == 403
 
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 204)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, session):
-        connection_model = Connection(conn_id="test-connection", conn_type="test_type")
-        session.add(connection_model)
-        session.commit()
-        conn = session.query(Connection).all()
-        assert len(conn) == 1
-
-        response = self.client.delete("/api/v1/connections/test-connection")
-
-        assert response.status_code == expected_status_code
-
 
 class TestGetConnection(TestConnectionEndpoint):
     def test_should_respond_200(self, session):
@@ -193,31 +177,6 @@ class TestGetConnection(TestConnectionEndpoint):
         response = self.client.get("/api/v1/connections/test-connection-id")
 
         assert_401(response)
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, session):
-        connection_model = Connection(
-            conn_id="test-connection-id",
-            conn_type="mysql",
-            description="test description",
-            host="mysql",
-            login="login",
-            schema="testschema",
-            port=80,
-            extra='{"param": "value"}',
-        )
-        session.add(connection_model)
-        session.commit()
-        result = session.query(Connection).all()
-        assert len(result) == 1
-
-        response = self.client.get("/api/v1/connections/test-connection-id")
-
-        assert response.status_code == expected_status_code
 
 
 class TestGetConnections(TestConnectionEndpoint):
@@ -296,16 +255,6 @@ class TestGetConnections(TestConnectionEndpoint):
         response = self.client.get("/api/v1/connections")
 
         assert_401(response)
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
-        response = self.client.get("/api/v1/connections")
-
-        assert response.status_code == expected_status_code
 
 
 class TestGetConnectionsPagination(TestConnectionEndpoint):
@@ -580,21 +529,6 @@ class TestPatchConnection(TestConnectionEndpoint):
 
         assert_401(response)
 
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, session):
-        self._create_connection(session)
-
-        response = self.client.patch(
-            "/api/v1/connections/test-connection-id",
-            json={"connection_id": "test-connection-id", "conn_type": "test_type", "extra": '{"key": "var"}'},
-        )
-
-        assert response.status_code == expected_status_code
-
 
 class TestPostConnection(TestConnectionEndpoint):
     def test_post_should_respond_200(self, session):
@@ -676,18 +610,6 @@ class TestPostConnection(TestConnectionEndpoint):
 
         assert_401(response)
 
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
-        response = self.client.post(
-            "/api/v1/connections", json={"connection_id": "test-connection-id", "conn_type": "test_type"}
-        )
-
-        assert response.status_code == expected_status_code
-
 
 class TestConnection(TestConnectionEndpoint):
     @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
@@ -741,14 +663,3 @@ class TestConnection(TestConnectionEndpoint):
             "Testing connections is disabled in Airflow configuration. "
             "Contact your deployment admin to enable it."
         )
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    @mock.patch.dict(os.environ, {"AIRFLOW__CORE__TEST_CONNECTION": "Enabled"})
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
-        payload = {"connection_id": "test-connection-id", "conn_type": "sqlite"}
-        response = self.client.post("/api/v1/connections/test", json=payload)
-        assert response.status_code == expected_status_code

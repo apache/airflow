@@ -21,6 +21,11 @@ Listeners
 You can write listeners to enable Airflow to notify you when events happen.
 `Pluggy <https://pluggy.readthedocs.io/en/stable/>`__ powers these listeners.
 
+.. warning::
+
+    Listeners are an advanced feature of Airflow. They are not isolated from the Airflow components they run in, and
+    can slow down or in come cases take down your Airflow instance. As such, extra care should be taken when writing listeners.
+
 Airflow supports notifications for the following events:
 
 Lifecycle Events
@@ -90,6 +95,7 @@ Dataset Events
 --------------
 
 - ``on_dataset_created``
+- ``on_dataset_alias_created``
 - ``on_dataset_changed``
 
 Dataset events occur when Dataset management operations are run.

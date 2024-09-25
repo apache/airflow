@@ -342,7 +342,7 @@ class TestGKEPodOperator:
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connection",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(KUB_OPERATOR_EXEC)
@@ -357,7 +357,7 @@ class TestGKEPodOperator:
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connection",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(KUB_OPERATOR_EXEC)
@@ -615,7 +615,7 @@ class TestGKEStartKueueInsideClusterOperator:
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connection",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(TEMP_FILE)
@@ -634,7 +634,7 @@ class TestGKEStartKueueInsideClusterOperator:
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connection",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(TEMP_FILE)
@@ -942,7 +942,7 @@ class TestGKEStartJobOperator:
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connection",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(KUB_JOB_OPERATOR_EXEC)
@@ -959,7 +959,7 @@ class TestGKEStartJobOperator:
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connection",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(KUB_JOB_OPERATOR_EXEC)
@@ -1042,7 +1042,7 @@ class TestGKEDescribeJobOperator:
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connection",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(TEMP_FILE)
@@ -1060,7 +1060,7 @@ class TestGKEDescribeJobOperator:
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connection",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(TEMP_FILE)
@@ -1141,7 +1141,7 @@ class TestGKECreateCustomResourceOperator:
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connection",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(KUB_CREATE_RES_OPERATOR_EXEC)
@@ -1158,7 +1158,7 @@ class TestGKECreateCustomResourceOperator:
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connection",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(KUB_CREATE_RES_OPERATOR_EXEC)
@@ -1202,7 +1202,7 @@ class TestGKEDeleteCustomResourceOperator:
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connection",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(KUB_DELETE_RES_OPERATOR_EXEC)
@@ -1219,7 +1219,7 @@ class TestGKEDeleteCustomResourceOperator:
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connection",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(KUB_DELETE_RES_OPERATOR_EXEC)
@@ -1281,7 +1281,7 @@ class TestGKEStartKueueJobOperator:
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connection",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(KUB_JOB_OPERATOR_EXEC)
@@ -1298,7 +1298,7 @@ class TestGKEStartKueueJobOperator:
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connection",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(KUB_JOB_OPERATOR_EXEC)
@@ -1393,7 +1393,7 @@ class TestGKEDeleteJobOperator:
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connection",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(DEL_KUB_JOB_OPERATOR_EXEC)
@@ -1410,7 +1410,7 @@ class TestGKEDeleteJobOperator:
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connection",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(DEL_KUB_JOB_OPERATOR_EXEC)
@@ -1499,7 +1499,7 @@ class TestGKESuspendJobOperator:
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connection",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(TEMP_FILE)
@@ -1517,7 +1517,7 @@ class TestGKESuspendJobOperator:
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connection",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(TEMP_FILE)
@@ -1607,7 +1607,7 @@ class TestGKEResumeJobOperator:
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connection",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(TEMP_FILE)
@@ -1625,7 +1625,7 @@ class TestGKEResumeJobOperator:
 
     @mock.patch.dict(os.environ, {})
     @mock.patch(
-        "airflow.hooks.base.BaseHook.get_connections",
+        "airflow.hooks.base.BaseHook.get_connection",
         return_value=[Connection(extra=json.dumps({"keyfile_dict": '{"private_key": "r4nd0m_k3y"}'}))],
     )
     @mock.patch(TEMP_FILE)

@@ -22,14 +22,17 @@ from unittest import mock
 import pytest
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
+from airflow.providers.amazon.aws.hooks.redshift_data import QueryExecutionOutput
 from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
 from airflow.providers.amazon.aws.triggers.redshift_data import RedshiftDataTrigger
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 CONN_ID = "aws_conn_test"
 TASK_ID = "task_id"
 SQL = "sql"
 DATABASE = "database"
 STATEMENT_ID = "statement_id"
+SESSION_ID = "session_id"
 
 
 @pytest.fixture
@@ -97,6 +100,8 @@ class TestRedshiftDataOperator:
         poll_interval = 5
         wait_for_completion = True
 
+        mock_exec_query.return_value = QueryExecutionOutput(statement_id=STATEMENT_ID, session_id=None)
+
         operator = RedshiftDataOperator(
             aws_conn_id=CONN_ID,
             task_id=TASK_ID,
@@ -110,7 +115,8 @@ class TestRedshiftDataOperator:
             wait_for_completion=True,
             poll_interval=poll_interval,
         )
-        operator.execute(None)
+        mock_ti = mock.MagicMock(name="MockedTaskInstance")
+        operator.execute({"ti": mock_ti})
         mock_exec_query.assert_called_once_with(
             sql=SQL,
             database=DATABASE,
@@ -123,7 +129,11 @@ class TestRedshiftDataOperator:
             with_event=False,
             wait_for_completion=wait_for_completion,
             poll_interval=poll_interval,
+            session_id=None,
+            session_keep_alive_seconds=None,
         )
+
+        mock_ti.xcom_push.assert_not_called()
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
     def test_execute_with_workgroup_name(self, mock_exec_query):
@@ -149,7 +159,8 @@ class TestRedshiftDataOperator:
             wait_for_completion=True,
             poll_interval=poll_interval,
         )
-        operator.execute(None)
+        mock_ti = mock.MagicMock(name="MockedTaskInstance")
+        operator.execute({"ti": mock_ti})
         mock_exec_query.assert_called_once_with(
             sql=SQL,
             database=DATABASE,
@@ -162,7 +173,57 @@ class TestRedshiftDataOperator:
             with_event=False,
             wait_for_completion=wait_for_completion,
             poll_interval=poll_interval,
+            session_id=None,
+            session_keep_alive_seconds=None,
         )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
+    def test_execute_new_session(self, mock_exec_query):
+        cluster_identifier = "cluster_identifier"
+        workgroup_name = None
+        db_user = "db_user"
+        secret_arn = "secret_arn"
+        statement_name = "statement_name"
+        parameters = [{"name": "id", "value": "1"}]
+        poll_interval = 5
+        wait_for_completion = True
+
+        mock_exec_query.return_value = QueryExecutionOutput(statement_id=STATEMENT_ID, session_id=SESSION_ID)
+
+        operator = RedshiftDataOperator(
+            aws_conn_id=CONN_ID,
+            task_id=TASK_ID,
+            sql=SQL,
+            database=DATABASE,
+            cluster_identifier=cluster_identifier,
+            db_user=db_user,
+            secret_arn=secret_arn,
+            statement_name=statement_name,
+            parameters=parameters,
+            wait_for_completion=True,
+            poll_interval=poll_interval,
+            session_keep_alive_seconds=123,
+        )
+
+        mock_ti = mock.MagicMock(name="MockedTaskInstance")
+        operator.execute({"ti": mock_ti})
+        mock_exec_query.assert_called_once_with(
+            sql=SQL,
+            database=DATABASE,
+            cluster_identifier=cluster_identifier,
+            workgroup_name=workgroup_name,
+            db_user=db_user,
+            secret_arn=secret_arn,
+            statement_name=statement_name,
+            parameters=parameters,
+            with_event=False,
+            wait_for_completion=wait_for_completion,
+            poll_interval=poll_interval,
+            session_id=None,
+            session_keep_alive_seconds=123,
+        )
+        assert mock_ti.xcom_push.call_args.kwargs["key"] == "session_id"
+        assert mock_ti.xcom_push.call_args.kwargs["value"] == SESSION_ID
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
     def test_on_kill_without_query(self, mock_conn):
@@ -179,7 +240,7 @@ class TestRedshiftDataOperator:
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
     def test_on_kill_with_query(self, mock_conn):
-        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID, "SessionId": SESSION_ID}
         operator = RedshiftDataOperator(
             aws_conn_id=CONN_ID,
             task_id=TASK_ID,
@@ -188,7 +249,8 @@ class TestRedshiftDataOperator:
             database=DATABASE,
             wait_for_completion=False,
         )
-        operator.execute(None)
+        mock_ti = mock.MagicMock(name="MockedTaskInstance")
+        operator.execute({"ti": mock_ti})
         operator.on_kill()
         mock_conn.cancel_statement.assert_called_once_with(
             Id=STATEMENT_ID,
@@ -197,7 +259,7 @@ class TestRedshiftDataOperator:
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
     def test_return_sql_result(self, mock_conn):
         expected_result = {"Result": True}
-        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID, "SessionId": SESSION_ID}
         mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
         mock_conn.get_statement_result.return_value = expected_result
         cluster_identifier = "cluster_identifier"
@@ -215,7 +277,8 @@ class TestRedshiftDataOperator:
             aws_conn_id=CONN_ID,
             return_sql_result=True,
         )
-        actual_result = operator.execute(None)
+        mock_ti = mock.MagicMock(name="MockedTaskInstance")
+        actual_result = operator.execute({"ti": mock_ti})
         assert actual_result == expected_result
         mock_conn.execute_statement.assert_called_once_with(
             Database=DATABASE,
@@ -259,7 +322,9 @@ class TestRedshiftDataOperator:
             poll_interval=poll_interval,
             deferrable=True,
         )
-        operator.execute(None)
+
+        mock_ti = mock.MagicMock(name="MockedTaskInstance")
+        operator.execute({"ti": mock_ti})
 
         assert not mock_defer.called
         mock_exec_query.assert_called_once_with(
@@ -274,6 +339,8 @@ class TestRedshiftDataOperator:
             with_event=False,
             wait_for_completion=False,
             poll_interval=poll_interval,
+            session_id=None,
+            session_keep_alive_seconds=None,
         )
 
     @mock.patch(
@@ -282,8 +349,9 @@ class TestRedshiftDataOperator:
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.execute_query")
     def test_execute_defer(self, mock_exec_query, check_query_is_finished, deferrable_operator):
+        mock_ti = mock.MagicMock(name="MockedTaskInstance")
         with pytest.raises(TaskDeferred) as exc:
-            deferrable_operator.execute(None)
+            deferrable_operator.execute({"ti": mock_ti})
 
         assert isinstance(exc.value.trigger, RedshiftDataTrigger)
 
@@ -345,7 +413,19 @@ class TestRedshiftDataOperator:
                 poll_interval=poll_interval,
                 deferrable=deferrable,
             )
-            operator.execute(None)
+            mock_ti = mock.MagicMock(name="MockedTaskInstance")
+            operator.execute({"ti": mock_ti})
 
             assert not mock_check_query_is_finished.called
             assert not mock_defer.called
+
+    def test_template_fields(self):
+        operator = RedshiftDataOperator(
+            aws_conn_id=CONN_ID,
+            task_id=TASK_ID,
+            cluster_identifier="cluster_identifier",
+            sql=SQL,
+            database=DATABASE,
+            wait_for_completion=False,
+        )
+        validate_template_fields(operator)

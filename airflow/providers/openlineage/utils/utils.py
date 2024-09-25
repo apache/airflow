@@ -33,7 +33,7 @@ from packaging.version import Version
 from airflow import __version__ as AIRFLOW_VERSION
 from airflow.datasets import Dataset
 from airflow.exceptions import AirflowProviderDeprecationWarning  # TODO: move this maybe to Airflow's logic?
-from airflow.models import DAG, BaseOperator, MappedOperator
+from airflow.models import DAG, BaseOperator, DagRun, MappedOperator
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.facets import (
     AirflowDagRunFacet,
@@ -58,9 +58,8 @@ if TYPE_CHECKING:
     from openlineage.client.event_v2 import Dataset as OpenLineageDataset
     from openlineage.client.facet_v2 import RunFacet
 
-    from airflow.models import DagRun, TaskInstance
-    from airflow.utils.state import TaskInstanceState
-
+    from airflow.models import TaskInstance
+    from airflow.utils.state import DagRunState, TaskInstanceState
 
 log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
@@ -199,7 +198,7 @@ class InfoJsonEncodable(dict):
             return value.isoformat()
         if isinstance(value, datetime.timedelta):
             return f"{value.total_seconds()} seconds"
-        if isinstance(value, (set, tuple)):
+        if isinstance(value, (set, list, tuple)):
             return str(list(value))
         return value
 
@@ -244,7 +243,16 @@ class InfoJsonEncodable(dict):
 class DagInfo(InfoJsonEncodable):
     """Defines encoding DAG object to JSON."""
 
-    includes = ["dag_id", "description", "fileloc", "owner", "schedule_interval", "start_date", "tags"]
+    includes = [
+        "dag_id",
+        "description",
+        "fileloc",
+        "owner",
+        "schedule_interval",  # For Airflow 2.
+        "timetable_summary",  # For Airflow 3.
+        "start_date",
+        "tags",
+    ]
     casts = {"timetable": lambda dag: dag.timetable.serialize() if getattr(dag, "timetable", None) else None}
     renames = {"_dag_id": "dag_id"}
 
@@ -430,11 +438,14 @@ def get_airflow_job_facet(dag_run: DagRun) -> dict[str, AirflowJobFacet]:
     }
 
 
-def get_airflow_state_run_facet(dag_run: DagRun) -> dict[str, AirflowStateRunFacet]:
+def get_airflow_state_run_facet(
+    dag_id: str, run_id: str, task_ids: list[str], dag_run_state: DagRunState
+) -> dict[str, AirflowStateRunFacet]:
+    tis = DagRun.fetch_task_instances(dag_id=dag_id, run_id=run_id, task_ids=task_ids)
     return {
         "airflowState": AirflowStateRunFacet(
-            dagRunState=dag_run.get_state(),
-            tasksState={ti.task_id: ti.state for ti in dag_run.get_task_instances()},
+            dagRunState=dag_run_state,
+            tasksState={ti.task_id: ti.state for ti in tis},
         )
     }
 

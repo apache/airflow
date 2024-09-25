@@ -17,23 +17,17 @@
 from __future__ import annotations
 
 import asyncio
-import datetime
 import time
 from unittest import mock
 
 import pytest
-from sqlalchemy.exc import SQLAlchemyError
 
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance
-from airflow.operators.empty import EmptyOperator
 from airflow.triggers.base import TriggerEvent
-from airflow.triggers.external_task import DagStateTrigger, TaskStateTrigger, WorkflowTrigger
+from airflow.triggers.external_task import DagStateTrigger, WorkflowTrigger
 from airflow.utils import timezone
-from airflow.utils.state import DagRunState, TaskInstanceState
-from airflow.utils.timezone import utcnow
+from airflow.utils.state import DagRunState
 
 
 class TestWorkflowTrigger:
@@ -219,197 +213,6 @@ class TestWorkflowTrigger:
             "allowed_states": self.STATES,
             "poke_interval": 5,
             "soft_fail": False,
-        }
-
-
-class TestTaskStateTrigger:
-    DAG_ID = "external_task"
-    TASK_ID = "external_task_op"
-    RUN_ID = "external_task_run_id"
-    STATES = ["success", "fail"]
-
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
-    @pytest.mark.db_test
-    @pytest.mark.asyncio
-    async def test_task_state_trigger_success(self, session):
-        """
-        Asserts that the TaskStateTrigger only goes off on or after a TaskInstance
-        reaches an allowed state (i.e. SUCCESS).
-        """
-        trigger_start_time = utcnow()
-        dag = DAG(self.DAG_ID, schedule=None, start_date=timezone.datetime(2022, 1, 1))
-        dag_run = DagRun(
-            dag_id=dag.dag_id,
-            run_type="manual",
-            execution_date=timezone.datetime(2022, 1, 1),
-            run_id=self.RUN_ID,
-        )
-        session.add(dag_run)
-        session.commit()
-
-        external_task = EmptyOperator(task_id=self.TASK_ID, dag=dag)
-        instance = TaskInstance(external_task, run_id=self.RUN_ID)
-        session.add(instance)
-        session.commit()
-
-        with pytest.warns(RemovedInAirflow3Warning, match="TaskStateTrigger has been deprecated"):
-            trigger = TaskStateTrigger(
-                dag_id=dag.dag_id,
-                task_id=instance.task_id,
-                states=self.STATES,
-                execution_dates=[timezone.datetime(2022, 1, 1)],
-                poll_interval=0.2,
-                trigger_start_time=trigger_start_time,
-            )
-
-        task = asyncio.create_task(trigger.run().__anext__())
-        await asyncio.sleep(0.5)
-
-        # It should not have produced a result
-        assert task.done() is False
-
-        # Progress the task to a "success" state so that run() yields a TriggerEvent
-        instance.state = TaskInstanceState.SUCCESS
-        session.commit()
-        await asyncio.sleep(0.5)
-        assert task.done() is True
-
-        # Prevents error when task is destroyed while in "pending" state
-        asyncio.get_event_loop().stop()
-
-    @mock.patch("airflow.triggers.external_task.utcnow")
-    @pytest.mark.asyncio
-    async def test_task_state_trigger_timeout(self, mock_utcnow):
-        trigger_start_time = utcnow()
-        mock_utcnow.return_value = trigger_start_time + datetime.timedelta(seconds=61)
-
-        with pytest.warns(RemovedInAirflow3Warning, match="TaskStateTrigger has been deprecated"):
-            trigger = TaskStateTrigger(
-                dag_id="dag1",
-                task_id="task1",
-                states=self.STATES,
-                execution_dates=[timezone.datetime(2022, 1, 1)],
-                poll_interval=0.2,
-                trigger_start_time=trigger_start_time,
-            )
-
-        trigger.count_running_dags = mock.AsyncMock()
-        trigger.count_running_dags.return_value = 0
-
-        gen = trigger.run()
-        task = asyncio.create_task(gen.__anext__())
-        await task
-
-        result = task.result()
-        assert isinstance(result, TriggerEvent)
-        assert result.payload == {"status": "timeout"}
-        assert task.done() is True
-
-        # test that it returns after yielding
-        with pytest.raises(StopAsyncIteration):
-            await gen.__anext__()
-
-    @mock.patch("airflow.triggers.external_task.utcnow")
-    @mock.patch("airflow.triggers.external_task.asyncio.sleep")
-    @pytest.mark.asyncio
-    async def test_task_state_trigger_timeout_sleep_success(self, mock_sleep, mock_utcnow):
-        trigger_start_time = utcnow()
-        mock_utcnow.return_value = trigger_start_time + datetime.timedelta(seconds=20)
-
-        with pytest.warns(RemovedInAirflow3Warning, match="TaskStateTrigger has been deprecated"):
-            trigger = TaskStateTrigger(
-                dag_id="dag1",
-                task_id="task1",
-                states=self.STATES,
-                execution_dates=[timezone.datetime(2022, 1, 1)],
-                poll_interval=0.2,
-                trigger_start_time=trigger_start_time,
-            )
-
-        trigger.count_running_dags = mock.AsyncMock()
-        trigger.count_running_dags.return_value = 0
-
-        trigger.count_tasks = mock.AsyncMock()
-        trigger.count_tasks.return_value = 1
-
-        gen = trigger.run()
-        task = asyncio.create_task(gen.__anext__())
-        await task
-
-        mock_sleep.assert_awaited()
-        assert mock_sleep.await_count == 1
-
-        result = task.result()
-        assert isinstance(result, TriggerEvent)
-        assert result.payload == {"status": "success"}
-        assert task.done() is True
-
-        # test that it returns after yielding
-        with pytest.raises(StopAsyncIteration):
-            await gen.__anext__()
-
-    @mock.patch("airflow.triggers.external_task.utcnow")
-    @mock.patch("airflow.triggers.external_task.asyncio.sleep")
-    @pytest.mark.asyncio
-    async def test_task_state_trigger_failed_exception(self, mock_sleep, mock_utcnow):
-        """
-        Asserts that the TaskStateTrigger only goes off on or after a TaskInstance
-        reaches an allowed state (i.e. SUCCESS).
-        """
-        trigger_start_time = utcnow()
-        mock_utcnow.return_value = +datetime.timedelta(seconds=61)
-
-        mock_utcnow.side_effect = [
-            trigger_start_time,
-            trigger_start_time + datetime.timedelta(seconds=20),
-        ]
-
-        with pytest.warns(RemovedInAirflow3Warning, match="TaskStateTrigger has been deprecated"):
-            trigger = TaskStateTrigger(
-                dag_id="dag1",
-                task_id="task1",
-                states=self.STATES,
-                execution_dates=[timezone.datetime(2022, 1, 1)],
-                poll_interval=0.2,
-                trigger_start_time=trigger_start_time,
-            )
-
-        trigger.count_running_dags = mock.AsyncMock()
-        trigger.count_running_dags.side_effect = [SQLAlchemyError]
-
-        gen = trigger.run()
-        task = asyncio.create_task(gen.__anext__())
-        await task
-
-        result = task.result()
-        assert isinstance(result, TriggerEvent)
-        assert result.payload == {"status": "failed"}
-        assert task.done() is True
-
-    def test_serialization(self):
-        """
-        Asserts that the TaskStateTrigger correctly serializes its arguments
-        and classpath.
-        """
-        trigger_start_time = utcnow()
-        with pytest.warns(RemovedInAirflow3Warning, match="TaskStateTrigger has been deprecated"):
-            trigger = TaskStateTrigger(
-                dag_id=self.DAG_ID,
-                task_id=self.TASK_ID,
-                states=self.STATES,
-                execution_dates=[timezone.datetime(2022, 1, 1)],
-                poll_interval=5,
-                trigger_start_time=trigger_start_time,
-            )
-        classpath, kwargs = trigger.serialize()
-        assert classpath == "airflow.triggers.external_task.TaskStateTrigger"
-        assert kwargs == {
-            "dag_id": self.DAG_ID,
-            "task_id": self.TASK_ID,
-            "states": self.STATES,
-            "execution_dates": [timezone.datetime(2022, 1, 1)],
-            "poll_interval": 5,
-            "trigger_start_time": trigger_start_time,
         }
 
 

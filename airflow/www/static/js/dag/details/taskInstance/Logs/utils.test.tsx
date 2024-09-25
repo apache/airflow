@@ -38,7 +38,7 @@ const mockTaskLog = `
 [2022-06-04 00:00:01,921] {dagbag.py:507} INFO - Filling up the DagBag from /files/dags/test_ui_grid.py
 [2022-06-04 00:00:01,964] {task_command.py:377} INFO - Running <TaskInstance: test_ui_grid.section_1.get_entry_group scheduled__2022-06-03T00:00:00+00:00 [running]> on host 5d28cfda3219
 [2022-06-04 00:00:02,010] {taskinstance.py:1548} WARNING - Exporting env vars: AIRFLOW_CTX_DAG_OWNER=*** AIRFLOW_CTX_DAG_ID=test_ui_grid
-[2024-07-01 00:00:02,010] {taskinstance.py:1548} INFO - Url parsing test => "https://apple.com", "https://google.com"
+[2024-07-01 00:00:02,010] {taskinstance.py:1548} INFO - Url parsing test => "https://apple.com", "https://google.com", https://something.logs/_dashboard/?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:now-1d,to:now))&_a=(columns:!(_source),filters:!(('$state':(store:appState))))
 `;
 
 describe("Test Logs Utils.", () => {
@@ -136,7 +136,7 @@ describe("Test Logs Utils.", () => {
     lines.forEach((line) => expect(line).toMatch(/INFO|WARNING/));
   });
 
-  test("parseLogs function with quoted urls", () => {
+  test("parseLogs function with urls", () => {
     const { parsedLogs } = parseLogs(
       mockTaskLog,
       null,
@@ -147,10 +147,13 @@ describe("Test Logs Utils.", () => {
 
     const lines = parsedLogs!.split("\n");
     expect(lines[lines.length - 1]).toContain(
-      '<a href="https://apple.com" target="_blank" style="color: blue; text-decoration: underline;">https://apple.com</a>'
+      '<a href="https://apple.com" target="_blank" rel="noopener noreferrer" style="color: blue; text-decoration: underline;">https://apple.com</a>'
     );
     expect(lines[lines.length - 1]).toContain(
-      '<a href="https://google.com" target="_blank" style="color: blue; text-decoration: underline;">https://google.com</a>'
+      '<a href="https://google.com" target="_blank" rel="noopener noreferrer" style="color: blue; text-decoration: underline;">https://google.com</a>'
+    );
+    expect(lines[lines.length - 1]).toContain(
+      '<a href="https://something.logs/_dashboard/?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:now-1d,to:now))&amp;_a=(columns:!(_source),filters:!((&#x27;$state&#x27;:(store:appState))))" target="_blank" rel="noopener noreferrer" style="color: blue; text-decoration: underline;">https://something.logs/_dashboard/?_g=(filters:!(),refreshInterval:(pause:!t,value:0),time:(from:now-1d,to:now))&amp;_a=(columns:!(_source),filters:!((&#x27;$state&#x27;:(store:appState))))</a>'
     );
   });
 });

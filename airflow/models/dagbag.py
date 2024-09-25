@@ -46,6 +46,7 @@ from airflow.exceptions import (
     AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
     AirflowException,
+    AirflowTaskTimeout,
 )
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import Base
@@ -265,7 +266,7 @@ class DagBag(LoggingMixin):
         """Add DAG to DagBag from DB."""
         from airflow.models.serialized_dag import SerializedDagModel
 
-        row = SerializedDagModel.get(dag_id, session)
+        row: SerializedDagModel | None = SerializedDagModel.get(dag_id, session)
         if not row:
             return None
 
@@ -350,7 +351,7 @@ class DagBag(LoggingMixin):
                 sys.modules[spec.name] = new_module
                 loader.exec_module(new_module)
                 return [new_module]
-            except Exception as e:
+            except (Exception, AirflowTaskTimeout) as e:
                 DagContext.autoregistered_dags.clear()
                 self.log.exception("Failed to import: %s", filepath)
                 if self.dagbag_import_error_tracebacks:
@@ -456,7 +457,7 @@ class DagBag(LoggingMixin):
                 found_dags.append(dag)
         return found_dags
 
-    def bag_dag(self, dag):
+    def bag_dag(self, dag: DAG):
         """
         Add the DAG into the bag.
 

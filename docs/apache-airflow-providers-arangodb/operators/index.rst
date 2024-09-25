@@ -46,7 +46,7 @@ please provide **template_searchpath** while creating **DAG** object,
     :end-before: [END howto_aql_operator_template_file_arangodb]
 
 Sensors
-=======
+========
 
 Use the :class:`~airflow.providers.arangodb.sensors.arangodb.AQLSensor` to wait for a document or collection using
 AQL query in `ArangoDB <https://www.arangodb.com/>`__.
