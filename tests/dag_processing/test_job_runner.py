@@ -39,7 +39,12 @@ import pytest
 import time_machine
 from sqlalchemy import func
 
-from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest, SlaCallbackRequest
+from airflow.callbacks.callback_requests import (
+    CallbackRequest,
+    DagCallbackRequest,
+    SlaCallbackRequest,
+    ToggleCallbackRequest,
+)
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.configuration import conf
 from airflow.dag_processing.manager import (
@@ -1184,11 +1189,17 @@ class TestDagProcessorJobRunner:
             full_filepath=str(dag_filepath),
             processor_subdir=os.fspath(tmp_path),
         )
+        callback4 = ToggleCallbackRequest(
+            dag_id="test_start_date_scheduling",
+            full_filepath=str(dag_filepath),
+            processor_subdir=os.fspath(tmp_path),
+        )
 
         with create_session() as session:
             session.add(DbCallbackRequest(callback=callback1, priority_weight=11))
             session.add(DbCallbackRequest(callback=callback2, priority_weight=10))
             session.add(DbCallbackRequest(callback=callback3, priority_weight=9))
+            session.add(DbCallbackRequest(callback=callback4, priority_weight=9))
 
         child_pipe, parent_pipe = multiprocessing.Pipe()
         manager = DagProcessorJobRunner(

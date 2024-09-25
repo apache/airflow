@@ -23,21 +23,29 @@ import typing
 from airflow.listeners import hookimpl
 
 if typing.TYPE_CHECKING:
-    from airflow.models.dag import DagModel
+    from airflow.models.dagrun import DagRun
 
 
-paused: list[DagModel] = []
-unpaused: list[DagModel] = []
+running: list[DagRun] = []
+success: list[DagRun] = []
+failure: list[DagRun] = []
 
 
 @hookimpl
-def on_dag_paused(dag: DagModel, is_paused: bool, including_subdags: bool, session):
-    if is_paused:
-        paused.append(copy.deepcopy(dag))
-    else:
-        unpaused.append(copy.deepcopy(dag))
+def on_dag_run_running(dag_run: DagRun, msg: str):
+    running.append(copy.deepcopy(dag_run))
+
+
+@hookimpl
+def on_dag_run_success(dag_run: DagRun, msg: str):
+    success.append(copy.deepcopy(dag_run))
+
+
+@hookimpl
+def on_dag_run_failed(dag_run: DagRun, msg: str):
+    failure.append(dag_run)
 
 
 def clear():
-    global paused, unpaused
-    paused, unpaused = [], []
+    global running, success, failure
+    running, success, failure = [], [], []

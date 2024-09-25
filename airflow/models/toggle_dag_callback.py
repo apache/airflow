@@ -17,27 +17,25 @@
 # under the License.
 from __future__ import annotations
 
-import copy
-import typing
+from sqlalchemy import Boolean, Column, Index, String
 
-from airflow.listeners import hookimpl
-
-if typing.TYPE_CHECKING:
-    from airflow.models.dag import DagModel
+from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.utils.sqlalchemy import UtcDateTime
 
 
-paused: list[DagModel] = []
-unpaused: list[DagModel] = []
+class ToggleDag(Base):
+    """
+    Model that stores the recent state of the DAG pause/unpause and sends notification if state changes
+    It is used to keep track of state of DAG over time and to avoid double triggering alert emails.
+    """
 
+    __tablename__ = "toggle_dag"
 
-@hookimpl
-def on_dag_paused(dag: DagModel, is_paused: bool, including_subdags: bool, session):
-    if is_paused:
-        paused.append(copy.deepcopy(dag))
-    else:
-        unpaused.append(copy.deepcopy(dag))
+    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
+    last_verified_time = Column(UtcDateTime)
+    is_dag_paused = Column(Boolean)
 
+    __table_args__ = (Index("toggle_dag", dag_id, unique=False),)
 
-def clear():
-    global paused, unpaused
-    paused, unpaused = [], []
+    def __repr__(self):
+        return str((self.dag_id, self.last_verified_time.isoformat()))

@@ -57,7 +57,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timeout import timeout
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
-from tests.listeners import dag_listener
+from tests.listeners import dagrun_listener
 from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.config import conf_vars
@@ -1216,8 +1216,8 @@ class TestBackfillJob:
     def test_backfill_notifies_dagrun_listener(self, dag_maker, mock_executor):
         dag = self._get_dummy_dag(dag_maker)
         dag_run = dag_maker.create_dagrun(state=None)
-        dag_listener.clear()
-        get_listener_manager().add_listener(dag_listener)
+        dagrun_listener.clear()
+        get_listener_manager().add_listener(dagrun_listener)
 
         start_date = DEFAULT_DATE - datetime.timedelta(hours=1)
         end_date = DEFAULT_DATE
@@ -1233,15 +1233,15 @@ class TestBackfillJob:
         job.notification_threadpool = mock.MagicMock()
         run_job(job=job, execute_callable=job_runner._execute)
 
-        assert len(dag_listener.running) == 1
-        assert len(dag_listener.success) == 1
-        assert dag_listener.running[0].dag.dag_id == dag_run.dag.dag_id
-        assert dag_listener.running[0].run_id == dag_run.run_id
-        assert dag_listener.running[0].state == DagRunState.RUNNING
+        assert len(dagrun_listener.running) == 1
+        assert len(dagrun_listener.success) == 1
+        assert dagrun_listener.running[0].dag.dag_id == dag_run.dag.dag_id
+        assert dagrun_listener.running[0].run_id == dag_run.run_id
+        assert dagrun_listener.running[0].state == DagRunState.RUNNING
 
-        assert dag_listener.success[0].dag.dag_id == dag_run.dag.dag_id
-        assert dag_listener.success[0].run_id == dag_run.run_id
-        assert dag_listener.success[0].state == DagRunState.SUCCESS
+        assert dagrun_listener.success[0].dag.dag_id == dag_run.dag.dag_id
+        assert dagrun_listener.success[0].run_id == dag_run.run_id
+        assert dagrun_listener.success[0].state == DagRunState.SUCCESS
 
     def test_backfill_max_limit_check(self, dag_maker, mock_executor):
         dag_id = "test_backfill_max_limit_check"

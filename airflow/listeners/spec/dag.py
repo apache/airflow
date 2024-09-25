@@ -17,27 +17,18 @@
 # under the License.
 from __future__ import annotations
 
-import copy
-import typing
+from typing import TYPE_CHECKING
 
-from airflow.listeners import hookimpl
+from pluggy import HookspecMarker
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
+    from sqlalchemy.orm.session import Session
+
     from airflow.models.dag import DagModel
 
-
-paused: list[DagModel] = []
-unpaused: list[DagModel] = []
+hookspec = HookspecMarker("airflow")
 
 
-@hookimpl
-def on_dag_paused(dag: DagModel, is_paused: bool, including_subdags: bool, session):
-    if is_paused:
-        paused.append(copy.deepcopy(dag))
-    else:
-        unpaused.append(copy.deepcopy(dag))
-
-
-def clear():
-    global paused, unpaused
-    paused, unpaused = [], []
+@hookspec
+def on_dag_paused(dag: DagModel, is_paused: bool, including_subdags: bool, session: Session | None):
+    """Execute when dag is paused."""
