@@ -65,7 +65,7 @@ def init_avp(args):
 
     if not args.dry_run:
         print(
-            "Please set configs below in Airflow configuration under AIRFLOW__AWS_AUTH_MANAGER__<config name>."
+            "Please set configs below in Airflow configuration under AIRFLOW__AWS_AUTH_MANAGER__AVP_POLICY_STORE_ID."
         )
         print(json.dumps({"avp_policy_store_id": policy_store_id}, indent=4))
 
