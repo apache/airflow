@@ -48,14 +48,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/apache/drill/index>
+    System Tests <_api/tests/system/apache/drill/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-drill/|version|/tests/system/providers/apache/drill>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-drill/|version|/providers/tests/system/apache/drill>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-drill/>
     Installing from sources <installing-providers-from-sources>
 

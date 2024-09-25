@@ -72,6 +72,7 @@ from airflow_breeze.utils.parallel import (
     check_async_run_results,
     run_with_pool,
 )
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.run_utils import RunCommandResult, check_if_image_exists, run_command
 
@@ -607,7 +608,7 @@ USER airflow
 
 COPY --chown=airflow:0 airflow/example_dags/ /opt/airflow/dags/
 
-COPY --chown=airflow:0 airflow/providers/cncf/kubernetes/kubernetes_executor_templates/ /opt/airflow/pod_templates/
+COPY --chown=airflow:0 providers/src/airflow/providers/cncf/kubernetes/kubernetes_executor_templates/ /opt/airflow/pod_templates/
 
 ENV GUNICORN_CMD_ARGS='--preload' AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL=0
 """

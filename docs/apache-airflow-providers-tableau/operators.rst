@@ -68,7 +68,7 @@ Using the Operator
 
 An example usage of the TableauOperator is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/tableau/example_tableau.py
+.. exampleinclude:: /../../providers/tests/system/tableau/example_tableau.py
     :language: python
     :start-after: [START howto_operator_tableau]
     :end-before: [END howto_operator_tableau]

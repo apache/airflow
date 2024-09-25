@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import os
-from glob import glob
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +26,8 @@ import jsonschema
 import yaml
 
 ROOT_DIR = Path(__file__).parents[2].resolve()
+AIRFLOW_PROVIDERS_SRC = ROOT_DIR / "providers" / "src"
+AIRFLOW_PROVIDERS_NS_PACKAGE = AIRFLOW_PROVIDERS_SRC / "airflow" / "providers"
 PROVIDER_DATA_SCHEMA_PATH = ROOT_DIR / "airflow" / "provider.yaml.schema.json"
 
 
@@ -36,24 +38,22 @@ def _load_schema() -> dict[str, Any]:
 
 
 def _filepath_to_module(filepath: str):
-    return str(Path(filepath).relative_to(ROOT_DIR)).replace("/", ".")
+    return str(Path(filepath).relative_to(AIRFLOW_PROVIDERS_SRC)).replace("/", ".")
 
 
 def _filepath_to_system_tests(filepath: str):
     return str(
-        ROOT_DIR
-        / "tests"
-        / "system"
-        / "providers"
-        / Path(filepath).relative_to(ROOT_DIR / "airflow" / "providers")
+        ROOT_DIR / "providers" / "tests" / "system" / Path(filepath).relative_to(AIRFLOW_PROVIDERS_NS_PACKAGE)
     )
 
 
+@lru_cache
 def get_provider_yaml_paths():
     """Returns list of provider.yaml files"""
-    return sorted(glob(f"{ROOT_DIR}/airflow/providers/**/provider.yaml", recursive=True))
+    return sorted(AIRFLOW_PROVIDERS_NS_PACKAGE.rglob("**/provider.yaml"))
 
 
+@lru_cache
 def load_package_data(include_suspended: bool = False) -> list[dict[str, Any]]:
     """
     Load all data from providers files

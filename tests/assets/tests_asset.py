@@ -39,12 +39,13 @@ from airflow.models.asset import AssetAliasModel, AssetDagRunQueue, AssetModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.serialization.serialized_objects import BaseSerialization, SerializedDAG
-from tests.test_utils.config import conf_vars
+
+from dev.tests_common.test_utils.config import conf_vars
 
 
 @pytest.fixture
 def clear_assets():
-    from tests.test_utils.db import clear_db_assets
+    from dev.tests_common.test_utils.db import clear_db_assets
 
     clear_db_assets()
     yield

@@ -26,7 +26,8 @@ from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 if AIRFLOW_V_3_0_PLUS:
     from airflow.utils.types import DagRunTriggeredByType

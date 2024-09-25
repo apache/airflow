@@ -36,7 +36,7 @@ See https://github.com/pgvector/pgvector#installation for installation instructi
 
 An example using the operator to ingest data is shown below:
 
-.. exampleinclude:: /../../tests/system/providers/pgvector/example_pgvector.py
+.. exampleinclude:: /../../providers/tests/system/pgvector/example_pgvector.py
     :language: python
     :start-after: [START howto_operator_pgvector_ingest]
     :end-before: [END howto_operator_pgvector_ingest]

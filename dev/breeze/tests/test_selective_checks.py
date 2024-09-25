@@ -320,7 +320,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 (
                     "airflow/api/file.py",
-                    "tests/providers/postgres/file.py",
+                    "providers/tests/postgres/file.py",
                 ),
                 {
                     "affected-providers-list-as-string": "amazon common.compat common.sql fab google openlineage "
@@ -353,7 +353,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         ),
         (
             pytest.param(
-                ("tests/providers/apache/beam/file.py",),
+                ("providers/tests/apache/beam/file.py",),
                 {
                     "affected-providers-list-as-string": "apache.beam google",
                     "all-python-versions": "['3.9']",
@@ -410,7 +410,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 (
                     "chart/aaaa.txt",
-                    "tests/providers/postgres/file.py",
+                    "providers/tests/postgres/file.py",
                 ),
                 {
                     "affected-providers-list-as-string": "amazon common.sql google openlineage "
@@ -445,7 +445,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 (
                     "INTHEWILD.md",
                     "chart/aaaa.txt",
-                    "tests/providers/http/file.py",
+                    "providers/tests/http/file.py",
                 ),
                 {
                     "affected-providers-list-as-string": "amazon apache.livy "
@@ -482,7 +482,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 (
                     "INTHEWILD.md",
                     "chart/aaaa.txt",
-                    "tests/providers/airbyte/file.py",
+                    "providers/tests/airbyte/file.py",
                 ),
                 {
                     "affected-providers-list-as-string": "airbyte",
@@ -514,7 +514,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                 (
                     "INTHEWILD.md",
                     "chart/aaaa.txt",
-                    "tests/system/utils/file.py",
+                    "foo/other.py",
                 ),
                 {
                     "affected-providers-list-as-string": None,
@@ -595,7 +595,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             )
         ),
         pytest.param(
-            ("airflow/providers/amazon/__init__.py",),
+            ("providers/src/airflow/providers/amazon/__init__.py",),
             {
                 "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
                 "common.compat common.sql exasol ftp google http imap microsoft.azure "
@@ -623,7 +623,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Providers tests run including amazon tests if amazon provider files changed",
         ),
         pytest.param(
-            ("tests/providers/airbyte/__init__.py",),
+            ("providers/tests/airbyte/__init__.py",),
             {
                 "affected-providers-list-as-string": "airbyte",
                 "all-python-versions": "['3.9']",
@@ -647,7 +647,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             id="Providers tests run without amazon tests if no amazon file changed",
         ),
         pytest.param(
-            ("airflow/providers/amazon/file.py",),
+            ("providers/src/airflow/providers/amazon/file.py",),
             {
                 "affected-providers-list-as-string": "amazon apache.hive cncf.kubernetes "
                 "common.compat common.sql exasol ftp google http imap microsoft.azure "
@@ -677,8 +677,8 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
         pytest.param(
             (
                 "tests/always/test_project_structure.py",
-                "tests/providers/common/io/operators/__init__.py",
-                "tests/providers/common/io/operators/test_file_transfer.py",
+                "providers/tests/common/io/operators/__init__.py",
+                "providers/tests/common/io/operators/test_file_transfer.py",
             ),
             {
                 "affected-providers-list-as-string": "common.compat common.io openlineage",
@@ -774,6 +774,32 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
                 },
                 id="All tests should be run when tests/utils/ change",
+            )
+        ),
+        (
+            pytest.param(
+                ("dev/tests_common/__init__.py",),
+                {
+                    "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
+                    "all-python-versions": "['3.9']",
+                    "all-python-versions-list-as-string": "3.9",
+                    "python-versions": "['3.9']",
+                    "python-versions-list-as-string": "3.9",
+                    "ci-image-build": "true",
+                    "prod-image-build": "true",
+                    "needs-helm-tests": "true",
+                    "run-tests": "true",
+                    "run-amazon-tests": "true",
+                    "docs-build": "true",
+                    "full-tests-needed": "true",
+                    "skip-pre-commits": "identity,mypy-airflow,mypy-dev,mypy-docs,mypy-providers",
+                    "upgrade-to-newer-dependencies": "false",
+                    "parallel-test-types-list-as-string": ALL_CI_SELECTIVE_TEST_TYPES,
+                    "providers-test-types-list-as-string": ALL_PROVIDERS_SELECTIVE_TEST_TYPES,
+                    "needs-mypy": "true",
+                    "mypy-folders": "['airflow', 'providers', 'docs', 'dev']",
+                },
+                id="All tests should be run when dev/tests_common/ change",
             )
         ),
     ],
@@ -1124,7 +1150,7 @@ def test_full_test_needed_when_scripts_changes(files: tuple[str, ...], expected_
         ),
         (
             pytest.param(
-                ("INTHEWILD.md", "tests/providers/asana.py"),
+                ("INTHEWILD.md", "providers/tests/asana.py"),
                 ("full tests needed",),
                 "v2-7-stable",
                 {
@@ -1200,7 +1226,7 @@ def test_expected_output_full_tests_needed(
         pytest.param(
             (
                 "chart/aaaa.txt",
-                "tests/providers/google/file.py",
+                "providers/tests/google/file.py",
             ),
             {
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra cncf.kubernetes "
@@ -1229,7 +1255,7 @@ def test_expected_output_full_tests_needed(
             (
                 "airflow/cli/test.py",
                 "chart/aaaa.txt",
-                "tests/providers/google/file.py",
+                "providers/tests/google/file.py",
             ),
             {
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
@@ -1257,7 +1283,7 @@ def test_expected_output_full_tests_needed(
         pytest.param(
             (
                 "airflow/file.py",
-                "tests/providers/google/file.py",
+                "providers/tests/google/file.py",
             ),
             {
                 "affected-providers-list-as-string": ALL_PROVIDERS_AFFECTED,
@@ -1347,7 +1373,7 @@ def test_expected_output_pull_request_v2_7(
             (
                 "airflow/cli/test.py",
                 "chart/aaaa.txt",
-                "tests/providers/google/file.py",
+                "providers/tests/google/file.py",
             ),
             {
                 "affected-providers-list-as-string": "amazon apache.beam apache.cassandra "
@@ -1619,7 +1645,7 @@ def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
             id="pyproject.toml changed but no dependency change",
         ),
         pytest.param(
-            ("airflow/providers/microsoft/azure/provider.yaml",),
+            ("providers/src/airflow/providers/microsoft/azure/provider.yaml",),
             {
                 "upgrade-to-newer-dependencies": "false",
             },
@@ -1677,9 +1703,9 @@ def test_upgrade_to_newer_dependencies(
             id="Google provider docs changed",
         ),
         pytest.param(
-            ("airflow/providers/common/sql/common_sql_python.py",),
+            ("providers/src/airflow/providers/common/sql/common_sql_python.py",),
             {
-                "docs-list-as-string": "apache-airflow amazon apache.drill apache.druid apache.hive "
+                "docs-list-as-string": "amazon apache.drill apache.druid apache.hive "
                 "apache.impala apache.pinot common.sql databricks elasticsearch "
                 "exasol google jdbc microsoft.mssql mysql odbc openlineage "
                 "oracle pgvector postgres presto slack snowflake sqlite teradata trino vertica ydb",
@@ -1719,8 +1745,8 @@ def test_upgrade_to_newer_dependencies(
             id="Only Airflow docs changed",
         ),
         pytest.param(
-            ("airflow/providers/celery/file.py",),
-            {"docs-list-as-string": "apache-airflow celery cncf.kubernetes"},
+            ("providers/src/airflow/providers/celery/file.py",),
+            {"docs-list-as-string": "celery cncf.kubernetes"},
             id="Celery python files changed",
         ),
         pytest.param(
@@ -2195,7 +2221,7 @@ def test_provider_compatibility_checks(labels: tuple[str, ...], expected_outputs
             id="Airflow mypy checks on airflow files with model changes.",
         ),
         pytest.param(
-            ("airflow/providers/a_file.py",),
+            ("providers/src/airflow/providers/a_file.py",),
             {
                 "needs-mypy": "true",
                 "mypy-folders": "['providers']",

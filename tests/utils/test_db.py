@@ -49,7 +49,8 @@ from airflow.utils.db import (
     upgradedb,
 )
 from airflow.utils.db_manager import RunDBManager
-from tests.test_utils.config import conf_vars
+
+from dev.tests_common.test_utils.config import conf_vars
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 

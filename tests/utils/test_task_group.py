@@ -1414,7 +1414,7 @@ def test_task_group_edge_modifier_chain():
 
 
 def test_mapped_task_group_id_prefix_task_id():
-    from tests.test_utils.mock_operators import MockOperator
+    from dev.tests_common.test_utils.mock_operators import MockOperator
 
     with DAG(dag_id="d", schedule=None, start_date=DEFAULT_DATE) as dag:
         t1 = MockOperator.partial(task_id="t1").expand(arg1=[])

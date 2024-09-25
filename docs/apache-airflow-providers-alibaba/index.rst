@@ -49,14 +49,14 @@
     :maxdepth: 1
     :caption: System tests
 
-    System Tests <_api/tests/system/providers/alibaba/index>
+    System Tests <_api/tests/system/alibaba/index>
 
 .. toctree::
     :hidden:
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/providers-alibaba/|version|/tests/system/providers/alibaba>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-alibaba/|version|/providers/tests/system/alibaba>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-alibaba/>
     Installing from sources <installing-providers-from-sources>
 

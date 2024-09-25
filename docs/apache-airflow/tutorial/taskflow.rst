@@ -307,7 +307,7 @@ Below is an example of using the ``@task.docker`` decorator to run a Python task
 
 .. _taskflow/docker_example:
 
-.. exampleinclude:: /../../tests/system/providers/docker/example_taskflow_api_docker_virtualenv.py
+.. exampleinclude:: /../../providers/tests/system/docker/example_taskflow_api_docker_virtualenv.py
     :language: python
     :dedent: 4
     :start-after: [START transform_docker]
@@ -338,7 +338,7 @@ Below is an example of using the ``@task.kubernetes`` decorator to run a Python 
 
 .. _taskflow/kubernetes_example:
 
-.. exampleinclude:: /../../tests/system/providers/cncf/kubernetes/example_kubernetes_decorator.py
+.. exampleinclude:: /../../providers/tests/system/cncf/kubernetes/example_kubernetes_decorator.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_kubernetes]

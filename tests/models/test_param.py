@@ -26,7 +26,8 @@ from airflow.models.param import Param, ParamsDict
 from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
-from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
+
+from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs, clear_db_xcom
 
 
 class TestParam:
