@@ -23,7 +23,6 @@ import pytest
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
-    SlaCallbackRequest,
     TaskCallbackRequest,
 )
 from airflow.models.dag import DAG
@@ -54,14 +53,6 @@ class TestCallbackRequest:
                     is_failure_callback=False,
                 ),
                 DagCallbackRequest,
-            ),
-            (
-                SlaCallbackRequest(
-                    full_filepath="filepath",
-                    dag_id="fake_dag",
-                    processor_subdir="/test_dir",
-                ),
-                SlaCallbackRequest,
             ),
         ],
     )

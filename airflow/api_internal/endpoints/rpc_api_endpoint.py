@@ -101,7 +101,6 @@ def initialize_method_map() -> dict[str, Callable]:
         DagFileProcessor._execute_task_callbacks,
         DagFileProcessor.execute_callbacks,
         DagFileProcessor.execute_callbacks_without_dag,
-        DagFileProcessor.manage_slas,
         DagFileProcessor.save_dag_to_db,
         DagFileProcessor.update_import_errors,
         DagFileProcessor._validate_task_pools_and_update_dag_warnings,

@@ -42,7 +42,6 @@ from typing import (
     Container,
     Iterable,
     Iterator,
-    List,
     MutableSet,
     Pattern,
     Sequence,
@@ -146,7 +145,6 @@ if TYPE_CHECKING:
     from airflow.decorators import TaskDecoratorCollection
     from airflow.models.dagbag import DagBag
     from airflow.models.operator import Operator
-    from airflow.models.slamiss import SlaMiss
     from airflow.serialization.pydantic.dag import DagModelPydantic
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.typing_compat import Literal
@@ -168,8 +166,6 @@ ScheduleArg = Union[
     BaseDataset,
     Collection[Union["Dataset", "DatasetAlias"]],
 ]
-
-SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
 
 
 class InconsistentDataInterval(AirflowException):
@@ -430,10 +426,7 @@ class DAG(LoggingMixin):
         beyond this the scheduler will disable the DAG
     :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
         fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
-    :param sla_miss_callback: specify a function or list of functions to call when reporting SLA
-        timeouts. See :ref:`sla_miss_callback<concepts:sla_miss_callback>` for
-        more information about the function signature and parameters that are
-        passed to the callback.
+    :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1
     :param default_view: Specify DAG default view (grid, graph, duration,
                                                    gantt, landing_times), default grid
     :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT), default LR
@@ -519,7 +512,7 @@ class DAG(LoggingMixin):
             "core", "max_consecutive_failed_dag_runs_per_dag"
         ),
         dagrun_timeout: timedelta | None = None,
-        sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None,
+        sla_miss_callback: Any = None,
         default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower(),
         orientation: str = airflow_conf.get_mandatory_value("webserver", "dag_orientation"),
         catchup: bool = airflow_conf.getboolean("scheduler", "catchup_by_default"),
@@ -639,7 +632,10 @@ class DAG(LoggingMixin):
                     f"requires max_active_runs <= {self.timetable.active_runs_limit}"
                 )
         self.dagrun_timeout = dagrun_timeout
-        self.sla_miss_callback = sla_miss_callback
+        if sla_miss_callback:
+            log.warning(
+                "The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1"
+            )
         if default_view in DEFAULT_VIEW_PRESETS:
             self._default_view: str = default_view
         else:
@@ -3297,7 +3293,7 @@ def dag(
         "core", "max_consecutive_failed_dag_runs_per_dag"
     ),
     dagrun_timeout: timedelta | None = None,
-    sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None,
+    sla_miss_callback: Any = None,
     default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower(),
     orientation: str = airflow_conf.get_mandatory_value("webserver", "dag_orientation"),
     catchup: bool = airflow_conf.getboolean("scheduler", "catchup_by_default"),

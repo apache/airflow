@@ -36,7 +36,7 @@ from sqlalchemy.orm import lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
-from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
+from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
 from airflow.exceptions import UnknownExecutorException
@@ -1724,36 +1724,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return True
 
     def _send_dag_callbacks_to_processor(self, dag: DAG, callback: DagCallbackRequest | None = None) -> None:
-        self._send_sla_callbacks_to_processor(dag)
         if callback:
             self.job.executor.send_callback(callback)
         else:
             self.log.debug("callback is empty")
-
-    def _send_sla_callbacks_to_processor(self, dag: DAG) -> None:
-        """Send SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True."""
-        if not settings.CHECK_SLAS:
-            return
-
-        if not any(isinstance(task.sla, timedelta) for task in dag.tasks):
-            self.log.debug("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
-            return
-
-        if not dag.timetable.periodic:
-            self.log.debug("Skipping SLA check for %s because DAG is not scheduled", dag)
-            return
-
-        dag_model = DagModel.get_dagmodel(dag.dag_id)
-        if not dag_model:
-            self.log.error("Couldn't find DAG %s in database!", dag.dag_id)
-            return
-
-        request = SlaCallbackRequest(
-            full_filepath=dag.fileloc,
-            dag_id=dag.dag_id,
-            processor_subdir=dag_model.processor_subdir,
-        )
-        self.job.executor.send_callback(request)
 
     @provide_session
     def _fail_tasks_stuck_in_queued(self, session: Session = NEW_SESSION) -> None:

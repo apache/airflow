@@ -164,7 +164,6 @@ Name                                                                   Descripti
                                                                        Metric with file_path and action tagging.
 ``dag_processing.processor_timeouts``                                  Number of file processors that have been killed due to taking too long.
                                                                        Metric with file_path tagging.
-``dag_processing.sla_callback_count``                                  Number of SLA callbacks received
 ``dag_processing.other_callback_count``                                Number of non-SLA callbacks received
 ``dag_processing.file_path_queue_update_count``                        Number of times we've scanned the filesystem and queued all existing dags
 ``dag_file_processor_timeouts``                                        (DEPRECATED) same behavior as ``dag_processing.processor_timeouts``
@@ -176,9 +175,6 @@ Name                                                                   Descripti
 ``scheduler.critical_section_busy``                                    Count of times a scheduler process tried to get a lock on the critical
                                                                        section (needed to send tasks to the executor) and found it locked by
                                                                        another process.
-``sla_missed``                                                         Number of SLA misses. Metric with dag_id and task_id tagging.
-``sla_callback_notification_failure``                                  Number of failed SLA miss callback notification attempts. Metric with dag_id and func_name tagging.
-``sla_email_notification_failure``                                     Number of failed SLA miss email notification attempts. Metric with dag_id tagging.
 ``ti.start.<dag_id>.<task_id>``                                        Number of started task in a given dag. Similar to <job_name>_start but for task
 ``ti.start``                                                           Number of started task in a given dag. Similar to <job_name>_start but for task.
                                                                        Metric with dag_id and task_id tagging.

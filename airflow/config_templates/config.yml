@@ -395,13 +395,6 @@ core:
       type: integer
       example: ~
       default: "30"
-    check_slas:
-      description: |
-        On each dagrun check against defined SLAs
-      version_added: 1.10.8
-      type: string
-      example: ~
-      default: "True"
     xcom_backend:
       description: |
         Path to custom XCom class that will be used to store and resolve operators results

@@ -755,7 +755,6 @@ autoapi_ignore = [
     "*/node_modules/*",
     "*/migrations/*",
     "*/contrib/*",
-    "**/example_sla_dag.py",
     "**/example_taskflow_api_docker_virtualenv.py",
     "**/example_dag_decorator.py",
 ]

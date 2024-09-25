@@ -36,7 +36,7 @@ from sqlalchemy import func, select, update
 
 import airflow.example_dags
 from airflow import settings
-from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
+from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.dag_processing.manager import DagFileProcessorAgent
@@ -3986,82 +3986,6 @@ class TestSchedulerJob:
         assert old_job.state == State.FAILED
         assert old_task_job.state == State.RUNNING
         assert "Marked 1 SchedulerJob instances as failed" in caplog.messages
-
-    def test_send_sla_callbacks_to_processor_sla_disabled(self, dag_maker):
-        """Test SLA Callbacks are not sent when check_slas is False"""
-        dag_id = "test_send_sla_callbacks_to_processor_sla_disabled"
-        with dag_maker(dag_id=dag_id, schedule="@daily") as dag:
-            EmptyOperator(task_id="task1")
-
-        with patch.object(settings, "CHECK_SLAS", False):
-            scheduler_job = Job()
-            self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
-            scheduler_job.executor = MockExecutor()
-            self.job_runner._send_sla_callbacks_to_processor(dag)
-            scheduler_job.executor.callback_sink.send.assert_not_called()
-
-    def test_send_sla_callbacks_to_processor_sla_no_task_slas(self, dag_maker):
-        """Test SLA Callbacks are not sent when no task SLAs are defined"""
-        dag_id = "test_send_sla_callbacks_to_processor_sla_no_task_slas"
-        with dag_maker(dag_id=dag_id, schedule="@daily") as dag:
-            EmptyOperator(task_id="task1")
-
-        with patch.object(settings, "CHECK_SLAS", True):
-            scheduler_job = Job()
-            self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
-            scheduler_job.executor = MockExecutor()
-            self.job_runner._send_sla_callbacks_to_processor(dag)
-            scheduler_job.executor.callback_sink.send.assert_not_called()
-
-    @pytest.mark.parametrize(
-        "schedule",
-        [
-            "@daily",
-            "0 10 * * *",
-            timedelta(hours=2),
-        ],
-    )
-    def test_send_sla_callbacks_to_processor_sla_with_task_slas(self, schedule, dag_maker):
-        """Test SLA Callbacks are sent to the DAG Processor when SLAs are defined on tasks"""
-        dag_id = "test_send_sla_callbacks_to_processor_sla_with_task_slas"
-        with dag_maker(
-            dag_id=dag_id,
-            schedule=schedule,
-            processor_subdir=TEST_DAG_FOLDER,
-        ) as dag:
-            EmptyOperator(task_id="task1", sla=timedelta(seconds=60))
-
-        with patch.object(settings, "CHECK_SLAS", True):
-            scheduler_job = Job()
-            self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
-            scheduler_job.executor = MockExecutor()
-            self.job_runner._send_sla_callbacks_to_processor(dag)
-            expected_callback = SlaCallbackRequest(
-                full_filepath=dag.fileloc,
-                dag_id=dag.dag_id,
-                processor_subdir=TEST_DAG_FOLDER,
-            )
-            scheduler_job.executor.callback_sink.send.assert_called_once_with(expected_callback)
-
-    @pytest.mark.parametrize(
-        "schedule",
-        [
-            None,
-            [Dataset("foo")],
-        ],
-    )
-    def test_send_sla_callbacks_to_processor_sla_dag_not_scheduled(self, schedule, dag_maker):
-        """Test SLA Callbacks are not sent when DAG isn't scheduled"""
-        dag_id = "test_send_sla_callbacks_to_processor_sla_no_task_slas"
-        with dag_maker(dag_id=dag_id, schedule=schedule) as dag:
-            EmptyOperator(task_id="task1", sla=timedelta(seconds=5))
-
-        with patch.object(settings, "CHECK_SLAS", True):
-            scheduler_job = Job()
-            self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
-            scheduler_job.executor = MockExecutor()
-            self.job_runner._send_sla_callbacks_to_processor(dag)
-            scheduler_job.executor.callback_sink.send.assert_not_called()
 
     @pytest.mark.parametrize(
         "schedule, number_running, excepted",
