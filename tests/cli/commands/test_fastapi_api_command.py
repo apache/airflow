@@ -29,6 +29,7 @@ from rich.console import Console
 from airflow.cli.commands import fastapi_api_command
 from airflow.exceptions import AirflowConfigException
 from tests.cli.commands._common_cli_classes import _CommonCLIGunicornTestClass
+from tests.test_utils.test_appendable import Appendable
 
 console = Console(width=400, color_system="standard")
 
@@ -106,14 +107,15 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
         "ssl_flags, ssl_kwargs",
         [
             (
-                ["--ssl-cert", "_.crt", "--ssl-key", "_.key"],
-                {"ssl_certfile": "_.crt", "ssl_keyfile": "_.key"},
+                ["--ssl-cert", Appendable("_.crt"), "--ssl-key", Appendable("_.key")],
+                {"ssl_certfile": Appendable("_.crt"), "ssl_keyfile": Appendable("_.key")},
             ),
             ([], {}),
         ],
     )
-    def test_cli_fastapi_api_debug(self, ssl_flags, ssl_kwargs, ssl_cert_and_key, tmp_path, app):
-        os.chdir(tmp_path)
+    def test_cli_fastapi_api_debug(self, ssl_flags, ssl_kwargs, tmp_path, app):
+        ssl_flags = Appendable.onto(ssl_flags, tmp_path)
+        ssl_kwargs = Appendable.onto(ssl_kwargs, tmp_path)
 
         with mock.patch("uvicorn.run") as uvicorn_run, mock.patch.object(
             fastapi_api_command, "GunicornMonitor"
@@ -134,8 +136,8 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
                 **ssl_kwargs,
             )
 
-    def test_cli_fastapi_api_args(self, ssl_cert_and_key):
-        cert_path, key_path = ssl_cert_and_key
+    def test_cli_fastapi_api_args(self, tmp_path):
+        cert_path, key_path = Appendable.onto((Appendable("_.crt"), Appendable("_.key")), tmp_path)
 
         with mock.patch("subprocess.Popen") as Popen, mock.patch.object(
             fastapi_api_command, "GunicornMonitor"
@@ -206,21 +208,16 @@ class TestCliFastAPI(_CommonCLIGunicornTestClass):
     @pytest.mark.parametrize(
         "ssl_flags, ssl_paths",
         [
-            (["--ssl-cert", "_.crt", "--ssl-key", "_.key"], ("_.crt", "_.key")),
+            (
+                ["--ssl-cert", Appendable("_.crt"), "--ssl-key", Appendable("_.key")],
+                (Appendable("_.crt"), Appendable("_.key")),
+            ),
             ([], (None, None)),
         ],
     )
-    def test_get_ssl_cert_and_key_filepaths_with_correct_usage(
-        self, ssl_flags, ssl_paths, ssl_cert_and_key, tmp_path
-    ):
-        os.chdir(tmp_path)
+    def test_get_ssl_cert_and_key_filepaths_with_correct_usage(self, ssl_flags, ssl_paths, tmp_path):
+        ssl_flags = Appendable.onto(ssl_flags, tmp_path)
+        ssl_paths = Appendable.onto(ssl_paths, tmp_path)
 
         args = self.parser.parse_args(["fastapi-api"] + ssl_flags)
         assert fastapi_api_command._get_ssl_cert_and_key_filepaths(args) == ssl_paths
-
-    @pytest.fixture
-    def ssl_cert_and_key(self, tmp_path):
-        cert_path, key_path = tmp_path / "_.crt", tmp_path / "_.key"
-        cert_path.touch()
-        key_path.touch()
-        return cert_path, key_path
