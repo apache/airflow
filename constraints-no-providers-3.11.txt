@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-22T07:43:24.265081
+# This constraints file was automatically generated on 2024-09-25T19:47:56.427366
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -35,10 +35,10 @@ WTForms==3.1.2
 Werkzeug==2.2.3
 aiobotocore==2.15.1
 aiohappyeyeballs==2.4.0
-aiohttp==3.10.5
+aiohttp==3.10.6
 aioitertools==0.12.0
 aiosignal==1.3.1
-alembic==1.13.2
+alembic==1.13.3
 amqp==5.2.0
 annotated-types==0.7.0
 anyio==4.6.0
@@ -170,7 +170,7 @@ shellingham==1.5.4
 six==1.16.0
 sniffio==1.3.1
 sqlparse==0.5.1
-starlette==0.38.5
+starlette==0.38.6
 statsd==4.0.1
 tabulate==0.9.0
 tenacity==9.0.0
@@ -181,12 +181,12 @@ thrift==0.21.0
 time-machine==2.15.0
 typer==0.12.5
 typing_extensions==4.12.2
-tzdata==2024.1
+tzdata==2024.2
 uc-micro-py==1.0.3
 unicodecsv==0.14.1
 universal_pathlib==0.2.5
 urllib3==2.2.3
-uv==0.4.1
+uv==0.4.7
 uvicorn==0.30.6
 uvloop==0.20.0
 vine==5.1.0
@@ -195,7 +195,7 @@ watchfiles==0.24.0
 websockets==13.1
 wirerope==0.4.7
 wrapt==1.16.0
-yarl==1.11.1
+yarl==1.12.1
 zipp==3.20.2
 zope.event==5.0
 zope.interface==7.0.3

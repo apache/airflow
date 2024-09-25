@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-22T07:39:14.609971
+# This constraints file was automatically generated on 2024-09-25T19:43:48.854213
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -51,20 +51,20 @@ adlfs==2024.7.0
 aiobotocore==2.15.1
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.0
-aiohttp==3.10.5
+aiohttp==3.10.6
 aioitertools==0.12.0
 aioresponses==0.7.6
 aiosignal==1.3.1
-airbyte-api==0.52.0
+airbyte-api==0.52.1
 alabaster==0.7.13
-alembic==1.13.2
+alembic==1.13.3
 alibabacloud-adb20211201==2.0.0
-alibabacloud-tea==0.3.9
+alibabacloud-tea==0.3.10
 alibabacloud_credentials==0.3.5
 alibabacloud_endpoint_util==0.0.3
 alibabacloud_gateway_spi==0.0.2
 alibabacloud_openapi_util==0.2.2
-alibabacloud_tea_openapi==0.3.11
+alibabacloud_tea_openapi==0.3.12
 alibabacloud_tea_util==0.3.13
 alibabacloud_tea_xml==0.0.2
 aliyun-python-sdk-core==2.15.2
@@ -132,12 +132,12 @@ botocore==1.35.23
 cachelib==0.9.0
 cachetools==5.5.0
 cassandra-driver==3.29.2
-cattrs==24.1.1
+cattrs==24.1.2
 celery==5.4.0
 certifi==2024.8.30
 cffi==1.17.1
 cfgv==3.4.0
-cfn-lint==1.14.2
+cfn-lint==1.15.1
 cgroupspy==0.2.3
 chardet==5.2.0
 charset-normalizer==3.3.2
@@ -165,7 +165,7 @@ databricks-sql-connector==2.9.6
 dataclasses-json==0.6.7
 datadog==0.50.1
 db-dtypes==1.3.0
-debugpy==1.8.5
+debugpy==1.8.6
 decorator==5.1.1
 defusedxml==0.7.1
 deltalake==0.20.0
@@ -178,7 +178,7 @@ docker==7.1.0
 docopt==0.6.2
 docstring_parser==0.16
 docutils==0.16
-duckdb==1.1.0
+duckdb==1.1.1
 elastic-transport==8.15.0
 elasticsearch==8.15.1
 email_validator==2.2.0
@@ -211,11 +211,11 @@ gitdb==4.0.11
 google-ads==25.0.0
 google-analytics-admin==0.23.0
 google-api-core==2.20.0
-google-api-python-client==2.146.0
+google-api-python-client==2.147.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.35.0
-google-cloud-aiplatform==1.67.1
+google-cloud-aiplatform==1.68.0
 google-cloud-appengine-logging==1.4.5
 google-cloud-audit-log==0.3.0
 google-cloud-automl==2.13.5
@@ -223,7 +223,7 @@ google-cloud-batch==0.17.28
 google-cloud-bigquery-datatransfer==3.15.7
 google-cloud-bigquery==3.25.0
 google-cloud-bigtable==2.26.0
-google-cloud-build==3.24.2
+google-cloud-build==3.25.0
 google-cloud-compute==1.19.2
 google-cloud-container==2.51.0
 google-cloud-core==2.4.1
@@ -233,8 +233,8 @@ google-cloud-dataform==0.5.11
 google-cloud-dataplex==2.2.2
 google-cloud-dataproc-metastore==1.15.5
 google-cloud-dataproc==5.12.0
-google-cloud-dlp==3.22.0
-google-cloud-kms==2.24.2
+google-cloud-dlp==3.23.0
+google-cloud-kms==3.0.0
 google-cloud-language==2.14.0
 google-cloud-logging==3.11.2
 google-cloud-memcache==1.9.5
@@ -355,17 +355,17 @@ microsoft-kiota-http==1.3.3
 mmh3==4.1.0
 mongomock==4.2.0.post1
 more-itertools==10.5.0
-moto==5.0.14
+moto==5.0.15
 mpmath==1.3.0
 msal-extensions==1.2.0
 msal==1.31.0
-msgraph-core==1.1.3
+msgraph-core==1.1.4
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.1.0
 mypy-boto3-appflow==1.35.0
-mypy-boto3-rds==1.35.22
+mypy-boto3-rds==1.35.25
 mypy-boto3-redshift-data==1.35.10
 mypy-boto3-s3==1.35.22
 mypy-extensions==1.0.0
@@ -382,7 +382,7 @@ nodeenv==1.9.1
 numpy==1.24.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.47.0
+openai==1.48.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.22.0
@@ -405,7 +405,7 @@ ordered-set==4.1.0
 orjson==3.10.7
 oss2==2.19.0
 packaging==24.1
-pandas-gbq==0.23.1
+pandas-gbq==0.23.2
 pandas-stubs==2.0.3.230814
 pandas==2.0.3
 papermill==2.6.0
@@ -437,7 +437,7 @@ pre-commit==3.5.0
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.21.0
-prompt_toolkit==3.0.47
+prompt_toolkit==3.0.48
 proto-plus==1.24.0
 protobuf==4.25.5
 psutil==6.0.0
@@ -471,7 +471,7 @@ pymssql==2.3.1
 pyodbc==5.1.0
 pyparsing==3.1.4
 pypsrp==0.8.1
-pyspark==3.5.2
+pyspark==3.5.3
 pyspnego==0.11.1
 pytest-asyncio==0.24.0
 pytest-cov==5.0.0
@@ -498,7 +498,7 @@ python3-saml==1.16.0
 pytz==2024.2
 pywinrm==0.5.0
 pyzmq==26.2.0
-qdrant-client==1.11.2
+qdrant-client==1.11.3
 reactivex==4.0.4
 readme_renderer==43.0
 redis==5.0.8
@@ -570,7 +570,7 @@ sqlparse==0.5.1
 sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
-starlette==0.38.5
+starlette==0.38.6
 statsd==4.0.1
 std-uritemplate==1.0.6
 strictyaml==1.7.3
@@ -607,7 +607,7 @@ types-cffi==1.16.0.20240331
 types-croniter==3.0.3.20240731
 types-docutils==0.21.0.20240907
 types-paramiko==3.5.0.20240918
-types-protobuf==5.27.0.20240920
+types-protobuf==5.28.0.20240924
 types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20240906
 types-python-slugify==8.0.2.20240310
@@ -621,7 +621,7 @@ types-toml==0.10.8.20240310
 types-urllib3==1.26.25.14
 typing-inspect==0.9.0
 typing_extensions==4.12.2
-tzdata==2024.1
+tzdata==2024.2
 tzlocal==5.2
 uc-micro-py==1.0.3
 unicodecsv==0.14.1
@@ -629,7 +629,7 @@ universal_pathlib==0.2.5
 uritemplate==4.1.1
 urllib3==1.26.20
 userpath==1.9.2
-uv==0.4.1
+uv==0.4.7
 uvicorn==0.30.6
 uvloop==0.20.0
 validators==0.33.0
@@ -649,7 +649,7 @@ xmltodict==0.13.0
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.319.0
-yarl==1.11.1
+yarl==1.12.1
 ydb==3.17.2
 zeep==4.2.1
 zenpy==2.0.53
