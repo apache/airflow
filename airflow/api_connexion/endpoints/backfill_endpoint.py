@@ -92,8 +92,7 @@ def list_backfills(dag_id, session):
         backfills=backfills,
         total_entries=len(backfills),
     )
-    serialized = backfill_collection_schema.dump(obj)
-    return serialized
+    return backfill_collection_schema.dump(obj)
 
 
 @security.requires_access_dag("GET")
