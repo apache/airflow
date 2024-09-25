@@ -37,7 +37,6 @@ from airflow.models.dataset import (
 )
 from airflow.stats import Stats
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
@@ -55,22 +54,21 @@ class DatasetManager(LoggingMixin):
     Airflow deployments can use plugins that broadcast dataset events to each other.
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def create_datasets(self, datasets: list[Dataset], *, session: Session) -> list[DatasetModel]:
+    @classmethod
+    def create_datasets(cls, datasets: list[Dataset], *, session: Session) -> list[DatasetModel]:
         """Create new datasets."""
 
         def _add_one(dataset: Dataset) -> DatasetModel:
             model = DatasetModel.from_public(dataset)
             session.add(model)
-            self.notify_dataset_created(dataset=dataset)
+            cls.notify_dataset_created(dataset=dataset)
             return model
 
         return [_add_one(d) for d in datasets]
 
+    @classmethod
     def create_dataset_aliases(
-        self,
+        cls,
         dataset_aliases: list[DatasetAlias],
         *,
         session: Session,
@@ -80,7 +78,7 @@ class DatasetManager(LoggingMixin):
         def _add_one(dataset_alias: DatasetAlias) -> DatasetAliasModel:
             model = DatasetAliasModel.from_public(dataset_alias)
             session.add(model)
-            self.notify_dataset_alias_created(dataset_alias=dataset_alias)
+            cls.notify_dataset_alias_created(dataset_alias=dataset_alias)
             return model
 
         return [_add_one(a) for a in dataset_aliases]
@@ -106,7 +104,6 @@ class DatasetManager(LoggingMixin):
 
     @classmethod
     @internal_api_call
-    @provide_session
     def register_dataset_change(
         cls,
         *,
@@ -115,7 +112,7 @@ class DatasetManager(LoggingMixin):
         extra=None,
         aliases: Collection[DatasetAlias] = (),
         source_alias_names: Iterable[str] | None = None,
-        session: Session = NEW_SESSION,
+        session: Session,
         **kwargs,
     ) -> DatasetEvent | None:
         """
@@ -183,7 +180,6 @@ class DatasetManager(LoggingMixin):
         if dags_to_reparse:
             file_locs = {dag.fileloc for dag in dags_to_reparse}
             cls._send_dag_priority_parsing_request(file_locs, session)
-        session.flush()
 
         cls.notify_dataset_changed(dataset=dataset)
 
@@ -191,19 +187,20 @@ class DatasetManager(LoggingMixin):
 
         dags_to_queue = dags_to_queue_from_dataset | dags_to_queue_from_dataset_alias
         cls._queue_dagruns(dataset_id=dataset_model.id, dags_to_queue=dags_to_queue, session=session)
-        session.flush()
         return dataset_event
 
-    def notify_dataset_created(self, dataset: Dataset):
+    @staticmethod
+    def notify_dataset_created(dataset: Dataset):
         """Run applicable notification actions when a dataset is created."""
         get_listener_manager().hook.on_dataset_created(dataset=dataset)
 
-    def notify_dataset_alias_created(self, dataset_alias: DatasetAlias):
+    @staticmethod
+    def notify_dataset_alias_created(dataset_alias: DatasetAlias):
         """Run applicable notification actions when a dataset alias is created."""
         get_listener_manager().hook.on_dataset_alias_created(dataset_alias=dataset_alias)
 
-    @classmethod
-    def notify_dataset_changed(cls, dataset: Dataset):
+    @staticmethod
+    def notify_dataset_changed(dataset: Dataset):
         """Run applicable notification actions when a dataset is changed."""
         get_listener_manager().hook.on_dataset_changed(dataset=dataset)
 
