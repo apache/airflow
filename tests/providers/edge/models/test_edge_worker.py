@@ -20,11 +20,14 @@ from typing import TYPE_CHECKING
 
 import pytest
 
+from airflow.providers.edge.cli.edge_command import _get_sysinfo
 from airflow.providers.edge.models.edge_worker import (
     EdgeWorker,
     EdgeWorkerModel,
+    EdgeWorkerState,
     EdgeWorkerVersionException,
 )
+from airflow.utils import timezone
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -63,3 +66,29 @@ class TestEdgeWorker:
         EdgeWorker.assert_version(
             {"airflow_version": airflow_version, "edge_provider_version": edge_provider_version}
         )
+
+    def test_register_worker(self, session: Session):
+        EdgeWorker.register_worker(
+            "test_worker", EdgeWorkerState.STARTING, queues=None, sysinfo=_get_sysinfo()
+        )
+
+        worker: list[EdgeWorkerModel] = session.query(EdgeWorkerModel).all()
+        assert len(worker) == 1
+        assert worker[0].worker_name == "test_worker"
+
+    def test_set_state(self, session: Session):
+        rwm = EdgeWorkerModel(
+            worker_name="test2_worker",
+            state=EdgeWorkerState.IDLE,
+            queues=["default"],
+            first_online=timezone.utcnow(),
+        )
+        session.add(rwm)
+        session.commit()
+
+        EdgeWorker.set_state("test2_worker", EdgeWorkerState.RUNNING, 1, _get_sysinfo())
+
+        worker: list[EdgeWorkerModel] = session.query(EdgeWorkerModel).all()
+        assert len(worker) == 1
+        assert worker[0].worker_name == "test2_worker"
+        assert worker[0].state == EdgeWorkerState.RUNNING

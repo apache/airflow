@@ -16,7 +16,7 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -28,11 +28,10 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialize
 pytestmark = pytest.mark.db_test
 
 DAG1_ID = "test_dag1"
-DAG1_DISPLAY_NAME = "a"
+DAG1_DISPLAY_NAME = "display1"
 DAG2_ID = "test_dag2"
-DAG2_DISPLAY_NAME = "b"
+DAG2_DISPLAY_NAME = "display2"
 DAG3_ID = "test_dag3"
-DAG3_DISPLAY_NAME = "c"
 TASK_ID = "op1"
 
 
@@ -44,6 +43,8 @@ def _create_deactivated_paused_dag(session=None):
         timetable_summary="2 2 * * *",
         is_active=False,
         is_paused=True,
+        owners="test_owner,another_test_owner",
+        next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
     )
     session.add(dag_model)
 
@@ -56,6 +57,7 @@ def setup() -> None:
 
     with DAG(
         DAG1_ID,
+        dag_display_name=DAG1_DISPLAY_NAME,
         schedule=None,
         start_date=datetime(2020, 6, 15),
         doc_md="details",
@@ -64,7 +66,16 @@ def setup() -> None:
     ) as dag1:
         EmptyOperator(task_id=TASK_ID)
 
-    with DAG(DAG2_ID, schedule=None, start_date=datetime(2020, 6, 15)) as dag2:
+    with DAG(
+        DAG2_ID,
+        dag_display_name=DAG2_DISPLAY_NAME,
+        schedule=None,
+        start_date=datetime(
+            2020,
+            6,
+            15,
+        ),
+    ) as dag2:
         EmptyOperator(task_id=TASK_ID)
 
     dag1.sync_to_db()
@@ -76,15 +87,24 @@ def setup() -> None:
 @pytest.mark.parametrize(
     "query_params, expected_total_entries, expected_ids",
     [
+        # Filters
         ({}, 2, ["test_dag1", "test_dag2"]),
         ({"limit": 1}, 2, ["test_dag1"]),
         ({"offset": 1}, 2, ["test_dag2"]),
         ({"tags": ["example"]}, 1, ["test_dag1"]),
-        ({"dag_id_pattern": "1"}, 1, ["test_dag1"]),
         ({"only_active": False}, 3, ["test_dag1", "test_dag2", "test_dag3"]),
         ({"paused": True, "only_active": False}, 1, ["test_dag3"]),
         ({"paused": False}, 2, ["test_dag1", "test_dag2"]),
+        ({"owners": ["airflow"]}, 2, ["test_dag1", "test_dag2"]),
+        ({"owners": ["test_owner"], "only_active": False}, 1, ["test_dag3"]),
+        # # Sort
         ({"order_by": "-dag_id"}, 2, ["test_dag2", "test_dag1"]),
+        ({"order_by": "-dag_display_name"}, 2, ["test_dag2", "test_dag1"]),
+        ({"order_by": "dag_display_name"}, 2, ["test_dag1", "test_dag2"]),
+        ({"order_by": "next_dagrun", "only_active": False}, 3, ["test_dag3", "test_dag1", "test_dag2"]),
+        # Search
+        ({"dag_id_pattern": "1"}, 1, ["test_dag1"]),
+        ({"dag_display_name_pattern": "display2"}, 1, ["test_dag2"]),
     ],
 )
 def test_get_dags(test_client, query_params, expected_total_entries, expected_ids):

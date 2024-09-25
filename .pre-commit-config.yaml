@@ -1174,7 +1174,7 @@ repos:
         description: TS types generation / ESLint / Prettier new UI files
         language: node
         types_or: [javascript, ts, tsx, yaml, css, json]
-        files: ^airflow/ui/|^airflow/api_connexion/openapi/v1\.yaml$
+        files: ^airflow/ui/|^airflow/api_fastapi/openapi/v1-generated\.yaml$
         entry: ./scripts/ci/pre_commit/lint_ui.py
         additional_dependencies: ['pnpm@9.7.1']
         pass_filenames: false

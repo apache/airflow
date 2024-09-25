@@ -53,22 +53,34 @@ DB_NAME = "dev"
 
 S3_KEY = "s3_output_"
 S3_KEY_2 = "s3_key_2"
+S3_KEY_3 = "s3_output_tmp_table_"
 S3_KEY_PREFIX = "s3_k"
 REDSHIFT_TABLE = "test_table"
-
-SQL_CREATE_TABLE = f"""
-    CREATE TABLE IF NOT EXISTS {REDSHIFT_TABLE} (
-    fruit_id INTEGER,
-    name VARCHAR NOT NULL,
-    color VARCHAR NOT NULL
-    );
-"""
-
-SQL_INSERT_DATA = f"INSERT INTO {REDSHIFT_TABLE} VALUES ( 1, 'Banana', 'Yellow');"
-
-SQL_DROP_TABLE = f"DROP TABLE IF EXISTS {REDSHIFT_TABLE};"
+REDSHIFT_TMP_TABLE = "tmp_table"
 
 DATA = "0, 'Airflow', 'testing'"
+
+
+def _drop_table(table_name: str) -> str:
+    return f"DROP TABLE IF EXISTS {table_name};"
+
+
+def _create_table(table_name: str, is_temp: bool = False) -> str:
+    temp_keyword = "TEMPORARY" if is_temp else ""
+    return (
+        _drop_table(table_name)
+        + f"""
+        CREATE {temp_keyword} TABLE {table_name} (
+            fruit_id INTEGER,
+            name VARCHAR NOT NULL,
+            color VARCHAR NOT NULL
+        );
+    """
+    )
+
+
+def _insert_data(table_name: str) -> str:
+    return f"INSERT INTO {table_name} VALUES ( 1, 'Banana', 'Yellow');"
 
 
 with DAG(
@@ -124,7 +136,7 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         database=DB_NAME,
         db_user=DB_LOGIN,
-        sql=SQL_CREATE_TABLE,
+        sql=_create_table(REDSHIFT_TABLE),
         wait_for_completion=True,
     )
 
@@ -133,7 +145,7 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         database=DB_NAME,
         db_user=DB_LOGIN,
-        sql=SQL_INSERT_DATA,
+        sql=_insert_data(REDSHIFT_TABLE),
         wait_for_completion=True,
     )
 
@@ -159,6 +171,33 @@ with DAG(
         bucket_key=f"{S3_KEY}/{REDSHIFT_TABLE}_0000_part_00",
     )
 
+    create_tmp_table = RedshiftDataOperator(
+        task_id="create_tmp_table",
+        cluster_identifier=redshift_cluster_identifier,
+        database=DB_NAME,
+        db_user=DB_LOGIN,
+        sql=_create_table(REDSHIFT_TMP_TABLE, is_temp=True) + _insert_data(REDSHIFT_TMP_TABLE),
+        wait_for_completion=True,
+        session_keep_alive_seconds=600,
+    )
+
+    transfer_redshift_to_s3_reuse_session = RedshiftToS3Operator(
+        task_id="transfer_redshift_to_s3_reuse_session",
+        redshift_data_api_kwargs={
+            "wait_for_completion": True,
+            "session_id": "{{ task_instance.xcom_pull(task_ids='create_tmp_table', key='session_id') }}",
+        },
+        s3_bucket=bucket_name,
+        s3_key=S3_KEY_3,
+        table=REDSHIFT_TMP_TABLE,
+    )
+
+    check_if_tmp_table_key_exists = S3KeySensor(
+        task_id="check_if_tmp_table_key_exists",
+        bucket_name=bucket_name,
+        bucket_key=f"{S3_KEY_3}/{REDSHIFT_TMP_TABLE}_0000_part_00",
+    )
+
     # [START howto_transfer_s3_to_redshift]
     transfer_s3_to_redshift = S3ToRedshiftOperator(
         task_id="transfer_s3_to_redshift",
@@ -175,6 +214,28 @@ with DAG(
         copy_options=["csv"],
     )
     # [END howto_transfer_s3_to_redshift]
+
+    create_dest_tmp_table = RedshiftDataOperator(
+        task_id="create_dest_tmp_table",
+        cluster_identifier=redshift_cluster_identifier,
+        database=DB_NAME,
+        db_user=DB_LOGIN,
+        sql=_create_table(REDSHIFT_TMP_TABLE, is_temp=True),
+        wait_for_completion=True,
+        session_keep_alive_seconds=600,
+    )
+
+    transfer_s3_to_redshift_tmp_table = S3ToRedshiftOperator(
+        task_id="transfer_s3_to_redshift_tmp_table",
+        redshift_data_api_kwargs={
+            "session_id": "{{ task_instance.xcom_pull(task_ids='create_dest_tmp_table', key='session_id') }}",
+            "wait_for_completion": True,
+        },
+        s3_bucket=bucket_name,
+        s3_key=S3_KEY_2,
+        table=REDSHIFT_TMP_TABLE,
+        copy_options=["csv"],
+    )
 
     # [START howto_transfer_s3_to_redshift_multiple_keys]
     transfer_s3_to_redshift_multiple = S3ToRedshiftOperator(
@@ -198,7 +259,7 @@ with DAG(
         cluster_identifier=redshift_cluster_identifier,
         database=DB_NAME,
         db_user=DB_LOGIN,
-        sql=SQL_DROP_TABLE,
+        sql=_drop_table(REDSHIFT_TABLE),
         wait_for_completion=True,
         trigger_rule=TriggerRule.ALL_DONE,
     )
@@ -235,12 +296,32 @@ with DAG(
         delete_bucket,
     )
 
+    chain(
+        # TEST SETUP
+        wait_cluster_available,
+        create_tmp_table,
+        # TEST BODY
+        transfer_redshift_to_s3_reuse_session,
+        check_if_tmp_table_key_exists,
+        # TEST TEARDOWN
+        delete_cluster,
+    )
+
+    chain(
+        # TEST SETUP
+        wait_cluster_available,
+        create_dest_tmp_table,
+        # TEST BODY
+        transfer_s3_to_redshift_tmp_table,
+        # TEST TEARDOWN
+        delete_cluster,
+    )
+
     from tests.system.utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
     list(dag.tasks) >> watcher()
-
 
 from tests.system.utils import get_test_run  # noqa: E402
 
