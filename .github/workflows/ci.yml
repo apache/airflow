@@ -684,7 +684,7 @@ jobs:
         id: slack
         uses: slackapi/slack-github-action@v1.27.0
         with:
-          payload-delimiter: "_"
+          payload-delimiter: "."
           # Slack channel id, channel name, or user id to post message.
           # See also: https://api.slack.com/methods/chat.postMessage#channels
           # You can pass in multiple channels to post to by providing a comma-delimited list of channel IDs.
