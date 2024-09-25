@@ -92,7 +92,7 @@ Airflow can open a lot of database connections due to its distributed nature and
 reduce the number of open connections on the database.
 
 Database credentials stored Values file
-^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: yaml
 
@@ -101,7 +101,7 @@ Database credentials stored Values file
 
 
 Database credentials stored Kubernetes Secret
-^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The default connection string in this case will not work you need to modify accordingly
 
