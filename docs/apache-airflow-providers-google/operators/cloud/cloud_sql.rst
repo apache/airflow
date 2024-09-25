@@ -180,15 +180,6 @@ it will be retrieved from the Google Cloud connection used. Both variants are sh
     :start-after: [START howto_operator_cloudsql_delete]
     :end-before: [END howto_operator_cloudsql_delete]
 
-Note: If the instance has read or failover replicas you need to delete them before you delete the primary instance.
-Replicas are deleted the same way as primary instances:
-
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_cloudsql_replicas_delete]
-    :end-before: [END howto_operator_cloudsql_replicas_delete]
-
 Templating
 """"""""""
 
@@ -392,16 +383,6 @@ Example body defining the instance with failover replica:
     :language: python
     :start-after: [START howto_operator_cloudsql_create_body]
     :end-before: [END howto_operator_cloudsql_create_body]
-
-Example body defining read replica for the instance above:
-
-.. exampleinclude:: /../../tests/system/providers/google/cloud/cloud_sql/example_cloud_sql.py
-    :language: python
-    :start-after: [START howto_operator_cloudsql_create_replica]
-    :end-before: [END howto_operator_cloudsql_create_replica]
-
-Note: Failover replicas are created together with the instance in a single task.
-Read replicas need to be created in separate tasks.
 
 Using the operator
 """"""""""""""""""
