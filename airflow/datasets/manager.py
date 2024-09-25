@@ -64,12 +64,10 @@ class DatasetManager(LoggingMixin):
         def _add_one(dataset: Dataset) -> DatasetModel:
             model = DatasetModel.from_public(dataset)
             session.add(model)
+            self.notify_dataset_created(dataset=dataset)
             return model
 
-        models = [_add_one(d) for d in datasets]
-        for dataset in datasets:
-            self.notify_dataset_created(dataset=dataset)
-        return models
+        return [_add_one(d) for d in datasets]
 
     def create_dataset_aliases(
         self,
@@ -82,12 +80,10 @@ class DatasetManager(LoggingMixin):
         def _add_one(dataset_alias: DatasetAlias) -> DatasetAliasModel:
             model = DatasetAliasModel.from_public(dataset_alias)
             session.add(model)
+            self.notify_dataset_alias_created(dataset_alias=dataset_alias)
             return model
 
-        models = [_add_one(a) for a in dataset_aliases]
-        for dataset_alias in dataset_aliases:
-            self.notify_dataset_alias_created(dataset_alias=dataset_alias)
-        return models
+        return [_add_one(a) for a in dataset_aliases]
 
     @classmethod
     def _add_dataset_alias_association(
