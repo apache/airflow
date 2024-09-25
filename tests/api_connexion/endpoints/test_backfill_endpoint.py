@@ -149,7 +149,8 @@ class TestListBackfills(TestBackfillEndpoint):
         (dag,) = self._create_dag_models()
         from_date = timezone.utcnow()
         to_date = timezone.utcnow()
-        session.add(Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date))
+        b = Backfill(dag_id=dag.dag_id, from_date=from_date, to_date=to_date)
+        session.add(b)
         session.commit()
         response = self.client.get(
             f"/api/v1/backfills?dag_id={dag.dag_id}",
@@ -164,7 +165,7 @@ class TestListBackfills(TestBackfillEndpoint):
                     "dag_id": "TEST_DAG_1",
                     "dag_run_conf": None,
                     "from_date": from_date.isoformat(),
-                    "id": 1,
+                    "id": b.id,
                     "is_paused": False,
                     "max_active_runs": 10,
                     "to_date": to_date.isoformat(),
@@ -187,13 +188,13 @@ class TestListBackfills(TestBackfillEndpoint):
         (dag,) = self._create_dag_models()
         from_date = timezone.utcnow()
         to_date = timezone.utcnow()
-        session.add(
-            Backfill(
-                dag_id=dag.dag_id,
-                from_date=from_date,
-                to_date=to_date,
-            )
+        b = Backfill(
+            dag_id=dag.dag_id,
+            from_date=from_date,
+            to_date=to_date,
         )
+
+        session.add(b)
         session.commit()
         kwargs = {}
         if user:
@@ -221,7 +222,7 @@ class TestGetBackfill(TestBackfillEndpoint):
             "dag_id": "TEST_DAG_1",
             "dag_run_conf": None,
             "from_date": from_date.isoformat(),
-            "id": 1,
+            "id": backfill.id,
             "is_paused": False,
             "max_active_runs": 10,
             "to_date": to_date.isoformat(),
@@ -309,7 +310,7 @@ class TestCreateBackfill(TestBackfillEndpoint):
                 "dag_id": "TEST_DAG_1",
                 "dag_run_conf": None,
                 "from_date": from_date_iso,
-                "id": 1,
+                "id": mock.ANY,
                 "is_paused": False,
                 "max_active_runs": 5,
                 "to_date": to_date_iso,
@@ -339,7 +340,7 @@ class TestPauseBackfill(TestBackfillEndpoint):
             "dag_id": "TEST_DAG_1",
             "dag_run_conf": None,
             "from_date": from_date.isoformat(),
-            "id": 1,
+            "id": backfill.id,
             "is_paused": True,
             "max_active_runs": 10,
             "to_date": to_date.isoformat(),
@@ -392,7 +393,7 @@ class TestCancelBackfill(TestBackfillEndpoint):
             "dag_id": "TEST_DAG_1",
             "dag_run_conf": None,
             "from_date": from_date.isoformat(),
-            "id": 1,
+            "id": backfill.id,
             "is_paused": True,
             "max_active_runs": 10,
             "to_date": to_date.isoformat(),
