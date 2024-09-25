@@ -31,7 +31,7 @@ from collections import defaultdict
 from contextlib import nullcontext
 from datetime import timedelta
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Callable, Collection, Dict, Generator, Iterable, Mapping, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Collection, Generator, Iterable, Mapping, Tuple
 from urllib.parse import quote
 
 import dill
@@ -2911,23 +2911,22 @@ class TaskInstance(Base, LoggingMixin):
                     frozen_extra = frozenset(dataset_alias_event["extra"].items())
                     dataset_alias_names[(dataset_uri, frozen_extra)].add(dataset_alias_name)
 
-        class _DatasetModelCache(Dict[str, DatasetModel]):
-            log = self.log
-
-            def __missing__(self, key: str) -> DatasetModel:
-                (dataset_obj,) = dataset_manager.create_datasets([Dataset(uri=key)], session=session)
-                self.log.warning("Created a new %r as it did not exist.", dataset_obj)
-                self[key] = dataset_obj
-                return dataset_obj
-
-        dataset_objs_cache = _DatasetModelCache(
-            (dataset_obj.uri, dataset_obj)
+        dataset_models: dict[str, DatasetModel] = {
+            dataset_obj.uri: dataset_obj
             for dataset_obj in session.scalars(
                 select(DatasetModel).where(DatasetModel.uri.in_(uri for uri, _ in dataset_alias_names))
             )
-        )
+        }
+        if missing_datasets := [Dataset(uri=u) for u, _ in dataset_alias_names if u not in dataset_models]:
+            dataset_models.update(
+                (dataset_obj.uri, dataset_obj)
+                for dataset_obj in dataset_manager.create_datasets(missing_datasets, session=session)
+            )
+            self.log.warning("Created new datasets for alias reference: %s", missing_datasets)
+            session.flush()  # Needed because we need the id for fk.
+
         for (uri, extra_items), alias_names in dataset_alias_names.items():
-            dataset_obj = dataset_objs_cache[uri]
+            dataset_obj = dataset_models[uri]
             self.log.info(
                 'Creating event for %r through aliases "%s"',
                 dataset_obj,
