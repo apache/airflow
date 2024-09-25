@@ -48,6 +48,7 @@ export class DagService {
    * @param data.dagDisplayNamePattern
    * @param data.onlyActive
    * @param data.paused
+   * @param data.lastDagRunState
    * @param data.orderBy
    * @returns DAGCollectionResponse Successful Response
    * @throws ApiError
@@ -67,6 +68,7 @@ export class DagService {
         dag_display_name_pattern: data.dagDisplayNamePattern,
         only_active: data.onlyActive,
         paused: data.paused,
+        last_dag_run_state: data.lastDagRunState,
         order_by: data.orderBy,
       },
       errors: {
