@@ -42,7 +42,6 @@ from typing import (
     Container,
     Iterable,
     Iterator,
-    List,
     MutableSet,
     Pattern,
     Sequence,
