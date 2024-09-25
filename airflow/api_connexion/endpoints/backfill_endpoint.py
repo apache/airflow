@@ -58,7 +58,7 @@ def _create_backfill(
     reverse: bool,
     dag_run_conf: dict | None,
     session: Session = NEW_SESSION,
-):
+) -> Backfill:
     serdag = session.get(SerializedDagModel, dag_id)
     if not serdag:
         raise NotFound(f"Could not find dag {dag_id}")
