@@ -689,6 +689,8 @@ jobs:
           # You can pass in multiple channels to post to by providing a comma-delimited list of channel IDs.
           channel-id: 'zzz_webhook_test'
           # For posting a simple plain text message
-          slack-message: "GitHub build result: ${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+          slack-message: |
+            🚨🕒 Scheduled CI Failure Alert 🕒🚨
+            *Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
         env:
           SLACK_BOT_TOKEN: ${{ env.SLACK_BOT_TOKEN }}
