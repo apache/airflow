@@ -28,6 +28,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.helpers import exactly_one
+from dateutil import parser
+import pytz
+
 
 if TYPE_CHECKING:
     from datetime import datetime
@@ -530,6 +533,13 @@ class S3DeleteObjectsOperator(BaseOperator):
 
         if isinstance(self.keys, (list, str)) and not self.keys:
             return
+        # handle case where dates are strings, specifically when sent as template fields and macros.
+        if isinstance(self.to_datetime, str):
+            self.to_datetime = parser.parse(self.to_datetime).replace(tzinfo=pytz.UTC)
+
+        if isinstance(self.from_datetime, str):
+            self.from_datetime = parser.parse(self.from_datetime).replace(tzinfo=pytz.UTC)
+
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         keys = self.keys or s3_hook.list_keys(

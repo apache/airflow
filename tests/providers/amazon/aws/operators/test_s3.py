@@ -24,6 +24,10 @@ import sys
 from io import BytesIO
 from tempfile import mkdtemp
 from unittest import mock
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
+from airflow.utils.types import DagRunType
+from airflow import DAG
 
 import boto3
 import pytest
@@ -622,6 +626,42 @@ class TestS3DeleteObjectsOperator:
 
         # There should be no object found in the bucket created earlier
         assert "Contents" not in conn.list_objects(Bucket=bucket, Prefix=key_pattern)
+
+    def test_dates_from_template(self, session):
+        """Specifically test for dates passed from templating that could be strings"""
+        bucket = "testbucket"
+        key_pattern = "path/data"
+        n_keys = 3
+        keys = [key_pattern + str(i) for i in range(n_keys)]
+
+        conn = boto3.client("s3")
+        conn.create_bucket(Bucket=bucket)
+        for k in keys:
+            conn.upload_fileobj(Bucket=bucket, Key=k, Fileobj=BytesIO(b"input"))
+
+        execution_date = utcnow()
+        dag = DAG("test_dag", start_date=datetime(2020, 1, 1))
+        # use macros.ds_add since it returns a string, not a date
+        op = S3DeleteObjectsOperator(
+            task_id="XXXXXXXXXXXXXXXXXXXXXXX",
+            bucket=bucket,
+            from_datetime="{{ macros.ds_add(ds, -1) }}",
+            to_datetime="{{ macros.ds_add(ds, 1) }}",
+            dag=dag,
+        )
+
+        dag_run = DagRun(
+            dag_id=dag.dag_id, execution_date=execution_date, run_id="test", run_type=DagRunType.MANUAL
+        )
+        ti = TaskInstance(task=op)
+        ti.dag_run = dag_run
+        session.add(ti)
+        session.commit()
+        context = ti.get_template_context(session)
+
+        ti.render_templates(context)
+        op.execute(None)
+        assert "Contents" not in conn.list_objects(Bucket=bucket)
 
     def test_s3_delete_from_to_datetime(self):
         bucket = "testbucket"
