@@ -126,9 +126,9 @@ def requires_access_dag(
             if dag_id or access or access_entity:
                 return access
 
-            # dag_id is not provided
-            # the user is not authorized to access all DAGs
-            # authorization is done on DAG level
+            # dag_id is not provided, and the user is not authorized to access *all* DAGs
+            # so we check that the user can access at least *one* dag
+            # but we leave it to the endpoint function to properly restrict access beyond that
             if method == "GET":
                 return any(get_auth_manager().get_permitted_dag_ids(methods=["GET"]))
             elif method == "PUT":
