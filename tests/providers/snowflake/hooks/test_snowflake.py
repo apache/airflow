@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any
 from unittest import mock
@@ -612,6 +613,7 @@ class TestPytestSnowflakeHook:
             assert hook_with_schema_param.get_openlineage_default_schema() == "my_schema"
             mock_get_first.assert_not_called()
 
+    @pytest.mark.skipif(sys.version_info >= (3, 12), reason="Snowpark Python doesn't support Python 3.12 yet")
     @mock.patch("snowflake.snowpark.Session.builder")
     def test_get_snowpark_session(self, mock_session_builder):
         from airflow import __version__ as airflow_version
