@@ -175,6 +175,4 @@ def create_backfill(
         reverse=reverse,
         dag_run_conf=dag_run_conf,
     )
-    if not backfill_obj:
-        raise Conflict(f"Already an active backfill for dag {dag_id}")
     return backfill_schema.dump(backfill_obj)
