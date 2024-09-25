@@ -523,57 +523,57 @@ class TestGCSHook:
         mock_service.return_value.bucket.return_value.delete.assert_called_once()
         assert "Bucket test bucket not exist" in caplog.text
 
-    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    @mock.patch(GCS_STRING.format("GCSHook.get_blob"))
     def test_object_get_size(self, mock_service):
         test_bucket = "test_bucket"
         test_object = "test_object"
         returned_file_size = 1200
 
-        bucket_method = mock_service.return_value.bucket
-        get_blob_method = bucket_method.return_value.get_blob
-        get_blob_method.return_value.size = returned_file_size
+        mock_blob = MagicMock()
+        mock_blob.size = returned_file_size
+        mock_service.return_value = mock_blob
 
         response = self.gcs_hook.get_size(bucket_name=test_bucket, object_name=test_object)
 
         assert response == returned_file_size
 
-    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    @mock.patch(GCS_STRING.format("GCSHook.get_blob"))
     def test_object_get_crc32c(self, mock_service):
         test_bucket = "test_bucket"
         test_object = "test_object"
         returned_file_crc32c = "xgdNfQ=="
 
-        bucket_method = mock_service.return_value.bucket
-        get_blob_method = bucket_method.return_value.get_blob
-        get_blob_method.return_value.crc32c = returned_file_crc32c
+        mock_blob = MagicMock()
+        mock_blob.crc32c = returned_file_crc32c
+        mock_service.return_value = mock_blob
 
         response = self.gcs_hook.get_crc32c(bucket_name=test_bucket, object_name=test_object)
 
         assert response == returned_file_crc32c
 
-    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    @mock.patch(GCS_STRING.format("GCSHook.get_blob"))
     def test_object_get_md5hash(self, mock_service):
         test_bucket = "test_bucket"
         test_object = "test_object"
         returned_file_md5hash = "leYUJBUWrRtks1UeUFONJQ=="
 
-        bucket_method = mock_service.return_value.bucket
-        get_blob_method = bucket_method.return_value.get_blob
-        get_blob_method.return_value.md5_hash = returned_file_md5hash
+        mock_blob = MagicMock()
+        mock_blob.md5_hash = returned_file_md5hash
+        mock_service.return_value = mock_blob
 
         response = self.gcs_hook.get_md5hash(bucket_name=test_bucket, object_name=test_object)
 
         assert response == returned_file_md5hash
 
-    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    @mock.patch(GCS_STRING.format("GCSHook.get_blob"))
     def test_object_get_metadata(self, mock_service):
         test_bucket = "test_bucket"
         test_object = "test_object"
         returned_file_metadata = {"test_metadata_key": "test_metadata_val"}
 
-        bucket_method = mock_service.return_value.bucket
-        get_blob_method = bucket_method.return_value.get_blob
-        get_blob_method.return_value.metadata = returned_file_metadata
+        mock_blob = MagicMock()
+        mock_blob.metadata = returned_file_metadata
+        mock_service.return_value = mock_blob
 
         response = self.gcs_hook.get_metadata(bucket_name=test_bucket, object_name=test_object)
 
@@ -1508,6 +1508,32 @@ class TestSyncGcsHook:
         mock_delete.assert_not_called()
         mock_rewrite.assert_not_called()
         mock_copy.assert_not_called()
+
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_object_get_blob(self, mock_service):
+        test_bucket = "test_bucket"
+        test_object = "test_object"
+        mock_blob = mock.MagicMock()
+
+        bucket_method = mock_service.return_value.bucket
+        get_blob_method = bucket_method.return_value.get_blob
+        get_blob_method.return_value = mock_blob
+
+        response = self.gcs_hook.get_blob(bucket_name=test_bucket, object_name=test_object)
+
+        assert response == mock_blob
+
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_nonexisting_object_get_blob(self, mock_service):
+        test_bucket = "test_bucket"
+        test_object = "test_object"
+
+        bucket_method = mock_service.return_value.bucket
+        get_blob_method = bucket_method.return_value.get_blob
+        get_blob_method.return_value = None
+
+        with pytest.raises(ValueError, match=r"Object \((.*?)\) not found in bucket \((.*?)\)"):
+            self.gcs_hook.get_blob(bucket_name=test_bucket, object_name=test_object)
 
     def _create_blob(
         self,

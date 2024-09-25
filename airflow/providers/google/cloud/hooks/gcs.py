@@ -59,6 +59,7 @@ if TYPE_CHECKING:
 
     from aiohttp import ClientSession
     from google.api_core.retry import Retry
+    from google.cloud.storage.blob import Blob
 
 
 RT = TypeVar("RT")
@@ -597,11 +598,7 @@ class GCSHook(GoogleBaseHook):
         :param object_name: The name of the blob to get updated time from the Google cloud
             storage bucket.
         """
-        client = self.get_conn()
-        bucket = client.bucket(bucket_name)
-        blob = bucket.get_blob(blob_name=object_name)
-        if blob is None:
-            raise ValueError(f"Object ({object_name}) not found in Bucket ({bucket_name})")
+        blob = self.get_blob(bucket_name, object_name)
         return blob.updated
 
     def is_updated_after(self, bucket_name: str, object_name: str, ts: datetime) -> bool:
@@ -957,6 +954,24 @@ class GCSHook(GoogleBaseHook):
                 break
         return ids
 
+    def get_blob(self, bucket_name: str, object_name: str) -> Blob:
+        """
+        Get a blob object in Google Cloud Storage.
+
+        :param bucket_name: The Google Cloud Storage bucket where the blob_name is.
+        :param object_name: The name of the object to check in the Google
+            cloud storage bucket_name.
+
+        """
+        client = self.get_conn()
+        bucket = client.bucket(bucket_name)
+        blob = bucket.get_blob(blob_name=object_name)
+
+        if blob is None:
+            raise ValueError(f"Object ({object_name}) not found in Bucket ({bucket_name})")
+
+        return blob
+
     def get_size(self, bucket_name: str, object_name: str) -> int:
         """
         Get the size of a file in Google Cloud Storage.
@@ -967,9 +982,7 @@ class GCSHook(GoogleBaseHook):
 
         """
         self.log.info("Checking the file size of object: %s in bucket_name: %s", object_name, bucket_name)
-        client = self.get_conn()
-        bucket = client.bucket(bucket_name)
-        blob = bucket.get_blob(blob_name=object_name)
+        blob = self.get_blob(bucket_name, object_name)
         blob_size = blob.size
         self.log.info("The file size of %s is %s bytes.", object_name, blob_size)
         return blob_size
@@ -987,9 +1000,7 @@ class GCSHook(GoogleBaseHook):
             object_name,
             bucket_name,
         )
-        client = self.get_conn()
-        bucket = client.bucket(bucket_name)
-        blob = bucket.get_blob(blob_name=object_name)
+        blob = self.get_blob(bucket_name, object_name)
         blob_crc32c = blob.crc32c
         self.log.info("The crc32c checksum of %s is %s", object_name, blob_crc32c)
         return blob_crc32c
@@ -1003,9 +1014,7 @@ class GCSHook(GoogleBaseHook):
             storage bucket_name.
         """
         self.log.info("Retrieving the MD5 hash of object: %s in bucket: %s", object_name, bucket_name)
-        client = self.get_conn()
-        bucket = client.bucket(bucket_name)
-        blob = bucket.get_blob(blob_name=object_name)
+        blob = self.get_blob(bucket_name, object_name)
         blob_md5hash = blob.md5_hash
         self.log.info("The md5Hash of %s is %s", object_name, blob_md5hash)
         return blob_md5hash
@@ -1019,11 +1028,7 @@ class GCSHook(GoogleBaseHook):
         :return: The metadata associated with the object
         """
         self.log.info("Retrieving the metadata dict of object (%s) in bucket (%s)", object_name, bucket_name)
-        client = self.get_conn()
-        bucket = client.bucket(bucket_name)
-        blob = bucket.get_blob(blob_name=object_name)
-        if blob is None:
-            raise ValueError("Object (%s) not found in bucket (%s)", object_name, bucket_name)
+        blob = self.get_blob(bucket_name, object_name)
         blob_metadata = blob.metadata
         if blob_metadata:
             self.log.info("Retrieved metadata of object (%s) with %s fields", object_name, len(blob_metadata))
