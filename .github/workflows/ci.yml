@@ -690,7 +690,8 @@ jobs:
           channel-id: 'zzz_webhook_test'
           # For posting a simple plain text message
           slack-message: |
-            🚨🕒 Scheduled CI Failure Alert 🕒🚨
-            *Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>
+            {
+              "text": "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+            }
         env:
           SLACK_BOT_TOKEN: ${{ env.SLACK_BOT_TOKEN }}
