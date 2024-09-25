@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+import inspect
 from functools import wraps
 from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
@@ -144,6 +145,11 @@ def requires_access_dag(
         return callback
 
     def requires_access_decorator(func: T):
+        if access_entity:
+            if "dag_id" not in inspect.signature(func).parameters:
+                breakpoint()
+                raise RuntimeError("oops")
+
         @wraps(func)
         def decorated(*args, **kwargs):
             dag_id: str | None = kwargs.get("dag_id") if kwargs.get("dag_id") != "~" else None
