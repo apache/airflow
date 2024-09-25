@@ -20,8 +20,7 @@ name: "Build Images"
 run-name: >
   Build images for ${{ github.event.pull_request.title }} ${{ github.event.pull_request._links.html.href }}
 on:  # yamllint disable-line rule:truthy
-  pull_request:
-    branches: ['main', 'v[0-9]+-[0-9]+-test', 'v[0-9]+-[0-9]+-stable']
+  pull_request_target:
 permissions:
   # all other permissions are set to none
   contents: read
@@ -171,7 +170,7 @@ jobs:
           COMMIT_REF: "${{ env.TARGET_COMMIT_SHA }}"
           VERBOSE: "false"
           AIRFLOW_SOURCES_ROOT: "${{ github.workspace }}"
-        run: exit 1
+        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
       - name: env
         run: printenv
         env:
@@ -253,4 +252,3 @@ jobs:
       upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
       chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
-  
