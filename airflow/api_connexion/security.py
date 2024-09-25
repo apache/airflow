@@ -113,18 +113,25 @@ def requires_access_dag(
     method: ResourceMethod, access_entity: DagAccessEntity | None = None
 ) -> Callable[[T], T]:
     def _is_authorized_callback(dag_id: str):
-        def callback():
-            access = get_auth_manager().is_authorized_dag(
-                method=method,
-                access_entity=access_entity,
-                details=DagDetails(id=dag_id),
-            )
-
-            # ``access`` means here:
-            # - if a DAG id is provided (``dag_id`` not None): is the user authorized to access this DAG
-            # - if no DAG id is provided: is the user authorized to access all DAGs
-            if dag_id or access or access_entity:
-                return access
+        def callback() -> bool | DagAccessEntity:
+            if dag_id:
+                # a DAG id is provided; is the user authorized to access this DAG?
+                return get_auth_manager().is_authorized_dag(
+                    method=method,
+                    access_entity=access_entity,
+                    details=DagDetails(id=dag_id),
+                )
+            else:
+                # here we know no DAG id is provided.
+                # check is the user authorized to access all DAGs?
+                if access := get_auth_manager().is_authorized_dag(
+                    method=method,
+                    access_entity=access_entity,
+                ):
+                    return access
+                elif access_entity:
+                    # no dag_id provided, and user does not have access to all dags
+                    return False
 
             # No DAG id is provided, the user is not authorized to access all DAGs and authorization is done
             # on DAG level
