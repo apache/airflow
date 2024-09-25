@@ -129,12 +129,9 @@ def requires_access_dag(
             # dag_id is not provided, and the user is not authorized to access *all* DAGs
             # so we check that the user can access at least *one* dag
             # but we leave it to the endpoint function to properly restrict access beyond that
-            if method == "GET":
-                return any(get_auth_manager().get_permitted_dag_ids(methods=["GET"]))
-            elif method == "PUT":
-                return any(get_auth_manager().get_permitted_dag_ids(methods=["PUT"]))
-            else:
+            if method not in ("GET", "PUT"):
                 return False
+            return any(get_auth_manager().get_permitted_dag_ids(methods=[method]))
 
         return callback
 
