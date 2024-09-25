@@ -688,7 +688,7 @@ jobs:
   #                   Check the details at:
   #                   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
   #         }' ${{ env.SLACK_WEBHOOK_URL }}
-  
+
   notify-slack-failure:
     uses: slackapi/slack-github-action@v1.27.0
     with:
