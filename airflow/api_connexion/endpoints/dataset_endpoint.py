@@ -352,5 +352,6 @@ def create_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
     )
     if not dataset_event:
         raise NotFound(title="Dataset not found", detail=f"Dataset with uri: '{uri}' not found")
+    session.flush()  # So we can dump the timestamp.
     event = dataset_event_schema.dump(dataset_event)
     return event
