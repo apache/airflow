@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import logging
+import sys
 from typing import TYPE_CHECKING
 
 import boto3
@@ -139,10 +140,13 @@ def _create_application(client: BaseClient, instance_arn: str | None, args) -> s
             # Remove this part when it is supported
             if "is not supported for this action" in e.response["Error"]["Message"]:
                 print(
-                    "Creation of SAML applications is only supported in AWS console today. "
-                    "Please create the application through the console."
+                    "*************************************************************************\n"
+                    "*                            ACTION REQUIRED                            *\n"
+                    "* Creation of SAML applications is only supported in AWS console today. *\n"
+                    "* Please create the application through the console.                    *\n"
+                    "*************************************************************************\n"
                 )
-            raise
+            sys.exit(1)
 
         print(f"Application created: '{response['ApplicationArn']}'")
 
