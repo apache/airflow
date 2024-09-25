@@ -133,7 +133,7 @@ def requires_access_dag(
             elif method == "PUT":
                 return any(get_auth_manager().get_permitted_dag_ids(methods=["PUT"]))
             else:
-                raise False
+                return False
 
         return callback
 
