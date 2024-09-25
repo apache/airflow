@@ -371,7 +371,10 @@ class DataprocBatchTrigger(DataprocBaseTrigger):
             self.log.info("Current state is %s", state)
             self.log.info("Sleeping for %s seconds.", self.polling_interval_seconds)
             await asyncio.sleep(self.polling_interval_seconds)
-        yield TriggerEvent({"batch_id": self.batch_id, "batch_state": state})
+
+        yield TriggerEvent(
+            {"batch_id": self.batch_id, "batch_state": state, "batch_state_message": batch.state_message}
+        )
 
 
 class DataprocDeleteClusterTrigger(DataprocBaseTrigger):

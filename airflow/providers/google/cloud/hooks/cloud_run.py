@@ -22,13 +22,19 @@ from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 from google.cloud.run_v2 import (
     CreateJobRequest,
+    CreateServiceRequest,
     DeleteJobRequest,
+    DeleteServiceRequest,
     GetJobRequest,
+    GetServiceRequest,
     Job,
     JobsAsyncClient,
     JobsClient,
     ListJobsRequest,
     RunJobRequest,
+    Service,
+    ServicesAsyncClient,
+    ServicesClient,
     UpdateJobRequest,
 )
 from google.longrunning import operations_pb2  # type: ignore[attr-defined]
@@ -39,6 +45,7 @@ from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 
 if TYPE_CHECKING:
     from google.api_core import operation
+    from google.api_core.operation_async import AsyncOperation
     from google.cloud.run_v2.services.jobs import pagers
 
 
@@ -183,3 +190,120 @@ class CloudRunAsyncHook(GoogleBaseHook):
         return await self.get_conn().get_operation(
             operations_pb2.GetOperationRequest(name=operation_name), timeout=120
         )
+
+
+class CloudRunServiceHook(GoogleBaseHook):
+    """
+    Hook for the Google Cloud Run services.
+
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account.
+    """
+
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+    ):
+        self._client: ServicesClient | None = None
+        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
+
+    def get_conn(self):
+        if self._client is None:
+            self._client = ServicesClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+
+        return self._client
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def get_service(self, service_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID):
+        get_service_request = GetServiceRequest(
+            name=f"projects/{project_id}/locations/{region}/services/{service_name}"
+        )
+        return self.get_conn().get_service(get_service_request)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def create_service(
+        self, service_name: str, service: Service | dict, region: str, project_id: str = PROVIDE_PROJECT_ID
+    ) -> Service:
+        if isinstance(service, dict):
+            service = Service(service)
+
+        create_request = CreateServiceRequest(
+            parent=f"projects/{project_id}/locations/{region}",
+            service=service,
+            service_id=service_name,
+        )
+
+        operation = self.get_conn().create_service(create_request)
+        return operation.result()
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_service(self, service_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID) -> Service:
+        delete_request = DeleteServiceRequest(
+            name=f"projects/{project_id}/locations/{region}/services/{service_name}"
+        )
+
+        operation = self.get_conn().delete_service(delete_request)
+        return operation.result()
+
+
+class CloudRunServiceAsyncHook(GoogleBaseHook):
+    """
+    Async hook for the Google Cloud Run services.
+
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account.
+    """
+
+    def __init__(
+        self,
+        gcp_conn_id: str = "google_cloud_default",
+        impersonation_chain: str | Sequence[str] | None = None,
+    ):
+        self._client: ServicesClient | None = None
+        super().__init__(gcp_conn_id=gcp_conn_id, impersonation_chain=impersonation_chain)
+
+    def get_conn(self):
+        if self._client is None:
+            self._client = ServicesAsyncClient(credentials=self.get_credentials(), client_info=CLIENT_INFO)
+
+        return self._client
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    async def create_service(
+        self, service_name: str, service: Service | dict, region: str, project_id: str = PROVIDE_PROJECT_ID
+    ) -> AsyncOperation:
+        if isinstance(service, dict):
+            service = Service(service)
+
+        create_request = CreateServiceRequest(
+            parent=f"projects/{project_id}/locations/{region}",
+            service=service,
+            service_id=service_name,
+        )
+
+        return await self.get_conn().create_service(create_request)
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    async def delete_service(
+        self, service_name: str, region: str, project_id: str = PROVIDE_PROJECT_ID
+    ) -> AsyncOperation:
+        delete_request = DeleteServiceRequest(
+            name=f"projects/{project_id}/locations/{region}/services/{service_name}"
+        )
+
+        return await self.get_conn().delete_service(delete_request)

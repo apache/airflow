@@ -23,14 +23,18 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, AsyncIterator, Sequence
 
 from google.cloud.container_v1.types import Operation
+from packaging.version import parse as parse_version
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.cncf.kubernetes.triggers.pod import KubernetesPodTrigger
-from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction
+from airflow.providers.cncf.kubernetes.utils.pod_manager import OnFinishAction, PodManager
+from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.providers.google.cloud.hooks.kubernetes_engine import (
     GKEAsyncHook,
     GKEKubernetesAsyncHook,
+    GKEKubernetesHook,
 )
+from airflow.providers_manager import ProvidersManager
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
@@ -255,18 +259,28 @@ class GKEJobTrigger(BaseTrigger):
         ssl_ca_cert: str,
         job_name: str,
         job_namespace: str,
+        pod_name: str,
+        pod_namespace: str,
+        base_container_name: str,
         gcp_conn_id: str = "google_cloud_default",
         poll_interval: float = 2,
         impersonation_chain: str | Sequence[str] | None = None,
+        get_logs: bool = True,
+        do_xcom_push: bool = False,
     ) -> None:
         super().__init__()
         self.cluster_url = cluster_url
         self.ssl_ca_cert = ssl_ca_cert
         self.job_name = job_name
         self.job_namespace = job_namespace
+        self.pod_name = pod_name
+        self.pod_namespace = pod_namespace
+        self.base_container_name = base_container_name
         self.gcp_conn_id = gcp_conn_id
         self.poll_interval = poll_interval
         self.impersonation_chain = impersonation_chain
+        self.get_logs = get_logs
+        self.do_xcom_push = do_xcom_push
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize KubernetesCreateJobTrigger arguments and classpath."""
@@ -277,15 +291,51 @@ class GKEJobTrigger(BaseTrigger):
                 "ssl_ca_cert": self.ssl_ca_cert,
                 "job_name": self.job_name,
                 "job_namespace": self.job_namespace,
+                "pod_name": self.pod_name,
+                "pod_namespace": self.pod_namespace,
+                "base_container_name": self.base_container_name,
                 "gcp_conn_id": self.gcp_conn_id,
                 "poll_interval": self.poll_interval,
                 "impersonation_chain": self.impersonation_chain,
+                "get_logs": self.get_logs,
+                "do_xcom_push": self.do_xcom_push,
             },
         )
 
     async def run(self) -> AsyncIterator[TriggerEvent]:  # type: ignore[override]
         """Get current job status and yield a TriggerEvent."""
-        job: V1Job = await self.hook.wait_until_job_complete(name=self.job_name, namespace=self.job_namespace)
+        if self.get_logs or self.do_xcom_push:
+            pod = await self.hook.get_pod(name=self.pod_name, namespace=self.pod_namespace)
+        if self.do_xcom_push:
+            kubernetes_provider = ProvidersManager().providers["apache-airflow-providers-cncf-kubernetes"]
+            kubernetes_provider_name = kubernetes_provider.data["package-name"]
+            kubernetes_provider_version = kubernetes_provider.version
+            min_version = "8.4.1"
+            if parse_version(kubernetes_provider_version) < parse_version(min_version):
+                raise AirflowException(
+                    "You are trying to use do_xcom_push in `GKEStartJobOperator` with the provider "
+                    f"package {kubernetes_provider_name}=={kubernetes_provider_version} which doesn't "
+                    f"support this feature. Please upgrade it to version higher than or equal to {min_version}."
+                )
+            await self.hook.wait_until_container_complete(
+                name=self.pod_name,
+                namespace=self.pod_namespace,
+                container_name=self.base_container_name,
+                poll_interval=self.poll_interval,
+            )
+            self.log.info("Checking if xcom sidecar container is started.")
+            await self.hook.wait_until_container_started(
+                name=self.pod_name,
+                namespace=self.pod_namespace,
+                container_name=PodDefaults.SIDECAR_CONTAINER_NAME,
+                poll_interval=self.poll_interval,
+            )
+            self.log.info("Extracting result from xcom sidecar container.")
+            loop = asyncio.get_running_loop()
+            xcom_result = await loop.run_in_executor(None, self.pod_manager.extract_xcom, pod)
+        job: V1Job = await self.hook.wait_until_job_complete(
+            name=self.job_name, namespace=self.job_namespace, poll_interval=self.poll_interval
+        )
         job_dict = job.to_dict()
         error_message = self.hook.is_job_failed(job=job)
         status = "error" if error_message else "success"
@@ -294,9 +344,12 @@ class GKEJobTrigger(BaseTrigger):
             {
                 "name": job.metadata.name,
                 "namespace": job.metadata.namespace,
+                "pod_name": pod.metadata.name if self.get_logs else None,
+                "pod_namespace": pod.metadata.namespace if self.get_logs else None,
                 "status": status,
                 "message": message,
                 "job": job_dict,
+                "xcom_result": xcom_result if self.do_xcom_push else None,
             }
         )
 
@@ -308,3 +361,13 @@ class GKEJobTrigger(BaseTrigger):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
+
+    @cached_property
+    def pod_manager(self) -> PodManager:
+        sync_hook = GKEKubernetesHook(
+            gcp_conn_id=self.gcp_conn_id,
+            cluster_url=self.cluster_url,
+            ssl_ca_cert=self.ssl_ca_cert,
+            impersonation_chain=self.impersonation_chain,
+        )
+        return PodManager(kube_client=sync_hook.core_v1_client)

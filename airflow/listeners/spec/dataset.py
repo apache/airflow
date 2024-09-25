@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING
 from pluggy import HookspecMarker
 
 if TYPE_CHECKING:
-    from airflow.datasets import Dataset
+    from airflow.datasets import Dataset, DatasetAlias
 
 hookspec = HookspecMarker("airflow")
 
@@ -32,6 +32,13 @@ def on_dataset_created(
     dataset: Dataset,
 ):
     """Execute when a new dataset is created."""
+
+
+@hookspec
+def on_dataset_alias_created(
+    dataset_alias: DatasetAlias,
+):
+    """Execute when a new dataset alias is created."""
 
 
 @hookspec

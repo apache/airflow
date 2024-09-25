@@ -35,14 +35,60 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.4.2
+.....
+
+Latest change: 2024-09-16
+
+=================================================================================================  ===========  ================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================
+`d1e500c450 <https://github.com/apache/airflow/commit/d1e500c45069dc42254d55d8175e2c494cb41167>`_  2024-09-16   ``Deprecated configuration removed (#42129)``
+`1379376b66 <https://github.com/apache/airflow/commit/1379376b66da034c2e0c0960bd6efe60e10dfbb9>`_  2024-09-02   ``Add TODOs in providers code for Subdag code removal (#41963)``
+`86af316c87 <https://github.com/apache/airflow/commit/86af316c8716c0535e8bebb95c10dfa8227a5049>`_  2024-09-02   ``docstring update (#41929)``
+`761ad6ec13 <https://github.com/apache/airflow/commit/761ad6ec13282639e0ca6aba57e3ad1ba587eed6>`_  2024-08-26   ``Remove Airflow 2.7 support from Kubernetes Provider (#41746)``
+`1613e9ec1c <https://github.com/apache/airflow/commit/1613e9ec1c4e5523953e045c8adcef1b9d4ce95d>`_  2024-08-25   ``remove soft_fail (#41710)``
+=================================================================================================  ===========  ================================================================
+
+8.4.1
+.....
+
+Latest change: 2024-08-25
+
+=================================================================================================  ===========  ================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================================================
+`2f952909f5 <https://github.com/apache/airflow/commit/2f952909f5028e416c951084727bd71ff8f22b72>`_  2024-08-25   ``Prepare docs for Aug 3rd wave of providers (#41714)``
+`09ce3a5100 <https://github.com/apache/airflow/commit/09ce3a5100c266369350c85e9f9a0f72ecca9e98>`_  2024-08-23   ``K8s Executor: failing the task in case the watcher receives an event with the reason ProviderFailed (#41186)``
+`170b9ce907 <https://github.com/apache/airflow/commit/170b9ce90793191f7c97c6dbd09adab492082970>`_  2024-08-22   ``Fix 'do_xcom_push' and 'get_logs' functionality for KubernetesJobOperator (#40814)``
+`ef5da26166 <https://github.com/apache/airflow/commit/ef5da26166285debd655486706c14d26337257be>`_  2024-08-20   ``Add missing flag (#41464)``
+`5cb582b51f <https://github.com/apache/airflow/commit/5cb582b51fb17a7724d22ed2eeca80b1a50610f3>`_  2024-08-20   ``fix: Missing 'slots_occupied' in 'CeleryKubernetesExecutor' and 'LocalKubernetesExecutor' (#41602)``
+=================================================================================================  ===========  ================================================================================================================
+
+8.4.0
+.....
+
+Latest change: 2024-08-19
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`75fb7acbac <https://github.com/apache/airflow/commit/75fb7acbaca09a040067f0a5a37637ff44eb9e14>`_  2024-08-19   ``Prepare docs for Aug 2nd wave of providers (#41559)``
+`530495c45b <https://github.com/apache/airflow/commit/530495c45b3094b38a7b3e37eeab2de8c21c64d7>`_  2024-08-14   ``Describe behaviour in docstring correctly (#41458)``
+`6570c6d1bb <https://github.com/apache/airflow/commit/6570c6d1bb620c6a952a16743c7168c775f6ad70>`_  2024-08-13   ``Remove deprecated SubDags (#41390)``
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+`2b1ae5f811 <https://github.com/apache/airflow/commit/2b1ae5f811457f95aefb589f9d85dd0eac58267f>`_  2024-08-12   ``reorder docstring of 'SparkKubernetesOperator' (#41372)``
+=================================================================================================  ===========  =======================================================================
+
 8.3.4
 .....
 
-Latest change: 2024-08-02
+Latest change: 2024-08-03
 
 =================================================================================================  ===========  ==========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==========================================================================
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
 `f9c1c61537 <https://github.com/apache/airflow/commit/f9c1c615377869120382905ec97e38e7e7916678>`_  2024-08-02   ``Pass content of kube/config file to triggerer as a dictionary (#41178)``
 `4ef847b7d2 <https://github.com/apache/airflow/commit/4ef847b7d23f9f5a62e02690972fcb5c6a3dcdac>`_  2024-07-31   ``Fix confusing log message in kubernetes executor (#41035)``
 `b014077fe3 <https://github.com/apache/airflow/commit/b014077fe31853b857a081f18a56552abdae3427>`_  2024-07-31   ``Fix ApiException handling when adopting completed pods (#41109)``

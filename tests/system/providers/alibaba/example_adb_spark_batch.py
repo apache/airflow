@@ -31,6 +31,7 @@ DAG_ID = "adb_spark_batch_dag"
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
+    schedule=None,
     default_args={"cluster_id": "your cluster", "rg_name": "your resource group", "region": "your region"},
     max_active_runs=1,
     catchup=False,

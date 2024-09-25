@@ -305,8 +305,6 @@ class SerializedDagModel(Base):
         """
         Get the SerializedDAG for the given dag ID.
 
-        It will cope with being passed the ID of a subdag by looking up the root dag_id from the DAG table.
-
         :param dag_id: the DAG to fetch
         :param session: ORM Session
         """
@@ -314,11 +312,7 @@ class SerializedDagModel(Base):
         if row:
             return row
 
-        # If we didn't find a matching DAG id then ask the DAG table to find
-        # out the root dag
-        root_dag_id = session.scalar(select(DagModel.root_dag_id).where(DagModel.dag_id == dag_id))
-
-        return session.scalar(select(cls).where(cls.dag_id == root_dag_id))
+        return session.scalar(select(cls).where(cls.dag_id == dag_id))
 
     @staticmethod
     @provide_session
@@ -337,13 +331,12 @@ class SerializedDagModel(Base):
         :return: None
         """
         for dag in dags:
-            if not dag.is_subdag:
-                SerializedDagModel.write_dag(
-                    dag=dag,
-                    min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
-                    processor_subdir=processor_subdir,
-                    session=session,
-                )
+            SerializedDagModel.write_dag(
+                dag=dag,
+                min_update_interval=MIN_SERIALIZED_DAG_UPDATE_INTERVAL,
+                processor_subdir=processor_subdir,
+                session=session,
+            )
 
     @classmethod
     @provide_session

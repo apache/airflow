@@ -23,7 +23,6 @@ import datetime
 import enum
 import inspect
 import logging
-import warnings
 import weakref
 from inspect import signature
 from textwrap import dedent
@@ -37,7 +36,6 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from airflow import macros
 from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
 from airflow.compat.functools import cache
-from airflow.configuration import conf
 from airflow.datasets import (
     BaseDataset,
     Dataset,
@@ -46,12 +44,12 @@ from airflow.datasets import (
     DatasetAny,
     _DatasetAliasCondition,
 )
-from airflow.exceptions import AirflowException, RemovedInAirflow3Warning, SerializationError, TaskDeferred
+from airflow.exceptions import AirflowException, SerializationError, TaskDeferred
 from airflow.jobs.job import Job
 from airflow.models import Trigger
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.connection import Connection
-from airflow.models.dag import DAG, DagModel, create_timetable
+from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
 from airflow.models.expandinput import EXPAND_INPUT_EMPTY, create_expand_input, get_map_type_key
 from airflow.models.mappedoperator import MappedOperator
@@ -98,6 +96,8 @@ from airflow.utils.types import NOTSET, ArgNotSet, AttributeRemoved
 if TYPE_CHECKING:
     from inspect import Parameter
 
+    from pydantic import BaseModel
+
     from airflow.models.baseoperatorlink import BaseOperatorLink
     from airflow.models.expandinput import ExpandInput
     from airflow.models.operator import Operator
@@ -105,7 +105,6 @@ if TYPE_CHECKING:
     from airflow.serialization.json_schema import Validator
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
     from airflow.timetables.base import Timetable
-    from airflow.utils.pydantic import BaseModel
 
     HAS_KUBERNETES: bool
     try:
@@ -286,15 +285,24 @@ def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
     raw_key = var.raw_key
     return {
         "extra": var.extra,
-        "dataset_alias_event": var.dataset_alias_event,
+        "dataset_alias_events": var.dataset_alias_events,
         "raw_key": BaseSerialization.serialize(raw_key),
     }
 
 
 def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
-    raw_key = BaseSerialization.deserialize(var["raw_key"])
-    outlet_event_accessor = OutletEventAccessor(extra=var["extra"], raw_key=raw_key)
-    outlet_event_accessor.dataset_alias_event = var["dataset_alias_event"]
+    # This is added for compatibility. The attribute used to be dataset_alias_event and
+    # is now dataset_alias_events.
+    if dataset_alias_event := var.get("dataset_alias_event", None):
+        dataset_alias_events = [dataset_alias_event]
+    else:
+        dataset_alias_events = var.get("dataset_alias_events", [])
+
+    outlet_event_accessor = OutletEventAccessor(
+        extra=var["extra"],
+        raw_key=BaseSerialization.deserialize(var["raw_key"]),
+        dataset_alias_events=dataset_alias_events,
+    )
     return outlet_event_accessor
 
 
@@ -366,8 +374,8 @@ def encode_start_trigger_args(var: StartTriggerArgs) -> dict[str, Any]:
 
     :meta private:
     """
-    serialize_kwargs = (
-        lambda key: BaseSerialization.serialize(getattr(var, key)) if getattr(var, key) is not None else None
+    serialize_kwargs = lambda key: (
+        BaseSerialization.serialize(getattr(var, key)) if getattr(var, key) is not None else None
     )
     return {
         "__type": "START_TRIGGER_ARGS",
@@ -692,6 +700,15 @@ class BaseSerialization:
                 ),
                 type_=DAT.AIRFLOW_EXC_SER,
             )
+        elif isinstance(var, (KeyError, AttributeError)):
+            return cls._encode(
+                cls.serialize(
+                    {"exc_cls_name": var.__class__.__name__, "args": [var.args], "kwargs": {}},
+                    use_pydantic_models=use_pydantic_models,
+                    strict=strict,
+                ),
+                type_=DAT.BASE_EXC_SER,
+            )
         elif isinstance(var, BaseTrigger):
             return cls._encode(
                 cls.serialize(var.serialize(), use_pydantic_models=use_pydantic_models, strict=strict),
@@ -834,13 +851,16 @@ class BaseSerialization:
             return decode_timezone(var)
         elif type_ == DAT.RELATIVEDELTA:
             return decode_relativedelta(var)
-        elif type_ == DAT.AIRFLOW_EXC_SER:
+        elif type_ == DAT.AIRFLOW_EXC_SER or type_ == DAT.BASE_EXC_SER:
             deser = cls.deserialize(var, use_pydantic_models=use_pydantic_models)
             exc_cls_name = deser["exc_cls_name"]
             args = deser["args"]
             kwargs = deser["kwargs"]
             del deser
-            exc_cls = import_string(exc_cls_name)
+            if type_ == DAT.AIRFLOW_EXC_SER:
+                exc_cls = import_string(exc_cls_name)
+            else:
+                exc_cls = import_string(f"builtins.{exc_cls_name}")
             return exc_cls(*args, **kwargs)
         elif type_ == DAT.BASE_TRIGGER:
             tr_cls_name, kwargs = cls.deserialize(var, use_pydantic_models=use_pydantic_models)
@@ -1258,10 +1278,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
 
         for k, v in encoded_op.items():
-            # Todo: TODO: Remove in Airflow 3.0 when dummy operator is removed
-            if k == "_is_dummy":
-                k = "_is_empty"
-
             if k in ("_outlets", "_inlets"):
                 # `_outlets` -> `outlets`
                 k = k[1:]
@@ -1273,8 +1289,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 continue
             elif k == "downstream_task_ids":
                 v = set(v)
-            elif k == "subdag":
-                v = SerializedDAG.deserialize_dag(v)
             elif k in {"retry_delay", "execution_timeout", "sla", "max_retry_delay"}:
                 v = cls._deserialize_timedelta(v)
             elif k in encoded_op["template_fields"]:
@@ -1359,9 +1373,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             if getattr(task, date_attr, None) is None:
                 setattr(task, date_attr, getattr(dag, date_attr, None))
 
-        if task.subdag is not None:
-            task.subdag.parent_dag = dag
-
         # Dereference expand_input and op_kwargs_expand_input.
         for k in ("expand_input", "op_kwargs_expand_input"):
             if isinstance(kwargs_ref := getattr(task, k, None), _ExpandInputRef):
@@ -1418,36 +1429,18 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     @classmethod
     def detect_dependencies(cls, op: Operator) -> set[DagDependency]:
         """Detect between DAG dependencies for the operator."""
-
-        def get_custom_dep() -> list[DagDependency]:
-            """
-            If custom dependency detector is configured, use it.
-
-            TODO: Remove this logic in 3.0.
-            """
-            custom_dependency_detector_cls = conf.getimport("scheduler", "dependency_detector", fallback=None)
-            if not (
-                custom_dependency_detector_cls is None or custom_dependency_detector_cls is DependencyDetector
-            ):
-                warnings.warn(
-                    "Use of a custom dependency detector is deprecated. "
-                    "Support will be removed in a future release.",
-                    RemovedInAirflow3Warning,
-                    stacklevel=1,
-                )
-                dep = custom_dependency_detector_cls().detect_task_dependencies(op)
-                if type(dep) is DagDependency:
-                    return [dep]
-            return []
-
         dependency_detector = DependencyDetector()
         deps = set(dependency_detector.detect_task_dependencies(op))
-        deps.update(get_custom_dep())  # todo: remove in 3.0
         return deps
 
     @classmethod
     def _is_excluded(cls, var: Any, attrname: str, op: DAGNode):
-        if var is not None and op.has_dag() and attrname.endswith("_date"):
+        if (
+            var is not None
+            and op.has_dag()
+            and op.dag.__class__ is not AttributeRemoved
+            and attrname.endswith("_date")
+        ):
             # If this date is the same as the matching field in the dag, then
             # don't store it again at the task level.
             dag_date = getattr(op.dag, attrname, None)
@@ -1592,7 +1585,7 @@ class SerializedDAG(DAG, BaseSerialization):
     not pickle-able. SerializedDAG works for all DAGs.
     """
 
-    _decorated_fields = {"schedule_interval", "default_args", "_access_control"}
+    _decorated_fields = {"default_args", "_access_control"}
 
     @staticmethod
     def __get_constructor_defaults():
@@ -1619,16 +1612,7 @@ class SerializedDAG(DAG, BaseSerialization):
         """Serialize a DAG into a JSON object."""
         try:
             serialized_dag = cls.serialize_to_json(dag, cls._decorated_fields)
-
             serialized_dag["_processor_dags_folder"] = DAGS_FOLDER
-
-            # If schedule_interval is backed by timetable, serialize only
-            # timetable; vice versa for a timetable backed by schedule_interval.
-            if dag.timetable.summary == dag.schedule_interval:
-                del serialized_dag["schedule_interval"]
-            else:
-                del serialized_dag["timetable"]
-
             serialized_dag["tasks"] = [cls.serialize(task) for _, task in dag.task_dict.items()]
 
             dag_deps = [
@@ -1658,7 +1642,7 @@ class SerializedDAG(DAG, BaseSerialization):
     @classmethod
     def deserialize_dag(cls, encoded_dag: dict[str, Any]) -> SerializedDAG:
         """Deserializes a DAG from a JSON object."""
-        dag = SerializedDAG(dag_id=encoded_dag["_dag_id"])
+        dag = SerializedDAG(dag_id=encoded_dag["_dag_id"], schedule=None)
 
         for k, v in encoded_dag.items():
             if k == "_downstream_task_ids":
@@ -1670,8 +1654,6 @@ class SerializedDAG(DAG, BaseSerialization):
                     if obj.get(Encoding.TYPE) == DAT.OP:
                         deser = SerializedBaseOperator.deserialize_operator(obj[Encoding.VAR])
                         tasks[deser.task_id] = deser
-                    else:  # todo: remove in Airflow 3.0 (backcompat for pre-2.10)
-                        tasks[obj["task_id"]] = SerializedBaseOperator.deserialize_operator(obj)
                 k = "task_dict"
                 v = tasks
             elif k == "timezone":
@@ -1691,17 +1673,11 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = cls.deserialize(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
+            elif k == "tags":
+                v = set(v)
             # else use v as it is
 
             setattr(dag, k, v)
-
-        # A DAG is always serialized with only one of schedule_interval and
-        # timetable. This back-populates the other to ensure the two attributes
-        # line up correctly on the DAG instance.
-        if "timetable" in encoded_dag:
-            dag.schedule_interval = dag.timetable.summary
-        else:
-            dag.timetable = create_timetable(dag.schedule_interval, dag.timezone)
 
         # Set _task_group
         if "_task_group" in encoded_dag:
@@ -1852,12 +1828,7 @@ def _has_kubernetes() -> bool:
     try:
         from kubernetes.client import models as k8s
 
-        try:
-            from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
-        except ImportError:
-            from airflow.kubernetes.pre_7_4_0_compatibility.pod_generator import (  # type: ignore[assignment]
-                PodGenerator,
-            )
+        from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 
         globals()["k8s"] = k8s
         globals()["PodGenerator"] = PodGenerator

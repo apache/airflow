@@ -62,7 +62,7 @@ apache-airflow-providers-mongo package
 `MongoDB <https://www.mongodb.com/>`__
 
 
-Release: 4.1.2
+Release: 4.2.1
 
 Provider package
 ----------------
@@ -80,12 +80,12 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.7.0``
+``apache-airflow``  ``>=2.8.0``
 ``dnspython``       ``>=1.13.0``
 ``pymongo``         ``>=4.0.0``
 ==================  ==================

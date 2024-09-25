@@ -27,7 +27,7 @@ from kubernetes.client import V1ObjectMeta, V1Pod, V1PodList
 from kubernetes.client.rest import ApiException
 
 from airflow import DAG
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.flink.sensors.flink_kubernetes import FlinkKubernetesSensor
 from airflow.utils import db, timezone
@@ -883,7 +883,7 @@ class TestFlinkKubernetesSensor:
             )
         )
         args = {"owner": "airflow", "start_date": timezone.datetime(2020, 2, 1)}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
@@ -903,20 +903,15 @@ class TestFlinkKubernetesSensor:
             version="v1beta1",
         )
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @patch(
         "kubernetes.client.api.custom_objects_api.CustomObjectsApi.get_namespaced_custom_object",
         return_value=TEST_ERROR_CLUSTER,
     )
-    def test_cluster_error_state(
-        self, mock_get_namespaced_crd, mock_kubernetes_hook, soft_fail, expected_exception
-    ):
+    def test_cluster_error_state(self, mock_get_namespaced_crd, mock_kubernetes_hook):
         sensor = FlinkKubernetesSensor(
-            application_name="flink-stream-example", dag=self.dag, task_id="test_task_id", soft_fail=soft_fail
+            application_name="flink-stream-example", dag=self.dag, task_id="test_task_id"
         )
-        with pytest.raises(expected_exception):
+        with pytest.raises(AirflowException):
             sensor.poke(None)
         mock_kubernetes_hook.assert_called_once_with()
         mock_get_namespaced_crd.assert_called_once_with(

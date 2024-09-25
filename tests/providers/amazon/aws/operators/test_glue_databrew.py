@@ -23,8 +23,10 @@ from unittest import mock
 import pytest
 from moto import mock_aws
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.glue_databrew import GlueDataBrewHook
 from airflow.providers.amazon.aws.operators.glue_databrew import GlueDataBrewStartJobOperator
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 JOB_NAME = "test_job"
 
@@ -36,6 +38,30 @@ def hook() -> Generator[GlueDataBrewHook, None, None]:
 
 
 class TestGlueDataBrewOperator:
+    def test_init(self):
+        op = GlueDataBrewStartJobOperator(
+            task_id="task_test",
+            job_name=JOB_NAME,
+            aws_conn_id="fake-conn-id",
+            region_name="eu-central-1",
+            verify="/spam/egg.pem",
+            botocore_config={"read_timeout": 42},
+        )
+
+        assert op.hook.client_type == "databrew"
+        assert op.hook.resource_type is None
+        assert op.hook.aws_conn_id == "fake-conn-id"
+        assert op.hook._region_name == "eu-central-1"
+        assert op.hook._verify == "/spam/egg.pem"
+        assert op.hook._config is not None
+        assert op.hook._config.read_timeout == 42
+
+        op = GlueDataBrewStartJobOperator(task_id="fake_task_id", job_name=JOB_NAME)
+        assert op.hook.aws_conn_id == "aws_default"
+        assert op.hook._region_name is None
+        assert op.hook._verify is None
+        assert op.hook._config is None
+
     @mock.patch.object(GlueDataBrewHook, "conn")
     @mock.patch.object(GlueDataBrewHook, "get_waiter")
     def test_start_job_wait_for_completion(self, mock_hook_get_waiter, mock_conn):
@@ -57,3 +83,26 @@ class TestGlueDataBrewOperator:
         mock_conn.start_job_run(mock.MagicMock(), return_value=TEST_RUN_ID)
         operator.execute(None)
         mock_hook_get_waiter.assert_not_called()
+
+    @mock.patch.object(GlueDataBrewHook, "conn")
+    @mock.patch.object(GlueDataBrewHook, "get_waiter")
+    def test_start_job_with_deprecation_parameters(self, mock_hook_get_waiter, mock_conn):
+        TEST_RUN_ID = "12345"
+
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            operator = GlueDataBrewStartJobOperator(
+                task_id="task_test",
+                job_name=JOB_NAME,
+                wait_for_completion=False,
+                aws_conn_id="aws_default",
+                delay=15,
+            )
+
+        mock_conn.start_job_run(mock.MagicMock(), return_value=TEST_RUN_ID)
+        assert operator.waiter_delay == 15
+        operator.execute(None)
+        mock_hook_get_waiter.assert_not_called()
+
+    def test_template_fields(self):
+        operator = GlueDataBrewStartJobOperator(task_id="fake_task_id", job_name=JOB_NAME)
+        validate_template_fields(operator)

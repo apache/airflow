@@ -57,7 +57,7 @@ class TestS3TaskHandler:
         assert self.s3_task_handler.hook is not None
 
         date = datetime(2016, 1, 1)
-        self.dag = DAG("dag_for_testing_s3_task_handler", start_date=date)
+        self.dag = DAG("dag_for_testing_s3_task_handler", schedule=None, start_date=date)
         task = EmptyOperator(task_id="task_for_testing_s3_log_handler", dag=self.dag)
         dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test", run_type="manual")
         session.add(dag_run)
@@ -221,3 +221,7 @@ class TestS3TaskHandler:
 
         handler.close()
         assert os.path.exists(handler.handler.baseFilename) == expected_existence_of_local_copy
+
+    def test_filename_template_for_backward_compatibility(self):
+        # filename_template arg support for running the latest provider on airflow 2
+        S3TaskHandler(self.local_log_location, self.remote_log_base, filename_template=None)

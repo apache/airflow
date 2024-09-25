@@ -26,7 +26,7 @@ def test_mapped_task_group_id_prefix_task_id():
     def f(z):
         pass
 
-    with DAG(dag_id="d", start_date=DEFAULT_DATE) as dag:
+    with DAG(dag_id="d", schedule=None, start_date=DEFAULT_DATE) as dag:
         x1 = dag.task(task_id="t1")(f).expand(z=[])
         with TaskGroup("g"):
             x2 = dag.task(task_id="t2")(f).expand(z=[])

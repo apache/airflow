@@ -1092,3 +1092,26 @@ class TestSSHHook:
         status, msg = hook.test_connection()
         assert status is False
         assert msg == "Test failure case"
+
+    def test_ssh_connection_client_is_reused_if_open(self):
+        hook = SSHHook(ssh_conn_id="ssh_default")
+        client1 = hook.get_conn()
+        client2 = hook.get_conn()
+        assert client1 is client2
+        assert client2.get_transport().is_active()
+
+    def test_ssh_connection_client_is_recreated_if_closed(self):
+        hook = SSHHook(ssh_conn_id="ssh_default")
+        client1 = hook.get_conn()
+        client1.close()
+        client2 = hook.get_conn()
+        assert client1 is not client2
+        assert client2.get_transport().is_active()
+
+    def test_ssh_connection_client_is_recreated_if_transport_closed(self):
+        hook = SSHHook(ssh_conn_id="ssh_default")
+        client1 = hook.get_conn()
+        client1.get_transport().close()
+        client2 = hook.get_conn()
+        assert client1 is not client2
+        assert client2.get_transport().is_active()

@@ -145,3 +145,9 @@ def execution_timeout() -> int:
 def include_full_task_info() -> bool:
     """[openlineage] include_full_task_info."""
     return conf.getboolean(_CONFIG_SECTION, "include_full_task_info", fallback="False")
+
+
+@cache
+def debug_mode() -> bool:
+    """[openlineage] debug_mode."""
+    return conf.getboolean(_CONFIG_SECTION, "debug_mode", fallback="False")

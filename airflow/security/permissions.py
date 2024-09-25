@@ -16,6 +16,8 @@
 # under the License.
 from __future__ import annotations
 
+from typing import TypedDict
+
 # Resource Constants
 RESOURCE_ACTION = "Permissions"
 RESOURCE_ADMIN_MENU = "Admin"
@@ -28,6 +30,7 @@ RESOURCE_DAG_CODE = "DAG Code"
 RESOURCE_DAG_DEPENDENCIES = "DAG Dependencies"
 RESOURCE_DAG_PREFIX = "DAG:"
 RESOURCE_DAG_RUN = "DAG Runs"
+RESOURCE_DAG_RUN_PREFIX = "DAG Run:"
 RESOURCE_DAG_WARNING = "DAG Warnings"
 RESOURCE_CLUSTER_ACTIVITY = "Cluster Activity"
 RESOURCE_DATASET = "Datasets"
@@ -64,7 +67,43 @@ ACTION_CAN_ACCESS_MENU = "menu_access"
 DEPRECATED_ACTION_CAN_DAG_READ = "can_dag_read"
 DEPRECATED_ACTION_CAN_DAG_EDIT = "can_dag_edit"
 
+
+class ResourceDetails(TypedDict):
+    """Details of a resource (actions and prefix)."""
+
+    actions: set[str]
+    prefix: str
+
+
+# Keeping DAG_ACTIONS to keep the compatibility with outdated versions of FAB provider
 DAG_ACTIONS = {ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE}
+
+RESOURCE_DETAILS_MAP = {
+    RESOURCE_DAG: ResourceDetails(
+        actions={ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE}, prefix=RESOURCE_DAG_PREFIX
+    ),
+    RESOURCE_DAG_RUN: ResourceDetails(
+        actions={ACTION_CAN_READ, ACTION_CAN_CREATE, ACTION_CAN_DELETE, ACTION_CAN_ACCESS_MENU},
+        prefix=RESOURCE_DAG_RUN_PREFIX,
+    ),
+}
+PREFIX_LIST = [details["prefix"] for details in RESOURCE_DETAILS_MAP.values()]
+PREFIX_RESOURCES_MAP = {details["prefix"]: resource for resource, details in RESOURCE_DETAILS_MAP.items()}
+
+
+def resource_name(root_dag_id: str, resource: str) -> str:
+    """
+    Return the resource name for a DAG id.
+
+    Note that since a sub-DAG should follow the permission of its
+    parent DAG, you should pass ``DagModel.root_dag_id`` to this function,
+    for a subdag. A normal dag should pass the ``DagModel.dag_id``.
+    """
+    if root_dag_id in RESOURCE_DETAILS_MAP.keys():
+        return root_dag_id
+    if root_dag_id.startswith(tuple(PREFIX_RESOURCES_MAP.keys())):
+        return root_dag_id
+    return f"{RESOURCE_DETAILS_MAP[resource]['prefix']}{root_dag_id}"
 
 
 def resource_name_for_dag(root_dag_id: str) -> str:
@@ -74,6 +113,8 @@ def resource_name_for_dag(root_dag_id: str) -> str:
     Note that since a sub-DAG should follow the permission of its
     parent DAG, you should pass ``DagModel.root_dag_id`` to this function,
     for a subdag. A normal dag should pass the ``DagModel.dag_id``.
+
+    Note: This function is kept for backwards compatibility.
     """
     if root_dag_id == RESOURCE_DAG:
         return root_dag_id

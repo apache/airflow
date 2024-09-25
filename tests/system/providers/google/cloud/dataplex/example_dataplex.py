@@ -53,7 +53,7 @@ SPARK_FILE_NAME = "spark_example_pi.py"
 RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
 
 LAKE_ID = f"lake-{DAG_ID}-{ENV_ID}".replace("_", "-")
-REGION = "us-central1"
+REGION = "us-west1"
 
 SERVICE_ACC = f"{PROJECT_ID}@appspot.gserviceaccount.com"
 

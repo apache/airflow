@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
 from elasticsearch import Elasticsearch
@@ -28,6 +29,7 @@ from airflow.providers.elasticsearch.hooks.elasticsearch import (
     ElasticsearchHook,
     ElasticsearchPythonHook,
     ElasticsearchSQLHook,
+    ESConnection,
 )
 
 
@@ -117,6 +119,22 @@ class TestElasticsearchSQLHook:
         assert result_sets[1][0] == df.values.tolist()[1][0]
 
         self.cur.execute.assert_called_once_with(statement)
+
+    @mock.patch("airflow.providers.elasticsearch.hooks.elasticsearch.Elasticsearch")
+    def test_execute_sql_query(self, mock_es):
+        mock_es_sql_client = MagicMock()
+        mock_es_sql_client.query.return_value = {
+            "columns": [{"name": "id"}, {"name": "first_name"}],
+            "rows": [[1, "John"], [2, "Jane"]],
+        }
+        mock_es.return_value.sql = mock_es_sql_client
+
+        es_connection = ESConnection(host="localhost", port=9200)
+        response = es_connection.execute_sql("SELECT * FROM index1")
+        mock_es_sql_client.query.assert_called_once_with(body={"query": "SELECT * FROM index1"})
+
+        assert response["rows"] == [[1, "John"], [2, "Jane"]]
+        assert response["columns"] == [{"name": "id"}, {"name": "first_name"}]
 
 
 class MockElasticsearch:

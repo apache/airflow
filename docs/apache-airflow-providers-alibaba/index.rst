@@ -77,7 +77,7 @@ apache-airflow-providers-alibaba package
 Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com/>`__).
 
 
-Release: 2.8.1
+Release: 2.9.1
 
 Provider package
 ----------------
@@ -95,12 +95,12 @@ For the minimum Airflow version supported, see ``Requirements`` below.
 Requirements
 ------------
 
-The minimum Apache Airflow version supported by this provider package is ``2.7.0``.
+The minimum Apache Airflow version supported by this provider package is ``2.8.0``.
 
 ============================  ==================
 PIP package                   Version required
 ============================  ==================
-``apache-airflow``            ``>=2.7.0``
+``apache-airflow``            ``>=2.8.0``
 ``oss2``                      ``>=2.14.0``
 ``alibabacloud_adb20211201``  ``>=1.0.0``
 ``alibabacloud_tea_openapi``  ``>=0.3.7``

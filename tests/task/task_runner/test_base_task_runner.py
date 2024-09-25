@@ -35,7 +35,7 @@ pytestmark = pytest.mark.db_test
 def test_config_copy_mode(tmp_configuration_copy, subprocess_call, dag_maker, impersonation):
     tmp_configuration_copy.return_value = "/tmp/some-string"
 
-    with dag_maker("test"):
+    with dag_maker("test", serialized=True):
         BaseOperator(task_id="task_1", run_as_user=impersonation)
 
     dr = dag_maker.create_dagrun()

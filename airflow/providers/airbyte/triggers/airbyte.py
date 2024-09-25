@@ -18,7 +18,9 @@ from __future__ import annotations
 
 import asyncio
 import time
-from typing import Any, AsyncIterator, Literal
+from typing import Any, AsyncIterator
+
+from airbyte_api.models import JobStatusEnum
 
 from airflow.providers.airbyte.hooks.airbyte import AirbyteHook
 from airflow.triggers.base import BaseTrigger, TriggerEvent
@@ -32,7 +34,6 @@ class AirbyteSyncTrigger(BaseTrigger):
     makes use of asynchronous communication to check the progress of a job run over time.
 
     :param conn_id: The connection identifier for connecting to Airbyte.
-    :param api_type: The type of Airbyte API to use. Either "config" or "cloud".
     :param job_id: The ID of an Airbyte Sync job.
     :param end_time: Time in seconds to wait for a job run to reach a terminal status. Defaults to 7 days.
     :param poll_interval:  polling period in seconds to check for the status.
@@ -42,14 +43,12 @@ class AirbyteSyncTrigger(BaseTrigger):
         self,
         job_id: int,
         conn_id: str,
-        api_type: Literal["config", "cloud"],
         end_time: float,
         poll_interval: float,
     ):
         super().__init__()
         self.job_id = job_id
         self.conn_id = conn_id
-        self.api_type = api_type
         self.end_time = end_time
         self.poll_interval = poll_interval
 
@@ -60,7 +59,6 @@ class AirbyteSyncTrigger(BaseTrigger):
             {
                 "job_id": self.job_id,
                 "conn_id": self.conn_id,
-                "api_type": self.api_type,
                 "end_time": self.end_time,
                 "poll_interval": self.poll_interval,
             },
@@ -68,7 +66,7 @@ class AirbyteSyncTrigger(BaseTrigger):
 
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Make async connection to Airbyte, polls for the pipeline run status."""
-        hook = AirbyteHook(airbyte_conn_id=self.conn_id, api_type=self.api_type)
+        hook = AirbyteHook(airbyte_conn_id=self.conn_id)
         try:
             while await self.is_still_running(hook):
                 if self.end_time < time.time():
@@ -82,8 +80,8 @@ class AirbyteSyncTrigger(BaseTrigger):
                     )
                     return
                 await asyncio.sleep(self.poll_interval)
-            job_run_status = await hook.get_job_status(self.job_id)
-            if job_run_status == hook.SUCCEEDED:
+            job_run_status = hook.get_job_status(self.job_id)
+            if job_run_status == JobStatusEnum.SUCCEEDED:
                 yield TriggerEvent(
                     {
                         "status": "success",
@@ -91,7 +89,7 @@ class AirbyteSyncTrigger(BaseTrigger):
                         "job_id": self.job_id,
                     }
                 )
-            elif job_run_status == hook.CANCELLED:
+            elif job_run_status == JobStatusEnum.CANCELLED:
                 yield TriggerEvent(
                     {
                         "status": "cancelled",
@@ -116,7 +114,7 @@ class AirbyteSyncTrigger(BaseTrigger):
 
         If job is in running state returns True if it is still running else return False
         """
-        job_run_status = await hook.get_job_status(self.job_id)
-        if job_run_status in (AirbyteHook.RUNNING, AirbyteHook.PENDING, AirbyteHook.INCOMPLETE):
+        job_run_status = hook.get_job_status(self.job_id)
+        if job_run_status in (JobStatusEnum.RUNNING, JobStatusEnum.PENDING, JobStatusEnum.INCOMPLETE):
             return True
         return False

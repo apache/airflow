@@ -28,13 +28,20 @@ def minimal_app_for_auth_api():
     @dont_initialize_flask_app_submodules(
         skip_all_except=[
             "init_appbuilder",
-            "init_api_experimental_auth",
+            "init_api_auth",
             "init_api_auth_provider",
             "init_api_error_handlers",
         ]
     )
     def factory():
-        with conf_vars({("api", "auth_backends"): "tests.test_utils.remote_user_api_auth_backend"}):
+        with conf_vars(
+            {
+                (
+                    "api",
+                    "auth_backends",
+                ): "tests.test_utils.remote_user_api_auth_backend,airflow.api.auth.backend.session"
+            }
+        ):
             _app = app.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
             _app.config["AUTH_ROLE_PUBLIC"] = None
             return _app

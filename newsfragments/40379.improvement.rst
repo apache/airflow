@@ -1,1 +1,0 @@
-``chunk_size`` parameter is added to ``LocalFilesystemToGCSOperator``, enabling file uploads in multiple chunks of a specified size.

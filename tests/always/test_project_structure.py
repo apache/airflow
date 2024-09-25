@@ -85,6 +85,7 @@ class TestProjectStructure:
             "tests/providers/apache/hive/plugins/test_hive.py",
             "tests/providers/celery/executors/test_celery_executor_utils.py",
             "tests/providers/celery/executors/test_default_celery.py",
+            "tests/providers/cloudant/test_cloudant_fake.py",
             "tests/providers/cncf/kubernetes/backcompat/test_backwards_compat_converters.py",
             "tests/providers/cncf/kubernetes/executors/test_kubernetes_executor_types.py",
             "tests/providers/cncf/kubernetes/executors/test_kubernetes_executor_utils.py",
@@ -100,7 +101,6 @@ class TestProjectStructure:
             "tests/providers/cncf/kubernetes/utils/test_delete_from.py",
             "tests/providers/cncf/kubernetes/utils/test_k8s_hashlib_wrapper.py",
             "tests/providers/cncf/kubernetes/utils/test_xcom_sidecar.py",
-            "tests/providers/databricks/hooks/test_databricks_base.py",
             "tests/providers/google/cloud/fs/test_gcs.py",
             "tests/providers/google/cloud/links/test_automl.py",
             "tests/providers/google/cloud/links/test_base.py",
@@ -150,11 +150,11 @@ class TestProjectStructure:
             "tests/providers/google/test_go_module_utils.py",
             "tests/providers/microsoft/azure/operators/test_adls.py",
             "tests/providers/microsoft/azure/transfers/test_azure_blob_to_gcs.py",
-            "tests/providers/mongo/sensors/test_mongo.py",
             "tests/providers/slack/notifications/test_slack_notifier.py",
             "tests/providers/snowflake/triggers/test_snowflake_trigger.py",
             "tests/providers/yandex/hooks/test_yandexcloud_dataproc.py",
             "tests/providers/yandex/operators/test_yandexcloud_dataproc.py",
+            "tests/providers/fab/migrations/test_env.py",
         ]
 
         # TODO: Should we extend this test to cover other directories?
@@ -168,6 +168,8 @@ class TestProjectStructure:
         modules_files = list(f for f in modules_files if "/_vendor/" not in f)
         # Exclude __init__.py
         modules_files = list(f for f in modules_files if not f.endswith("__init__.py"))
+        # Exclude versions file
+        modules_files = list(f for f in modules_files if "/versions/" not in f)
         # Change airflow/ to tests/
         expected_test_files = list(
             f'tests/{f.partition("/")[2]}' for f in modules_files if not f.endswith("__init__.py")
@@ -387,6 +389,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.bigquery.BigQueryPatchDatasetOperator",
         "airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryExecuteQueryOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator",
         "airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceAsyncSensor",
         "airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistencePartitionAsyncSensor",
         "airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerEnvironmentSensor",
@@ -394,6 +397,12 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360RunQueryOperator",
         "airflow.providers.google.marketing_platform.operators.GoogleDisplayVideo360DownloadReportV2Operator",
         "airflow.providers.google.marketing_platform.sensors.GoogleDisplayVideo360RunQuerySensor",
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsDataImportUploadOperator",
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsDeletePreviousDataUploadsOperator",
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsGetAdsLinkOperator",
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsListAccountsOperator",
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsModifyFileHeadersDataImportOperator",
+        "airflow.providers.google.marketing_platform.operators.analytics.GoogleAnalyticsRetrieveAdsLinksListOperator",
     }
 
     BASE_CLASSES = {
@@ -404,6 +413,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.dataproc._DataprocStartStopClusterBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.custom_job.CustomTrainingJobBaseOperator",
         "airflow.providers.google.cloud.operators.cloud_base.GoogleCloudBaseOperator",
+        "airflow.providers.google.marketing_platform.operators.search_ads._GoogleSearchAdsBaseOperator",
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {
@@ -502,7 +512,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "GoogleDisplayVideo360GetSDFDownloadOperationSensor",
         "airflow.providers.google.marketing_platform.sensors.display_video."
         "GoogleDisplayVideo360ReportSensor",
-        "airflow.providers.google.marketing_platform.sensors.search_ads.GoogleSearchAdsReportSensor",
     }
 
     @pytest.mark.xfail(reason="We did not reach full coverage yet")

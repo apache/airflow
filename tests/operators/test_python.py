@@ -39,7 +39,11 @@ import pytest
 from slugify import slugify
 
 from airflow.decorators import task_group
-from airflow.exceptions import AirflowException, DeserializingResultError, RemovedInAirflow3Warning
+from airflow.exceptions import (
+    AirflowException,
+    DeserializingResultError,
+    RemovedInAirflow3Warning,
+)
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
 from airflow.models.taskinstance import TaskInstance, clear_task_instances, set_current_context
@@ -56,6 +60,7 @@ from airflow.operators.python import (
     _PythonVersionInfo,
     get_current_context,
 )
+from airflow.settings import _ENABLE_AIP_44
 from airflow.utils import timezone
 from airflow.utils.context import AirflowContextDeprecationWarning, Context
 from airflow.utils.python_virtualenv import prepare_virtualenv
@@ -64,7 +69,11 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import NOTSET, DagRunType
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.db import clear_db_runs
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 if TYPE_CHECKING:
     from airflow.models.dagrun import DagRun
@@ -81,6 +90,8 @@ DILL_INSTALLED = find_spec("dill") is not None
 DILL_MARKER = pytest.mark.skipif(not DILL_INSTALLED, reason="`dill` is not installed")
 CLOUDPICKLE_INSTALLED = find_spec("cloudpickle") is not None
 CLOUDPICKLE_MARKER = pytest.mark.skipif(not CLOUDPICKLE_INSTALLED, reason="`cloudpickle` is not installed")
+
+USE_AIRFLOW_CONTEXT_MARKER = pytest.mark.skipif(not _ENABLE_AIP_44, reason="AIP-44 is not enabled")
 
 
 class BasePythonTest:
@@ -129,6 +140,7 @@ class BasePythonTest:
         return kwargs
 
     def create_dag_run(self) -> DagRun:
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         return self.dag_maker.create_dagrun(
             state=DagRunState.RUNNING,
             start_date=self.dag_maker.start_date,
@@ -136,6 +148,7 @@ class BasePythonTest:
             execution_date=self.default_date,
             run_type=DagRunType.MANUAL,
             data_interval=(self.default_date, self.default_date),
+            **triggered_by_kwargs,  # type: ignore
         )
 
     def create_ti(self, fn, **kwargs) -> TI:
@@ -963,6 +976,129 @@ class BaseTestPythonVirtualenvOperator(BasePythonTest):
             self.run_as_task(f, op_args=[42], serializer=serializer)
         assert f"Unable to import `{serializer}` module." in caplog.text
 
+    def test_environment_variables(self):
+        def f():
+            import os
+
+            return os.environ["MY_ENV_VAR"]
+
+        task = self.run_as_task(f, env_vars={"MY_ENV_VAR": "ABCDE"})
+        assert task.execute_callable() == "ABCDE"
+
+    def test_environment_variables_with_inherit_env_true(self, monkeypatch):
+        monkeypatch.setenv("MY_ENV_VAR", "QWERT")
+
+        def f():
+            import os
+
+            return os.environ["MY_ENV_VAR"]
+
+        task = self.run_as_task(f, inherit_env=True)
+        assert task.execute_callable() == "QWERT"
+
+    def test_environment_variables_with_inherit_env_false(self, monkeypatch):
+        monkeypatch.setenv("MY_ENV_VAR", "TYUIO")
+
+        def f():
+            import os
+
+            return os.environ["MY_ENV_VAR"]
+
+        with pytest.raises(AirflowException):
+            self.run_as_task(f, inherit_env=False)
+
+    def test_environment_variables_overriding(self, monkeypatch):
+        monkeypatch.setenv("MY_ENV_VAR", "ABCDE")
+
+        def f():
+            import os
+
+            return os.environ["MY_ENV_VAR"]
+
+        task = self.run_as_task(f, env_vars={"MY_ENV_VAR": "EFGHI"}, inherit_env=True)
+        assert task.execute_callable() == "EFGHI"
+
+    @USE_AIRFLOW_CONTEXT_MARKER
+    def test_current_context(self):
+        def f():
+            from airflow.operators.python import get_current_context
+            from airflow.utils.context import Context
+
+            context = get_current_context()
+            if not isinstance(context, Context):  # type: ignore[misc]
+                error_msg = f"Expected Context, got {type(context)}"
+                raise TypeError(error_msg)
+
+            return []
+
+        ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
+        assert ti.state == TaskInstanceState.SUCCESS
+
+    @USE_AIRFLOW_CONTEXT_MARKER
+    def test_current_context_not_found_error(self):
+        def f():
+            from airflow.operators.python import get_current_context
+
+            get_current_context()
+            return []
+
+        with pytest.raises(
+            AirflowException,
+            match="Current context was requested but no context was found! "
+            "Are you running within an airflow task?",
+        ):
+            self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=False)
+
+    @USE_AIRFLOW_CONTEXT_MARKER
+    def test_current_context_airflow_not_found_error(self):
+        airflow_flag: dict[str, bool] = {"expect_airflow": False}
+        error_msg = "use_airflow_context is set to True, but expect_airflow is set to False."
+
+        if not issubclass(self.opcls, ExternalPythonOperator):
+            airflow_flag["system_site_packages"] = False
+            error_msg = "use_airflow_context is set to True, but expect_airflow and system_site_packages are set to False."
+
+        def f():
+            from airflow.operators.python import get_current_context
+
+            get_current_context()
+            return []
+
+        with pytest.raises(AirflowException, match=error_msg):
+            self.run_as_task(
+                f, return_ti=True, multiple_outputs=False, use_airflow_context=True, **airflow_flag
+            )
+
+    @USE_AIRFLOW_CONTEXT_MARKER
+    def test_use_airflow_context_touch_other_variables(self):
+        def f():
+            from airflow.operators.python import get_current_context
+            from airflow.utils.context import Context
+
+            context = get_current_context()
+            if not isinstance(context, Context):  # type: ignore[misc]
+                error_msg = f"Expected Context, got {type(context)}"
+                raise TypeError(error_msg)
+
+            from airflow.operators.python import PythonOperator  # noqa: F401
+
+            return []
+
+        ti = self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
+        assert ti.state == TaskInstanceState.SUCCESS
+
+    @pytest.mark.skipif(_ENABLE_AIP_44, reason="AIP-44 is enabled")
+    def test_use_airflow_context_without_aip_44_error(self):
+        def f():
+            from airflow.operators.python import get_current_context
+
+            get_current_context()
+            return []
+
+        error_msg = "`get_current_context()` needs to be used with AIP-44 enabled."
+        with pytest.raises(AirflowException, match=re.escape(error_msg)):
+            self.run_as_task(f, return_ti=True, multiple_outputs=False, use_airflow_context=True)
+
 
 venv_cache_path = tempfile.mkdtemp(prefix="venv_cache_path")
 
@@ -1384,6 +1520,30 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         self.run_as_task(f, serializer=serializer, system_site_packages=False, requirements=None)
 
+    @USE_AIRFLOW_CONTEXT_MARKER
+    def test_current_context_system_site_packages(self, session):
+        def f():
+            from airflow.operators.python import get_current_context
+            from airflow.utils.context import Context
+
+            context = get_current_context()
+            if not isinstance(context, Context):  # type: ignore[misc]
+                error_msg = f"Expected Context, got {type(context)}"
+                raise TypeError(error_msg)
+
+            return []
+
+        ti = self.run_as_task(
+            f,
+            return_ti=True,
+            multiple_outputs=False,
+            use_airflow_context=True,
+            session=session,
+            expect_airflow=False,
+            system_site_packages=True,
+        )
+        assert ti.state == TaskInstanceState.SUCCESS
+
 
 # when venv tests are run in parallel to other test they create new processes and this might take
 # quite some time in shared docker environment and get some contention even between different containers
@@ -1488,6 +1648,57 @@ class BaseTestBranchPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
 
         with pytest.raises(AirflowException, match="Invalid tasks found:"):
             self.run_as_task(f, templates_dict={"ds": "{{ ds }}"})
+
+    def test_environment_variables(self):
+        def f():
+            import os
+
+            return os.environ["MY_ENV_VAR"]
+
+        with pytest.raises(
+            AirflowException,
+            match=r"'branch_task_ids' must contain only valid task_ids. Invalid tasks found: {'ABCDE'}",
+        ):
+            self.run_as_task(f, env_vars={"MY_ENV_VAR": "ABCDE"})
+
+    def test_environment_variables_with_inherit_env_true(self, monkeypatch):
+        monkeypatch.setenv("MY_ENV_VAR", "QWERT")
+
+        def f():
+            import os
+
+            return os.environ["MY_ENV_VAR"]
+
+        with pytest.raises(
+            AirflowException,
+            match=r"'branch_task_ids' must contain only valid task_ids. Invalid tasks found: {'QWERT'}",
+        ):
+            self.run_as_task(f, inherit_env=True)
+
+    def test_environment_variables_with_inherit_env_false(self, monkeypatch):
+        monkeypatch.setenv("MY_ENV_VAR", "TYUIO")
+
+        def f():
+            import os
+
+            return os.environ["MY_ENV_VAR"]
+
+        with pytest.raises(AirflowException):
+            self.run_as_task(f, inherit_env=False)
+
+    def test_environment_variables_overriding(self, monkeypatch):
+        monkeypatch.setenv("MY_ENV_VAR", "ABCDE")
+
+        def f():
+            import os
+
+            return os.environ["MY_ENV_VAR"]
+
+        with pytest.raises(
+            AirflowException,
+            match=r"'branch_task_ids' must contain only valid task_ids. Invalid tasks found: {'EFGHI'}",
+        ):
+            self.run_as_task(f, env_vars={"MY_ENV_VAR": "EFGHI"}, inherit_env=True)
 
     def test_with_no_caching(self):
         """
@@ -1651,6 +1862,30 @@ class TestBranchPythonVirtualenvOperator(BaseTestBranchPythonVirtualenvOperator)
             if "venv_cache_path" not in kwargs:
                 kwargs["venv_cache_path"] = venv_cache_path
         return kwargs
+
+    @USE_AIRFLOW_CONTEXT_MARKER
+    def test_current_context_system_site_packages(self, session):
+        def f():
+            from airflow.operators.python import get_current_context
+            from airflow.utils.context import Context
+
+            context = get_current_context()
+            if not isinstance(context, Context):  # type: ignore[misc]
+                error_msg = f"Expected Context, got {type(context)}"
+                raise TypeError(error_msg)
+
+            return []
+
+        ti = self.run_as_task(
+            f,
+            return_ti=True,
+            multiple_outputs=False,
+            use_airflow_context=True,
+            session=session,
+            expect_airflow=False,
+            system_site_packages=True,
+        )
+        assert ti.state == TaskInstanceState.SUCCESS
 
 
 # when venv tests are run in parallel to other test they create new processes and this might take
@@ -1853,7 +2088,6 @@ class TestShortCircuitWithTeardown:
             # we can't use assert_called_with because it's a set and therefore not ordered
             actual_kwargs = op1.skip.call_args.kwargs
             actual_skipped = set(actual_kwargs["tasks"])
-            assert actual_kwargs["execution_date"] == dagrun.logical_date
             assert actual_skipped == {op3}
 
     @pytest.mark.skip_if_database_isolation_mode  # tests pure logic with run() method, mix of pydantic and mock fails
@@ -1894,7 +2128,6 @@ class TestShortCircuitWithTeardown:
             else:
                 assert isinstance(actual_skipped, Generator)
             assert set(actual_skipped) == {op3}
-            assert actual_kwargs["execution_date"] == dagrun.logical_date
 
 
 @pytest.mark.parametrize(

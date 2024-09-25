@@ -30,10 +30,13 @@ from pkg_resources import parse_version
 
 from airflow.models import DAG as AIRFLOW_DAG, DagModel
 from airflow.operators.bash import BashOperator
+from airflow.providers.openlineage.plugins.facets import AirflowDebugRunFacet
 from airflow.providers.openlineage.utils.utils import (
     InfoJsonEncodable,
     OpenLineageRedactor,
+    _get_all_packages_installed,
     _is_name_redactable,
+    get_airflow_debug_facet,
     get_airflow_run_facet,
     get_fully_qualified_class_name,
     is_operator_disabled,
@@ -41,6 +44,10 @@ from airflow.providers.openlineage.utils.utils import (
 from airflow.utils import timezone
 from airflow.utils.log.secrets_masker import _secrets_masker
 from airflow.utils.state import State
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 
 class SafeStrDict(dict):
@@ -55,6 +62,27 @@ class SafeStrDict(dict):
         return str(dict(castable))
 
 
+@patch("airflow.providers.openlineage.utils.utils.metadata.distributions")
+def test_get_all_packages_installed(mock_distributions):
+    mock_distributions.return_value = [MagicMock(metadata={"Name": "package1"}, version="1.0.0")]
+    assert _get_all_packages_installed() == {"package1": "1.0.0"}
+
+
+@patch("airflow.providers.openlineage.utils.utils.conf.debug_mode", return_value=False)
+def test_get_airflow_debug_facet_not_in_debug_mode(mock_debug_mode):
+    assert get_airflow_debug_facet() == {}
+
+
+@patch("airflow.providers.openlineage.utils.utils._get_all_packages_installed")
+@patch("airflow.providers.openlineage.utils.utils.conf.debug_mode")
+def test_get_airflow_debug_facet_logging_set_to_debug(mock_debug_mode, mock_get_packages):
+    mock_debug_mode.return_value = True
+    mock_get_packages.return_value = {"package1": "1.0.0"}
+    result = get_airflow_debug_facet()
+    expected_result = {"debug": AirflowDebugRunFacet(packages={"package1": "1.0.0"})}
+    assert result == expected_result
+
+
 @pytest.mark.db_test
 def test_get_dagrun_start_end():
     start_date = datetime.datetime(2022, 1, 1)
@@ -63,8 +91,12 @@ def test_get_dagrun_start_end():
     AIRFLOW_DAG.bulk_write_to_db([dag])
     dag_model = DagModel.get_dagmodel(dag.dag_id)
     run_id = str(uuid.uuid1())
+    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
     dagrun = dag.create_dagrun(
-        state=State.NONE, run_id=run_id, data_interval=dag.get_next_data_interval(dag_model)
+        state=State.NONE,
+        run_id=run_id,
+        data_interval=dag.get_next_data_interval(dag_model),
+        **triggered_by_kwargs,
     )
     assert dagrun.data_interval_start is not None
     start_date_tz = datetime.datetime(2022, 1, 1, tzinfo=timezone.utc)
@@ -140,7 +172,7 @@ def test_info_json_encodable_without_slots():
     }
 
 
-def test_info_json_encodable_list_does_not_flatten():
+def test_info_json_encodable_list_does_flatten():
     class TestInfo(InfoJsonEncodable):
         includes = ["alist"]
 
@@ -150,7 +182,7 @@ def test_info_json_encodable_list_does_not_flatten():
 
     obj = Test(["a", "b", "c"])
 
-    assert json.loads(json.dumps(TestInfo(obj))) == {"alist": ["a", "b", "c"]}
+    assert json.loads(json.dumps(TestInfo(obj))) == {"alist": "['a', 'b', 'c']"}
 
 
 def test_info_json_encodable_list_does_include_nonexisting():

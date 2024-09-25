@@ -118,7 +118,7 @@ class TestYDBExecuteQueryOperator:
         self, cursor_class, table_client_class, mock_session_pool, mock_driver, mock_get_connection
     ):
         mock_get_connection.return_value = Connection(
-            conn_type="ydb", host="localhost", extra={"database": "my_db"}
+            conn_type="ydb", host="localhost", extra={"database": "/my_db"}
         )
 
         cursor_class.return_value = FakeYDBCursor
@@ -156,8 +156,8 @@ class TestYDBExecuteQueryOperator:
             {"a": 1, "b": "hello"},
             {"a": 888, "b": "world"},
         ]
-        hook.bulk_upsert("/root/my_table", rows=rows, column_types=column_types)
+        hook.bulk_upsert("my_table", rows=rows, column_types=column_types)
         assert len(session_pool._pool_impl._driver.table_client.bulk_upsert_args) == 1
         arg0 = session_pool._pool_impl._driver.table_client.bulk_upsert_args[0]
-        assert arg0[0] == "/root/my_table"
+        assert arg0[0] == "/my_db/my_table"
         assert len(arg0[1]) == 2

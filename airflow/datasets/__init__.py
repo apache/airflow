@@ -194,7 +194,7 @@ class BaseDataset:
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
         raise NotImplementedError
 
-    def iter_dataset_aliases(self) -> Iterator[DatasetAlias]:
+    def iter_dataset_aliases(self) -> Iterator[tuple[str, DatasetAlias]]:
         raise NotImplementedError
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
@@ -206,19 +206,17 @@ class BaseDataset:
         raise NotImplementedError
 
 
-@attr.define()
+@attr.define(unsafe_hash=False)
 class DatasetAlias(BaseDataset):
     """A represeation of dataset alias which is used to create dataset during the runtime."""
 
     name: str
 
-    def __eq__(self, other: Any) -> bool:
-        if isinstance(other, DatasetAlias):
-            return self.name == other.name
-        return NotImplemented
+    def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
+        return iter(())
 
-    def __hash__(self) -> int:
-        return hash(self.name)
+    def iter_dataset_aliases(self) -> Iterator[tuple[str, DatasetAlias]]:
+        yield self.name, self
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
@@ -239,9 +237,22 @@ class DatasetAliasEvent(TypedDict):
 
     source_alias_name: str
     dest_dataset_uri: str
+    extra: dict[str, Any]
 
 
-@attr.define()
+def _set_extra_default(extra: dict | None) -> dict:
+    """
+    Automatically convert None to an empty dict.
+
+    This allows the caller site to continue doing ``Dataset(uri, extra=None)``,
+    but still allow the ``extra`` attribute to always be a dict.
+    """
+    if extra is None:
+        return {}
+    return extra
+
+
+@attr.define(unsafe_hash=False)
 class Dataset(os.PathLike, BaseDataset):
     """A representation of data dependencies between workflows."""
 
@@ -249,20 +260,12 @@ class Dataset(os.PathLike, BaseDataset):
         converter=_sanitize_uri,
         validator=[attr.validators.min_len(1), attr.validators.max_len(3000)],
     )
-    extra: dict[str, Any] | None = None
+    extra: dict[str, Any] = attr.field(factory=dict, converter=_set_extra_default)
 
     __version__: ClassVar[int] = 1
 
     def __fspath__(self) -> str:
         return self.uri
-
-    def __eq__(self, other: Any) -> bool:
-        if isinstance(other, self.__class__):
-            return self.uri == other.uri
-        return NotImplemented
-
-    def __hash__(self) -> int:
-        return hash(self.uri)
 
     @property
     def normalized_uri(self) -> str | None:
@@ -297,7 +300,7 @@ class Dataset(os.PathLike, BaseDataset):
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
         yield self.uri, self
 
-    def iter_dataset_aliases(self) -> Iterator[DatasetAlias]:
+    def iter_dataset_aliases(self) -> Iterator[tuple[str, DatasetAlias]]:
         return iter(())
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
@@ -342,7 +345,7 @@ class _DatasetBooleanCondition(BaseDataset):
                 yield k, v
                 seen.add(k)
 
-    def iter_dataset_aliases(self) -> Iterator[DatasetAlias]:
+    def iter_dataset_aliases(self) -> Iterator[tuple[str, DatasetAlias]]:
         """Filter dataest aliases in the condition."""
         for o in self.objects:
             yield from o.iter_dataset_aliases()
@@ -402,8 +405,8 @@ class _DatasetAliasCondition(DatasetAny):
         """
         return {"alias": self.name}
 
-    def iter_dataset_aliases(self) -> Iterator[DatasetAlias]:
-        yield DatasetAlias(self.name)
+    def iter_dataset_aliases(self) -> Iterator[tuple[str, DatasetAlias]]:
+        yield self.name, DatasetAlias(self.name)
 
     def iter_dag_dependencies(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
         """

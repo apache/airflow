@@ -1,22 +1,3 @@
-/*!
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
-
 /* eslint-disable */
 import type { CamelCasedPropertiesDeep } from "type-fest";
 /**
@@ -800,98 +781,6 @@ export interface paths {
      */
     get: operations["get_plugins"];
   };
-  "/roles": {
-    /**
-     * Get a list of roles.
-     *
-     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-     */
-    get: operations["get_roles"];
-    /**
-     * Create a new role.
-     *
-     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-     */
-    post: operations["post_role"];
-  };
-  "/roles/{role_name}": {
-    /**
-     * Get a role.
-     *
-     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-     */
-    get: operations["get_role"];
-    /**
-     * Delete a role.
-     *
-     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-     */
-    delete: operations["delete_role"];
-    /**
-     * Update a role.
-     *
-     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-     */
-    patch: operations["patch_role"];
-    parameters: {
-      path: {
-        /** The role name */
-        role_name: components["parameters"]["RoleName"];
-      };
-    };
-  };
-  "/permissions": {
-    /**
-     * Get a list of permissions.
-     *
-     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-     */
-    get: operations["get_permissions"];
-  };
-  "/users": {
-    /**
-     * Get a list of users.
-     *
-     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-     */
-    get: operations["get_users"];
-    /**
-     * Create a new user with unique username and email.
-     *
-     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-     */
-    post: operations["post_user"];
-  };
-  "/users/{username}": {
-    /**
-     * Get a user with a specific username.
-     *
-     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-     */
-    get: operations["get_user"];
-    /**
-     * Delete a user with a specific username.
-     *
-     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-     */
-    delete: operations["delete_user"];
-    /**
-     * Update fields for a user.
-     *
-     * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-     */
-    patch: operations["patch_user"];
-    parameters: {
-      path: {
-        /**
-         * The username of the user.
-         *
-         * *New in version 2.1.0*
-         */
-        username: components["parameters"]["Username"];
-      };
-    };
-  };
 }
 
 export interface components {
@@ -1031,8 +920,6 @@ export interface components {
        * *New in version 2.9.0*
        */
       dag_display_name?: string;
-      /** @description If the DAG is SubDAG then it is the top level DAG identifier. Otherwise, null. */
-      root_dag_id?: string | null;
       /** @description Whether the DAG is paused. */
       is_paused?: boolean | null;
       /**
@@ -1043,8 +930,6 @@ export interface components {
        * *Changed in version 2.2.0*&#58; Field is read-only.
        */
       is_active?: boolean | null;
-      /** @description Whether the DAG is SubDAG. */
-      is_subdag?: boolean;
       /**
        * Format: date-time
        * @description The last time the DAG was parsed.
@@ -1092,9 +977,14 @@ export interface components {
       owners?: string[];
       /** @description User-provided DAG description, which can consist of several sentences or paragraphs that describe DAG contents. */
       description?: string | null;
-      schedule_interval?: components["schemas"]["ScheduleInterval"];
       /**
-       * @description Timetable/Schedule Interval description.
+       * @description Timetable summary.
+       *
+       * *New in version 3.0.0*
+       */
+      timetable_summary?: string | null;
+      /**
+       * @description Timetable description.
        *
        * *New in version 2.3.0*
        */
@@ -1662,7 +1552,7 @@ export interface components {
         Partial<number> &
         Partial<boolean> &
         Partial<unknown[]> &
-        Partial<{ [key: string]: unknown }>;
+        Partial<{ [key: string]: unknown } | null>;
     };
     /**
      * @description DAG details.
@@ -2090,10 +1980,6 @@ export interface components {
        * @default false
        */
       only_running?: boolean;
-      /** @description Clear tasks in subdags and clear external tasks indicated by ExternalTaskMarker. */
-      include_subdags?: boolean;
-      /** @description Clear tasks in the parent dag of the subdag. */
-      include_parentdag?: boolean;
       /** @description Set state of DAG runs to RUNNING. */
       reset_dag_runs?: boolean;
       /** @description The DagRun ID for this task instance */
@@ -2312,16 +2198,17 @@ export interface components {
       queue?: string[];
       /** @description The value can be repeated to retrieve multiple matching values (OR condition). */
       executor?: string[];
+      /**
+       * @description The name of the field to order the results by. Prefix a field name
+       * with `-` to reverse the sort order. `order_by` defaults to
+       * `map_index` when unspecified.
+       * Supported field names: `state`, `duration`, `start_date`, `end_date`
+       * and `map_index`.
+       *
+       * *New in version 3.0.0*
+       */
+      order_by?: string;
     };
-    /**
-     * @description Schedule interval. Defines how often DAG runs, this object gets added to your latest task instance's
-     * execution_date to figure out the next schedule.
-     */
-    ScheduleInterval:
-      | (Partial<components["schemas"]["TimeDelta"]> &
-          Partial<components["schemas"]["RelativeDelta"]> &
-          Partial<components["schemas"]["CronExpression"]>)
-      | null;
     /** @description Time delta */
     TimeDelta: {
       __type: string;
@@ -2662,6 +2549,16 @@ export interface components {
     FilterMapIndex: number;
     /** @description Filter on try_number for task instance. */
     FilterTryNumber: number;
+    /**
+     * @description The name of the field to order the results by. Prefix a field name
+     * with `-` to reverse the sort order. `order_by` defaults to
+     * `map_index` when unspecified.
+     * Supported field names: `state`, `duration`, `start_date`, `end_date`
+     * and `map_index`.
+     *
+     * *New in version 3.0.0*
+     */
+    TaskInstanceOrderBy: string;
     /**
      * @description The name of the field to order the results by.
      * Prefix a field name with `-` to reverse the sort order.
@@ -4057,6 +3954,16 @@ export interface operations {
         limit?: components["parameters"]["PageLimit"];
         /** The number of items to skip before starting to collect the result set. */
         offset?: components["parameters"]["PageOffset"];
+        /**
+         * The name of the field to order the results by. Prefix a field name
+         * with `-` to reverse the sort order. `order_by` defaults to
+         * `map_index` when unspecified.
+         * Supported field names: `state`, `duration`, `start_date`, `end_date`
+         * and `map_index`.
+         *
+         * *New in version 3.0.0*
+         */
+        order_by?: components["parameters"]["TaskInstanceOrderBy"];
       };
     };
     responses: {
@@ -4284,12 +4191,15 @@ export interface operations {
         /** The value can be repeated to retrieve multiple matching values (OR condition). */
         executor?: components["parameters"]["FilterExecutor"];
         /**
-         * The name of the field to order the results by.
-         * Prefix a field name with `-` to reverse the sort order.
+         * The name of the field to order the results by. Prefix a field name
+         * with `-` to reverse the sort order. `order_by` defaults to
+         * `map_index` when unspecified.
+         * Supported field names: `state`, `duration`, `start_date`, `end_date`
+         * and `map_index`.
          *
-         * *New in version 2.1.0*
+         * *New in version 3.0.0*
          */
-        order_by?: components["parameters"]["OrderBy"];
+        order_by?: components["parameters"]["TaskInstanceOrderBy"];
       };
     };
     responses: {
@@ -5121,318 +5031,6 @@ export interface operations {
       404: components["responses"]["NotFound"];
     };
   };
-  /**
-   * Get a list of roles.
-   *
-   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-   */
-  get_roles: {
-    parameters: {
-      query: {
-        /** The numbers of items to return. */
-        limit?: components["parameters"]["PageLimit"];
-        /** The number of items to skip before starting to collect the result set. */
-        offset?: components["parameters"]["PageOffset"];
-        /**
-         * The name of the field to order the results by.
-         * Prefix a field name with `-` to reverse the sort order.
-         *
-         * *New in version 2.1.0*
-         */
-        order_by?: components["parameters"]["OrderBy"];
-      };
-    };
-    responses: {
-      /** Success. */
-      200: {
-        content: {
-          "application/json": components["schemas"]["RoleCollection"];
-        };
-      };
-      401: components["responses"]["Unauthenticated"];
-      403: components["responses"]["PermissionDenied"];
-    };
-  };
-  /**
-   * Create a new role.
-   *
-   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-   */
-  post_role: {
-    responses: {
-      /** Success. */
-      200: {
-        content: {
-          "application/json": components["schemas"]["Role"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthenticated"];
-      403: components["responses"]["PermissionDenied"];
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["Role"];
-      };
-    };
-  };
-  /**
-   * Get a role.
-   *
-   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-   */
-  get_role: {
-    parameters: {
-      path: {
-        /** The role name */
-        role_name: components["parameters"]["RoleName"];
-      };
-    };
-    responses: {
-      /** Success. */
-      200: {
-        content: {
-          "application/json": components["schemas"]["Role"];
-        };
-      };
-      401: components["responses"]["Unauthenticated"];
-      403: components["responses"]["PermissionDenied"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  /**
-   * Delete a role.
-   *
-   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-   */
-  delete_role: {
-    parameters: {
-      path: {
-        /** The role name */
-        role_name: components["parameters"]["RoleName"];
-      };
-    };
-    responses: {
-      /** Success. */
-      204: never;
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthenticated"];
-      403: components["responses"]["PermissionDenied"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  /**
-   * Update a role.
-   *
-   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-   */
-  patch_role: {
-    parameters: {
-      path: {
-        /** The role name */
-        role_name: components["parameters"]["RoleName"];
-      };
-      query: {
-        /**
-         * The fields to update on the resource. If absent or empty, all modifiable fields are updated.
-         * A comma-separated list of fully qualified names of fields.
-         */
-        update_mask?: components["parameters"]["UpdateMask"];
-      };
-    };
-    responses: {
-      /** Success. */
-      200: {
-        content: {
-          "application/json": components["schemas"]["Role"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthenticated"];
-      403: components["responses"]["PermissionDenied"];
-      404: components["responses"]["NotFound"];
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["Role"];
-      };
-    };
-  };
-  /**
-   * Get a list of permissions.
-   *
-   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-   */
-  get_permissions: {
-    parameters: {
-      query: {
-        /** The numbers of items to return. */
-        limit?: components["parameters"]["PageLimit"];
-        /** The number of items to skip before starting to collect the result set. */
-        offset?: components["parameters"]["PageOffset"];
-      };
-    };
-    responses: {
-      /** Success. */
-      200: {
-        content: {
-          "application/json": components["schemas"]["ActionCollection"];
-        };
-      };
-      401: components["responses"]["Unauthenticated"];
-      403: components["responses"]["PermissionDenied"];
-    };
-  };
-  /**
-   * Get a list of users.
-   *
-   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-   */
-  get_users: {
-    parameters: {
-      query: {
-        /** The numbers of items to return. */
-        limit?: components["parameters"]["PageLimit"];
-        /** The number of items to skip before starting to collect the result set. */
-        offset?: components["parameters"]["PageOffset"];
-        /**
-         * The name of the field to order the results by.
-         * Prefix a field name with `-` to reverse the sort order.
-         *
-         * *New in version 2.1.0*
-         */
-        order_by?: components["parameters"]["OrderBy"];
-      };
-    };
-    responses: {
-      /** Success. */
-      200: {
-        content: {
-          "application/json": components["schemas"]["UserCollection"];
-        };
-      };
-      401: components["responses"]["Unauthenticated"];
-      403: components["responses"]["PermissionDenied"];
-    };
-  };
-  /**
-   * Create a new user with unique username and email.
-   *
-   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-   */
-  post_user: {
-    responses: {
-      /** Success. */
-      200: {
-        content: {
-          "application/json": components["schemas"]["User"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthenticated"];
-      403: components["responses"]["PermissionDenied"];
-      409: components["responses"]["AlreadyExists"];
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["User"];
-      };
-    };
-  };
-  /**
-   * Get a user with a specific username.
-   *
-   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-   */
-  get_user: {
-    parameters: {
-      path: {
-        /**
-         * The username of the user.
-         *
-         * *New in version 2.1.0*
-         */
-        username: components["parameters"]["Username"];
-      };
-    };
-    responses: {
-      /** Success. */
-      200: {
-        content: {
-          "application/json": components["schemas"]["UserCollectionItem"];
-        };
-      };
-      401: components["responses"]["Unauthenticated"];
-      403: components["responses"]["PermissionDenied"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  /**
-   * Delete a user with a specific username.
-   *
-   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-   */
-  delete_user: {
-    parameters: {
-      path: {
-        /**
-         * The username of the user.
-         *
-         * *New in version 2.1.0*
-         */
-        username: components["parameters"]["Username"];
-      };
-    };
-    responses: {
-      /** Success. */
-      204: never;
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthenticated"];
-      403: components["responses"]["PermissionDenied"];
-      404: components["responses"]["NotFound"];
-    };
-  };
-  /**
-   * Update fields for a user.
-   *
-   * *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-   */
-  patch_user: {
-    parameters: {
-      path: {
-        /**
-         * The username of the user.
-         *
-         * *New in version 2.1.0*
-         */
-        username: components["parameters"]["Username"];
-      };
-      query: {
-        /**
-         * The fields to update on the resource. If absent or empty, all modifiable fields are updated.
-         * A comma-separated list of fully qualified names of fields.
-         */
-        update_mask?: components["parameters"]["UpdateMask"];
-      };
-    };
-    responses: {
-      /** Success. */
-      200: {
-        content: {
-          "application/json": components["schemas"]["UserCollectionItem"];
-        };
-      };
-      400: components["responses"]["BadRequest"];
-      401: components["responses"]["Unauthenticated"];
-      403: components["responses"]["PermissionDenied"];
-      404: components["responses"]["NotFound"];
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["User"];
-      };
-    };
-  };
 }
 
 export interface external {}
@@ -5660,9 +5258,6 @@ export type ListDagRunsForm = CamelCasedPropertiesDeep<
 >;
 export type ListTaskInstanceForm = CamelCasedPropertiesDeep<
   components["schemas"]["ListTaskInstanceForm"]
->;
-export type ScheduleInterval = CamelCasedPropertiesDeep<
-  components["schemas"]["ScheduleInterval"]
 >;
 export type TimeDelta = CamelCasedPropertiesDeep<
   components["schemas"]["TimeDelta"]
@@ -5970,41 +5565,4 @@ export type GetValueVariables = CamelCasedPropertiesDeep<
 >;
 export type GetPluginsVariables = CamelCasedPropertiesDeep<
   operations["get_plugins"]["parameters"]["query"]
->;
-export type GetRolesVariables = CamelCasedPropertiesDeep<
-  operations["get_roles"]["parameters"]["query"]
->;
-export type PostRoleVariables = CamelCasedPropertiesDeep<
-  operations["post_role"]["requestBody"]["content"]["application/json"]
->;
-export type GetRoleVariables = CamelCasedPropertiesDeep<
-  operations["get_role"]["parameters"]["path"]
->;
-export type DeleteRoleVariables = CamelCasedPropertiesDeep<
-  operations["delete_role"]["parameters"]["path"]
->;
-export type PatchRoleVariables = CamelCasedPropertiesDeep<
-  operations["patch_role"]["parameters"]["path"] &
-    operations["patch_role"]["parameters"]["query"] &
-    operations["patch_role"]["requestBody"]["content"]["application/json"]
->;
-export type GetPermissionsVariables = CamelCasedPropertiesDeep<
-  operations["get_permissions"]["parameters"]["query"]
->;
-export type GetUsersVariables = CamelCasedPropertiesDeep<
-  operations["get_users"]["parameters"]["query"]
->;
-export type PostUserVariables = CamelCasedPropertiesDeep<
-  operations["post_user"]["requestBody"]["content"]["application/json"]
->;
-export type GetUserVariables = CamelCasedPropertiesDeep<
-  operations["get_user"]["parameters"]["path"]
->;
-export type DeleteUserVariables = CamelCasedPropertiesDeep<
-  operations["delete_user"]["parameters"]["path"]
->;
-export type PatchUserVariables = CamelCasedPropertiesDeep<
-  operations["patch_user"]["parameters"]["path"] &
-    operations["patch_user"]["parameters"]["query"] &
-    operations["patch_user"]["requestBody"]["content"]["application/json"]
 >;

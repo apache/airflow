@@ -24,7 +24,7 @@ import pytest
 from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import ClusterState
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.sensors.bigtable import BigtableTableReplicationCompletedSensor
 
 PROJECT_ID = "test_project_id"
@@ -36,9 +36,6 @@ IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
 
 class BigtableWaitForTableReplicationTest:
     @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
-    @pytest.mark.parametrize(
         "missing_attribute, project_id, instance_id, table_id",
         [
             ("instance_id", PROJECT_ID, "", TABLE_ID),
@@ -46,10 +43,8 @@ class BigtableWaitForTableReplicationTest:
         ],
     )
     @mock.patch("airflow.providers.google.cloud.sensors.bigtable.BigtableHook")
-    def test_empty_attribute(
-        self, missing_attribute, project_id, instance_id, table_id, mock_hook, soft_fail, expected_exception
-    ):
-        with pytest.raises(expected_exception) as ctx:
+    def test_empty_attribute(self, missing_attribute, project_id, instance_id, table_id, mock_hook):
+        with pytest.raises(AirflowException) as ctx:
             BigtableTableReplicationCompletedSensor(
                 project_id=project_id,
                 instance_id=instance_id,
@@ -57,7 +52,6 @@ class BigtableWaitForTableReplicationTest:
                 task_id="id",
                 gcp_conn_id=GCP_CONN_ID,
                 impersonation_chain=IMPERSONATION_CHAIN,
-                soft_fail=soft_fail,
             )
         err = ctx.value
         assert str(err) == f"Empty parameter: {missing_attribute}"

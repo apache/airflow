@@ -66,7 +66,7 @@ class TestCloudwatchTaskHandler:
         date = datetime(2020, 1, 1)
         dag_id = "dag_for_testing_cloudwatch_task_handler"
         task_id = "task_for_testing_cloudwatch_log_handler"
-        self.dag = DAG(dag_id=dag_id, start_date=date)
+        self.dag = DAG(dag_id=dag_id, schedule=None, start_date=date)
         task = EmptyOperator(task_id=task_id, dag=self.dag)
         dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test", run_type="scheduled")
         session.add(dag_run)
@@ -227,6 +227,14 @@ class TestCloudwatchTaskHandler:
                     self.cloudwatch_task_handler.close()
 
                 mock_log_handler_close.assert_called_once()
+
+    def test_filename_template_for_backward_compatibility(self):
+        # filename_template arg support for running the latest provider on airflow 2
+        CloudwatchTaskHandler(
+            self.local_log_location,
+            f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
+            filename_template=None,
+        )
 
 
 def generate_log_events(conn, log_group_name, log_stream_name, log_events):

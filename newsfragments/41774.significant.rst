@@ -1,0 +1,12 @@
+Removed a set of deprecations in ``DAG`` from ``airflow.models``.
+
+- Removed deprecated parameters ``full_filepath`` and ``concurrency`` (Replaced by ``max_active_tasks``) from DAG and ``@dag`` decorator.
+- Removed fallback support for legacy ``default_view == "tree"``.
+- Removed legacy support for permissions named ``can_dag_read`` and ``can_dag_edit``. The permissions need to be named ``can_read`` and ``can_edit``.
+- Removed legacy deprecated functions ``following_schedule()`` and ``previous_schedule``.
+- Removed deprecated support for ``datetime`` in ``next_dagrun_info()``. Use ``DataInterval``.
+- Removed legacy DAG property ``is_paused``. Please use ``get_is_paused`` instead.
+- Removed legacy parameters ``get_tis``, ``recursion_depth`` and ``max_recursion_depth`` from ``DAG.clear()``.
+- Removed implicit support to call ``create_dagrun()`` without data interval.
+- Removed support for deprecated parameter ``concurrency`` in ``DagModel``.
+- Removed support for ``datetime`` in ``DagModel.calculate_dagrun_date_fields``. Use ``DataInterval``.

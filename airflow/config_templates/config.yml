@@ -682,7 +682,7 @@ database:
         Improper configuration of sql_alchemy_session_maker can lead to serious issues,
         including data corruption, unrecoverable application crashes. Please review the SQLAlchemy
         documentation for detailed guidance on proper configuration and best practices.
-      version_added: 2.9.4
+      version_added: 2.10.0
       type: string
       example: 'airflow_local_settings._sessionmaker'
       default: ~
@@ -720,6 +720,14 @@ database:
       type: string
       example: ~
       default: "True"
+    external_db_managers:
+      description: |
+        List of DB managers to use to migrate external tables in airflow database. The managers must inherit
+        from BaseDBManager
+      version_added: 3.0.0
+      type: string
+      example: ~
+      default: "airflow.providers.fab.auth_manager.models.db.FABDBManager"
 logging:
   description: ~
   options:
@@ -1065,39 +1073,37 @@ metrics:
   description: |
     `StatsD <https://github.com/statsd/statsd>`__ integration settings.
   options:
-    metrics_use_pattern_match:
-      description: |
-        If true, ``[metrics] metrics_allow_list`` and ``[metrics] metrics_block_list`` will use
-        regex pattern matching anywhere within the metric name instead of only prefix matching
-        at the start of the name.
-      version_added: 2.9.0
-      type: boolean
-      example: ~
-      default: "False"
     metrics_allow_list:
       description: |
-        Configure an allow list (comma separated string) to send only certain metrics.
-        If ``[metrics] metrics_use_pattern_match`` is ``false``, match only the exact metric name prefix.
-        If ``[metrics] metrics_use_pattern_match`` is ``true``, provide regex patterns to match.
+        Configure an allow list (comma separated regex patterns to match) to send only certain metrics.
       version_added: 2.6.0
       type: string
       example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
-      or \"^scheduler,^executor,heartbeat|timeout\""
+        or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
     metrics_block_list:
       description: |
-        Configure a block list (comma separated string) to block certain metrics from being emitted.
+        Configure a block list (comma separated regex patterns to match) to block certain metrics
+        from being emitted.
         If ``[metrics] metrics_allow_list`` and ``[metrics] metrics_block_list`` are both configured,
         ``[metrics] metrics_block_list`` is ignored.
 
-        If ``[metrics] metrics_use_pattern_match`` is ``false``, match only the exact metric name prefix.
-
-        If ``[metrics] metrics_use_pattern_match`` is ``true``, provide regex patterns to match.
       version_added: 2.6.0
       type: string
       example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
-      or \"^scheduler,^executor,heartbeat|timeout\""
+        or \"^scheduler,^executor,heartbeat|timeout\""
       default: ""
+    metrics_consistency_on:
+      description: |
+        Enables metrics consistency across all metrics loggers (ex: timer and timing metrics).
+
+        .. warning::
+
+          It is enabled by default from Airflow 3.
+      version_added: 2.10.0
+      type: string
+      example: ~
+      default: "True"
     statsd_on:
       description: |
         Enables sending metrics to StatsD.
@@ -1232,6 +1238,13 @@ metrics:
       type: string
       example: ~
       default: "False"
+    otel_service:
+      description: |
+        The default service name of traces.
+      version_added: 2.10.3
+      type: string
+      example: ~
+      default: "Airflow"
     otel_ssl_active:
       description: |
         If ``True``, SSL will be enabled. Defaults to ``False``.
@@ -1348,27 +1361,6 @@ secrets:
       type: integer
       example: ~
       default: "900"
-cli:
-  description: ~
-  options:
-    api_client:
-      description: |
-        In what way should the cli access the API. The LocalClient will use the
-        database directly, while the json_client will use the api running on the
-        webserver
-      version_added: ~
-      type: string
-      example: ~
-      default: "airflow.api.client.local_client"
-    endpoint_url:
-      description: |
-        If you set web_server_url_prefix, do NOT forget to append it here, ex:
-        ``endpoint_url = http://localhost:8080/myroot``
-        So api will look like: ``http://localhost:8080/myroot/api/experimental/...``
-      version_added: ~
-      type: string
-      example: ~
-      default: "http://localhost:8080"
 debug:
   description: ~
   options:
@@ -1383,24 +1375,6 @@ debug:
 api:
   description: ~
   options:
-    enable_experimental_api:
-      description: |
-        Enables the deprecated experimental API. Please note that these API endpoints do not have
-        access control. An authenticated user has full access.
-
-        .. warning::
-
-          This `Experimental REST API
-          <https://airflow.apache.org/docs/apache-airflow/stable/deprecated-rest-api-ref.html>`__ is
-          deprecated since version 2.0. Please consider using
-          `the Stable REST API
-          <https://airflow.apache.org/docs/apache-airflow/stable/stable-rest-api-ref.html>`__.
-          For more information on migration, see
-          `RELEASE_NOTES.rst <https://github.com/apache/airflow/blob/main/RELEASE_NOTES.rst>`_
-      version_added: 2.0.0
-      type: boolean
-      example: ~
-      default: "False"
     auth_backends:
       description: |
         Comma separated list of auth backends to authenticate users of the API. See
@@ -1548,15 +1522,6 @@ operators:
       type: string
       example: ~
       default: "default"
-    allow_illegal_arguments:
-      description: |
-        Is allowed to pass additional/unused arguments (args, kwargs) to the BaseOperator operator.
-        If set to ``False``, an exception will be thrown,
-        otherwise only the console message will be displayed.
-      version_added: 2.0.0
-      type: string
-      example: ~
-      default: "False"
 webserver:
   description: ~
   options:
@@ -1941,7 +1906,9 @@ webserver:
       default: "False"
     cookie_samesite:
       description: |
-        Set samesite policy on session cookie
+        Set samesite policy on session cookies.
+        As `recommended <https://flask.palletsprojects.com/en/1.1.x/config/#SESSION_COOKIE_SAMESITE>`_
+        by Flask, the default is set to ``Lax`` and not a empty string.
       version_added: 1.10.3
       type: string
       example: ~
@@ -2081,21 +2048,6 @@ webserver:
       type: integer
       example: "10"
       default: "5"
-    allow_raw_html_descriptions:
-      description: |
-        A DAG author is able to provide any raw HTML into ``doc_md`` or params description in
-        ``description_md`` for text formatting. This is including potentially unsafe javascript.
-        Displaying the DAG or trigger form in web UI provides the DAG author the potential to
-        inject malicious code into clients browsers. To ensure the web UI is safe by default,
-        raw HTML is disabled by default. If you trust your DAG authors, you can enable HTML
-        support in markdown by setting this option to ``True``.
-
-        This parameter also enables the deprecated fields ``description_html`` and
-        ``custom_html_form`` in DAG params until the feature is removed in a future version.
-      version_added: 2.8.0
-      type: boolean
-      example: "False"
-      default: "False"
     allowed_payload_size:
       description: |
         The maximum size of the request payload (in MB) that can be sent.
@@ -2213,21 +2165,6 @@ smtp:
       type: string
       example: ~
       default: "False"
-    smtp_user:
-      description: |
-        Username to authenticate when connecting to smtp server.
-      version_added: ~
-      type: string
-      example: "airflow"
-      default: ~
-    smtp_password:
-      description: |
-        Password to authenticate when connecting to smtp server.
-      version_added: ~
-      type: string
-      sensitive: true
-      example: "airflow"
-      default: ~
     smtp_port:
       description: |
         Defines the port number on which Airflow connects to the SMTP server to send email notifications.
@@ -2472,11 +2409,8 @@ scheduler:
       default: "True"
     max_tis_per_query:
       description: |
-        This changes the batch size of queries in the scheduling main loop.
-        This should not be greater than ``[core] parallelism``.
-        If this is too high, SQL query performance may be impacted by
-        complexity of query predicate, and/or excessive locking.
-        Additionally, you may hit the maximum allowable query length for your db.
+        This determines the number of task instances to be evaluated for scheduling
+        during each scheduler loop.
         Set this to 0 to use the value of ``[core] parallelism``
       version_added: ~
       type: integer
@@ -2585,7 +2519,7 @@ scheduler:
     allow_trigger_in_future:
       description: |
         Allow externally triggered DagRuns for Execution Dates in the future
-        Only has effect if schedule_interval is set to None in DAG
+        Only has effect if schedule is set to None in DAG
       version_added: 1.10.8
       type: boolean
       example: ~
@@ -2639,6 +2573,16 @@ scheduler:
       example: ~
       default: "True"
       see_also: ":ref:`Differences between the two cron timetables`"
+    enable_tracemalloc:
+      description: |
+        Whether to enable memory allocation tracing in the scheduler. If enabled, Airflow will start
+        tracing memory allocation and log the top 10 memory usages at the error level upon receiving the
+        signal SIGUSR1.
+        This is an expensive operation and generally should not be used except for debugging purposes.
+      version_added: 3.0.0
+      type: boolean
+      example: ~
+      default: "False"
 triggerer:
   description: ~
   options:

@@ -27,6 +27,7 @@ from airflow.providers.google.cloud.operators.bigquery_dts import (
     BigQueryDataTransferServiceStartTransferRunsOperator,
     BigQueryDeleteDataTransferConfigOperator,
 )
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 PROJECT_ID = "id"
 
@@ -71,7 +72,10 @@ class TestBigQueryCreateDataTransferOperator:
             retry=DEFAULT,
             timeout=None,
         )
-        ti.xcom_push.assert_called_with(execution_date=None, key="transfer_config_id", value="1a2b3c")
+        if AIRFLOW_V_3_0_PLUS:
+            ti.xcom_push.assert_called_with(key="transfer_config_id", value="1a2b3c")
+        else:
+            ti.xcom_push.assert_called_with(key="transfer_config_id", value="1a2b3c", execution_date=None)
 
         assert "secret_access_key" not in return_value.get("params", {})
         assert "access_key_id" not in return_value.get("params", {})
@@ -126,7 +130,10 @@ class TestBigQueryDataTransferServiceStartTransferRunsOperator:
             retry=DEFAULT,
             timeout=None,
         )
-        ti.xcom_push.assert_called_with(execution_date=None, key="run_id", value="123")
+        if AIRFLOW_V_3_0_PLUS:
+            ti.xcom_push.assert_called_with(key="run_id", value="123")
+        else:
+            ti.xcom_push.assert_called_with(key="run_id", value="123", execution_date=None)
 
     @mock.patch(
         f"{OPERATOR_MODULE_PATH}.BiqQueryDataTransferServiceHook",

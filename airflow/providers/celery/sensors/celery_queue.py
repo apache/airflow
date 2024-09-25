@@ -21,7 +21,6 @@ from typing import TYPE_CHECKING
 
 from celery.app import control
 
-from airflow.exceptions import AirflowSkipException
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -73,13 +72,5 @@ class CeleryQueueSensor(BaseSensorOperator):
 
             return reserved == 0 and scheduled == 0 and active == 0
         except KeyError:
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
             message = f"Could not locate Celery queue {self.celery_queue}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
             raise KeyError(message)
-        except Exception as err:
-            # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-            if self.soft_fail:
-                raise AirflowSkipException from err
-            raise

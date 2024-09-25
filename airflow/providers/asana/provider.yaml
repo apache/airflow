@@ -22,9 +22,10 @@ description: |
     `Asana <https://asana.com/>`__
 
 state: ready
-source-date-epoch: 1716286843
+source-date-epoch: 1723969361
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 2.6.0
   - 2.5.1
   - 2.5.0
   - 2.4.1
@@ -43,7 +44,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.7.0
+  - apache-airflow>=2.8.0
   # The Asana provider uses Asana Python API https://github.com/Asana/python-asana/ and version
   # 4.* of it introduced 31.07.2023 is heavily incompatible with previous versions
   # (new way of generating API client from specification has been used). Until we convert to the new API

@@ -22,9 +22,10 @@ description: |
     `Apache Drill <https://drill.apache.org/>`__.
 
 state: ready
-source-date-epoch: 1722662634
+source-date-epoch: 1723969173
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 2.8.0
   - 2.7.3
   - 2.7.2
   - 2.7.1
@@ -51,7 +52,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.7.0
+  - apache-airflow>=2.8.0
   - apache-airflow-providers-common-sql>=1.14.1
   - sqlalchemy-drill>=1.1.0
 

@@ -287,6 +287,10 @@ Options ``--from-revision`` and ``--from-version`` may only be used in conjuncti
 
 For a mapping between Airflow version and Alembic revision see :doc:`/migrations-ref`.
 
+.. note::
+
+    It's highly recommended that you reserialize your DAGs with ``dags reserialize`` after you finish downgrading your Airflow environment (meaning, after you've downgraded the Airflow version installed in your Python environment, not immediately after you've downgraded the database).
+    This is to ensure that the serialized DAGs are compatible with the downgraded version of Airflow.
 
 .. _cli-export-connections:
 

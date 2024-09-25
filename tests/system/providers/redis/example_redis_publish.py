@@ -46,6 +46,7 @@ default_args = {
 
 with DAG(
     dag_id="redis_example",
+    schedule=None,
     default_args=default_args,
 ) as dag:
     # [START RedisPublishOperator_DAG]

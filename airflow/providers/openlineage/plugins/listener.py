@@ -27,11 +27,14 @@ from setproctitle import getproctitle, setproctitle
 
 from airflow import settings
 from airflow.listeners import hookimpl
+from airflow.models import DagRun
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.extractors import ExtractorManager
 from airflow.providers.openlineage.plugins.adapter import OpenLineageAdapter, RunState
 from airflow.providers.openlineage.utils.utils import (
     IS_AIRFLOW_2_10_OR_HIGHER,
+    get_airflow_dag_run_facet,
+    get_airflow_debug_facet,
     get_airflow_job_facet,
     get_airflow_mapped_task_facet,
     get_airflow_run_facet,
@@ -50,7 +53,7 @@ from airflow.utils.timeout import timeout
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
-    from airflow.models import DagRun, TaskInstance
+    from airflow.models import TaskInstance
 
 _openlineage_listener: OpenLineageListener | None = None
 
@@ -122,6 +125,9 @@ class OpenLineageListener:
             )
             return
 
+        # Needs to be calculated outside of inner method so that it gets cached for usage in fork processes
+        debug_facet = get_airflow_debug_facet()
+
         @print_warning(self.log)
         def on_running():
             # that's a workaround to detect task running from deferred state
@@ -130,7 +136,7 @@ class OpenLineageListener:
                 return
             parent_run_id = self.adapter.build_dag_run_id(
                 dag_id=dag.dag_id,
-                execution_date=dagrun.execution_date,
+                logical_date=dagrun.logical_date,
             )
 
             task_uuid = self.adapter.build_task_instance_run_id(
@@ -166,6 +172,7 @@ class OpenLineageListener:
                     **get_user_provided_run_facets(task_instance, TaskInstanceState.RUNNING),
                     **get_airflow_mapped_task_facet(task_instance),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
+                    **debug_facet,
                 },
             )
             Stats.gauge(
@@ -208,7 +215,7 @@ class OpenLineageListener:
         def on_success():
             parent_run_id = OpenLineageAdapter.build_dag_run_id(
                 dag_id=dag.dag_id,
-                execution_date=dagrun.execution_date,
+                logical_date=dagrun.logical_date,
             )
 
             task_uuid = OpenLineageAdapter.build_task_instance_run_id(
@@ -237,6 +244,7 @@ class OpenLineageListener:
                 run_facets={
                     **get_user_provided_run_facets(task_instance, TaskInstanceState.SUCCESS),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
+                    **get_airflow_debug_facet(),
                 },
             )
             Stats.gauge(
@@ -306,7 +314,7 @@ class OpenLineageListener:
         def on_failure():
             parent_run_id = OpenLineageAdapter.build_dag_run_id(
                 dag_id=dag.dag_id,
-                execution_date=dagrun.execution_date,
+                logical_date=dagrun.logical_date,
             )
 
             task_uuid = OpenLineageAdapter.build_task_instance_run_id(
@@ -336,6 +344,7 @@ class OpenLineageListener:
                 run_facets={
                     **get_user_provided_run_facets(task_instance, TaskInstanceState.FAILED),
                     **get_airflow_run_facet(dagrun, dag, task_instance, task, task_uuid),
+                    **get_airflow_debug_facet(),
                 },
             )
             Stats.gauge(
@@ -406,65 +415,120 @@ class OpenLineageListener:
 
     @hookimpl
     def on_dag_run_running(self, dag_run: DagRun, msg: str) -> None:
-        if dag_run.dag and not is_selective_lineage_enabled(dag_run.dag):
-            self.log.debug(
-                "Skipping OpenLineage event emission for DAG `%s` "
-                "due to lack of explicit lineage enablement for DAG while "
-                "[openlineage] selective_enable is on.",
-                dag_run.dag_id,
+        try:
+            if dag_run.dag and not is_selective_lineage_enabled(dag_run.dag):
+                self.log.debug(
+                    "Skipping OpenLineage event emission for DAG `%s` "
+                    "due to lack of explicit lineage enablement for DAG while "
+                    "[openlineage] selective_enable is on.",
+                    dag_run.dag_id,
+                )
+                return
+
+            if not self.executor:
+                self.log.debug("Executor have not started before `on_dag_run_running`")
+                return
+
+            data_interval_start = (
+                dag_run.data_interval_start.isoformat() if dag_run.data_interval_start else None
             )
-            return
+            data_interval_end = dag_run.data_interval_end.isoformat() if dag_run.data_interval_end else None
 
-        if not self.executor:
-            self.log.debug("Executor have not started before `on_dag_run_running`")
-            return
+            run_facets = {**get_airflow_dag_run_facet(dag_run)}
 
-        data_interval_start = dag_run.data_interval_start.isoformat() if dag_run.data_interval_start else None
-        data_interval_end = dag_run.data_interval_end.isoformat() if dag_run.data_interval_end else None
-        self.executor.submit(
-            self.adapter.dag_started,
-            dag_run=dag_run,
-            msg=msg,
-            nominal_start_time=data_interval_start,
-            nominal_end_time=data_interval_end,
-            # AirflowJobFacet should be created outside ProcessPoolExecutor that pickles objects,
-            # as it causes lack of some TaskGroup attributes and crashes event emission.
-            job_facets=get_airflow_job_facet(dag_run=dag_run),
-        )
+            self.submit_callable(
+                self.adapter.dag_started,
+                dag_id=dag_run.dag_id,
+                run_id=dag_run.run_id,
+                logical_date=dag_run.logical_date,
+                start_date=dag_run.start_date,
+                nominal_start_time=data_interval_start,
+                nominal_end_time=data_interval_end,
+                run_facets=run_facets,
+                owners=[x.strip() for x in dag_run.dag.owner.split(",")] if dag_run.dag else None,
+                description=dag_run.dag.description if dag_run.dag else None,
+                # AirflowJobFacet should be created outside ProcessPoolExecutor that pickles objects,
+                # as it causes lack of some TaskGroup attributes and crashes event emission.
+                job_facets=get_airflow_job_facet(dag_run=dag_run),
+            )
+        except BaseException as e:
+            self.log.warning("OpenLineage received exception in method on_dag_run_running", exc_info=e)
 
     @hookimpl
     def on_dag_run_success(self, dag_run: DagRun, msg: str) -> None:
-        if dag_run.dag and not is_selective_lineage_enabled(dag_run.dag):
-            self.log.debug(
-                "Skipping OpenLineage event emission for DAG `%s` "
-                "due to lack of explicit lineage enablement for DAG while "
-                "[openlineage] selective_enable is on.",
-                dag_run.dag_id,
+        try:
+            if dag_run.dag and not is_selective_lineage_enabled(dag_run.dag):
+                self.log.debug(
+                    "Skipping OpenLineage event emission for DAG `%s` "
+                    "due to lack of explicit lineage enablement for DAG while "
+                    "[openlineage] selective_enable is on.",
+                    dag_run.dag_id,
+                )
+                return
+
+            if not self.executor:
+                self.log.debug("Executor have not started before `on_dag_run_success`")
+                return
+
+            if IS_AIRFLOW_2_10_OR_HIGHER:
+                task_ids = DagRun._get_partial_task_ids(dag_run.dag)
+            else:
+                task_ids = dag_run.dag.task_ids if dag_run.dag and dag_run.dag.partial else None
+            self.submit_callable(
+                self.adapter.dag_success,
+                dag_id=dag_run.dag_id,
+                run_id=dag_run.run_id,
+                end_date=dag_run.end_date,
+                logical_date=dag_run.logical_date,
+                task_ids=task_ids,
+                dag_run_state=dag_run.get_state(),
             )
-            return
-
-        if not self.executor:
-            self.log.debug("Executor have not started before `on_dag_run_success`")
-            return
-
-        self.executor.submit(self.adapter.dag_success, dag_run=dag_run, msg=msg)
+        except BaseException as e:
+            self.log.warning("OpenLineage received exception in method on_dag_run_success", exc_info=e)
 
     @hookimpl
     def on_dag_run_failed(self, dag_run: DagRun, msg: str) -> None:
-        if dag_run.dag and not is_selective_lineage_enabled(dag_run.dag):
-            self.log.debug(
-                "Skipping OpenLineage event emission for DAG `%s` "
-                "due to lack of explicit lineage enablement for DAG while "
-                "[openlineage] selective_enable is on.",
-                dag_run.dag_id,
+        try:
+            if dag_run.dag and not is_selective_lineage_enabled(dag_run.dag):
+                self.log.debug(
+                    "Skipping OpenLineage event emission for DAG `%s` "
+                    "due to lack of explicit lineage enablement for DAG while "
+                    "[openlineage] selective_enable is on.",
+                    dag_run.dag_id,
+                )
+                return
+
+            if not self.executor:
+                self.log.debug("Executor have not started before `on_dag_run_failed`")
+                return
+
+            if IS_AIRFLOW_2_10_OR_HIGHER:
+                task_ids = DagRun._get_partial_task_ids(dag_run.dag)
+            else:
+                task_ids = dag_run.dag.task_ids if dag_run.dag and dag_run.dag.partial else None
+            self.submit_callable(
+                self.adapter.dag_failed,
+                dag_id=dag_run.dag_id,
+                run_id=dag_run.run_id,
+                end_date=dag_run.end_date,
+                logical_date=dag_run.logical_date,
+                dag_run_state=dag_run.get_state(),
+                task_ids=task_ids,
+                msg=msg,
             )
-            return
+        except BaseException as e:
+            self.log.warning("OpenLineage received exception in method on_dag_run_failed", exc_info=e)
 
-        if not self.executor:
-            self.log.debug("Executor have not started before `on_dag_run_failed`")
-            return
+    def submit_callable(self, callable, *args, **kwargs):
+        fut = self.executor.submit(callable, *args, **kwargs)
+        fut.add_done_callback(self.log_submit_error)
+        return fut
 
-        self.executor.submit(self.adapter.dag_failed, dag_run=dag_run, msg=msg)
+    def log_submit_error(self, fut):
+        if fut.exception():
+            self.log.warning("Failed to submit method to executor", exc_info=fut.exception())
+        else:
+            self.log.debug("Successfully submitted method to executor")
 
 
 def get_openlineage_listener() -> OpenLineageListener:

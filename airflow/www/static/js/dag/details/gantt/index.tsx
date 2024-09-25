@@ -20,7 +20,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, AlertIcon, Box, Divider, Text } from "@chakra-ui/react";
 
-import useSelection from "src/dag/useSelection";
 import { useGridData } from "src/api";
 import Time from "src/components/Time";
 import { getDuration } from "src/datetime_utils";
@@ -28,19 +27,27 @@ import { getDuration } from "src/datetime_utils";
 import Row from "./Row";
 
 interface Props {
+  runId: string | null;
+  taskId: string | null;
   openGroupIds: string[];
   gridScrollRef: React.RefObject<HTMLDivElement>;
   ganttScrollRef: React.RefObject<HTMLDivElement>;
 }
 
-const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
+const Gantt = ({
+  runId,
+  taskId,
+  openGroupIds,
+  gridScrollRef,
+  ganttScrollRef,
+}: Props) => {
   const ganttRef = useRef<HTMLDivElement>(null);
   const [top, setTop] = useState(0);
   const [width, setWidth] = useState(500);
   const [height, setHeight] = useState("100%");
-  const {
-    selected: { runId, taskId },
-  } = useSelection();
+  const [startDate, setStartDate] = useState<string | null | undefined>();
+  const [endDate, setEndDate] = useState<string | null | undefined>();
+
   const {
     data: { dagRuns, groups },
   } = useGridData();
@@ -106,15 +113,6 @@ const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
 
   const dagRun = dagRuns.find((dr) => dr.runId === runId);
 
-  const [startDate, setStartDate] = useState(
-    dagRun?.queuedAt || dagRun?.startDate
-  );
-
-  const [endDate, setEndDate] = useState(
-    // @ts-ignore
-    dagRun?.endDate ?? moment().add(1, "s").toString()
-  );
-
   // Check if any task instance dates are outside the bounds of the dag run dates and update our min start and max end
   const setGanttDuration = useCallback(
     (
@@ -136,21 +134,30 @@ const Gantt = ({ openGroupIds, gridScrollRef, ganttScrollRef }: Props) => {
 
       if (end && (!endDate || Date.parse(end) > Date.parse(endDate))) {
         setEndDate(end);
+      } else if (!end) {
+        // @ts-ignore
+        setEndDate(moment().add(1, "s").toString());
       }
     },
     [startDate, endDate, setStartDate, setEndDate]
   );
 
+  // Reset state when the dagrun changes
   useEffect(() => {
-    groups.children?.forEach((task) => {
-      const taskInstance = task.instances.find((ti) => ti.runId === runId);
-      setGanttDuration(
-        taskInstance?.queuedDttm,
-        taskInstance?.startDate,
-        taskInstance?.endDate
-      );
-    });
-  }, [groups.children, runId, setGanttDuration]);
+    if (startDate !== dagRun?.queuedAt && startDate !== dagRun?.startDate) {
+      setStartDate(dagRun?.queuedAt || dagRun?.startDate);
+    }
+    if (!endDate || endDate !== dagRun?.endDate) {
+      // @ts-ignore
+      setEndDate(dagRun?.endDate ?? moment().add(1, "s").toString());
+    }
+  }, [
+    dagRun?.queuedAt,
+    dagRun?.startDate,
+    dagRun?.endDate,
+    startDate,
+    endDate,
+  ]);
 
   const numBars = Math.round(width / 100);
   const runDuration = getDuration(startDate, endDate);

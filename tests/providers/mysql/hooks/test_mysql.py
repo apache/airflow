@@ -335,7 +335,7 @@ class MySqlContext:
 class TestMySql:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG(TEST_DAG_ID, default_args=args)
+        dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
         self.dag = dag
 
     def teardown_method(self):

@@ -158,10 +158,13 @@ class SnowflakeSqlApiHook(SnowflakeHook):
         data = {
             "statement": sql,
             "resultSetMetaData": {"format": "json"},
-            "database": conn_config["database"],
-            "schema": conn_config["schema"],
-            "warehouse": conn_config["warehouse"],
-            "role": conn_config["role"],
+            # If database, schema, warehouse, role parameters have been provided set them accordingly
+            # If either of them has been not (Parent class initializes them to None in that case)
+            # set them to what in the Airflow connection configuration
+            "database": self.database or conn_config["database"],
+            "schema": self.schema or conn_config["schema"],
+            "warehouse": self.warehouse or conn_config["warehouse"],
+            "role": self.role or conn_config["role"],
             "bindings": bindings,
             "parameters": {
                 "MULTI_STATEMENT_COUNT": statement_count,

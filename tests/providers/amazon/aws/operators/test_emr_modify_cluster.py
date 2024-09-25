@@ -25,6 +25,7 @@ from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.operators.emr import EmrModifyClusterOperator
 from airflow.utils import timezone
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 MODIFY_CLUSTER_SUCCESS_RETURN = {"ResponseMetadata": {"HTTPStatusCode": 200}, "StepConcurrencyLevel": 1}
@@ -47,7 +48,7 @@ class TestEmrModifyClusterOperator:
             cluster_id="j-8989898989",
             step_concurrency_level=1,
             aws_conn_id="aws_default",
-            dag=DAG("test_dag_id", default_args=args),
+            dag=DAG("test_dag_id", schedule=None, default_args=args),
         )
 
     def test_init(self):
@@ -65,3 +66,6 @@ class TestEmrModifyClusterOperator:
 
         with pytest.raises(AirflowException, match="Modify cluster failed"):
             self.operator.execute(self.mock_context)
+
+    def test_template_fields(self):
+        validate_template_fields(self.operator)

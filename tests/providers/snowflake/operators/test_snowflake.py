@@ -58,7 +58,7 @@ SINGLE_STMT = "select i from user_test order by i;"
 class TestSnowflakeOperator:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG(TEST_DAG_ID, default_args=args)
+        dag = DAG(TEST_DAG_ID, schedule=None, default_args=args)
         self.dag = dag
 
     @mock.patch("airflow.providers.common.sql.operators.sql.SQLExecuteQueryOperator.get_db_hook")
@@ -174,7 +174,7 @@ class TestSnowflakeCheckOperatorsForParams:
 
 def create_context(task, dag=None):
     if dag is None:
-        dag = DAG(dag_id="dag")
+        dag = DAG(dag_id="dag", schedule=None)
     tzinfo = pendulum.timezone("UTC")
     execution_date = timezone.datetime(2022, 1, 1, 1, 0, 0, tzinfo=tzinfo)
     dag_run = DagRun(

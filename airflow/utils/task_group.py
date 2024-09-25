@@ -369,12 +369,12 @@ class TaskGroup(DAGNode):
 
     @property
     def roots(self) -> list[BaseOperator]:
-        """Required by TaskMixin."""
+        """Required by DependencyMixin."""
         return list(self.get_roots())
 
     @property
     def leaves(self) -> list[BaseOperator]:
-        """Required by TaskMixin."""
+        """Required by DependencyMixin."""
         return list(self.get_leaves())
 
     def get_roots(self) -> Generator[BaseOperator, None, None]:
@@ -491,7 +491,7 @@ class TaskGroup(DAGNode):
             self.children.values(), key=lambda node: (not isinstance(node, TaskGroup), node.node_id)
         )
 
-    def topological_sort(self, _include_subdag_tasks: bool = False):
+    def topological_sort(self):
         """
         Sorts children in topographical order, such that a task comes after any of its upstream dependencies.
 
@@ -499,8 +499,6 @@ class TaskGroup(DAGNode):
         """
         # This uses a modified version of Kahn's Topological Sort algorithm to
         # not have to pre-compute the "in-degree" of the nodes.
-        from airflow.operators.subdag import SubDagOperator  # Avoid circular import
-
         graph_unsorted = copy.copy(self.children)
 
         graph_sorted: list[DAGNode] = []
@@ -539,10 +537,6 @@ class TaskGroup(DAGNode):
                     acyclic = True
                     del graph_unsorted[node.node_id]
                     graph_sorted.append(node)
-                    if _include_subdag_tasks and isinstance(node, SubDagOperator):
-                        graph_sorted.extend(
-                            node.subdag.task_group.topological_sort(_include_subdag_tasks=True)
-                        )
 
             if not acyclic:
                 raise AirflowDagCycleException(f"A cyclic dependency occurred in dag: {self.dag_id}")

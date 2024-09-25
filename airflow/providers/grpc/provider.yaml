@@ -22,9 +22,10 @@ description: |
     `gRPC <https://grpc.io/>`__
 
 state: ready
-source-date-epoch: 1718604847
+source-date-epoch: 1723970286
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 3.6.0
   - 3.5.2
   - 3.5.1
   - 3.5.0
@@ -45,7 +46,7 @@ versions:
   - 1.0.1
   - 1.0.0
 dependencies:
-  - apache-airflow>=2.7.0
+  - apache-airflow>=2.8.0
   # Google has very clear rules on what dependencies should be used. All the limits below
   # follow strict guidelines of Google Libraries as quoted here:
   # While this issue is open, dependents of google-api-core, google-cloud-core. and google-auth
