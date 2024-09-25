@@ -49,7 +49,7 @@ Provided by Airflow:
 
     simple
 
-Provided by providers
+Provided by providers:
 
 * :doc:`apache-airflow-providers-fab:auth-manager/index`
 * :doc:`apache-airflow-providers-amazon:auth-manager/index`
