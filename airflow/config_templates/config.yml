@@ -395,13 +395,6 @@ core:
       type: integer
       example: ~
       default: "30"
-    check_slas:
-      description: |
-        On each dagrun check against defined SLAs
-      version_added: 1.10.8
-      type: string
-      example: ~
-      default: "True"
     xcom_backend:
       description: |
         Path to custom XCom class that will be used to store and resolve operators results
@@ -1073,20 +1066,9 @@ metrics:
   description: |
     `StatsD <https://github.com/statsd/statsd>`__ integration settings.
   options:
-    metrics_use_pattern_match:
-      description: |
-        If true, ``[metrics] metrics_allow_list`` and ``[metrics] metrics_block_list`` will use
-        regex pattern matching anywhere within the metric name instead of only prefix matching
-        at the start of the name.
-      version_added: 2.9.0
-      type: boolean
-      example: ~
-      default: "False"
     metrics_allow_list:
       description: |
-        Configure an allow list (comma separated string) to send only certain metrics.
-        If ``[metrics] metrics_use_pattern_match`` is ``false``, match only the exact metric name prefix.
-        If ``[metrics] metrics_use_pattern_match`` is ``true``, provide regex patterns to match.
+        Configure an allow list (comma separated regex patterns to match) to send only certain metrics.
       version_added: 2.6.0
       type: string
       example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
@@ -1094,13 +1076,11 @@ metrics:
       default: ""
     metrics_block_list:
       description: |
-        Configure a block list (comma separated string) to block certain metrics from being emitted.
+        Configure a block list (comma separated regex patterns to match) to block certain metrics
+        from being emitted.
         If ``[metrics] metrics_allow_list`` and ``[metrics] metrics_block_list`` are both configured,
         ``[metrics] metrics_block_list`` is ignored.
 
-        If ``[metrics] metrics_use_pattern_match`` is ``false``, match only the exact metric name prefix.
-
-        If ``[metrics] metrics_use_pattern_match`` is ``true``, provide regex patterns to match.
       version_added: 2.6.0
       type: string
       example: "\"scheduler,executor,dagrun,pool,triggerer,celery\"
@@ -1251,6 +1231,13 @@ metrics:
       type: string
       example: ~
       default: "False"
+    otel_service:
+      description: |
+        The default service name of traces.
+      version_added: 2.10.3
+      type: string
+      example: ~
+      default: "Airflow"
     otel_ssl_active:
       description: |
         If ``True``, SSL will be enabled. Defaults to ``False``.
@@ -2579,6 +2566,16 @@ scheduler:
       example: ~
       default: "True"
       see_also: ":ref:`Differences between the two cron timetables`"
+    enable_tracemalloc:
+      description: |
+        Whether to enable memory allocation tracing in the scheduler. If enabled, Airflow will start
+        tracing memory allocation and log the top 10 memory usages at the error level upon receiving the
+        signal SIGUSR1.
+        This is an expensive operation and generally should not be used except for debugging purposes.
+      version_added: 3.0.0
+      type: boolean
+      example: ~
+      default: "False"
 triggerer:
   description: ~
   options:

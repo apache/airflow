@@ -44,7 +44,7 @@ from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT") or DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-DAG_ID = "example_gcp_cloud_build"
+DAG_ID = "gcp_cloud_build"
 
 GCP_SOURCE_ARCHIVE_URL = "gs://airflow-system-tests-resources/cloud-build/file.tar.gz"
 # Repository with this name is expected created within the project $SYSTEM_TESTS_GCP_PROJECT
@@ -52,21 +52,21 @@ GCP_SOURCE_ARCHIVE_URL = "gs://airflow-system-tests-resources/cloud-build/file.t
 #   1. Create Cloud Source Repository
 #   2. Push into a master branch the following file:
 #   tests/system/providers/google/cloud/cloud_build/resources/example_cloud_build.yaml
-GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repo"
+GCP_SOURCE_REPOSITORY_NAME = "test-cloud-build-repository"
 
 CURRENT_FOLDER = Path(__file__).parent
 
 # [START howto_operator_gcp_create_build_from_storage_body]
 CREATE_BUILD_FROM_STORAGE_BODY = {
     "source": {"storage_source": GCP_SOURCE_ARCHIVE_URL},
-    "steps": [{"name": "ubuntu", "args": ["echo", "Hello world"]}],
+    "steps": [{"name": "ubuntu", "args": ["echo", "Hello world", "sleep 200"]}],
 }
 # [END howto_operator_gcp_create_build_from_storage_body]
 
 # [START howto_operator_create_build_from_repo_body]
 CREATE_BUILD_FROM_REPO_BODY: dict[str, Any] = {
     "source": {"repo_source": {"repo_name": GCP_SOURCE_REPOSITORY_NAME, "branch_name": "master"}},
-    "steps": [{"name": "ubuntu", "args": ["echo", "Hello world"]}],
+    "steps": [{"name": "ubuntu", "args": ["echo", "Hello world", "sleep 200"]}],
 }
 # [END howto_operator_create_build_from_repo_body]
 
@@ -76,7 +76,7 @@ with DAG(
     schedule="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["example", "cloud_build"],
 ) as dag:
 
     @task_group(group_id="build_from_storage")

@@ -61,7 +61,7 @@ class AwsAuthManagerAuthenticationViews(AirflowBaseView):
         saml_auth = self._init_saml_auth()
         return redirect(saml_auth.login())
 
-    @expose("/logout")
+    @expose("/logout", methods=("GET", "POST"))
     def logout(self):
         """Start logout process."""
         session.clear()

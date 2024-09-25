@@ -1,0 +1,1 @@
+New function ``create_dataset_aliases`` added to DatasetManager for DatasetAlias creation.

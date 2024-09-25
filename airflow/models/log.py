@@ -49,7 +49,6 @@ class Log(Base):
     try_number = Column(Integer)
 
     __table_args__ = (
-        Index("idx_log_dag", dag_id),
         Index("idx_log_dttm", dttm),
         Index("idx_log_event", event),
         Index("idx_log_task_instance", dag_id, task_id, run_id, map_index, try_number),

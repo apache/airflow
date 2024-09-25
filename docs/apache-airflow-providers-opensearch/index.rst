@@ -35,6 +35,7 @@
     :caption: Guides
 
     Connection types <connections/index>
+    Logging for Tasks <logging/index>
     Operators <operators/index>
 
 .. toctree::
@@ -42,6 +43,7 @@
     :maxdepth: 1
     :caption: References
 
+    Configuration <configurations-ref>
     Python API <_api/airflow/providers/opensearch/index>
 
 .. toctree::

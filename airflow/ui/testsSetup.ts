@@ -16,11 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-import { expect } from "vitest";
 import * as matchers from "@testing-library/jest-dom/matchers";
-
 import "@testing-library/jest-dom/vitest";
+import { expect } from "vitest";
 
 // extends vitest matchers with react-testing-library's ones
 expect.extend(matchers);

@@ -238,7 +238,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         return SageMakerHook.non_terminal_states
 
     def failed_states(self):
-        return SageMakerHook.failed_states
+        return SageMakerHook.training_failed_states
 
     def get_sagemaker_response(self):
         if self.print_log:

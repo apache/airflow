@@ -16,30 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-import { ReactElement } from "react";
-import { Box, Button, ButtonProps } from "@chakra-ui/react";
+import { Box, Button, type ButtonProps } from "@chakra-ui/react";
+import type { ReactElement } from "react";
 import { Link as RouterLink } from "react-router-dom";
 
 type NavButtonProps = {
-  title?: string;
-  icon: ReactElement;
-  href?: string;
-  to?: string;
+  readonly href?: string;
+  readonly icon: ReactElement;
+  readonly title?: string;
+  readonly to?: string;
 } & ButtonProps;
 
 export const NavButton = ({ icon, title, to, ...rest }: NavButtonProps) => (
   <Button
-    as={RouterLink}
-    to={to}
-    variant="ghost"
-    borderRadius="none"
-    height={16}
     alignItems="center"
+    as={RouterLink}
+    borderRadius="none"
     flexDir="column"
+    height={16}
+    to={to}
+    transition="0.2s background-color ease-in-out"
+    variant="ghost"
     whiteSpace="wrap"
     width={24}
-    transition="0.2s background-color ease-in-out"
     {...rest}
   >
     <Box alignSelf="center">{icon}</Box>

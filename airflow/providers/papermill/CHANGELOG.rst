@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+3.8.1
+.....
+
+Misc
+~~~~
+
+* ``Actually move saml to amazon provider (mistakenly added in papermill) (#42148)``
+* ``Make SAML a required dependency of Amazon provider (#42137)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.8.0
 .....
 

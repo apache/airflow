@@ -27,6 +27,19 @@
 Changelog
 ---------
 
+3.14.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add logging device and logging device options to DockerSwarmOperator (#41416)``
+* ``Add retrieve output docker swarm operator (#41531)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.13.0
 ......
 

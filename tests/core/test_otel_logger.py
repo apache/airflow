@@ -294,37 +294,64 @@ class TestOtelMetrics:
             name=full_name(name), callbacks=ANY
         )
 
+    @pytest.mark.parametrize(
+        "metrics_consistency_on",
+        [True, False],
+    )
     @mock.patch.object(time, "perf_counter", side_effect=[0.0, 3.14])
-    def test_timer_no_name_returns_float_but_does_not_store_value(self, mock_time, name):
+    def test_timer_no_name_returns_float_but_does_not_store_value(
+        self, mock_time, metrics_consistency_on, name
+    ):
+        protocols.metrics_consistency_on = metrics_consistency_on
         with self.stats.timer() as timer:
             pass
 
         assert isinstance(timer.duration, float)
-        assert timer.duration == 3.14
+        expected_duration = 3140.0 if metrics_consistency_on else 3.14
+        assert timer.duration == expected_duration
         assert mock_time.call_count == 2
         self.meter.get_meter().create_observable_gauge.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "metrics_consistency_on",
+        [
+            True,
+            False,
+        ],
+    )
     @mock.patch.object(time, "perf_counter", side_effect=[0.0, 3.14])
-    def test_timer_start_and_stop_manually_send_false(self, mock_time, name):
+    def test_timer_start_and_stop_manually_send_false(self, mock_time, metrics_consistency_on, name):
+        protocols.metrics_consistency_on = metrics_consistency_on
+
         timer = self.stats.timer(name)
         timer.start()
         # Perform some task
         timer.stop(send=False)
 
         assert isinstance(timer.duration, float)
-        assert timer.duration == 3.14
+        expected_value = 3140.0 if metrics_consistency_on else 3.14
+        assert timer.duration == expected_value
         assert mock_time.call_count == 2
         self.meter.get_meter().create_observable_gauge.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "metrics_consistency_on",
+        [
+            True,
+            False,
+        ],
+    )
     @mock.patch.object(time, "perf_counter", side_effect=[0.0, 3.14])
-    def test_timer_start_and_stop_manually_send_true(self, mock_time, name):
+    def test_timer_start_and_stop_manually_send_true(self, mock_time, metrics_consistency_on, name):
+        protocols.metrics_consistency_on = metrics_consistency_on
         timer = self.stats.timer(name)
         timer.start()
         # Perform some task
         timer.stop(send=True)
 
         assert isinstance(timer.duration, float)
-        assert timer.duration == 3.14
+        expected_value = 3140.0 if metrics_consistency_on else 3.14
+        assert timer.duration == expected_value
         assert mock_time.call_count == 2
         self.meter.get_meter().create_observable_gauge.assert_called_once_with(
             name=full_name(name), callbacks=ANY

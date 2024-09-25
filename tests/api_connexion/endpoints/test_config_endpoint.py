@@ -39,10 +39,13 @@ MOCK_CONF = {
 }
 
 MOCK_CONF_WITH_SENSITIVE_VALUE = {
-    "core": {"parallelism": "1024", "sql_alchemy_conn": "mock_conn"},
+    "core": {"parallelism": "1024"},
     "smtp": {
         "smtp_host": "localhost",
         "smtp_mail_from": "airflow@example.com",
+    },
+    "database": {
+        "sql_alchemy_conn": "mock_conn",
     },
 }
 
@@ -222,16 +225,6 @@ class TestGetConfig:
         assert response.status_code == 403
         assert "chose not to expose" in response.json["detail"]
 
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
-        response = self.client.get("/api/v1/config", headers={"Accept": "application/json"})
-
-        assert response.status_code == expected_status_code
-
 
 class TestGetValue:
     @pytest.fixture(autouse=True)
@@ -263,10 +256,10 @@ class TestGetValue:
     @pytest.mark.parametrize(
         "section, option",
         [
-            ("core", "sql_alchemy_conn"),
-            ("core", "SQL_ALCHEMY_CONN"),
-            ("corE", "sql_alchemy_conn"),
-            ("CORE", "sql_alchemy_conn"),
+            ("database", "sql_alchemy_conn"),
+            ("database", "SQL_ALCHEMY_CONN"),
+            ("databasE", "sql_alchemy_conn"),
+            ("DATABASE", "sql_alchemy_conn"),
         ],
     )
     def test_should_respond_200_text_plain_with_non_sensitive_only(self, mock_as_dict, section, option):
@@ -349,15 +342,3 @@ class TestGetValue:
         )
         assert response.status_code == 403
         assert "chose not to expose" in response.json["detail"]
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
-        response = self.client.get(
-            "/api/v1/config/section/smtp/option/smtp_mail_from", headers={"Accept": "application/json"}
-        )
-
-        assert response.status_code == expected_status_code

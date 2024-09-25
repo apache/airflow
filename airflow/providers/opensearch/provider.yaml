@@ -59,3 +59,146 @@ operators:
 connection-types:
   - hook-class-name: airflow.providers.opensearch.hooks.opensearch.OpenSearchHook
     connection-type: opensearch
+
+logging:
+  - airflow.providers.opensearch.log.os_task_handler.OpensearchTaskHandler
+
+config:
+  opensearch:
+    description: ~
+    options:
+      host:
+        description: |
+          Opensearch host
+        version_added: 1.5.0
+        type: string
+        example: ~
+        default: ""
+      port:
+        description: |
+          The port number of Opensearch host
+        version_added: 1.5.0
+        type: integer
+        example: ~
+        default: ""
+      username:
+        description: |
+          The username for connecting to Opensearch
+        version_added: 1.5.0
+        type: string
+        sensitive: true
+        example: ~
+        default: ""
+      password:
+        description: |
+          The password for connecting to Opensearch
+        version_added: 1.5.0
+        type: string
+        sensitive: true
+        example: ~
+        default: ""
+      log_id_template:
+        description: |
+          Format of the log_id, which is used to query for a given tasks logs
+        version_added: 1.5.0
+        type: string
+        example: ~
+        is_template: true
+        default: "{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}"
+      end_of_log_mark:
+        description: |
+          Used to mark the end of a log stream for a task
+        version_added: 1.5.0
+        type: string
+        example: ~
+        default: "end_of_log"
+      write_stdout:
+        description: |
+          Write the task logs to the stdout of the worker, rather than the default files
+        version_added: 1.5.0
+        type: string
+        example: ~
+        default: "False"
+      json_format:
+        description: |
+          Instead of the default log formatter, write the log lines as JSON
+        version_added: 1.5.0
+        type: string
+        example: ~
+        default: "False"
+      json_fields:
+        description: |
+          Log fields to also attach to the json output, if enabled
+        version_added: 1.5.0
+        type: string
+        example: ~
+        default: "asctime, filename, lineno, levelname, message"
+      host_field:
+        description: |
+          The field where host name is stored (normally either `host` or `host.name`)
+        version_added: 1.5.0
+        type: string
+        example: ~
+        default: "host"
+      offset_field:
+        description: |
+          The field where offset is stored (normally either `offset` or `log.offset`)
+        version_added: 1.5.0
+        type: string
+        example: ~
+        default: "offset"
+      index_patterns:
+        description: |
+          Comma separated list of index patterns to use when searching for logs (default: `_all`).
+          The index_patterns_callable takes precedence over this.
+        version_added: 1.5.0
+        type: string
+        example: something-*
+        default: "_all"
+      index_patterns_callable:
+        description: |
+          A string representing the full path to the Python callable path which accept TI object and
+          return comma separated list of index patterns. This will takes precedence over index_patterns.
+        version_added: 1.5.0
+        type: string
+        example: module.callable
+        default: ""
+  opensearch_configs:
+    description: ~
+    options:
+      http_compress:
+        description: ~
+        version_added: 1.5.0
+        type: string
+        example: ~
+        default: "False"
+      use_ssl:
+        description: ~
+        version_added: 1.5.0
+        type: string
+        example: ~
+        default: "False"
+      verify_certs:
+        description: ~
+        version_added: 1.5.0
+        type: string
+        example: ~
+        default: "False"
+      ssl_assert_hostname:
+        description: ~
+        version_added: 1.5.0
+        type: string
+        example: ~
+        default: "False"
+      ssl_show_warn:
+        description: ~
+        version_added: 1.5.0
+        type: string
+        example: ~
+        default: "False"
+      ca_certs:
+        description: ~
+        version_added: 1.5.0
+        type: string
+        example: ~
+        default: ""

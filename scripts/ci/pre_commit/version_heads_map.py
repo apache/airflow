@@ -23,21 +23,27 @@ import sys
 from pathlib import Path
 
 import re2
-from packaging.version import parse as parse_version
 
 PROJECT_SOURCE_ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 
 DB_FILE = PROJECT_SOURCE_ROOT_DIR / "airflow" / "utils" / "db.py"
 MIGRATION_PATH = PROJECT_SOURCE_ROOT_DIR / "airflow" / "migrations" / "versions"
 
+FAB_DB_FILE = PROJECT_SOURCE_ROOT_DIR / "airflow" / "providers" / "fab" / "auth_manager" / "models" / "db.py"
+FAB_MIGRATION_PATH = PROJECT_SOURCE_ROOT_DIR / "airflow" / "providers" / "fab" / "migrations" / "versions"
+
 sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is importable
 
 
-def revision_heads_map():
+def revision_heads_map(migration_path):
     rh_map = {}
     pattern = r'revision = "[a-fA-F0-9]+"'
-    airflow_version_pattern = r'airflow_version = "\d+\.\d+\.\d+"'
-    filenames = os.listdir(MIGRATION_PATH)
+    version_pattern = None
+    if migration_path == MIGRATION_PATH:
+        version_pattern = r'airflow_version = "\d+\.\d+\.\d+"'
+    elif migration_path == FAB_MIGRATION_PATH:
+        version_pattern = r'fab_version = "\d+\.\d+\.\d+"'
+    filenames = os.listdir(migration_path)
 
     def sorting_key(filen):
         prefix = filen.split("_")[0]
@@ -46,43 +52,46 @@ def revision_heads_map():
     sorted_filenames = sorted(filenames, key=sorting_key)
 
     for filename in sorted_filenames:
-        if not filename.endswith(".py"):
+        if not filename.endswith(".py") or filename == "__init__.py":
             continue
-        with open(os.path.join(MIGRATION_PATH, filename)) as file:
+        with open(os.path.join(migration_path, filename)) as file:
             content = file.read()
             revision_match = re2.search(pattern, content)
-            airflow_version_match = re2.search(airflow_version_pattern, content)
-            if revision_match and airflow_version_match:
+            _version_match = re2.search(version_pattern, content)
+            if revision_match and _version_match:
                 revision = revision_match.group(0).split('"')[1]
-                version = airflow_version_match.group(0).split('"')[1]
-                if parse_version(version) >= parse_version("2.0.0"):
-                    rh_map[version] = revision
+                version = _version_match.group(0).split('"')[1]
+                rh_map[version] = revision
     return rh_map
 
 
 if __name__ == "__main__":
-    with open(DB_FILE) as file:
-        content = file.read()
+    paths = [(DB_FILE, MIGRATION_PATH), (FAB_DB_FILE, FAB_MIGRATION_PATH)]
+    for dbfile, mpath in paths:
+        with open(dbfile) as file:
+            content = file.read()
 
-    pattern = r"_REVISION_HEADS_MAP = {[^}]+\}"
-    match = re2.search(pattern, content)
-    if not match:
-        print(
-            f"_REVISION_HEADS_MAP not found in {DB_FILE}. If this has been removed intentionally, "
-            "please update scripts/ci/pre_commit/version_heads_map.py"
-        )
-        sys.exit(1)
+        pattern = r"_REVISION_HEADS_MAP:\s*dict\[\s*str\s*,\s*str\s*\]\s*=\s*\{[^}]*\}"
+        match = re2.search(pattern, content)
+        if not match:
+            print(
+                f"_REVISION_HEADS_MAP not found in {dbfile}. If this has been removed intentionally, "
+                "please update scripts/ci/pre_commit/version_heads_map.py"
+            )
+            sys.exit(1)
 
-    existing_revision_heads_map = match.group(0)
-    rh_map = revision_heads_map()
-    updated_revision_heads_map = "_REVISION_HEADS_MAP = {\n"
-    for k, v in rh_map.items():
-        updated_revision_heads_map += f'    "{k}": "{v}",\n'
-    updated_revision_heads_map += "}"
-    if existing_revision_heads_map != updated_revision_heads_map:
-        new_content = content.replace(existing_revision_heads_map, updated_revision_heads_map)
+        existing_revision_heads_map = match.group(0)
+        rh_map = revision_heads_map(mpath)
+        updated_revision_heads_map = "_REVISION_HEADS_MAP: dict[str, str] = {\n"
+        for k, v in rh_map.items():
+            updated_revision_heads_map += f'    "{k}": "{v}",\n'
+        updated_revision_heads_map += "}"
+        if updated_revision_heads_map == "_REVISION_HEADS_MAP: dict[str, str] = {\n}":
+            updated_revision_heads_map = "_REVISION_HEADS_MAP: dict[str, str] = {}"
+        if existing_revision_heads_map != updated_revision_heads_map:
+            new_content = content.replace(existing_revision_heads_map, updated_revision_heads_map)
 
-        with open(DB_FILE, "w") as file:
-            file.write(new_content)
-        print("_REVISION_HEADS_MAP updated in db.py. Please commit the changes.")
-        sys.exit(1)
+            with open(dbfile, "w") as file:
+                file.write(new_content)
+            print(f"_REVISION_HEADS_MAP updated in {dbfile}. Please commit the changes.")
+            sys.exit(1)

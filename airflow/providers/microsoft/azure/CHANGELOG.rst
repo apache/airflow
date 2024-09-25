@@ -27,6 +27,25 @@
 Changelog
 ---------
 
+10.5.0
+......
+
+Features
+~~~~~~~~
+
+* ``Allow custom api versions in MSGraphAsyncOperator (#41331)``
+* `` Add callback to process Azure Service Bus message contents (#41601)``
+
+Misc
+~~~~
+
+* ``remove deprecated soft_fail from providers (#41710)``
+* ``Remove deprecated log handler argument filename_template (#41552)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 10.4.0
 ......
 

@@ -83,7 +83,10 @@ JOB_FLOW_OVERRIDES: dict[str, Any] = {
                 "InstanceCount": 1,
             },
         ],
-        "KeepJobFlowAliveWhenNoSteps": False,
+        # If the EMR steps complete too quickly the cluster will be torn down before the other system test
+        # tasks have a chance to run (such as the modify cluster step, the addition of more EMR steps, etc).
+        # Set KeepJobFlowAliveWhenNoSteps to False to avoid the cluster from being torn down prematurely.
+        "KeepJobFlowAliveWhenNoSteps": True,
         "TerminationProtected": False,
     },
     "Steps": SPARK_STEPS,

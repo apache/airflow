@@ -455,8 +455,22 @@ class CreateAutoMLTabularTrainingJobOperator(AutoMLTrainingJobBaseOperator):
         return result
 
 
+@deprecated(
+    planned_removal_date="September 15, 2024",
+    use_instead="SupervisedFineTuningTrainOperator",
+    instructions=(
+        "Please consider using Fine Tuning over the Gemini model. "
+        "More info: https://cloud.google.com/vertex-ai/docs/start/automl-gemini-comparison"
+    ),
+    category=AirflowProviderDeprecationWarning,
+)
 class CreateAutoMLTextTrainingJobOperator(AutoMLTrainingJobBaseOperator):
-    """Create Auto ML Text Training job."""
+    """
+    Create Auto ML Text Training job.
+
+    WARNING: Text creation API is deprecated since September 15, 2024
+        (https://cloud.google.com/vertex-ai/docs/tutorials/text-classification-automl/overview).
+    """
 
     template_fields = [
         "parent_model",

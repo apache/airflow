@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+4.7.1
+.....
+
+Misc
+~~~~
+
+* ``Generalize caching of connection in DbApiHook to improve performance (#40751)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.7.0
 .....
 

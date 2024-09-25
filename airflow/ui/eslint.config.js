@@ -17,38 +17,31 @@
  * under the License.
  */
 
-import js from "@eslint/js";
-import globals from "globals";
-import reactHooks from "eslint-plugin-react-hooks";
-import reactRefresh from "eslint-plugin-react-refresh";
-import tseslint from "typescript-eslint";
-import pluginPrettier from "eslint-plugin-prettier";
-import pluginReact from "eslint-plugin-react";
+/**
+ * @import { FlatConfig } from "@typescript-eslint/utils/ts-eslint";
+ */
+import { coreRules } from "./rules/core.js";
+import { perfectionistRules } from "./rules/perfectionist.js";
+import { prettierRules } from "./rules/prettier.js";
+import { reactRules } from "./rules/react.js";
+import { stylisticRules } from "./rules/stylistic.js";
+import { typescriptRules } from "./rules/typescript.js";
+import { unicornRules } from "./rules/unicorn.js";
 
-export default tseslint.config(
-  { ignores: ["dist", "openapi-gen"] },
-  {
-    extends: [
-      js.configs.recommended,
-      ...tseslint.configs.recommended,
-      pluginReact.recommended,
-      pluginPrettier.recommended,
-    ],
-    files: ["**/*.{ts,tsx}"],
-    languageOptions: {
-      ecmaVersion: 2020,
-      globals: globals.browser,
-    },
-    plugins: {
-      "react-hooks": reactHooks,
-      "react-refresh": reactRefresh,
-    },
-    rules: {
-      ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": [
-        "warn",
-        { allowConstantExport: true },
-      ],
-    },
-  }
-);
+/**
+ * ESLint configuration.
+ * @see [ESLint configuration](https://eslint.org/docs/latest/use/configure/)
+ */
+export default /** @type {const} @satisfies {ReadonlyArray<FlatConfig.Config>} */ ([
+  // Global ignore of dist directory
+  { ignores: ["**/dist/"] },
+  // Base rules
+  coreRules,
+  typescriptRules,
+  // Da rest
+  perfectionistRules,
+  prettierRules,
+  reactRules,
+  stylisticRules,
+  unicornRules,
+]);

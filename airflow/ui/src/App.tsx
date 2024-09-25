@@ -16,17 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import { Navigate, Route, Routes } from "react-router-dom";
 
 import { DagsList } from "src/pages/DagsList";
-import { Navigate, Route, Routes } from "react-router-dom";
+
 import { BaseLayout } from "./layouts/BaseLayout";
 
 // Note: When changing routes, make sure to update init_react_ui.py too
 export const App = () => (
   <Routes>
-    <Route path="/" element={<BaseLayout />}>
-      <Route index element={<Navigate to="dags" />} />
-      <Route path="dags" element={<DagsList />} />
+    <Route element={<BaseLayout />} path="/">
+      <Route element={<Navigate to="dags" />} index />
+      <Route element={<DagsList />} path="dags" />
     </Route>
   </Routes>
 );

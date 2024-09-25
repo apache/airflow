@@ -77,7 +77,7 @@ apache-airflow-providers-influxdb package
 `InfluxDB <https://www.influxdata.com/>`__
 
 
-Release: 2.7.0
+Release: 2.7.1
 
 Provider package
 ----------------

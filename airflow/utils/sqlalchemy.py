@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.expression import ColumnOperators
     from sqlalchemy.types import TypeEngine
 
+
 log = logging.getLogger(__name__)
 
 

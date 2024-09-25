@@ -35,14 +35,26 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.4.1
+.....
+
+Latest change: 2024-09-01
+
+=================================================================================================  ===========  ==============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================
+`7a75f0a2bc <https://github.com/apache/airflow/commit/7a75f0a2bc6f964a943db98946ce652c43942180>`_  2024-09-01   ``Protect against None components of universal pathlib xcom backend (#41921)``
+=================================================================================================  ===========  ==============================================================================
+
 1.4.0
 .....
 
-Latest change: 2024-07-23
+Latest change: 2024-08-03
 
 =================================================================================================  ===========  ===============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===============================================================================
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
 `0206a4cbcf <https://github.com/apache/airflow/commit/0206a4cbcfbf85ab035c25533b12f022c22cae3a>`_  2024-07-23   ``openlineage: migrate OpenLineage provider to V2 facets. (#39530)``
 `8a912f9fa0 <https://github.com/apache/airflow/commit/8a912f9fa00bf25763e70323f15eef5f94826495>`_  2024-07-23   ``[AIP-62] Translate AIP-60 URI to OpenLineage (#40173)``
 `0212f67192 <https://github.com/apache/airflow/commit/0212f671921fc5da15085eefbde8b0a76db40fd9>`_  2024-07-22   ``openlineage: add support for hook lineage for S3Hook (#40819)``

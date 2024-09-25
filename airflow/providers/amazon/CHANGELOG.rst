@@ -26,6 +26,65 @@
 Changelog
 ---------
 
+Main
+......
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+.. warning::
+  In order to support session reuse in RedshiftData operators, the following breaking changes were introduced:
+
+  The ``database`` argument is now optional and as a result was moved after the ``sql`` argument which is a positional
+  one. Update your DAGs accordingly if they rely on argument order. Applies to:
+  * ``RedshiftDataHook``'s ``execute_query`` method
+  * ``RedshiftDataOperator``
+
+  ``RedshiftDataHook``'s ``execute_query`` method now returns a ``QueryExecutionOutput`` object instead of just the
+  statement ID as a string.
+
+  ``RedshiftDataHook``'s ``parse_statement_resposne`` method was renamed to ``parse_statement_response``.
+
+  ``S3ToRedshiftOperator``'s ``schema`` argument is now optional and was moved after the ``s3_key`` positional argument.
+  Update your DAGs accordingly if they rely on argument order.
+
+Features
+~~~~~~~~
+
+* ``Support session reuse in RedshiftDataOperator, RedshiftToS3Operator and S3ToRedshiftOperator (#42218)``
+
+8.29.0
+......
+
+Features
+~~~~~~~~
+
+* ``Adding support for volume configurations in ECSRunTaskOperator (#42087)``
+* ``Openlineage s3 to redshift operator integration (#41575)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``ECSExecutor: Drop params that aren't compatible with EC2 (#42228)``
+* ``Fix 'GlueDataBrewStartJobOperator' template fields (#42073)``
+* ``validate aws service exceptions in waiters (#41941)``
+* ``Fix treatment of "#" in S3Hook.parse_s3_url() (#41796)``
+* ``fix: remove part of openlineage extraction from S3ToRedshiftOperator (#41631)``
+* ``filename template arg in providers file task handlers backward compitability support (#41633)``
+* ``fix: select_query should have precedence over default query in RedshiftToS3Operator (#41634)``
+
+Misc
+~~~~
+
+* ``Actually move saml to amazon provider (mistakenly added in papermill) (#42148)``
+* ``Use base aws classes in AWS Glue DataBrew Operators/Triggers (#41848)``
+* ``Move 'register_views' to auth manager interface (#41777)``
+* ``airflow.models.taskinstance deprecations removed (#41784)``
+* ``remove deprecated soft_fail from providers (#41710)``
+* ``remove deprecated soft_fail from providers part2 (#41727)``
+* ``Limit watchtower as depenendcy as 3.3.0 breaks moin. (#41612)``
+* ``Remove deprecated log handler argument filename_template (#41552)``
+
 8.28.0
 ......
 

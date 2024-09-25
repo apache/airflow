@@ -78,7 +78,7 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.10.1",
+            "default": "2.10.2",
             "x-docsSection": "Common"
         },
         "defaultAirflowDigest": {
@@ -93,7 +93,7 @@
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.10.1",
+            "default": "2.10.2",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -841,7 +841,7 @@
                         "tag": {
                             "description": "The StatsD image tag.",
                             "type": "string",
-                            "default": "v0.27.1"
+                            "default": "v0.27.2-pr579"
                         },
                         "pullPolicy": {
                             "description": "The StatsD image pull policy.",
@@ -4651,6 +4651,16 @@
                         "null"
                     ],
                     "default": 300
+                },
+                "env": {
+                    "description": "Add additional env vars to migrate database job.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "x-kubernetes-patch-merge-key": "name",
+                    "x-kubernetes-patch-strategy": "merge"
                 }
             }
         },
@@ -5564,6 +5574,53 @@
                     "description": "Grace period for webserver to finish after SIGTERM is sent from Kubernetes.",
                     "type": "integer",
                     "default": 30
+                },
+                "hpa": {
+                    "description": "HPA configuration.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Allow HPA autoscaling",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "minReplicaCount": {
+                            "description": "Minimum number of webservers created by HPA.",
+                            "type": "integer",
+                            "default": 1
+                        },
+                        "maxReplicaCount": {
+                            "description": "Maximum number of webservers created by HPA.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "metrics": {
+                            "description": "Specifications for which to use to calculate the desired replica count.",
+                            "type": "array",
+                            "default": [
+                                {
+                                    "type": "Resource",
+                                    "resource": {
+                                        "name": "cpu",
+                                        "target": {
+                                            "type": "Utilization",
+                                            "averageUtilization": 80
+                                        }
+                                    }
+                                }
+                            ],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.autoscaling.v2.MetricSpec"
+                            }
+                        },
+                        "behavior": {
+                            "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target.",
+                            "type": "object",
+                            "default": {},
+                            "$ref": "#/definitions/io.k8s.api.autoscaling.v2.HorizontalPodAutoscalerBehavior"
+                        }
+                    }
                 },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",

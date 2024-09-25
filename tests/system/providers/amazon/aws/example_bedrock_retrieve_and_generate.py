@@ -261,7 +261,10 @@ def create_vector_index(index_name: str, collection_id: str, region: str):
             )
             log.debug(e)
             retries -= 1
-            sleep(2)
+            if retries:
+                sleep(2)
+            else:
+                raise
 
 
 @task

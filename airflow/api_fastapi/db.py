@@ -23,6 +23,9 @@ from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
+    from sqlalchemy.sql import Select
+
+    from airflow.api_fastapi.parameters import BaseParam
 
 
 async def get_session() -> Session:
@@ -41,3 +44,11 @@ async def get_session() -> Session:
     """
     with create_session() as session:
         yield session
+
+
+def apply_filters_to_select(base_select: Select, filters: list[BaseParam]) -> Select:
+    select = base_select
+    for filter in filters:
+        select = filter.to_orm(select)
+
+    return select

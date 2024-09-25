@@ -23,65 +23,83 @@ from __future__ import annotations
 
 import os
 from datetime import datetime
-from typing import cast
 
 from airflow.models.dag import DAG
-from airflow.models.xcom_arg import XComArg
 from airflow.providers.google.marketing_platform.operators.search_ads import (
-    GoogleSearchAdsDownloadReportOperator,
-    GoogleSearchAdsInsertReportOperator,
+    GoogleSearchAdsGetCustomColumnOperator,
+    GoogleSearchAdsGetFieldOperator,
+    GoogleSearchAdsListCustomColumnsOperator,
+    GoogleSearchAdsSearchFieldsOperator,
+    GoogleSearchAdsSearchOperator,
 )
-from airflow.providers.google.marketing_platform.sensors.search_ads import GoogleSearchAdsReportSensor
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_search_ads"
+DAG_ID = "search_ads"
 
 # [START howto_search_ads_env_variables]
-AGENCY_ID = os.environ.get("GMP_AGENCY_ID")
-ADVERTISER_ID = os.environ.get("GMP_ADVERTISER_ID")
-GCS_BUCKET = os.environ.get("GMP_GCS_BUCKET", "test-cm-bucket")
-
-REPORT = {
-    "reportScope": {"agencyId": AGENCY_ID, "advertiserId": ADVERTISER_ID},
-    "reportType": "account",
-    "columns": [{"columnName": "agency"}, {"columnName": "lastModifiedTimestamp"}],
-    "includeRemovedEntities": False,
-    "statisticsCurrency": "usd",
-    "maxRowsPerFile": 1000000,
-    "downloadFormat": "csv",
-}
+CUSTOMER_ID: str = os.environ.get("GSA_CUSTOMER_ID", default="")
+QUERY = """
+    SELECT
+        campaign.name,
+        campaign.id,
+        campaign.status
+    FROM campaign;
+"""
+FIELD_NAME: str = os.environ.get("GSA_FIELD_NAME", default="")
+SEARCH_FIELDS_QUERY: str = """
+    SELECT
+        f1,
+        f2
+    FROM t1;
+"""
+CUSTOM_COLUMN_ID: str = os.environ.get("GSA_CUSTOM_COLUMN_ID", default="")
 # [END howto_search_ads_env_variables]
 
 with DAG(
-    DAG_ID,
+    dag_id=DAG_ID,
     schedule="@once",  # Override to match your needs,
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["search", "search-ads", "ads"],
 ) as dag:
-    # [START howto_search_ads_generate_report_operator]
-    generate_report = GoogleSearchAdsInsertReportOperator(report=REPORT, task_id="generate_report")
-    # [END howto_search_ads_generate_report_operator]
-
-    # [START howto_search_ads_get_report_id]
-    report_id = cast(str, XComArg(generate_report, key="report_id"))
-    # [END howto_search_ads_get_report_id]
-
-    # [START howto_search_ads_get_report_operator]
-    wait_for_report = GoogleSearchAdsReportSensor(report_id=report_id, task_id="wait_for_report")
-    # [END howto_search_ads_get_report_operator]
-
-    # [START howto_search_ads_getfile_report_operator]
-    download_report = GoogleSearchAdsDownloadReportOperator(
-        report_id=report_id, bucket_name=GCS_BUCKET, task_id="download_report"
+    # [START howto_search_ads_search_query_reports]
+    query_report = GoogleSearchAdsSearchOperator(
+        task_id="query_report",
+        customer_id=CUSTOMER_ID,
+        query=QUERY,
     )
-    # [END howto_search_ads_getfile_report_operator]
+    # [END howto_search_ads_search_query_reports]
 
-    wait_for_report >> download_report
+    # [START howto_search_ads_get_field]
+    get_field = GoogleSearchAdsGetFieldOperator(
+        task_id="get_field",
+        field_name=FIELD_NAME,
+    )
+    # [END howto_search_ads_get_field]
 
-    # Task dependencies created via `XComArgs`:
-    #   generate_report >> wait_for_report
-    #   generate_report >> download_report
+    # [START howto_search_ads_search_fields]
+    search_fields = GoogleSearchAdsSearchFieldsOperator(
+        task_id="search_fields",
+        query=SEARCH_FIELDS_QUERY,
+    )
+    # [END howto_search_ads_search_fields]
+
+    # [START howto_search_ads_get_custom_column]
+    get_custom_column = GoogleSearchAdsGetCustomColumnOperator(
+        task_id="get_custom_column",
+        customer_id=CUSTOMER_ID,
+        custom_column_id=CUSTOM_COLUMN_ID,
+    )
+    # [END howto_search_ads_get_custom_column]
+
+    # [START howto_search_ads_list_custom_columns]
+    list_custom_columns = GoogleSearchAdsListCustomColumnsOperator(
+        task_id="list_custom_columns",
+        customer_id=CUSTOMER_ID,
+    )
+    # [END howto_search_ads_list_custom_columns]
+
+    (query_report >> get_field >> search_fields >> get_custom_column >> list_custom_columns)
 
 
 from tests.system.utils import get_test_run  # noqa: E402

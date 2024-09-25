@@ -81,6 +81,8 @@ python dependencies for the provided package.
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | saml                | ``pip install 'apache-airflow[saml]'``              | Support for SAML authentication in Airflow                                 |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
+| standard            | ``pip install apache-airflow[standard]'``           | Standard hooks and operators                                               |
++---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | statsd              | ``pip install 'apache-airflow[statsd]'``            | Needed by StatsD metrics                                                   |
 +---------------------+-----------------------------------------------------+----------------------------------------------------------------------------+
 | uv                  | ``pip install 'apache-airflow[uv]'``                | Install uv - fast, Rust-based package installer (experimental)             |

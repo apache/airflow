@@ -53,6 +53,15 @@ from tests.utils.test_config import (
 
 HOME_DIR = os.path.expanduser("~")
 
+# The conf has been updated with sql_alchemy_con and deactivate_stale_dags_interval to test the
+# functionality of deprecated options support.
+conf.deprecated_options[("database", "sql_alchemy_conn")] = ("core", "sql_alchemy_conn", "2.3.0")
+conf.deprecated_options[("scheduler", "parsing_cleanup_interval")] = (
+    "scheduler",
+    "deactivate_stale_dags_interval",
+    "2.5.0",
+)
+
 
 @pytest.fixture(scope="module", autouse=True)
 def restore_env():
@@ -1003,14 +1012,6 @@ sql_alchemy_conn=sqlite://test
         "old, new",
         [
             (
-                ("api", "auth_backend", "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth"),
-                (
-                    "api",
-                    "auth_backends",
-                    "airflow.providers.fab.auth_manager.api.auth.backend.basic_auth,airflow.api.auth.backend.session",
-                ),
-            ),
-            (
                 ("core", "sql_alchemy_conn", "postgres+psycopg2://localhost/postgres"),
                 ("database", "sql_alchemy_conn", "postgresql://localhost/postgres"),
             ),
@@ -1608,6 +1609,8 @@ def test_sensitive_values():
         ("celery", "broker_url"),
         ("celery", "flower_basic_auth"),
         ("celery", "result_backend"),
+        ("opensearch", "username"),
+        ("opensearch", "password"),
     }
     all_keys = {(s, k) for s, v in conf.configuration_description.items() for k in v.get("options")}
     suspected_sensitive = {(s, k) for (s, k) in all_keys if k.endswith(("password", "kwargs"))}

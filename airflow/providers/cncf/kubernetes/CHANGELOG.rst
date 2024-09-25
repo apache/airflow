@@ -27,6 +27,22 @@
 Changelog
 ---------
 
+8.4.2
+.....
+
+Misc
+~~~~
+
+* ``Deprecated configuration removed (#42129)``
+* ``docstring update in AsyncKubernetesHook (#41929)``
+* ``Remove Airflow 2.7 support from Kubernetes Provider (#41746)``
+* ``remove deprecated soft_fail from providers (#41710)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add TODOs in providers code for Subdag code removal (#41963)``
+
 8.4.1
 .....
 

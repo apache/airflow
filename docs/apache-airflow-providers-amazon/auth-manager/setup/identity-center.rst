@@ -48,11 +48,7 @@ To create the resources, please run the following command:
 
   airflow aws-auth-manager init-identity-center
 
-The CLI command should exit successfully with the message: ::
-
-  AWS IAM Identity Center resources created successfully.
-
-If the CLI command exited with an error, please look carefully at the CLI command output to understand which resource(s)
+The CLI command will ask you to create any resources manually if they cannot be automatically created. Please look carefully at the CLI command output to understand which resource(s)
 have or have not been created successfully. The resource(s) which have not been successfully created need to be
 :ref:`created manually <identity_center_manual_configuration>`.
 

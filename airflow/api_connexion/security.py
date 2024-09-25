@@ -48,11 +48,6 @@ def check_authentication() -> None:
         if response.status_code == 200:
             return
 
-    # Even if the current_user is anonymous, the AUTH_ROLE_PUBLIC might still have permission.
-    appbuilder = get_airflow_app().appbuilder
-    if appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None):
-        return
-
     # since this handler only checks authentication, not authorization,
     # we should always return 401
     raise Unauthenticated(headers=response.headers)

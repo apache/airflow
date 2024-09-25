@@ -185,7 +185,10 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
             }
         },
         "start_date": "2020-06-19T00:00:00+00:00",
-        "tags": [{"name": "example1"}, {"name": "example2"}],
+        "tags": sorted(
+            [{"name": "example1"}, {"name": "example2"}],
+            key=lambda val: val["name"],
+        ),
         "template_searchpath": None,
         "timetable_summary": "1 day, 0:00:00",
         "timezone": UTC_JSON_REPR,
@@ -198,6 +201,10 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
     }
     obj = schema.dump(dag)
     expected.update({"last_parsed": obj["last_parsed"]})
+    obj["tags"] = sorted(
+        obj["tags"],
+        key=lambda val: val["name"],
+    )
     assert obj == expected
 
 
@@ -243,7 +250,10 @@ def test_serialize_test_dag_with_dataset_schedule_detail_schema(url_safe_seriali
             }
         },
         "start_date": "2020-06-19T00:00:00+00:00",
-        "tags": [{"name": "example1"}, {"name": "example2"}],
+        "tags": sorted(
+            [{"name": "example1"}, {"name": "example2"}],
+            key=lambda val: val["name"],
+        ),
         "template_searchpath": None,
         "timetable_summary": "Dataset",
         "timezone": UTC_JSON_REPR,
@@ -256,4 +266,8 @@ def test_serialize_test_dag_with_dataset_schedule_detail_schema(url_safe_seriali
     }
     obj = schema.dump(dag)
     expected.update({"last_parsed": obj["last_parsed"]})
+    obj["tags"] = sorted(
+        obj["tags"],
+        key=lambda val: val["name"],
+    )
     assert obj == expected

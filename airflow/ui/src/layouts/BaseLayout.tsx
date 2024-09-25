@@ -16,19 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import { Box } from "@chakra-ui/react";
 import { Outlet } from "react-router-dom";
 
 import { Nav } from "./Nav";
 
-export const BaseLayout = () => {
-  return (
-    <>
-      <Nav />
-      <Box p={3} ml={24}>
-        <Outlet />
-      </Box>
-    </>
-  );
-};
+export const BaseLayout = () => (
+  <>
+    <Nav />
+    <Box ml={24} p={3}>
+      <Outlet />
+    </Box>
+  </>
+);

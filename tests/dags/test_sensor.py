@@ -20,7 +20,7 @@ import datetime
 
 from airflow.decorators import task
 from airflow.models.dag import DAG
-from airflow.sensors.date_time import DateTimeSensor
+from airflow.providers.standard.sensors.date_time import DateTimeSensor
 from airflow.utils import timezone
 
 with DAG(

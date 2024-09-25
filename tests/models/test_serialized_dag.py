@@ -109,8 +109,8 @@ class TestSerializedDagModel:
             assert dag_updated is False
 
             # Update DAG
-            example_bash_op_dag.tags += ["new_tag"]
-            assert set(example_bash_op_dag.tags) == {"example", "example2", "new_tag"}
+            example_bash_op_dag.tags.add("new_tag")
+            assert example_bash_op_dag.tags == {"example", "example2", "new_tag"}
 
             dag_updated = SDM.write_dag(dag=example_bash_op_dag)
             s_dag_2 = session.get(SDM, example_bash_op_dag.dag_id)

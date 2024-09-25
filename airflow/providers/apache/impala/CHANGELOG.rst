@@ -26,6 +26,18 @@
 Changelog
 ---------
 
+1.5.1
+.....
+
+Misc
+~~~~
+
+* ``Make kerberos an optional and devel dependency for impala and fab (#41616)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.5.0
 .....
 

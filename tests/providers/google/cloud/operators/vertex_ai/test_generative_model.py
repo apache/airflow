@@ -356,6 +356,7 @@ class TestVertexAIGenerativeModelGenerateContentOperator:
             HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
         }
         generation_config = {"max_output_tokens": 256, "top_p": 0.8, "temperature": 0.0}
+        system_instruction = "be concise."
 
         op = GenerativeModelGenerateContentOperator(
             task_id=TASK_ID,
@@ -366,6 +367,7 @@ class TestVertexAIGenerativeModelGenerateContentOperator:
             generation_config=generation_config,
             safety_settings=safety_settings,
             pretrained_model=pretrained_model,
+            system_instruction=system_instruction,
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -382,6 +384,7 @@ class TestVertexAIGenerativeModelGenerateContentOperator:
             generation_config=generation_config,
             safety_settings=safety_settings,
             pretrained_model=pretrained_model,
+            system_instruction=system_instruction,
         )
 
 

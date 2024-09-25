@@ -28,11 +28,6 @@ from google.cloud.aiplatform import schema
 from google.protobuf.struct_pb2 import Value
 
 from airflow.models.dag import DAG
-from airflow.providers.google.cloud.operators.gcs import (
-    GCSCreateBucketOperator,
-    GCSDeleteBucketOperator,
-    GCSSynchronizeBucketsOperator,
-)
 from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
     CreateAutoMLImageTrainingJobOperator,
     DeleteAutoMLTrainingJobOperator,
@@ -46,26 +41,27 @@ from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
-DAG_ID = "example_automl_vision_obj_detect"
+DAG_ID = "automl_vision_obj_detect"
 REGION = "us-central1"
 IMAGE_DISPLAY_NAME = f"automl-vision-detect-{ENV_ID}"
 MODEL_DISPLAY_NAME = f"automl-vision-detect-model-{ENV_ID}"
-
 RESOURCE_DATA_BUCKET = "airflow-system-tests-resources"
-IMAGE_GCS_BUCKET_NAME = f"bucket_image_detect_{ENV_ID}".replace("_", "-")
 
 IMAGE_DATASET = {
     "display_name": f"image-detect-dataset-{ENV_ID}",
     "metadata_schema_uri": schema.dataset.metadata.image,
     "metadata": Value(string_value="image-dataset"),
 }
+
 IMAGE_DATA_CONFIG = [
+    # For testing only
     {
         "import_schema_uri": schema.dataset.ioformat.image.bounding_box,
-        "gcs_source": {"uris": [f"gs://{IMAGE_GCS_BUCKET_NAME}/automl/object_detection.csv"]},
+        "gcs_source": {
+            "uris": [f"gs://{RESOURCE_DATA_BUCKET}/automl/datasets/vision/obj_detection_short.csv"]
+        },
     },
 ]
-
 
 # Example DAG for AutoML Vision Object Detection
 with DAG(
@@ -75,22 +71,6 @@ with DAG(
     catchup=False,
     tags=["example", "automl", "vision", "object-detection"],
 ) as dag:
-    create_bucket = GCSCreateBucketOperator(
-        task_id="create_bucket",
-        bucket_name=IMAGE_GCS_BUCKET_NAME,
-        storage_class="REGIONAL",
-        location=REGION,
-    )
-
-    move_dataset_file = GCSSynchronizeBucketsOperator(
-        task_id="move_dataset_to_bucket",
-        source_bucket=RESOURCE_DATA_BUCKET,
-        source_object="automl/datasets/vision",
-        destination_bucket=IMAGE_GCS_BUCKET_NAME,
-        destination_object="automl",
-        recursive=True,
-    )
-
     create_image_dataset = CreateDatasetOperator(
         task_id="image_dataset",
         dataset=IMAGE_DATASET,
@@ -143,25 +123,15 @@ with DAG(
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
-    delete_bucket = GCSDeleteBucketOperator(
-        task_id="delete_bucket",
-        bucket_name=IMAGE_GCS_BUCKET_NAME,
-        trigger_rule=TriggerRule.ALL_DONE,
-    )
-
     (
         # TEST SETUP
-        [
-            create_bucket >> move_dataset_file,
-            create_image_dataset,
-        ]
+        create_image_dataset
         >> import_image_dataset
         # TEST BODY
         >> create_auto_ml_image_training_job
         # TEST TEARDOWN
         >> delete_auto_ml_image_training_job
         >> delete_image_dataset
-        >> delete_bucket
     )
 
     from tests.system.utils.watcher import watcher

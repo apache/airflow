@@ -315,7 +315,7 @@ class TestDataflowCreateJavaJobOperator:
             "output": "gs://test/output",
             "labels": {"foo": "bar", "airflow-version": self.expected_airflow_version},
         }
-        dataflow_running.assert_called_once_with(name=JOB_NAME, variables=variables)
+        dataflow_running.assert_called_once_with(name=JOB_NAME, variables=variables, location=TEST_LOCATION)
 
     @mock.patch(
         "airflow.providers.google.cloud.operators.dataflow.process_line_and_extract_dataflow_job_id_callback"

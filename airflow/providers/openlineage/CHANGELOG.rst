@@ -26,6 +26,30 @@
 Changelog
 ---------
 
+1.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat: notify about potential serialization failures when sending DagRun, don't serialize unnecessary params, guard listener for exceptions (#41690)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: cast list to flattened string in openlineage InfoJsonEncodable (#41786)``
+
+Misc
+~~~~
+
+* ``chore: bump OL provider dependencies versions (#42059)``
+* ``move to dag_run.logical_date from execution date in OpenLineage provider (#41889)``
+* ``Unify DAG schedule args and change default to None (#41453)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 1.11.0
 ......
 

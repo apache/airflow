@@ -144,22 +144,6 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
         response = self.client.get(f"/api/v1/datasets/{urllib.parse.quote('s3://bucket/key', safe='')}")
         assert_401(response)
 
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, session):
-        self._create_dataset(session)
-        assert session.query(DatasetModel).count() == 1
-
-        with assert_queries_count(5):
-            response = self.client.get(
-                f"/api/v1/datasets/{urllib.parse.quote('s3://bucket/key', safe='')}",
-            )
-
-        assert response.status_code == expected_status_code
-
 
 class TestGetDatasets(TestDatasetEndpoint):
     def test_should_respond_200(self, session):
@@ -331,31 +315,6 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert response.status_code == 200
         response_data = response.json
         assert len(response_data["datasets"]) == expected_num
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, session):
-        datasets = [
-            DatasetModel(
-                id=i,
-                uri=f"s3://bucket/key/{i}",
-                extra={"foo": "bar"},
-                created_at=timezone.parse(self.default_time),
-                updated_at=timezone.parse(self.default_time),
-            )
-            for i in [1, 2]
-        ]
-        session.add_all(datasets)
-        session.commit()
-        assert session.query(DatasetModel).count() == 2
-
-        with assert_queries_count(8):
-            response = self.client.get("/api/v1/datasets")
-
-        assert response.status_code == expected_status_code
 
 
 class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
@@ -623,32 +582,6 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
             "total_entries": 1,
         }
 
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, session):
-        self._create_dataset(session)
-        common = {
-            "dataset_id": 1,
-            "extra": {"foo": "bar"},
-            "source_dag_id": "foo",
-            "source_task_id": "bar",
-            "source_run_id": "custom",
-            "source_map_index": -1,
-            "created_dagruns": [],
-        }
-
-        events = [DatasetEvent(id=i, timestamp=timezone.parse(self.default_time), **common) for i in [1, 2]]
-        session.add_all(events)
-        session.commit()
-        assert session.query(DatasetEvent).count() == 2
-
-        response = self.client.get("/api/v1/datasets/events")
-
-        assert response.status_code == expected_status_code
-
 
 class TestPostDatasetEvents(TestDatasetEndpoint):
     @pytest.fixture
@@ -720,19 +653,6 @@ class TestPostDatasetEvents(TestDatasetEndpoint):
         self._create_dataset(session)
         response = self.client.post("/api/v1/datasets/events", json={"dataset_uri": "TEST_DATASET_URI"})
         assert_401(response)
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    @pytest.mark.usefixtures("time_freezer")
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, session):
-        self._create_dataset(session)
-        event_payload = {"dataset_uri": "s3://bucket/key", "extra": {"foo": "bar"}}
-        response = self.client.post("/api/v1/datasets/events", json=event_payload)
-
-        assert response.status_code == expected_status_code
 
 
 class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
@@ -904,27 +824,6 @@ class TestGetDagDatasetQueuedEvent(TestQueuedEventEndpoint):
 
         assert response.status_code == 403
 
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    @pytest.mark.usefixtures("time_freezer")
-    def test_with_auth_role_public_set(
-        self, set_auto_role_public, expected_status_code, create_dummy_dag, session
-    ):
-        dag, _ = create_dummy_dag()
-        dag_id = dag.dag_id
-        dataset_id = self._create_dataset(session).id
-        self._create_dataset_dag_run_queues(dag_id, dataset_id, session)
-        dataset_uri = "s3://bucket/key"
-
-        response = self.client.get(
-            f"/api/v1/dags/{dag_id}/datasets/queuedEvent/{dataset_uri}",
-        )
-
-        assert response.status_code == expected_status_code
-
 
 class TestDeleteDagDatasetQueuedEvent(TestDatasetEndpoint):
     def test_delete_should_respond_204(self, session, create_dummy_dag):
@@ -1042,24 +941,6 @@ class TestGetDagDatasetQueuedEvents(TestQueuedEventEndpoint):
 
         assert response.status_code == 403
 
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(
-        self, set_auto_role_public, expected_status_code, session, create_dummy_dag
-    ):
-        dag, _ = create_dummy_dag()
-        dag_id = dag.dag_id
-        dataset_id = self._create_dataset(session).id
-        self._create_dataset_dag_run_queues(dag_id, dataset_id, session)
-
-        response = self.client.get(
-            f"/api/v1/dags/{dag_id}/datasets/queuedEvent",
-        )
-        assert response.status_code == expected_status_code
-
 
 class TestDeleteDagDatasetQueuedEvents(TestDatasetEndpoint):
     def test_should_respond_404(self):
@@ -1094,31 +975,6 @@ class TestDeleteDagDatasetQueuedEvents(TestDatasetEndpoint):
         )
 
         assert response.status_code == 403
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 204)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(
-        self, set_auto_role_public, expected_status_code, session, create_dummy_dag
-    ):
-        dag, _ = create_dummy_dag()
-        dag_id = dag.dag_id
-        dataset_uri = "s3://bucket/key"
-        dataset_id = self._create_dataset(session).id
-
-        ddrq = DatasetDagRunQueue(target_dag_id=dag_id, dataset_id=dataset_id)
-        session.add(ddrq)
-        session.commit()
-        conn = session.query(DatasetDagRunQueue).all()
-        assert len(conn) == 1
-
-        response = self.client.delete(
-            f"/api/v1/dags/{dag_id}/datasets/queuedEvent/{dataset_uri}",
-        )
-
-        assert response.status_code == expected_status_code
 
 
 class TestGetDatasetQueuedEvents(TestQueuedEventEndpoint):
@@ -1180,26 +1036,6 @@ class TestGetDatasetQueuedEvents(TestQueuedEventEndpoint):
 
         assert response.status_code == 403
 
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    @pytest.mark.usefixtures("time_freezer")
-    def test_with_auth_role_public_set(
-        self, set_auto_role_public, expected_status_code, session, create_dummy_dag
-    ):
-        dag, _ = create_dummy_dag()
-        dag_id = dag.dag_id
-        dataset_id = self._create_dataset(session).id
-        self._create_dataset_dag_run_queues(dag_id, dataset_id, session)
-
-        response = self.client.get(
-            f"/api/v1/dags/{dag_id}/datasets/queuedEvent",
-        )
-
-        assert response.status_code == expected_status_code
-
 
 class TestDeleteDatasetQueuedEvents(TestQueuedEventEndpoint):
     def test_delete_should_respond_204(self, session, create_dummy_dag):
@@ -1251,23 +1087,3 @@ class TestDeleteDatasetQueuedEvents(TestQueuedEventEndpoint):
         )
 
         assert response.status_code == 403
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 204)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(
-        self, set_auto_role_public, expected_status_code, session, create_dummy_dag
-    ):
-        dag, _ = create_dummy_dag()
-        dag_id = dag.dag_id
-        dataset_id = self._create_dataset(session).id
-        self._create_dataset_dag_run_queues(dag_id, dataset_id, session)
-        dataset_uri = "s3://bucket/key"
-
-        response = self.client.delete(
-            f"/api/v1/datasets/queuedEvent/{dataset_uri}",
-        )
-
-        assert response.status_code == expected_status_code

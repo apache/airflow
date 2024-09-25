@@ -16,18 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-import { afterEach, beforeEach, describe, it, vi } from "vitest";
-import { QueryObserverSuccessResult } from "@tanstack/react-query";
+import type { QueryObserverSuccessResult } from "@tanstack/react-query";
 import { render } from "@testing-library/react";
+import { afterEach, beforeEach, describe, it, vi } from "vitest";
 
 import * as openapiQueriesModule from "openapi/queries";
-import { DAGCollection } from "openapi/requests/types.gen";
+import type { DAGCollectionResponse } from "openapi/requests/types.gen";
 
-import { Wrapper } from "./utils/test";
 import { App } from "./App";
+import { Wrapper } from "./utils/Wrapper";
 
-const mockListDags: DAGCollection = {
+const mockListDags: DAGCollectionResponse = {
   dags: [
     {
       dag_display_name: "nested_groups",
@@ -56,6 +55,7 @@ const mockListDags: DAGCollection = {
       scheduler_lock: null,
       tags: [],
       timetable_description: "",
+      timetable_summary: "",
     },
     {
       dag_display_name: "simple_bash_operator",
@@ -84,25 +84,31 @@ const mockListDags: DAGCollection = {
       scheduler_lock: null,
       tags: [
         {
+          dag_id: "dag",
           name: "example2",
         },
         {
+          dag_id: "dag",
           name: "example",
         },
       ],
       timetable_description: "At 00:00",
+      timetable_summary: "sum",
     },
   ],
   total_entries: 2,
 };
+
 beforeEach(() => {
   const returnValue = {
     data: mockListDags,
     isLoading: false,
-  } as QueryObserverSuccessResult<DAGCollection, unknown>;
-  vi.spyOn(openapiQueriesModule, "useDagServiceGetDags").mockImplementation(
-    () => returnValue
-  );
+  } as QueryObserverSuccessResult<DAGCollectionResponse, unknown>;
+
+  vi.spyOn(
+    openapiQueriesModule,
+    "useDagServiceGetDagsPublicDagsGet",
+  ).mockImplementation(() => returnValue);
 });
 
 afterEach(() => {

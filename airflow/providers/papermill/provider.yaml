@@ -22,9 +22,10 @@ description: |
     `Papermill <https://github.com/nteract/papermill>`__
 
 state: ready
-source-date-epoch: 1723970506
+source-date-epoch: 1726861106
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 3.8.1
   - 3.8.0
   - 3.7.2
   - 3.7.1

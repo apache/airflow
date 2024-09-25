@@ -36,6 +36,7 @@ from google.cloud.aiplatform import (
 from google.cloud.aiplatform_v1 import JobServiceClient, PipelineServiceClient
 
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 if TYPE_CHECKING:
@@ -185,6 +186,11 @@ class AutoMLHook(GoogleBaseHook):
             model_encryption_spec_key_name=model_encryption_spec_key_name,
         )
 
+    @deprecated(
+        planned_removal_date="June 15, 2025",
+        category=AirflowProviderDeprecationWarning,
+        reason="Deprecation of AutoMLText API",
+    )
     def get_auto_ml_text_training_job(
         self,
         display_name: str,
@@ -197,7 +203,12 @@ class AutoMLHook(GoogleBaseHook):
         training_encryption_spec_key_name: str | None = None,
         model_encryption_spec_key_name: str | None = None,
     ) -> AutoMLTextTrainingJob:
-        """Return AutoMLTextTrainingJob object."""
+        """
+        Return AutoMLTextTrainingJob object.
+
+        WARNING: Text creation API is deprecated since September 15, 2024
+        (https://cloud.google.com/vertex-ai/docs/tutorials/text-classification-automl/overview).
+        """
         return AutoMLTextTrainingJob(
             display_name=display_name,
             prediction_type=prediction_type,
@@ -980,6 +991,11 @@ class AutoMLHook(GoogleBaseHook):
         return model, training_id
 
     @GoogleBaseHook.fallback_to_default_project_id
+    @deprecated(
+        planned_removal_date="September 15, 2025",
+        category=AirflowProviderDeprecationWarning,
+        reason="Deprecation of AutoMLText API",
+    )
     def create_auto_ml_text_training_job(
         self,
         project_id: str,
@@ -1008,6 +1024,9 @@ class AutoMLHook(GoogleBaseHook):
     ) -> tuple[models.Model | None, str]:
         """
         Create an AutoML Text Training Job.
+
+        WARNING: Text creation API is deprecated since September 15, 2024
+        (https://cloud.google.com/vertex-ai/docs/tutorials/text-classification-automl/overview).
 
         :param project_id: Required. Project to run training in.
         :param region: Required. Location to run training in.
@@ -1101,13 +1120,14 @@ class AutoMLHook(GoogleBaseHook):
             concurrent Future and any downstream object will be immediately returned and synced when the
             Future has completed.
         """
-        self._job = self.get_auto_ml_text_training_job(
-            project=project_id,
-            location=region,
+        self._job = AutoMLTextTrainingJob(
             display_name=display_name,
             prediction_type=prediction_type,
             multi_label=multi_label,
             sentiment_max=sentiment_max,
+            project=project_id,
+            location=region,
+            credentials=self.get_credentials(),
             labels=labels,
             training_encryption_spec_key_name=training_encryption_spec_key_name,
             model_encryption_spec_key_name=model_encryption_spec_key_name,
@@ -1117,13 +1137,13 @@ class AutoMLHook(GoogleBaseHook):
             raise AirflowException("AutoMLTextTrainingJob was not created")
 
         model = self._job.run(
-            dataset=dataset,
-            training_fraction_split=training_fraction_split,
-            validation_fraction_split=validation_fraction_split,
+            dataset=dataset,  # type: ignore[arg-type]
+            training_fraction_split=training_fraction_split,  # type: ignore[call-arg]
+            validation_fraction_split=validation_fraction_split,  # type: ignore[call-arg]
             test_fraction_split=test_fraction_split,
             training_filter_split=training_filter_split,
             validation_filter_split=validation_filter_split,
-            test_filter_split=test_filter_split,
+            test_filter_split=test_filter_split,  # type: ignore[call-arg]
             model_display_name=model_display_name,
             model_labels=model_labels,
             sync=sync,
