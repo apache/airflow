@@ -395,13 +395,6 @@ core:
       type: integer
       example: ~
       default: "30"
-    check_slas:
-      description: |
-        On each dagrun check against defined SLAs
-      version_added: 1.10.8
-      type: string
-      example: ~
-      default: "True"
     xcom_backend:
       description: |
         Path to custom XCom class that will be used to store and resolve operators results
@@ -1238,6 +1231,13 @@ metrics:
       type: string
       example: ~
       default: "False"
+    otel_service:
+      description: |
+        The default service name of traces.
+      version_added: 2.10.3
+      type: string
+      example: ~
+      default: "Airflow"
     otel_ssl_active:
       description: |
         If ``True``, SSL will be enabled. Defaults to ``False``.
@@ -2566,6 +2566,16 @@ scheduler:
       example: ~
       default: "True"
       see_also: ":ref:`Differences between the two cron timetables`"
+    enable_tracemalloc:
+      description: |
+        Whether to enable memory allocation tracing in the scheduler. If enabled, Airflow will start
+        tracing memory allocation and log the top 10 memory usages at the error level upon receiving the
+        signal SIGUSR1.
+        This is an expensive operation and generally should not be used except for debugging purposes.
+      version_added: 3.0.0
+      type: boolean
+      example: ~
+      default: "False"
 triggerer:
   description: ~
   options:

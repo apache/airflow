@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 from unittest import mock
+from uuid import uuid4
 
 import pytest
 
@@ -63,15 +64,18 @@ class TestRedshiftDataHook:
         mock_conn.describe_statement.assert_not_called()
 
     @pytest.mark.parametrize(
-        "cluster_identifier, workgroup_name",
+        "cluster_identifier, workgroup_name, session_id",
         [
-            (None, None),
-            ("some_cluster", "some_workgroup"),
+            (None, None, None),
+            ("some_cluster", "some_workgroup", None),
+            (None, "some_workgroup", None),
+            ("some_cluster", None, None),
+            (None, None, "some_session_id"),
         ],
     )
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
-    def test_execute_requires_either_cluster_identifier_or_workgroup_name(
-        self, mock_conn, cluster_identifier, workgroup_name
+    def test_execute_requires_one_of_cluster_identifier_or_workgroup_name_or_session_id(
+        self, mock_conn, cluster_identifier, workgroup_name, session_id
     ):
         mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
         cluster_identifier = "cluster_identifier"
@@ -84,6 +88,51 @@ class TestRedshiftDataHook:
                 workgroup_name=workgroup_name,
                 sql=SQL,
                 wait_for_completion=False,
+                session_id=session_id,
+            )
+
+    @pytest.mark.parametrize(
+        "cluster_identifier, workgroup_name, session_id",
+        [
+            (None, None, None),
+            ("some_cluster", "some_workgroup", None),
+            (None, "some_workgroup", None),
+            ("some_cluster", None, None),
+            (None, None, "some_session_id"),
+        ],
+    )
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
+    def test_execute_session_keep_alive_seconds_valid(
+        self, mock_conn, cluster_identifier, workgroup_name, session_id
+    ):
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
+        cluster_identifier = "cluster_identifier"
+        workgroup_name = "workgroup_name"
+        hook = RedshiftDataHook()
+        with pytest.raises(ValueError):
+            hook.execute_query(
+                database=DATABASE,
+                cluster_identifier=cluster_identifier,
+                workgroup_name=workgroup_name,
+                sql=SQL,
+                wait_for_completion=False,
+                session_id=session_id,
+            )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
+    def test_execute_session_id_valid(self, mock_conn):
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID}
+        cluster_identifier = "cluster_identifier"
+        workgroup_name = "workgroup_name"
+        hook = RedshiftDataHook()
+        with pytest.raises(ValueError):
+            hook.execute_query(
+                database=DATABASE,
+                cluster_identifier=cluster_identifier,
+                workgroup_name=workgroup_name,
+                sql=SQL,
+                wait_for_completion=False,
+                session_id="not_a_uuid",
             )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
@@ -151,6 +200,74 @@ class TestRedshiftDataHook:
             StatementName=statement_name,
             Parameters=parameters,
             WithEvent=False,
+        )
+        mock_conn.describe_statement.assert_called_once_with(
+            Id=STATEMENT_ID,
+        )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
+    def test_execute_with_new_session(self, mock_conn):
+        cluster_identifier = "cluster_identifier"
+        db_user = "db_user"
+        secret_arn = "secret_arn"
+        statement_name = "statement_name"
+        parameters = [{"name": "id", "value": "1"}]
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID, "SessionId": "session_id"}
+        mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
+
+        hook = RedshiftDataHook()
+        output = hook.execute_query(
+            sql=SQL,
+            database=DATABASE,
+            cluster_identifier=cluster_identifier,
+            db_user=db_user,
+            secret_arn=secret_arn,
+            statement_name=statement_name,
+            parameters=parameters,
+            session_keep_alive_seconds=123,
+        )
+        assert output.statement_id == STATEMENT_ID
+        assert output.session_id == "session_id"
+
+        mock_conn.execute_statement.assert_called_once_with(
+            Database=DATABASE,
+            Sql=SQL,
+            ClusterIdentifier=cluster_identifier,
+            DbUser=db_user,
+            SecretArn=secret_arn,
+            StatementName=statement_name,
+            Parameters=parameters,
+            WithEvent=False,
+            SessionKeepAliveSeconds=123,
+        )
+        mock_conn.describe_statement.assert_called_once_with(
+            Id=STATEMENT_ID,
+        )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_data.RedshiftDataHook.conn")
+    def test_execute_reuse_session(self, mock_conn):
+        statement_name = "statement_name"
+        parameters = [{"name": "id", "value": "1"}]
+        mock_conn.execute_statement.return_value = {"Id": STATEMENT_ID, "SessionId": "session_id"}
+        mock_conn.describe_statement.return_value = {"Status": "FINISHED"}
+        hook = RedshiftDataHook()
+        session_id = str(uuid4())
+        output = hook.execute_query(
+            database=None,
+            sql=SQL,
+            statement_name=statement_name,
+            parameters=parameters,
+            session_id=session_id,
+        )
+        assert output.statement_id == STATEMENT_ID
+        assert output.session_id == "session_id"
+
+        mock_conn.execute_statement.assert_called_once_with(
+            Sql=SQL,
+            StatementName=statement_name,
+            Parameters=parameters,
+            WithEvent=False,
+            SessionId=session_id,
         )
         mock_conn.describe_statement.assert_called_once_with(
             Id=STATEMENT_ID,

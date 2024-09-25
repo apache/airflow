@@ -36,7 +36,7 @@ from sqlalchemy.orm import lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
 
 from airflow import settings
-from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
+from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
 from airflow.exceptions import UnknownExecutorException
@@ -181,6 +181,12 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         self.do_pickle = do_pickle
 
+        self._enable_tracemalloc = conf.getboolean("scheduler", "enable_tracemalloc")
+        if self._enable_tracemalloc:
+            import tracemalloc
+
+            tracemalloc.start()
+
         if log:
             self._log = log
 
@@ -202,16 +208,36 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         signal.signal(signal.SIGTERM, self._exit_gracefully)
         signal.signal(signal.SIGUSR2, self._debug_dump)
 
+        if self._enable_tracemalloc:
+            signal.signal(signal.SIGUSR1, self._log_memory_usage)
+
     def _exit_gracefully(self, signum: int, frame: FrameType | None) -> None:
         """Clean up processor_agent to avoid leaving orphan processes."""
         if not _is_parent_process():
             # Only the parent process should perform the cleanup.
             return
 
+        if self._enable_tracemalloc:
+            import tracemalloc
+
+            tracemalloc.stop()
+
         self.log.info("Exiting gracefully upon receiving signal %s", signum)
         if self.processor_agent:
             self.processor_agent.end()
         sys.exit(os.EX_OK)
+
+    def _log_memory_usage(self, signum: int, frame: FrameType | None) -> None:
+        import tracemalloc
+
+        snapshot = tracemalloc.take_snapshot()
+        top_stats = snapshot.statistics("lineno")
+        n = 10
+        self.log.error(
+            "scheduler memory usgae:\n Top %d\n %s",
+            n,
+            "\n\t".join(map(str, top_stats[:n])),
+        )
 
     def _debug_dump(self, signum: int, frame: FrameType | None) -> None:
         if not _is_parent_process():
@@ -1192,9 +1218,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
             self._start_queued_dagruns(session)
             guard.commit()
-            dag_runs = self._get_next_dagruns_to_examine(DagRunState.RUNNING, session)
+
             # Bulk fetch the currently active dag runs for the dags we are
             # examining, rather than making one query per DagRun
+            dag_runs = DagRun.get_running_dag_runs_to_examine(session=session)
 
             callback_tuples = self._schedule_all_dag_runs(guard, dag_runs, session)
 
@@ -1247,11 +1274,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
             guard.commit()
 
         return num_queued_tis
-
-    @retry_db_transaction
-    def _get_next_dagruns_to_examine(self, state: DagRunState, session: Session) -> Query:
-        """Get Next DagRuns to Examine with retries."""
-        return DagRun.next_dagruns_to_examine(state, session)
 
     @retry_db_transaction
     def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:
@@ -1486,7 +1508,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
     def _start_queued_dagruns(self, session: Session) -> None:
         """Find DagRuns in queued state and decide moving them to running state."""
         # added all() to save runtime, otherwise query is executed more than once
-        dag_runs: Collection[DagRun] = self._get_next_dagruns_to_examine(DagRunState.QUEUED, session).all()
+        dag_runs: Collection[DagRun] = DagRun.get_queued_dag_runs_to_set_running(session).all()
 
         active_runs_of_dags = Counter(
             DagRun.active_runs_of_dags((dr.dag_id for dr in dag_runs), only_running=True, session=session),
@@ -1702,36 +1724,10 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return True
 
     def _send_dag_callbacks_to_processor(self, dag: DAG, callback: DagCallbackRequest | None = None) -> None:
-        self._send_sla_callbacks_to_processor(dag)
         if callback:
             self.job.executor.send_callback(callback)
         else:
             self.log.debug("callback is empty")
-
-    def _send_sla_callbacks_to_processor(self, dag: DAG) -> None:
-        """Send SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True."""
-        if not settings.CHECK_SLAS:
-            return
-
-        if not any(isinstance(task.sla, timedelta) for task in dag.tasks):
-            self.log.debug("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
-            return
-
-        if not dag.timetable.periodic:
-            self.log.debug("Skipping SLA check for %s because DAG is not scheduled", dag)
-            return
-
-        dag_model = DagModel.get_dagmodel(dag.dag_id)
-        if not dag_model:
-            self.log.error("Couldn't find DAG %s in database!", dag.dag_id)
-            return
-
-        request = SlaCallbackRequest(
-            full_filepath=dag.fileloc,
-            dag_id=dag.dag_id,
-            processor_subdir=dag_model.processor_subdir,
-        )
-        self.job.executor.send_callback(request)
 
     @provide_session
     def _fail_tasks_stuck_in_queued(self, session: Session = NEW_SESSION) -> None:
