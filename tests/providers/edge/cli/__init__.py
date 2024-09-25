@@ -15,34 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
-from pluggy import HookspecMarker
-
-if TYPE_CHECKING:
-    from airflow.datasets import Dataset, DatasetAlias
-
-hookspec = HookspecMarker("airflow")
-
-
-@hookspec
-def on_dataset_created(
-    dataset: Dataset,
-):
-    """Execute when a new dataset is created."""
-
-
-@hookspec
-def on_dataset_alias_created(
-    dataset_alias: DatasetAlias,
-):
-    """Execute when a new dataset alias is created."""
-
-
-@hookspec
-def on_dataset_changed(
-    dataset: Dataset,
-):
-    """Execute when dataset change is registered."""

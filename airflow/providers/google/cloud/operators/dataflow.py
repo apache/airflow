@@ -432,11 +432,13 @@ class DataflowCreateJavaJobOperator(GoogleCloudBaseOperator):
                 is_running = self.dataflow_hook.is_job_dataflow_running(
                     name=self.job_name,
                     variables=pipeline_options,
+                    location=self.location,
                 )
                 while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
                     is_running = self.dataflow_hook.is_job_dataflow_running(
                         name=self.job_name,
                         variables=pipeline_options,
+                        location=self.location,
                     )
             if not is_running:
                 pipeline_options["jobName"] = job_name
