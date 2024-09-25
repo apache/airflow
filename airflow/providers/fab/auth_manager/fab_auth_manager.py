@@ -98,6 +98,7 @@ if TYPE_CHECKING:
 
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {
     DagAccessEntity.AUDIT_LOG: (RESOURCE_AUDIT_LOG,),
+    DagAccessEntity.BACKFILL: (RESOURCE_DAG,),
     DagAccessEntity.CODE: (RESOURCE_DAG_CODE,),
     DagAccessEntity.DEPENDENCIES: (RESOURCE_DAG_DEPENDENCIES,),
     DagAccessEntity.RUN: (RESOURCE_DAG_RUN,),
@@ -256,12 +257,17 @@ class FabAuthManager(BaseAuthManager):
             ):
                 return False
 
-            return all(
-                self._is_authorized(method=method, resource_type=resource_type, user=user)
-                if resource_type != RESOURCE_DAG_RUN or not hasattr(permissions, "resource_name")
-                else self._is_authorized_dag_run(method=method, details=details, user=user)
-                for resource_type in resource_types
-            )
+            has_access = False
+            for resource_type in resource_types:
+                if resource_type == RESOURCE_DAG:
+                    has_access = self._is_authorized_dag(method=method, details=details, user=user)
+                elif resource_type == RESOURCE_DAG_RUN:
+                    has_access = self._is_authorized_dag_run(method=method, details=details, user=user)
+                else:
+                    has_access = self._is_authorized(method=method, resource_type=resource_type, user=user)
+                if not has_access:
+                    return False
+            return has_access
 
     def is_authorized_dataset(
         self, *, method: ResourceMethod, details: DatasetDetails | None = None, user: BaseUser | None = None
