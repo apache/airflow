@@ -50,6 +50,7 @@ concurrency:
 
 jobs:
   notify-slack-failure:
+    if: always()
     uses: slackapi/slack-github-action@v1.27.0
     name: "Notify Slack on Failure"
     with:
