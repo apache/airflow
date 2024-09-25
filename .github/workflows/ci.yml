@@ -39,8 +39,6 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_USERNAME: ${{ github.actor }}
   IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
-  # This webhook url is to this slack channel https://apache-airflow.slack.com/archives/C07MWFASWJ1
-  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
   SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
   VERBOSE: "true"
 
@@ -676,20 +674,15 @@ jobs:
   
   notify-slack-failure:
     name: "Notify Slack on Failure"
-    # if: github.event_name == 'schedule' && failure()
+    if: github.event_name == 'schedule' && failure()
     runs-on: ["ubuntu-22.04"]
-    # uses: slackapi/slack-github-action@v1.27.0
     steps:
       - name: Notify Slack
         id: slack
         uses: slackapi/slack-github-action@v1.27.0
         with:
           payload-delimiter: "."
-          # Slack channel id, channel name, or user id to post message.
-          # See also: https://api.slack.com/methods/chat.postMessage#channels
-          # You can pass in multiple channels to post to by providing a comma-delimited list of channel IDs.
           channel-id: 'zzz_webhook_test'
-          # For posting a simple plain text message
           payload: |
             {
               "text": "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>",
