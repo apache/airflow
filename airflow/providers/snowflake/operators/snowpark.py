@@ -22,7 +22,6 @@ from typing import Any, Callable, Collection, Mapping, Sequence
 from airflow.operators.python import PythonOperator, get_current_context
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
 from airflow.providers.snowflake.utils.snowpark import inject_session_into_op_kwargs
-from airflow.utils.operator_helpers import ExecutionCallableRunner
 
 
 class SnowparkOperator(PythonOperator):
@@ -126,8 +125,9 @@ class SnowparkOperator(PythonOperator):
         )
         try:
             # inject session object if the function has "session" keyword as an argument
-            op_kwargs = inject_session_into_op_kwargs(self.python_callable, dict(self.op_kwargs), session)
-            runner = ExecutionCallableRunner(self.python_callable, self._dataset_events, logger=self.log)
-            return runner.run(*self.op_args, **op_kwargs)
+            self.op_kwargs = inject_session_into_op_kwargs(
+                self.python_callable, dict(self.op_kwargs), session
+            )
+            return super().execute_callable()
         finally:
             session.close()

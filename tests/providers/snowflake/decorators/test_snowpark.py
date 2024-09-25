@@ -17,8 +17,11 @@
 
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING
 from unittest import mock
+
+import pytest
 
 from airflow.decorators import task
 from airflow.utils import timezone
@@ -32,6 +35,8 @@ TASK_ID = "snowpark_task"
 CONN_ID = "snowflake_default"
 
 
+@pytest.mark.db_test
+@pytest.mark.skipif(sys.version_info >= (3, 12), reason="Snowpark Python doesn't support Python 3.12 yet")
 class TestSnowparkDecorator:
     @mock.patch("airflow.providers.snowflake.operators.snowpark.SnowflakeHook")
     def test_snowpark_decorator_no_param(self, mock_snowflake_hook, dag_maker):

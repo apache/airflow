@@ -25,8 +25,9 @@ Use the :class:`SnowparkOperator <airflow.providers.snowflake.operators.snowpark
 
 .. warning::
 
-    Currently, this operator does not support `Snowpark pandas API <https://docs.snowflake.com/en/developer-guide/snowpark/python/pandas-on-snowflake>`__ because conflicting pandas version is used in Airflow.
-    Consider using Snowpark pandas API with other Snowpark decorators or operators.
+    - Snowpark does not support Python 3.12 yet.
+    - Currently, this operator does not support `Snowpark pandas API <https://docs.snowflake.com/en/developer-guide/snowpark/python/pandas-on-snowflake>`__ because conflicting pandas version is used in Airflow.
+      Consider using Snowpark pandas API with other Snowpark decorators or operators.
 
 .. tip::
 

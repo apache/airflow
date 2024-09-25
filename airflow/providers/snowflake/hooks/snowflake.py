@@ -29,7 +29,6 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from snowflake import connector
 from snowflake.connector import DictCursor, SnowflakeConnection, util_text
-from snowflake.snowpark import Session
 from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
@@ -319,12 +318,14 @@ class SnowflakeHook(DbApiHook):
                 engine_kwargs["connect_args"][key] = conn_params[key]
         return create_engine(self._conn_params_to_sqlalchemy_uri(conn_params), **engine_kwargs)
 
-    def get_snowpark_session(self) -> Session:
+    def get_snowpark_session(self):
         """
         Get a Snowpark session object.
 
         :return: the created session.
         """
+        from snowflake.snowpark import Session
+
         from airflow import __version__ as airflow_version
         from airflow.providers.snowflake import __version__ as provider_version
 
