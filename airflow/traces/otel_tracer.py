@@ -199,7 +199,12 @@ class OtelTrace:
 
         _links.append(
             Link(
-                context=trace.get_current_span().get_span_context(),
+                context=SpanContext(
+                    trace_id=trace.get_current_span().get_span_context().trace_id,
+                    span_id=span_id,
+                    is_remote=True,
+                    trace_flags=TraceFlags(0x01),
+                ),
                 attributes={"meta.annotation_type": "link", "from": "parenttrace"},
             )
         )
