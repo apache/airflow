@@ -128,7 +128,7 @@ def requires_access_dag(
                     method=method,
                     access_entity=access_entity,
                 ):
-                    return access
+                    return True
                 elif access_entity:
                     # no dag_id provided, and user does not have access to all dags
                     return False
