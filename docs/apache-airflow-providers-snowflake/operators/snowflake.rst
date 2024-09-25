@@ -50,7 +50,7 @@ the connection metadata is structured as follows:
 
 An example usage of the SQLExecuteQueryOperator to connect to Snowflake is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/snowflake/example_snowflake.py
+.. exampleinclude:: /../../providers/tests/system/snowflake/example_snowflake.py
     :language: python
     :start-after: [START howto_operator_snowflake]
     :end-before: [END howto_operator_snowflake]
@@ -95,7 +95,7 @@ the connection metadata is structured as follows:
 
 An example usage of the SnowflakeSqlApiHook is as follows:
 
-.. exampleinclude:: /../../tests/system/providers/snowflake/example_snowflake.py
+.. exampleinclude:: /../../providers/tests/system/snowflake/example_snowflake.py
     :language: python
     :start-after: [START howto_snowflake_sql_api_operator]
     :end-before: [END howto_snowflake_sql_api_operator]
