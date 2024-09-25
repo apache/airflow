@@ -22,7 +22,6 @@ from functools import wraps
 from typing import TYPE_CHECKING
 
 import pendulum
-from flask import g
 from sqlalchemy import select
 
 from airflow.api_connexion import security
@@ -37,7 +36,6 @@ from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.www.decorators import action_logging
-from airflow.www.extensions.init_auth_manager import get_auth_manager
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -91,12 +89,6 @@ def _create_backfill(
     session.add(br)
     session.commit()
     return br
-
-
-def _has_access(dag_ids, methods):
-    if get_auth_manager().filter_permitted_dag_ids(dag_ids=dag_ids, methods=methods, user=g.user):
-        return True
-    return False
 
 
 @security.requires_access_dag("GET")
