@@ -122,7 +122,7 @@ def requires_access_dag(
                     details=DagDetails(id=dag_id),
                 )
             else:
-                # here we know dag_id is *not* provided.
+                # here we know dag_id is not provided.
                 # check is the user authorized to access all DAGs?
                 if access := get_auth_manager().is_authorized_dag(
                     method=method,
