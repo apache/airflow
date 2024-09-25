@@ -135,9 +135,9 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
     def check_query_is_finished(self, statement_id: str) -> bool:
         """Check whether query finished, raise exception is failed."""
         resp = self.conn.describe_statement(Id=statement_id)
-        return self.parse_statement_resposne(resp)
+        return self.parse_statement_response(resp)
 
-    def parse_statement_resposne(self, resp: DescribeStatementResponseTypeDef) -> bool:
+    def parse_statement_response(self, resp: DescribeStatementResponseTypeDef) -> bool:
         """Parse the response of describe_statement."""
         status = resp["Status"]
         if status == FINISHED_STATE:
@@ -251,4 +251,4 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         """
         async with self.async_conn as client:
             resp = await client.describe_statement(Id=statement_id)
-            return self.parse_statement_resposne(resp)
+            return self.parse_statement_response(resp)
