@@ -1236,6 +1236,7 @@ migrateDatabaseJob:
   # Disable this if you are using ArgoCD for example
   useHelmHooks: true
   applyCustomEnv: true
+  env: []
 
 # rpcServer support is experimental / dev purpose only and will later be renamed
 _rpcServer:
