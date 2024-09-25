@@ -61,643 +61,642 @@ jobs:
       # For posting a simple plain text message
       slack-message: "GitHub build result: ${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
 
-
-  build-info:
-    name: "Build info"
-    needs: [notify-slack-failure]
-    # At build-info stage we do not yet have outputs so we need to hard-code the runs-on to public runners
-    runs-on: ["ubuntu-22.04"]
-    env:
-      GITHUB_CONTEXT: ${{ toJson(github) }}
-    outputs:
-      image-tag: ${{ github.event.pull_request.head.sha || github.sha }}
-      docker-cache: ${{ steps.selective-checks.outputs.docker-cache }}
-      affected-providers-list-as-string: >-
-        ${{ steps.selective-checks.outputs.affected-providers-list-as-string }}
-      upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
-      python-versions: ${{ steps.selective-checks.outputs.python-versions }}
-      python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
-      all-python-versions-list-as-string: >-
-        ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
-      default-python-version: ${{ steps.selective-checks.outputs.default-python-version }}
-      kubernetes-versions-list-as-string: >-
-        ${{ steps.selective-checks.outputs.kubernetes-versions-list-as-string }}
-      kubernetes-combos-list-as-string: >-
-        ${{ steps.selective-checks.outputs.kubernetes-combos-list-as-string }}
-      default-kubernetes-version: ${{ steps.selective-checks.outputs.default-kubernetes-version }}
-      postgres-versions: ${{ steps.selective-checks.outputs.postgres-versions }}
-      default-postgres-version: ${{ steps.selective-checks.outputs.default-postgres-version }}
-      mysql-versions: ${{ steps.selective-checks.outputs.mysql-versions }}
-      default-mysql-version: ${{ steps.selective-checks.outputs.default-mysql-version }}
-      default-helm-version: ${{ steps.selective-checks.outputs.default-helm-version }}
-      default-kind-version: ${{ steps.selective-checks.outputs.default-kind-version }}
-      full-tests-needed: ${{ steps.selective-checks.outputs.full-tests-needed }}
-      parallel-test-types-list-as-string: >-
-        ${{ steps.selective-checks.outputs.parallel-test-types-list-as-string }}
-      providers-test-types-list-as-string: >-
-        ${{ steps.selective-checks.outputs.providers-test-types-list-as-string }}
-      separate-test-types-list-as-string: >-
-        ${{ steps.selective-checks.outputs.separate-test-types-list-as-string }}
-      include-success-outputs: ${{ steps.selective-checks.outputs.include-success-outputs }}
-      postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
-      mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
-      sqlite-exclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
-      skip-provider-tests: ${{ steps.selective-checks.outputs.skip-provider-tests }}
-      run-tests: ${{ steps.selective-checks.outputs.run-tests }}
-      run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
-      run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
-      run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
-      run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
-      basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
-      ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
-      prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
-      docs-build: ${{ steps.selective-checks.outputs.docs-build }}
-      mypy-folders: ${{ steps.selective-checks.outputs.mypy-folders }}
-      needs-mypy: ${{ steps.selective-checks.outputs.needs-mypy }}
-      needs-helm-tests: ${{ steps.selective-checks.outputs.needs-helm-tests }}
-      needs-api-tests: ${{ steps.selective-checks.outputs.needs-api-tests }}
-      needs-api-codegen: ${{ steps.selective-checks.outputs.needs-api-codegen }}
-      default-branch: ${{ steps.selective-checks.outputs.default-branch }}
-      default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
-      docs-list-as-string: ${{ steps.selective-checks.outputs.docs-list-as-string }}
-      skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
-      providers-compatibility-checks: ${{ steps.selective-checks.outputs.providers-compatibility-checks }}
-      excluded-providers-as-string: ${{ steps.selective-checks.outputs.excluded-providers-as-string }}
-      helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
-      debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
-      runs-on-as-json-default: ${{ steps.selective-checks.outputs.runs-on-as-json-default }}
-      runs-on-as-json-docs-build: ${{ steps.selective-checks.outputs.runs-on-as-json-docs-build }}
-      runs-on-as-json-public: ${{ steps.selective-checks.outputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ steps.selective-checks.outputs.runs-on-as-json-self-hosted }}
-      runs-on-as-json-self-hosted-asf: ${{ steps.selective-checks.outputs.runs-on-as-json-self-hosted-asf }}
-      is-self-hosted-runner: ${{ steps.selective-checks.outputs.is-self-hosted-runner }}
-      is-airflow-runner: ${{ steps.selective-checks.outputs.is-airflow-runner }}
-      is-amd-runner: ${{ steps.selective-checks.outputs.is-amd-runner }}
-      is-arm-runner: ${{ steps.selective-checks.outputs.is-arm-runner }}
-      is-vm-runner: ${{ steps.selective-checks.outputs.is-vm-runner }}
-      is-k8s-runner: ${{ steps.selective-checks.outputs.is-k8s-runner }}
-      latest-versions-only: ${{ steps.selective-checks.outputs.latest-versions-only }}
-      chicken-egg-providers: ${{ steps.selective-checks.outputs.chicken-egg-providers }}
-      has-migrations: ${{ steps.selective-checks.outputs.has-migrations }}
-      source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
-      pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
-      in-workflow-build: ${{ steps.source-run-info.outputs.in-workflow-build }}
-      build-job-description: ${{ steps.source-run-info.outputs.build-job-description }}
-      testable-integrations: ${{ steps.selective-checks.outputs.testable-integrations }}
-      canary-run: ${{ steps.source-run-info.outputs.canary-run }}
-      run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-      - name: Fetch incoming commit ${{ github.sha }} with its parent
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.sha }}
-          fetch-depth: 2
-          persist-credentials: false
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-      - name: "Get information about the Workflow"
-        id: source-run-info
-        run: breeze ci get-workflow-info 2>> ${GITHUB_OUTPUT}
-      - name: Selective checks
-        id: selective-checks
-        env:
-          PR_LABELS: "${{ steps.source-run-info.outputs.pr-labels }}"
-          COMMIT_REF: "${{ github.sha }}"
-          VERBOSE: "false"
-        run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
-      - name: env
-        run: printenv
-        env:
-          PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
-          GITHUB_CONTEXT: ${{ toJson(github) }}
-
-  basic-tests:
-    name: "Basic tests"
-    needs: [build-info]
-    uses: ./.github/workflows/basic-tests.yml
-    with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      run-ui-tests: ${{needs.build-info.outputs.run-ui-tests}}
-      run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
-      needs-api-codegen: ${{needs.build-info.outputs.needs-api-codegen}}
-      default-python-version: ${{needs.build-info.outputs.default-python-version}}
-      basic-checks-only: ${{needs.build-info.outputs.basic-checks-only}}
-      skip-pre-commits: ${{needs.build-info.outputs.skip-pre-commits}}
-      canary-run: ${{needs.build-info.outputs.canary-run}}
-      latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
-      enable-aip-44: "false"
-
-  build-ci-images:
-    name: >
-      ${{ needs.build-info.outputs.in-workflow-build == 'true' && 'Build' || 'Skip building' }}
-      CI images in-workflow
-    needs: [build-info]
-    uses: ./.github/workflows/ci-image-build.yml
-    permissions:
-      contents: read
-      # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
-      # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
-      # For regular build for PRS this "build-prod-images" workflow will be skipped anyway by the
-      # "in-workflow-build" condition
-      packages: write
-    secrets: inherit
-    with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
-      do-build: ${{ needs.build-info.outputs.in-workflow-build }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      platform: "linux/amd64"
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      branch: ${{ needs.build-info.outputs.default-branch }}
-      use-uv: "true"
-      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
-      docker-cache: ${{ needs.build-info.outputs.docker-cache }}
-
-  wait-for-ci-images:
-    timeout-minutes: 120
-    name: "Wait for CI images"
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runs-on-as-json-public) }}
-    needs: [build-info, build-ci-images]
-    if: needs.build-info.outputs.ci-image-build == 'true'
-    env:
-      BACKEND: sqlite
-      # Force more parallelism for pull even on public images
-      PARALLELISM: 6
-      INCLUDE_SUCCESS_OUTPUTS: "${{needs.build-info.outputs.include-success-outputs}}"
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-      - name: Login to ghcr.io
-        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-      - name: Wait for CI images ${{ env.PYTHON_VERSIONS }}:${{ needs.build-info.outputs.image-tag }}
-        id: wait-for-images
-        run: breeze ci-image pull --run-in-parallel --wait-for-image --tag-as-latest
-        env:
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-          DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-
-  additional-ci-image-checks:
-    name: "Additional CI image checks"
-    needs: [build-info, wait-for-ci-images]
-    uses: ./.github/workflows/additional-ci-image-checks.yml
-    if: needs.build-info.outputs.canary-run == 'true'
-    with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      branch: ${{ needs.build-info.outputs.default-branch }}
-      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      skip-pre-commits: ${{ needs.build-info.outputs.skip-pre-commits }}
-      docker-cache: ${{ needs.build-info.outputs.docker-cache }}
-      canary-run: ${{ needs.build-info.outputs.canary-run }}
-      latest-versions-only: ${{ needs.build-info.outputs.latest-versions-only }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-
-
-  generate-constraints:
-    name: "Generate constraints"
-    needs: [build-info, wait-for-ci-images]
-    uses: ./.github/workflows/generate-constraints.yml
-    if: needs.build-info.outputs.ci-image-build == 'true'
-    with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-      # generate no providers constraints only in canary builds - they take quite some time to generate
-      # they are not needed for regular builds, they are only needed to update constraints in canaries
-      generate-no-providers-constraints: ${{ needs.build-info.outputs.canary-run }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-
-  static-checks-mypy-docs:
-    name: "Static checks, mypy, docs"
-    needs: [build-info, wait-for-ci-images]
-    uses: ./.github/workflows/static-checks-mypy-docs.yml
-    secrets: inherit
-    with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
-      runs-on-as-json-docs-build: ${{ needs.build-info.outputs.runs-on-as-json-docs-build }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      needs-mypy: ${{ needs.build-info.outputs.needs-mypy }}
-      mypy-folders: ${{ needs.build-info.outputs.mypy-folders }}
-      python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-      branch: ${{ needs.build-info.outputs.default-branch }}
-      canary-run: ${{ needs.build-info.outputs.canary-run }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      docs-list-as-string: ${{ needs.build-info.outputs.docs-list-as-string }}
-      latest-versions-only: ${{ needs.build-info.outputs.latest-versions-only }}
-      basic-checks-only: ${{ needs.build-info.outputs.basic-checks-only }}
-      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      skip-pre-commits: ${{ needs.build-info.outputs.skip-pre-commits }}
-      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
-      ci-image-build: ${{ needs.build-info.outputs.ci-image-build }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-
-  providers:
-    name: "Provider checks"
-    uses: ./.github/workflows/check-providers.yml
-    needs: [build-info, wait-for-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    if: >
-      needs.build-info.outputs.skip-provider-tests != 'true' &&
-      needs.build-info.outputs.latest-versions-only != 'true'
-    with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      canary-run: ${{ needs.build-info.outputs.canary-run }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      affected-providers-list-as-string: ${{ needs.build-info.outputs.affected-providers-list-as-string }}
-      providers-compatibility-checks: ${{ needs.build-info.outputs.providers-compatibility-checks }}
-      skip-provider-tests: ${{ needs.build-info.outputs.skip-provider-tests }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      providers-test-types-list-as-string: ${{ needs.build-info.outputs.providers-test-types-list-as-string }}
-
-  tests-helm:
-    name: "Helm tests"
-    uses: ./.github/workflows/helm-tests.yml
-    needs: [build-info, wait-for-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      helm-test-packages: ${{ needs.build-info.outputs.helm-test-packages }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-    if: >
-      needs.build-info.outputs.needs-helm-tests == 'true' &&
-      needs.build-info.outputs.default-branch == 'main' &&
-      needs.build-info.outputs.latest-versions-only != 'true'
-
-  tests-postgres:
-    name: "Postgres tests"
-    uses: ./.github/workflows/run-unit-tests.yml
-    needs: [build-info, wait-for-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
-      backend: "postgres"
-      test-name: "Postgres"
-      test-scope: "DB"
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      backend-versions: ${{ needs.build-info.outputs.postgres-versions }}
-      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
-      excludes: ${{ needs.build-info.outputs.postgres-exclude }}
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      run-migration-tests: "true"
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.run-tests == 'true'
-
-  tests-mysql:
-    name: "MySQL tests"
-    uses: ./.github/workflows/run-unit-tests.yml
-    needs: [build-info, wait-for-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
-      backend: "mysql"
-      test-name: "MySQL"
-      test-scope: "DB"
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      backend-versions: ${{ needs.build-info.outputs.mysql-versions }}
-      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
-      excludes: ${{ needs.build-info.outputs.mysql-exclude }}
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      run-migration-tests: "true"
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.run-tests == 'true'
-
-  tests-sqlite:
-    name: "Sqlite tests"
-    uses: ./.github/workflows/run-unit-tests.yml
-    needs: [build-info, wait-for-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
-      backend: "sqlite"
-      test-name: "Sqlite"
-      test-name-separator: ""
-      test-scope: "DB"
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      # No versions for sqlite
-      backend-versions: "['']"
-      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
-      excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      run-migration-tests: "true"
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.run-tests == 'true'
-
-  tests-non-db:
-    name: "Non-DB tests"
-    uses: ./.github/workflows/run-unit-tests.yml
-    needs: [build-info, wait-for-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
-      backend: "sqlite"
-      test-name: ""
-      test-name-separator: ""
-      test-scope: "Non-DB"
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      # No versions for non-db
-      backend-versions: "['']"
-      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
-      excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.run-tests == 'true'
-
-  tests-special:
-    name: "Special tests"
-    uses: ./.github/workflows/special-tests.yml
-    needs: [build-info, wait-for-ci-images]
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    if: >
-      needs.build-info.outputs.run-tests == 'true' &&
-      (needs.build-info.outputs.canary-run == 'true' ||
-       needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' ||
-       needs.build-info.outputs.full-tests-needed == 'true')
-    with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
-      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
-      canary-run: ${{ needs.build-info.outputs.canary-run }}
-      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-
-  tests-integration:
-    name: Integration Tests
-    needs: [build-info, wait-for-ci-images]
-    uses: ./.github/workflows/integration-tests.yml
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      testable-integrations: ${{ needs.build-info.outputs.testable-integrations }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
-      default-mysql-version: ${{ needs.build-info.outputs.default-mysql-version }}
-      skip-provider-tests: ${{ needs.build-info.outputs.skip-provider-tests }}
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: needs.build-info.outputs.run-tests == 'true'
-
-  tests-with-lowest-direct-resolution:
-    name: "Lowest direct dependency resolution tests"
-    needs: [build-info, wait-for-ci-images]
-    uses: ./.github/workflows/run-unit-tests.yml
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    if: >
-      needs.build-info.outputs.run-tests == 'true'
-    with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
-      test-name: "LowestDeps-Postgres"
-      force-lowest-dependencies: "true"
-      test-scope: "All"
-      backend: "postgres"
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      backend-versions: "['${{ needs.build-info.outputs.default-postgres-version }}']"
-      excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
-      excludes: "[]"
-      parallel-test-types-list-as-string: ${{ needs.build-info.outputs.separate-test-types-list-as-string }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      run-coverage: ${{ needs.build-info.outputs.run-coverage }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-      monitor-delay-time-in-seconds: 120
-
-  build-prod-images:
-    name: >
-      ${{ needs.build-info.outputs.in-workflow-build == 'true' && 'Build' || 'Skip building' }}
-      PROD images in-workflow
-    needs: [build-info, build-ci-images, generate-constraints]
-    uses: ./.github/workflows/prod-image-build.yml
-    permissions:
-      contents: read
-      # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
-      # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
-      # For regular build for PRS this "build-prod-images" workflow will be skipped anyway by the
-      # "in-workflow-build" condition
-      packages: write
-    secrets: inherit
-    with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      build-type: "Regular"
-      do-build: ${{ needs.build-info.outputs.in-workflow-build }}
-      upload-package-artifact: "true"
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      platform: "linux/amd64"
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      branch: ${{ needs.build-info.outputs.default-branch }}
-      push-image: "true"
-      use-uv: "true"
-      build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
-      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
-      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
-      docker-cache: ${{ needs.build-info.outputs.docker-cache }}
-
-  wait-for-prod-images:
-    timeout-minutes: 80
-    name: "Wait for PROD images"
-    runs-on: ${{ fromJSON(needs.build-info.outputs.runs-on-as-json-public) }}
-    needs: [build-info, wait-for-ci-images, build-prod-images]
-    if: needs.build-info.outputs.prod-image-build == 'true'
-    env:
-      BACKEND: sqlite
-      PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
-      # Force more parallelism for pull on public images
-      PARALLELISM: 6
-      INCLUDE_SUCCESS_OUTPUTS: "${{needs.build-info.outputs.include-success-outputs}}"
-      IMAGE_TAG: ${{ needs.build-info.outputs.image-tag }}
-    steps:
-      - name: "Cleanup repo"
-        shell: bash
-        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-      - name: "Cleanup docker"
-        run: ./scripts/ci/cleanup_docker.sh
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-      - name: "Install Breeze"
-        uses: ./.github/actions/breeze
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-      - name: Login to ghcr.io
-        run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-      - name: Wait for PROD images ${{ env.PYTHON_VERSIONS }}:${{ needs.build-info.outputs.image-tag }}
-        # We wait for the images to be available either from "build-images.yml' run as pull_request_target
-        # or from build-prod-images (or build-prod-images-release-branch) above.
-        # We are utilising single job to wait for all images because this job merely waits
-        # For the images to be available.
-        run: breeze prod-image pull --wait-for-image --run-in-parallel
-        env:
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-          DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
-        if: needs.build-info.outputs.in-workflow-build == 'false'
-
-  additional-prod-image-tests:
-    name: "Additional PROD image tests"
-    needs: [build-info, wait-for-prod-images, generate-constraints]
-    uses: ./.github/workflows/additional-prod-image-tests.yml
-    with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      default-branch: ${{ needs.build-info.outputs.default-branch }}
-      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
-      docker-cache: ${{ needs.build-info.outputs.docker-cache }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      canary-run: ${{ needs.build-info.outputs.canary-run }}
-    if: needs.build-info.outputs.prod-image-build == 'true'
-
-  tests-kubernetes:
-    name: "Kubernetes tests"
-    uses: ./.github/workflows/k8s-tests.yml
-    needs: [build-info, wait-for-prod-images]
-    permissions:
-      contents: read
-      packages: read
-    secrets: inherit
-    with:
-      runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-      kubernetes-versions-list-as-string: ${{ needs.build-info.outputs.kubernetes-versions-list-as-string }}
-      kubernetes-combos-list-as-string: ${{ needs.build-info.outputs.kubernetes-combos-list-as-string }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      debug-resources: ${{ needs.build-info.outputs.debug-resources }}
-    if: >
-      ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
-      needs.build-info.outputs.needs-helm-tests == 'true')
-
-  finalize-tests:
-    name: Finalize tests
-    permissions:
-      contents: write
-      packages: write
-    secrets: inherit
-    needs:
-      - build-info
-      - generate-constraints
-      - wait-for-ci-images
-      - wait-for-prod-images
-      - static-checks-mypy-docs
-      - tests-sqlite
-      - tests-mysql
-      - tests-postgres
-      - tests-non-db
-      - tests-integration
-    uses: ./.github/workflows/finalize-tests.yml
-    with:
-      runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
-      runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
-      image-tag: ${{ needs.build-info.outputs.image-tag }}
-      python-versions: ${{ needs.build-info.outputs.python-versions }}
-      python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
-      branch: ${{ needs.build-info.outputs.default-branch }}
-      constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
-      default-python-version: ${{ needs.build-info.outputs.default-python-version }}
-      in-workflow-build: ${{ needs.build-info.outputs.in-workflow-build }}
-      upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
-      include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
-      docker-cache: ${{ needs.build-info.outputs.docker-cache }}
-      canary-run: ${{ needs.build-info.outputs.canary-run }}
-
-  # notify-slack-failure:
-  #   name: "Notify Slack on Failure"
-  #   if: github.event_name == 'schedule' && failure()
+  # build-info:
+  #   name: "Build info"
+  #   needs: [notify-slack-failure]
+  #   # At build-info stage we do not yet have outputs so we need to hard-code the runs-on to public runners
   #   runs-on: ["ubuntu-22.04"]
+  #   env:
+  #     GITHUB_CONTEXT: ${{ toJson(github) }}
+  #   outputs:
+  #     image-tag: ${{ github.event.pull_request.head.sha || github.sha }}
+  #     docker-cache: ${{ steps.selective-checks.outputs.docker-cache }}
+  #     affected-providers-list-as-string: >-
+  #       ${{ steps.selective-checks.outputs.affected-providers-list-as-string }}
+  #     upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
+  #     python-versions: ${{ steps.selective-checks.outputs.python-versions }}
+  #     python-versions-list-as-string: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
+  #     all-python-versions-list-as-string: >-
+  #       ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
+  #     default-python-version: ${{ steps.selective-checks.outputs.default-python-version }}
+  #     kubernetes-versions-list-as-string: >-
+  #       ${{ steps.selective-checks.outputs.kubernetes-versions-list-as-string }}
+  #     kubernetes-combos-list-as-string: >-
+  #       ${{ steps.selective-checks.outputs.kubernetes-combos-list-as-string }}
+  #     default-kubernetes-version: ${{ steps.selective-checks.outputs.default-kubernetes-version }}
+  #     postgres-versions: ${{ steps.selective-checks.outputs.postgres-versions }}
+  #     default-postgres-version: ${{ steps.selective-checks.outputs.default-postgres-version }}
+  #     mysql-versions: ${{ steps.selective-checks.outputs.mysql-versions }}
+  #     default-mysql-version: ${{ steps.selective-checks.outputs.default-mysql-version }}
+  #     default-helm-version: ${{ steps.selective-checks.outputs.default-helm-version }}
+  #     default-kind-version: ${{ steps.selective-checks.outputs.default-kind-version }}
+  #     full-tests-needed: ${{ steps.selective-checks.outputs.full-tests-needed }}
+  #     parallel-test-types-list-as-string: >-
+  #       ${{ steps.selective-checks.outputs.parallel-test-types-list-as-string }}
+  #     providers-test-types-list-as-string: >-
+  #       ${{ steps.selective-checks.outputs.providers-test-types-list-as-string }}
+  #     separate-test-types-list-as-string: >-
+  #       ${{ steps.selective-checks.outputs.separate-test-types-list-as-string }}
+  #     include-success-outputs: ${{ steps.selective-checks.outputs.include-success-outputs }}
+  #     postgres-exclude: ${{ steps.selective-checks.outputs.postgres-exclude }}
+  #     mysql-exclude: ${{ steps.selective-checks.outputs.mysql-exclude }}
+  #     sqlite-exclude: ${{ steps.selective-checks.outputs.sqlite-exclude }}
+  #     skip-provider-tests: ${{ steps.selective-checks.outputs.skip-provider-tests }}
+  #     run-tests: ${{ steps.selective-checks.outputs.run-tests }}
+  #     run-amazon-tests: ${{ steps.selective-checks.outputs.run-amazon-tests }}
+  #     run-ui-tests: ${{ steps.selective-checks.outputs.run-ui-tests }}
+  #     run-www-tests: ${{ steps.selective-checks.outputs.run-www-tests }}
+  #     run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
+  #     basic-checks-only: ${{ steps.selective-checks.outputs.basic-checks-only }}
+  #     ci-image-build: ${{ steps.selective-checks.outputs.ci-image-build }}
+  #     prod-image-build: ${{ steps.selective-checks.outputs.prod-image-build }}
+  #     docs-build: ${{ steps.selective-checks.outputs.docs-build }}
+  #     mypy-folders: ${{ steps.selective-checks.outputs.mypy-folders }}
+  #     needs-mypy: ${{ steps.selective-checks.outputs.needs-mypy }}
+  #     needs-helm-tests: ${{ steps.selective-checks.outputs.needs-helm-tests }}
+  #     needs-api-tests: ${{ steps.selective-checks.outputs.needs-api-tests }}
+  #     needs-api-codegen: ${{ steps.selective-checks.outputs.needs-api-codegen }}
+  #     default-branch: ${{ steps.selective-checks.outputs.default-branch }}
+  #     default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
+  #     docs-list-as-string: ${{ steps.selective-checks.outputs.docs-list-as-string }}
+  #     skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
+  #     providers-compatibility-checks: ${{ steps.selective-checks.outputs.providers-compatibility-checks }}
+  #     excluded-providers-as-string: ${{ steps.selective-checks.outputs.excluded-providers-as-string }}
+  #     helm-test-packages: ${{ steps.selective-checks.outputs.helm-test-packages }}
+  #     debug-resources: ${{ steps.selective-checks.outputs.debug-resources }}
+  #     runs-on-as-json-default: ${{ steps.selective-checks.outputs.runs-on-as-json-default }}
+  #     runs-on-as-json-docs-build: ${{ steps.selective-checks.outputs.runs-on-as-json-docs-build }}
+  #     runs-on-as-json-public: ${{ steps.selective-checks.outputs.runs-on-as-json-public }}
+  #     runs-on-as-json-self-hosted: ${{ steps.selective-checks.outputs.runs-on-as-json-self-hosted }}
+  #     runs-on-as-json-self-hosted-asf: ${{ steps.selective-checks.outputs.runs-on-as-json-self-hosted-asf }}
+  #     is-self-hosted-runner: ${{ steps.selective-checks.outputs.is-self-hosted-runner }}
+  #     is-airflow-runner: ${{ steps.selective-checks.outputs.is-airflow-runner }}
+  #     is-amd-runner: ${{ steps.selective-checks.outputs.is-amd-runner }}
+  #     is-arm-runner: ${{ steps.selective-checks.outputs.is-arm-runner }}
+  #     is-vm-runner: ${{ steps.selective-checks.outputs.is-vm-runner }}
+  #     is-k8s-runner: ${{ steps.selective-checks.outputs.is-k8s-runner }}
+  #     latest-versions-only: ${{ steps.selective-checks.outputs.latest-versions-only }}
+  #     chicken-egg-providers: ${{ steps.selective-checks.outputs.chicken-egg-providers }}
+  #     has-migrations: ${{ steps.selective-checks.outputs.has-migrations }}
+  #     source-head-repo: ${{ steps.source-run-info.outputs.source-head-repo }}
+  #     pull-request-labels: ${{ steps.source-run-info.outputs.pr-labels }}
+  #     in-workflow-build: ${{ steps.source-run-info.outputs.in-workflow-build }}
+  #     build-job-description: ${{ steps.source-run-info.outputs.build-job-description }}
+  #     testable-integrations: ${{ steps.selective-checks.outputs.testable-integrations }}
+  #     canary-run: ${{ steps.source-run-info.outputs.canary-run }}
+  #     run-coverage: ${{ steps.source-run-info.outputs.run-coverage }}
   #   steps:
-  #     - name: Notify Slack
-  #       run: |
-  #         curl -X POST -H 'Content-type: application/json' --data '{
-  #           "text": "The GitLab CI workflow *Tests* has failed.\n
-  #                   Repository: ${{ github.repository }}\n
-  #                   Branch: ${{ github.ref_name }}\n
-  #                   Commit: ${{ github.sha }}\n
-  #                   Check the details at:
-  #                   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-  #         }' ${{ env.SLACK_WEBHOOK_URL }}
+  #     - name: "Cleanup repo"
+  #       shell: bash
+  #       run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+  #     - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+  #       uses: actions/checkout@v4
+  #       with:
+  #         persist-credentials: false
+  #     - name: "Cleanup docker"
+  #       run: ./scripts/ci/cleanup_docker.sh
+  #     - name: Fetch incoming commit ${{ github.sha }} with its parent
+  #       uses: actions/checkout@v4
+  #       with:
+  #         ref: ${{ github.sha }}
+  #         fetch-depth: 2
+  #         persist-credentials: false
+  #     - name: "Install Breeze"
+  #       uses: ./.github/actions/breeze
+  #     - name: "Get information about the Workflow"
+  #       id: source-run-info
+  #       run: breeze ci get-workflow-info 2>> ${GITHUB_OUTPUT}
+  #     - name: Selective checks
+  #       id: selective-checks
+  #       env:
+  #         PR_LABELS: "${{ steps.source-run-info.outputs.pr-labels }}"
+  #         COMMIT_REF: "${{ github.sha }}"
+  #         VERBOSE: "false"
+  #       run: breeze ci selective-check 2>> ${GITHUB_OUTPUT}
+  #     - name: env
+  #       run: printenv
+  #       env:
+  #         PR_LABELS: ${{ steps.source-run-info.outputs.pr-labels }}
+  #         GITHUB_CONTEXT: ${{ toJson(github) }}
+
+  # basic-tests:
+  #   name: "Basic tests"
+  #   needs: [build-info]
+  #   uses: ./.github/workflows/basic-tests.yml
+  #   with:
+  #     runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+  #     run-ui-tests: ${{needs.build-info.outputs.run-ui-tests}}
+  #     run-www-tests: ${{needs.build-info.outputs.run-www-tests}}
+  #     needs-api-codegen: ${{needs.build-info.outputs.needs-api-codegen}}
+  #     default-python-version: ${{needs.build-info.outputs.default-python-version}}
+  #     basic-checks-only: ${{needs.build-info.outputs.basic-checks-only}}
+  #     skip-pre-commits: ${{needs.build-info.outputs.skip-pre-commits}}
+  #     canary-run: ${{needs.build-info.outputs.canary-run}}
+  #     latest-versions-only: ${{needs.build-info.outputs.latest-versions-only}}
+  #     enable-aip-44: "false"
+
+  # build-ci-images:
+  #   name: >
+  #     ${{ needs.build-info.outputs.in-workflow-build == 'true' && 'Build' || 'Skip building' }}
+  #     CI images in-workflow
+  #   needs: [build-info]
+  #   uses: ./.github/workflows/ci-image-build.yml
+  #   permissions:
+  #     contents: read
+  #     # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
+  #     # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
+  #     # For regular build for PRS this "build-prod-images" workflow will be skipped anyway by the
+  #     # "in-workflow-build" condition
+  #     packages: write
+  #   secrets: inherit
+  #   with:
+  #     runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+  #     runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
+  #     do-build: ${{ needs.build-info.outputs.in-workflow-build }}
+  #     image-tag: ${{ needs.build-info.outputs.image-tag }}
+  #     platform: "linux/amd64"
+  #     python-versions: ${{ needs.build-info.outputs.python-versions }}
+  #     branch: ${{ needs.build-info.outputs.default-branch }}
+  #     use-uv: "true"
+  #     upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+  #     constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
+  #     docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+
+  # wait-for-ci-images:
+  #   timeout-minutes: 120
+  #   name: "Wait for CI images"
+  #   runs-on: ${{ fromJSON(needs.build-info.outputs.runs-on-as-json-public) }}
+  #   needs: [build-info, build-ci-images]
+  #   if: needs.build-info.outputs.ci-image-build == 'true'
+  #   env:
+  #     BACKEND: sqlite
+  #     # Force more parallelism for pull even on public images
+  #     PARALLELISM: 6
+  #     INCLUDE_SUCCESS_OUTPUTS: "${{needs.build-info.outputs.include-success-outputs}}"
+  #   steps:
+  #     - name: "Cleanup repo"
+  #       shell: bash
+  #       run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+  #       if: needs.build-info.outputs.in-workflow-build == 'false'
+  #     - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+  #       uses: actions/checkout@v4
+  #       with:
+  #         persist-credentials: false
+  #       if: needs.build-info.outputs.in-workflow-build == 'false'
+  #     - name: "Cleanup docker"
+  #       run: ./scripts/ci/cleanup_docker.sh
+  #       if: needs.build-info.outputs.in-workflow-build == 'false'
+  #     - name: "Install Breeze"
+  #       uses: ./.github/actions/breeze
+  #       if: needs.build-info.outputs.in-workflow-build == 'false'
+  #     - name: Login to ghcr.io
+  #       run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+  #       if: needs.build-info.outputs.in-workflow-build == 'false'
+  #     - name: Wait for CI images ${{ env.PYTHON_VERSIONS }}:${{ needs.build-info.outputs.image-tag }}
+  #       id: wait-for-images
+  #       run: breeze ci-image pull --run-in-parallel --wait-for-image --tag-as-latest
+  #       env:
+  #         PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+  #         DEBUG_RESOURCES: ${{needs.build-info.outputs.debug-resources}}
+  #       if: needs.build-info.outputs.in-workflow-build == 'false'
+
+  # additional-ci-image-checks:
+  #   name: "Additional CI image checks"
+  #   needs: [build-info, wait-for-ci-images]
+  #   uses: ./.github/workflows/additional-ci-image-checks.yml
+  #   if: needs.build-info.outputs.canary-run == 'true'
+  #   with:
+  #     runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+  #     runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+  #     runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
+  #     image-tag: ${{ needs.build-info.outputs.image-tag }}
+  #     python-versions: ${{ needs.build-info.outputs.python-versions }}
+  #     branch: ${{ needs.build-info.outputs.default-branch }}
+  #     constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
+  #     default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+  #     upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+  #     skip-pre-commits: ${{ needs.build-info.outputs.skip-pre-commits }}
+  #     docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+  #     canary-run: ${{ needs.build-info.outputs.canary-run }}
+  #     latest-versions-only: ${{ needs.build-info.outputs.latest-versions-only }}
+  #     include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+  #     debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+
+
+  # generate-constraints:
+  #   name: "Generate constraints"
+  #   needs: [build-info, wait-for-ci-images]
+  #   uses: ./.github/workflows/generate-constraints.yml
+  #   if: needs.build-info.outputs.ci-image-build == 'true'
+  #   with:
+  #     runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+  #     python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+  #     # generate no providers constraints only in canary builds - they take quite some time to generate
+  #     # they are not needed for regular builds, they are only needed to update constraints in canaries
+  #     generate-no-providers-constraints: ${{ needs.build-info.outputs.canary-run }}
+  #     image-tag: ${{ needs.build-info.outputs.image-tag }}
+  #     chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
+  #     debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+
+  # static-checks-mypy-docs:
+  #   name: "Static checks, mypy, docs"
+  #   needs: [build-info, wait-for-ci-images]
+  #   uses: ./.github/workflows/static-checks-mypy-docs.yml
+  #   secrets: inherit
+  #   with:
+  #     runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+  #     runs-on-as-json-docs-build: ${{ needs.build-info.outputs.runs-on-as-json-docs-build }}
+  #     image-tag: ${{ needs.build-info.outputs.image-tag }}
+  #     needs-mypy: ${{ needs.build-info.outputs.needs-mypy }}
+  #     mypy-folders: ${{ needs.build-info.outputs.mypy-folders }}
+  #     python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+  #     branch: ${{ needs.build-info.outputs.default-branch }}
+  #     canary-run: ${{ needs.build-info.outputs.canary-run }}
+  #     default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+  #     docs-list-as-string: ${{ needs.build-info.outputs.docs-list-as-string }}
+  #     latest-versions-only: ${{ needs.build-info.outputs.latest-versions-only }}
+  #     basic-checks-only: ${{ needs.build-info.outputs.basic-checks-only }}
+  #     upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+  #     skip-pre-commits: ${{ needs.build-info.outputs.skip-pre-commits }}
+  #     chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
+  #     ci-image-build: ${{ needs.build-info.outputs.ci-image-build }}
+  #     include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+  #     debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+
+  # providers:
+  #   name: "Provider checks"
+  #   uses: ./.github/workflows/check-providers.yml
+  #   needs: [build-info, wait-for-ci-images]
+  #   permissions:
+  #     contents: read
+  #     packages: read
+  #   secrets: inherit
+  #   if: >
+  #     needs.build-info.outputs.skip-provider-tests != 'true' &&
+  #     needs.build-info.outputs.latest-versions-only != 'true'
+  #   with:
+  #     runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+  #     image-tag: ${{ needs.build-info.outputs.image-tag }}
+  #     canary-run: ${{ needs.build-info.outputs.canary-run }}
+  #     default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+  #     upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+  #     affected-providers-list-as-string: ${{ needs.build-info.outputs.affected-providers-list-as-string }}
+  #     providers-compatibility-checks: ${{ needs.build-info.outputs.providers-compatibility-checks }}
+  #     skip-provider-tests: ${{ needs.build-info.outputs.skip-provider-tests }}
+  #     python-versions: ${{ needs.build-info.outputs.python-versions }}
+  #     providers-test-types-list-as-string: ${{ needs.build-info.outputs.providers-test-types-list-as-string }}
+
+  # tests-helm:
+  #   name: "Helm tests"
+  #   uses: ./.github/workflows/helm-tests.yml
+  #   needs: [build-info, wait-for-ci-images]
+  #   permissions:
+  #     contents: read
+  #     packages: read
+  #   secrets: inherit
+  #   with:
+  #     runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+  #     runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+  #     helm-test-packages: ${{ needs.build-info.outputs.helm-test-packages }}
+  #     image-tag: ${{ needs.build-info.outputs.image-tag }}
+  #     default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+  #   if: >
+  #     needs.build-info.outputs.needs-helm-tests == 'true' &&
+  #     needs.build-info.outputs.default-branch == 'main' &&
+  #     needs.build-info.outputs.latest-versions-only != 'true'
+
+  # tests-postgres:
+  #   name: "Postgres tests"
+  #   uses: ./.github/workflows/run-unit-tests.yml
+  #   needs: [build-info, wait-for-ci-images]
+  #   permissions:
+  #     contents: read
+  #     packages: read
+  #   secrets: inherit
+  #   with:
+  #     runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+  #     backend: "postgres"
+  #     test-name: "Postgres"
+  #     test-scope: "DB"
+  #     image-tag: ${{ needs.build-info.outputs.image-tag }}
+  #     python-versions: ${{ needs.build-info.outputs.python-versions }}
+  #     backend-versions: ${{ needs.build-info.outputs.postgres-versions }}
+  #     excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
+  #     excludes: ${{ needs.build-info.outputs.postgres-exclude }}
+  #     parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+  #     include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+  #     run-migration-tests: "true"
+  #     run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+  #     debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+  #   if: needs.build-info.outputs.run-tests == 'true'
+
+  # tests-mysql:
+  #   name: "MySQL tests"
+  #   uses: ./.github/workflows/run-unit-tests.yml
+  #   needs: [build-info, wait-for-ci-images]
+  #   permissions:
+  #     contents: read
+  #     packages: read
+  #   secrets: inherit
+  #   with:
+  #     runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+  #     backend: "mysql"
+  #     test-name: "MySQL"
+  #     test-scope: "DB"
+  #     image-tag: ${{ needs.build-info.outputs.image-tag }}
+  #     python-versions: ${{ needs.build-info.outputs.python-versions }}
+  #     backend-versions: ${{ needs.build-info.outputs.mysql-versions }}
+  #     excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
+  #     excludes: ${{ needs.build-info.outputs.mysql-exclude }}
+  #     parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+  #     include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+  #     run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+  #     run-migration-tests: "true"
+  #     debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+  #   if: needs.build-info.outputs.run-tests == 'true'
+
+  # tests-sqlite:
+  #   name: "Sqlite tests"
+  #   uses: ./.github/workflows/run-unit-tests.yml
+  #   needs: [build-info, wait-for-ci-images]
+  #   permissions:
+  #     contents: read
+  #     packages: read
+  #   secrets: inherit
+  #   with:
+  #     runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+  #     backend: "sqlite"
+  #     test-name: "Sqlite"
+  #     test-name-separator: ""
+  #     test-scope: "DB"
+  #     image-tag: ${{ needs.build-info.outputs.image-tag }}
+  #     python-versions: ${{ needs.build-info.outputs.python-versions }}
+  #     # No versions for sqlite
+  #     backend-versions: "['']"
+  #     excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
+  #     excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
+  #     parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+  #     include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+  #     run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+  #     run-migration-tests: "true"
+  #     debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+  #   if: needs.build-info.outputs.run-tests == 'true'
+
+  # tests-non-db:
+  #   name: "Non-DB tests"
+  #   uses: ./.github/workflows/run-unit-tests.yml
+  #   needs: [build-info, wait-for-ci-images]
+  #   permissions:
+  #     contents: read
+  #     packages: read
+  #   secrets: inherit
+  #   with:
+  #     runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+  #     backend: "sqlite"
+  #     test-name: ""
+  #     test-name-separator: ""
+  #     test-scope: "Non-DB"
+  #     image-tag: ${{ needs.build-info.outputs.image-tag }}
+  #     python-versions: ${{ needs.build-info.outputs.python-versions }}
+  #     # No versions for non-db
+  #     backend-versions: "['']"
+  #     excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
+  #     excludes: ${{ needs.build-info.outputs.sqlite-exclude }}
+  #     parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+  #     include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+  #     run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+  #     debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+  #   if: needs.build-info.outputs.run-tests == 'true'
+
+  # tests-special:
+  #   name: "Special tests"
+  #   uses: ./.github/workflows/special-tests.yml
+  #   needs: [build-info, wait-for-ci-images]
+  #   permissions:
+  #     contents: read
+  #     packages: read
+  #   secrets: inherit
+  #   if: >
+  #     needs.build-info.outputs.run-tests == 'true' &&
+  #     (needs.build-info.outputs.canary-run == 'true' ||
+  #      needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' ||
+  #      needs.build-info.outputs.full-tests-needed == 'true')
+  #   with:
+  #     runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+  #     image-tag: ${{ needs.build-info.outputs.image-tag }}
+  #     parallel-test-types-list-as-string: ${{ needs.build-info.outputs.parallel-test-types-list-as-string }}
+  #     run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+  #     default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+  #     python-versions: ${{ needs.build-info.outputs.python-versions }}
+  #     default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
+  #     excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
+  #     canary-run: ${{ needs.build-info.outputs.canary-run }}
+  #     upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+  #     debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+
+  # tests-integration:
+  #   name: Integration Tests
+  #   needs: [build-info, wait-for-ci-images]
+  #   uses: ./.github/workflows/integration-tests.yml
+  #   permissions:
+  #     contents: read
+  #     packages: read
+  #   secrets: inherit
+  #   with:
+  #     runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+  #     image-tag: ${{ needs.build-info.outputs.image-tag }}
+  #     testable-integrations: ${{ needs.build-info.outputs.testable-integrations }}
+  #     default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+  #     default-postgres-version: ${{ needs.build-info.outputs.default-postgres-version }}
+  #     default-mysql-version: ${{ needs.build-info.outputs.default-mysql-version }}
+  #     skip-provider-tests: ${{ needs.build-info.outputs.skip-provider-tests }}
+  #     run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+  #     debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+  #   if: needs.build-info.outputs.run-tests == 'true'
+
+  # tests-with-lowest-direct-resolution:
+  #   name: "Lowest direct dependency resolution tests"
+  #   needs: [build-info, wait-for-ci-images]
+  #   uses: ./.github/workflows/run-unit-tests.yml
+  #   permissions:
+  #     contents: read
+  #     packages: read
+  #   secrets: inherit
+  #   if: >
+  #     needs.build-info.outputs.run-tests == 'true'
+  #   with:
+  #     runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+  #     test-name: "LowestDeps-Postgres"
+  #     force-lowest-dependencies: "true"
+  #     test-scope: "All"
+  #     backend: "postgres"
+  #     image-tag: ${{ needs.build-info.outputs.image-tag }}
+  #     python-versions: ${{ needs.build-info.outputs.python-versions }}
+  #     backend-versions: "['${{ needs.build-info.outputs.default-postgres-version }}']"
+  #     excluded-providers-as-string: ${{ needs.build-info.outputs.excluded-providers-as-string }}
+  #     excludes: "[]"
+  #     parallel-test-types-list-as-string: ${{ needs.build-info.outputs.separate-test-types-list-as-string }}
+  #     include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+  #     run-coverage: ${{ needs.build-info.outputs.run-coverage }}
+  #     debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+  #     monitor-delay-time-in-seconds: 120
+
+  # build-prod-images:
+  #   name: >
+  #     ${{ needs.build-info.outputs.in-workflow-build == 'true' && 'Build' || 'Skip building' }}
+  #     PROD images in-workflow
+  #   needs: [build-info, build-ci-images, generate-constraints]
+  #   uses: ./.github/workflows/prod-image-build.yml
+  #   permissions:
+  #     contents: read
+  #     # This write is only given here for `push` events from "apache/airflow" repo. It is not given for PRs
+  #     # from forks. This is to prevent malicious PRs from creating images in the "apache/airflow" repo.
+  #     # For regular build for PRS this "build-prod-images" workflow will be skipped anyway by the
+  #     # "in-workflow-build" condition
+  #     packages: write
+  #   secrets: inherit
+  #   with:
+  #     runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+  #     build-type: "Regular"
+  #     do-build: ${{ needs.build-info.outputs.in-workflow-build }}
+  #     upload-package-artifact: "true"
+  #     image-tag: ${{ needs.build-info.outputs.image-tag }}
+  #     platform: "linux/amd64"
+  #     python-versions: ${{ needs.build-info.outputs.python-versions }}
+  #     default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+  #     branch: ${{ needs.build-info.outputs.default-branch }}
+  #     push-image: "true"
+  #     use-uv: "true"
+  #     build-provider-packages: ${{ needs.build-info.outputs.default-branch == 'main' }}
+  #     upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+  #     chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
+  #     constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
+  #     docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+
+  # wait-for-prod-images:
+  #   timeout-minutes: 80
+  #   name: "Wait for PROD images"
+  #   runs-on: ${{ fromJSON(needs.build-info.outputs.runs-on-as-json-public) }}
+  #   needs: [build-info, wait-for-ci-images, build-prod-images]
+  #   if: needs.build-info.outputs.prod-image-build == 'true'
+  #   env:
+  #     BACKEND: sqlite
+  #     PYTHON_MAJOR_MINOR_VERSION: "${{needs.build-info.outputs.default-python-version}}"
+  #     # Force more parallelism for pull on public images
+  #     PARALLELISM: 6
+  #     INCLUDE_SUCCESS_OUTPUTS: "${{needs.build-info.outputs.include-success-outputs}}"
+  #     IMAGE_TAG: ${{ needs.build-info.outputs.image-tag }}
+  #   steps:
+  #     - name: "Cleanup repo"
+  #       shell: bash
+  #       run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+  #       if: needs.build-info.outputs.in-workflow-build == 'false'
+  #     - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+  #       uses: actions/checkout@v4
+  #       with:
+  #         persist-credentials: false
+  #       if: needs.build-info.outputs.in-workflow-build == 'false'
+  #     - name: "Cleanup docker"
+  #       run: ./scripts/ci/cleanup_docker.sh
+  #       if: needs.build-info.outputs.in-workflow-build == 'false'
+  #     - name: "Install Breeze"
+  #       uses: ./.github/actions/breeze
+  #       if: needs.build-info.outputs.in-workflow-build == 'false'
+  #     - name: Login to ghcr.io
+  #       run: echo "${{ env.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+  #       if: needs.build-info.outputs.in-workflow-build == 'false'
+  #     - name: Wait for PROD images ${{ env.PYTHON_VERSIONS }}:${{ needs.build-info.outputs.image-tag }}
+  #       # We wait for the images to be available either from "build-images.yml' run as pull_request_target
+  #       # or from build-prod-images (or build-prod-images-release-branch) above.
+  #       # We are utilising single job to wait for all images because this job merely waits
+  #       # For the images to be available.
+  #       run: breeze prod-image pull --wait-for-image --run-in-parallel
+  #       env:
+  #         PYTHON_VERSIONS: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+  #         DEBUG_RESOURCES: ${{ needs.build-info.outputs.debug-resources }}
+  #       if: needs.build-info.outputs.in-workflow-build == 'false'
+
+  # additional-prod-image-tests:
+  #   name: "Additional PROD image tests"
+  #   needs: [build-info, wait-for-prod-images, generate-constraints]
+  #   uses: ./.github/workflows/additional-prod-image-tests.yml
+  #   with:
+  #     runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+  #     default-branch: ${{ needs.build-info.outputs.default-branch }}
+  #     constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
+  #     image-tag: ${{ needs.build-info.outputs.image-tag }}
+  #     upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+  #     chicken-egg-providers: ${{ needs.build-info.outputs.chicken-egg-providers }}
+  #     docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+  #     default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+  #     canary-run: ${{ needs.build-info.outputs.canary-run }}
+  #   if: needs.build-info.outputs.prod-image-build == 'true'
+
+  # tests-kubernetes:
+  #   name: "Kubernetes tests"
+  #   uses: ./.github/workflows/k8s-tests.yml
+  #   needs: [build-info, wait-for-prod-images]
+  #   permissions:
+  #     contents: read
+  #     packages: read
+  #   secrets: inherit
+  #   with:
+  #     runs-on-as-json-default: ${{ needs.build-info.outputs.runs-on-as-json-default }}
+  #     image-tag: ${{ needs.build-info.outputs.image-tag }}
+  #     python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+  #     kubernetes-versions-list-as-string: ${{ needs.build-info.outputs.kubernetes-versions-list-as-string }}
+  #     kubernetes-combos-list-as-string: ${{ needs.build-info.outputs.kubernetes-combos-list-as-string }}
+  #     include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+  #     debug-resources: ${{ needs.build-info.outputs.debug-resources }}
+  #   if: >
+  #     ( needs.build-info.outputs.run-kubernetes-tests == 'true' ||
+  #     needs.build-info.outputs.needs-helm-tests == 'true')
+
+  # finalize-tests:
+  #   name: Finalize tests
+  #   permissions:
+  #     contents: write
+  #     packages: write
+  #   secrets: inherit
+  #   needs:
+  #     - build-info
+  #     - generate-constraints
+  #     - wait-for-ci-images
+  #     - wait-for-prod-images
+  #     - static-checks-mypy-docs
+  #     - tests-sqlite
+  #     - tests-mysql
+  #     - tests-postgres
+  #     - tests-non-db
+  #     - tests-integration
+  #   uses: ./.github/workflows/finalize-tests.yml
+  #   with:
+  #     runs-on-as-json-public: ${{ needs.build-info.outputs.runs-on-as-json-public }}
+  #     runs-on-as-json-self-hosted: ${{ needs.build-info.outputs.runs-on-as-json-self-hosted }}
+  #     image-tag: ${{ needs.build-info.outputs.image-tag }}
+  #     python-versions: ${{ needs.build-info.outputs.python-versions }}
+  #     python-versions-list-as-string: ${{ needs.build-info.outputs.python-versions-list-as-string }}
+  #     branch: ${{ needs.build-info.outputs.default-branch }}
+  #     constraints-branch: ${{ needs.build-info.outputs.default-constraints-branch }}
+  #     default-python-version: ${{ needs.build-info.outputs.default-python-version }}
+  #     in-workflow-build: ${{ needs.build-info.outputs.in-workflow-build }}
+  #     upgrade-to-newer-dependencies: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+  #     include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
+  #     docker-cache: ${{ needs.build-info.outputs.docker-cache }}
+  #     canary-run: ${{ needs.build-info.outputs.canary-run }}
+
+  # # notify-slack-failure:
+  # #   name: "Notify Slack on Failure"
+  # #   if: github.event_name == 'schedule' && failure()
+  # #   runs-on: ["ubuntu-22.04"]
+  # #   steps:
+  # #     - name: Notify Slack
+  # #       run: |
+  # #         curl -X POST -H 'Content-type: application/json' --data '{
+  # #           "text": "The GitLab CI workflow *Tests* has failed.\n
+  # #                   Repository: ${{ github.repository }}\n
+  # #                   Branch: ${{ github.ref_name }}\n
+  # #                   Commit: ${{ github.sha }}\n
+  # #                   Check the details at:
+  # #                   ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+  # #         }' ${{ env.SLACK_WEBHOOK_URL }}
