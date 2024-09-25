@@ -677,18 +677,15 @@ jobs:
   notify-slack-failure:
     name: "Notify Slack on Failure"
     # if: github.event_name == 'schedule' && failure()
-    runs-on: ["ubuntu-22.04"]
-    steps:
-      - name: Notify Slack
-        run: |
-          curl -X POST -H 'Content-type: application/json' --data '{
-            "text": "The GitLab CI workflow *Tests* has failed.\n
-                    Repository: ${{ github.repository }}\n
-                    Branch: ${{ github.ref_name }}\n
-                    Commit: ${{ github.sha }}\n
-                    Check the details at:
-                    ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          }' ${{ env.SLACK_WEBHOOK_URL }}
+    uses: slackapi/slack-github-action@v1.27.0
+    with:
+      # Slack channel id, channel name, or user id to post message.
+      # See also: https://api.slack.com/methods/chat.postMessage#channels
+      # You can pass in multiple channels to post to by providing a comma-delimited list of channel IDs.
+      channel-id: 'zzz_webhook_test'
+      # For posting a simple plain text message
+      slack-message: "GitHub build result: ${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+
 
   # notify-slack-failure:
   # # github.event_name == 'schedule'
