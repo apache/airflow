@@ -119,9 +119,10 @@ class TestDatasetManager:
         session.add(dsm)
         dsm.consuming_dags = [DagScheduleDatasetReference(dag_id=dag.dag_id) for dag in (dag1, dag2)]
         session.execute(delete(DatasetDagRunQueue))
-        session.commit()
+        session.flush()
 
         dsem.register_dataset_change(task_instance=mock_task_instance, dataset=ds, session=session)
+        session.flush()
 
         # Ensure we've created a dataset
         assert session.query(DatasetEvent).filter_by(dataset_id=dsm.id).count() == 1
@@ -134,9 +135,10 @@ class TestDatasetManager:
         dsm = DatasetModel(uri="never_consumed")
         session.add(dsm)
         session.execute(delete(DatasetDagRunQueue))
-        session.commit()
+        session.flush()
 
         dsem.register_dataset_change(task_instance=mock_task_instance, dataset=ds, session=session)
+        session.flush()
 
         # Ensure we've created a dataset
         assert session.query(DatasetEvent).filter_by(dataset_id=dsm.id).count() == 1
@@ -150,14 +152,15 @@ class TestDatasetManager:
 
         ds = Dataset(uri="test_dataset_uri_2")
         dag1 = DagModel(dag_id="dag3")
-        session.add_all([dag1])
+        session.add(dag1)
 
         dsm = DatasetModel(uri="test_dataset_uri_2")
         session.add(dsm)
         dsm.consuming_dags = [DagScheduleDatasetReference(dag_id=dag1.dag_id)]
-        session.commit()
+        session.flush()
 
         dsem.register_dataset_change(task_instance=mock_task_instance, dataset=ds, session=session)
+        session.flush()
 
         # Ensure the listener was notified
         assert len(dataset_listener.changed) == 1

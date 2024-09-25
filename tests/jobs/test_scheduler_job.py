@@ -4300,6 +4300,7 @@ class TestSchedulerJob:
             dataset=ds,
             session=session,
         )
+        session.flush()
         assert session.scalars(dse_q).one().source_run_id == dr1.run_id
         assert session.scalars(ddrq_q).one_or_none() is None
 
@@ -4313,6 +4314,7 @@ class TestSchedulerJob:
             dataset=ds,
             session=session,
         )
+        session.flush()
         assert [e.source_run_id for e in session.scalars(dse_q)] == [dr1.run_id, dr2.run_id]
         assert session.scalars(ddrq_q).one().target_dag_id == "consumer"
 
