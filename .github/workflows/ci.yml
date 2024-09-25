@@ -684,13 +684,14 @@ jobs:
         id: slack
         uses: slackapi/slack-github-action@v1.27.0
         with:
+          payload-delimiter: "_"
           # Slack channel id, channel name, or user id to post message.
           # See also: https://api.slack.com/methods/chat.postMessage#channels
           # You can pass in multiple channels to post to by providing a comma-delimited list of channel IDs.
           channel-id: 'zzz_webhook_test'
           # For posting a simple plain text message
           slack-message: |
-            Scheduled CI Failure Alert
+            🚨🕒 Scheduled CI Failure Alert 🕒🚨
             *Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>
         env:
           SLACK_BOT_TOKEN: ${{ env.SLACK_BOT_TOKEN }}
