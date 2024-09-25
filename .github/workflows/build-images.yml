@@ -41,7 +41,6 @@ env:
   IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
   INCLUDE_SUCCESS_OUTPUTS: "true"
   USE_SUDO: "true"
-  SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
   VERBOSE: "true"
 
 concurrency:
@@ -49,22 +48,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  notify-slack-failure:
-    if: always()
-    uses: slackapi/slack-github-action@v1.27.0
-    name: "Notify Slack on Failure"
-    with:
-      # Slack channel id, channel name, or user id to post message.
-      # See also: https://api.slack.com/methods/chat.postMessage#channels
-      # You can pass in multiple channels to post to by providing a comma-delimited list of channel IDs.
-      channel-id: 'zzz_webhook_test'
-      # For posting a simple plain text message
-      slack-message: "GitHub build result: ${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
-
   build-info:
     timeout-minutes: 10
     name: "Build Info"
-    needs: [notify-slack-failure]
     # At build-info stage we do not yet have outputs so we need to hard-code the runs-on to public runners
     runs-on: ["ubuntu-22.04"]
     env:
