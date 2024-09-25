@@ -17,7 +17,7 @@
 # under the License.
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from typing import TYPE_CHECKING
 
 from sqlalchemy import exc, select
@@ -25,7 +25,6 @@ from sqlalchemy.orm import joinedload
 
 from airflow.api_internal.internal_api_call import internal_api_call
 from airflow.configuration import conf
-from airflow.datasets import Dataset
 from airflow.listeners.listener import get_listener_manager
 from airflow.models.dagbag import DagPriorityParsingRequest
 from airflow.models.dataset import (
@@ -43,6 +42,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 if TYPE_CHECKING:
     from sqlalchemy.orm.session import Session
 
+    from airflow.datasets import Dataset, DatasetAlias
     from airflow.models.dag import DagModel
     from airflow.models.taskinstance import TaskInstance
 
@@ -58,12 +58,51 @@ class DatasetManager(LoggingMixin):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def create_datasets(self, dataset_models: list[DatasetModel], session: Session) -> None:
+    def create_datasets(self, datasets: list[Dataset], *, session: Session) -> list[DatasetModel]:
         """Create new datasets."""
-        for dataset_model in dataset_models:
-            session.add(dataset_model)
-        for dataset_model in dataset_models:
-            self.notify_dataset_created(dataset=Dataset(uri=dataset_model.uri, extra=dataset_model.extra))
+
+        def _add_one(dataset: Dataset) -> DatasetModel:
+            model = DatasetModel.from_public(dataset)
+            session.add(model)
+            self.notify_dataset_created(dataset=dataset)
+            return model
+
+        return [_add_one(d) for d in datasets]
+
+    def create_dataset_aliases(
+        self,
+        dataset_aliases: list[DatasetAlias],
+        *,
+        session: Session,
+    ) -> list[DatasetAliasModel]:
+        """Create new dataset aliases."""
+
+        def _add_one(dataset_alias: DatasetAlias) -> DatasetAliasModel:
+            model = DatasetAliasModel.from_public(dataset_alias)
+            session.add(model)
+            self.notify_dataset_alias_created(dataset_alias=dataset_alias)
+            return model
+
+        return [_add_one(a) for a in dataset_aliases]
+
+    @classmethod
+    def _add_dataset_alias_association(
+        cls,
+        alias_names: Collection[str],
+        dataset: DatasetModel,
+        *,
+        session: Session,
+    ) -> None:
+        already_related = {m.name for m in dataset.aliases}
+        existing_aliases = {
+            m.name: m
+            for m in session.scalars(select(DatasetAliasModel).where(DatasetAliasModel.name.in_(alias_names)))
+        }
+        dataset.aliases.extend(
+            existing_aliases.get(name, DatasetAliasModel(name=name))
+            for name in alias_names
+            if name not in already_related
+        )
 
     @classmethod
     @internal_api_call
@@ -74,8 +113,9 @@ class DatasetManager(LoggingMixin):
         task_instance: TaskInstance | None = None,
         dataset: Dataset,
         extra=None,
-        session: Session = NEW_SESSION,
+        aliases: Collection[DatasetAlias] = (),
         source_alias_names: Iterable[str] | None = None,
+        session: Session = NEW_SESSION,
         **kwargs,
     ) -> DatasetEvent | None:
         """
@@ -88,11 +128,16 @@ class DatasetManager(LoggingMixin):
         dataset_model = session.scalar(
             select(DatasetModel)
             .where(DatasetModel.uri == dataset.uri)
-            .options(joinedload(DatasetModel.consuming_dags).joinedload(DagScheduleDatasetReference.dag))
+            .options(
+                joinedload(DatasetModel.aliases),
+                joinedload(DatasetModel.consuming_dags).joinedload(DagScheduleDatasetReference.dag),
+            )
         )
         if not dataset_model:
             cls.logger().warning("DatasetModel %s not found", dataset)
             return None
+
+        cls._add_dataset_alias_association({alias.name for alias in aliases}, dataset_model, session=session)
 
         event_kwargs = {
             "dataset_id": dataset_model.id,
@@ -100,12 +145,10 @@ class DatasetManager(LoggingMixin):
         }
         if task_instance:
             event_kwargs.update(
-                {
-                    "source_task_id": task_instance.task_id,
-                    "source_dag_id": task_instance.dag_id,
-                    "source_run_id": task_instance.run_id,
-                    "source_map_index": task_instance.map_index,
-                }
+                source_task_id=task_instance.task_id,
+                source_dag_id=task_instance.dag_id,
+                source_run_id=task_instance.run_id,
+                source_map_index=task_instance.map_index,
             )
 
         dataset_event = DatasetEvent(**event_kwargs)
@@ -154,6 +197,10 @@ class DatasetManager(LoggingMixin):
     def notify_dataset_created(self, dataset: Dataset):
         """Run applicable notification actions when a dataset is created."""
         get_listener_manager().hook.on_dataset_created(dataset=dataset)
+
+    def notify_dataset_alias_created(self, dataset_alias: DatasetAlias):
+        """Run applicable notification actions when a dataset alias is created."""
+        get_listener_manager().hook.on_dataset_alias_created(dataset_alias=dataset_alias)
 
     @classmethod
     def notify_dataset_changed(cls, dataset: Dataset):
