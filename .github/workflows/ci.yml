@@ -673,7 +673,7 @@ jobs:
 
   notify-slack-failure:
     name: "Notify Slack on Failure"
-    # if: github.event_name == 'schedule' && failure()
+    if: github.event_name == 'schedule' && failure()
     runs-on: ["ubuntu-22.04"]
     steps:
       - name: Notify Slack
@@ -684,17 +684,13 @@ jobs:
           channel-id: 'zzz_webhook_test'
           payload: |
             {
-              "text": "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n
-              *Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-              |View the failure log>",
+              "text": "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n
-                    *Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-                    |View the failure log>"
+                    "text": "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
                   }
                 }
               ]
