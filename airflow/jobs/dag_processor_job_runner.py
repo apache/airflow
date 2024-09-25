@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from airflow.jobs.base_job_runner import BaseJobRunner
 from airflow.jobs.job import Job, perform_heartbeat
@@ -29,10 +29,6 @@ if TYPE_CHECKING:
     from sqlalchemy.orm import Session
 
     from airflow.dag_processing.manager import DagFileProcessorManager
-
-
-def empty_callback(_: Any) -> None:
-    pass
 
 
 class DagProcessorJobRunner(BaseJobRunner, LoggingMixin):
