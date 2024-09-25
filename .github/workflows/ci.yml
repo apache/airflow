@@ -686,7 +686,7 @@ jobs:
     name: "Notify Slack on Failure"
     # if: github.event_name == 'schedule' && failure()
     runs-on: ["ubuntu-22.04"]
-    uses: slackapi/slack-github-action@v1.27.0
+    # uses: slackapi/slack-github-action@v1.27.0
     steps:
       - name: Notify Slack
         # with:
