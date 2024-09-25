@@ -95,6 +95,7 @@ Dataset Events
 --------------
 
 - ``on_dataset_created``
+- ``on_dataset_alias_created``
 - ``on_dataset_changed``
 
 Dataset events occur when Dataset management operations are run.
