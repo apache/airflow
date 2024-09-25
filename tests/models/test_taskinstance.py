@@ -2327,7 +2327,7 @@ class TestTaskInstance:
         )
         assert all(
             event.timestamp < ddrq_timestamp for (ddrq_timestamp,) in ddrq_timestamps
-        ), f"Some items in {ddrq_timestamps} is earlier than {event.timestamp}"
+        ), f"Some items in {[str(t) for t in ddrq_timestamps]} are earlier than {event.timestamp}"
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_outlet_datasets_failed(self, create_task_instance):

@@ -150,6 +150,7 @@ class DatasetManager(LoggingMixin):
 
         dataset_event = DatasetEvent(**event_kwargs)
         session.add(dataset_event)
+        session.flush()  # Ensure the event is written earlier than DDRQ entries below.
 
         dags_to_queue_from_dataset = {
             ref.dag for ref in dataset_model.consuming_dags if ref.dag.is_active and not ref.dag.is_paused
