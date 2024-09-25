@@ -33,9 +33,9 @@
 /airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl
 
 # Security/Permissions
-/airflow/api_connexion/security.py @jhtimmins
-/airflow/security/permissions.py @jhtimmins
-/airflow/www/security.py @jhtimmins
+# /airflow/api_connexion/security.py ?
+# /airflow/security/permissions.py ?
+# /airflow/www/security.py ?
 
 # Calendar/Timetables
 /airflow/timetables/ @uranusjr
