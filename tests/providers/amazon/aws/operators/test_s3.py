@@ -54,6 +54,7 @@ from airflow.providers.common.compat.openlineage.facet import (
     LifecycleStateChangeDatasetFacet,
     PreviousIdentifier,
 )
+from datetime import timedelta
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils.timezone import datetime, utcnow
 from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
@@ -627,6 +628,7 @@ class TestS3DeleteObjectsOperator:
         # There should be no object found in the bucket created earlier
         assert "Contents" not in conn.list_objects(Bucket=bucket, Prefix=key_pattern)
 
+    @pytest.mark.db_test
     def test_dates_from_template(self, session):
         """Specifically test for dates passed from templating that could be strings"""
         bucket = "testbucket"
@@ -640,7 +642,7 @@ class TestS3DeleteObjectsOperator:
             conn.upload_fileobj(Bucket=bucket, Key=k, Fileobj=BytesIO(b"input"))
 
         execution_date = utcnow()
-        dag = DAG("test_dag", start_date=datetime(2020, 1, 1))
+        dag = DAG("test_dag", start_date=datetime(2020, 1, 1), schedule=timedelta(days=1))
         # use macros.ds_add since it returns a string, not a date
         op = S3DeleteObjectsOperator(
             task_id="XXXXXXXXXXXXXXXXXXXXXXX",
