@@ -48,7 +48,7 @@ from airflow.www import app as application
 from airflow.www.auth import get_access_denied_message
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.utils import CustomSQLAInterface
-from tests.test_utils.api_connexion_utils import (
+from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     create_user_scope,
     delete_role,
