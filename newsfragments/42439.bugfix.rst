@@ -1,1 +1,1 @@
-Fix implicit exception in ``GCSToLocalFilesystemOperator`` when reading non-existing files.
+Refactor ``bucket.get_blob`` calls in ``GCSHook`` to handle validation for non-existent objects.
