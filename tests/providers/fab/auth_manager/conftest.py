@@ -50,7 +50,7 @@ def minimal_app_for_auth_api():
 
 
 @pytest.fixture
-def set_auto_role_public(request):
+def set_auth_role_public(request):
     app = request.getfixturevalue("minimal_app_for_auth_api")
     auto_role_public = app.config["AUTH_ROLE_PUBLIC"]
     app.config["AUTH_ROLE_PUBLIC"] = request.param
