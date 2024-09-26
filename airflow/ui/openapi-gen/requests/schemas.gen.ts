@@ -4,7 +4,7 @@ export const $DAGCollectionResponse = {
   properties: {
     dags: {
       items: {
-        $ref: "#/components/schemas/DAGModelResponse",
+        $ref: "#/components/schemas/DAGResponse",
       },
       type: "array",
       title: "Dags",
@@ -20,7 +20,20 @@ export const $DAGCollectionResponse = {
   description: "DAG Collection serializer for responses.",
 } as const;
 
-export const $DAGModelResponse = {
+export const $DAGPatchBody = {
+  properties: {
+    is_paused: {
+      type: "boolean",
+      title: "Is Paused",
+    },
+  },
+  type: "object",
+  required: ["is_paused"],
+  title: "DAGPatchBody",
+  description: "Dag Serializer for updatable body.",
+} as const;
+
+export const $DAGResponse = {
   properties: {
     dag_id: {
       type: "string",
@@ -271,7 +284,7 @@ export const $DAGModelResponse = {
     "owners",
     "file_token",
   ],
-  title: "DAGModelResponse",
+  title: "DAGResponse",
   description: "DAG serializer for responses.",
 } as const;
 

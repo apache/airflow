@@ -7,6 +7,8 @@ import type {
   NextRunDatasetsUiNextRunDatasetsDagIdGetResponse,
   GetDagsPublicDagsGetData,
   GetDagsPublicDagsGetResponse,
+  PatchDagPublicDagsDagIdPatchData,
+  PatchDagPublicDagsDagIdPatchResponse,
 } from "./types.gen";
 
 export class DatasetService {
@@ -67,6 +69,36 @@ export class DagService {
         paused: data.paused,
         order_by: data.orderBy,
       },
+      errors: {
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Patch Dag
+   * Update the specific DAG.
+   * @param data The data for the request.
+   * @param data.dagId
+   * @param data.requestBody
+   * @param data.updateMask
+   * @returns DAGResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchDagPublicDagsDagIdPatch(
+    data: PatchDagPublicDagsDagIdPatchData,
+  ): CancelablePromise<PatchDagPublicDagsDagIdPatchResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/dags/{dag_id}",
+      path: {
+        dag_id: data.dagId,
+      },
+      query: {
+        update_mask: data.updateMask,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
       errors: {
         422: "Validation Error",
       },

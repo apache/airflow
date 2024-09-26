@@ -141,6 +141,7 @@ def get_dags(
         raise BadRequest("DAGCollectionSchema error", detail=str(e))
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("PUT")
 @action_logging
 @provide_session

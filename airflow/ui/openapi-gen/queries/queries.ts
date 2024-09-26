@@ -1,7 +1,13 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.0
-import { useQuery, UseQueryOptions } from "@tanstack/react-query";
+import {
+  useMutation,
+  UseMutationOptions,
+  useQuery,
+  UseQueryOptions,
+} from "@tanstack/react-query";
 
 import { DagService, DatasetService } from "../requests/services.gen";
+import { DAGPatchBody } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
@@ -108,5 +114,52 @@ export const useDagServiceGetDagsPublicDagsGet = <
         paused,
         tags,
       }) as TData,
+    ...options,
+  });
+/**
+ * Patch Dag
+ * Update the specific DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.requestBody
+ * @param data.updateMask
+ * @returns DAGResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServicePatchDagPublicDagsDagIdPatch = <
+  TData = Common.DagServicePatchDagPublicDagsDagIdPatchMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        requestBody: DAGPatchBody;
+        updateMask?: string[];
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      requestBody: DAGPatchBody;
+      updateMask?: string[];
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, requestBody, updateMask }) =>
+      DagService.patchDagPublicDagsDagIdPatch({
+        dagId,
+        requestBody,
+        updateMask,
+      }) as unknown as Promise<TData>,
     ...options,
   });

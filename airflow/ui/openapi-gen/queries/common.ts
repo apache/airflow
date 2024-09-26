@@ -72,3 +72,6 @@ export const UseDagServiceGetDagsPublicDagsGetKeyFn = (
     },
   ]),
 ];
+export type DagServicePatchDagPublicDagsDagIdPatchMutationResult = Awaited<
+  ReturnType<typeof DagService.patchDagPublicDagsDagIdPatch>
+>;
