@@ -68,6 +68,21 @@ class TestMySqlHookConn:
         assert kwargs["db"] == "schema"
 
     @mock.patch("MySQLdb.connect")
+    def test_dummy_connection_setter(self, mock_connect):
+        self.db_hook.get_conn()
+
+        self.db_hook.connection = "Won't affect anything"
+        assert self.db_hook.connection != "Won't affect anything"
+
+        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
+        assert args == ()
+        assert kwargs["user"] == "login"
+        assert kwargs["passwd"] == "password"
+        assert kwargs["host"] == "host"
+        assert kwargs["db"] == "schema"
+
+    @mock.patch("MySQLdb.connect")
     def test_get_uri(self, mock_connect):
         self.connection.extra = json.dumps({"charset": "utf-8"})
         self.db_hook.get_conn()
