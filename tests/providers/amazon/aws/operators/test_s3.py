@@ -17,24 +17,23 @@
 # under the License.
 from __future__ import annotations
 
-
 import errno
 import os
 import shutil
 import sys
+from datetime import timedelta
 from io import BytesIO
 from tempfile import mkdtemp
 from unittest import mock
-from airflow.models.dagrun import DagRun
-from airflow.models.taskinstance import TaskInstance
-from airflow.utils.types import DagRunType
-from airflow import DAG
 
 import boto3
 import pytest
 from moto import mock_aws
 
+from airflow import DAG
 from airflow.exceptions import AirflowException
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CopyObjectOperator,
@@ -55,9 +54,9 @@ from airflow.providers.common.compat.openlineage.facet import (
     LifecycleStateChangeDatasetFacet,
     PreviousIdentifier,
 )
-from datetime import timedelta
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils.timezone import datetime, utcnow
+from airflow.utils.types import DagRunType
 from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "test-airflow-bucket")

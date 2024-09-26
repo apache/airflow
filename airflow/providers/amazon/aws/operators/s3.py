@@ -24,13 +24,13 @@ import sys
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
 
+import pytz
+from dateutil import parser
+
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.utils.helpers import exactly_one
-from dateutil import parser
-import pytz
-
 
 if TYPE_CHECKING:
     from datetime import datetime
