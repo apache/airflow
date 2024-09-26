@@ -20,9 +20,7 @@ import time
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from deprecated import deprecated
-
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -44,11 +42,6 @@ class SageMakerBaseSensor(BaseSensorOperator):
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.resource_type = resource_type  # only used for logs, to say what kind of resource we are sensing
-
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
-    def get_hook(self) -> SageMakerHook:
-        """Get SageMakerHook."""
-        return self.hook
 
     @cached_property
     def hook(self) -> SageMakerHook:

@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 from unittest import mock
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -28,22 +28,16 @@ from tests.providers.amazon.aws.utils.test_waiter import assert_expected_waiter_
 
 
 class TestGlueCrawlerCompleteTrigger:
-    @patch("airflow.providers.amazon.aws.triggers.glue_crawler.warnings.warn")
-    def test_serialization(self, mock_warn):
+    def test_serialization(self):
         crawler_name = "test_crawler"
         poll_interval = 10
         aws_conn_id = "aws_default"
 
         trigger = GlueCrawlerCompleteTrigger(
             crawler_name=crawler_name,
-            poll_interval=poll_interval,
+            waiter_delay=poll_interval,
             aws_conn_id=aws_conn_id,
         )
-
-        assert mock_warn.call_count == 1
-        args, kwargs = mock_warn.call_args
-        assert args[0] == "please use waiter_delay instead of poll_interval."
-        assert kwargs == {"stacklevel": 2}
 
         classpath, kwargs = trigger.serialize()
         assert classpath == "airflow.providers.amazon.aws.triggers.glue_crawler.GlueCrawlerCompleteTrigger"
