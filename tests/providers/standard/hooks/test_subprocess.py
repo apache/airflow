@@ -26,7 +26,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.hooks.subprocess import SubprocessHook
+from airflow.providers.standard.hooks.subprocess import SubprocessHook
 
 OS_ENV_KEY = "SUBPROCESS_ENV_TEST"
 OS_ENV_VAL = "this-is-from-os-environ"
