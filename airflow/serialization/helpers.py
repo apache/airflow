@@ -44,14 +44,17 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
     max_length = conf.getint("core", "max_templated_field_length")
 
     if not is_jsonable(template_field):
-        serialized = str(template_field)
+        try:
+            serialized = template_field.serialize()
+        except AttributeError:
+            serialized = str(template_field)
         if len(serialized) > max_length:
             rendered = redact(serialized, name)
             return (
                 "Truncated. You can change this behaviour in [core]max_templated_field_length. "
                 f"{rendered[:max_length - 79]!r}... "
             )
-        return str(template_field)
+        return serialized
     else:
         if not template_field:
             return template_field
@@ -62,4 +65,4 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
                 "Truncated. You can change this behaviour in [core]max_templated_field_length. "
                 f"{rendered[:max_length - 79]!r}... "
             )
-        return template_field
+        return serialized
