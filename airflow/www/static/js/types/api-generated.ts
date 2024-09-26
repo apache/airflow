@@ -2739,7 +2739,7 @@ export interface operations {
         /** If true, run the dag runs in descending order of logical date. */
         reverse?: boolean;
         /** If true, run the dag runs in descending order of logical date. */
-        config?: { [key: string]: unknown };
+        config?: string;
       };
     };
     responses: {

@@ -323,7 +323,8 @@ paths:
         - name: config
           in: query
           schema:
-            type: object
+            # todo: AIP-78 make this object
+            type: string
           required: false
           description: |
             If true, run the dag runs in descending order of logical date.
