@@ -239,6 +239,7 @@ DEVEL_EXTRAS: dict[str, list[str]] = {
         "blinker>=1.7.0",
     ],
     "devel-static-checks": [
+        "astunparse>=1.6.3; python_version < '3.9'",
         "black>=23.12.0",
         "pre-commit>=3.5.0",
         "ruff==0.5.5",
