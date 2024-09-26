@@ -31,7 +31,7 @@ from airflow.configuration import conf
 from airflow.serialization.pydantic.dag import DagTagPydantic
 
 
-class DAGModelResponse(BaseModel):
+class DAGResponse(BaseModel):
     """DAG serializer for responses."""
 
     dag_id: str
@@ -82,8 +82,14 @@ class DAGModelResponse(BaseModel):
         return serializer.dumps(self.fileloc)
 
 
+class DAGPatchBody(BaseModel):
+    """Dag Serializer for updatable body."""
+
+    is_paused: bool
+
+
 class DAGCollectionResponse(BaseModel):
     """DAG Collection serializer for responses."""
 
-    dags: list[DAGModelResponse]
+    dags: list[DAGResponse]
     total_entries: int
