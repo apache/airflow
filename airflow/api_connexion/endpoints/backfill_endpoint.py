@@ -31,7 +31,6 @@ from airflow.api_connexion.schemas.backfill_schema import (
     backfill_collection_schema,
     backfill_schema,
 )
-from airflow.auth.managers.models.resource_details import DagAccessEntity
 from airflow.models.backfill import Backfill
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
@@ -92,7 +91,7 @@ def _create_backfill(
     return br
 
 
-@security.requires_access_dag("GET", access_entity=DagAccessEntity.BACKFILL)
+@security.requires_access_dag("GET")
 @action_logging
 @provide_session
 def list_backfills(dag_id, session):
@@ -106,7 +105,7 @@ def list_backfills(dag_id, session):
 
 @provide_session
 @backfill_to_dag
-@security.requires_access_dag("PUT", access_entity=DagAccessEntity.BACKFILL)
+@security.requires_access_dag("PUT")
 @action_logging
 def pause_backfill(*, backfill_id, session, **kwargs):
     br = session.get(Backfill, backfill_id)
@@ -120,7 +119,7 @@ def pause_backfill(*, backfill_id, session, **kwargs):
 
 @provide_session
 @backfill_to_dag
-@security.requires_access_dag("PUT", access_entity=DagAccessEntity.BACKFILL)
+@security.requires_access_dag("PUT")
 @action_logging
 def unpause_backfill(*, backfill_id, session, **kwargs):
     br = session.get(Backfill, backfill_id)
@@ -134,7 +133,7 @@ def unpause_backfill(*, backfill_id, session, **kwargs):
 
 @provide_session
 @backfill_to_dag
-@security.requires_access_dag("PUT", access_entity=DagAccessEntity.BACKFILL)
+@security.requires_access_dag("PUT")
 @action_logging
 def cancel_backfill(*, backfill_id, session, **kwargs):
     br: Backfill = session.get(Backfill, backfill_id)
@@ -152,8 +151,7 @@ def cancel_backfill(*, backfill_id, session, **kwargs):
 
 @provide_session
 @backfill_to_dag
-@security.requires_access_dag("GET", access_entity=DagAccessEntity.BACKFILL)
-# @security.requires_access_dag("GET")
+@security.requires_access_dag("GET")
 @action_logging
 def get_backfill(*, backfill_id: int, session: Session = NEW_SESSION, **kwargs):
     backfill = session.get(Backfill, backfill_id)
@@ -162,7 +160,7 @@ def get_backfill(*, backfill_id: int, session: Session = NEW_SESSION, **kwargs):
     raise NotFound("Backfill not found")
 
 
-@security.requires_access_dag("PUT", access_entity=DagAccessEntity.BACKFILL)
+@security.requires_access_dag("PUT")
 @action_logging
 def create_backfill(
     dag_id: str,
