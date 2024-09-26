@@ -25,6 +25,12 @@ import os
 import sys
 from typing import Iterator
 
+if hasattr(ast, "unparse"):
+    # Py 3.9+
+    unparse = ast.unparse
+else:
+    from astunparse import unparse  # type: ignore[no-redef]
+
 import libcst as cst
 from libcst.codemod import CodemodContext
 from libcst.codemod.visitors import AddImportsVisitor
@@ -78,7 +84,7 @@ class DefaultDeferrableTransformer(cst.CSTTransformer):
 
 def _is_valid_deferrable_default(default: ast.AST) -> bool:
     """Check whether default is 'conf.getboolean("operators", "default_deferrable", fallback=False)'"""
-    return ast.unparse(default) == "conf.getboolean('operators', 'default_deferrable', fallback=False)"
+    return unparse(default) == "conf.getboolean('operators', 'default_deferrable', fallback=False)"
 
 
 def iter_check_deferrable_default_errors(module_filename: str) -> Iterator[str]:
