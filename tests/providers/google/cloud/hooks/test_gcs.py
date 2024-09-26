@@ -523,7 +523,7 @@ class TestGCSHook:
         mock_service.return_value.bucket.return_value.delete.assert_called_once()
         assert "Bucket test bucket not exist" in caplog.text
 
-    @mock.patch(GCS_STRING.format("GCSHook.get_blob"))
+    @mock.patch(GCS_STRING.format("GCSHook._get_blob"))
     def test_object_get_size(self, mock_service):
         test_bucket = "test_bucket"
         test_object = "test_object"
@@ -537,7 +537,7 @@ class TestGCSHook:
 
         assert response == returned_file_size
 
-    @mock.patch(GCS_STRING.format("GCSHook.get_blob"))
+    @mock.patch(GCS_STRING.format("GCSHook._get_blob"))
     def test_object_get_crc32c(self, mock_service):
         test_bucket = "test_bucket"
         test_object = "test_object"
@@ -551,7 +551,7 @@ class TestGCSHook:
 
         assert response == returned_file_crc32c
 
-    @mock.patch(GCS_STRING.format("GCSHook.get_blob"))
+    @mock.patch(GCS_STRING.format("GCSHook._get_blob"))
     def test_object_get_md5hash(self, mock_service):
         test_bucket = "test_bucket"
         test_object = "test_object"
@@ -565,7 +565,7 @@ class TestGCSHook:
 
         assert response == returned_file_md5hash
 
-    @mock.patch(GCS_STRING.format("GCSHook.get_blob"))
+    @mock.patch(GCS_STRING.format("GCSHook._get_blob"))
     def test_object_get_metadata(self, mock_service):
         test_bucket = "test_bucket"
         test_object = "test_object"
@@ -588,7 +588,7 @@ class TestGCSHook:
         get_blob_method = bucket_method.return_value.get_blob
         get_blob_method.return_value = None
 
-        with pytest.raises(ValueError, match=r"Object \((.*?)\) not found in bucket \((.*?)\)"):
+        with pytest.raises(ValueError, match=r"Object \((.*?)\) not found in Bucket \((.*?)\)"):
             self.gcs_hook.get_metadata(bucket_name=test_bucket, object_name=test_object)
 
     @mock.patch("google.cloud.storage.Bucket")
@@ -1519,7 +1519,7 @@ class TestSyncGcsHook:
         get_blob_method = bucket_method.return_value.get_blob
         get_blob_method.return_value = mock_blob
 
-        response = self.gcs_hook.get_blob(bucket_name=test_bucket, object_name=test_object)
+        response = self.gcs_hook._get_blob(bucket_name=test_bucket, object_name=test_object)
 
         assert response == mock_blob
 
@@ -1532,8 +1532,8 @@ class TestSyncGcsHook:
         get_blob_method = bucket_method.return_value.get_blob
         get_blob_method.return_value = None
 
-        with pytest.raises(ValueError, match=r"Object \((.*?)\) not found in bucket \((.*?)\)"):
-            self.gcs_hook.get_blob(bucket_name=test_bucket, object_name=test_object)
+        with pytest.raises(ValueError, match=r"Object \((.*?)\) not found in Bucket \((.*?)\)"):
+            self.gcs_hook._get_blob(bucket_name=test_bucket, object_name=test_object)
 
     def _create_blob(
         self,
