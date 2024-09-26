@@ -439,7 +439,6 @@ class OpenLineageListener:
             self.submit_callable(
                 self.adapter.dag_started,
                 dag_id=dag_run.dag_id,
-                run_id=dag_run.run_id,
                 logical_date=dag_run.logical_date,
                 start_date=dag_run.start_date,
                 nominal_start_time=data_interval_start,
