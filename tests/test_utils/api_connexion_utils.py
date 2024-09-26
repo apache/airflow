@@ -84,14 +84,6 @@ def create_role(app, name, permissions=None):
     return role
 
 
-def set_user_single_role(app, user, role_name):
-    role = create_role(app, role_name)
-    if role not in user.roles:
-        user.roles = [role]
-        app.appbuilder.sm.update_user(user)
-        user._perms = None
-
-
 def delete_role(app, name):
     if name not in EXISTING_ROLES:
         if app.appbuilder.sm.find_role(name):
@@ -108,11 +100,6 @@ def delete_user(app: Flask, username):
     users = [user for user in users if user["username"] != username]
 
     app.config["SIMPLE_AUTH_MANAGER_USERS"] = users
-
-
-def delete_users(app):
-    for user in app.appbuilder.sm.get_all_users():
-        delete_user(app, user.username)
 
 
 def assert_401(response):

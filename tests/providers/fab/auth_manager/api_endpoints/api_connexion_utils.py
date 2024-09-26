@@ -114,8 +114,3 @@ def delete_user(app, username):
             ]
             appbuilder.sm.del_register_user(user)
             break
-
-
-def delete_users(app):
-    for user in app.appbuilder.sm.get_all_users():
-        delete_user(app, user.username)
