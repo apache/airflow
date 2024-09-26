@@ -38,9 +38,11 @@ from airflow.auth.managers.utils.fab import (
 )
 from airflow.exceptions import AirflowException
 from airflow.models import Connection, DagRun, Pool, TaskInstance, Variable
+from airflow.providers.fab.auth_manager.fab_auth_manager import _is_3_0
 from airflow.security.permissions import (
     RESOURCE_ADMIN_MENU,
     RESOURCE_AUDIT_LOG,
+    RESOURCE_BACKFILL,
     RESOURCE_BROWSE_MENU,
     RESOURCE_CLUSTER_ACTIVITY,
     RESOURCE_CONFIG,
@@ -195,6 +197,16 @@ class AirflowSecurityManagerV2(LoggingMixin):
                 raise AirflowException("DagRun not found")
             return dagrun.dag_id
 
+        def get_dag_id_from_backfill_id(resource_pk):
+            from airflow.models.backfill import Backfill
+
+            if not resource_pk:
+                return None
+            backfill = session.get(Backfill, resource_pk)
+            if not backfill:
+                raise AirflowException("Backfill not found")
+            return backfill.dag_id
+
         def get_dag_id_from_task_instance(resource_pk):
             if not resource_pk:
                 return None
@@ -280,6 +292,9 @@ class AirflowSecurityManagerV2(LoggingMixin):
             (RESOURCE_TASK_INSTANCE, DagAccessEntity.TASK_INSTANCE, get_dag_id_from_task_instance),
         ]:
             mapping[resource] = _is_authorized_dag(entity, details_func)
+
+        if _is_3_0:
+            mapping[RESOURCE_BACKFILL] = (DagAccessEntity.BACKFILL, get_dag_id_from_backfill_id)
         for resource, view in [
             (RESOURCE_CLUSTER_ACTIVITY, AccessView.CLUSTER_ACTIVITY),
             (RESOURCE_DOCS, AccessView.DOCS),

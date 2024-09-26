@@ -77,6 +77,7 @@ from airflow.auth.managers.utils.fab import get_method_from_fab_action_map
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, RemovedInAirflow3Warning
 from airflow.models import DagBag, DagModel
+from airflow.providers.fab.auth_manager.fab_auth_manager import _is_3_0
 from airflow.providers.fab.auth_manager.models import (
     Action,
     Permission,
@@ -261,6 +262,9 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_SLA_MISS),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_TASK_INSTANCE),
     ]
+
+    if _is_3_0:
+        VIEWER_PERMISSIONS.append((permissions.ACTION_CAN_READ, permissions.RESOURCE_BACKFILL))
     # [END security_viewer_perms]
 
     # [START security_user_perms]
@@ -275,6 +279,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
     ]
+    if _is_3_0:
+        USER_PERMISSIONS.append((permissions.ACTION_CAN_EDIT, permissions.RESOURCE_BACKFILL))
     # [END security_user_perms]
 
     # [START security_op_perms]

@@ -96,17 +96,25 @@ if TYPE_CHECKING:
     )
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
 
+_is_3_0 = packaging.version.parse(
+    packaging.version.parse(airflow_version).base_version
+) >= packaging.version.parse("3.0.0")
+
+if _is_3_0:
+    from airflow.security.permissions import RESOURCE_BACKFILL
+
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {
     DagAccessEntity.AUDIT_LOG: (RESOURCE_AUDIT_LOG,),
     DagAccessEntity.CODE: (RESOURCE_DAG_CODE,),
     DagAccessEntity.DEPENDENCIES: (RESOURCE_DAG_DEPENDENCIES,),
     DagAccessEntity.RUN: (RESOURCE_DAG_RUN,),
     DagAccessEntity.SLA_MISS: (RESOURCE_SLA_MISS,),
-    # RESOURCE_TASK_INSTANCE has been originally misused. RESOURCE_TASK_INSTANCE referred to task definition
-    # AND task instances without making the difference
-    # To be backward compatible, we translate DagAccessEntity.TASK_INSTANCE to RESOURCE_TASK_INSTANCE AND
-    # RESOURCE_DAG_RUN
-    # See https://github.com/apache/airflow/pull/34317#discussion_r1355917769
+    # todo: fix in airflow 3.0
+    #  RESOURCE_TASK_INSTANCE has been originally misused. RESOURCE_TASK_INSTANCE referred to task definition
+    #  AND task instances without making the difference
+    #  To be backward compatible, we translate DagAccessEntity.TASK_INSTANCE to RESOURCE_TASK_INSTANCE AND
+    #  RESOURCE_DAG_RUN
+    #  See https://github.com/apache/airflow/pull/34317#discussion_r1355917769
     DagAccessEntity.TASK: (RESOURCE_TASK_INSTANCE,),
     DagAccessEntity.TASK_INSTANCE: (RESOURCE_DAG_RUN, RESOURCE_TASK_INSTANCE),
     DagAccessEntity.TASK_LOGS: (RESOURCE_TASK_LOG,),
@@ -114,6 +122,9 @@ _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ..
     DagAccessEntity.WARNING: (RESOURCE_DAG_WARNING,),
     DagAccessEntity.XCOM: (RESOURCE_XCOM,),
 }
+
+if _is_3_0:
+    _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE[DagAccessEntity.BACKFILL] = (RESOURCE_BACKFILL,)
 
 _MAP_ACCESS_VIEW_TO_FAB_RESOURCE_TYPE = {
     AccessView.CLUSTER_ACTIVITY: RESOURCE_CLUSTER_ACTIVITY,
@@ -150,10 +161,7 @@ class FabAuthManager(BaseAuthManager):
             ),
             SYNC_PERM_COMMAND,  # not in a command group
         ]
-        # If Airflow version is 3.0.0 or higher, add the fab-db command group
-        if packaging.version.parse(
-            packaging.version.parse(airflow_version).base_version
-        ) >= packaging.version.parse("3.0.0"):
+        if _is_3_0:
             commands.append(GroupCommand(name="fab-db", help="Manage FAB", subcommands=DB_COMMANDS))
         return commands
 
@@ -256,12 +264,17 @@ class FabAuthManager(BaseAuthManager):
             ):
                 return False
 
-            return all(
-                self._is_authorized(method=method, resource_type=resource_type, user=user)
-                if resource_type != RESOURCE_DAG_RUN or not hasattr(permissions, "resource_name")
-                else self._is_authorized_dag_run(method=method, details=details, user=user)
-                for resource_type in resource_types
-            )
+            has_access = False
+            for resource_type in resource_types:
+                if resource_type == RESOURCE_DAG:
+                    has_access = self._is_authorized_dag(method=method, details=details, user=user)
+                elif resource_type == RESOURCE_DAG_RUN:
+                    has_access = self._is_authorized_dag_run(method=method, details=details, user=user)
+                else:
+                    has_access = self._is_authorized(method=method, resource_type=resource_type, user=user)
+                if not has_access:
+                    return False
+            return has_access
 
     def is_authorized_dataset(
         self, *, method: ResourceMethod, details: DatasetDetails | None = None, user: BaseUser | None = None

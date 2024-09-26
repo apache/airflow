@@ -432,6 +432,7 @@ def test_get_user_roles(app_builder, security_manager):
 def test_get_user_roles_for_anonymous_user(app, security_manager):
     viewer_role_perms = {
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_BACKFILL),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),

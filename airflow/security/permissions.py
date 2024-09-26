@@ -22,6 +22,7 @@ from typing import TypedDict
 RESOURCE_ACTION = "Permissions"
 RESOURCE_ADMIN_MENU = "Admin"
 RESOURCE_AUDIT_LOG = "Audit Logs"
+RESOURCE_BACKFILL = "Backfills"
 RESOURCE_BROWSE_MENU = "Browse"
 RESOURCE_CONFIG = "Configurations"
 RESOURCE_CONNECTION = "Connections"
@@ -31,6 +32,7 @@ RESOURCE_DAG_DEPENDENCIES = "DAG Dependencies"
 RESOURCE_DAG_PREFIX = "DAG:"
 RESOURCE_DAG_RUN = "DAG Runs"
 RESOURCE_DAG_RUN_PREFIX = "DAG Run:"
+RESOURCE_BACKFILL_PREFIX = "Backfill:"
 RESOURCE_DAG_WARNING = "DAG Warnings"
 RESOURCE_CLUSTER_ACTIVITY = "Cluster Activity"
 RESOURCE_DATASET = "Datasets"
@@ -85,6 +87,10 @@ RESOURCE_DETAILS_MAP = {
     RESOURCE_DAG_RUN: ResourceDetails(
         actions={ACTION_CAN_READ, ACTION_CAN_CREATE, ACTION_CAN_DELETE, ACTION_CAN_ACCESS_MENU},
         prefix=RESOURCE_DAG_RUN_PREFIX,
+    ),
+    RESOURCE_BACKFILL: ResourceDetails(
+        actions={ACTION_CAN_READ, ACTION_CAN_CREATE, ACTION_CAN_EDIT},
+        prefix=RESOURCE_BACKFILL_PREFIX,
     ),
 }
 PREFIX_LIST = [details["prefix"] for details in RESOURCE_DETAILS_MAP.values()]
