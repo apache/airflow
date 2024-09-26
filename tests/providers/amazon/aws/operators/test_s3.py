@@ -21,6 +21,7 @@ import errno
 import os
 import shutil
 import sys
+from datetime import timedelta
 from io import BytesIO
 from tempfile import mkdtemp
 from unittest import mock
@@ -29,7 +30,10 @@ import boto3
 import pytest
 from moto import mock_aws
 
+from airflow import DAG
 from airflow.exceptions import AirflowException
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.s3 import (
     S3CopyObjectOperator,
@@ -52,6 +56,7 @@ from airflow.providers.common.compat.openlineage.facet import (
 )
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.utils.timezone import datetime, utcnow
+from airflow.utils.types import DagRunType
 from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 BUCKET_NAME = os.environ.get("BUCKET_NAME", "test-airflow-bucket")
@@ -622,6 +627,43 @@ class TestS3DeleteObjectsOperator:
 
         # There should be no object found in the bucket created earlier
         assert "Contents" not in conn.list_objects(Bucket=bucket, Prefix=key_pattern)
+
+    @pytest.mark.db_test
+    def test_dates_from_template(self, session):
+        """Specifically test for dates passed from templating that could be strings"""
+        bucket = "testbucket"
+        key_pattern = "path/data"
+        n_keys = 3
+        keys = [key_pattern + str(i) for i in range(n_keys)]
+
+        conn = boto3.client("s3")
+        conn.create_bucket(Bucket=bucket)
+        for k in keys:
+            conn.upload_fileobj(Bucket=bucket, Key=k, Fileobj=BytesIO(b"input"))
+
+        execution_date = utcnow()
+        dag = DAG("test_dag", start_date=datetime(2020, 1, 1), schedule=timedelta(days=1))
+        # use macros.ds_add since it returns a string, not a date
+        op = S3DeleteObjectsOperator(
+            task_id="XXXXXXXXXXXXXXXXXXXXXXX",
+            bucket=bucket,
+            from_datetime="{{ macros.ds_add(ds, -1) }}",
+            to_datetime="{{ macros.ds_add(ds, 1) }}",
+            dag=dag,
+        )
+
+        dag_run = DagRun(
+            dag_id=dag.dag_id, execution_date=execution_date, run_id="test", run_type=DagRunType.MANUAL
+        )
+        ti = TaskInstance(task=op)
+        ti.dag_run = dag_run
+        session.add(ti)
+        session.commit()
+        context = ti.get_template_context(session)
+
+        ti.render_templates(context)
+        op.execute(None)
+        assert "Contents" not in conn.list_objects(Bucket=bucket)
 
     def test_s3_delete_from_to_datetime(self):
         bucket = "testbucket"
