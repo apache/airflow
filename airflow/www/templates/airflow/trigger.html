@@ -165,7 +165,7 @@
     <small class="text-muted">{{ dag.description[0:150] + '…' if dag.description and dag.description|length > 150 else dag.description|default('', true) }}</small>
   </h2>
   {{ dag_docs(doc_md, False) }}
-  <form method="POST" id="trigger_form">
+  <form method="POST" id="trigger_form" onsubmit="updateJSONconf();">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="dag_id" value="{{ dag_id }}">
     <input type="hidden" name="origin" value="{{ origin }}">
