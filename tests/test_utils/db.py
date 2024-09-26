@@ -35,7 +35,6 @@ from airflow.models import (
     Variable,
     XCom,
 )
-from airflow.models.backfill import Backfill, BackfillDagRun
 from airflow.models.dag import DagOwnerAttributes
 from airflow.models.dagcode import DagCode
 from airflow.models.dagwarning import DagWarning
@@ -68,6 +67,8 @@ def clear_db_runs():
 
 
 def clear_db_backfills():
+    from airflow.models.backfill import Backfill, BackfillDagRun
+
     with create_session() as session:
         session.query(BackfillDagRun).delete()
         session.query(Backfill).delete()
