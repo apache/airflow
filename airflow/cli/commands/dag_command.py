@@ -29,7 +29,7 @@ import sys
 from typing import TYPE_CHECKING
 
 import re2
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from airflow import settings
 from airflow.api.client import get_current_api_client
@@ -638,7 +638,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
 @provide_session
 def dag_reserialize(args, session: Session = NEW_SESSION) -> None:
     """Serialize a DAG instance."""
-    # session.execute(delete(SerializedDagModel).execution_options(synchronize_session=False))
+    session.execute(delete(SerializedDagModel).execution_options(synchronize_session=False))
 
     if not args.clear_only:
         dagbag = DagBag(process_subdir(args.subdir))

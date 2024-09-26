@@ -65,4 +65,4 @@ def serialize_template_field(template_field: Any, name: str) -> str | dict | lis
                 "Truncated. You can change this behaviour in [core]max_templated_field_length. "
                 f"{rendered[:max_length - 79]!r}... "
             )
-        return serialized
+        return template_field
