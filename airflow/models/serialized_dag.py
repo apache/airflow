@@ -114,10 +114,10 @@ class SerializedDagModel(Base):
         self.processor_subdir = processor_subdir
 
         dag_data = SerializedDAG.to_dict(dag)
-        dag_data = SerializedDagModel._sort_serialized_dag_dict(dag_data)
-        dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
+        self.dag_hash = SerializedDagModel.hash(dag_data)
 
-        self.dag_hash = md5(dag_data_json).hexdigest()
+        # partially ordered json data
+        dag_data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
 
         if COMPRESS_SERIALIZED_DAGS:
             self._data = None
@@ -132,6 +132,13 @@ class SerializedDagModel(Base):
 
     def __repr__(self) -> str:
         return f"<SerializedDag: {self.dag_id}>"
+
+    @classmethod
+    def hash(cls, dag_data):
+        """Hash the data to get the dag_hash."""
+        dag_data = cls._sort_serialized_dag_dict(dag_data)
+        data_json = json.dumps(dag_data, sort_keys=True).encode("utf-8")
+        return md5(data_json).hexdigest()
 
     @classmethod
     def _sort_serialized_dag_dict(cls, serialized_dag: Any):
