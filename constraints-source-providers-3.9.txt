@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-25T19:43:48.833538
+# This constraints file was automatically generated on 2024-09-26T19:38:59.015182
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -219,7 +219,7 @@ google-cloud-audit-log==0.3.0
 google-cloud-automl==2.13.5
 google-cloud-batch==0.17.28
 google-cloud-bigquery-datatransfer==3.15.7
-google-cloud-bigquery==3.25.0
+google-cloud-bigquery==3.26.0
 google-cloud-bigtable==2.26.0
 google-cloud-build==3.25.0
 google-cloud-compute==1.19.2
@@ -372,7 +372,7 @@ mysql-connector-python==9.0.0
 mysqlclient==2.2.4
 nbclient==0.10.0
 nbformat==5.10.4
-neo4j==5.24.0
+neo4j==5.25.0
 nest-asyncio==1.6.0
 networkx==3.2.1
 nh3==0.2.18
@@ -380,7 +380,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.48.0
+openai==1.49.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.22.0
@@ -588,7 +588,7 @@ tornado==6.4.1
 towncrier==24.8.0
 tqdm==4.66.5
 traitlets==5.14.3
-trino==0.329.0
+trino==0.330.0
 trove-classifiers==2024.9.12
 twine==5.1.1
 typed-ast==1.5.5
