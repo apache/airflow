@@ -174,6 +174,36 @@ class TestGetXComEntry(TestXComEndpoint):
             "value": {"key": "value"},
         }
 
+    @conf_vars({("core", "enable_xcom_pickling"): "True"})
+    def test_should_respond_200_native_for_pickled(self):
+        dag_id = "test-dag-id"
+        task_id = "test-task-id"
+        execution_date = "2005-04-02T00:00:00+00:00"
+        xcom_key = "test-xcom-key"
+        execution_date_parsed = parse_execution_date(execution_date)
+        run_id = DagRun.generate_run_id(DagRunType.MANUAL, execution_date_parsed)
+        value_non_serializable_key = {("201009_NB502104_0421_AHJY23BGXG (SEQ_WF: 138898)", None): 82359}
+        self._create_xcom_entry(
+            dag_id, run_id, execution_date_parsed, task_id, xcom_key, {"key": value_non_serializable_key}
+        )
+        response = self.client.get(
+            f"/api/v1/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/xcomEntries/{xcom_key}",
+            environ_overrides={"REMOTE_USER": "test"},
+        )
+        assert 200 == response.status_code
+
+        current_data = response.json
+        current_data["timestamp"] = "TIMESTAMP"
+        assert current_data == {
+            "dag_id": dag_id,
+            "execution_date": execution_date,
+            "key": xcom_key,
+            "task_id": task_id,
+            "map_index": -1,
+            "timestamp": "TIMESTAMP",
+            "value": f"{{'key': {str(value_non_serializable_key)}}}",
+        }
+
     def test_should_raise_404_for_non_existent_xcom(self):
         dag_id = "test-dag-id"
         task_id = "test-task-id"
