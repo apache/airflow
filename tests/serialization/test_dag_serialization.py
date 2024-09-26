@@ -143,7 +143,6 @@ serialized_simple_dag_ground_truth = {
                 "retries": 1,
                 "retry_delay": {"__type": "timedelta", "__var": 300.0},
                 "max_retry_delay": {"__type": "timedelta", "__var": 600.0},
-                "sla": {"__type": "timedelta", "__var": 100.0},
             },
         },
         "start_date": 1564617600.0,
@@ -179,7 +178,6 @@ serialized_simple_dag_ground_truth = {
                     "retries": 1,
                     "retry_delay": 300.0,
                     "max_retry_delay": 600.0,
-                    "sla": 100.0,
                     "downstream_task_ids": [],
                     "_is_empty": False,
                     "ui_color": "#f0ede4",
@@ -218,7 +216,6 @@ serialized_simple_dag_ground_truth = {
                     "retries": 1,
                     "retry_delay": 300.0,
                     "max_retry_delay": 600.0,
-                    "sla": 100.0,
                     "downstream_task_ids": [],
                     "_is_empty": False,
                     "_operator_extra_links": [{"tests.test_utils.mock_operators.CustomOpLink": {}}],
@@ -260,6 +257,7 @@ serialized_simple_dag_ground_truth = {
         "edge_info": {},
         "dag_dependencies": [],
         "params": [],
+        "tags": [],
     },
 }
 
@@ -289,7 +287,6 @@ def make_simple_dag():
             "retry_delay": timedelta(minutes=5),
             "max_retry_delay": timedelta(minutes=10),
             "depends_on_past": False,
-            "sla": timedelta(seconds=100),
         },
         start_date=datetime(2019, 8, 1),
         is_paused_upon_creation=False,
@@ -587,7 +584,7 @@ class TestStringifiedDAGs:
         roundtripped = SerializedDAG.from_json(SerializedDAG.to_json(dag))
         self.validate_deserialized_dag(roundtripped, dag)
 
-    def validate_deserialized_dag(self, serialized_dag, dag):
+    def validate_deserialized_dag(self, serialized_dag: DAG, dag: DAG):
         """
         Verify that all example DAGs work with DAG Serialization by
         checking fields between Serialized Dags & non-Serialized Dags
@@ -1298,7 +1295,6 @@ class TestStringifiedDAGs:
             "retry_delay": timedelta(0, 300),
             "retry_exponential_backoff": False,
             "run_as_user": None,
-            "sla": None,
             "task_id": "10",
             "trigger_rule": "all_success",
             "wait_for_downstream": False,

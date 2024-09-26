@@ -194,7 +194,7 @@ class BaseDataset:
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
         raise NotImplementedError
 
-    def iter_dataset_aliases(self) -> Iterator[DatasetAlias]:
+    def iter_dataset_aliases(self) -> Iterator[tuple[str, DatasetAlias]]:
         raise NotImplementedError
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
@@ -211,6 +211,12 @@ class DatasetAlias(BaseDataset):
     """A represeation of dataset alias which is used to create dataset during the runtime."""
 
     name: str
+
+    def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
+        return iter(())
+
+    def iter_dataset_aliases(self) -> Iterator[tuple[str, DatasetAlias]]:
+        yield self.name, self
 
     def iter_dag_dependencies(self, *, source: str, target: str) -> Iterator[DagDependency]:
         """
@@ -231,6 +237,7 @@ class DatasetAliasEvent(TypedDict):
 
     source_alias_name: str
     dest_dataset_uri: str
+    extra: dict[str, Any]
 
 
 def _set_extra_default(extra: dict | None) -> dict:
@@ -293,7 +300,7 @@ class Dataset(os.PathLike, BaseDataset):
     def iter_datasets(self) -> Iterator[tuple[str, Dataset]]:
         yield self.uri, self
 
-    def iter_dataset_aliases(self) -> Iterator[DatasetAlias]:
+    def iter_dataset_aliases(self) -> Iterator[tuple[str, DatasetAlias]]:
         return iter(())
 
     def evaluate(self, statuses: dict[str, bool]) -> bool:
@@ -338,7 +345,7 @@ class _DatasetBooleanCondition(BaseDataset):
                 yield k, v
                 seen.add(k)
 
-    def iter_dataset_aliases(self) -> Iterator[DatasetAlias]:
+    def iter_dataset_aliases(self) -> Iterator[tuple[str, DatasetAlias]]:
         """Filter dataest aliases in the condition."""
         for o in self.objects:
             yield from o.iter_dataset_aliases()
@@ -398,8 +405,8 @@ class _DatasetAliasCondition(DatasetAny):
         """
         return {"alias": self.name}
 
-    def iter_dataset_aliases(self) -> Iterator[DatasetAlias]:
-        yield DatasetAlias(self.name)
+    def iter_dataset_aliases(self) -> Iterator[tuple[str, DatasetAlias]]:
+        yield self.name, DatasetAlias(self.name)
 
     def iter_dag_dependencies(self, *, source: str = "", target: str = "") -> Iterator[DagDependency]:
         """

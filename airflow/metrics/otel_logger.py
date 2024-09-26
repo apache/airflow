@@ -35,8 +35,8 @@ from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.metrics.protocols import Timer
 from airflow.metrics.validators import (
     OTEL_NAME_MAX_LENGTH,
-    AllowListValidator,
     ListValidator,
+    PatternAllowListValidator,
     get_validator,
     stat_name_otel_handler,
 )
@@ -179,7 +179,7 @@ class SafeOtelLogger:
         self,
         otel_provider,
         prefix: str = DEFAULT_METRIC_NAME_PREFIX,
-        metrics_validator: ListValidator = AllowListValidator(),
+        metrics_validator: ListValidator = PatternAllowListValidator(),
     ):
         self.otel: Callable = otel_provider
         self.prefix: str = prefix
@@ -408,8 +408,9 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     # PeriodicExportingMetricReader will default to an interval of 60000 millis.
     interval = conf.getint("metrics", "otel_interval_milliseconds", fallback=None)  # ex: 30000
     debug = conf.getboolean("metrics", "otel_debugging_on")
+    service_name = conf.get("metrics", "otel_service")
 
-    resource = Resource(attributes={SERVICE_NAME: "Airflow"})
+    resource = Resource(attributes={SERVICE_NAME: service_name})
 
     protocol = "https" if ssl_active else "http"
     endpoint = f"{protocol}://{host}:{port}/v1/metrics"

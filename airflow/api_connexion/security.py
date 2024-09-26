@@ -48,11 +48,6 @@ def check_authentication() -> None:
         if response.status_code == 200:
             return
 
-    # Even if the current_user is anonymous, the AUTH_ROLE_PUBLIC might still have permission.
-    appbuilder = get_airflow_app().appbuilder
-    if appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None):
-        return
-
     # since this handler only checks authentication, not authorization,
     # we should always return 401
     raise Unauthenticated(headers=response.headers)
@@ -131,13 +126,12 @@ def requires_access_dag(
             if dag_id or access or access_entity:
                 return access
 
-            # No DAG id is provided, the user is not authorized to access all DAGs and authorization is done
-            # on DAG level
-            # If method is "GET", return whether the user has read access to any DAGs
-            # If method is "PUT", return whether the user has edit access to any DAGs
-            return (method == "GET" and any(get_auth_manager().get_permitted_dag_ids(methods=["GET"]))) or (
-                method == "PUT" and any(get_auth_manager().get_permitted_dag_ids(methods=["PUT"]))
-            )
+            # dag_id is not provided, and the user is not authorized to access *all* DAGs
+            # so we check that the user can access at least *one* dag
+            # but we leave it to the endpoint function to properly restrict access beyond that
+            if method not in ("GET", "PUT"):
+                return False
+            return any(get_auth_manager().get_permitted_dag_ids(methods=[method]))
 
         return callback
 

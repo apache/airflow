@@ -138,6 +138,9 @@ class DatasetAliasModel(Base):
         else:
             return NotImplemented
 
+    def to_public(self) -> DatasetAlias:
+        return DatasetAlias(name=self.name)
+
 
 class DatasetModel(Base):
     """
@@ -199,6 +202,9 @@ class DatasetModel(Base):
 
     def __repr__(self):
         return f"{self.__class__.__name__}(uri={self.uri!r}, extra={self.extra!r})"
+
+    def to_public(self) -> Dataset:
+        return Dataset(uri=self.uri, extra=self.extra)
 
 
 class DagScheduleDatasetAliasReference(Base):

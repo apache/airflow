@@ -266,7 +266,7 @@ class DagBag(LoggingMixin):
         """Add DAG to DagBag from DB."""
         from airflow.models.serialized_dag import SerializedDagModel
 
-        row = SerializedDagModel.get(dag_id, session)
+        row: SerializedDagModel | None = SerializedDagModel.get(dag_id, session)
         if not row:
             return None
 
@@ -457,7 +457,7 @@ class DagBag(LoggingMixin):
                 found_dags.append(dag)
         return found_dags
 
-    def bag_dag(self, dag):
+    def bag_dag(self, dag: DAG):
         """
         Add the DAG into the bag.
 

@@ -145,7 +145,7 @@ def test_dataset_iter_dataset_aliases():
         DatasetAll(DatasetAlias("example-alias-5"), Dataset("5")),
     )
     assert list(base_dataset.iter_dataset_aliases()) == [
-        DatasetAlias(f"example-alias-{i}") for i in range(1, 6)
+        (f"example-alias-{i}", DatasetAlias(f"example-alias-{i}")) for i in range(1, 6)
     ]
 
 

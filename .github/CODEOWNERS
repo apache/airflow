@@ -27,15 +27,15 @@
 /airflow/api_connexion/ @ephraimbuddy @pierrejeambrun
 
 # WWW
-/airflow/www/ @ryanahamilton @ashb @bbovenzi @pierrejeambrun
+/airflow/www/ @ryanahamilton @ashb @bbovenzi @pierrejeambrun @jscheffl
 
 # UI
-/airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton
+/airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl
 
 # Security/Permissions
-/airflow/api_connexion/security.py @jhtimmins
-/airflow/security/permissions.py @jhtimmins
-/airflow/www/security.py @jhtimmins
+/airflow/api_connexion/security.py @vincbeck
+/airflow/security/permissions.py @vincbeck
+/airflow/www/security.py @vincbeck
 
 # Calendar/Timetables
 /airflow/timetables/ @uranusjr
@@ -65,6 +65,7 @@
 /airflow/providers/cncf/kubernetes @jedcunningham @hussein-awala
 /airflow/providers/common/sql/ @eladkal
 /airflow/providers/dbt/cloud/ @josh-fell
+/airflow/providers/edge @jscheffl
 /airflow/providers/hashicorp/ @hussein-awala
 /airflow/providers/openlineage/ @mobuchowski
 /airflow/providers/slack/ @eladkal

@@ -425,6 +425,7 @@ def autoclean_admin_user(configured_app, autoclean_user_payload):
 
 class TestPostUser(TestUserEndpoint):
     def test_with_default_role(self, autoclean_username, autoclean_user_payload):
+        self.client.application.config["AUTH_USER_REGISTRATION_ROLE"] = "Public"
         response = self.client.post(
             "/auth/fab/v1/users",
             json=autoclean_user_payload,

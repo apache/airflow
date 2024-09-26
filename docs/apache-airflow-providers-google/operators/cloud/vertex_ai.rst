@@ -260,14 +260,11 @@ put dataset id to ``dataset_id`` parameter in operator.
 How to run AutoML Text Training Job
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`
 
-Before start running this Job you must prepare and create ``Text`` dataset. After that you should
-put dataset id to ``dataset_id`` parameter in operator.
+Operator is deprecated, please use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator` over
+the Gemini model.
+More info: https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini-tuning#tuning-gemini
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_auto_ml_text_training.py
-    :language: python
-    :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_text_training_job_operator]
-    :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_text_training_job_operator]
 
 How to run AutoML Video Training Job
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`
