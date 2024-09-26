@@ -316,9 +316,6 @@ class TestCreateBackfill(TestBackfillEndpoint):
                 "to_date": to_date_iso,
                 "updated_at": mock.ANY,
             }
-            from airflow.models.dagrun import DagRun
-
-            session.query(DagRun).all()
 
 
 class TestPauseBackfill(TestBackfillEndpoint):
