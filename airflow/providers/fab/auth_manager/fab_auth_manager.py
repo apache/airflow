@@ -342,10 +342,7 @@ class FabAuthManager(BaseAuthManager):
                         resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
                     else:
                         resources.add(resource)
-        return {
-            dag.dag_id
-            for dag in session.execute(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources)))
-        }
+        return set(session.scalars(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources))))
 
     @cached_property
     def security_manager(self) -> FabAirflowSecurityManagerOverride:

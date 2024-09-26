@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
@@ -34,7 +34,7 @@ from airflow.api_fastapi.parameters import (
     QueryTagsFilter,
     SortParam,
 )
-from airflow.api_fastapi.serializers.dags import DAGCollectionResponse, DAGModelResponse
+from airflow.api_fastapi.serializers.dags import DAGCollectionResponse, DAGPatchBody, DAGResponse
 from airflow.models import DagModel
 from airflow.utils.db import get_query_count
 
@@ -43,7 +43,6 @@ dags_router = APIRouter(tags=["DAG"])
 
 @dags_router.get("/dags")
 async def get_dags(
-    *,
     limit: QueryLimit,
     offset: QueryOffset,
     tags: QueryTagsFilter,
@@ -74,8 +73,35 @@ async def get_dags(
 
     try:
         return DAGCollectionResponse(
-            dags=[DAGModelResponse.model_validate(dag, from_attributes=True) for dag in dags],
+            dags=[DAGResponse.model_validate(dag, from_attributes=True) for dag in dags],
             total_entries=total_entries,
         )
     except ValueError as e:
         raise HTTPException(400, f"DAGCollectionSchema error: {str(e)}")
+
+
+@dags_router.patch("/dags/{dag_id}")
+async def patch_dag(
+    dag_id: str,
+    patch_body: DAGPatchBody,
+    session: Annotated[Session, Depends(get_session)],
+    update_mask: list[str] | None = Query(None),
+) -> DAGResponse:
+    """Update the specific DAG."""
+    dag = session.get(DagModel, dag_id)
+
+    if dag is None:
+        raise HTTPException(404, f"Dag with id: {dag_id} was not found")
+
+    if update_mask:
+        if update_mask != ["is_paused"]:
+            raise HTTPException(400, "Only `is_paused` field can be updated through the REST API")
+
+    else:
+        update_mask = ["is_paused"]
+
+    for attr_name in update_mask:
+        attr_value = getattr(patch_body, attr_name)
+        setattr(dag, attr_name, attr_value)
+
+    return DAGResponse.model_validate(dag, from_attributes=True)
