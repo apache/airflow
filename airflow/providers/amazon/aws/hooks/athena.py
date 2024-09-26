@@ -25,10 +25,9 @@ This module contains AWS Athena hook.
 
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Any, Collection
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import wait
 
@@ -56,7 +55,6 @@ class AthenaHook(AwsBaseHook):
     Provide thick wrapper around
     :external+boto3:py:class:`boto3.client("athena") <Athena.Client>`.
 
-    :param sleep_time: obsolete, please use the parameter of `poll_query_status` method instead
     :param log_query: Whether to log athena query and other execution params
         when it's executed. Defaults to *True*.
 
@@ -82,20 +80,8 @@ class AthenaHook(AwsBaseHook):
         "CANCELLED",
     )
 
-    def __init__(
-        self, *args: Any, sleep_time: int | None = None, log_query: bool = True, **kwargs: Any
-    ) -> None:
+    def __init__(self, *args: Any, log_query: bool = True, **kwargs: Any) -> None:
         super().__init__(client_type="athena", *args, **kwargs)  # type: ignore
-        if sleep_time is not None:
-            self.sleep_time = sleep_time
-            warnings.warn(
-                "The `sleep_time` parameter of the Athena hook is deprecated, "
-                "please pass this parameter to the poll_query_status method instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-        else:
-            self.sleep_time = 30  # previous default value
         self.log_query = log_query
         self.__query_results: dict[str, Any] = {}
 
@@ -291,7 +277,7 @@ class AthenaHook(AwsBaseHook):
         try:
             wait(
                 waiter=self.get_waiter("query_complete"),
-                waiter_delay=self.sleep_time if sleep_time is None else sleep_time,
+                waiter_delay=30 if sleep_time is None else sleep_time,
                 waiter_max_attempts=max_polling_attempts or 120,
                 args={"QueryExecutionId": query_execution_id},
                 failure_message=f"Error while waiting for query {query_execution_id} to complete",

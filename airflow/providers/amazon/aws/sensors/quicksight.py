@@ -17,12 +17,9 @@
 # under the License.
 from __future__ import annotations
 
-from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from deprecated import deprecated
-
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 
@@ -76,28 +73,3 @@ class QuickSightSensor(AwsBaseSensor[QuickSightHook]):
             error = self.hook.get_error_info(None, self.data_set_id, self.ingestion_id)
             raise AirflowException(f"The QuickSight Ingestion failed. Error info: {error}")
         return quicksight_ingestion_state == self.success_status
-
-    @cached_property
-    @deprecated(
-        reason=(
-            "`QuickSightSensor.quicksight_hook` property is deprecated, "
-            "please use `QuickSightSensor.hook` property instead."
-        ),
-        category=AirflowProviderDeprecationWarning,
-    )
-    def quicksight_hook(self):
-        return self.hook
-
-    @cached_property
-    @deprecated(
-        reason=(
-            "`QuickSightSensor.sts_hook` property is deprecated and will be removed in the future. "
-            "This property used for obtain AWS Account ID, "
-            "please consider to use `QuickSightSensor.hook.account_id` instead"
-        ),
-        category=AirflowProviderDeprecationWarning,
-    )
-    def sts_hook(self):
-        from airflow.providers.amazon.aws.hooks.sts import StsHook
-
-        return StsHook(aws_conn_id=self.aws_conn_id)

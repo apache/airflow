@@ -19,9 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable, Sequence
 
-from deprecated import deprecated
-
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
@@ -67,11 +65,6 @@ class DmsTaskBaseSensor(AwsBaseSensor[DmsHook]):
         self.replication_task_arn = replication_task_arn
         self.target_statuses: Iterable[str] = target_statuses or []
         self.termination_statuses: Iterable[str] = termination_statuses or []
-
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
-    def get_hook(self) -> DmsHook:
-        """Get DmsHook."""
-        return self.hook
 
     def poke(self, context: Context):
         if not (status := self.hook.get_task_status(self.replication_task_arn)):

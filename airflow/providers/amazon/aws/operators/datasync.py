@@ -22,9 +22,7 @@ import logging
 import random
 from typing import TYPE_CHECKING, Any, Sequence
 
-from deprecated.classic import deprecated
-
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowTaskTimeout
+from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.providers.amazon.aws.hooks.datasync import DataSyncHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
@@ -198,11 +196,6 @@ class DataSyncOperator(AwsBaseOperator[DataSyncHook]):
     @property
     def _hook_parameters(self) -> dict[str, Any]:
         return {**super()._hook_parameters, "wait_interval_seconds": self.wait_interval_seconds}
-
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
-    def get_hook(self) -> DataSyncHook:
-        """Create and return DataSyncHook."""
-        return self.hook
 
     def execute(self, context: Context):
         # If task_arn was not specified then try to

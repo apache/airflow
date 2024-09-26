@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
 from airflow.providers.amazon.aws.sensors.quicksight import QuickSightSensor
 
@@ -95,16 +95,3 @@ class TestQuickSightSensor:
             QuickSightSensor(**self.default_op_kwargs).poke({})
         mocked_get_status.assert_called_once_with(None, DATA_SET_ID, INGESTION_ID)
         mocked_get_error_info.assert_called_once_with(None, DATA_SET_ID, INGESTION_ID)
-
-    def test_deprecated_properties(self):
-        sensor = QuickSightSensor(**self.default_op_kwargs)
-        with pytest.warns(AirflowProviderDeprecationWarning, match="please use `.*hook` property instead"):
-            assert sensor.quicksight_hook is sensor.hook
-
-        with mock.patch("airflow.providers.amazon.aws.hooks.sts.StsHook") as mocked_class, pytest.warns(
-            AirflowProviderDeprecationWarning, match=r"consider to use `.*hook\.account_id` instead"
-        ):
-            mocked_sts_hook = mock.MagicMock(name="FakeStsHook")
-            mocked_class.return_value = mocked_sts_hook
-            assert sensor.sts_hook is mocked_sts_hook
-            mocked_class.assert_called_once_with(aws_conn_id=None)

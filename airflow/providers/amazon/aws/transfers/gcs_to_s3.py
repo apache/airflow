@@ -20,12 +20,11 @@
 from __future__ import annotations
 
 import os
-import warnings
 from typing import TYPE_CHECKING, Sequence
 
 from packaging.version import Version
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -43,12 +42,8 @@ class GCSToS3Operator(BaseOperator):
         :ref:`howto/operator:GCSToS3Operator`
 
     :param gcs_bucket: The Google Cloud Storage bucket to find the objects. (templated)
-    :param bucket: (Deprecated) Use ``gcs_bucket`` instead.
     :param prefix: Prefix string which filters objects whose name begin with
         this prefix. (templated)
-    :param delimiter: (Deprecated) The delimiter by which you want to filter the objects. (templated)
-        For e.g to lists the CSV files from in a directory in GCS you would use
-        delimiter='.csv'.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
     :param dest_aws_conn_id: The destination S3 connection
     :param dest_s3_key: The base S3 key to be used to store the files. (templated)
@@ -91,7 +86,6 @@ class GCSToS3Operator(BaseOperator):
     template_fields: Sequence[str] = (
         "gcs_bucket",
         "prefix",
-        "delimiter",
         "dest_s3_key",
         "google_impersonation_chain",
         "gcp_user_project",
@@ -101,10 +95,8 @@ class GCSToS3Operator(BaseOperator):
     def __init__(
         self,
         *,
-        gcs_bucket: str | None = None,
-        bucket: str | None = None,
+        gcs_bucket: str,
         prefix: str | None = None,
-        delimiter: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         dest_aws_conn_id: str | None = "aws_default",
         dest_s3_key: str,
@@ -119,17 +111,7 @@ class GCSToS3Operator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        if bucket:
-            warnings.warn(
-                "The ``bucket`` parameter is deprecated and will be removed in a future version. "
-                "Please use ``gcs_bucket`` instead.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-        self.gcs_bucket = gcs_bucket or bucket
-        if not (bucket or gcs_bucket):
-            raise ValueError("You must pass either ``bucket`` or ``gcs_bucket``.")
-
+        self.gcs_bucket = gcs_bucket
         self.prefix = prefix
         self.gcp_conn_id = gcp_conn_id
         self.dest_aws_conn_id = dest_aws_conn_id
@@ -149,18 +131,10 @@ class GCSToS3Operator(BaseOperator):
                 self.__is_match_glob_supported = False
         except ImportError:  # __version__ was added in 10.1.0, so this means it's < 10.3.0
             self.__is_match_glob_supported = False
-        if self.__is_match_glob_supported:
-            if delimiter:
-                warnings.warn(
-                    "Usage of 'delimiter' is deprecated, please use 'match_glob' instead",
-                    AirflowProviderDeprecationWarning,
-                    stacklevel=2,
-                )
-        elif match_glob:
+        if not self.__is_match_glob_supported and match_glob:
             raise AirflowException(
                 "The 'match_glob' parameter requires 'apache-airflow-providers-google>=10.3.0'."
             )
-        self.delimiter = delimiter
         self.match_glob = match_glob
         self.gcp_user_project = gcp_user_project
 
@@ -172,16 +146,14 @@ class GCSToS3Operator(BaseOperator):
         )
 
         self.log.info(
-            "Getting list of the files. Bucket: %s; Delimiter: %s; Prefix: %s",
+            "Getting list of the files. Bucket: %s; Prefix: %s",
             self.gcs_bucket,
-            self.delimiter,
             self.prefix,
         )
 
         list_kwargs = {
             "bucket_name": self.gcs_bucket,
             "prefix": self.prefix,
-            "delimiter": self.delimiter,
             "user_project": self.gcp_user_project,
         }
         if self.__is_match_glob_supported:

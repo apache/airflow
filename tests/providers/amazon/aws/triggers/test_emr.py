@@ -58,34 +58,6 @@ class TestEmrAddStepsTrigger:
 
 
 class TestEmrCreateJobFlowTrigger:
-    def test_init_with_deprecated_params(self):
-        import warnings
-
-        with warnings.catch_warnings(record=True) as catch_warns:
-            warnings.simplefilter("always")
-
-            job_flow_id = "test_job_flow_id"
-            poll_interval = 10
-            max_attempts = 5
-            aws_conn_id = "aws_default"
-            waiter_delay = 30
-            waiter_max_attempts = 60
-
-            trigger = EmrCreateJobFlowTrigger(
-                job_flow_id=job_flow_id,
-                poll_interval=poll_interval,
-                max_attempts=max_attempts,
-                aws_conn_id=aws_conn_id,
-                waiter_delay=waiter_delay,
-                waiter_max_attempts=waiter_max_attempts,
-            )
-
-            assert trigger.waiter_delay == poll_interval
-            assert len(catch_warns) == 1
-            assert issubclass(catch_warns[-1].category, DeprecationWarning)
-            assert "please use waiter_delay instead of poll_interval" in str(catch_warns[-1].message)
-            assert "and waiter_max_attempts instead of max_attempts" in str(catch_warns[-1].message)
-
     def test_serialization(self):
         job_flow_id = "test_job_flow_id"
         waiter_delay = 30
@@ -109,34 +81,6 @@ class TestEmrCreateJobFlowTrigger:
 
 
 class TestEmrTerminateJobFlowTrigger:
-    def test_init_with_deprecated_params(self):
-        import warnings
-
-        with warnings.catch_warnings(record=True) as catch_warns:
-            warnings.simplefilter("always")
-
-            job_flow_id = "test_job_flow_id"
-            poll_interval = 10
-            max_attempts = 5
-            aws_conn_id = "aws_default"
-            waiter_delay = 30
-            waiter_max_attempts = 60
-
-            trigger = EmrTerminateJobFlowTrigger(
-                job_flow_id=job_flow_id,
-                poll_interval=poll_interval,
-                max_attempts=max_attempts,
-                aws_conn_id=aws_conn_id,
-                waiter_delay=waiter_delay,
-                waiter_max_attempts=waiter_max_attempts,
-            )
-
-            assert trigger.waiter_delay == poll_interval  # Assert deprecated parameter is correctly used
-            assert len(catch_warns) == 1
-            assert issubclass(catch_warns[-1].category, DeprecationWarning)
-            assert "please use waiter_delay instead of poll_interval" in str(catch_warns[-1].message)
-            assert "and waiter_max_attempts instead of max_attempts" in str(catch_warns[-1].message)
-
     def test_serialization(self):
         job_flow_id = "test_job_flow_id"
         waiter_delay = 30
@@ -160,33 +104,6 @@ class TestEmrTerminateJobFlowTrigger:
 
 
 class TestEmrContainerTrigger:
-    def test_init_with_deprecated_params(self):
-        import warnings
-
-        with warnings.catch_warnings(record=True) as catch_warns:
-            warnings.simplefilter("always")
-
-            virtual_cluster_id = "test_virtual_cluster_id"
-            job_id = "test_job_id"
-            aws_conn_id = "aws_default"
-            poll_interval = 10
-            waiter_delay = 30
-            waiter_max_attempts = 600
-
-            trigger = EmrContainerTrigger(
-                virtual_cluster_id=virtual_cluster_id,
-                job_id=job_id,
-                aws_conn_id=aws_conn_id,
-                poll_interval=poll_interval,
-                waiter_delay=waiter_delay,
-                waiter_max_attempts=waiter_max_attempts,
-            )
-
-            assert trigger.waiter_delay == poll_interval  # Assert deprecated parameter is correctly used
-            assert len(catch_warns) == 1
-            assert issubclass(catch_warns[-1].category, DeprecationWarning)
-            assert "please use waiter_delay instead of poll_interval" in str(catch_warns[-1].message)
-
     def test_serialization(self):
         virtual_cluster_id = "test_virtual_cluster_id"
         job_id = "test_job_id"

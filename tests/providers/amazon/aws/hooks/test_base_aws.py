@@ -39,7 +39,7 @@ from botocore.utils import FileWebIdentityTokenLoader
 from moto import mock_aws
 from moto.core import DEFAULT_ACCOUNT_ID
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.providers.amazon.aws.executors.ecs.ecs_executor import AwsEcsExecutor
 from airflow.providers.amazon.aws.hooks.base_aws import (
@@ -917,26 +917,15 @@ class TestAwsBaseHook:
         assert hook.client_type == "ec2"
 
     @pytest.mark.parametrize(
-        "sts_service_endpoint_url, test_endpoint_url, result_url",
+        "sts_service_endpoint_url, result_url",
         [
-            pytest.param(None, None, None, id="not-set"),
-            pytest.param(
-                "https://sts.service:1234", None, "https://sts.service:1234", id="sts-service-endpoint"
-            ),
-            pytest.param(
-                None, "http://deprecated.test", "http://deprecated.test", id="deprecated-test-parameter"
-            ),
-            pytest.param(
-                "https://sts.service:1234",
-                "http://deprecated.test",
-                "https://sts.service:1234",
-                id="mixin-resolve",
-            ),
+            pytest.param(None, None, id="not-set"),
+            pytest.param("https://sts.service:1234", "https://sts.service:1234", id="sts-service-endpoint"),
         ],
     )
     @mock.patch("boto3.session.Session")
     def test_hook_connection_endpoint_url_valid(
-        self, mock_boto3_session, sts_service_endpoint_url, test_endpoint_url, result_url, monkeypatch
+        self, mock_boto3_session, sts_service_endpoint_url, result_url, monkeypatch
     ):
         """Test if test_endpoint_url is valid in test connection"""
 
@@ -945,12 +934,6 @@ class TestAwsBaseHook:
 
         warn_context = nullcontext()
         fake_extra = {"endpoint_url": "https://test.conn:777/should/ignore/global/endpoint/url"}
-        if test_endpoint_url:
-            fake_extra["test_endpoint_url"] = test_endpoint_url
-            # If `test_endpoint_url` set than we raise warning message
-            warn_context = pytest.warns(
-                AirflowProviderDeprecationWarning, match=r"extra\['test_endpoint_url'\] is deprecated"
-            )
         if sts_service_endpoint_url:
             fake_extra["service_config"] = {"sts": {"endpoint_url": sts_service_endpoint_url}}
 

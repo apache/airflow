@@ -21,12 +21,9 @@ from __future__ import annotations
 
 import json
 import re
-import warnings
 from functools import cached_property
 from typing import Any
-from urllib.parse import unquote
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.utils import trim_none_values
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -145,28 +142,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         self.variables_lookup_pattern = variables_lookup_pattern
         self.config_lookup_pattern = config_lookup_pattern
         self.sep = sep
-
-        if kwargs.pop("full_url_mode", None) is not None:
-            warnings.warn(
-                "The `full_url_mode` kwarg is deprecated. Going forward, the `SecretsManagerBackend`"
-                " will support both URL-encoded and JSON-encoded secrets at the same time. The encoding"
-                " of the secret will be determined automatically.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-
-        if kwargs.get("are_secret_values_urlencoded") is not None:
-            warnings.warn(
-                "The `secret_values_are_urlencoded` is deprecated. This kwarg only exists to assist in"
-                " migrating away from URL-encoding secret values for JSON secrets."
-                " To remove this warning, make sure your JSON secrets are *NOT* URL-encoded, and then"
-                " remove this kwarg from backend_kwargs.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            self.are_secret_values_urlencoded = kwargs.pop("are_secret_values_urlencoded", None)
-        else:
-            self.are_secret_values_urlencoded = False
+        self.are_secret_values_urlencoded = False
 
         self.extra_conn_words = extra_conn_words or {}
 
@@ -222,19 +198,6 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return conn_d
 
-    def _remove_escaping_in_secret_dict(self, secret: dict[str, Any]) -> dict[str, Any]:
-        """Un-escape secret values that are URL-encoded."""
-        for k, v in secret.copy().items():
-            if k == "extra" and isinstance(v, dict):
-                # The old behavior was that extras were _not_ urlencoded inside the secret.
-                # So we should just allow the extra dict to remain as-is.
-                continue
-
-            elif v is not None:
-                secret[k] = unquote(v)
-
-        return secret
-
     def get_conn_value(self, conn_id: str) -> str | None:
         """
         Get serialized representation of Connection.
@@ -259,8 +222,6 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
             secret_dict = json.loads(secret)
             standardized_secret_dict = self._standardize_secret_keys(secret_dict)
-            if self.are_secret_values_urlencoded:
-                standardized_secret_dict = self._remove_escaping_in_secret_dict(standardized_secret_dict)
             standardized_secret = json.dumps(standardized_secret_dict)
             return standardized_secret
         else:

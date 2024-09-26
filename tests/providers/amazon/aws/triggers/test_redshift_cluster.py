@@ -52,12 +52,12 @@ class TestRedshiftClusterTrigger:
         }
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.cluster_status")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status_async")
     async def test_redshift_cluster_sensor_trigger_success(self, mock_cluster_status):
         """
         Test RedshiftClusterTrigger with the success status
         """
-        expected_result = {"status": "success", "cluster_state": "available"}
+        expected_result = "available"
 
         mock_cluster_status.return_value = expected_result
         trigger = RedshiftClusterTrigger(
@@ -69,16 +69,14 @@ class TestRedshiftClusterTrigger:
 
         generator = trigger.run()
         actual = await generator.asend(None)
-        assert TriggerEvent(expected_result) == actual
+        assert TriggerEvent({"status": "success", "message": "target state met"}) == actual
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
         "expected_result",
-        [
-            ({"status": "success", "cluster_state": "Resuming"}),
-        ],
+        ["Resuming"],
     )
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.cluster_status")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status_async")
     async def test_redshift_cluster_sensor_trigger_resuming_status(
         self, mock_cluster_status, expected_result
     ):
@@ -100,7 +98,7 @@ class TestRedshiftClusterTrigger:
         asyncio.get_event_loop().stop()
 
     @pytest.mark.asyncio
-    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftAsyncHook.cluster_status")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift_cluster.RedshiftHook.cluster_status_async")
     async def test_redshift_cluster_sensor_trigger_exception(self, mock_cluster_status):
         """Test RedshiftClusterTrigger with exception"""
         mock_cluster_status.side_effect = Exception("Test exception")

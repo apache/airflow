@@ -22,7 +22,6 @@ import re
 import tarfile
 import tempfile
 import time
-import warnings
 from collections import Counter, namedtuple
 from datetime import datetime
 from functools import partial
@@ -31,7 +30,7 @@ from typing import Any, AsyncGenerator, Callable, Generator, cast
 from asgiref.sync import sync_to_async
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -1098,9 +1097,6 @@ class SageMakerHook(AwsBaseHook):
         pipeline_name: str,
         display_name: str = "airflow-triggered-execution",
         pipeline_params: dict | None = None,
-        wait_for_completion: bool = False,
-        check_interval: int | None = None,
-        verbose: bool = True,
     ) -> str:
         """
         Start a new execution for a SageMaker pipeline.
@@ -1115,16 +1111,6 @@ class SageMakerHook(AwsBaseHook):
 
         :return: the ARN of the pipeline execution launched.
         """
-        if wait_for_completion or check_interval is not None:
-            warnings.warn(
-                "parameter `wait_for_completion` and `check_interval` are deprecated, "
-                "remove them and call check_status yourself if you want to wait for completion",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-        if check_interval is None:
-            check_interval = 30
-
         formatted_params = format_tags(pipeline_params, key_label="Name")
 
         try:
@@ -1137,23 +1123,11 @@ class SageMakerHook(AwsBaseHook):
             self.log.error("Failed to start pipeline execution, error: %s", ce)
             raise
 
-        arn = res["PipelineExecutionArn"]
-        if wait_for_completion:
-            self.check_status(
-                arn,
-                "PipelineExecutionStatus",
-                lambda p: self.describe_pipeline_exec(p, verbose),
-                check_interval,
-                non_terminal_states=self.pipeline_non_terminal_states,
-            )
-        return arn
+        return res["PipelineExecutionArn"]
 
     def stop_pipeline(
         self,
         pipeline_exec_arn: str,
-        wait_for_completion: bool = False,
-        check_interval: int | None = None,
-        verbose: bool = True,
         fail_if_not_running: bool = False,
     ) -> str:
         """
@@ -1172,16 +1146,6 @@ class SageMakerHook(AwsBaseHook):
         :return: Status of the pipeline execution after the operation.
             One of 'Executing'|'Stopping'|'Stopped'|'Failed'|'Succeeded'.
         """
-        if wait_for_completion or check_interval is not None:
-            warnings.warn(
-                "parameter `wait_for_completion` and `check_interval` are deprecated, "
-                "remove them and call check_status yourself if you want to wait for completion",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-        if check_interval is None:
-            check_interval = 10
-
         for retries in reversed(range(5)):
             try:
                 self.conn.stop_pipeline_execution(PipelineExecutionArn=pipeline_exec_arn)
@@ -1212,15 +1176,6 @@ class SageMakerHook(AwsBaseHook):
                 break
 
         res = self.describe_pipeline_exec(pipeline_exec_arn)
-
-        if wait_for_completion and res["PipelineExecutionStatus"] in self.pipeline_non_terminal_states:
-            res = self.check_status(
-                pipeline_exec_arn,
-                "PipelineExecutionStatus",
-                lambda p: self.describe_pipeline_exec(p, verbose),
-                check_interval,
-                non_terminal_states=self.pipeline_non_terminal_states,
-            )
 
         return res["PipelineExecutionStatus"]
 

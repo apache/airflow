@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 from botocore.waiter import Waiter
 
-from airflow.exceptions import AirflowProviderDeprecationWarning, TaskDeferred
+from airflow.exceptions import TaskDeferred
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
@@ -717,84 +717,41 @@ class TestEksPodOperator:
         assert mock_generate_config_file.return_value.__enter__.return_value == op.config_file
 
     @pytest.mark.parametrize(
-        "compatible_kpo, kwargs, expected_attributes, warning, warning_message",
+        "compatible_kpo, kwargs, expected_attributes",
         [
             (
                 True,
                 {"on_finish_action": "delete_succeeded_pod"},
                 {"on_finish_action": OnFinishAction.DELETE_SUCCEEDED_POD},
-                False,
-                None,
-            ),
-            (
-                # test that priority for deprecated param
-                True,
-                {"on_finish_action": "keep_pod", "is_delete_operator_pod": True},
-                {"on_finish_action": OnFinishAction.DELETE_POD, "is_delete_operator_pod": True},
-                True,
-                "`is_delete_operator_pod` parameter is deprecated, please use `on_finish_action`",
             ),
             (
                 # test default
                 True,
                 {},
-                {"on_finish_action": OnFinishAction.KEEP_POD, "is_delete_operator_pod": False},
-                True,
-                "You have not set parameter `on_finish_action` in class EksPodOperator. Currently the default for this parameter is `keep_pod` but in a future release the default will be changed to `delete_pod`. To ensure pods are not deleted in the future you will need to set `on_finish_action=keep_pod` explicitly.",
-            ),
-            (
-                False,
-                {"is_delete_operator_pod": True},
-                {"is_delete_operator_pod": True},
-                True,
-                "`is_delete_operator_pod` parameter is deprecated, please use `on_finish_action`",
-            ),
-            (
-                False,
-                {"is_delete_operator_pod": False},
-                {"is_delete_operator_pod": False},
-                True,
-                "`is_delete_operator_pod` parameter is deprecated, please use `on_finish_action`",
+                {"on_finish_action": OnFinishAction.DELETE_POD},
             ),
             (
                 # test default
                 False,
                 {},
-                {"is_delete_operator_pod": False},
-                True,
-                "You have not set parameter `on_finish_action` in class EksPodOperator. Currently the default for this parameter is `keep_pod` but in a future release the default will be changed to `delete_pod`. To ensure pods are not deleted in the future you will need to set `on_finish_action=keep_pod` explicitly.",
+                {},
             ),
         ],
     )
-    def test_on_finish_action_handler(
-        self, compatible_kpo, kwargs, expected_attributes, warning, warning_message
-    ):
+    def test_on_finish_action_handler(self, compatible_kpo, kwargs, expected_attributes):
         kpo_init_args_mock = mock.MagicMock(**{"parameters": ["on_finish_action"] if compatible_kpo else []})
 
         with mock.patch("inspect.signature", return_value=kpo_init_args_mock):
-            if warning:
-                with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
-                    op = EksPodOperator(
-                        task_id="run_pod",
-                        pod_name="run_pod",
-                        cluster_name=CLUSTER_NAME,
-                        image="amazon/aws-cli:latest",
-                        cmds=["sh", "-c", "ls"],
-                        labels={"demo": "hello_world"},
-                        get_logs=True,
-                        **kwargs,
-                    )
-            else:
-                op = EksPodOperator(
-                    task_id="run_pod",
-                    pod_name="run_pod",
-                    cluster_name=CLUSTER_NAME,
-                    image="amazon/aws-cli:latest",
-                    cmds=["sh", "-c", "ls"],
-                    labels={"demo": "hello_world"},
-                    get_logs=True,
-                    **kwargs,
-                )
+            op = EksPodOperator(
+                task_id="run_pod",
+                pod_name="run_pod",
+                cluster_name=CLUSTER_NAME,
+                image="amazon/aws-cli:latest",
+                cmds=["sh", "-c", "ls"],
+                labels={"demo": "hello_world"},
+                get_logs=True,
+                **kwargs,
+            )
             for expected_attr in expected_attributes:
                 assert op.__getattribute__(expected_attr) == expected_attributes[expected_attr]
 

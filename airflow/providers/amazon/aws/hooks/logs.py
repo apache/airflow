@@ -18,12 +18,10 @@
 from __future__ import annotations
 
 import asyncio
-import warnings
 from typing import Any, AsyncGenerator, Generator
 
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.utils.helpers import prune_dict
 
@@ -80,8 +78,6 @@ class AwsLogsHook(AwsBaseHook):
         :param start_time: The timestamp value in ms to start reading the logs from (default: 0).
         :param skip: The number of log entries to skip at the start (default: 0).
             This is for when there are multiple entries at the same timestamp.
-        :param start_from_head: Deprecated. Do not use with False, logs would be retrieved out of order.
-            If possible, retrieve logs in one query, or implement pagination yourself.
         :param continuation_token: a token indicating where to read logs from.
             Will be updated as this method reads new logs, to be reused in subsequent calls.
         :param end_time: The timestamp value in ms to stop reading the logs from (default: None).
@@ -91,21 +87,6 @@ class AwsLogsHook(AwsBaseHook):
                  |   'message' (str): The log event data.
                  |   'ingestionTime' (int): The time in milliseconds the event was ingested.
         """
-        if start_from_head is not None:
-            message = (
-                "start_from_head is deprecated, please remove this parameter."
-                if start_from_head
-                else "Do not use this method with start_from_head=False, logs will be returned out of order. "
-                "If possible, retrieve logs in one query, or implement pagination yourself."
-            )
-            warnings.warn(
-                message,
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-        else:
-            start_from_head = True
-
         if continuation_token is None:
             continuation_token = AwsLogsHook.ContinuationToken()
 
@@ -123,7 +104,7 @@ class AwsLogsHook(AwsBaseHook):
                         "logStreamName": log_stream_name,
                         "startTime": start_time,
                         "endTime": end_time,
-                        "startFromHead": start_from_head,
+                        "startFromHead": True,
                         **token_arg,
                     }
                 )

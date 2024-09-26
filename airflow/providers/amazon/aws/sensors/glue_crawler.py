@@ -19,9 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence
 
-from deprecated import deprecated
-
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue_crawler import GlueCrawlerHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
@@ -78,8 +76,3 @@ class GlueCrawlerSensor(AwsBaseSensor[GlueCrawlerHook]):
                 raise AirflowException(f"Status: {crawler_status}")
         else:
             return False
-
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
-    def get_hook(self) -> GlueCrawlerHook:
-        """Return a new or pre-existing GlueCrawlerHook."""
-        return self.hook

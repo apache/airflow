@@ -19,14 +19,13 @@ from __future__ import annotations
 import datetime
 import json
 import time
-import warnings
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from botocore.exceptions import ClientError
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sagemaker import (
@@ -239,7 +238,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         doesn't finish within max_ingestion_time seconds. If you set this parameter to None,
         the operation does not timeout.
     :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "timestamp"
-        (default), "increment" (deprecated) and "fail".
+        (default) and "fail".
     :param deferrable: Run operator in the deferrable mode. This is only effective if wait_for_completion is
         set to True.
     :return Dict: Returns The ARN of the processing job created in Amazon SageMaker.
@@ -260,17 +259,10 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         **kwargs,
     ):
         super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
-        if action_if_job_exists not in ("increment", "fail", "timestamp"):
+        if action_if_job_exists not in ("fail", "timestamp"):
             raise AirflowException(
-                f"Argument action_if_job_exists accepts only 'timestamp', 'increment' and 'fail'. \
+                f"Argument action_if_job_exists accepts only 'timestamp' and 'fail'. \
                 Provided value: '{action_if_job_exists}'."
-            )
-        if action_if_job_exists == "increment":
-            warnings.warn(
-                "Action 'increment' on job name conflict has been deprecated for performance reasons."
-                "The alternative to 'fail' is now 'timestamp'.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
             )
         self.action_if_job_exists = action_if_job_exists
         self.wait_for_completion = wait_for_completion
@@ -657,7 +649,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
     :param check_if_job_exists: If set to true, then the operator will check whether a transform job
         already exists for the name in the config.
     :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "timestamp"
-        (default), "increment" (deprecated) and "fail".
+        (default) and "fail".
         This is only relevant if check_if_job_exists is True.
     :return Dict: Returns The ARN of the model created in Amazon SageMaker.
     """
@@ -684,18 +676,11 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         self.max_attempts = max_attempts or 60
         self.max_ingestion_time = max_ingestion_time
         self.check_if_job_exists = check_if_job_exists
-        if action_if_job_exists in ("increment", "fail", "timestamp"):
-            if action_if_job_exists == "increment":
-                warnings.warn(
-                    "Action 'increment' on job name conflict has been deprecated for performance reasons."
-                    "The alternative to 'fail' is now 'timestamp'.",
-                    AirflowProviderDeprecationWarning,
-                    stacklevel=2,
-                )
+        if action_if_job_exists in ("fail", "timestamp"):
             self.action_if_job_exists = action_if_job_exists
         else:
             raise AirflowException(
-                f"Argument action_if_job_exists accepts only 'timestamp', 'increment' and 'fail'. \
+                f"Argument action_if_job_exists accepts only 'timestamp' and 'fail'. \
                 Provided value: '{action_if_job_exists}'."
             )
         self.check_if_model_exists = check_if_model_exists
@@ -1064,7 +1049,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
     :param check_if_job_exists: If set to true, then the operator will check whether a training job
         already exists for the name in the config.
     :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "timestamp"
-        (default), "increment" (deprecated) and "fail".
+        (default) and "fail".
         This is only relevant if check_if_job_exists is True.
     :param deferrable: Run operator in the deferrable mode. This is only effective if wait_for_completion is
         set to True.
@@ -1093,18 +1078,11 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         self.max_attempts = max_attempts or 60
         self.max_ingestion_time = max_ingestion_time
         self.check_if_job_exists = check_if_job_exists
-        if action_if_job_exists in {"timestamp", "increment", "fail"}:
-            if action_if_job_exists == "increment":
-                warnings.warn(
-                    "Action 'increment' on job name conflict has been deprecated for performance reasons."
-                    "The alternative to 'fail' is now 'timestamp'.",
-                    AirflowProviderDeprecationWarning,
-                    stacklevel=2,
-                )
+        if action_if_job_exists in {"timestamp", "fail"}:
             self.action_if_job_exists = action_if_job_exists
         else:
             raise AirflowException(
-                f"Argument action_if_job_exists accepts only 'timestamp', 'increment' and 'fail'. \
+                f"Argument action_if_job_exists accepts only 'timestamp' and 'fail'. \
                 Provided value: '{action_if_job_exists}'."
             )
         self.deferrable = deferrable

@@ -18,17 +18,15 @@
 from __future__ import annotations
 
 import asyncio
-import time
 from collections import Counter
 from enum import IntEnum
 from functools import cached_property
 from typing import Any, AsyncIterator
 
 from botocore.exceptions import WaiterError
-from deprecated import deprecated
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
+from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
 from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -198,92 +196,3 @@ class SageMakerPipelineTrigger(BaseTrigger):
                     await asyncio.sleep(int(self.waiter_delay))
 
             raise AirflowException("Waiter error: max attempts reached")
-
-
-@deprecated(
-    reason=(
-        "`airflow.providers.amazon.aws.triggers.sagemaker.SageMakerTrainingPrintLogTrigger` "
-        "has been deprecated and will be removed in future. Please use ``SageMakerTrigger`` instead."
-    ),
-    category=AirflowProviderDeprecationWarning,
-)
-class SageMakerTrainingPrintLogTrigger(BaseTrigger):
-    """
-    SageMakerTrainingPrintLogTrigger is fired as deferred class with params to run the task in triggerer.
-
-    :param job_name: name of the job to check status
-    :param poke_interval:  polling period in seconds to check for the status
-    :param aws_conn_id: AWS connection ID for sagemaker
-    """
-
-    def __init__(
-        self,
-        job_name: str,
-        poke_interval: float,
-        aws_conn_id: str | None = "aws_default",
-    ):
-        super().__init__()
-        self.job_name = job_name
-        self.poke_interval = poke_interval
-        self.aws_conn_id = aws_conn_id
-
-    def serialize(self) -> tuple[str, dict[str, Any]]:
-        """Serialize SageMakerTrainingPrintLogTrigger arguments and classpath."""
-        return (
-            "airflow.providers.amazon.aws.triggers.sagemaker.SageMakerTrainingPrintLogTrigger",
-            {
-                "poke_interval": self.poke_interval,
-                "aws_conn_id": self.aws_conn_id,
-                "job_name": self.job_name,
-            },
-        )
-
-    @cached_property
-    def hook(self) -> SageMakerHook:
-        return SageMakerHook(aws_conn_id=self.aws_conn_id)
-
-    async def run(self) -> AsyncIterator[TriggerEvent]:
-        """Make async connection to sagemaker async hook and gets job status for a job submitted by the operator."""
-        stream_names: list[str] = []  # The list of log streams
-        positions: dict[str, Any] = {}  # The current position in each stream, map of stream name -> position
-
-        last_description = await self.hook.describe_training_job_async(self.job_name)
-        instance_count = last_description["ResourceConfig"]["InstanceCount"]
-        status = last_description["TrainingJobStatus"]
-        job_already_completed = status not in self.hook.non_terminal_states
-        state = LogState.COMPLETE if job_already_completed else LogState.TAILING
-        last_describe_job_call = time.time()
-        try:
-            while True:
-                (
-                    state,
-                    last_description,
-                    last_describe_job_call,
-                ) = await self.hook.describe_training_job_with_log_async(
-                    self.job_name,
-                    positions,
-                    stream_names,
-                    instance_count,
-                    state,
-                    last_description,
-                    last_describe_job_call,
-                )
-                status = last_description["TrainingJobStatus"]
-                if status in self.hook.non_terminal_states:
-                    await asyncio.sleep(self.poke_interval)
-                elif status in self.hook.failed_states:
-                    reason = last_description.get("FailureReason", "(No reason provided)")
-                    error_message = f"SageMaker job failed because {reason}"
-                    yield TriggerEvent({"status": "error", "message": error_message})
-                    return
-                else:
-                    billable_seconds = SageMakerHook.count_billable_seconds(
-                        training_start_time=last_description["TrainingStartTime"],
-                        training_end_time=last_description["TrainingEndTime"],
-                        instance_count=instance_count,
-                    )
-                    self.log.info("Billable seconds: %d", billable_seconds)
-                    yield TriggerEvent({"status": "success", "message": last_description})
-                    return
-        except Exception as e:
-            yield TriggerEvent({"status": "error", "message": str(e)})

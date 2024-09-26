@@ -21,7 +21,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.redshift_data import QueryExecutionOutput
 from airflow.providers.amazon.aws.operators.redshift_data import RedshiftDataOperator
 from airflow.providers.amazon.aws.triggers.redshift_data import RedshiftDataTrigger
@@ -72,9 +72,6 @@ class TestRedshiftDataOperator:
             verify="/spam/egg.pem",
             botocore_config={"read_timeout": 42},
         )
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            # Check deprecated region argument
-            assert op.region == "eu-central-1"
         assert op.hook.client_type == "redshift-data"
         assert op.hook.resource_type is None
         assert op.hook.aws_conn_id == "fake-conn-id"

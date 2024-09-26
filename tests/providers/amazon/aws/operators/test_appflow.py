@@ -256,12 +256,3 @@ def test_base_aws_op_attributes(op_class, op_base_args):
     assert hook._region_name == "eu-west-1"
     assert hook._verify is False
     assert hook._config.read_timeout == 42
-
-    # Compatibility check: previously Appflow Operators use `region` instead of `region_name`
-    warning_message = "`region` is deprecated and will be removed in the future"
-    with pytest.warns(DeprecationWarning, match=warning_message):
-        op = op_class(**op_base_args, region="us-west-1")
-    assert op.region_name == "us-west-1"
-
-    with pytest.warns(DeprecationWarning, match=warning_message):
-        assert op.region == "us-west-1"

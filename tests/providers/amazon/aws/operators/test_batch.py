@@ -23,7 +23,7 @@ from unittest.mock import patch
 import botocore.client
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, TaskDeferred
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.operators.batch import BatchCreateComputeEnvironmentOperator, BatchOperator
 
@@ -32,7 +32,6 @@ from airflow.providers.amazon.aws.triggers.batch import (
     BatchCreateComputeEnvironmentTrigger,
     BatchJobTrigger,
 )
-from airflow.utils.task_instance_session import set_current_task_instance_session
 
 AWS_REGION = "eu-west-1"
 AWS_ACCESS_KEY_ID = "airflow_dummy_key"
@@ -397,7 +396,7 @@ class TestBatchOperator:
         self.client_mock.terminate_job.assert_called_once_with(jobId=JOB_ID, reason="Task killed by the user")
 
     @pytest.mark.parametrize(
-        "override", ["overrides", "node_overrides", "ecs_properties_override", "eks_properties_override"]
+        "override", ["node_overrides", "ecs_properties_override", "eks_properties_override"]
     )
     @patch(
         "airflow.providers.amazon.aws.hooks.batch_client.BatchClientHook.client",
@@ -409,32 +408,16 @@ class TestBatchOperator:
         in the API call (which would create a validation error from boto)
         """
         override_arg = {override: {"a": "a"}}
-        if override == "overrides":
-            with pytest.warns(
-                AirflowProviderDeprecationWarning,
-                match="Parameter `overrides` is deprecated, Please use `container_overrides` instead.",
-            ):
-                batch = BatchOperator(
-                    task_id="task",
-                    job_name=JOB_NAME,
-                    job_queue="queue",
-                    job_definition="hello-world",
-                    **override_arg,
-                    # setting those to bypass code that is not relevant here
-                    do_xcom_push=False,
-                    wait_for_completion=False,
-                )
-        else:
-            batch = BatchOperator(
-                task_id="task",
-                job_name=JOB_NAME,
-                job_queue="queue",
-                job_definition="hello-world",
-                **override_arg,
-                # setting those to bypass code that is not relevant here
-                do_xcom_push=False,
-                wait_for_completion=False,
-            )
+        batch = BatchOperator(
+            task_id="task",
+            job_name=JOB_NAME,
+            job_queue="queue",
+            job_definition="hello-world",
+            **override_arg,
+            # setting those to bypass code that is not relevant here
+            do_xcom_push=False,
+            wait_for_completion=False,
+        )
 
         batch.execute(None)
 
@@ -456,16 +439,6 @@ class TestBatchOperator:
         expected_args[py2api[override]] = {"a": "a"}
 
         client_mock().submit_job.assert_called_once_with(**expected_args)
-
-    def test_deprecated_override_param(self):
-        with pytest.warns(AirflowProviderDeprecationWarning):
-            _ = BatchOperator(
-                task_id="task",
-                job_name=JOB_NAME,
-                job_queue="queue",
-                job_definition="hello-world",
-                overrides={"a": "b"},  # <- the deprecated field
-            )
 
     def test_cant_set_old_and_new_override_param(self):
         with pytest.raises(AirflowException):
@@ -606,36 +579,6 @@ class TestBatchCreateComputeEnvironmentOperator:
             computeResources=compute_resources,
             tags=tags,
         )
-
-    def test_deprecation(self):
-        with pytest.warns(AirflowProviderDeprecationWarning, match=self.warn_message):
-            BatchCreateComputeEnvironmentOperator(
-                task_id="id",
-                compute_environment_name="environment_name",
-                environment_type="environment_type",
-                state="environment_state",
-                compute_resources={},
-                status_retries="Huh?",
-            )
-
-    @pytest.mark.db_test
-    def test_partial_deprecation(self, dag_maker, session):
-        with dag_maker(dag_id="test_partial_deprecation_waiters_params_reg_ecs", session=session):
-            BatchCreateComputeEnvironmentOperator.partial(
-                task_id="id",
-                compute_environment_name="environment_name",
-                environment_type="environment_type",
-                state="environment_state",
-                status_retries="Huh?",
-            ).expand(compute_resources=[{}, {}])
-
-        dr = dag_maker.create_dagrun()
-        tis = dr.get_task_instances(session=session)
-        with set_current_task_instance_session(session=session):
-            for ti in tis:
-                with pytest.warns(AirflowProviderDeprecationWarning, match=self.warn_message):
-                    ti.render_templates()
-                assert not hasattr(ti.task, "status_retries")
 
     @mock.patch.object(BatchClientHook, "client")
     def test_defer(self, client_mock):
