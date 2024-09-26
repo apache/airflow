@@ -210,6 +210,17 @@ class DbApiHook(BaseHook):
             self._connection = self.get_connection(self.get_conn_id())
         return self._connection
 
+    @connection.setter
+    def connection(self, value: Any) -> None:
+        # This setter is for backward compatibility and should not be used.
+        # Since the introduction of connection property, the providers listed below
+        # breaks due to assigning value to self.connection
+        #
+        # apache-airflow-providers-mysql<5.7.1
+        # apache-airflow-providers-elasticsearch<5.5.1
+        # apache-airflow-providers-postgres<5.13.0
+        pass
+
     @property
     def connection_extra(self) -> dict:
         return self.connection.extra_dejson
