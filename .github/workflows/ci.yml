@@ -682,6 +682,7 @@ jobs:
         with:
           payload-delimiter: "."
           channel-id: 'zzz_webhook_test'
+          # yamllint disable rule:line-length
           payload: |
             {
               "text": "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>",
@@ -695,5 +696,6 @@ jobs:
                 }
               ]
             }
+          # yamllint enable rule:line-length
         env:
           SLACK_BOT_TOKEN: ${{ env.SLACK_BOT_TOKEN }}
