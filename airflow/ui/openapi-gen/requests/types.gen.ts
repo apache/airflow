@@ -4,14 +4,21 @@
  * DAG Collection serializer for responses.
  */
 export type DAGCollectionResponse = {
-  dags: Array<DAGModelResponse>;
+  dags: Array<DAGResponse>;
   total_entries: number;
+};
+
+/**
+ * Dag Serializer for updatable body.
+ */
+export type DAGPatchBody = {
+  is_paused: boolean;
 };
 
 /**
  * DAG serializer for responses.
  */
-export type DAGModelResponse = {
+export type DAGResponse = {
   dag_id: string;
   dag_display_name: string;
   is_paused: boolean;
@@ -83,6 +90,14 @@ export type GetDagsPublicDagsGetData = {
 
 export type GetDagsPublicDagsGetResponse = DAGCollectionResponse;
 
+export type PatchDagPublicDagsDagIdPatchData = {
+  dagId: string;
+  requestBody: DAGPatchBody;
+  updateMask?: Array<string> | null;
+};
+
+export type PatchDagPublicDagsDagIdPatchResponse = DAGResponse;
+
 export type $OpenApiTs = {
   "/ui/next_run_datasets/{dag_id}": {
     get: {
@@ -109,6 +124,21 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: DAGCollectionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}": {
+    patch: {
+      req: PatchDagPublicDagsDagIdPatchData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGResponse;
         /**
          * Validation Error
          */

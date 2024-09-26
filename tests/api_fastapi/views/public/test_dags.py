@@ -115,3 +115,23 @@ def test_get_dags(test_client, query_params, expected_total_entries, expected_id
 
     assert body["total_entries"] == expected_total_entries
     assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
+
+
+@pytest.mark.parametrize(
+    "query_params, dag_id, body, expected_status_code, expected_is_paused",
+    [
+        ({}, "fake_dag_id", {"is_paused": True}, 404, None),
+        ({"update_mask": ["field_1", "is_paused"]}, DAG1_ID, {"is_paused": True}, 400, None),
+        ({}, DAG1_ID, {"is_paused": True}, 200, True),
+        ({}, DAG1_ID, {"is_paused": False}, 200, False),
+        ({"update_mask": ["is_paused"]}, DAG1_ID, {"is_paused": True}, 200, True),
+        ({"update_mask": ["is_paused"]}, DAG1_ID, {"is_paused": False}, 200, False),
+    ],
+)
+def test_patch_dag(test_client, query_params, dag_id, body, expected_status_code, expected_is_paused):
+    response = test_client.patch(f"/public/dags/{dag_id}", json=body, params=query_params)
+
+    assert response.status_code == expected_status_code
+    if expected_status_code == 200:
+        body = response.json()
+        assert body["is_paused"] == expected_is_paused

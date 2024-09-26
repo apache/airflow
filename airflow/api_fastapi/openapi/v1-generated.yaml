@@ -123,13 +123,56 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}:
+    patch:
+      tags:
+      - DAG
+      summary: Patch Dag
+      description: Update the specific DAG.
+      operationId: patch_dag_public_dags__dag_id__patch
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGPatchBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     DAGCollectionResponse:
       properties:
         dags:
           items:
-            $ref: '#/components/schemas/DAGModelResponse'
+            $ref: '#/components/schemas/DAGResponse'
           type: array
           title: Dags
         total_entries:
@@ -141,7 +184,17 @@ components:
       - total_entries
       title: DAGCollectionResponse
       description: DAG Collection serializer for responses.
-    DAGModelResponse:
+    DAGPatchBody:
+      properties:
+        is_paused:
+          type: boolean
+          title: Is Paused
+      type: object
+      required:
+      - is_paused
+      title: DAGPatchBody
+      description: Dag Serializer for updatable body.
+    DAGResponse:
       properties:
         dag_id:
           type: string
@@ -292,7 +345,7 @@ components:
       - next_dagrun_create_after
       - owners
       - file_token
-      title: DAGModelResponse
+      title: DAGResponse
       description: DAG serializer for responses.
     DagTagPydantic:
       properties:
