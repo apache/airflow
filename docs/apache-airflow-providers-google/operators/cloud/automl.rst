@@ -131,7 +131,7 @@ datasets. To create and import data to the dataset please use
 and
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.ImportDataOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_model.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_translation.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_automl_create_model]
@@ -190,17 +190,12 @@ To obtain predictions from Google Cloud AutoML model you can use
 :class:`~airflow.providers.google.cloud.operators.automl.AutoMLBatchPredictOperator`. In the first case
 the model must be deployed.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_model.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_translation.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_prediction]
     :end-before: [END howto_operator_prediction]
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_model.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_batch_prediction]
-    :end-before: [END howto_operator_batch_prediction]
 
 Th :class:`~airflow.providers.google.cloud.operators.automl.AutoMLBatchPredictOperator` deprecated for tables,
 video intelligence, vision and natural language is deprecated and will be removed after 31.03.2024. Please use
