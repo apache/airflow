@@ -51,6 +51,15 @@ export type DAGResponse = {
 };
 
 /**
+ * All possible states that a DagRun can be in.
+ *
+ * These are "shared" with TaskInstanceState in some parts of the code,
+ * so please ensure that their values always match the ones with the
+ * same name in TaskInstanceState.
+ */
+export type DagRunState = "queued" | "running" | "success" | "failed";
+
+/**
  * Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.
  */
 export type DagTagPydantic = {
@@ -79,6 +88,7 @@ export type NextRunDatasetsUiNextRunDatasetsDagIdGetResponse = {
 export type GetDagsPublicDagsGetData = {
   dagDisplayNamePattern?: string | null;
   dagIdPattern?: string | null;
+  lastDagRunState?: DagRunState | null;
   limit?: number;
   offset?: number;
   onlyActive?: boolean;
