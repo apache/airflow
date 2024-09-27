@@ -169,7 +169,14 @@ class CloudTranslateSpeechOperator(GoogleCloudBaseOperator):
             raise AirflowException(
                 f"Wrong response '{recognize_dict}' returned - it should contain {key} field"
             )
-
+        if self.audio.uri:
+            FileDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                # Slice from: "gs://{BUCKET_NAME}/{FILE_NAME}" to: "{BUCKET_NAME}/{FILE_NAME}"
+                uri=self.audio.uri[5:],
+                project_id=self.project_id or translate_hook.project_id,
+            )
         try:
             translation = translate_hook.translate(
                 values=transcript,
@@ -179,12 +186,6 @@ class CloudTranslateSpeechOperator(GoogleCloudBaseOperator):
                 model=self.model,
             )
             self.log.info("Translated output: %s", translation)
-            FileDetailsLink.persist(
-                context=context,
-                task_instance=self,
-                uri=self.audio["uri"][5:],
-                project_id=self.project_id or translate_hook.project_id,
-            )
             return translation
         except ValueError as e:
             self.log.error("An error has been thrown from translate speech method:")
