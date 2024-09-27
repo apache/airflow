@@ -165,7 +165,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
         updated_name = add_unique_suffix(name=name, max_len=MAX_LABEL_LEN)
 
-        return self._set_name(updated_name.lower())
+        return self._set_name(updated_name)
 
     @staticmethod
     def _get_pod_identifying_label_string(labels) -> str:
