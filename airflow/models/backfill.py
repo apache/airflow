@@ -26,12 +26,13 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Column, ForeignKeyConstraint, Integer, UniqueConstraint, func, select
+from sqlalchemy import Boolean, Column, ForeignKeyConstraint, Integer, UniqueConstraint, func, select, update
 from sqlalchemy.orm import relationship
 from sqlalchemy_jsonfield import JSONField
 
-from airflow.api_connexion.exceptions import NotFound
+from airflow.api_connexion.exceptions import Conflict, NotFound
 from airflow.exceptions import AirflowException
+from airflow.models import DagRun
 from airflow.models.base import Base, StringID
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import json
@@ -48,7 +49,11 @@ log = logging.getLogger(__name__)
 
 
 class AlreadyRunningBackfill(AirflowException):
-    """Raised when attempting to create backfill and one already active."""
+    """
+    Raised when attempting to create backfill and one already active.
+
+    :meta private:
+    """
 
 
 class Backfill(Base):
@@ -183,3 +188,31 @@ def _create_backfill(
             )
             session.commit()
     return br
+
+
+def _cancel_backfill(backfill_id) -> Backfill:
+    with create_session() as session:
+        b: Backfill = session.get(Backfill, backfill_id)
+        if b.completed_at is not None:
+            raise Conflict("Backfill is already completed.")
+
+        b.completed_at = timezone.utcnow()
+
+        # first, pause
+        if not b.is_paused:
+            b.is_paused = True
+
+        session.commit()
+
+        # now, let's mark all queued dag runs as failed
+        query = (
+            update(DagRun)
+            .where(
+                DagRun.id.in_(select(BackfillDagRun.dag_run_id).where(BackfillDagRun.backfill_id == b.id)),
+                DagRun.state == DagRunState.QUEUED,
+            )
+            .values(state=DagRunState.FAILED)
+            .execution_options(synchronize_session=False)
+        )
+        session.execute(query)
+    return b
