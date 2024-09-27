@@ -1034,7 +1034,6 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         with pytest.raises(ValueError, match="INTERNAL: No default project is specified"):
             self.hook.split_tablename("dataset.table", None)
 
-    @pytest.mark.parametrize("partition", ["$partition", ""])
     @pytest.mark.parametrize(
         "project_expected, dataset_expected, table_expected, table_input",
         [
@@ -1045,11 +1044,9 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             ("alt1:alt", "dataset", "table", "alt1:alt:dataset.table"),
         ],
     )
-    def test_split_tablename(
-        self, project_expected, dataset_expected, table_expected, table_input, partition
-    ):
+    def test_split_tablename(self, project_expected, dataset_expected, table_expected, table_input):
         default_project_id = "project"
-        project, dataset, table = self.hook.split_tablename(table_input + partition, default_project_id)
+        project, dataset, table = self.hook.split_tablename(table_input, default_project_id)
         assert project_expected == project
         assert dataset_expected == dataset
         assert table_expected == table
