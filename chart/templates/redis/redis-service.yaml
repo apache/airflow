@@ -35,7 +35,7 @@ metadata:
       {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
-{{- if (or (eq .Values.redis.service.type "ClusterIP") (empty .Values.redis.service.type)) }}
+{{- if eq .Values.redis.service.type "ClusterIP" }}
   type: ClusterIP
   {{- if .Values.redis.service.clusterIP }}
   clusterIP: {{ .Values.redis.service.clusterIP }}
