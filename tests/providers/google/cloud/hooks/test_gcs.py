@@ -35,6 +35,7 @@ from google.api_core.exceptions import GoogleAPICallError
 from google.cloud import exceptions, storage  # type: ignore[attr-defined]
 from google.cloud.storage.retry import DEFAULT_RETRY
 
+from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks import gcs
 from airflow.providers.google.cloud.hooks.gcs import _fallback_object_url_to_object_name_and_bucket_name
@@ -42,6 +43,7 @@ from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.utils import timezone
 from airflow.version import version
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
 BASE_STRING = "airflow.providers.google.common.hooks.base_google.{}"
 GCS_STRING = "airflow.providers.google.cloud.hooks.gcs.{}"
@@ -412,6 +414,41 @@ class TestGCSHook:
 
         assert str(ctx.value) == "source_bucket and source_object cannot be empty."
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+    @mock.patch("google.cloud.storage.Bucket.copy_blob")
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_copy_exposes_lineage(self, mock_service, mock_copy, hook_lineage_collector):
+        source_bucket_name = "test-source-bucket"
+        source_object_name = "test-source-object"
+        destination_bucket_name = "test-dest-bucket"
+        destination_object_name = "test-dest-object"
+
+        source_bucket = storage.Bucket(mock_service, source_bucket_name)
+        mock_copy.return_value = storage.Blob(
+            name=destination_object_name, bucket=storage.Bucket(mock_service, destination_bucket_name)
+        )
+        mock_service.return_value.bucket.side_effect = (
+            lambda name: source_bucket
+            if name == source_bucket_name
+            else storage.Bucket(mock_service, destination_bucket_name)
+        )
+
+        self.gcs_hook.copy(
+            source_bucket=source_bucket_name,
+            source_object=source_object_name,
+            destination_bucket=destination_bucket_name,
+            destination_object=destination_object_name,
+        )
+
+        assert len(hook_lineage_collector.collected_datasets.inputs) == 1
+        assert len(hook_lineage_collector.collected_datasets.outputs) == 1
+        assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(
+            uri=f"gs://{source_bucket_name}/{source_object_name}"
+        )
+        assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
+            uri=f"gs://{destination_bucket_name}/{destination_object_name}"
+        )
+
     @mock.patch("google.cloud.storage.Bucket")
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_rewrite(self, mock_service, mock_bucket):
@@ -473,6 +510,40 @@ class TestGCSHook:
 
         assert str(ctx.value) == "source_bucket and source_object cannot be empty."
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_rewrite_exposes_lineage(self, mock_service, hook_lineage_collector):
+        source_bucket_name = "test-source-bucket"
+        source_object_name = "test-source-object"
+        destination_bucket_name = "test-dest-bucket"
+        destination_object_name = "test-dest-object"
+
+        dest_bucket = storage.Bucket(mock_service, destination_bucket_name)
+        blob = MagicMock(spec=storage.Blob)
+        blob.rewrite = MagicMock(return_value=(None, None, None))
+        dest_bucket.blob = MagicMock(return_value=blob)
+        mock_service.return_value.bucket.side_effect = (
+            lambda name: storage.Bucket(mock_service, source_bucket_name)
+            if name == source_bucket_name
+            else dest_bucket
+        )
+
+        self.gcs_hook.rewrite(
+            source_bucket=source_bucket_name,
+            source_object=source_object_name,
+            destination_bucket=destination_bucket_name,
+            destination_object=destination_object_name,
+        )
+
+        assert len(hook_lineage_collector.collected_datasets.inputs) == 1
+        assert len(hook_lineage_collector.collected_datasets.outputs) == 1
+        assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(
+            uri=f"gs://{source_bucket_name}/{source_object_name}"
+        )
+        assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
+            uri=f"gs://{destination_bucket_name}/{destination_object_name}"
+        )
+
     @mock.patch("google.cloud.storage.Bucket")
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_delete(self, mock_service, mock_bucket):
@@ -500,6 +571,22 @@ class TestGCSHook:
 
         with pytest.raises(exceptions.NotFound):
             self.gcs_hook.delete(bucket_name=test_bucket, object_name=test_object)
+
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_delete_exposes_lineage(self, mock_service, hook_lineage_collector):
+        test_bucket = "test_bucket"
+        test_object = "test_object"
+
+        mock_service.return_value.bucket.return_value = storage.Bucket(mock_service, test_bucket)
+
+        self.gcs_hook.delete(bucket_name=test_bucket, object_name=test_object)
+
+        assert len(hook_lineage_collector.collected_datasets.inputs) == 1
+        assert len(hook_lineage_collector.collected_datasets.outputs) == 0
+        assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(
+            uri=f"gs://{test_bucket}/{test_object}"
+        )
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_delete_bucket(self, mock_service):
@@ -728,6 +815,33 @@ class TestGCSHook:
 
         assert str(ctx.value) == "bucket_name and destination_object cannot be empty."
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_compose_exposes_lineage(self, mock_service, hook_lineage_collector):
+        test_bucket = "test_bucket"
+        source_object_names = ["test-source-object1", "test-source-object2"]
+        destination_object_name = "test-dest-object"
+
+        mock_service.return_value.bucket.return_value = storage.Bucket(mock_service, test_bucket)
+
+        self.gcs_hook.compose(
+            bucket_name=test_bucket,
+            source_objects=source_object_names,
+            destination_object=destination_object_name,
+        )
+
+        assert len(hook_lineage_collector.collected_datasets.inputs) == 2
+        assert len(hook_lineage_collector.collected_datasets.outputs) == 1
+        assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(
+            uri=f"gs://{test_bucket}/{source_object_names[0]}"
+        )
+        assert hook_lineage_collector.collected_datasets.inputs[1].dataset == Dataset(
+            uri=f"gs://{test_bucket}/{source_object_names[1]}"
+        )
+        assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
+            uri=f"gs://{test_bucket}/{destination_object_name}"
+        )
+
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_download_as_bytes(self, mock_service):
         test_bucket = "test_bucket"
@@ -741,6 +855,23 @@ class TestGCSHook:
 
         assert response == test_object_bytes
         download_method.assert_called_once_with()
+
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+    @mock.patch("google.cloud.storage.Blob.download_as_bytes")
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_download_as_bytes_exposes_lineage(self, mock_service, mock_download, hook_lineage_collector):
+        source_bucket_name = "test-source-bucket"
+        source_object_name = "test-source-object"
+
+        mock_service.return_value.bucket.return_value = storage.Bucket(mock_service, source_bucket_name)
+
+        self.gcs_hook.download(bucket_name=source_bucket_name, object_name=source_object_name, filename=None)
+
+        assert len(hook_lineage_collector.collected_datasets.inputs) == 1
+        assert len(hook_lineage_collector.collected_datasets.outputs) == 0
+        assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(
+            uri=f"gs://{source_bucket_name}/{source_object_name}"
+        )
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_download_to_file(self, mock_service):
@@ -764,6 +895,29 @@ class TestGCSHook:
 
         assert response == test_file
         download_filename_method.assert_called_once_with(test_file, timeout=60)
+
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+    @mock.patch("google.cloud.storage.Blob.download_to_filename")
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_download_to_file_exposes_lineage(self, mock_service, mock_download, hook_lineage_collector):
+        source_bucket_name = "test-source-bucket"
+        source_object_name = "test-source-object"
+        file_name = "test.txt"
+
+        mock_service.return_value.bucket.return_value = storage.Bucket(mock_service, source_bucket_name)
+
+        self.gcs_hook.download(
+            bucket_name=source_bucket_name, object_name=source_object_name, filename=file_name
+        )
+
+        assert len(hook_lineage_collector.collected_datasets.inputs) == 1
+        assert len(hook_lineage_collector.collected_datasets.outputs) == 1
+        assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(
+            uri=f"gs://{source_bucket_name}/{source_object_name}"
+        )
+        assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
+            uri=f"file://{file_name}"
+        )
 
     @mock.patch(GCS_STRING.format("NamedTemporaryFile"))
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
@@ -998,6 +1152,29 @@ class TestGCSHookUpload:
 
         assert metadata == blob_object.return_value.metadata
 
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+    @mock.patch("google.cloud.storage.Blob.upload_from_filename")
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_upload_file_exposes_lineage(self, mock_service, mock_upload, hook_lineage_collector):
+        source_bucket_name = "test-source-bucket"
+        source_object_name = "test-source-object"
+        file_name = "test.txt"
+
+        mock_service.return_value.bucket.return_value = storage.Bucket(mock_service, source_bucket_name)
+
+        self.gcs_hook.upload(
+            bucket_name=source_bucket_name, object_name=source_object_name, filename=file_name
+        )
+
+        assert len(hook_lineage_collector.collected_datasets.inputs) == 1
+        assert len(hook_lineage_collector.collected_datasets.outputs) == 1
+        assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
+            uri=f"gs://{source_bucket_name}/{source_object_name}"
+        )
+        assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(
+            uri=f"file://{file_name}"
+        )
+
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_upload_cache_control(self, mock_service, testdata_file):
         test_bucket = "test_bucket"
@@ -1076,6 +1253,23 @@ class TestGCSHookUpload:
         mock_gzip.assert_called_once_with(fileobj=mock_bytes_io.return_value, mode="w")
         gzip_ctx.write.assert_called_once_with(testdata_bytes)
         upload_method.assert_called_once_with(data, content_type="text/plain", timeout=60)
+
+    @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
+    @mock.patch("google.cloud.storage.Blob.upload_from_string")
+    @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
+    def test_upload_data_exposes_lineage(self, mock_service, mock_upload, hook_lineage_collector):
+        source_bucket_name = "test-source-bucket"
+        source_object_name = "test-source-object"
+
+        mock_service.return_value.bucket.return_value = storage.Bucket(mock_service, source_bucket_name)
+
+        self.gcs_hook.upload(bucket_name=source_bucket_name, object_name=source_object_name, data="test")
+
+        assert len(hook_lineage_collector.collected_datasets.inputs) == 0
+        assert len(hook_lineage_collector.collected_datasets.outputs) == 1
+        assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
+            uri=f"gs://{source_bucket_name}/{source_object_name}"
+        )
 
     @mock.patch(GCS_STRING.format("GCSHook.get_conn"))
     def test_upload_exceptions(self, mock_service, testdata_file, testdata_string):
