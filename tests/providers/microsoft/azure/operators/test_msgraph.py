@@ -19,8 +19,10 @@ from __future__ import annotations
 import json
 import locale
 from base64 import b64encode
+from typing import Any
 
 import pytest
+from airflow.utils.context import Context
 
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator
@@ -103,6 +105,7 @@ class TestMSGraphAsyncOperator(Base):
     @pytest.mark.db_test
     def test_execute_when_an_exception_occurs_on_custom_event_handler(self):
         with self.patch_hook_and_request_adapter(AirflowException("An error occurred")):
+
             def custom_event_handler(context: Context, event: dict[Any, Any] | None = None):
                 if event.get("status") == "failure":
                     return None
