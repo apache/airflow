@@ -44,6 +44,13 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
+def default_event_handler(context: Context, event: dict[Any, Any] | None = None) -> Any:
+    if event.get("status") == "failure":
+        raise AirflowException(event.get("message"))
+
+    return event.get("response")
+
+
 class MSGraphAsyncOperator(BaseOperator):
     """
     A Microsoft Graph API operator which allows you to execute REST call to the Microsoft Graph API.
@@ -102,6 +109,7 @@ class MSGraphAsyncOperator(BaseOperator):
         api_version: APIVersion | str | None = None,
         pagination_function: Callable[[MSGraphAsyncOperator, dict, Context], tuple[str, dict]] | None = None,
         result_processor: Callable[[Context, Any], Any] = lambda context, result: result,
+        event_handler: Callable[[Context, dict[Any, Any] | None], Any] | None = None,
         serializer: type[ResponseSerializer] = ResponseSerializer,
         **kwargs: Any,
     ):
@@ -121,6 +129,7 @@ class MSGraphAsyncOperator(BaseOperator):
         self.api_version = api_version
         self.pagination_function = pagination_function or self.paginate
         self.result_processor = result_processor
+        self.event_handler = event_handler or default_event_handler
         self.serializer: ResponseSerializer = serializer()
 
     def execute(self, context: Context) -> None:
@@ -158,10 +167,7 @@ class MSGraphAsyncOperator(BaseOperator):
         if event:
             self.log.debug("%s completed with %s: %s", self.task_id, event.get("status"), event)
 
-            if event.get("status") == "failure":
-                raise AirflowException(event.get("message"))
-
-            response = event.get("response")
+            response = self.event_handler(context, event)
 
             self.log.debug("response: %s", response)
 

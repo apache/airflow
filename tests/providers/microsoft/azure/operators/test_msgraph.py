@@ -101,6 +101,30 @@ class TestMSGraphAsyncOperator(Base):
                 self.execute_operator(operator)
 
     @pytest.mark.db_test
+    def test_execute_when_an_exception_occurs_on_custom_event_handler(self):
+        with self.patch_hook_and_request_adapter(AirflowException("An error occurred")):
+            def custom_event_handler(context: Context, event: dict[Any, Any] | None = None):
+                if event.get("status") == "failure":
+                    return None
+
+                return event.get("response")
+
+            operator = MSGraphAsyncOperator(
+                task_id="users_delta",
+                conn_id="msgraph_api",
+                url="users/delta",
+                event_handler=custom_event_handler,
+            )
+
+            results, events = self.execute_operator(operator)
+
+            assert not results
+            assert len(events) == 1
+            assert isinstance(events[0], TriggerEvent)
+            assert events[0].payload["status"] == "failure"
+            assert events[0].payload["message"] == "An error occurred"
+
+    @pytest.mark.db_test
     def test_execute_when_response_is_bytes(self):
         content = load_file("resources", "dummy.pdf", mode="rb", encoding=None)
         base64_encoded_content = b64encode(content).decode(locale.getpreferredencoding())
