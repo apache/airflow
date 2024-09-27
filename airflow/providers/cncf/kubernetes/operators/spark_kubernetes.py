@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import re
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -166,7 +165,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
 
         updated_name = add_unique_suffix(name=name, max_len=MAX_LABEL_LEN)
 
-        return re.sub(r"[^a-z0-9-]+", "-", updated_name.lower())
+        return self._set_name(updated_name.lower())
 
     @staticmethod
     def _get_pod_identifying_label_string(labels) -> str:
