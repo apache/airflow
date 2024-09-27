@@ -20,9 +20,12 @@ from datetime import datetime, timezone
 
 import pytest
 
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DagModel
+from airflow.models.dagrun import DagRun
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
+from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
@@ -46,41 +49,62 @@ def _create_deactivated_paused_dag(session=None):
         owners="test_owner,another_test_owner",
         next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
     )
+
+    dagrun_failed = DagRun(
+        dag_id=DAG3_ID,
+        run_id="run1",
+        execution_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        start_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        run_type=DagRunType.SCHEDULED,
+        state=DagRunState.FAILED,
+    )
+
+    dagrun_success = DagRun(
+        dag_id=DAG3_ID,
+        run_id="run2",
+        execution_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        start_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        run_type=DagRunType.MANUAL,
+        state=DagRunState.SUCCESS,
+    )
+
     session.add(dag_model)
+    session.add(dagrun_failed)
+    session.add(dagrun_success)
 
 
 @pytest.fixture(autouse=True)
-def setup() -> None:
+def setup(dag_maker) -> None:
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()
 
-    with DAG(
+    with dag_maker(
         DAG1_ID,
         dag_display_name=DAG1_DISPLAY_NAME,
         schedule=None,
-        start_date=datetime(2020, 6, 15),
+        start_date=datetime(2018, 6, 15, 0, 0, tzinfo=timezone.utc),
         doc_md="details",
         params={"foo": 1},
         tags=["example"],
-    ) as dag1:
+    ):
         EmptyOperator(task_id=TASK_ID)
 
-    with DAG(
+    dag_maker.create_dagrun(state=DagRunState.FAILED)
+
+    with dag_maker(
         DAG2_ID,
         dag_display_name=DAG2_DISPLAY_NAME,
         schedule=None,
         start_date=datetime(
-            2020,
+            2021,
             6,
             15,
         ),
-    ) as dag2:
+    ):
         EmptyOperator(task_id=TASK_ID)
 
-    dag1.sync_to_db()
-    dag2.sync_to_db()
-
+    dag_maker.dagbag.sync_to_db()
     _create_deactivated_paused_dag()
 
 
@@ -97,11 +121,25 @@ def setup() -> None:
         ({"paused": False}, 2, ["test_dag1", "test_dag2"]),
         ({"owners": ["airflow"]}, 2, ["test_dag1", "test_dag2"]),
         ({"owners": ["test_owner"], "only_active": False}, 1, ["test_dag3"]),
+        ({"last_dag_run_state": "success", "only_active": False}, 1, ["test_dag3"]),
+        ({"last_dag_run_state": "failed", "only_active": False}, 1, ["test_dag1"]),
         # # Sort
         ({"order_by": "-dag_id"}, 2, ["test_dag2", "test_dag1"]),
         ({"order_by": "-dag_display_name"}, 2, ["test_dag2", "test_dag1"]),
         ({"order_by": "dag_display_name"}, 2, ["test_dag1", "test_dag2"]),
         ({"order_by": "next_dagrun", "only_active": False}, 3, ["test_dag3", "test_dag1", "test_dag2"]),
+        ({"order_by": "last_run_state", "only_active": False}, 3, ["test_dag1", "test_dag3", "test_dag2"]),
+        ({"order_by": "-last_run_state", "only_active": False}, 3, ["test_dag3", "test_dag1", "test_dag2"]),
+        (
+            {"order_by": "last_run_start_date", "only_active": False},
+            3,
+            ["test_dag1", "test_dag3", "test_dag2"],
+        ),
+        (
+            {"order_by": "-last_run_start_date", "only_active": False},
+            3,
+            ["test_dag3", "test_dag1", "test_dag2"],
+        ),
         # Search
         ({"dag_id_pattern": "1"}, 1, ["test_dag1"]),
         ({"dag_display_name_pattern": "display2"}, 1, ["test_dag2"]),

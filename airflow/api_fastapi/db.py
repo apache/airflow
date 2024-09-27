@@ -19,6 +19,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from sqlalchemy import func, select
+
+from airflow.models.dagrun import DagRun
 from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
@@ -52,3 +55,11 @@ def apply_filters_to_select(base_select: Select, filters: list[BaseParam]) -> Se
         select = filter.to_orm(select)
 
     return select
+
+
+latest_dag_run_per_dag_id_cte = (
+    select(DagRun.dag_id, func.max(DagRun.start_date).label("start_date"))
+    .where()
+    .group_by(DagRun.dag_id)
+    .cte()
+)

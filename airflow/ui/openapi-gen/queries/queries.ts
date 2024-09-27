@@ -7,7 +7,7 @@ import {
 } from "@tanstack/react-query";
 
 import { DagService, DatasetService } from "../requests/services.gen";
-import { DAGPatchBody } from "../requests/types.gen";
+import { DAGPatchBody, DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
@@ -54,6 +54,7 @@ export const useDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGet = <
  * @param data.dagDisplayNamePattern
  * @param data.onlyActive
  * @param data.paused
+ * @param data.lastDagRunState
  * @param data.orderBy
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
@@ -66,6 +67,7 @@ export const useDagServiceGetDagsPublicDagsGet = <
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    lastDagRunState,
     limit,
     offset,
     onlyActive,
@@ -76,6 +78,7 @@ export const useDagServiceGetDagsPublicDagsGet = <
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
     onlyActive?: boolean;
@@ -92,6 +95,7 @@ export const useDagServiceGetDagsPublicDagsGet = <
       {
         dagDisplayNamePattern,
         dagIdPattern,
+        lastDagRunState,
         limit,
         offset,
         onlyActive,
@@ -106,6 +110,7 @@ export const useDagServiceGetDagsPublicDagsGet = <
       DagService.getDagsPublicDagsGet({
         dagDisplayNamePattern,
         dagIdPattern,
+        lastDagRunState,
         limit,
         offset,
         onlyActive,

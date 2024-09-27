@@ -288,6 +288,17 @@ export const $DAGResponse = {
   description: "DAG serializer for responses.",
 } as const;
 
+export const $DagRunState = {
+  type: "string",
+  enum: ["queued", "running", "success", "failed"],
+  title: "DagRunState",
+  description: `All possible states that a DagRun can be in.
+
+These are "shared" with TaskInstanceState in some parts of the code,
+so please ensure that their values always match the ones with the
+same name in TaskInstanceState.`,
+} as const;
+
 export const $DagTagPydantic = {
   properties: {
     name: {
