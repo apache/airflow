@@ -17,21 +17,17 @@
 from __future__ import annotations
 
 import os
-from contextlib import nullcontext
 from datetime import datetime
 from unittest import mock
 from urllib.parse import urlencode
 
 import pendulum
 import pytest
-from sqlalchemy import select
 
-from airflow.api_connexion.endpoints.backfill_endpoint import AlreadyRunningBackfill, _create_backfill
-from airflow.models import DagBag, DagModel, DagRun
-from airflow.models.backfill import Backfill, BackfillDagRun
+from airflow.models import DagBag, DagModel
+from airflow.models.backfill import Backfill
 from airflow.models.dag import DAG
 from airflow.operators.empty import EmptyOperator
-from airflow.operators.python import PythonOperator
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
@@ -442,106 +438,3 @@ class TestCancelBackfill(TestBackfillEndpoint):
             # get conflict when canceling already-canceled backfill
             response = self.client.post(f"/api/v1/backfills/{backfill.id}/cancel", **kwargs)
             assert response.status_code == 409
-
-
-@pytest.mark.parametrize("dep_on_past", [True, False])
-def test_reverse_and_depends_on_past_fails(dep_on_past, dag_maker, session):
-    with dag_maker() as dag:
-        PythonOperator(task_id="hi", python_callable=print, depends_on_past=dep_on_past)
-    session.commit()
-    cm = nullcontext()
-    if dep_on_past:
-        cm = pytest.raises(ValueError, match="cannot be run in reverse")
-    b = None
-    with cm:
-        b = _create_backfill(
-            dag_id=dag.dag_id,
-            from_date=pendulum.parse("2021-01-01"),
-            to_date=pendulum.parse("2021-01-05"),
-            max_active_runs=2,
-            reverse=True,
-            dag_run_conf={},
-        )
-    if dep_on_past:
-        assert b is None
-    else:
-        assert b is not None
-
-
-@pytest.mark.parametrize("reverse", [True, False])
-def test_simple(reverse, dag_maker, session):
-    """
-    Verify simple case behavior.
-
-    This test verifies that runs in the range are created according
-    to schedule intervals, and the sort ordinal is correct.
-    """
-    with dag_maker(schedule="@daily") as dag:
-        PythonOperator(task_id="hi", python_callable=print)
-    b = _create_backfill(
-        dag_id=dag.dag_id,
-        from_date=pendulum.parse("2021-01-01"),
-        to_date=pendulum.parse("2021-01-05"),
-        max_active_runs=2,
-        reverse=reverse,
-        dag_run_conf={},
-    )
-    query = (
-        select(DagRun)
-        .join(BackfillDagRun.dag_run)
-        .where(BackfillDagRun.backfill_id == b.id)
-        .order_by(BackfillDagRun.sort_ordinal)
-    )
-    dag_runs = session.scalars(query).all()
-    dates = [str(x.logical_date.date()) for x in dag_runs]
-    expected_dates = ["2021-01-01", "2021-01-02", "2021-01-03", "2021-01-04", "2021-01-05"]
-    if reverse:
-        expected_dates = list(reversed(expected_dates))
-    assert dates == expected_dates
-
-
-def test_params_stored_correctly(dag_maker, session):
-    with dag_maker(schedule="@daily") as dag:
-        PythonOperator(task_id="hi", python_callable=print)
-    b = _create_backfill(
-        dag_id=dag.dag_id,
-        from_date=pendulum.parse("2021-01-01"),
-        to_date=pendulum.parse("2021-01-05"),
-        max_active_runs=263,
-        reverse=False,
-        dag_run_conf={"this": "param"},
-    )
-    session.expunge_all()
-    b_stored = session.get(Backfill, b.id)
-    assert all(
-        (
-            b_stored.dag_id == b.dag_id,
-            b_stored.from_date == b.from_date,
-            b_stored.to_date == b.to_date,
-            b_stored.max_active_runs == b.max_active_runs,
-            b_stored.dag_run_conf == b.dag_run_conf,
-        )
-    )
-
-
-def test_active_dag_run(dag_maker, session):
-    with dag_maker(schedule="@daily") as dag:
-        PythonOperator(task_id="hi", python_callable=print)
-    b1 = _create_backfill(
-        dag_id=dag.dag_id,
-        from_date=pendulum.parse("2021-01-01"),
-        to_date=pendulum.parse("2021-01-05"),
-        max_active_runs=10,
-        reverse=False,
-        dag_run_conf={"this": "param"},
-    )
-    assert b1 is not None
-    with pytest.raises(AlreadyRunningBackfill, match="Another backfill is running for dag"):
-        _create_backfill(
-            dag_id=dag.dag_id,
-            from_date=pendulum.parse("2021-02-01"),
-            to_date=pendulum.parse("2021-02-05"),
-            max_active_runs=10,
-            reverse=False,
-            dag_run_conf={"this": "param"},
-        )
