@@ -67,6 +67,17 @@ export type DagTagPydantic = {
   dag_id: string;
 };
 
+/**
+ * HTTPException Model used for error response.
+ */
+export type HTTPExceptionResponse = {
+  detail:
+    | string
+    | {
+        [key: string]: unknown;
+      };
+};
+
 export type HTTPValidationError = {
   detail?: Array<ValidationError>;
 };
@@ -149,6 +160,22 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: DAGResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
         /**
          * Validation Error
          */
