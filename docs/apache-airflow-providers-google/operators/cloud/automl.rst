@@ -109,11 +109,6 @@ available on the Vertex AI platform. Please use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLImageTrainingJobOperator` or
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`.
 
-The Vertex AutoMLText API for model training is deprecated on September 15, 2024 and the other part will be deprecated
-on June 15, 2025.
-Please consider using fine tuning with Gemini model -
-https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini-tuning.
-
 You can find example on how to use VertexAI operators for AutoML Vision classification here:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_vision_classification.py
