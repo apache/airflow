@@ -19,7 +19,7 @@ from __future__ import annotations
 import asyncio
 from json import JSONDecodeError
 from typing import TYPE_CHECKING
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
 import pytest
 from httpx import Response
