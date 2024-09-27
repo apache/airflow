@@ -1267,7 +1267,7 @@ class DagRun(Base, LoggingMixin):
 
         def task_filter(task: Operator) -> bool:
             return task.task_id not in task_ids and (
-                self.is_backfill
+                self.run_type == DagRunType.BACKFILL_JOB
                 or (task.start_date is None or task.start_date <= self.execution_date)
                 and (task.end_date is None or self.execution_date <= task.end_date)
             )
@@ -1537,10 +1537,6 @@ class DagRun(Base, LoggingMixin):
             ti.refresh_from_task(task)
             session.flush()
             yield ti
-
-    @property
-    def is_backfill(self) -> bool:
-        return self.run_type == DagRunType.BACKFILL_JOB
 
     @classmethod
     @provide_session
