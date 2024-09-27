@@ -1629,8 +1629,9 @@ class TestKubernetesPodOperator:
     @pytest.mark.parametrize("get_logs", [True, False])
     @patch(f"{POD_MANAGER_CLASS}.fetch_requested_container_logs")
     @patch(f"{POD_MANAGER_CLASS}.await_container_completion")
+    @patch(f"{POD_MANAGER_CLASS}.read_pod")
     def test_await_container_completion_refreshes_properties_on_exception(
-        self, mock_await_container_completion, fetch_requested_container_logs, get_logs
+        self, mock_read_pod, mock_await_container_completion, fetch_requested_container_logs, get_logs
     ):
         k = KubernetesPodOperator(task_id="task", get_logs=get_logs)
         pod = self.run_pod(k)
@@ -1655,6 +1656,28 @@ class TestKubernetesPodOperator:
             mock_await_container_completion.assert_has_calls(
                 [mock.call(pod=pod, container_name=k.base_container_name)] * 3
             )
+        mock_read_pod.assert_called()
+        assert client != k.client
+        assert hook != k.hook
+        assert pod_manager != k.pod_manager
+
+    @patch(f"{POD_MANAGER_CLASS}.await_container_completion")
+    @patch(f"{POD_MANAGER_CLASS}.read_pod")
+    def test_await_container_completion_raises_unauthorized_if_credentials_still_invalid_after_refresh(
+        self, mock_read_pod, mock_await_container_completion
+    ):
+        k = KubernetesPodOperator(task_id="task", get_logs=False)
+        pod = self.run_pod(k)
+        client, hook, pod_manager = k.client, k.hook, k.pod_manager
+
+        mock_await_container_completion.side_effect = [ApiException(status=401)]
+        mock_read_pod.side_effect = [ApiException(status=401)]
+
+        with pytest.raises(ApiException):
+            k.await_pod_completion(pod)
+
+        mock_read_pod.assert_called()
+        # assert cache was refreshed
         assert client != k.client
         assert hook != k.hook
         assert pod_manager != k.pod_manager
@@ -1663,7 +1686,7 @@ class TestKubernetesPodOperator:
         "side_effect, exception_type, expect_exc",
         [
             ([ApiException(401), mock.DEFAULT], ApiException, True),  # works after one 401
-            ([ApiException(401)] * 10, ApiException, False),  # exc after 3 retries on 401
+            ([ApiException(401)] * 3 + [mock.DEFAULT], ApiException, True),  # works after 3 retries
             ([ApiException(402)], ApiException, False),  # exc on non-401
             ([ApiException(500)], ApiException, False),  # exc on non-401
             ([Exception], Exception, False),  # exc on different exception
@@ -1684,7 +1707,7 @@ class TestKubernetesPodOperator:
         else:
             with pytest.raises(exception_type):
                 k.await_pod_completion(pod)
-        expected_call_count = min(len(side_effect), 3)  # retry max 3 times
+        expected_call_count = len(side_effect)
         mock_await_container_completion.assert_has_calls(
             [mock.call(pod=pod, container_name=k.base_container_name)] * expected_call_count
         )
