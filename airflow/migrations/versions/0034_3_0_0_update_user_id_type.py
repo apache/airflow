@@ -40,13 +40,13 @@ airflow_version = "3.0.0"
 
 def upgrade():
     with op.batch_alter_table("dag_run_note") as batch_op:
-        batch_op.alter_column("user_id", type_=sa.String(length=128), postgresql_using="user_id::integer")
+        batch_op.alter_column("user_id", type_=sa.String(length=128))
     with op.batch_alter_table("task_instance_note") as batch_op:
-        batch_op.alter_column("user_id", type_=sa.String(length=128), postgresql_using="user_id::integer")
+        batch_op.alter_column("user_id", type_=sa.String(length=128))
 
 
 def downgrade():
     with op.batch_alter_table("dag_run_note") as batch_op:
-        batch_op.alter_column("user_id", type_=sa.Integer())
+        batch_op.alter_column("user_id", type_=sa.Integer(), postgresql_using="user_id::integer")
     with op.batch_alter_table("task_instance_note") as batch_op:
-        batch_op.alter_column("user_id", type_=sa.Integer())
+        batch_op.alter_column("user_id", type_=sa.Integer(), postgresql_using="user_id::integer")
