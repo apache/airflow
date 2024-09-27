@@ -317,6 +317,26 @@ export const $DagTagPydantic = {
     "Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.",
 } as const;
 
+export const $HTTPExceptionResponse = {
+  properties: {
+    detail: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "object",
+        },
+      ],
+      title: "Detail",
+    },
+  },
+  type: "object",
+  required: ["detail"],
+  title: "HTTPExceptionResponse",
+  description: "HTTPException Model used for error response.",
+} as const;
+
 export const $HTTPValidationError = {
   properties: {
     detail: {
