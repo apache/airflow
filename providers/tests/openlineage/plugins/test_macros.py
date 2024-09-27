@@ -28,6 +28,8 @@ from airflow.providers.openlineage.plugins.macros import (
     lineage_run_id,
 )
 
+from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
 _DAG_NAMESPACE = namespace()
 
 if __version__.startswith("2."):
@@ -51,13 +53,22 @@ def test_lineage_job_name():
 
 
 def test_lineage_run_id():
-    task_instance = mock.MagicMock(
-        dag_id="dag_id",
-        task_id="task_id",
-        dag_run=mock.MagicMock(run_id="run_id"),
-        try_number=1,
-        **{LOGICAL_DATE_KEY: datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc)},
-    )
+    if AIRFLOW_V_3_0_PLUS:
+        task_instance = mock.MagicMock(
+            dag_id="dag_id",
+            task_id="task_id",
+            dag_run=mock.MagicMock(run_id="run_id"),
+            logical_date=datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc),
+            try_number=1,
+        )
+    else:
+        task_instance = mock.MagicMock(
+            dag_id="dag_id",
+            task_id="task_id",
+            dag_run=mock.MagicMock(run_id="run_id"),
+            execution_date=datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc),
+            try_number=1,
+        )
 
     call_result1 = lineage_run_id(task_instance)
     call_result2 = lineage_run_id(task_instance)

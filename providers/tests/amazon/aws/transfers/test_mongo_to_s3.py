@@ -92,7 +92,7 @@ class TestMongoToS3Operator:
         else:
             dag_run = DagRun(
                 dag_id=self.mock_operator.dag_id,
-                logical_date=DEFAULT_DATE,
+                execution_date=DEFAULT_DATE,
                 run_id="test",
                 run_type=DagRunType.MANUAL,
             )

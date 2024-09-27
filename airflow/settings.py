@@ -780,6 +780,8 @@ EXECUTE_TASKS_NEW_PYTHON_INTERPRETER = not CAN_FORK or conf.getboolean(
     fallback=False,
 )
 
+ALLOW_FUTURE_EXEC_DATES = conf.getboolean("scheduler", "allow_trigger_in_future", fallback=False)
+
 ALLOW_TRIGGER_DAGRUN_IN_FUTURE = conf.getboolean("scheduler", "allow_trigger_in_future", fallback=False)
 
 ALLOW_TRIGGER_DAGRUN_IN_FUTURE = conf.getboolean("scheduler", "allow_trigger_in_future", fallback=False)
