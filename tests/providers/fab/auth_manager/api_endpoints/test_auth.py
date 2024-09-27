@@ -51,7 +51,12 @@ class BaseTestAuth:
 class TestBasicAuth(BaseTestAuth):
     @pytest.fixture(autouse=True, scope="class")
     def with_basic_auth_backend(self, minimal_app_for_auth_api):
-        from airflow.www.extensions.init_security import init_api_auth
+        try:
+            from airflow.www.extensions.init_security import init_api_auth
+        except ImportError:
+            # `init_api_experimental_auth` has been renamed `init_api_auth` in Airflow 3
+            # Remove when min Airflow version is 3
+            from airflow.www.extensions.init_security import init_api_experimental_auth as init_api_auth
 
         old_auth = getattr(minimal_app_for_auth_api, "api_auth")
 
@@ -133,7 +138,12 @@ class TestBasicAuth(BaseTestAuth):
 class TestSessionWithBasicAuthFallback(BaseTestAuth):
     @pytest.fixture(autouse=True, scope="class")
     def with_basic_auth_backend(self, minimal_app_for_auth_api):
-        from airflow.www.extensions.init_security import init_api_auth
+        try:
+            from airflow.www.extensions.init_security import init_api_auth
+        except ImportError:
+            # `init_api_experimental_auth` has been renamed `init_api_auth` in Airflow 3
+            # Remove when min Airflow version is 3
+            from airflow.www.extensions.init_security import init_api_experimental_auth as init_api_auth
 
         old_auth = getattr(minimal_app_for_auth_api, "api_auth")
 
