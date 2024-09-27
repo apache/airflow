@@ -46,7 +46,8 @@ from airflow.utils.session import NEW_SESSION, provide_session
 
 if TYPE_CHECKING:
     from pendulum import DateTime
-    from sqlalchemy.orm import Delete, Query, Session
+    from sqlalchemy.orm import Query, Session
+    from sqlalchemy.sql import Delete
 
     from airflow.models import Base
 
