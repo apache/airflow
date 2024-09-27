@@ -1667,6 +1667,8 @@ class Airflow(AirflowBaseView):
         if task_id is None:
             return {"error": "Task id not passed in the request"}, 404
         run_id = request.args.get("run_id")
+        if run_id is None:
+            return {"error": "Run id not passed in the request"}, 404
         map_index = request.args.get("map_index", -1, type=int)
         logger.info("Retrieving rendered k8s data.")
 
