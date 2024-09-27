@@ -193,12 +193,11 @@ def _create_listener_and_task_instance() -> tuple[OpenLineageListener, TaskInsta
         def mock_dag_id(dag_id, logical_date):
             return f"{logical_date}.{dag_id}"
 
+    if AIRFLOW_V_3_0_PLUS:
+
         def mock_task_id(dag_id, task_id, try_number, logical_date):
             return f"{logical_date}.{dag_id}.{task_id}.{try_number}"
     else:
-
-        def mock_dag_id(dag_id, execution_date):
-            return f"{execution_date}.{dag_id}"
 
         def mock_task_id(dag_id, task_id, try_number, execution_date):
             return f"{execution_date}.{dag_id}.{task_id}.{try_number}"
@@ -327,8 +326,14 @@ def test_adapter_fail_task_is_called_with_proper_arguments(
     def mock_dag_id(dag_id, logical_date):
         return f"{logical_date}.{dag_id}"
 
-    def mock_task_id(dag_id, task_id, try_number, logical_date):
-        return f"{logical_date}.{dag_id}.{task_id}.{try_number}"
+    if AIRFLOW_V_3_0_PLUS:
+
+        def mock_task_id(dag_id, task_id, try_number, logical_date):
+            return f"{logical_date}.{dag_id}.{task_id}.{try_number}"
+    else:
+
+        def mock_task_id(dag_id, task_id, try_number, execution_date):
+            return f"{execution_date}.{dag_id}.{task_id}.{try_number}"
 
     listener, task_instance = _create_listener_and_task_instance()
     mock_get_job_name.return_value = "job_name"
@@ -389,12 +394,11 @@ def test_adapter_complete_task_is_called_with_proper_arguments(
         def mock_dag_id(dag_id, logical_date):
             return f"{logical_date}.{dag_id}"
 
+    if AIRFLOW_V_3_0_PLUS:
+
         def mock_task_id(dag_id, task_id, try_number, logical_date):
             return f"{logical_date}.{dag_id}.{task_id}.{try_number}"
     else:
-
-        def mock_dag_id(dag_id, execution_date):
-            return f"{execution_date}.{dag_id}"
 
         def mock_task_id(dag_id, task_id, try_number, execution_date):
             return f"{execution_date}.{dag_id}.{task_id}.{try_number}"
