@@ -114,7 +114,7 @@ def _fetch_dag_run_from_run_id_or_logical_date_string(
     one cannot be found here.
     """
     if dag_run := DAG.fetch_dagrun(dag_id=dag_id, run_id=value, session=session):
-        return dag_run, dag_run.logical_date
+        return dag_run, dag_run.logical_date  # type: ignore[return-value]
     try:
         logical_date = timezone.parse(value)
     except (ParserError, TypeError):
@@ -189,7 +189,7 @@ def _get_dag_run(
             session=session,
             triggered_by=DagRunTriggeredByType.CLI,
         )
-        return dag_run, True
+        return dag_run, True  # type: ignore[return-value]
     raise ValueError(f"unknown create_if_necessary value: {create_if_necessary!r}")
 
 

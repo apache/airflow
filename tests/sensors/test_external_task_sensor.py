@@ -1286,7 +1286,7 @@ def run_tasks(
     """
     runs: dict[str, DagRun] = {}
     tis: dict[str, TaskInstance] = {}
-    triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
+    triggered_by = DagRunTriggeredByType.TEST if AIRFLOW_V_3_0_PLUS else None
 
     for dag in dag_bag.dags.values():
         dagrun = dag.create_dagrun(
@@ -1296,7 +1296,7 @@ def run_tasks(
             run_type=DagRunType.MANUAL,
             session=session,
             data_interval=(logical_date, logical_date),
-            **triggered_by_kwargs,
+            triggered_by=triggered_by,
         )
         runs[dag.dag_id] = dagrun
         # we use sorting by task_id here because for the test DAG structure of ours
@@ -1371,8 +1371,8 @@ def test_external_task_marker_clear_activate(dag_bag_parent_child, session):
     day_1 = DEFAULT_DATE
     day_2 = DEFAULT_DATE + timedelta(days=1)
 
-    runs_d1, _ = run_tasks(dag_bag, execution_date=day_1)
-    runs_d2, _ = run_tasks(dag_bag, execution_date=day_2)
+    runs_d1, _ = run_tasks(dag_bag, logical_date=day_1)
+    runs_d2, _ = run_tasks(dag_bag, logical_date=day_2)
 
     # Assert that dagruns of all the affected dags are set to SUCCESS before tasks are cleared.
     for dag, runs in itertools.product(dag_bag.dags.values(), [runs_d1, runs_d2]):
@@ -1400,8 +1400,8 @@ def test_external_task_marker_future(dag_bag_ext):
     date_0 = DEFAULT_DATE
     date_1 = DEFAULT_DATE + timedelta(days=1)
 
-    _, tis_date_0 = run_tasks(dag_bag_ext, execution_date=date_0)
-    _, tis_date_1 = run_tasks(dag_bag_ext, execution_date=date_1)
+    _, tis_date_0 = run_tasks(dag_bag_ext, logical_date=date_0)
+    _, tis_date_1 = run_tasks(dag_bag_ext, logical_date=date_1)
 
     dag_0 = dag_bag_ext.get_dag("dag_0")
     task_a_0 = dag_0.get_task("task_a_0")
@@ -1571,7 +1571,7 @@ def test_clear_multiple_external_task_marker(dag_bag_multiple):
     Test clearing a dag that has multiple ExternalTaskMarker.
     """
     agg_dag = dag_bag_multiple.get_dag("agg_dag")
-    _, tis = run_tasks(dag_bag_multiple, execution_date=DEFAULT_DATE)
+    _, tis = run_tasks(dag_bag_multiple, logical_date=DEFAULT_DATE)
     session = settings.Session()
     try:
         qry = session.query(TaskInstance).filter(
