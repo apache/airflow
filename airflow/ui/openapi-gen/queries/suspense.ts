@@ -2,6 +2,7 @@
 import { UseQueryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import { DagService, DatasetService } from "../requests/services.gen";
+import { DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
@@ -49,6 +50,7 @@ export const useDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetSuspense =
  * @param data.dagDisplayNamePattern
  * @param data.onlyActive
  * @param data.paused
+ * @param data.lastDagRunState
  * @param data.orderBy
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
@@ -61,6 +63,7 @@ export const useDagServiceGetDagsPublicDagsGetSuspense = <
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    lastDagRunState,
     limit,
     offset,
     onlyActive,
@@ -71,6 +74,7 @@ export const useDagServiceGetDagsPublicDagsGetSuspense = <
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
     onlyActive?: boolean;
@@ -87,6 +91,7 @@ export const useDagServiceGetDagsPublicDagsGetSuspense = <
       {
         dagDisplayNamePattern,
         dagIdPattern,
+        lastDagRunState,
         limit,
         offset,
         onlyActive,
@@ -101,6 +106,7 @@ export const useDagServiceGetDagsPublicDagsGetSuspense = <
       DagService.getDagsPublicDagsGet({
         dagDisplayNamePattern,
         dagIdPattern,
+        lastDagRunState,
         limit,
         offset,
         onlyActive,
