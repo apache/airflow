@@ -109,11 +109,6 @@ available on the Vertex AI platform. Please use
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLImageTrainingJobOperator` or
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`.
 
-The Vertex AutoMLText API for model training is deprecated on September 15, 2024 and the other part will be deprecated
-on June 15, 2025.
-Please consider using fine tuning with Gemini model -
-https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini-tuning.
-
 You can find example on how to use VertexAI operators for AutoML Vision classification here:
 
 .. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_vision_classification.py
@@ -136,7 +131,7 @@ datasets. To create and import data to the dataset please use
 and
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.dataset.ImportDataOperator`
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_model.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_translation.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_automl_create_model]
@@ -195,17 +190,12 @@ To obtain predictions from Google Cloud AutoML model you can use
 :class:`~airflow.providers.google.cloud.operators.automl.AutoMLBatchPredictOperator`. In the first case
 the model must be deployed.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_model.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_translation.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_prediction]
     :end-before: [END howto_operator_prediction]
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/automl/example_automl_model.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_batch_prediction]
-    :end-before: [END howto_operator_batch_prediction]
 
 Th :class:`~airflow.providers.google.cloud.operators.automl.AutoMLBatchPredictOperator` deprecated for tables,
 video intelligence, vision and natural language is deprecated and will be removed after 31.03.2024. Please use

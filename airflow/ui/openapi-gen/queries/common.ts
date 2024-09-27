@@ -2,6 +2,7 @@
 import { UseQueryResult } from "@tanstack/react-query";
 
 import { DagService, DatasetService } from "../requests/services.gen";
+import { DagRunState } from "../requests/types.gen";
 
 export type DatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetDefaultResponse =
   Awaited<
@@ -37,6 +38,7 @@ export const UseDagServiceGetDagsPublicDagsGetKeyFn = (
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    lastDagRunState,
     limit,
     offset,
     onlyActive,
@@ -47,6 +49,7 @@ export const UseDagServiceGetDagsPublicDagsGetKeyFn = (
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
     onlyActive?: boolean;
@@ -62,6 +65,7 @@ export const UseDagServiceGetDagsPublicDagsGetKeyFn = (
     {
       dagDisplayNamePattern,
       dagIdPattern,
+      lastDagRunState,
       limit,
       offset,
       onlyActive,

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,24 +14,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+from pydantic import BaseModel
 
-sys.path.insert(0, str(Path(__file__).parent.resolve()))
-from common_precommit_utils import (
-    initialize_breeze_precommit,
-    run_command_via_breeze_shell,
-    validate_cmd_result,
-)
 
-initialize_breeze_precommit(__name__, __file__)
+class HTTPExceptionResponse(BaseModel):
+    """HTTPException Model used for error response."""
 
-cmd_result = run_command_via_breeze_shell(
-    ["python3", "/opt/airflow/scripts/in_container/run_update_fastapi_api_spec.py"],
-    backend="postgres",
-    skip_environment_initialization=False,
-)
+    detail: str | dict
 
-validate_cmd_result(cmd_result)
+
+def create_openapi_http_exception_doc(responses_status_code: list[int]) -> dict:
+    """
+    Will create additional response example for errors raised by the endpoint.
+
+    There is no easy way to introspect the code and automatically see what HTTPException are actually
+    raised by the endpoint implementation. This piece of documentation needs to be kept
+    in sync with the endpoint code manually.
+
+    Validation error i.e 422 are natively added to the openapi documentation by FastAPI.
+    """
+    responses_status_code = sorted(responses_status_code)
+
+    return {status_code: {"model": HTTPExceptionResponse} for status_code in responses_status_code}
