@@ -1,0 +1,8 @@
+New DAGs will no longer receive historical dataset events
+
+In the past, new DAGs received historical dataset events from the
+very first dataset event in the system. This has been corrected,
+and now new DAGs will only receive dataset events that have occurred
+after their creation. Although this change may disrupt existing workflows,
+the previous behavior is considered a bug, and this update ensures more
+accurate and expected DAG execution.
