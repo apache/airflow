@@ -81,10 +81,10 @@ class TestWasbBlobAsyncSensor:
     def get_dag_run(self, dag_id: str = "test_dag_id", run_id: str = "test_dag_id") -> DagRun:
         if hasattr(DagRun, "execution_date"):  # for 2.x
             dag_run = DagRun(  # type: ignore[call-arg]
-            dag_id=dag_id,
-            run_type="manual",
-            logical_date=timezone.datetime(2022, 1, 1),
-           run_id=run_id,
+                dag_id=dag_id,
+                run_type="manual",
+                execution_date=timezone.datetime(2022, 1, 1),
+                run_id=run_id,
             )
         else:
             dag_run = DagRun(
@@ -224,10 +224,10 @@ class TestWasbPrefixAsyncSensor:
     def get_dag_run(self, dag_id: str = "test_dag_id", run_id: str = "test_dag_id") -> DagRun:
         if hasattr(DagRun, "execution_date"):  # for 2.x
             dag_run = DagRun(  # type: ignore[call-arg]
-            dag_id=dag_id,
-            run_type="manual",
-            logical_date=timezone.datetime(2022, 1, 1),
-           run_id=run_id,
+                dag_id=dag_id,
+                run_type="manual",
+                execution_date=timezone.datetime(2022, 1, 1),
+                run_id=run_id,
             )
         else:
             dag_run = DagRun(

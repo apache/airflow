@@ -285,7 +285,7 @@ class TestDynamodbToS3:
             ti.dag_run = DagRun(
                 dag_id=dag.dag_id,
                 run_id="something",
-                logical_date=timezone.datetime(2020, 1, 1),
+                execution_date=timezone.datetime(2020, 1, 1),
                 run_type=DagRunType.MANUAL,
             )
         session.add(ti)

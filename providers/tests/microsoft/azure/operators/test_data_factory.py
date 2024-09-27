@@ -303,7 +303,7 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
             )
         else:
             dag_run = DagRun(  # type: ignore[call-arg]
-                dag_id=dag_id, run_type="manual", logical_date=timezone.datetime(2022, 1, 1), run_id=run_id
+                dag_id=dag_id, run_type="manual", execution_date=timezone.datetime(2022, 1, 1), run_id=run_id
             )
         return dag_run
 

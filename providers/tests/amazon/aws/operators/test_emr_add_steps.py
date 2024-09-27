@@ -109,7 +109,7 @@ class TestEmrAddStepsOperator:
         else:
             dag_run = DagRun(
                 dag_id=self.operator.dag.dag_id,
-                logical_date=DEFAULT_DATE,
+                execution_date=DEFAULT_DATE,
                 run_id="test",
                 run_type=DagRunType.MANUAL,
             )
@@ -171,11 +171,12 @@ class TestEmrAddStepsOperator:
                 run_id="test",
                 run_type=DagRunType.MANUAL,
             )
-        else:dag_run = DagRun(
-            dag_id=dag.dag_id,
-            logical_date=timezone.utcnow(),
-            run_id="test",
-            run_type=DagRunType.MANUAL,
+        else:
+            dag_run = DagRun(
+                dag_id=dag.dag_id,
+                execution_date=timezone.utcnow(),
+                run_id="test",
+                run_type=DagRunType.MANUAL,
             )
         ti = TaskInstance(task=test_task)
         ti.dag_run = dag_run

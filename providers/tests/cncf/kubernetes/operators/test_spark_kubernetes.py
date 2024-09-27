@@ -700,30 +700,19 @@ class TestSparkKubernetesOperator:
 
 @pytest.mark.db_test
 def test_template_body_templating(create_task_instance_of_operator, session):
-    if AIRFLOW_V_3_0_PLUS:
-        ti = create_task_instance_of_operator(
-            SparkKubernetesOperator,
-            template_spec={"foo": "{{ ds }}", "bar": "{{ dag_run.dag_id }}"},
-            kubernetes_conn_id="kubernetes_default_kube_config",
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-            session=session,
-        )
-    else:
-        ti = create_task_instance_of_operator(
-            SparkKubernetesOperator,
-            template_spec={"foo": "{{ ds }}", "bar": "{{ dag_run.dag_id }}"},
-            kubernetes_conn_id="kubernetes_default_kube_config",
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-            session=session,
-            logical_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
-        )
+    ti = create_task_instance_of_operator(
+        SparkKubernetesOperator,
+        template_spec={"foo": "{{ ds }}", "bar": "{{ dag_run.dag_id }}"},
+        kubernetes_conn_id="kubernetes_default_kube_config",
+        dag_id="test_template_body_templating_dag",
+        task_id="test_template_body_templating_task",
+        session=session,
+    )
     session.add(ti)
     session.commit()
     ti.render_templates()
     task: SparkKubernetesOperator = ti.task
-    assert task.template_body == {"spark": {"foo": "2024-02-01", "bar": "test_template_body_templating_dag"}}
+    assert task.template_body == {"spark": {"foo": "2016-01-01", "bar": "test_template_body_templating_dag"}}
 
 
 @pytest.mark.db_test
