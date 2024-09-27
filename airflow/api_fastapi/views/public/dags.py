@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
 from airflow.api_fastapi.db import apply_filters_to_select, get_session, latest_dag_run_per_dag_id_cte
+from airflow.api_fastapi.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.parameters import (
     QueryDagDisplayNamePatternSearch,
     QueryDagIdPatternSearch,
@@ -95,16 +96,13 @@ async def get_dags(
 
     dags = session.scalars(dags_query).all()
 
-    try:
-        return DAGCollectionResponse(
-            dags=[DAGResponse.model_validate(dag, from_attributes=True) for dag in dags],
-            total_entries=total_entries,
-        )
-    except ValueError as e:
-        raise HTTPException(400, f"DAGCollectionSchema error: {str(e)}")
+    return DAGCollectionResponse(
+        dags=[DAGResponse.model_validate(dag, from_attributes=True) for dag in dags],
+        total_entries=total_entries,
+    )
 
 
-@dags_router.patch("/dags/{dag_id}")
+@dags_router.patch("/dags/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
 async def patch_dag(
     dag_id: str,
     patch_body: DAGPatchBody,
