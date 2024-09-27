@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-26T19:46:20.033478
+# This constraints file was automatically generated on 2024-09-27T07:47:00.663269
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -70,7 +70,7 @@ adal==1.2.7
 adlfs==2024.7.0
 aiobotocore==2.15.1
 aiofiles==23.2.1
-aiohappyeyeballs==2.4.0
+aiohappyeyeballs==2.4.2
 aiohttp==3.10.6
 aioitertools==0.12.0
 aioresponses==0.7.6
@@ -219,7 +219,7 @@ azure-mgmt-resource==23.1.1
 azure-mgmt-storage==21.2.1
 azure-nspkg==3.0.2
 azure-servicebus==7.12.3
-azure-storage-blob==12.23.0
+azure-storage-blob==12.23.1
 azure-storage-file-datalake==12.17.0
 azure-storage-file-share==12.18.0
 azure-synapse-artifacts==0.19.0
@@ -485,7 +485,7 @@ nh3==0.2.18
 nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
-openai==1.49.0
+openai==1.50.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.22.0
@@ -519,7 +519,7 @@ pbr==6.1.0
 pdpyras==5.2.0
 pendulum==3.0.0
 pexpect==4.9.0
-pgvector==0.3.3
+pgvector==0.3.4
 pinecone-client==5.0.1
 pinecone-plugin-inference==1.1.0
 pinecone-plugin-interface==0.0.7
@@ -746,7 +746,7 @@ xmltodict==0.13.0
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.319.0
-yarl==1.12.1
+yarl==1.13.0
 ydb==3.17.2
 zeep==4.2.1
 zenpy==2.0.53
