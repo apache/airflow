@@ -21,6 +21,7 @@ from unittest import mock
 
 import pendulum
 import pytest
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models.dag import DAG
@@ -36,8 +37,6 @@ from airflow.providers.snowflake.operators.snowflake import (
 from airflow.providers.snowflake.triggers.snowflake_trigger import SnowflakeSqlApiTrigger
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()

@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING
 import pytest
 import time_machine
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from itsdangerous import URLSafeSerializer
@@ -932,9 +932,6 @@ def dag_maker(request):
                     DEFAULT_DATE = timezone.datetime(2016, 1, 1)
                     self.start_date = DEFAULT_DATE
             self.kwargs["start_date"] = self.start_date
-            if not AIRFLOW_V_3_0_PLUS:
-                if "logical_date" in self.kwargs:
-                    self.kwargs["execution_date"] = self.kwargs.pop("logical_date")
             # Set schedule argument to explicitly set value, or a default if no
             # other scheduling arguments are set.
             self.dag = DAG(dag_id, schedule=schedule, **self.kwargs)

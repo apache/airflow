@@ -44,13 +44,11 @@ from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.timezone import datetime
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
-from dev.tests_common.test_utils.config import conf_vars
-from dev.tests_common.test_utils.db import clear_db_dags, clear_db_runs
 from providers.tests.elasticsearch.log.elasticmock import elasticmock
 from providers.tests.elasticsearch.log.elasticmock.utilities import SearchFailedException
 from tests_common.test_utils.config import conf_vars
 from tests_common.test_utils.db import clear_db_dags, clear_db_runs
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 pytestmark = pytest.mark.db_test
 
@@ -59,21 +57,13 @@ ES_PROVIDER_YAML_FILE = AIRFLOW_SOURCES_ROOT_DIR / "airflow" / "providers" / "el
 
 
 def get_ti(dag_id, task_id, logical_date, create_task_instance):
-    if AIRFLOW_V_3_0_PLUS:
-        ti = create_task_instance(
-            dag_id=dag_id,
-            task_id=task_id,
-            logical_date=logical_date,
-            dagrun_state=DagRunState.RUNNING,
-            state=TaskInstanceState.RUNNING,
-        )
-    else:
-        ti = create_task_instance(
-            dag_id=dag_id,
-            task_id=task_id,
-            execution_date=logical_date,
-            state=TaskInstanceState.RUNNING,
-        )
+    ti = create_task_instance(
+        dag_id=dag_id,
+        task_id=task_id,
+        logical_date=logical_date,
+        dagrun_state=DagRunState.RUNNING,
+        state=TaskInstanceState.RUNNING,
+    )
     ti.try_number = 1
     ti.raw = False
     return ti

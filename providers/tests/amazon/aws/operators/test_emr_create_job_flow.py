@@ -25,6 +25,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from botocore.waiter import Waiter
 from jinja2 import StrictUndefined
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 from airflow.exceptions import TaskDeferred
 from airflow.models import DAG, DagRun, TaskInstance
@@ -33,7 +34,6 @@ from airflow.providers.amazon.aws.triggers.emr import EmrCreateJobFlowTrigger
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from providers.tests.amazon.aws.utils.test_template_fields import validate_template_fields
 from providers.tests.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 

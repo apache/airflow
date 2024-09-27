@@ -24,6 +24,7 @@ import pendulum
 import pytest
 from dateutil import parser
 from kubernetes.client import ApiClient, models as k8s
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 from airflow import __version__
 from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
@@ -36,8 +37,6 @@ from airflow.providers.cncf.kubernetes.pod_generator import (
     merge_objects,
 )
 from airflow.providers.cncf.kubernetes.secret import Secret
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 now = pendulum.now("UTC")
 

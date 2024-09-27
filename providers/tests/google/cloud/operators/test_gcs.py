@@ -24,6 +24,7 @@ from unittest import mock
 
 import pendulum
 import pytest
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 from airflow import __version__
 from airflow.providers.common.compat.openlineage.facet import (
@@ -44,8 +45,6 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSTimeSpanFileTransformOperator,
 )
 from airflow.timetables.base import DagRunInfo, DataInterval
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 TASK_ID = "test-gcs-operator"
 TEST_BUCKET = "test-bucket"

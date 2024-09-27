@@ -32,6 +32,7 @@ from urllib.parse import quote, urlparse
 import elasticsearch
 import pendulum
 from elasticsearch.exceptions import NotFoundError
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
@@ -43,8 +44,6 @@ from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
 from airflow.utils.module_loading import import_string
 from airflow.utils.session import create_session
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from datetime import datetime

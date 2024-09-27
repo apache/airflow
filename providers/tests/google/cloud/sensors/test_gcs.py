@@ -23,6 +23,7 @@ from unittest import mock
 import pendulum
 import pytest
 from google.cloud.storage.retry import DEFAULT_RETRY
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 from airflow.exceptions import (
     AirflowProviderDeprecationWarning,
@@ -44,8 +45,6 @@ from airflow.providers.google.cloud.triggers.gcs import (
     GCSUploadSessionTrigger,
 )
 from airflow.utils import timezone
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 TEST_BUCKET = "TEST_BUCKET"
 
