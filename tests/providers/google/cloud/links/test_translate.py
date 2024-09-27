@@ -24,6 +24,7 @@ pytest.importorskip("google.cloud.aiplatform_v1")
 
 from google.cloud.automl_v1beta1 import Model
 
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.links.translate import (
     TRANSLATION_BASE_LINK,
     TranslationDatasetListLink,
@@ -146,16 +147,17 @@ class TestTranslationLegacyModelPredictLink:
             f"predict;modelId={MODEL}?project={GCP_PROJECT_ID}"
         )
         link = TranslationLegacyModelPredictLink()
-        ti = create_task_instance_of_operator(
-            AutoMLBatchPredictOperator,
-            dag_id="test_legacy_model_predict_link_dag",
-            task_id="test_legacy_model_predict_link_task",
-            model_id=MODEL,
-            project_id=GCP_PROJECT_ID,
-            location=GCP_LOCATION,
-            input_config="input_config",
-            output_config="input_config",
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            ti = create_task_instance_of_operator(
+                AutoMLBatchPredictOperator,
+                dag_id="test_legacy_model_predict_link_dag",
+                task_id="test_legacy_model_predict_link_task",
+                model_id=MODEL,
+                project_id=GCP_PROJECT_ID,
+                location=GCP_LOCATION,
+                input_config="input_config",
+                output_config="input_config",
+            )
         ti.task.model = Model(dataset_id=DATASET, display_name=MODEL)
         session.add(ti)
         session.commit()

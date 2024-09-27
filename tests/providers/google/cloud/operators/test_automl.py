@@ -28,7 +28,7 @@ pytest.importorskip("google.cloud.aiplatform_v1")
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.automl_v1beta1 import BatchPredictResult, Dataset, Model, PredictResponse
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
 from airflow.providers.google.cloud.hooks.vertex_ai.prediction_service import PredictionServiceHook
 from airflow.providers.google.cloud.operators.automl import (
@@ -148,15 +148,16 @@ class TestAutoMLBatchPredictOperator:
         mock_hook.return_value.extract_object_id = extract_object_id
         mock_hook.return_value.wait_for_operation.return_value = BatchPredictResult()
         mock_context = {"ti": mock.MagicMock()}
-        op = AutoMLBatchPredictOperator(
-            model_id=MODEL_ID,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            input_config=INPUT_CONFIG,
-            output_config=OUTPUT_CONFIG,
-            task_id=TASK_ID,
-            prediction_params={},
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = AutoMLBatchPredictOperator(
+                model_id=MODEL_ID,
+                location=GCP_LOCATION,
+                project_id=GCP_PROJECT_ID,
+                input_config=INPUT_CONFIG,
+                output_config=OUTPUT_CONFIG,
+                task_id=TASK_ID,
+                prediction_params={},
+            )
         op.execute(context=mock_context)
         mock_hook.return_value.batch_predict.assert_called_once_with(
             input_config=INPUT_CONFIG,
@@ -182,16 +183,16 @@ class TestAutoMLBatchPredictOperator:
         del returned_model.translation_model_metadata
         mock_hook.return_value.get_model.return_value = returned_model
         mock_hook.return_value.extract_object_id = extract_object_id
-
-        op = AutoMLBatchPredictOperator(
-            model_id=MODEL_ID,
-            location=GCP_LOCATION,
-            project_id=GCP_PROJECT_ID,
-            input_config=INPUT_CONFIG,
-            output_config=OUTPUT_CONFIG,
-            task_id=TASK_ID,
-            prediction_params={},
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            op = AutoMLBatchPredictOperator(
+                model_id=MODEL_ID,
+                location=GCP_LOCATION,
+                project_id=GCP_PROJECT_ID,
+                input_config=INPUT_CONFIG,
+                output_config=OUTPUT_CONFIG,
+                task_id=TASK_ID,
+                prediction_params={},
+            )
         expected_exception_str = (
             "AutoMLBatchPredictOperator for text, image, and video prediction has been "
             "deprecated and no longer available"
@@ -210,20 +211,21 @@ class TestAutoMLBatchPredictOperator:
 
     @pytest.mark.db_test
     def test_templating(self, create_task_instance_of_operator, session):
-        ti = create_task_instance_of_operator(
-            AutoMLBatchPredictOperator,
-            # Templated fields
-            model_id="{{ 'model' }}",
-            input_config="{{ 'input-config' }}",
-            output_config="{{ 'output-config' }}",
-            location="{{ 'location' }}",
-            project_id="{{ 'project-id' }}",
-            impersonation_chain="{{ 'impersonation-chain' }}",
-            # Other parameters
-            dag_id="test_template_body_templating_dag",
-            task_id="test_template_body_templating_task",
-            execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
-        )
+        with pytest.warns(AirflowProviderDeprecationWarning):
+            ti = create_task_instance_of_operator(
+                AutoMLBatchPredictOperator,
+                # Templated fields
+                model_id="{{ 'model' }}",
+                input_config="{{ 'input-config' }}",
+                output_config="{{ 'output-config' }}",
+                location="{{ 'location' }}",
+                project_id="{{ 'project-id' }}",
+                impersonation_chain="{{ 'impersonation-chain' }}",
+                # Other parameters
+                dag_id="test_template_body_templating_dag",
+                task_id="test_template_body_templating_task",
+                execution_date=timezone.datetime(2024, 2, 1, tzinfo=timezone.utc),
+            )
         session.add(ti)
         session.commit()
         ti.render_templates()
