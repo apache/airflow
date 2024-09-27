@@ -53,6 +53,6 @@ spec:
       port: {{ .Values.ports.redisDB }}
       targetPort: {{ .Values.ports.redisDB }}
       {{- if (and (eq .Values.redis.service.type "NodePort") (not (empty .Values.redis.service.nodePort))) }}
-      nodePort: {{.Values.redis.service.nodePort}}
+      nodePort: {{ .Values.redis.service.nodePort }}
       {{- end }}
 {{- end }}
