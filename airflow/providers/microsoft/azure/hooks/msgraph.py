@@ -32,11 +32,14 @@ from kiota_abstractions.api_error import APIError
 from kiota_abstractions.method import Method
 from kiota_abstractions.request_information import RequestInformation
 from kiota_abstractions.response_handler import ResponseHandler
+from kiota_abstractions.serialization import ParseNodeFactoryRegistry
 from kiota_authentication_azure.azure_identity_authentication_provider import (
     AzureIdentityAuthenticationProvider,
 )
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
 from kiota_http.middleware.options import ResponseHandlerOption
+from kiota_serialization_json.json_parse_node_factory import JsonParseNodeFactory
+from kiota_serialization_text.text_parse_node_factory import TextParseNodeFactory
 from msgraph_core import APIVersion, GraphClientFactory
 from msgraph_core._enums import NationalClouds
 
@@ -125,7 +128,7 @@ class KiotaRequestAdapterHook(BaseHook):
         self._api_version = self.resolve_api_version_from_value(api_version)
 
     @property
-    def api_version(self) -> str | None:
+    def api_version(self) -> APIVersion:
         self.get_conn()  # Make sure config has been loaded through get_conn to have correct api version!
         return self._api_version
 
@@ -190,7 +193,7 @@ class KiotaRequestAdapterHook(BaseHook):
             client_id = connection.login
             client_secret = connection.password
             config = connection.extra_dejson if connection.extra else {}
-            tenant_id = config.get("tenant_id") or config.get("tenantId")
+            tenant_id = config.get("tenant_id")
             api_version = self.get_api_version(config)
             host = self.get_host(connection)
             base_url = config.get("base_url", urljoin(host, api_version))
@@ -249,8 +252,12 @@ class KiotaRequestAdapterHook(BaseHook):
                 scopes=scopes,
                 allowed_hosts=allowed_hosts,
             )
+            parse_node_factory = ParseNodeFactoryRegistry()
+            parse_node_factory.CONTENT_TYPE_ASSOCIATED_FACTORIES["text/plain"] = TextParseNodeFactory()
+            parse_node_factory.CONTENT_TYPE_ASSOCIATED_FACTORIES["application/json"] = JsonParseNodeFactory()
             request_adapter = HttpxRequestAdapter(
                 authentication_provider=auth_provider,
+                parse_node_factory=parse_node_factory,
                 http_client=http_client,
                 base_url=base_url,
             )

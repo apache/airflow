@@ -19,11 +19,15 @@ from __future__ import annotations
 import asyncio
 from json import JSONDecodeError
 from typing import TYPE_CHECKING
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
 import pytest
+from httpx import Response
 from kiota_http.httpx_request_adapter import HttpxRequestAdapter
+from kiota_serialization_json.json_parse_node import JsonParseNode
+from kiota_serialization_text.text_parse_node import TextParseNode
 from msgraph_core import APIVersion, NationalClouds
+from opentelemetry.trace import Span
 
 from airflow.exceptions import AirflowBadRequest, AirflowException, AirflowNotFoundException
 from airflow.providers.microsoft.azure.hooks.msgraph import (
@@ -173,6 +177,45 @@ class TestKiotaRequestAdapterHook:
         )
 
         assert actual == {"%24expand": "reports,users,datasets,dataflows,dashboards", "%24top": 5000}
+
+    @pytest.mark.asyncio
+    async def test_throw_failed_responses_with_text_plain_content_type(self):
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=get_airflow_connection,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            response = Mock(spec=Response)
+            response.headers = {"content-type": "text/plain"}
+            response.status_code = 429
+            response.content = b"TenantThrottleThresholdExceeded"
+            response.is_success = False
+            span = Mock(spec=Span)
+
+            actual = await hook.get_conn().get_root_parse_node(response, span, span)
+
+            assert isinstance(actual, TextParseNode)
+            assert actual.get_str_value() == "TenantThrottleThresholdExceeded"
+
+    @pytest.mark.asyncio
+    async def test_throw_failed_responses_with_application_json_content_type(self):
+        with patch(
+            "airflow.hooks.base.BaseHook.get_connection",
+            side_effect=get_airflow_connection,
+        ):
+            hook = KiotaRequestAdapterHook(conn_id="msgraph_api")
+            response = Mock(spec=Response)
+            response.headers = {"content-type": "application/json"}
+            response.status_code = 429
+            response.content = b'{"error": {"code": "TenantThrottleThresholdExceeded"}}'
+            response.is_success = False
+            span = Mock(spec=Span)
+
+            actual = await hook.get_conn().get_root_parse_node(response, span, span)
+
+            assert isinstance(actual, JsonParseNode)
+            error_code = actual.get_child_node("error").get_child_node("code").get_str_value()
+            assert error_code == "TenantThrottleThresholdExceeded"
 
 
 class TestResponseHandler:
