@@ -38,7 +38,7 @@ location to another. Parameters of the operator are:
 If the ``src`` and the ``dst`` are both on the same object storage, copy will be performed in the object storage.
 Otherwise the data will be streamed from the source to the destination.
 
-The example below shows how to instantiate the SQLExecuteQueryOperator task.
+The example below shows how to instantiate the FileTransferOperator task.
 
 .. exampleinclude:: /../../tests/system/providers/common/io/example_file_transfer_local_to_s3.py
     :language: python
