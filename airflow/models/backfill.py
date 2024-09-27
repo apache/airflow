@@ -17,7 +17,8 @@
 # under the License.
 from __future__ import annotations
 
-from sqlalchemy import Boolean, Column, Integer, UniqueConstraint
+from sqlalchemy import Boolean, Column, ForeignKeyConstraint, Integer, UniqueConstraint
+from sqlalchemy.orm import relationship
 from sqlalchemy_jsonfield import JSONField
 
 from airflow.models.base import Base, StringID
@@ -47,6 +48,11 @@ class Backfill(Base):
     completed_at = Column(UtcDateTime, nullable=True)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
+    backfill_dag_run_associations = relationship("BackfillDagRun", back_populates="backfill")
+
+    def __repr__(self):
+        return f"Backfill({self.dag_id=}, {self.from_date=}, {self.to_date=})"
+
 
 class BackfillDagRun(Base):
     """Mapping table between backfill run and dag run."""
@@ -59,4 +65,21 @@ class BackfillDagRun(Base):
     )  # the run might already exist; we could store the reason we did not create
     sort_ordinal = Column(Integer, nullable=False)
 
-    __table_args__ = (UniqueConstraint("backfill_id", "dag_run_id", name="ix_bdr_backfill_id_dag_run_id"),)
+    backfill = relationship("Backfill", back_populates="backfill_dag_run_associations")
+    dag_run = relationship("DagRun")
+
+    __table_args__ = (
+        UniqueConstraint("backfill_id", "dag_run_id", name="ix_bdr_backfill_id_dag_run_id"),
+        ForeignKeyConstraint(
+            [backfill_id],
+            ["backfill.id"],
+            name="bdr_backfill_fkey",
+            ondelete="cascade",
+        ),
+        ForeignKeyConstraint(
+            [dag_run_id],
+            ["dag_run.id"],
+            name="bdr_dag_run_fkey",
+            ondelete="set null",
+        ),
+    )

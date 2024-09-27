@@ -111,3 +111,4 @@ class DagRunTriggeredByType(enum.Enum):
     TEST = "test"  # for dag.test()
     TIMETABLE = "timetable"  # for timetable based triggering
     DATASET = "dataset"  # for dataset_triggered run type
+    BACKFILL = "backfill"

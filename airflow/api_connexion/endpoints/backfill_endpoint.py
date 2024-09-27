@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import logging
 from functools import wraps
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pendulum
+from pendulum import DateTime
 from sqlalchemy import func, select
 
 from airflow.api_connexion import security
@@ -31,12 +32,13 @@ from airflow.api_connexion.schemas.backfill_schema import (
     backfill_collection_schema,
     backfill_schema,
 )
+from airflow.exceptions import AirflowException
 from airflow.models.backfill import Backfill, BackfillDagRun
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from airflow.www.decorators import action_logging
 
 if TYPE_CHECKING:
@@ -66,12 +68,16 @@ def backfill_to_dag(func):
     return wrapper
 
 
+class AlreadyRunningBackfill(AirflowException):
+    """Raised when attempting to create backfill and one already active."""
+
+
 @provide_session
 def _create_backfill(
     *,
     dag_id: str,
-    from_date: str,
-    to_date: str,
+    from_date: DateTime,
+    to_date: DateTime,
     max_active_runs: int,
     reverse: bool,
     dag_run_conf: dict | None,
@@ -85,24 +91,25 @@ def _create_backfill(
         select(func.count()).where(Backfill.dag_id == dag_id, Backfill.completed_at.is_(None))
     )
     if num_active > 0:
-        return None
+        raise AlreadyRunningBackfill(
+            f"Another backfill is running for dag {dag_id}. "
+            f"There can be only one running backfill per dag."
+        )
 
     br = Backfill(
         dag_id=dag_id,
-        from_date=pendulum.parse(from_date),
-        to_date=pendulum.parse(to_date),
+        from_date=from_date,
+        to_date=to_date,
         max_active_runs=max_active_runs,
         dag_run_conf=dag_run_conf,
     )
     session.add(br)
     session.commit()
-    # todo: should we preserve `ignore_first_depends_on_past`?
 
     dag = serdag.dag
     depends_on_past = any(x.depends_on_past for x in dag.tasks)
     if depends_on_past:
-        # todo: AIP-78 verify that depends on past works ok
-        if reverse is True:  # todo: AIP-78 test_reverse_and_depends_on_past_fails
+        if reverse is True:
             raise ValueError(
                 "Backfill cannot be run in reverse when the dag has tasks where depends_on_past=True"
             )
@@ -117,6 +124,7 @@ def _create_backfill(
         dr = None
         try:
             dr = dag.create_dagrun(
+                triggered_by=DagRunTriggeredByType.BACKFILL,
                 execution_date=info.logical_date,
                 data_interval=info.data_interval,
                 start_date=timezone.utcnow(),
@@ -124,9 +132,8 @@ def _create_backfill(
                 external_trigger=False,
                 conf=br.dag_run_conf,
                 run_type=DagRunType.BACKFILL_JOB,
-                creating_job_id=None,  # todo: what to do here? what does webserver do when triggering?
+                creating_job_id=None,
                 session=session,
-                backfill_id=br.id,
             )
         except Exception:
             dag.log.exception("something failed")
@@ -221,12 +228,15 @@ def create_backfill(
     reverse: bool = False,
     dag_run_conf: dict | None = None,
 ) -> APIResponse:
-    backfill_obj = _create_backfill(
-        dag_id=dag_id,
-        from_date=from_date,
-        to_date=to_date,
-        max_active_runs=max_active_runs,
-        reverse=reverse,
-        dag_run_conf=dag_run_conf,
-    )
-    return backfill_schema.dump(backfill_obj)
+    try:
+        backfill_obj = _create_backfill(
+            dag_id=dag_id,
+            from_date=cast(DateTime, pendulum.parse(from_date)),
+            to_date=cast(DateTime, pendulum.parse(to_date)),
+            max_active_runs=max_active_runs,
+            reverse=reverse,
+            dag_run_conf=dag_run_conf,
+        )
+        return backfill_schema.dump(backfill_obj)
+    except AlreadyRunningBackfill:
+        raise Conflict(f"There is already a running backfill for dag {dag_id}")
