@@ -26,7 +26,6 @@ import pathlib
 import random
 import socket
 import sys
-import tempfile
 import textwrap
 import threading
 import time
@@ -40,7 +39,7 @@ import pytest
 import time_machine
 from sqlalchemy import func
 
-from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest, SlaCallbackRequest
+from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.configuration import conf
 from airflow.dag_processing.manager import (
@@ -639,7 +638,7 @@ class TestDagProcessorJobRunner:
         manager = DagProcessorJobRunner(
             job=Job(),
             processor=DagFileProcessorManager(
-                dag_directory=str(TEST_DAG_FOLDER),
+                dag_directory="directory",
                 max_runs=1,
                 processor_timeout=timedelta(minutes=10),
                 signal_conn=MagicMock(),
@@ -713,11 +712,11 @@ class TestDagProcessorJobRunner:
         """
         Ensure only dags from current dag_directory are updated
         """
-        dag_directory = str(TEST_DAG_FOLDER)
+        dag_directory = "directory"
         manager = DagProcessorJobRunner(
             job=Job(),
             processor=DagFileProcessorManager(
-                dag_directory=TEST_DAG_FOLDER,
+                dag_directory=dag_directory,
                 max_runs=1,
                 processor_timeout=timedelta(minutes=10),
                 signal_conn=MagicMock(),
@@ -741,7 +740,7 @@ class TestDagProcessorJobRunner:
             # Add stale DAG to the DB
             other_dag = other_dagbag.get_dag("test_start_date_scheduling")
             other_dag.last_parsed_time = timezone.utcnow()
-            other_dag.sync_to_db(processor_subdir="/other")
+            other_dag.sync_to_db(processor_subdir="other")
 
             # Add DAG to the file_parsing_stats
             stat = DagFileStat(
@@ -762,69 +761,6 @@ class TestDagProcessorJobRunner:
 
             active_dag_count = session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
             assert active_dag_count == 1
-
-    @pytest.mark.skip_if_database_isolation_mode  # Test is broken in db isolation mode
-    def test_scan_stale_dags_when_dag_folder_change(self):
-        """
-        Ensure dags from old dag_folder is marked as stale when dag processor
-         is running as part of scheduler.
-        """
-
-        def get_dag_string(filename) -> str:
-            return open(TEST_DAG_FOLDER / filename).read()
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            old_dag_home = tempfile.mkdtemp(dir=tmpdir)
-            old_dag_file = tempfile.NamedTemporaryFile(dir=old_dag_home, suffix=".py")
-            old_dag_file.write(get_dag_string("test_example_bash_operator.py").encode())
-            old_dag_file.flush()
-            new_dag_home = tempfile.mkdtemp(dir=tmpdir)
-            new_dag_file = tempfile.NamedTemporaryFile(dir=new_dag_home, suffix=".py")
-            new_dag_file.write(get_dag_string("test_scheduler_dags.py").encode())
-            new_dag_file.flush()
-
-            manager = DagProcessorJobRunner(
-                job=Job(),
-                processor=DagFileProcessorManager(
-                    dag_directory=new_dag_home,
-                    max_runs=1,
-                    processor_timeout=timedelta(minutes=10),
-                    signal_conn=MagicMock(),
-                    dag_ids=[],
-                    pickle_dags=False,
-                    async_mode=True,
-                ),
-            )
-
-            dagbag = DagBag(old_dag_file.name, read_dags_from_db=False)
-            other_dagbag = DagBag(new_dag_file.name, read_dags_from_db=False)
-
-            with create_session() as session:
-                # Add DAG from old dah home to the DB
-                dag = dagbag.get_dag("test_example_bash_operator")
-                dag.fileloc = old_dag_file.name
-                dag.last_parsed_time = timezone.utcnow()
-                dag.sync_to_db(processor_subdir=old_dag_home)
-
-                # Add DAG from new DAG home to the DB
-                other_dag = other_dagbag.get_dag("test_start_date_scheduling")
-                other_dag.fileloc = new_dag_file.name
-                other_dag.last_parsed_time = timezone.utcnow()
-                other_dag.sync_to_db(processor_subdir=new_dag_home)
-
-                manager.processor._file_paths = [new_dag_file]
-
-                active_dag_count = (
-                    session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
-                )
-                assert active_dag_count == 2
-
-                manager.processor._scan_stale_dags()
-
-                active_dag_count = (
-                    session.query(func.count(DagModel.dag_id)).filter(DagModel.is_active).scalar()
-                )
-                assert active_dag_count == 1
 
     @mock.patch(
         "airflow.dag_processing.processor.DagFileProcessorProcess.waitable_handle", new_callable=PropertyMock
@@ -1243,16 +1179,10 @@ class TestDagProcessorJobRunner:
             processor_subdir=os.fspath(tmp_path),
             run_id="456",
         )
-        callback3 = SlaCallbackRequest(
-            dag_id="test_start_date_scheduling",
-            full_filepath=str(dag_filepath),
-            processor_subdir=os.fspath(tmp_path),
-        )
 
         with create_session() as session:
             session.add(DbCallbackRequest(callback=callback1, priority_weight=11))
             session.add(DbCallbackRequest(callback=callback2, priority_weight=10))
-            session.add(DbCallbackRequest(callback=callback3, priority_weight=9))
 
         child_pipe, parent_pipe = multiprocessing.Pipe()
         manager = DagProcessorJobRunner(
@@ -1435,16 +1365,6 @@ class TestDagProcessorJobRunner:
             processor_subdir=tmp_path,
             msg=None,
         )
-        dag1_sla1 = SlaCallbackRequest(
-            full_filepath="/green_eggs/ham/file1.py",
-            dag_id="dag1",
-            processor_subdir=tmp_path,
-        )
-        dag1_sla2 = SlaCallbackRequest(
-            full_filepath="/green_eggs/ham/file1.py",
-            dag_id="dag1",
-            processor_subdir=tmp_path,
-        )
 
         dag2_req1 = DagCallbackRequest(
             full_filepath="/green_eggs/ham/file2.py",
@@ -1455,15 +1375,8 @@ class TestDagProcessorJobRunner:
             msg=None,
         )
 
-        dag3_sla1 = SlaCallbackRequest(
-            full_filepath="/green_eggs/ham/file3.py",
-            dag_id="dag3",
-            processor_subdir=tmp_path,
-        )
-
         # when
         manager.processor._add_callback_to_queue(dag1_req1)
-        manager.processor._add_callback_to_queue(dag1_sla1)
         manager.processor._add_callback_to_queue(dag2_req1)
 
         # then - requests should be in manager's queue, with dag2 ahead of dag1 (because it was added last)
@@ -1472,18 +1385,10 @@ class TestDagProcessorJobRunner:
             dag1_req1.full_filepath,
             dag2_req1.full_filepath,
         }
-        assert manager.processor._callback_to_execute[dag1_req1.full_filepath] == [dag1_req1, dag1_sla1]
         assert manager.processor._callback_to_execute[dag2_req1.full_filepath] == [dag2_req1]
 
-        # when
-        manager.processor._add_callback_to_queue(dag1_sla2)
-        manager.processor._add_callback_to_queue(dag3_sla1)
-
-        # then - since sla2 == sla1, should not have brought dag1 to the fore, and an SLA on dag3 doesn't
         # update the queue, although the callback is registered
         assert manager.processor._file_path_queue == deque([dag2_req1.full_filepath, dag1_req1.full_filepath])
-        assert manager.processor._callback_to_execute[dag1_req1.full_filepath] == [dag1_req1, dag1_sla1]
-        assert manager.processor._callback_to_execute[dag3_sla1.full_filepath] == [dag3_sla1]
 
         # when
         manager.processor._add_callback_to_queue(dag1_req2)
@@ -1492,7 +1397,6 @@ class TestDagProcessorJobRunner:
         assert manager.processor._file_path_queue == deque([dag1_req1.full_filepath, dag2_req1.full_filepath])
         assert manager.processor._callback_to_execute[dag1_req1.full_filepath] == [
             dag1_req1,
-            dag1_sla1,
             dag1_req2,
         ]
 

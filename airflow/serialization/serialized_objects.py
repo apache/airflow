@@ -34,7 +34,7 @@ from dateutil import relativedelta
 from pendulum.tz.timezone import FixedTimezone, Timezone
 
 from airflow import macros
-from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
+from airflow.callbacks.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.compat.functools import cache
 from airflow.datasets import (
     BaseDataset,
@@ -285,15 +285,24 @@ def encode_outlet_event_accessor(var: OutletEventAccessor) -> dict[str, Any]:
     raw_key = var.raw_key
     return {
         "extra": var.extra,
-        "dataset_alias_event": var.dataset_alias_event,
+        "dataset_alias_events": var.dataset_alias_events,
         "raw_key": BaseSerialization.serialize(raw_key),
     }
 
 
 def decode_outlet_event_accessor(var: dict[str, Any]) -> OutletEventAccessor:
-    raw_key = BaseSerialization.deserialize(var["raw_key"])
-    outlet_event_accessor = OutletEventAccessor(extra=var["extra"], raw_key=raw_key)
-    outlet_event_accessor.dataset_alias_event = var["dataset_alias_event"]
+    # This is added for compatibility. The attribute used to be dataset_alias_event and
+    # is now dataset_alias_events.
+    if dataset_alias_event := var.get("dataset_alias_event", None):
+        dataset_alias_events = [dataset_alias_event]
+    else:
+        dataset_alias_events = var.get("dataset_alias_events", [])
+
+    outlet_event_accessor = OutletEventAccessor(
+        extra=var["extra"],
+        raw_key=BaseSerialization.deserialize(var["raw_key"]),
+        dataset_alias_events=dataset_alias_events,
+    )
     return outlet_event_accessor
 
 
@@ -749,8 +758,6 @@ class BaseSerialization:
             return cls._encode(var.to_json(), type_=DAT.TASK_CALLBACK_REQUEST)
         elif isinstance(var, DagCallbackRequest):
             return cls._encode(var.to_json(), type_=DAT.DAG_CALLBACK_REQUEST)
-        elif isinstance(var, SlaCallbackRequest):
-            return cls._encode(var.to_json(), type_=DAT.SLA_CALLBACK_REQUEST)
         elif var.__class__ == Context:
             d = {}
             for k, v in var._context.items():
@@ -881,8 +888,6 @@ class BaseSerialization:
             return TaskCallbackRequest.from_json(var)
         elif type_ == DAT.DAG_CALLBACK_REQUEST:
             return DagCallbackRequest.from_json(var)
-        elif type_ == DAT.SLA_CALLBACK_REQUEST:
-            return SlaCallbackRequest.from_json(var)
         elif type_ == DAT.TASK_INSTANCE_KEY:
             return TaskInstanceKey(**var)
         elif use_pydantic_models and _ENABLE_AIP_44:
@@ -1280,7 +1285,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 continue
             elif k == "downstream_task_ids":
                 v = set(v)
-            elif k in {"retry_delay", "execution_timeout", "sla", "max_retry_delay"}:
+            elif k in {"retry_delay", "execution_timeout", "max_retry_delay"}:
                 v = cls._deserialize_timedelta(v)
             elif k in encoded_op["template_fields"]:
                 pass
@@ -1664,6 +1669,8 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = cls.deserialize(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
+            elif k == "tags":
+                v = set(v)
             # else use v as it is
 
             setattr(dag, k, v)

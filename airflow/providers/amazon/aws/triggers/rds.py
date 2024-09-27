@@ -16,93 +16,14 @@
 # under the License.
 from __future__ import annotations
 
-from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
-from deprecated import deprecated
-
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.rds import RdsHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.providers.amazon.aws.utils.rds import RdsDbType
-from airflow.providers.amazon.aws.utils.waiter_with_logging import async_wait
-from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 if TYPE_CHECKING:
     from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
-
-
-@deprecated(
-    reason=(
-        "This trigger is deprecated, please use the other RDS triggers "
-        "such as RdsDbDeletedTrigger, RdsDbStoppedTrigger or RdsDbAvailableTrigger"
-    ),
-    category=AirflowProviderDeprecationWarning,
-)
-class RdsDbInstanceTrigger(BaseTrigger):
-    """
-    Deprecated Trigger for RDS operations. Do not use.
-
-    :param waiter_name: Name of the waiter to use, for instance 'db_instance_available'
-        or 'db_instance_deleted'.
-    :param db_instance_identifier: The DB instance identifier for the DB instance to be polled.
-    :param waiter_delay: The amount of time in seconds to wait between attempts.
-    :param waiter_max_attempts: The maximum number of attempts to be made.
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
-    :param region_name: AWS region where the DB is located, if different from the default one.
-    :param response: The response from the RdsHook, to be passed back to the operator.
-    """
-
-    def __init__(
-        self,
-        waiter_name: str,
-        db_instance_identifier: str,
-        waiter_delay: int,
-        waiter_max_attempts: int,
-        aws_conn_id: str | None,
-        region_name: str | None,
-        response: dict[str, Any],
-    ):
-        self.db_instance_identifier = db_instance_identifier
-        self.waiter_delay = waiter_delay
-        self.waiter_max_attempts = waiter_max_attempts
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
-        self.waiter_name = waiter_name
-        self.response = response
-
-    def serialize(self) -> tuple[str, dict[str, Any]]:
-        return (
-            # dynamically generate the fully qualified name of the class
-            self.__class__.__module__ + "." + self.__class__.__qualname__,
-            {
-                "db_instance_identifier": self.db_instance_identifier,
-                "waiter_delay": str(self.waiter_delay),
-                "waiter_max_attempts": str(self.waiter_max_attempts),
-                "aws_conn_id": self.aws_conn_id,
-                "region_name": self.region_name,
-                "waiter_name": self.waiter_name,
-                "response": self.response,
-            },
-        )
-
-    @cached_property
-    def hook(self) -> RdsHook:
-        return RdsHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
-
-    async def run(self):
-        async with self.hook.async_conn as client:
-            waiter = client.get_waiter(self.waiter_name)
-            await async_wait(
-                waiter=waiter,
-                waiter_delay=int(self.waiter_delay),
-                waiter_max_attempts=int(self.waiter_max_attempts),
-                args={"DBInstanceIdentifier": self.db_instance_identifier},
-                failure_message="Error checking DB Instance status",
-                status_message="DB instance status is",
-                status_args=["DBInstances[0].DBInstanceStatus"],
-            )
-        yield TriggerEvent({"status": "success", "response": self.response})
 
 
 _waiter_arg = {

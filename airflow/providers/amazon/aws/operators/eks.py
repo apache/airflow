@@ -19,17 +19,15 @@
 from __future__ import annotations
 
 import logging
-import warnings
 from ast import literal_eval
 from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, List, Sequence, cast
 
 from botocore.exceptions import ClientError, WaiterError
-from deprecated import deprecated
 
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eks import EksHook
 from airflow.providers.amazon.aws.triggers.eks import (
@@ -267,17 +265,6 @@ class EksCreateClusterOperator(BaseOperator):
     def hook(self) -> EksHook:
         return EksHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
 
-    @property
-    @deprecated(
-        reason=(
-            "`eks_hook` property is deprecated and will be removed in the future. "
-            "Please use `hook` property instead."
-        ),
-        category=AirflowProviderDeprecationWarning,
-    )
-    def eks_hook(self):
-        return self.hook
-
     def execute(self, context: Context):
         if self.compute:
             if self.compute not in SUPPORTED_COMPUTE_VALUES:
@@ -397,7 +384,7 @@ class EksCreateClusterOperator(BaseOperator):
                         waiter_delay=self.waiter_delay,
                         waiter_max_attempts=self.waiter_max_attempts,
                         aws_conn_id=self.aws_conn_id,
-                        region=self.region,
+                        region_name=self.region,
                     ),
                     method_name="execute_complete",
                     timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay),
@@ -656,7 +643,7 @@ class EksCreateFargateProfileOperator(BaseOperator):
                     aws_conn_id=self.aws_conn_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
-                    region=self.region,
+                    region_name=self.region,
                 ),
                 method_name="execute_complete",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
@@ -968,7 +955,7 @@ class EksDeleteFargateProfileOperator(BaseOperator):
                     aws_conn_id=self.aws_conn_id,
                     waiter_delay=self.waiter_delay,
                     waiter_max_attempts=self.waiter_max_attempts,
-                    region=self.region,
+                    region_name=self.region,
                 ),
                 method_name="execute_complete",
                 # timeout is set to ensure that if a trigger dies, the timeout does not restart
@@ -1016,11 +1003,6 @@ class EksPodOperator(KubernetesPodOperator):
         If "delete_pod", the pod will be deleted regardless its state; if "delete_succeeded_pod",
         only succeeded pod will be deleted. You can set to "keep_pod" to keep the pod.
         Current default is `keep_pod`, but this will be changed in the next major release of this provider.
-    :param is_delete_operator_pod: What to do when the pod reaches its final
-        state, or the execution is interrupted. If True, delete the
-        pod; if False, leave the pod. Current default is False, but this will be
-        changed in the next major release of this provider.
-        Deprecated - use `on_finish_action` instead.
 
     """
 
@@ -1043,37 +1025,16 @@ class EksPodOperator(KubernetesPodOperator):
         # file is stored locally in the worker and not in the cluster.
         in_cluster: bool = False,
         namespace: str = DEFAULT_NAMESPACE_NAME,
-        pod_context: str | None = None,
         pod_name: str | None = None,
-        pod_username: str | None = None,
         aws_conn_id: str | None = DEFAULT_CONN_ID,
         region: str | None = None,
         on_finish_action: str | None = None,
-        is_delete_operator_pod: bool | None = None,
         **kwargs,
     ) -> None:
-        if is_delete_operator_pod is not None:
-            warnings.warn(
-                "`is_delete_operator_pod` parameter is deprecated, please use `on_finish_action`",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            kwargs["on_finish_action"] = (
-                OnFinishAction.DELETE_POD if is_delete_operator_pod else OnFinishAction.KEEP_POD
-            )
+        if on_finish_action is not None:
+            kwargs["on_finish_action"] = OnFinishAction(on_finish_action)
         else:
-            if on_finish_action is not None:
-                kwargs["on_finish_action"] = OnFinishAction(on_finish_action)
-            else:
-                warnings.warn(
-                    f"You have not set parameter `on_finish_action` in class {self.__class__.__name__}. "
-                    "Currently the default for this parameter is `keep_pod` but in a future release"
-                    " the default will be changed to `delete_pod`. To ensure pods are not deleted in"
-                    " the future you will need to set `on_finish_action=keep_pod` explicitly.",
-                    AirflowProviderDeprecationWarning,
-                    stacklevel=2,
-                )
-                kwargs["on_finish_action"] = OnFinishAction.KEEP_POD
+            kwargs["on_finish_action"] = OnFinishAction.DELETE_POD
 
         self.cluster_name = cluster_name
         self.in_cluster = in_cluster

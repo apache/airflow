@@ -325,41 +325,10 @@ class AirflowConfigParser(ConfigParser):
     # A mapping of (new section, new option) -> (old section, old option, since_version).
     # When reading new option, the old option will be checked to see if it exists. If it does a
     # DeprecationWarning will be issued and the old option will be used instead
-    deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {
-        ("celery", "worker_precheck"): ("core", "worker_precheck", "2.0.0"),
-        ("scheduler", "parsing_processes"): ("scheduler", "max_threads", "1.10.14"),
-        ("operators", "default_queue"): ("celery", "default_queue", "2.1.0"),
-        ("core", "hide_sensitive_var_conn_fields"): ("admin", "hide_sensitive_variable_fields", "2.1.0"),
-        ("core", "sensitive_var_conn_names"): ("admin", "sensitive_variable_fields", "2.1.0"),
-        ("core", "default_pool_task_slot_count"): ("core", "non_pooled_task_slot_count", "1.10.4"),
-        ("core", "max_active_tasks_per_dag"): ("core", "dag_concurrency", "2.2.0"),
-        ("api", "access_control_allow_origins"): ("api", "access_control_allow_origin", "2.2.0"),
-        ("api", "auth_backends"): ("api", "auth_backend", "2.3.0"),
-        ("database", "sql_alchemy_conn"): ("core", "sql_alchemy_conn", "2.3.0"),
-        ("database", "sql_engine_encoding"): ("core", "sql_engine_encoding", "2.3.0"),
-        ("database", "sql_engine_collation_for_ids"): ("core", "sql_engine_collation_for_ids", "2.3.0"),
-        ("database", "sql_alchemy_pool_enabled"): ("core", "sql_alchemy_pool_enabled", "2.3.0"),
-        ("database", "sql_alchemy_pool_size"): ("core", "sql_alchemy_pool_size", "2.3.0"),
-        ("database", "sql_alchemy_max_overflow"): ("core", "sql_alchemy_max_overflow", "2.3.0"),
-        ("database", "sql_alchemy_pool_recycle"): ("core", "sql_alchemy_pool_recycle", "2.3.0"),
-        ("database", "sql_alchemy_pool_pre_ping"): ("core", "sql_alchemy_pool_pre_ping", "2.3.0"),
-        ("database", "sql_alchemy_schema"): ("core", "sql_alchemy_schema", "2.3.0"),
-        ("database", "sql_alchemy_connect_args"): ("core", "sql_alchemy_connect_args", "2.3.0"),
-        ("database", "load_default_connections"): ("core", "load_default_connections", "2.3.0"),
-        ("database", "max_db_retries"): ("core", "max_db_retries", "2.3.0"),
-        ("scheduler", "parsing_cleanup_interval"): ("scheduler", "deactivate_stale_dags_interval", "2.5.0"),
-        ("scheduler", "task_queued_timeout_check_interval"): (
-            "kubernetes_executor",
-            "worker_pods_pending_timeout_check_interval",
-            "2.6.0",
-        ),
-        ("fab", "update_fab_perms"): ("webserver", "update_fab_perms", "2.9.0"),
-        ("fab", "auth_rate_limited"): ("webserver", "auth_rate_limited", "2.9.0"),
-        ("fab", "auth_rate_limit"): ("webserver", "auth_rate_limit", "2.9.0"),
-    }
+    deprecated_options: dict[tuple[str, str], tuple[str, str, str]] = {}
 
     # A mapping of new section -> (old section, since_version).
-    deprecated_sections: dict[str, tuple[str, str]] = {"kubernetes_executor": ("kubernetes", "2.5.0")}
+    deprecated_sections: dict[str, tuple[str, str]] = {}
 
     # Now build the inverse so we can go from old_section/old_key to new_section/new_key
     # if someone tries to retrieve it based on old_section/old_key

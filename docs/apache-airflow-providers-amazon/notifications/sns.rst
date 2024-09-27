@@ -25,11 +25,6 @@ Introduction
 `Amazon SNS <https://aws.amazon.com/sns/>`__ notifier :class:`~airflow.providers.amazon.aws.notifications.sns.SnsNotifier`
 allows users to push messages to a SNS Topic using the various ``on_*_callbacks`` at both the DAG level and Task level.
 
-You can also use a notifier with ``sla_miss_callback``.
-
-.. note::
-    When notifiers are used with ``sla_miss_callback`` the context will contain only values passed to the callback,
-    refer :ref:`sla_miss_callback<concepts:sla_miss_callback>`.
 
 Example Code:
 -------------

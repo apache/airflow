@@ -20,10 +20,8 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Sequence
 
-from deprecated import deprecated
-
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.triggers.glue import GlueCatalogPartitionTrigger
@@ -129,8 +127,3 @@ class GlueCatalogPartitionSensor(AwsBaseSensor[GlueCatalogHook]):
         if event["status"] != "success":
             raise AirflowException(f"Trigger error: event is {event}")
         self.log.info("Partition exists in the Glue Catalog")
-
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
-    def get_hook(self) -> GlueCatalogHook:
-        """Get the GlueCatalogHook."""
-        return self.hook

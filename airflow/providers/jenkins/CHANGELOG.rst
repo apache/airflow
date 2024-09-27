@@ -27,6 +27,18 @@
 Changelog
 ---------
 
+3.7.1
+.....
+
+Misc
+~~~~
+
+* ``remove deprecated soft_fail from providers (#41710)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 3.7.0
 .....
 
