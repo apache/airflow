@@ -218,7 +218,7 @@ class OpenLineageListener:
                 logical_date=dagrun.logical_date,
             )
 
-            task_uuid = OpenLineageAdapter.build_task_instance_run_id(
+            task_uuid = self.adapter.build_task_instance_run_id(
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
                 try_number=_get_try_number_success(task_instance),
@@ -317,7 +317,7 @@ class OpenLineageListener:
                 logical_date=dagrun.logical_date,
             )
 
-            task_uuid = OpenLineageAdapter.build_task_instance_run_id(
+            task_uuid = self.adapter.build_task_instance_run_id(
                 dag_id=dag.dag_id,
                 task_id=task.task_id,
                 try_number=task_instance.try_number,
