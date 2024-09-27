@@ -59,6 +59,15 @@ function scrollBottom() {
 window.toggleWrapLogs = toggleWrap;
 window.scrollBottomLogs = scrollBottom;
 
+function getMetaValue(name) {
+  const elem = document.querySelector(`meta[name="${name}"]`);
+  if (!elem) {
+    return null;
+  }
+  return elem.getAttribute('content');
+}
+
+
 // Streaming log with auto-tailing.
 function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
   console.debug(`Auto-tailing log for dag_id: ${dagId}, task_id: ${taskId}, `
@@ -137,6 +146,31 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
       return;
     }
     recurse().then(() => autoTailingLog(tryNumber, res.metadata, autoTailing));
+  }).catch((error) => {
+    console.error(`Error while retrieving log: ${error}`);
+
+    const externalLogUrl = getMetaValue('external_log_url');
+    const fullExternalUrl = `${externalLogUrl
+    }?dag_id=${encodeURIComponent(dagId)
+    }&task_id=${encodeURIComponent(taskId)
+    }&execution_date=${encodeURIComponent(executionDate)
+    }&try_number=${tryNumber}`;
+
+    document.getElementById(`loading-${tryNumber}`).style.display = 'none';
+
+    const logBlockElementId = `try-${tryNumber}-${item[0]}`;
+    let logBlock = document.getElementById(logBlockElementId);
+    if (!logBlock) {
+      const logDivBlock = document.createElement('div');
+      const logPreBlock = document.createElement('pre');
+      logDivBlock.appendChild(logPreBlock);
+      logPreBlock.innerHTML = `<code id="${logBlockElementId}"  ></code>`;
+      document.getElementById(`log-group-${tryNumber}`).appendChild(logDivBlock);
+      logBlock = document.getElementById(logBlockElementId);
+    }
+
+    logBlock.innerHTML += "There was an error while retrieving the log from S3. Please use Kibana to view the logs.";
+    logBlock.innerHTML += `<a href="${fullExternalUrl}" target="_blank">View logs in Kibana</a>`;
   });
 }
 
