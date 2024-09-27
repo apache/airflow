@@ -23,13 +23,12 @@ from unittest import mock
 from unittest.mock import patch
 
 import pytest
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from trino.transaction import IsolationLevel
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.trino.hooks.trino import TrinoHook
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 HOOK_GET_CONNECTION = "airflow.providers.trino.hooks.trino.TrinoHook.get_connection"
 BASIC_AUTHENTICATION = "airflow.providers.trino.hooks.trino.trino.auth.BasicAuthentication"

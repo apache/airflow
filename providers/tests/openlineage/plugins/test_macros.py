@@ -19,6 +19,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from unittest import mock
 
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
 from airflow import __version__
 from airflow.providers.openlineage.conf import namespace
 from airflow.providers.openlineage.plugins.macros import (
@@ -27,8 +29,6 @@ from airflow.providers.openlineage.plugins.macros import (
     lineage_parent_id,
     lineage_run_id,
 )
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 _DAG_NAMESPACE = namespace()
 

@@ -44,24 +44,14 @@ class TestWasbTaskHandler:
     @pytest.fixture(autouse=True)
     def ti(self, create_task_instance, create_log_template):
         create_log_template("{try_number}.log")
-        if AIRFLOW_V_3_0_PLUS:
-            ti = create_task_instance(
-                dag_id="dag_for_testing_wasb_task_handler",
-                task_id="task_for_testing_wasb_log_handler",
-                logical_date=DEFAULT_DATE,
-                start_date=DEFAULT_DATE,
-                dagrun_state=TaskInstanceState.RUNNING,
-                state=TaskInstanceState.RUNNING,
-            )
-        else:
-            ti = create_task_instance(
-                dag_id="dag_for_testing_wasb_task_handler",
-                task_id="task_for_testing_wasb_log_handler",
-                execution_date=DEFAULT_DATE,
-                start_date=DEFAULT_DATE,
-                dagrun_state=TaskInstanceState.RUNNING,
-                state=TaskInstanceState.RUNNING,
-            )
+        ti = create_task_instance(
+            dag_id="dag_for_testing_wasb_task_handler",
+            task_id="task_for_testing_wasb_log_handler",
+            logical_date=DEFAULT_DATE,
+            start_date=DEFAULT_DATE,
+            dagrun_state=TaskInstanceState.RUNNING,
+            state=TaskInstanceState.RUNNING,
+        )
         ti.try_number = 1
         ti.hostname = "localhost"
         ti.raw = False

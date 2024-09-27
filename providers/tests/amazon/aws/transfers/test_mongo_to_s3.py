@@ -20,13 +20,12 @@ from __future__ import annotations
 from unittest import mock
 
 import pytest
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.transfers.mongo_to_s3 import MongoToS3Operator
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 TASK_ID = "test_mongo_to_s3_operator"
 MONGO_CONN_ID = "default_mongo"

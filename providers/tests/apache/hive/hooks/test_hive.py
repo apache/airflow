@@ -34,8 +34,6 @@ from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.utils import timezone
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 
-from dev.tests_common.test_utils.asserts import assert_equal_ignore_multiple_spaces
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from providers.tests.apache.hive import (
     BaseMockConnectionCursor,
     InvalidHiveCliHook,
@@ -101,12 +99,6 @@ class TestHiveCliHook:
             "airflow.ctx.dag_owner=airflow",
             "-hiveconf",
             "airflow.ctx.dag_email=test@airflow.com",
-            "-hiveconf",
-            "mapreduce.job.queuename=airflow",
-            "-hiveconf",
-            "mapred.job.queue.name=airflow",
-            "-hiveconf",
-            "tez.queue.name=airflow",
             "-f",
             "/tmp/airflow_hiveop_test_run_cli/tmptest_run_cli",
         ]
@@ -894,7 +886,6 @@ class TestHiveCli:
         assert hook.use_beeline
         assert hook.auth is None
         assert hook.sub_process is None
-        assert hook.mapred_queue == "airflow"
         assert hook.mapred_queue_priority is None
         assert hook.mapred_job_name is None
         assert hook.proxy_user is None

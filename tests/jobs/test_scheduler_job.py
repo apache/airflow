@@ -379,7 +379,7 @@ class TestSchedulerJob:
 
         mock_stats_incr.reset_mock()
 
-        executor = cutor(do_update=False)
+        executor = MockExecutor(do_update=False)
         task_callback = mock.MagicMock()
         mock_task_callback.return_value = task_callback
         scheduler_job = Job(executor=executor)

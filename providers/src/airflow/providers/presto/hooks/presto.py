@@ -24,13 +24,12 @@ from typing import TYPE_CHECKING, Any, Iterable, Mapping, TypeVar
 import prestodb
 from prestodb.exceptions import DatabaseError
 from prestodb.transaction import IsolationLevel
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING, DEFAULT_FORMAT_PREFIX
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 if TYPE_CHECKING:
     from airflow.models import Connection

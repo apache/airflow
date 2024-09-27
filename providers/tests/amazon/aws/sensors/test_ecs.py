@@ -23,6 +23,7 @@ from unittest import mock
 import boto3
 import pytest
 from slugify import slugify
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.ecs import (
@@ -37,8 +38,6 @@ from airflow.providers.amazon.aws.sensors.ecs import (
 )
 from airflow.utils import timezone
 from airflow.utils.types import NOTSET
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 _Operator = TypeVar("_Operator")
 TEST_CLUSTER_NAME = "fake-cluster"

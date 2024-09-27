@@ -19,13 +19,12 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.utils import timezone
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 TEST_CONN = "aws_test_conn"
 

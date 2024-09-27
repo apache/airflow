@@ -25,6 +25,7 @@ from datetime import datetime, timedelta
 from kubernetes import client
 from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 from airflow.models import DagRun, TaskInstance
 from airflow.providers.cncf.kubernetes import pod_generator
@@ -35,8 +36,6 @@ from airflow.providers.cncf.kubernetes.pod_generator import PodGenerator
 from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.cli import get_dag
 from airflow.utils.providers_configuration_loader import providers_configuration_loaded
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 
 @cli_utils.action_cli

@@ -24,12 +24,11 @@ from unittest.mock import patch
 
 import pytest
 from prestodb.transaction import IsolationLevel
+from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.presto.hooks.presto import PrestoHook, generate_presto_client_info
-
-from dev.tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 
 def test_generate_airflow_presto_client_info_header():
