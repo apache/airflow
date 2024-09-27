@@ -351,6 +351,7 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
             date_key: logical_date,
         }
 
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryRunPipelineOperator"
         ".defer"
@@ -372,6 +373,7 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
         self.ti.task.execute(context=self.create_context(self.ti.task))
         assert not mock_defer.called
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize("status", sorted(AzureDataFactoryPipelineRunStatus.FAILURE_STATES))
     @mock.patch(
         "airflow.providers.microsoft.azure.operators.data_factory.AzureDataFactoryRunPipelineOperator"
@@ -396,6 +398,7 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
             self.ti.task.execute(context=self.create_context(self.ti.task))
         assert not mock_defer.called
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize("status", sorted(AzureDataFactoryPipelineRunStatus.INTERMEDIATE_STATES))
     @mock.patch(
         "airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook.get_pipeline_run_status",
@@ -417,6 +420,7 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
             exc.value.trigger, AzureDataFactoryTrigger
         ), "Trigger is not a AzureDataFactoryTrigger"
 
+    @pytest.mark.db_test
     def test_azure_data_factory_run_pipeline_operator_async_execute_complete_success(self):
         """Assert that execute_complete log success message"""
 
@@ -427,6 +431,7 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
             )
         mock_log_info.assert_called_with("success")
 
+    @pytest.mark.db_test
     def test_azure_data_factory_run_pipeline_operator_async_execute_complete_fail(self):
         """Assert that execute_complete raise exception on error"""
 

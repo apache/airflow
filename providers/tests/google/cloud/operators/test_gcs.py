@@ -386,6 +386,7 @@ class TestGCSTimeSpanFileTransformOperator:
             dag_id="adhoc_airflow",
         )
 
+    @pytest.mark.db_test
     @mock.patch("airflow.providers.google.cloud.operators.gcs.TemporaryDirectory")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.subprocess")
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
@@ -526,6 +527,7 @@ class TestGCSTimeSpanFileTransformOperator:
             ]
         )
 
+    @pytest.mark.db_test
     @pytest.mark.parametrize(
         ("source_prefix", "dest_prefix", "inputs", "outputs"),
         (
