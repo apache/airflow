@@ -17,49 +17,30 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from sqlalchemy import func, select
 
+from airflow.models.dag import DagModel
 from airflow.models.dagrun import DagRun
-from airflow.utils.session import create_session
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-    from sqlalchemy.sql import Select
-
-    from airflow.api_fastapi.parameters import BaseParam
-
-
-async def get_session() -> Session:
-    """
-    Dependency for providing a session.
-
-    For non route function please use the :class:`airflow.utils.session.provide_session` decorator.
-
-    Example usage:
-
-    .. code:: python
-
-        @router.get("/your_path")
-        def your_route(session: Annotated[Session, Depends(get_session)]):
-            pass
-    """
-    with create_session() as session:
-        yield session
-
-
-def apply_filters_to_select(base_select: Select, filters: list[BaseParam]) -> Select:
-    select = base_select
-    for filter in filters:
-        select = filter.to_orm(select)
-
-    return select
-
 
 latest_dag_run_per_dag_id_cte = (
     select(DagRun.dag_id, func.max(DagRun.start_date).label("start_date"))
     .where()
     .group_by(DagRun.dag_id)
     .cte()
+)
+
+
+dags_select_with_latest_dag_run = (
+    select(DagModel)
+    .join(
+        latest_dag_run_per_dag_id_cte,
+        DagModel.dag_id == latest_dag_run_per_dag_id_cte.c.dag_id,
+        isouter=True,
+    )
+    .join(
+        DagRun,
+        DagRun.start_date == latest_dag_run_per_dag_id_cte.c.start_date
+        and DagRun.dag_id == latest_dag_run_per_dag_id_cte.c.dag_id,
+        isouter=True,
+    )
 )
