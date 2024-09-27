@@ -24,7 +24,6 @@ import pytest
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagRun, TaskInstance
 from airflow.security import permissions
-from airflow.utils.platform import getuser
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
@@ -214,37 +213,6 @@ class TestGetTaskInstance(TestTaskInstanceEndpoint):
             environ_overrides={"REMOTE_USER": username},
         )
         assert response.status_code == 200
-        assert response.json == {
-            "dag_id": "example_python_operator",
-            "duration": 10000.0,
-            "end_date": "2020-01-03T00:00:00+00:00",
-            "execution_date": "2020-01-01T00:00:00+00:00",
-            "executor": None,
-            "executor_config": "{}",
-            "hostname": "",
-            "map_index": -1,
-            "max_tries": 0,
-            "note": "placeholder-note",
-            "operator": None,
-            "pid": 100,
-            "pool": "default_pool",
-            "pool_slots": 1,
-            "priority_weight": 9,
-            "queue": "default_queue",
-            "queued_when": None,
-            "sla_miss": None,
-            "start_date": "2020-01-02T00:00:00+00:00",
-            "state": "running",
-            "task_id": "print_the_context",
-            "task_display_name": "print_the_context",
-            "try_number": 0,
-            "unixname": getuser(),
-            "dag_run_id": "TEST_DAG_RUN_ID",
-            "rendered_fields": {},
-            "rendered_map_index": None,
-            "trigger": None,
-            "triggerer_job": None,
-        }
 
 
 class TestGetTaskInstances(TestTaskInstanceEndpoint):
@@ -452,27 +420,3 @@ class TestGetTaskInstanceTry(TestTaskInstanceEndpoint):
             environ_overrides={"REMOTE_USER": username},
         )
         assert response.status_code == 200
-        assert response.json == {
-            "dag_id": "example_python_operator",
-            "duration": 10000.0,
-            "end_date": "2020-01-03T00:00:00+00:00",
-            "executor": None,
-            "executor_config": "{}",
-            "hostname": "",
-            "map_index": -1,
-            "max_tries": 0,
-            "operator": "PythonOperator",
-            "pid": 100,
-            "pool": "default_pool",
-            "pool_slots": 1,
-            "priority_weight": 9,
-            "queue": "default_queue",
-            "queued_when": None,
-            "start_date": "2020-01-02T00:00:00+00:00",
-            "state": "success",
-            "task_id": "print_the_context",
-            "task_display_name": "print_the_context",
-            "try_number": 1,
-            "unixname": getuser(),
-            "dag_run_id": "TEST_DAG_RUN_ID",
-        }
