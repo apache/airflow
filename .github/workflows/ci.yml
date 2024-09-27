@@ -673,6 +673,16 @@ jobs:
 
   notify-slack-failure:
     name: "Notify Slack on Failure"
+    needs:
+      - basic-tests
+      - additional-ci-image-checks
+      - providers
+      - tests-helm
+      - tests-special
+      - tests-with-lowest-direct-resolution
+      - additional-prod-image-tests
+      - tests-kubernetes
+      - finalize-tests
     if: github.event_name == 'schedule' && failure()
     runs-on: ["ubuntu-22.04"]
     steps:
