@@ -196,7 +196,7 @@ def _get_launch_task_key(current_task_key: TaskInstanceKey, task_id: str) -> Tas
 def get_task_instance(operator: BaseOperator, dttm, session: Session = NEW_SESSION) -> TaskInstance:
     dag_id = operator.dag.dag_id
     if hasattr(DagRun, "execution_date"):  # Airflow 2.x.
-        dag_run = DagRun.find(dag_id, execution_date=dttm)[0]
+        dag_run = DagRun.find(dag_id, execution_date=dttm)[0]  # type: ignore[call-arg]
     else:
         dag_run = DagRun.find(dag_id, logical_date=dttm)[0]
     ti = (

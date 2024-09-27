@@ -2547,7 +2547,7 @@ class DAG(LoggingMixin):
         self,
         state: DagRunState,
         *,
-        triggered_by: DagRunTriggeredByType,
+        triggered_by: DagRunTriggeredByType | None = None,
         logical_date: datetime | None = None,
         run_id: str | None = None,
         start_date: datetime | None = None,
