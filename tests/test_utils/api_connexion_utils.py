@@ -48,7 +48,11 @@ def create_user_scope(app, username, **kwargs):
     It will create a user and provide it for the fixture via YIELD (generator)
     then will tidy up once test is complete
     """
-    test_user = create_user(app, username, **kwargs)
+    from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import (
+        create_user as create_user_fab,
+    )
+
+    test_user = create_user_fab(app, username, **kwargs)
 
     try:
         yield test_user
