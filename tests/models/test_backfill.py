@@ -26,6 +26,7 @@ from sqlalchemy import select
 from airflow.models import DagRun
 from airflow.models.backfill import AlreadyRunningBackfill, Backfill, BackfillDagRun, _create_backfill
 from airflow.operators.python import PythonOperator
+from airflow.utils.state import DagRunState
 from tests.test_utils.db import clear_db_backfills, clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
@@ -75,7 +76,8 @@ def test_simple(reverse, dag_maker, session):
     Verify simple case behavior.
 
     This test verifies that runs in the range are created according
-    to schedule intervals, and the sort ordinal is correct.
+    to schedule intervals, and the sort ordinal is correct. Also verifies
+    that dag runs are created in the queued state.
     """
     with dag_maker(schedule="@daily") as dag:
         PythonOperator(task_id="hi", python_callable=print)
@@ -99,6 +101,7 @@ def test_simple(reverse, dag_maker, session):
     if reverse:
         expected_dates = list(reversed(expected_dates))
     assert dates == expected_dates
+    assert all(x.state == DagRunState.QUEUED for x in dag_runs)
 
 
 def test_params_stored_correctly(dag_maker, session):
