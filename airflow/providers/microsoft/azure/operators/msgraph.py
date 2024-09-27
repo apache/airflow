@@ -45,10 +45,11 @@ if TYPE_CHECKING:
 
 
 def default_event_handler(context: Context, event: dict[Any, Any] | None = None) -> Any:
-    if event.get("status") == "failure":
-        raise AirflowException(event.get("message"))
+    if event:
+        if event.get("status") == "failure":
+            raise AirflowException(event.get("message"))
 
-    return event.get("response")
+        return event.get("response")
 
 
 class MSGraphAsyncOperator(BaseOperator):

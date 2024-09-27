@@ -107,10 +107,11 @@ class TestMSGraphAsyncOperator(Base):
         with self.patch_hook_and_request_adapter(AirflowException("An error occurred")):
 
             def custom_event_handler(context: Context, event: dict[Any, Any] | None = None):
-                if event.get("status") == "failure":
-                    return None
+                if event:
+                    if event.get("status") == "failure":
+                        return None
 
-                return event.get("response")
+                    return event.get("response")
 
             operator = MSGraphAsyncOperator(
                 task_id="users_delta",
