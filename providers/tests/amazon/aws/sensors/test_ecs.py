@@ -63,22 +63,13 @@ class EcsBaseTestCase:
 
         This might help to prevent of unexpected behaviour in Jinja/task field serialisation
         """
-        if AIRFLOW_V_3_0_PLUS:
-            ti = self.ti_maker(
-                operator_class,
-                dag_id=self.dag_id,
-                task_id=self.task_id,
-                logical_date=timezone.datetime(2021, 12, 21),
-                **kwargs,
-            )
-        else:
-            ti = self.ti_maker(
-                operator_class,
-                dag_id=self.dag_id,
-                task_id=self.task_id,
-                execution_date=timezone.datetime(2021, 12, 21),
-                **kwargs,
-            )
+        ti = self.ti_maker(
+            operator_class,
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            logical_date=timezone.datetime(2021, 12, 21),
+            **kwargs,
+        )
         self.session.add(ti)
         self.session.commit()
         return ti.render_templates()

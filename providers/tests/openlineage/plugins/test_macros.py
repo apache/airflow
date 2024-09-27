@@ -53,22 +53,13 @@ def test_lineage_job_name():
 
 
 def test_lineage_run_id():
-    if AIRFLOW_V_3_0_PLUS:
-        task_instance = mock.MagicMock(
-            dag_id="dag_id",
-            task_id="task_id",
-            dag_run=mock.MagicMock(run_id="run_id"),
-            logical_date=datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc),
-            try_number=1,
-        )
-    else:
-        task_instance = mock.MagicMock(
-            dag_id="dag_id",
-            task_id="task_id",
-            dag_run=mock.MagicMock(run_id="run_id"),
-            execution_date=datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc),
-            try_number=1,
-        )
+    task_instance = mock.MagicMock(
+        dag_id="dag_id",
+        task_id="task_id",
+        dag_run=mock.MagicMock(run_id="run_id"),
+        **{LOGICAL_DATE_KEY: datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc)},
+        try_number=1,
+    )
 
     call_result1 = lineage_run_id(task_instance)
     call_result2 = lineage_run_id(task_instance)

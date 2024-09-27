@@ -152,12 +152,7 @@ class TestSmtpNotifier:
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
     def test_notifier_with_nondefault_conf_vars(self, mock_smtphook_hook, create_task_instance):
-        if AIRFLOW_V_3_0_PLUS:
-            ti = create_task_instance(dag_id="dag", task_id="op", logical_date=timezone.datetime(2018, 1, 1))
-        else:
-            ti = create_task_instance(
-                dag_id="dag", task_id="op", execution_date=timezone.datetime(2018, 1, 1)
-            )
+        ti = create_task_instance(dag_id="dag", task_id="op", logical_date=timezone.datetime(2018, 1, 1))
         context = {"dag": ti.dag_run.dag, "ti": ti}
 
         with (
