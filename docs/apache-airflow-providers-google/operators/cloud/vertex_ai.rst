@@ -260,11 +260,13 @@ put dataset id to ``dataset_id`` parameter in operator.
 How to run AutoML Text Training Job
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`
 
-Operator is deprecated, please use
-:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator` over
-the Gemini model.
-More info: https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini-tuning#tuning-gemini
+Operator is deprecated, the non-training (existing legacy models) AutoMLText API will be deprecated
+on June 15, 2025.
+There are 2 options for text classification, extraction, and sentiment analysis tasks replacement:
+- Prompts with pre-trained Gemini model, using :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextGenerationModelPredictOperator`.
+- Fine tuning over Gemini model, For more tailored results, using :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`.
 
+Please visit the https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini-tuning for more details.
 
 How to run AutoML Video Training Job
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`
