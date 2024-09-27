@@ -31,7 +31,7 @@ from airflow.providers.smtp.notifications.smtp import (
 )
 from airflow.utils import timezone
 
-from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
+from tests_common.test_utils.compat import AIRFLOW_V_2_10_PLUS
 from tests_common.test_utils.config import conf_vars
 
 pytestmark = pytest.mark.db_test
@@ -122,12 +122,7 @@ class TestSmtpNotifier:
 
     @mock.patch("airflow.providers.smtp.notifications.smtp.SmtpHook")
     def test_notifier_with_defaults(self, mock_smtphook_hook, create_task_instance):
-        if AIRFLOW_V_3_0_PLUS:
-            ti = create_task_instance(dag_id="dag", task_id="op", logical_date=timezone.datetime(2018, 1, 1))
-        else:
-            ti = create_task_instance(
-                dag_id="dag", task_id="op", execution_date=timezone.datetime(2018, 1, 1)
-            )
+        ti = create_task_instance(dag_id="dag", task_id="op", logical_date=timezone.datetime(2018, 1, 1))
         context = {"dag": ti.dag_run.dag, "ti": ti}
         notifier = SmtpNotifier(
             from_email=conf.get("smtp", "smtp_mail_from"),

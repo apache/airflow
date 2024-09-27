@@ -410,6 +410,7 @@ def set_execute_complete(session, ti, **next_kwargs):
     session.flush()
 
 
+@pytest.mark.db_test
 @mock.patch(CLOUD_BUILD_HOOK_PATH)
 def test_async_create_build_fires_correct_trigger_should_execute_successfully(
     mock_hook, create_task_instance_of_operator, session
@@ -453,6 +454,7 @@ def test_async_create_build_without_wait_should_execute_successfully(mock_hook):
     mock_hook.return_value.get_build.assert_called_once_with(id_=BUILD_ID, project_id=None, location="global")
 
 
+@pytest.mark.db_test
 @mock.patch(CLOUD_BUILD_HOOK_PATH)
 def test_async_create_build_correct_logging_should_execute_successfully(
     mock_hook, create_task_instance_of_operator, session

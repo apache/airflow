@@ -23,7 +23,6 @@ from unittest import mock
 import boto3
 import pytest
 from slugify import slugify
-from tests_common.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.sensors.ecs import (

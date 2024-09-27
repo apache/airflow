@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from unittest import mock
 
+import pytest
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.bigquery_datatransfer_v1 import StartManualTransferRunsResponse, TransferConfig, TransferRun
 
@@ -58,6 +59,7 @@ class TestBigQueryCreateDataTransferOperator:
         ti.next_kwargs = next_kwargs
         session.flush()
 
+    @pytest.mark.db_test
     @mock.patch(
         "airflow.providers.google.cloud.operators.bigquery_dts.BiqQueryDataTransferServiceHook",
         **{"return_value.create_transfer_config.return_value": transfer_config},

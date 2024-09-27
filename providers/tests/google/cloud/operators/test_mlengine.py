@@ -1270,6 +1270,7 @@ TEST_TRAINING_ARGS: list[str] = []
 TEST_LABELS = {"job_type": "training", "***-version": "v2-5-0-dev0"}
 
 
+@pytest.mark.db_test
 @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
 def test_async_create_training_job_should_execute_successfully(
     mock_hook, create_task_instance_of_operator, session
@@ -1351,6 +1352,7 @@ def create_context(task):
     }
 
 
+@pytest.mark.db_test
 def test_async_create_training_job_logging_should_execute_successfully(
     create_task_instance_of_operator, session
 ):
@@ -1383,6 +1385,7 @@ def test_async_create_training_job_logging_should_execute_successfully(
     mock_log_info.assert_called_with("%s completed with response %s ", TEST_TASK_ID, "Job completed")
 
 
+@pytest.mark.db_test
 @patch(MLENGINE_AI_PATH.format("MLEngineHook"))
 def test_async_create_training_job_with_conflict_should_execute_successfully(
     mock_hook, create_task_instance_of_operator, session
@@ -1422,6 +1425,7 @@ def test_async_create_training_job_with_conflict_should_execute_successfully(
     mock_hook.return_value.create_job_without_waiting_result.assert_called_once()
 
 
+@pytest.mark.db_test
 def test_async_create_training_job_should_throw_exception_if_job_id_none(
     create_task_instance_of_operator, session
 ):
@@ -1451,6 +1455,7 @@ def test_async_create_training_job_should_throw_exception_if_job_id_none(
         ti.task.execute({"ti": ti})
 
 
+@pytest.mark.db_test
 def test_async_create_training_job_should_throw_exception_if_project_id_none(
     create_task_instance_of_operator, session
 ):
@@ -1477,6 +1482,7 @@ def test_async_create_training_job_should_throw_exception_if_project_id_none(
         ti.task.execute({"ti": ti})
 
 
+@pytest.mark.db_test
 def test_async_create_training_job_should_throw_exception_if_custom_none(
     create_task_instance_of_operator, session
 ):
@@ -1505,6 +1511,7 @@ def test_async_create_training_job_should_throw_exception_if_custom_none(
         ti.task.execute({"ti": ti})
 
 
+@pytest.mark.db_test
 def test_async_create_training_job_should_throw_exception_if_package_none(
     create_task_instance_of_operator, session
 ):
@@ -1536,6 +1543,7 @@ def test_async_create_training_job_should_throw_exception_if_package_none(
         ti.task.execute({"ti": ti})
 
 
+@pytest.mark.db_test
 def test_async_create_training_job_should_throw_exception_if_uris_none(
     create_task_instance_of_operator, session
 ):
