@@ -76,6 +76,9 @@ class MSGraphAsyncOperator(BaseOperator):
     :param result_processor: Function to further process the response from MS Graph API
         (default is lambda: context, response: response).  When the response returned by the
         `KiotaRequestAdapterHook` are bytes, then those will be base64 encoded into a string.
+    :param event_handler: Function to process the event returned from `MSGraphTrigger`.  By default, when the
+        event returned by the `MSGraphTrigger` has a failed status, an AirflowException is being raised with
+        the message from the event, otherwise the response from the event payload is returned.
     :param serializer: Class which handles response serialization (default is ResponseSerializer).
         Bytes will be base64 encoded into a string, so it can be stored as an XCom.
     """
