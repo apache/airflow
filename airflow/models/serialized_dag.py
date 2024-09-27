@@ -174,6 +174,7 @@ class SerializedDagModel(Base):
 
         :param dag: a DAG to be written into database
         :param min_update_interval: minimal interval in seconds to update serialized DAG
+        :param processor_subdir: The dag directory of the processor
         :param session: ORM Session
 
         :returns: Boolean indicating if the DAG was written to the DB

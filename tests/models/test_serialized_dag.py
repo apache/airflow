@@ -23,6 +23,7 @@ from unittest import mock
 
 import pendulum
 import pytest
+from sqlalchemy import select
 
 import airflow.example_dags as example_dags_module
 from airflow.datasets import Dataset
@@ -264,3 +265,21 @@ class TestSerializedDagModel:
 
             # dag hash should not change without change in structure (we're in a loop)
             assert this_dag_hash == first_dag_hash
+
+    def test_example_dag_hashes_are_always_consistent(self, session):
+        """
+        This test asserts that the hashes of the example dags are always consistent.
+        """
+
+        def get_hash_set():
+            example_dags = self._write_example_dags()
+            ordered_example_dags = dict(sorted(example_dags.items()))
+            hashes = set()
+            for dag_id in ordered_example_dags.keys():
+                smd = session.execute(select(SDM.dag_hash).where(SDM.dag_id == dag_id)).one()
+                hashes.add(smd.dag_hash)
+            return hashes
+
+        first_hashes = get_hash_set()
+        # assert that the hashes are the same
+        assert first_hashes == get_hash_set()
