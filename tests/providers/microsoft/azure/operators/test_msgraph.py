@@ -22,11 +22,11 @@ from base64 import b64encode
 from typing import Any
 
 import pytest
-from airflow.utils.context import Context
 
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator
 from airflow.triggers.base import TriggerEvent
+from airflow.utils.context import Context
 from tests.providers.microsoft.azure.base import Base
 from tests.providers.microsoft.conftest import (
     load_file,
