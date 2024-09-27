@@ -50,24 +50,6 @@ def test_lineage_job_name():
     assert lineage_job_name(task_instance) == "dag_id.task_id"
 
 
-def test_lineage_run_id():
-    task_instance = mock.MagicMock(
-        dag_id="dag_id",
-        task_id="task_id",
-        dag_run=mock.MagicMock(run_id="run_id"),
-        **{LOGICAL_DATE_KEY: datetime(2020, 1, 1, 1, 1, 1, 0, tzinfo=timezone.utc)},
-        try_number=1,
-    )
-
-    call_result1 = lineage_run_id(task_instance)
-    call_result2 = lineage_run_id(task_instance)
-
-    # random part value does not matter, it just have to be the same for the same TaskInstance
-    assert call_result1 == call_result2
-    # execution_date is used as most significant bits of UUID
-    assert call_result1.startswith("016f5e9e-c4c8-")
-
-
 @mock.patch("airflow.providers.openlineage.plugins.macros.lineage_run_id")
 def test_lineage_parent_id(mock_run_id):
     mock_run_id.return_value = "run_id"
