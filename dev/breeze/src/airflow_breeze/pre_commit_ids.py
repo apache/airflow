@@ -83,6 +83,7 @@ PRE_COMMIT_LIST = [
     "check-system-tests-tocs",
     "check-taskinstance-tis-attrs",
     "check-template-context-variable-in-sync",
+    "check-template-fields-valid",
     "check-tests-in-the-right-folders",
     "check-tests-unittest-testcase",
     "check-urlparse-usage-in-code",
