@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-27T07:47:00.393589
+# This constraints file was automatically generated on 2024-09-28T13:47:57.075040
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -72,7 +72,7 @@ adlfs==2024.7.0
 aiobotocore==2.15.1
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.2
-aiohttp==3.10.6
+aiohttp==3.10.7
 aioitertools==0.12.0
 aioresponses==0.7.6
 aiosignal==1.3.1
@@ -277,7 +277,7 @@ db-dtypes==1.3.0
 debugpy==1.8.6
 decorator==5.1.1
 defusedxml==0.7.1
-deltalake==0.20.0
+deltalake==0.20.1
 diagrams==0.23.4
 dill==0.3.1.1
 distlib==0.3.8
@@ -377,7 +377,7 @@ grpcio-gcp==0.2.2
 grpcio-health-checking==1.62.3
 grpcio-status==1.62.3
 grpcio-tools==1.62.3
-grpcio==1.66.1
+grpcio==1.66.2
 gssapi==1.8.3
 gunicorn==23.0.0
 h11==0.14.0
@@ -417,7 +417,7 @@ isodate==0.6.1
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
 jaraco.context==6.0.1
-jaraco.functools==4.0.2
+jaraco.functools==4.1.0
 jedi==0.19.1
 jeepney==0.8.0
 jiter==0.5.0
@@ -492,7 +492,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.50.0
+openai==1.50.2
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.22.0
@@ -598,7 +598,7 @@ python-dotenv==1.0.1
 python-http-client==3.3.7
 python-jenkins==1.8.2
 python-ldap==3.4.4
-python-multipart==0.0.10
+python-multipart==0.0.11
 python-nvd3==0.16.0
 python-slugify==8.0.4
 python-telegram-bot==21.6
@@ -609,7 +609,7 @@ pyzmq==26.2.0
 qdrant-client==1.11.3
 reactivex==4.0.4
 readme_renderer==43.0
-redis==5.0.8
+redis==5.1.0
 redshift-connector==2.1.3
 referencing==0.35.1
 regex==2024.9.11
@@ -686,7 +686,7 @@ sympy==1.13.3
 tableauserverclient==0.33
 tabulate==0.9.0
 tenacity==8.5.0
-teradatasql==20.0.0.15
+teradatasql==20.0.0.16
 teradatasqlalchemy==20.0.0.2
 termcolor==2.4.0
 text-unidecode==1.3
@@ -713,7 +713,7 @@ types-certifi==2021.10.8.3
 types-cffi==1.16.0.20240331
 types-croniter==3.0.3.20240731
 types-docutils==0.21.0.20240907
-types-paramiko==3.5.0.20240918
+types-paramiko==3.5.0.20240928
 types-protobuf==5.28.0.20240924
 types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20240906
@@ -736,12 +736,12 @@ uritemplate==4.1.1
 urllib3==2.2.2
 userpath==1.9.2
 uv==0.4.7
-uvicorn==0.30.6
+uvicorn==0.31.0
 uvloop==0.20.0
 validators==0.33.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==20.26.5
+virtualenv==20.26.6
 watchfiles==0.24.0
 watchtower==3.3.1
 wcwidth==0.2.13
@@ -755,7 +755,7 @@ xmltodict==0.13.0
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.319.0
-yarl==1.13.0
+yarl==1.13.1
 ydb==3.17.2
 zeep==4.2.1
 zenpy==2.0.53
