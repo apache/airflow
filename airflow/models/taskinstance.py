@@ -473,6 +473,7 @@ def clear_task_instances(
                 ti.refresh_from_task(task)
                 if TYPE_CHECKING:
                     assert ti.task
+                #Calculate max_tries by gracefully handling non-numeric values for task.retries to be considered as 0    
                 ti.max_tries = ti.try_number + (task.retries or 0)
             else:
                 # Ignore errors when updating max_tries if the DAG or
