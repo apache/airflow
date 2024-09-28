@@ -17,7 +17,11 @@
 # under the License.
 from __future__ import annotations
 
+import pytest
+
 from airflow.providers.standard.hooks.filesystem import FSHook
+
+pytestmark = pytest.mark.db_test
 
 
 class TestFSHook:
