@@ -804,7 +804,7 @@
       "azure-datalake-store>=0.0.45",
       "azure-identity>=1.3.1",
       "azure-keyvault-secrets>=4.1.0",
-      "azure-kusto-data>=4.1.0,!4.6.0",
+      "azure-kusto-data>=4.1.0,!=4.6.0",
       "azure-mgmt-containerinstance>=10.1.0",
       "azure-mgmt-containerregistry>=8.0.0",
       "azure-mgmt-cosmosdb>=3.0.0",
