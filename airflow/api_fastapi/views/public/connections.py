@@ -33,7 +33,7 @@ connections_router = APIRouter(tags=["CONNECTION"])
     status_code=204,
     responses=create_openapi_http_exception_doc([401, 403, 404]),
 )
-def delete_connection(
+async def delete_connection(
     *,
     connection_id: str,
     session: Annotated[Session, Depends(get_session)],
