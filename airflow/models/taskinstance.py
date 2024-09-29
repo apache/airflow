@@ -158,7 +158,6 @@ if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
-    from airflow.models.dataset import AssetEvent
     from airflow.models.operator import Operator
     from airflow.serialization.pydantic.asset import AssetEventPydantic
     from airflow.serialization.pydantic.dag import DagModelPydantic

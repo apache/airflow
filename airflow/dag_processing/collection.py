@@ -249,7 +249,7 @@ def _find_all_assets(dags: Iterable[DAG]) -> Iterator[Asset]:
 
 def _find_all_asset_aliases(dags: Iterable[DAG]) -> Iterator[AssetAlias]:
     for dag in dags:
-        for _, alias in dag.timetable.asset_condition.iter_dataset_aliases():
+        for _, alias in dag.timetable.asset_condition.iter_asset_aliases():
             yield alias
         for task in dag.task_dict.values():
             for obj in itertools.chain(task.inlets, task.outlets):
@@ -274,7 +274,7 @@ class AssetModelOperation(NamedTuple):
                 for dag_id, dag in dags.items()
             },
             schedule_asset_alias_references={
-                dag_id: [alias for _, alias in dag.timetable.asset_condition.iter_dataset_aliases()]
+                dag_id: [alias for _, alias in dag.timetable.asset_condition.iter_asset_aliases()]
                 for dag_id, dag in dags.items()
             },
             outlet_references={
@@ -321,7 +321,7 @@ class AssetModelOperation(NamedTuple):
         }
         orm_aliases.update(
             (model.name, model)
-            for model in asset_manager.create_dataset_aliases(
+            for model in asset_manager.create_asset_aliases(
                 [alias for name, alias in self.asset_aliases.items() if name not in orm_aliases],
                 session=session,
             )

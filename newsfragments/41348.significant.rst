@@ -52,6 +52,7 @@
       * Rename method ``create_datasets`` as ``create_assets``
       * Rename method ``register_dataset_change`` as ``notify_asset_created``
       * Rename method ``notify_dataset_changed`` as ``notify_asset_changed``
+      * Renme method ``notify_dataset_alias_created`` as ``notify_asset_alias_created``
 
 * Rename module ``airflow.models.dataset`` as ``airflow.models.asset``
 
@@ -176,6 +177,7 @@
     * Rename class ```_NullDataset``` as ```_NullAsset```
 
         * Rename method ``iter_datasets`` as ``iter_assets``
+        * Rename method ``iter_dataset_aliases`` as ``iter_assets_aliases``
 
 * In module ``airflow.utils.context``
 

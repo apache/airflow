@@ -68,24 +68,24 @@ class AssetManager(LoggingMixin):
         return [_add_one(a) for a in assets]
 
     @classmethod
-    def create_dataset_aliases(
+    def create_asset_aliases(
         cls,
-        dataset_aliases: list[AssetAlias],
+        asset_aliases: list[AssetAlias],
         *,
         session: Session,
     ) -> list[AssetAliasModel]:
-        """Create new dataset aliases."""
+        """Create new asset aliases."""
 
-        def _add_one(dataset_alias: AssetAlias) -> AssetAliasModel:
-            model = AssetAliasModel.from_public(dataset_alias)
+        def _add_one(asset_alias: AssetAlias) -> AssetAliasModel:
+            model = AssetAliasModel.from_public(asset_alias)
             session.add(model)
-            cls.notify_dataset_alias_created(asset_assets=dataset_alias)
+            cls.notify_asset_alias_created(asset_assets=asset_alias)
             return model
 
-        return [_add_one(a) for a in dataset_aliases]
+        return [_add_one(a) for a in asset_aliases]
 
     @classmethod
-    def _add_dataset_alias_association(
+    def _add_asset_alias_association(
         cls,
         alias_names: Collection[str],
         asset: AssetModel,
@@ -135,7 +135,7 @@ class AssetManager(LoggingMixin):
             cls.logger().warning("AssetModel %s not found", asset)
             return None
 
-        cls._add_dataset_alias_association({alias.name for alias in aliases}, asset_model, session=session)
+        cls._add_asset_alias_association({alias.name for alias in aliases}, asset_model, session=session)
 
         event_kwargs = {
             "dataset_id": asset_model.id,
@@ -195,9 +195,9 @@ class AssetManager(LoggingMixin):
         get_listener_manager().hook.on_asset_created(asset=asset)
 
     @staticmethod
-    def notify_dataset_alias_created(asset_assets: AssetAlias):
+    def notify_asset_alias_created(asset_assets: AssetAlias):
         """Run applicable notification actions when an asset alias is created."""
-        get_listener_manager().hook.on_dataset_alias_created(dataset_alias=asset_assets)
+        get_listener_manager().hook.on_asset_alias_created(asset_alias=asset_assets)
 
     @staticmethod
     def notify_asset_changed(asset: Asset):
