@@ -123,10 +123,11 @@ Passing Parameters into SQLExecuteQueryOperator for Postgres
 
 SQLExecuteQueryOperator provides ``parameters`` attribute which makes it possible to dynamically inject values into your
 SQL requests during runtime. The BaseOperator class has the ``params`` attribute which is available to the SQLExecuteQueryOperator
-by virtue of inheritance. Both ``parameters`` and ``params`` make it possible to dynamically pass in parameters in many
-interesting ways.
+by virtue of inheritance. While both ``parameters`` and ``params`` make it possible to dynamically pass in parameters in many
+interesting ways, their usage is slightly different as demonstrated in the examples below.
 
-To find the owner of the pet called 'Lester':
+To find the birthdates of all pets between two dates, when we use the SQL statements directly in our code, we will use the 
+``parameters`` attribute:
 
 .. code-block:: python
 
@@ -137,16 +138,15 @@ To find the owner of the pet called 'Lester':
       parameters={"begin_date": "2020-01-01", "end_date": "2020-12-31"},
   )
 
-Now lets refactor our ``get_birth_date`` task. Instead of dumping SQL statements directly into our code, let's tidy things up
-by creating a sql file.
+Now lets refactor our ``get_birth_date`` task. Now, instead of dumping SQL statements directly into our code, let's tidy things up
+by creating a sql file. And this time we will use the ``params`` attribute which we get for free from the parent ``BaseOperator``
+class.
 
 ::
 
   -- dags/sql/birth_date.sql
   SELECT * FROM pet WHERE birth_date BETWEEN SYMMETRIC {{ params.begin_date }} AND {{ params.end_date }};
 
-And this time we will use the ``params`` attribute which we get for free from the parent ``BaseOperator``
-class.
 
 .. code-block:: python
 
