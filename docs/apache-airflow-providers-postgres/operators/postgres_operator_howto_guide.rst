@@ -126,7 +126,7 @@ SQL requests during runtime. The BaseOperator class has the ``params`` attribute
 by virtue of inheritance. While both ``parameters`` and ``params`` make it possible to dynamically pass in parameters in many
 interesting ways, their usage is slightly different as demonstrated in the examples below.
 
-To find the birthdates of all pets between two dates, when we use the SQL statements directly in our code, we will use the 
+To find the birth dates of all pets between two dates, when we use the SQL statements directly in our code, we will use the
 ``parameters`` attribute:
 
 .. code-block:: python
