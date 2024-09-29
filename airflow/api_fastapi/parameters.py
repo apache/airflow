@@ -18,13 +18,15 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Generic, List, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Generic, List, TypeVar
 
 from fastapi import Depends, HTTPException, Query
-from sqlalchemy import or_
+from sqlalchemy import case, or_
 from typing_extensions import Annotated, Self
 
 from airflow.models.dag import DagModel, DagTag
+from airflow.models.dagrun import DagRun
+from airflow.utils.state import DagRunState
 
 if TYPE_CHECKING:
     from sqlalchemy.sql import ColumnElement, Select
@@ -43,13 +45,13 @@ class BaseParam(Generic[T], ABC):
     def to_orm(self, select: Select) -> Select:
         pass
 
-    @abstractmethod
-    def __call__(self, *args: Any, **kwarg: Any) -> BaseParam:
-        pass
-
-    def set_value(self, value: T) -> Self:
+    def set_value(self, value: T | None) -> Self:
         self.value = value
         return self
+
+    @abstractmethod
+    def depends(self, *args: Any, **kwargs: Any) -> Self:
+        pass
 
 
 class _LimitFilter(BaseParam[int]):
@@ -61,7 +63,7 @@ class _LimitFilter(BaseParam[int]):
 
         return select.limit(self.value)
 
-    def __call__(self, limit: int = 100) -> _LimitFilter:
+    def depends(self, limit: int = 100) -> _LimitFilter:
         return self.set_value(limit)
 
 
@@ -73,11 +75,11 @@ class _OffsetFilter(BaseParam[int]):
             return select
         return select.offset(self.value)
 
-    def __call__(self, offset: int = 0) -> _OffsetFilter:
+    def depends(self, offset: int = 0) -> _OffsetFilter:
         return self.set_value(offset)
 
 
-class _PausedFilter(BaseParam[Union[bool, None]]):
+class _PausedFilter(BaseParam[bool]):
     """Filter on is_paused."""
 
     def to_orm(self, select: Select) -> Select:
@@ -85,7 +87,7 @@ class _PausedFilter(BaseParam[Union[bool, None]]):
             return select
         return select.where(DagModel.is_paused == self.value)
 
-    def __call__(self, paused: bool | None = Query(default=None)) -> _PausedFilter:
+    def depends(self, paused: bool | None = None) -> _PausedFilter:
         return self.set_value(paused)
 
 
@@ -97,24 +99,50 @@ class _OnlyActiveFilter(BaseParam[bool]):
             return select.where(DagModel.is_active == self.value)
         return select
 
-    def __call__(self, only_active: bool = Query(default=True)) -> _OnlyActiveFilter:
+    def depends(self, only_active: bool = True) -> _OnlyActiveFilter:
         return self.set_value(only_active)
 
 
-class _DagIdPatternSearch(BaseParam[Union[str, None]]):
-    """Search on dag_id."""
+class _SearchParam(BaseParam[str]):
+    """Search on attribute."""
+
+    def __init__(self, attribute: ColumnElement) -> None:
+        super().__init__()
+        self.attribute: ColumnElement = attribute
 
     def to_orm(self, select: Select) -> Select:
         if self.value is None:
             return select
-        return select.where(DagModel.dag_id.ilike(f"%{self.value}"))
+        return select.where(self.attribute.ilike(f"%{self.value}"))
 
-    def __call__(self, dag_id_pattern: str | None = Query(default=None)) -> _DagIdPatternSearch:
+
+class _DagIdPatternSearch(_SearchParam):
+    """Search on dag_id."""
+
+    def __init__(self) -> None:
+        super().__init__(DagModel.dag_id)
+
+    def depends(self, dag_id_pattern: str | None = None) -> _DagIdPatternSearch:
         return self.set_value(dag_id_pattern)
 
 
-class SortParam(BaseParam[Union[str]]):
+class _DagDisplayNamePatternSearch(_SearchParam):
+    """Search on dag_display_name."""
+
+    def __init__(self) -> None:
+        super().__init__(DagModel.dag_display_name)
+
+    def depends(self, dag_display_name_pattern: str | None = None) -> _DagDisplayNamePatternSearch:
+        return self.set_value(dag_display_name_pattern)
+
+
+class SortParam(BaseParam[str]):
     """Order result by the attribute."""
+
+    attr_mapping = {
+        "last_run_state": DagRun.state,
+        "last_run_start_date": DagRun.start_date,
+    }
 
     def __init__(self, allowed_attrs: list[str]) -> None:
         super().__init__()
@@ -131,12 +159,18 @@ class SortParam(BaseParam[Union[str]]):
                 f"Ordering with '{lstriped_orderby}' is disallowed or "
                 f"the attribute does not exist on the model",
             )
-        if self.value[0] == "-":
-            return select.order_by(getattr(DagModel, lstriped_orderby).desc())
-        else:
-            return select.order_by(getattr(DagModel, lstriped_orderby).asc())
 
-    def __call__(self, order_by: str = Query(default="dag_id")) -> SortParam:
+        column = self.attr_mapping.get(lstriped_orderby, None) or getattr(DagModel, lstriped_orderby)
+
+        # MySQL does not support `nullslast`, and True/False ordering depends on the
+        # database implementation.
+        nullscheck = case((column.isnot(None), 0), else_=1)
+        if self.value[0] == "-":
+            return select.order_by(nullscheck, column.desc(), DagModel.dag_id.desc())
+        else:
+            return select.order_by(nullscheck, column.asc(), DagModel.dag_id.asc())
+
+    def depends(self, order_by: str = "dag_id") -> SortParam:
         return self.set_value(order_by)
 
 
@@ -144,19 +178,52 @@ class _TagsFilter(BaseParam[List[str]]):
     """Filter on tags."""
 
     def to_orm(self, select: Select) -> Select:
-        if self.value is None:
+        if not self.value:
             return select
 
         conditions = [DagModel.tags.any(DagTag.name == tag) for tag in self.value]
         return select.where(or_(*conditions))
 
-    def __call__(self, tags: list[str] = Query(default_factory=list)) -> _TagsFilter:
+    def depends(self, tags: list[str] = Query(default_factory=list)) -> _TagsFilter:
         return self.set_value(tags)
 
 
-QueryLimit = Annotated[_LimitFilter, Depends(_LimitFilter())]
-QueryOffset = Annotated[_OffsetFilter, Depends(_OffsetFilter())]
-QueryPausedFilter = Annotated[_PausedFilter, Depends(_PausedFilter())]
-QueryOnlyActiveFilter = Annotated[_OnlyActiveFilter, Depends(_OnlyActiveFilter())]
-QueryDagIdPatternSearch = Annotated[_DagIdPatternSearch, Depends(_DagIdPatternSearch())]
-QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter())]
+class _OwnersFilter(BaseParam[List[str]]):
+    """Filter on owners."""
+
+    def to_orm(self, select: Select) -> Select:
+        if not self.value:
+            return select
+
+        conditions = [DagModel.owners.ilike(f"%{owner}%") for owner in self.value]
+        return select.where(or_(*conditions))
+
+    def depends(self, owners: list[str] = Query(default_factory=list)) -> _OwnersFilter:
+        return self.set_value(owners)
+
+
+class _LastDagRunStateFilter(BaseParam[DagRunState]):
+    """Filter on the state of the latest DagRun."""
+
+    def to_orm(self, select: Select) -> Select:
+        if self.value is None:
+            return select
+        return select.where(DagRun.state == self.value)
+
+    def depends(self, last_dag_run_state: DagRunState | None = None) -> _LastDagRunStateFilter:
+        return self.set_value(last_dag_run_state)
+
+
+# DAG
+QueryLimit = Annotated[_LimitFilter, Depends(_LimitFilter().depends)]
+QueryOffset = Annotated[_OffsetFilter, Depends(_OffsetFilter().depends)]
+QueryPausedFilter = Annotated[_PausedFilter, Depends(_PausedFilter().depends)]
+QueryOnlyActiveFilter = Annotated[_OnlyActiveFilter, Depends(_OnlyActiveFilter().depends)]
+QueryDagIdPatternSearch = Annotated[_DagIdPatternSearch, Depends(_DagIdPatternSearch().depends)]
+QueryDagDisplayNamePatternSearch = Annotated[
+    _DagDisplayNamePatternSearch, Depends(_DagDisplayNamePatternSearch().depends)
+]
+QueryTagsFilter = Annotated[_TagsFilter, Depends(_TagsFilter().depends)]
+QueryOwnersFilter = Annotated[_OwnersFilter, Depends(_OwnersFilter().depends)]
+# DagRun
+QueryLastDagRunStateFilter = Annotated[_LastDagRunStateFilter, Depends(_LastDagRunStateFilter().depends)]

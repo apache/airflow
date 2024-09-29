@@ -29,8 +29,6 @@ from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQue
 datasets_router = APIRouter(tags=["Dataset"])
 
 
-# Ultimately we want async routes, with async sqlalchemy session / context manager.
-# Additional effort to make airflow utility code async, not handled for now and most likely part of the AIP-70
 @datasets_router.get("/next_run_datasets/{dag_id}", include_in_schema=False)
 async def next_run_datasets(
     dag_id: str,

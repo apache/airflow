@@ -64,6 +64,14 @@ paths:
           items:
             type: string
           title: Tags
+      - name: owners
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Owners
       - name: dag_id_pattern
         in: query
         required: false
@@ -72,6 +80,14 @@ paths:
           - type: string
           - type: 'null'
           title: Dag Id Pattern
+      - name: dag_display_name_pattern
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Dag Display Name Pattern
       - name: only_active
         in: query
         required: false
@@ -87,6 +103,14 @@ paths:
           - type: boolean
           - type: 'null'
           title: Paused
+      - name: last_dag_run_state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/DagRunState'
+          - type: 'null'
+          title: Last Dag Run State
       - name: order_by
         in: query
         required: false
@@ -107,13 +131,80 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /public/dags/{dag_id}:
+    patch:
+      tags:
+      - DAG
+      summary: Patch Dag
+      description: Update the specific DAG.
+      operationId: patch_dag_public_dags__dag_id__patch
+      parameters:
+      - name: dag_id
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Dag Id
+      - name: update_mask
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              type: string
+          - type: 'null'
+          title: Update Mask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DAGPatchBody'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
 components:
   schemas:
     DAGCollectionResponse:
       properties:
         dags:
           items:
-            $ref: '#/components/schemas/DAGModelResponse'
+            $ref: '#/components/schemas/DAGResponse'
           type: array
           title: Dags
         total_entries:
@@ -125,7 +216,17 @@ components:
       - total_entries
       title: DAGCollectionResponse
       description: DAG Collection serializer for responses.
-    DAGModelResponse:
+    DAGPatchBody:
+      properties:
+        is_paused:
+          type: boolean
+          title: Is Paused
+      type: object
+      required:
+      - is_paused
+      title: DAGPatchBody
+      description: Dag Serializer for updatable body.
+    DAGResponse:
       properties:
         dag_id:
           type: string
@@ -276,8 +377,24 @@ components:
       - next_dagrun_create_after
       - owners
       - file_token
-      title: DAGModelResponse
+      title: DAGResponse
       description: DAG serializer for responses.
+    DagRunState:
+      type: string
+      enum:
+      - queued
+      - running
+      - success
+      - failed
+      title: DagRunState
+      description: 'All possible states that a DagRun can be in.
+
+
+        These are "shared" with TaskInstanceState in some parts of the code,
+
+        so please ensure that their values always match the ones with the
+
+        same name in TaskInstanceState.'
     DagTagPydantic:
       properties:
         name:
@@ -293,6 +410,18 @@ components:
       title: DagTagPydantic
       description: Serializable representation of the DagTag ORM SqlAlchemyModel used
         by internal API.
+    HTTPExceptionResponse:
+      properties:
+        detail:
+          anyOf:
+          - type: string
+          - type: object
+          title: Detail
+      type: object
+      required:
+      - detail
+      title: HTTPExceptionResponse
+      description: HTTPException Model used for error response.
     HTTPValidationError:
       properties:
         detail:

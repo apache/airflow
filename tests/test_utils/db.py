@@ -66,6 +66,14 @@ def clear_db_runs():
             pass
 
 
+def clear_db_backfills():
+    from airflow.models.backfill import Backfill, BackfillDagRun
+
+    with create_session() as session:
+        session.query(BackfillDagRun).delete()
+        session.query(Backfill).delete()
+
+
 def clear_db_datasets():
     with create_session() as session:
         session.query(DatasetEvent).delete()

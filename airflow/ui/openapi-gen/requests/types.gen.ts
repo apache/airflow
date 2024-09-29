@@ -4,14 +4,21 @@
  * DAG Collection serializer for responses.
  */
 export type DAGCollectionResponse = {
-  dags: Array<DAGModelResponse>;
+  dags: Array<DAGResponse>;
   total_entries: number;
+};
+
+/**
+ * Dag Serializer for updatable body.
+ */
+export type DAGPatchBody = {
+  is_paused: boolean;
 };
 
 /**
  * DAG serializer for responses.
  */
-export type DAGModelResponse = {
+export type DAGResponse = {
   dag_id: string;
   dag_display_name: string;
   is_paused: boolean;
@@ -44,11 +51,31 @@ export type DAGModelResponse = {
 };
 
 /**
+ * All possible states that a DagRun can be in.
+ *
+ * These are "shared" with TaskInstanceState in some parts of the code,
+ * so please ensure that their values always match the ones with the
+ * same name in TaskInstanceState.
+ */
+export type DagRunState = "queued" | "running" | "success" | "failed";
+
+/**
  * Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.
  */
 export type DagTagPydantic = {
   name: string;
   dag_id: string;
+};
+
+/**
+ * HTTPException Model used for error response.
+ */
+export type HTTPExceptionResponse = {
+  detail:
+    | string
+    | {
+        [key: string]: unknown;
+      };
 };
 
 export type HTTPValidationError = {
@@ -70,16 +97,27 @@ export type NextRunDatasetsUiNextRunDatasetsDagIdGetResponse = {
 };
 
 export type GetDagsPublicDagsGetData = {
+  dagDisplayNamePattern?: string | null;
   dagIdPattern?: string | null;
+  lastDagRunState?: DagRunState | null;
   limit?: number;
   offset?: number;
   onlyActive?: boolean;
   orderBy?: string;
+  owners?: Array<string>;
   paused?: boolean | null;
   tags?: Array<string>;
 };
 
 export type GetDagsPublicDagsGetResponse = DAGCollectionResponse;
+
+export type PatchDagPublicDagsDagIdPatchData = {
+  dagId: string;
+  requestBody: DAGPatchBody;
+  updateMask?: Array<string> | null;
+};
+
+export type PatchDagPublicDagsDagIdPatchResponse = DAGResponse;
 
 export type $OpenApiTs = {
   "/ui/next_run_datasets/{dag_id}": {
@@ -107,6 +145,37 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: DAGCollectionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}": {
+    patch: {
+      req: PatchDagPublicDagsDagIdPatchData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
         /**
          * Validation Error
          */

@@ -2,6 +2,7 @@
 import { UseQueryResult } from "@tanstack/react-query";
 
 import { DagService, DatasetService } from "../requests/services.gen";
+import { DagRunState } from "../requests/types.gen";
 
 export type DatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetDefaultResponse =
   Awaited<
@@ -35,19 +36,25 @@ export const useDagServiceGetDagsPublicDagsGetKey =
   "DagServiceGetDagsPublicDagsGet";
 export const UseDagServiceGetDagsPublicDagsGetKeyFn = (
   {
+    dagDisplayNamePattern,
     dagIdPattern,
+    lastDagRunState,
     limit,
     offset,
     onlyActive,
     orderBy,
+    owners,
     paused,
     tags,
   }: {
+    dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
     onlyActive?: boolean;
     orderBy?: string;
+    owners?: string[];
     paused?: boolean;
     tags?: string[];
   } = {},
@@ -55,6 +62,20 @@ export const UseDagServiceGetDagsPublicDagsGetKeyFn = (
 ) => [
   useDagServiceGetDagsPublicDagsGetKey,
   ...(queryKey ?? [
-    { dagIdPattern, limit, offset, onlyActive, orderBy, paused, tags },
+    {
+      dagDisplayNamePattern,
+      dagIdPattern,
+      lastDagRunState,
+      limit,
+      offset,
+      onlyActive,
+      orderBy,
+      owners,
+      paused,
+      tags,
+    },
   ]),
 ];
+export type DagServicePatchDagPublicDagsDagIdPatchMutationResult = Awaited<
+  ReturnType<typeof DagService.patchDagPublicDagsDagIdPatch>
+>;

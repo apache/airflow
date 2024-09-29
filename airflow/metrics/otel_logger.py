@@ -409,6 +409,7 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     # PeriodicExportingMetricReader will default to an interval of 60000 millis.
     interval = conf.getint("metrics", "otel_interval_milliseconds", fallback=None)  # ex: 30000
     debug = conf.getboolean("metrics", "otel_debugging_on")
+    service_name = conf.get("metrics", "otel_service")
 
     resource = Resource.create(attributes={HOST_NAME: get_hostname(), SERVICE_NAME: "Airflow"})
 

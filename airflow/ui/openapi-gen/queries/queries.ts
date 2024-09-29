@@ -1,7 +1,13 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.0
-import { useQuery, UseQueryOptions } from "@tanstack/react-query";
+import {
+  useMutation,
+  UseMutationOptions,
+  useQuery,
+  UseQueryOptions,
+} from "@tanstack/react-query";
 
 import { DagService, DatasetService } from "../requests/services.gen";
+import { DAGPatchBody, DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
@@ -43,9 +49,12 @@ export const useDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGet = <
  * @param data.limit
  * @param data.offset
  * @param data.tags
+ * @param data.owners
  * @param data.dagIdPattern
+ * @param data.dagDisplayNamePattern
  * @param data.onlyActive
  * @param data.paused
+ * @param data.lastDagRunState
  * @param data.orderBy
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
@@ -56,19 +65,25 @@ export const useDagServiceGetDagsPublicDagsGet = <
   TQueryKey extends Array<unknown> = unknown[],
 >(
   {
+    dagDisplayNamePattern,
     dagIdPattern,
+    lastDagRunState,
     limit,
     offset,
     onlyActive,
     orderBy,
+    owners,
     paused,
     tags,
   }: {
+    dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
     onlyActive?: boolean;
     orderBy?: string;
+    owners?: string[];
     paused?: boolean;
     tags?: string[];
   } = {},
@@ -77,18 +92,79 @@ export const useDagServiceGetDagsPublicDagsGet = <
 ) =>
   useQuery<TData, TError>({
     queryKey: Common.UseDagServiceGetDagsPublicDagsGetKeyFn(
-      { dagIdPattern, limit, offset, onlyActive, orderBy, paused, tags },
-      queryKey,
-    ),
-    queryFn: () =>
-      DagService.getDagsPublicDagsGet({
+      {
+        dagDisplayNamePattern,
         dagIdPattern,
+        lastDagRunState,
         limit,
         offset,
         onlyActive,
         orderBy,
+        owners,
+        paused,
+        tags,
+      },
+      queryKey,
+    ),
+    queryFn: () =>
+      DagService.getDagsPublicDagsGet({
+        dagDisplayNamePattern,
+        dagIdPattern,
+        lastDagRunState,
+        limit,
+        offset,
+        onlyActive,
+        orderBy,
+        owners,
         paused,
         tags,
       }) as TData,
+    ...options,
+  });
+/**
+ * Patch Dag
+ * Update the specific DAG.
+ * @param data The data for the request.
+ * @param data.dagId
+ * @param data.requestBody
+ * @param data.updateMask
+ * @returns DAGResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServicePatchDagPublicDagsDagIdPatch = <
+  TData = Common.DagServicePatchDagPublicDagsDagIdPatchMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagId: string;
+        requestBody: DAGPatchBody;
+        updateMask?: string[];
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagId: string;
+      requestBody: DAGPatchBody;
+      updateMask?: string[];
+    },
+    TContext
+  >({
+    mutationFn: ({ dagId, requestBody, updateMask }) =>
+      DagService.patchDagPublicDagsDagIdPatch({
+        dagId,
+        requestBody,
+        updateMask,
+      }) as unknown as Promise<TData>,
     ...options,
   });

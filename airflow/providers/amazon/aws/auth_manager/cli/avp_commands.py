@@ -18,7 +18,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -64,10 +63,8 @@ def init_avp(args):
         _set_schema(client, policy_store_id, args)
 
     if not args.dry_run:
-        print(
-            "Please set configs below in Airflow configuration under AIRFLOW__AWS_AUTH_MANAGER__<config name>."
-        )
-        print(json.dumps({"avp_policy_store_id": policy_store_id}, indent=4))
+        print("Please set configs below in Airflow configuration:\n")
+        print(f"AIRFLOW__AWS_AUTH_MANAGER__AVP_POLICY_STORE_ID={policy_store_id}\n")
 
 
 @cli_utils.action_cli
