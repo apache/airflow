@@ -1200,6 +1200,7 @@ def upgradedb(
 @provide_session
 def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
     """Clear out the database."""
+    original_logging_level = logging.root.level
     if not settings.engine:
         raise RuntimeError("The settings.engine must be set. This is a critical assertion")
     log.info("Dropping tables that exist")
@@ -1216,6 +1217,7 @@ def resetdb(session: Session = NEW_SESSION, skip_init: bool = False):
 
     if not skip_init:
         initdb(session=session)
+    logging.root.setLevel(original_logging_level)
 
 
 @provide_session
