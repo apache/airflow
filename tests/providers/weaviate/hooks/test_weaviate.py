@@ -527,6 +527,26 @@ def test_delete_collections(get_conn, weaviate_hook):
         weaviate_hook.delete_collections("class_a", if_error="stop")
 
 
+@mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.delete_by_property")
+def test_delete_by_property_call(mock_delete_by_property, weaviate_hook):
+    collection_names = ["collection_a", "collection_b", "collection_c"]
+    by_property = ["question", "answer", "category"]
+    weaviate_hook.delete_collections(collection_names=collection_names, by_property=by_property)
+    mock_delete_by_property.assert_called_once_with(collection_names, by_property, None, None)
+
+
+def test_delete_collections_by_property(weaviate_hook):
+    mock_client = MagicMock()
+    weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+    mock_collection = MagicMock()
+    mock_client.collections.get.return_value = mock_collection
+
+    collection_names = ["collection_a", "collection_b", "collection_c"]
+    by_property = ["question", "answer", "category"]
+    weaviate_hook.delete_collections(collection_names=collection_names, by_property=by_property)
+    assert mock_collection.data.delete_many.call_count == 9
+
+
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_conn")
 def test_http_errors_of_delete_collections(get_conn, weaviate_hook):
     collection_names = ["collection_a", "collection_b"]

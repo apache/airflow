@@ -190,7 +190,12 @@ class WeaviateHook(BaseHook):
         return client.collections.get(name)
 
     def delete_collections(
-        self, collection_names: list[str] | str, if_error: str = "stop"
+        self,
+        collection_names: list[str] | str,
+        by_property: list[str] | str | None = None,
+        contains_any: list[Any] | str | None = None,
+        contains_all: list[Any] | str | None = None,
+        if_error: str = "stop",
     ) -> list[str] | None:
         """
         Delete all or specific collections if collection_names are provided.
@@ -201,34 +206,77 @@ class WeaviateHook(BaseHook):
         :return: if `if_error=continue` return list of collections which we failed to delete.
             if `if_error=stop` returns None.
         """
-        client = self.get_conn()
-        collection_names = (
-            [collection_names] if collection_names and isinstance(collection_names, str) else collection_names
-        )
-
-        failed_collection_list = []
-        for collection_name in collection_names:
-            try:
-                for attempt in Retrying(
-                    stop=stop_after_attempt(3),
-                    retry=(
-                        retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
-                        | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
-                    ),
-                ):
-                    with attempt:
-                        self.log.info(attempt)
-                        client.collections.delete(collection_name)
-            except Exception as e:
-                if if_error == "continue":
-                    self.log.error(e)
-                    failed_collection_list.append(collection_name)
-                elif if_error == "stop":
-                    raise e
+        if by_property:
+            self.delete_by_property(collection_names, by_property, contains_any, contains_all)
+        else:
+            client = self.get_conn()
+            collection_names = (
+                [collection_names]
+                if collection_names and isinstance(collection_names, str)
+                else collection_names
+            )
+            failed_collection_list = []
+            for collection_name in collection_names:
+                try:
+                    for attempt in Retrying(
+                        stop=stop_after_attempt(3),
+                        retry=(
+                            retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
+                            | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
+                        ),
+                    ):
+                        with attempt:
+                            self.log.info(attempt)
+                            client.collections.delete(collection_name)
+                except Exception as e:
+                    if if_error == "continue":
+                        self.log.error(e)
+                        failed_collection_list.append(collection_name)
+                    elif if_error == "stop":
+                        raise e
 
         if if_error == "continue":
             return failed_collection_list
         return None
+
+    def delete_by_property(
+        self,
+        collection_name: list[str] | str,
+        by_property: list[str] | str,
+        contains_any: list[Any] | str | None = None,
+        contains_all: list[Any] | str | None = None,
+    ):
+        """
+        Delete collections based on property names.
+
+        :param collection_name: list of collection names or a single collection name to be deleted.
+        :param by_property: property or list of properties to filter documents by.
+        :param contains_any: list of values or a single value.
+            Deletes collections where any of the specified values are present in the property.
+        :param contains_all: list of values or a single value.
+            Deletes collections  where all specified values are present in the property.
+        """
+        client = self.get_conn()
+        by_property = [by_property] if isinstance(by_property, str) else by_property
+        contains_any = [contains_any] if isinstance(contains_any, str) else contains_any
+        contains_all = [contains_all] if isinstance(contains_all, str) else contains_all
+
+        collection_names = [collection_name] if isinstance(collection_name, str) else collection_name
+        for collection_name in collection_names:
+            try:
+                collection = client.collections.get(collection_name)
+                for prop in by_property:
+                    if contains_any:
+                        collection.data.delete_many(where=Filter.by_property(prop).contains_any(contains_any))
+                    elif contains_all:
+                        collection.data.delete_many(where=Filter.by_property(prop).contains_all(contains_all))
+                    else:
+                        collection.data.delete_many(
+                            where=Filter.by_property(prop).like(collection_name + "*")
+                        )
+            except Exception as e:
+                self.log.error(e)
+                raise e
 
     @retry(
         reraise=True,
