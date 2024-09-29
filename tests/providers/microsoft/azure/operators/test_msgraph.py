@@ -19,14 +19,13 @@ from __future__ import annotations
 import json
 import locale
 from base64 import b64encode
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator
 from airflow.triggers.base import TriggerEvent
-from airflow.utils.context import Context
 from tests.providers.microsoft.azure.base import Base
 from tests.providers.microsoft.conftest import (
     load_file,
@@ -35,6 +34,9 @@ from tests.providers.microsoft.conftest import (
     mock_json_response,
     mock_response,
 )
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class TestMSGraphAsyncOperator(Base):
