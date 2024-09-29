@@ -39,6 +39,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   GITHUB_USERNAME: ${{ github.actor }}
   IMAGE_TAG: "${{ github.event.pull_request.head.sha || github.sha }}"
+  SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
   VERBOSE: "true"
 
 concurrency:
@@ -669,3 +670,41 @@ jobs:
       include-success-outputs: ${{ needs.build-info.outputs.include-success-outputs }}
       docker-cache: ${{ needs.build-info.outputs.docker-cache }}
       canary-run: ${{ needs.build-info.outputs.canary-run }}
+
+  notify-slack-failure:
+    name: "Notify Slack on Failure"
+    needs:
+      - basic-tests
+      - additional-ci-image-checks
+      - providers
+      - tests-helm
+      - tests-special
+      - tests-with-lowest-direct-resolution
+      - additional-prod-image-tests
+      - tests-kubernetes
+      - finalize-tests
+    if: github.event_name == 'schedule' && failure()
+    runs-on: ["ubuntu-22.04"]
+    steps:
+      - name: Notify Slack
+        id: slack
+        uses: slackapi/slack-github-action@v1.27.0
+        with:
+          channel-id: 'zzz_webhook_test'
+          # yamllint disable rule:line-length
+          payload: |
+            {
+              "text": "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "🚨🕒 Scheduled CI Failure Alert 🕒🚨\n\n*Details:* <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}|View the failure log>"
+                  }
+                }
+              ]
+            }
+          # yamllint enable rule:line-length
+        env:
+          SLACK_BOT_TOKEN: ${{ env.SLACK_BOT_TOKEN }}

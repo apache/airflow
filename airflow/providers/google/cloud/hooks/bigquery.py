@@ -2418,10 +2418,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 f"{var_print(var_name)}Expect format of (<project.|<project:)<dataset>.<table>, "
                 f"got {table_input}"
             )
-
-        # Exclude partition from the table name
-        table_id = table_id.split("$")[0]
-
         if project_id is None:
             if var_name is not None:
                 self.log.info(
