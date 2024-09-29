@@ -45,6 +45,7 @@ class TestConnectionEndpoint:
 
 
 class TestDeleteConnection(TestConnectionEndpoint):
+    @pytest.mark.db_test
     def test_delete_should_respond_204(self, test_client, session):
         self.create_connection()
         conns = session.query(Connection).all()
@@ -54,6 +55,7 @@ class TestDeleteConnection(TestConnectionEndpoint):
         connection = session.query(Connection).all()
         assert len(connection) == 0
 
+    @pytest.mark.db_test
     def test_delete_should_respond_404(self, test_client):
         response = test_client.delete(f"/public/connections/{TEST_CONN_ID}")
         assert response.status_code == 404
