@@ -89,7 +89,18 @@ class EdgeExecutor(BaseExecutor):
     @provide_session
     def sync(self, session: Session = NEW_SESSION) -> None:
         """Sync will get called periodically by the heartbeat method."""
-        jobs: list[EdgeJobModel] = session.query(EdgeJobModel).all()
+        purged_marker = False
+        job_success_purge = conf.getint("edge", "job_success_purge")
+        job_fail_purge = conf.getint("edge", "job_fail_purge")
+        jobs: list[EdgeJobModel] = (
+            session.query(EdgeJobModel)
+            .filter(
+                EdgeJobModel.state.in_(
+                    [TaskInstanceState.RUNNING, TaskInstanceState.SUCCESS, TaskInstanceState.FAILED]
+                )
+            )
+            .all()
+        )
         for job in jobs:
             if job.key in self.running:
                 if job.state == TaskInstanceState.RUNNING:
@@ -109,8 +120,6 @@ class EdgeExecutor(BaseExecutor):
                     self.fail(job.key)
                 else:
                     self.last_reported_state[job.key] = job.state
-            job_success_purge = conf.getint("edge", "job_success_purge")
-            job_fail_purge = conf.getint("edge", "job_fail_purge")
             if (
                 job.state == TaskInstanceState.SUCCESS
                 and job.last_update_t < (datetime.now() - timedelta(minutes=job_success_purge)).timestamp()
@@ -120,6 +129,7 @@ class EdgeExecutor(BaseExecutor):
             ):
                 if job.key in self.last_reported_state:
                     del self.last_reported_state[job.key]
+                purged_marker = True
                 session.delete(job)
                 session.execute(
                     delete(EdgeLogsModel).where(
@@ -130,7 +140,8 @@ class EdgeExecutor(BaseExecutor):
                         EdgeLogsModel.try_number == job.try_number,
                     )
                 )
-        session.commit()
+        if purged_marker:
+            session.commit()
 
     def end(self) -> None:
         """End the executor."""
