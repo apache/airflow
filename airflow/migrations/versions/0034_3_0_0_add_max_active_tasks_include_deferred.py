@@ -20,7 +20,7 @@
 Add ``max_active_tasks_include_deferred`` column to DAG table.
 
 Revision ID: 993df96ee59b
-Revises: 1cdc775ca98f
+Revises: 16cbcb1c8c36
 Create Date: 2024-08-19 22:12:09.345943
 
 """
@@ -32,7 +32,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "993df96ee59b"
-down_revision = "1cdc775ca98f"
+down_revision = "16cbcb1c8c36"
 branch_labels = None
 depends_on = None
 airflow_version = "3.0.0"
