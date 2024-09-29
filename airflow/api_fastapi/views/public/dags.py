@@ -22,10 +22,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
-from airflow.api_fastapi.db import apply_filters_to_select, get_session
+from airflow.api_fastapi.db import apply_filters_to_select, get_session, latest_dag_run_per_dag_id_cte
+from airflow.api_fastapi.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.parameters import (
     QueryDagDisplayNamePatternSearch,
     QueryDagIdPatternSearch,
+    QueryLastDagRunStateFilter,
     QueryLimit,
     QueryOffset,
     QueryOnlyActiveFilter,
@@ -36,6 +38,7 @@ from airflow.api_fastapi.parameters import (
 )
 from airflow.api_fastapi.serializers.dags import DAGCollectionResponse, DAGPatchBody, DAGResponse
 from airflow.models import DagModel
+from airflow.models.dagrun import DagRun
 from airflow.utils.db import get_query_count
 
 dags_router = APIRouter(tags=["DAG"])
@@ -51,14 +54,36 @@ async def get_dags(
     dag_display_name_pattern: QueryDagDisplayNamePatternSearch,
     only_active: QueryOnlyActiveFilter,
     paused: QueryPausedFilter,
-    order_by: Annotated[SortParam, Depends(SortParam(["dag_id", "dag_display_name", "next_dagrun"]))],
+    last_dag_run_state: QueryLastDagRunStateFilter,
+    order_by: Annotated[
+        SortParam,
+        Depends(
+            SortParam(
+                ["dag_id", "dag_display_name", "next_dagrun", "last_run_state", "last_run_start_date"]
+            ).depends
+        ),
+    ],
     session: Annotated[Session, Depends(get_session)],
 ) -> DAGCollectionResponse:
     """Get all DAGs."""
-    dags_query = select(DagModel)
+    dags_query = (
+        select(DagModel)
+        .join(
+            latest_dag_run_per_dag_id_cte,
+            DagModel.dag_id == latest_dag_run_per_dag_id_cte.c.dag_id,
+            isouter=True,
+        )
+        .join(
+            DagRun,
+            DagRun.start_date == latest_dag_run_per_dag_id_cte.c.start_date
+            and DagRun.dag_id == latest_dag_run_per_dag_id_cte.c.dag_id,
+            isouter=True,
+        )
+    )
 
     dags_query = apply_filters_to_select(
-        dags_query, [only_active, paused, dag_id_pattern, dag_display_name_pattern, tags, owners]
+        dags_query,
+        [only_active, paused, dag_id_pattern, dag_display_name_pattern, tags, owners, last_dag_run_state],
     )
 
     # TODO: Re-enable when permissions are handled.
@@ -71,16 +96,13 @@ async def get_dags(
 
     dags = session.scalars(dags_query).all()
 
-    try:
-        return DAGCollectionResponse(
-            dags=[DAGResponse.model_validate(dag, from_attributes=True) for dag in dags],
-            total_entries=total_entries,
-        )
-    except ValueError as e:
-        raise HTTPException(400, f"DAGCollectionSchema error: {str(e)}")
+    return DAGCollectionResponse(
+        dags=[DAGResponse.model_validate(dag, from_attributes=True) for dag in dags],
+        total_entries=total_entries,
+    )
 
 
-@dags_router.patch("/dags/{dag_id}")
+@dags_router.patch("/dags/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
 async def patch_dag(
     dag_id: str,
     patch_body: DAGPatchBody,

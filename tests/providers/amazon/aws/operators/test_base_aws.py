@@ -20,7 +20,6 @@ from typing import Any
 
 import pytest
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.hooks.base import BaseHook
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
@@ -121,40 +120,6 @@ class TestAwsBaseOperator:
         tis = {ti.task_id: ti for ti in dagrun.task_instances}
         tis["fake-task-id"].run()
 
-    @pytest.mark.parametrize(
-        "region, region_name",
-        [
-            pytest.param("eu-west-1", None, id="region-only"),
-            pytest.param("us-east-1", "us-east-1", id="non-ambiguous-params"),
-        ],
-    )
-    def test_deprecated_region_name(self, region, region_name):
-        warning_match = r"`region` is deprecated and will be removed"
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
-            op = FakeS3Operator(
-                task_id="fake-task-id",
-                aws_conn_id=TEST_CONN,
-                region=region,
-                region_name=region_name,
-            )
-        assert op.region_name == region
-
-        with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
-            assert op.region == region
-
-    def test_conflicting_region_name(self):
-        error_match = r"Conflicting `region_name` provided, region_name='us-west-1', region='eu-west-1'"
-        with pytest.raises(ValueError, match=error_match), pytest.warns(
-            AirflowProviderDeprecationWarning,
-            match="`region` is deprecated and will be removed in the future. Please use `region_name` instead.",
-        ):
-            FakeS3Operator(
-                task_id="fake-task-id",
-                aws_conn_id=TEST_CONN,
-                region="eu-west-1",
-                region_name="us-west-1",
-            )
-
     def test_no_aws_hook_class_attr(self):
         class NoAwsHookClassOperator(AwsBaseOperator): ...
 
@@ -179,45 +144,3 @@ class TestAwsBaseOperator:
         error_match = r"Class attribute 'SoWrongOperator.aws_hook_class' is not a subclass of AwsGenericHook"
         with pytest.raises(AttributeError, match=error_match):
             SoWrongOperator(task_id="fake-task-id")
-
-    @pytest.mark.skip_if_database_isolation_mode
-    @pytest.mark.parametrize(
-        "region, region_name, expected_region_name",
-        [
-            pytest.param("ca-west-1", None, "ca-west-1", id="region-only"),
-            pytest.param("us-west-1", "us-west-1", "us-west-1", id="non-ambiguous-params"),
-        ],
-    )
-    @pytest.mark.db_test
-    def test_region_in_partial_operator(self, region, region_name, expected_region_name, dag_maker):
-        with dag_maker("test_region_in_partial_operator", serialized=True):
-            FakeS3Operator.partial(
-                task_id="fake-task-id",
-                region=region,
-                region_name=region_name,
-            ).expand(value=[1, 2, 3])
-
-        dr = dag_maker.create_dagrun(execution_date=timezone.utcnow())
-        warning_match = r"`region` is deprecated and will be removed"
-        for ti in dr.task_instances:
-            with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match):
-                ti.run()
-            assert ti.task.region_name == expected_region_name
-
-    @pytest.mark.skip_if_database_isolation_mode
-    @pytest.mark.db_test
-    def test_ambiguous_region_in_partial_operator(self, dag_maker):
-        with dag_maker("test_ambiguous_region_in_partial_operator", serialized=True):
-            FakeS3Operator.partial(
-                task_id="fake-task-id",
-                region="eu-west-1",
-                region_name="us-east-1",
-            ).expand(value=[1, 2, 3])
-
-        dr = dag_maker.create_dagrun(execution_date=timezone.utcnow())
-        warning_match = r"`region` is deprecated and will be removed"
-        for ti in dr.task_instances:
-            with pytest.warns(AirflowProviderDeprecationWarning, match=warning_match), pytest.raises(
-                ValueError, match="Conflicting `region_name` provided"
-            ):
-                ti.run()

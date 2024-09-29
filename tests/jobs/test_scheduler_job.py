@@ -601,8 +601,7 @@ class TestSchedulerJob:
         ti1.state = State.SCHEDULED
         session.merge(ti1)
         session.flush()
-
-        assert dr1.is_backfill
+        assert dr1.run_type == DagRunType.BACKFILL_JOB
 
         self.job_runner._critical_section_enqueue_task_instances(session)
         session.flush()
@@ -3851,7 +3850,7 @@ class TestSchedulerJob:
         session.merge(dr1)
         session.flush()
 
-        assert dr1.is_backfill
+        assert dr1.run_type == DagRunType.BACKFILL_JOB
         assert 0 == self.job_runner.adopt_or_reset_orphaned_tasks(session=session)
         session.rollback()
 
