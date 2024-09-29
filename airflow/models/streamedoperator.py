@@ -19,7 +19,7 @@ from airflow.exceptions import (
     AirflowException,
     AirflowRescheduleTaskInstanceException,
 )
-from airflow.models import BaseOperator, Operator, TaskInstance
+from airflow.models import BaseOperator, TaskInstance
 from airflow.models.expandinput import (
     ExpandInput,
     DictOfListsExpandInput,
@@ -60,7 +60,7 @@ class OperatorMethodExecutor(LoggingMixin):
     def __init__(
         self,
         semaphore: Semaphore,
-        operator: Operator,
+        operator: BaseOperator,
         context: Context,
         task_instance: TaskInstance,
     ):
