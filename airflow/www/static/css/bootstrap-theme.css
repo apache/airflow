@@ -37,7 +37,7 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 html[data-color-scheme="dark"] {
-  filter: invert(100%) hue-rotate(180deg);
+  filter: invert(100%) hue-rotate(180deg) saturate(85%) contrast(85%);
 }
 
 /* Default icons to not display until the data-color-scheme has been set */
