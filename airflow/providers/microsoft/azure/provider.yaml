@@ -101,7 +101,8 @@ dependencies:
   - azure-synapse-artifacts>=0.17.0
   - adal>=1.2.7
   - azure-storage-file-datalake>=12.9.1
-  - azure-kusto-data>=4.1.0
+  # azure-kusto-data 4.6.0 breaks main - see https://github.com/apache/airflow/issues/42575
+  - azure-kusto-data>=4.1.0,!=4.6.0
   - azure-mgmt-datafactory>=2.0.0
   - azure-mgmt-containerregistry>=8.0.0
   - azure-mgmt-containerinstance>=10.1.0
