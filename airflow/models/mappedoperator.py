@@ -89,7 +89,7 @@ if TYPE_CHECKING:
 
     TaskStateChangeCallbackAttrType = Union[None, TaskStateChangeCallback, List[TaskStateChangeCallback]]
 
-ValidationSource = Union[Literal["expand"], Literal["partial"]]
+ValidationSource = Union[Literal["expand"], Literal["partial"], Literal["stream"]]
 
 
 def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, value: dict[str, Any]) -> None:
