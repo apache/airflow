@@ -153,7 +153,9 @@ class TestBaseOperator:
             DummyClass(default_args=default_args)
 
     def test_incorrect_priority_weight(self):
-        error_msg = "`priority_weight` for task 'test_op' only accepts integers, received '<class 'str'>'."
+        error_msg = (
+            "`priority_weight` for task 'test_op' only accepts integers/floats, received '<class 'str'>'."
+        )
         with pytest.raises(AirflowException, match=error_msg):
             BaseOperator(task_id="test_op", priority_weight="2")
 

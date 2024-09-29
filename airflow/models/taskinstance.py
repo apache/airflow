@@ -1830,7 +1830,7 @@ class TaskInstance(Base, LoggingMixin):
     pool = Column(String(256), nullable=False)
     pool_slots = Column(Integer, default=1, nullable=False)
     queue = Column(String(256))
-    priority_weight = Column(Integer)
+    priority_weight = Column(Float)
     operator = Column(String(1000))
     custom_operator_name = Column(String(1000))
     queued_dttm = Column(UtcDateTime)

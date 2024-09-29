@@ -1293,7 +1293,7 @@
 <polygon fill="none" stroke="black" points="908.5,-2972 908.5,-2997 1216.5,-2997 1216.5,-2972 908.5,-2972"/>
 <text text-anchor="start" x="913.5" y="-2981.8" font-family="Helvetica,sans-Serif" font-size="14.00">priority_weight</text>
 <text text-anchor="start" x="1017.5" y="-2981.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1022.5" y="-2981.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
+<text text-anchor="start" x="1022.5" y="-2981.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [DOUBLE_PRECISION]</text>
 <polygon fill="none" stroke="black" points="908.5,-2947 908.5,-2972 1216.5,-2972 1216.5,-2947 908.5,-2947"/>
 <text text-anchor="start" x="913.5" y="-2956.8" font-family="Helvetica,sans-Serif" font-size="14.00">queue</text>
 <text text-anchor="start" x="957.5" y="-2956.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
