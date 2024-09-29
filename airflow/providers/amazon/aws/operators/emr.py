@@ -906,19 +906,32 @@ class EmrTerminateJobFlowOperator(BaseOperator):
 
         self.log.info("Terminating JobFlow with id %s", self.job_flow_id)
 
-        if self.deferrable:
-            self.defer(
-                trigger=EmrTerminateJobFlowTrigger(
-                    job_flow_id=self.job_flow_id,
-                    waiter_delay=self.waiter_delay,
-                    waiter_max_attempts=self.waiter_max_attempts,
-                    aws_conn_id=self.aws_conn_id,
-                ),
-                method_name="execute_complete",
-                # timeout is set to ensure that if a trigger dies, the timeout does not restart
-                # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
-                timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
-            )
+        if self.wait_for_completion:
+            if self.deferrable:
+                self.defer(
+                    trigger=EmrCreateJobFlowTrigger(
+                        job_flow_id=self._job_flow_id,
+                        aws_conn_id=self.aws_conn_id,
+                        waiter_delay=self.waiter_delay,
+                        waiter_max_attempts=self.waiter_max_attempts,
+                    ),
+                    method_name="execute_complete",
+                    # timeout is set to ensure that if a trigger dies, the timeout does not restart
+                    # 60 seconds is added to allow the trigger to exit gracefully (i.e. yield TriggerEvent)
+                    timeout=timedelta(seconds=self.waiter_max_attempts * self.waiter_delay + 60),
+                )
+            else:
+                self._emr_hook.get_waiter("job_flow_waiting").wait(
+                    ClusterId=self._job_flow_id,
+                    WaiterConfig=prune_dict(
+                        {
+                            "Delay": self.waiter_delay,
+                            "MaxAttempts": self.waiter_max_attempts,
+                        }
+                    ),
+                )
+
+            return self._job_flow_id
 
     def execute_complete(self, context: Context, event: dict[str, Any] | None = None) -> None:
         event = validate_execute_complete_event(event)
