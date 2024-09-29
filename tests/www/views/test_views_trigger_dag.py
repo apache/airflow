@@ -40,7 +40,7 @@ pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(autouse=True)
-def initialize_one_dag():
+def _initialize_one_dag():
     with create_session() as session:
         DagBag().get_dag("example_bash_operator").sync_to_db(session=session)
     yield

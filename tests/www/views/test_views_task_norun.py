@@ -32,7 +32,7 @@ DEFAULT_VAL = urllib.parse.quote_plus(str(DEFAULT_DATE))
 
 
 @pytest.fixture(scope="module", autouse=True)
-def reset_dagruns():
+def _reset_dagruns():
     """Clean up stray garbage from other tests."""
     clear_db_runs()
 
