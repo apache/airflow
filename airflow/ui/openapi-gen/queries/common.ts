@@ -1,7 +1,11 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.0
 import { UseQueryResult } from "@tanstack/react-query";
 
-import { DagService, DatasetService } from "../requests/services.gen";
+import {
+  ConnectionService,
+  DagService,
+  DatasetService,
+} from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 
 export type DatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetDefaultResponse =
@@ -79,3 +83,9 @@ export const UseDagServiceGetDagsPublicDagsGetKeyFn = (
 export type DagServicePatchDagPublicDagsDagIdPatchMutationResult = Awaited<
   ReturnType<typeof DagService.patchDagPublicDagsDagIdPatch>
 >;
+export type ConnectionServiceDeleteConnectionPublicConnectionsConnectionIdDeleteMutationResult =
+  Awaited<
+    ReturnType<
+      typeof ConnectionService.deleteConnectionPublicConnectionsConnectionIdDelete
+    >
+  >;

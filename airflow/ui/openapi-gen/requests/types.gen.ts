@@ -119,6 +119,12 @@ export type PatchDagPublicDagsDagIdPatchData = {
 
 export type PatchDagPublicDagsDagIdPatchResponse = DAGResponse;
 
+export type DeleteConnectionPublicConnectionsConnectionIdDeleteData = {
+  connectionId: string;
+};
+
+export type DeleteConnectionPublicConnectionsConnectionIdDeleteResponse = void;
+
 export type $OpenApiTs = {
   "/ui/next_run_datasets/{dag_id}": {
     get: {
@@ -164,6 +170,33 @@ export type $OpenApiTs = {
          * Bad Request
          */
         400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/connections/{connection_id}": {
+    delete: {
+      req: DeleteConnectionPublicConnectionsConnectionIdDeleteData;
+      res: {
+        /**
+         * Successful Response
+         */
+        204: void;
         /**
          * Unauthorized
          */
