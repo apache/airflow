@@ -411,7 +411,7 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     debug = conf.getboolean("metrics", "otel_debugging_on")
     service_name = conf.get("metrics", "otel_service")
 
-    resource = Resource.create(attributes={HOST_NAME: get_hostname(), SERVICE_NAME: "Airflow"})
+    resource = Resource.create(attributes={HOST_NAME: get_hostname(), SERVICE_NAME: service_name})
 
     protocol = "https" if ssl_active else "http"
     endpoint = f"{protocol}://{host}:{port}/v1/metrics"
