@@ -130,12 +130,9 @@ Listing Objects in a Bucket allows you to view contents of bucket in the Google 
 It is performed through the
 :class:`~airflow.providers.google.cloud.operators.gcs.GCSListObjectsOperator` operator.
 
-Reference
----------
-
-For further information, look at:
-
-* `Product Documentation <https://airflow.apache.org/docs/apache-airflow-providers-google/stable/_api/airflow/providers/google/cloud/operators/gcs/index.html>`__
+.. seealso::
+    For more information on how to use this operator, take a look at the guide:
+    :ref:`howto/operator:GCSListObjectsOperator`
 
 .. _howto/operator:GCSDeleteBucketOperator:
 
