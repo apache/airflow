@@ -315,6 +315,88 @@ class WeaviateHook(BaseHook):
                         )
                         self.log.debug("Inserted object with uuid: %s into batch", uuid)
 
+    def batch_create_links(
+        self,
+        data: list[dict[str, Any]] | pd.DataFrame,
+        collection_name: str = "",
+        batch_size: int = 100,
+        concurrent_requests: int = 10,
+        consistency_level: Any = None,
+        retry_attempts_per_object: int = 5,
+    ):
+        """
+        Batch create links from an object to another object through cross-references.
+
+        :param collection_name: The name of the collection that objects belongs to.
+        :param data: list or dataframe of objects we want to add.
+        :param batch_size: The number of objects to batch together.
+        :param concurrent_requests: The number of concurrent requests to make.
+        :param consistency_level: The consistency level to use.
+        :param creation_time: The creation time to use.
+        :param retry_attempts_per_object: number of time to try in case of failure before giving up..
+        """
+        client = self.get_conn()
+        collection_name_given = collection_name
+        converted_data = self._convert_dataframe_to_list(data)
+
+        for data_obj in converted_data:
+            if collection_name == "":
+                collection_name = data_obj.pop("collection_name", None)
+                if collection_name is None:
+                    raise ValueError("collection_name is a required field")
+                elif not isinstance(collection_name, str) or collection_name == "":
+                    raise ValueError("collection_name should be a valid string")
+                else:
+                    pass
+
+            with client.batch.fixed_size(
+                batch_size=batch_size,
+                concurrent_requests=concurrent_requests,
+                consistency_level=consistency_level,
+            ) as batch:
+                for attempt in Retrying(
+                    stop=stop_after_attempt(retry_attempts_per_object),
+                    retry=(
+                        retry_if_exception(lambda exc: check_http_error_is_retryable(exc))
+                        | retry_if_exception_type(REQUESTS_EXCEPTIONS_TYPES)
+                    ),
+                ):
+                    with attempt:
+                        try:
+                            from_property = data_obj.pop("from_property", None)
+                            from_uuid = data_obj.pop("from_uuid")
+                            to_uuid = data_obj.pop("to_uuid", None)
+                            tenant = data_obj.pop("tenant", None)
+
+                            if from_property is None:
+                                raise ValueError("from_property is a required field")
+                            elif from_uuid is None:
+                                raise ValueError("from_uuid is a required field")
+                            elif to_uuid is None:
+                                raise ValueError("to_uuid is a required field")
+                            else:
+                                self.log.debug(
+                                    "Attempt %s of referencing an object to another object: %s",
+                                    attempt.retry_state.attempt_number,
+                                    from_uuid,
+                                )
+                                batch.add_reference(
+                                    from_collection=collection_name,
+                                    from_property=from_property,
+                                    from_uuid=from_uuid,
+                                    to=to_uuid,
+                                    tenant=tenant,
+                                )
+                                self.log.debug(
+                                    "Created links between object with uuid: %s and object with uuid: %s",
+                                    from_uuid,
+                                    to_uuid,
+                                )
+                                collection_name = collection_name_given
+                        except Exception as e:
+                            self.log.error("Error occurred: %s", str(e))
+                            raise e
+
     def query_with_vector(
         self,
         embeddings: list[float],

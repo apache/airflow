@@ -510,6 +510,48 @@ def test_batch_data_retry(weaviate_hook):
     )
 
 
+@pytest.mark.parametrize(
+    argnames=["data", "expected_length"],
+    argvalues=[
+        (
+            [
+                {
+                    "collection_name": "TestCollection1",
+                    "from_property": "property1",
+                    "from_uuid": 1234455,
+                    "to_uuid": 1245555,
+                },
+                {
+                    "collection_name": "TestCollection2",
+                    "from_property": "property2",
+                    "from_uuid": 1234457,
+                    "to_uuid": 1344444,
+                },
+            ],
+            2,
+        ),
+        (
+            pd.DataFrame.from_dict(
+                {
+                    "collection_name": ["TestCollection1", "TestCollection2"],
+                    "from_property": ["property1", "property2"],
+                    "from_uuid": [1234455, 1234457],
+                    "to_uuid": [1245555, 1344444],
+                }
+            ),
+            2,
+        ),
+    ],
+)
+def test_batch_create_links(data, expected_length, weaviate_hook):
+    mock_client = MagicMock()
+    weaviate_hook.get_conn = MagicMock(return_value=mock_client)
+
+    weaviate_hook.batch_create_links(data)
+    mock_batch_context = mock_client.batch.fixed_size.return_value.__enter__.return_value
+    assert mock_batch_context.add_reference.call_count == expected_length
+
+
 @mock.patch("airflow.providers.weaviate.hooks.weaviate.WeaviateHook.get_conn")
 def test_delete_collections(get_conn, weaviate_hook):
     collection_names = ["collection_a", "collection_b"]
