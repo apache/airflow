@@ -19,45 +19,35 @@ from __future__ import annotations
 import pytest
 
 from airflow.models import Connection
-from airflow.utils.session import provide_session
 from tests.test_utils.db import clear_db_connections
 
 TEST_CONN_ID = "test_connection_id"
 TEST_CONN_TYPE = "test_type"
 
 
-@provide_session
-def _create_connection(session) -> None:
+@pytest.fixture(autouse=True)
+def setup() -> None:
+    clear_db_connections(False)
+
+
+# Delete a Connection Endpoint Tests
+@pytest.mark.db_test
+def test_delete_should_respond_204(test_client, session):
     connection_model = Connection(conn_id=TEST_CONN_ID, conn_type=TEST_CONN_TYPE)
     session.add(connection_model)
+    session.commit()
+
+    conns = session.query(Connection).all()
+    assert len(conns) == 1
+    response = test_client.delete(f"/public/connections/{TEST_CONN_ID}")
+    assert response.status_code == 204
+    connection = session.query(Connection).all()
+    assert len(connection) == 0
 
 
-class TestConnectionEndpoint:
-    @pytest.fixture(autouse=True)
-    def setup(self) -> None:
-        clear_db_connections(False)
-
-    def teardown_method(self) -> None:
-        clear_db_connections()
-
-    def create_connection(self):
-        _create_connection()
-
-
-class TestDeleteConnection(TestConnectionEndpoint):
-    @pytest.mark.db_test
-    def test_delete_should_respond_204(self, test_client, session):
-        self.create_connection()
-        conns = session.query(Connection).all()
-        assert len(conns) == 1
-        response = test_client.delete(f"/public/connections/{TEST_CONN_ID}")
-        assert response.status_code == 204
-        connection = session.query(Connection).all()
-        assert len(connection) == 0
-
-    @pytest.mark.db_test
-    def test_delete_should_respond_404(self, test_client):
-        response = test_client.delete(f"/public/connections/{TEST_CONN_ID}")
-        assert response.status_code == 404
-        body = response.json()
-        assert f"The Connection with connection_id: `{TEST_CONN_ID}` was not found" == body["detail"]
+@pytest.mark.db_test
+def test_delete_should_respond_404(test_client):
+    response = test_client.delete(f"/public/connections/{TEST_CONN_ID}")
+    assert response.status_code == 404
+    body = response.json()
+    assert f"The Connection with connection_id: `{TEST_CONN_ID}` was not found" == body["detail"]
