@@ -27,7 +27,7 @@ from tests.providers.microsoft.conftest import load_file
 
 try:
     from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
-except ImportError as e:
+except ImportError:
     pytest.skip("MSSQL not available", allow_module_level=True)
 
 PYMSSQL_CONN = Connection(
