@@ -127,6 +127,7 @@ Listing Objects in a Bucket
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Listing Objects in a Bucket allows you to view contents of bucket in the Google Cloud Storage.
+
 It is performed through the
 :class:`~airflow.providers.google.cloud.operators.gcs.GCSListObjectsOperator` operator.
 
