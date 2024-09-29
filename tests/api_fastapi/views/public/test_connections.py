@@ -34,7 +34,7 @@ def _create_connection(session) -> None:
 
 class TestConnectionEndpoint:
     @pytest.fixture(autouse=True)
-    def setup(self) -> None:
+    def setup_attrs(self) -> None:
         clear_db_connections(False)
 
     def teardown_method(self) -> None:
