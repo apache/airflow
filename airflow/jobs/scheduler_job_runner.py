@@ -30,7 +30,7 @@ from functools import lru_cache, partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
-from sqlalchemy import and_, delete, func, not_, or_, select, text, update
+from sqlalchemy import and_, case, delete, func, not_, or_, select, text, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -263,11 +263,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param states: List of states to query for
         :return: Concurrency map
         """
-        ti_concurrency_query: Result = session.execute(
-            select(TI.task_id, TI.run_id, TI.dag_id, func.count("*"))
-            .where(TI.state.in_(states))
+        ti_concurrency_query: Result = (
+            session.query(TI.task_id, TI.run_id, TI.dag_id, func.count("*"))
+            .join(DagModel, TI.dag_id == DagModel.dag_id)
+            .filter(
+                case(
+                    (
+                        DagModel.max_active_tasks_include_deferred,
+                        TI.state.in_(set(states) | DEFERRED_STATES),
+                    ),
+                    else_=TI.state.in_(states),
+                )
+            )
             .group_by(TI.task_id, TI.run_id, TI.dag_id)
         )
+
         return ConcurrencyMap.from_concurrency_map(
             {(dag_id, run_id, task_id): count for task_id, run_id, dag_id, count in ti_concurrency_query}
         )
@@ -325,7 +335,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
         concurrency_map = self.__get_concurrency_maps(states=EXECUTION_STATES, session=session)
-        concurrency_map_deferred = self.__get_concurrency_maps(states=DEFERRED_STATES, session=session)
 
         # Number of tasks that cannot be scheduled because of no open slot in pool
         num_starving_tasks_total = 0
@@ -472,9 +481,6 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                 max_active_tasks_per_dag_limit = task_instance.dag_model.max_active_tasks
 
                 if task_instance.dag_model.max_active_tasks_include_deferred:
-                    current_active_tasks_per_dag += concurrency_map_deferred.dag_active_tasks_map[dag_id]
-
-                if task_instance.dag_model.max_active_tasks_include_deferred:
                     self.log.info(
                         "DAG %s has %s/%s running, queued and deferred tasks",
                         dag_id,
@@ -493,7 +499,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     if task_instance.dag_model.max_active_tasks_include_deferred:
                         self.log.info(
                             "Not executing %s since the number of tasks running or queued or "
-                            "deferred from DAG"
+                            "deferred from DAG "
                             "%s is >= to the DAG's max_active_tasks limit of %s",
                             task_instance,
                             dag_id,
