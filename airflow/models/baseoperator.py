@@ -1725,7 +1725,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         raise TaskDeferred(trigger=trigger, method_name=method_name, kwargs=kwargs, timeout=timeout)
 
     @classmethod
-    def next_callable(cls, operator, next_method, next_kwargs) -> Callable[[Context, Any], Any]:
+    def next_callable(cls, operator, next_method, next_kwargs) -> Callable[[Context], Any]:
         """Get the next callable from given operator."""
         # __fail__ is a special signal value for next_method that indicates
         # this task was scheduled specifically to fail.
