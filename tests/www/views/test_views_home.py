@@ -26,7 +26,7 @@ from airflow.dag_processing.processor import DagFileProcessor
 from airflow.security import permissions
 from airflow.utils.state import State
 from airflow.www.utils import UIAlert
-from airflow.www.views import FILTER_LASTRUN_COOKIE, FILTER_STATUS_COOKIE, FILTER_TAGS_COOKIE
+from airflow.www.views import FILTER_LASTRUN_COOKIE, FILTER_STATUS_COOKIE, FILTER_TAGS_COOKIE, FILTER_TAGS_AND_LOGIC
 from tests.test_utils.api_connexion_utils import create_user
 from tests.test_utils.db import clear_db_dags, clear_db_import_errors, clear_db_serialized_dags
 from tests.test_utils.permissions import _resource_name
@@ -279,6 +279,39 @@ def test_home_filter_tags(working_dags, admin_client):
     with admin_client:
         admin_client.get("home?tags=example&tags=data", follow_redirects=True)
         assert "example,data" == flask.session[FILTER_TAGS_COOKIE]
+
+        admin_client.get("home?reset_tags", follow_redirects=True)
+        assert flask.session[FILTER_TAGS_COOKIE] is None
+
+
+def test_home_filter_tags_AND_logic(working_dags, admin_client, tmp_path):
+
+    with create_session() as session:
+        # Create DAG with 1 tag
+        dag_contents_template = "from airflow import DAG\ndag = DAG('AND_logic_test_dag_1', tags=['example'])"
+        path = tmp_path / "AND_logic_test_dag_1.py"
+        path.write_text(dag_contents_template)
+        _process_file(path, session)
+
+        # Create DAG with 2 tags
+        dag_contents_template = "from airflow import DAG\ndag = DAG('AND_logic_test_dag_2', tags=['example', 'test'])"
+        path = tmp_path / "AND_logic_test_dag_2.py"
+        path.write_text(dag_contents_template)
+        _process_file(path, session)
+
+    with admin_client:
+        resp = admin_client.get("home?tags=example&tags=test&use_and=true", follow_redirects=True)
+        assert True == flask.session[FILTER_TAGS_AND_LOGIC]
+        assert "example,test" == flask.session[FILTER_TAGS_COOKIE]
+
+        # check_content
+        check_content_not_in_response("dag_id=AND_logic_test_dag_1", resp)
+        check_content_in_response("dag_id=AND_logic_test_dag_2", resp)
+
+        resp = admin_client.get("home?tags=example&tags=test", follow_redirects=True)
+
+        check_content_in_response("dag_id=AND_logic_test_dag_1", resp)
+        check_content_in_response("dag_id=AND_logic_test_dag_2", resp)
 
         admin_client.get("home?reset_tags", follow_redirects=True)
         assert flask.session[FILTER_TAGS_COOKIE] is None
