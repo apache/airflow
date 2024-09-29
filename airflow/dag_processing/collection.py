@@ -202,6 +202,7 @@ class DagModelOperation(NamedTuple):
             dm.description = dag.description
             dm.max_active_tasks = dag.max_active_tasks
             dm.max_active_runs = dag.max_active_runs
+            dm.max_active_tasks_include_deferred = dag.max_active_tasks_include_deferred
             dm.max_consecutive_failed_dag_runs = dag.max_consecutive_failed_dag_runs
             dm.has_task_concurrency_limits = any(
                 t.max_active_tis_per_dag is not None or t.max_active_tis_per_dagrun is not None

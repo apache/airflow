@@ -50,6 +50,7 @@ class DAGResponse(BaseModel):
     timetable_description: str | None
     tags: list[DagTagPydantic]
     max_active_tasks: int
+    max_active_tasks_include_deferred: bool
     max_active_runs: int | None
     max_consecutive_failed_dag_runs: int
     has_task_concurrency_limits: bool
