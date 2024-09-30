@@ -45,10 +45,12 @@ airflow_version = "3.0.0"
 def upgrade():
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.drop_constraint("dag_run_dag_id_execution_date_key")
+    with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.alter_column("execution_date", new_column_name="logical_date", existing_type=sa.TIMESTAMP)
 
 
 def downgrade():
     with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.alter_column("logical_date", new_column_name="execution_date", existing_type=sa.TIMESTAMP)
+    with op.batch_alter_table("dag_run", schema=None) as batch_op:
         batch_op.create_unique_constraint("dag_run_dag_id_execution_date_key", columns=["execution_date"])
