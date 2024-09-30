@@ -797,7 +797,7 @@ export interface paths {
   };
   "/datasets/events": {
     /** Get dataset events */
-    get: operations["get_dataset_events"];
+    get: operations["get_asset_events"];
     /** Create asset event */
     post: operations["create_asset_event"];
   };
@@ -2622,7 +2622,7 @@ export interface components {
      */
     FilterTags: string[];
     /** @description The Dataset ID that updated the dataset. */
-    FilterDatasetID: number;
+    FilterAssetID: number;
     /** @description The DAG ID that updated the dataset. */
     FilterSourceDAGID: string;
     /** @description The task ID that updated the dataset. */
@@ -5101,7 +5101,7 @@ export interface operations {
     };
   };
   /** Get dataset events */
-  get_dataset_events: {
+  get_asset_events: {
     parameters: {
       query: {
         /** The numbers of items to return. */
@@ -5116,7 +5116,7 @@ export interface operations {
          */
         order_by?: components["parameters"]["OrderBy"];
         /** The Dataset ID that updated the dataset. */
-        dataset_id?: components["parameters"]["FilterDatasetID"];
+        dataset_id?: components["parameters"]["FilterAssetID"];
         /** The DAG ID that updated the dataset. */
         source_dag_id?: components["parameters"]["FilterSourceDAGID"];
         /** The task ID that updated the dataset. */
@@ -5794,7 +5794,7 @@ export type GetDatasetVariables = CamelCasedPropertiesDeep<
   operations["get_dataset"]["parameters"]["path"]
 >;
 export type GetDatasetEventsVariables = CamelCasedPropertiesDeep<
-  operations["get_dataset_events"]["parameters"]["query"]
+  operations["get_asset_events"]["parameters"]["query"]
 >;
 export type CreateAssetEventVariables = CamelCasedPropertiesDeep<
   operations["create_asset_event"]["requestBody"]["content"]["application/json"]

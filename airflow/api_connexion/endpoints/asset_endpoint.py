@@ -115,12 +115,12 @@ def get_datasets(
 @security.requires_access_asset("GET")
 @provide_session
 @format_parameters({"limit": check_limit})
-def get_dataset_events(
+def get_asset_events(
     *,
     limit: int,
     offset: int = 0,
     order_by: str = "timestamp",
-    dataset_id: int | None = None,
+    asset_id: int | None = None,
     source_dag_id: str | None = None,
     source_task_id: str | None = None,
     source_run_id: str | None = None,
@@ -132,8 +132,8 @@ def get_dataset_events(
 
     query = select(AssetEvent)
 
-    if dataset_id:
-        query = query.where(AssetEvent.dataset_id == dataset_id)
+    if asset_id:
+        query = query.where(AssetEvent.dataset_id == asset_id)
     if source_dag_id:
         query = query.where(AssetEvent.source_dag_id == source_dag_id)
     if source_task_id:

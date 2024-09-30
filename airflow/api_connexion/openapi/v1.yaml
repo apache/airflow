@@ -2583,13 +2583,13 @@ paths:
       summary: Get dataset events
       description: Get dataset events
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
-      operationId: get_dataset_events
+      operationId: get_asset_events
       tags: [Asset]
       parameters:
         - $ref: "#/components/parameters/PageLimit"
         - $ref: "#/components/parameters/PageOffset"
         - $ref: "#/components/parameters/OrderBy"
-        - $ref: "#/components/parameters/FilterDatasetID"
+        - $ref: "#/components/parameters/FilterAssetID"
         - $ref: "#/components/parameters/FilterSourceDAGID"
         - $ref: "#/components/parameters/FilterSourceTaskID"
         - $ref: "#/components/parameters/FilterSourceRunID"
@@ -5733,12 +5733,12 @@ components:
 
         *New in version 2.2.0*
 
-    FilterDatasetID:
+    FilterAssetID:
       in: query
-      name: dataset_id
+      name: asset_id
       schema:
         type: integer
-      description: The Dataset ID that updated the dataset.
+      description: The Asset ID that updated the asset.
 
     FilterSourceDAGID:
       in: query

@@ -349,7 +349,7 @@ Class | Method | HTTP request | Description
 *DAGRunApi* | [**update_dag_run_state**](docs/DAGRunApi.md#update_dag_run_state) | **PATCH** /dags/{dag_id}/dagRuns/{dag_run_id} | Modify a DAG run
 *DagWarningApi* | [**get_dag_warnings**](docs/DagWarningApi.md#get_dag_warnings) | **GET** /dagWarnings | List dag warnings
 *DatasetApi* | [**get_dataset**](docs/DatasetApi.md#get_dataset) | **GET** /datasets/{uri} | Get a dataset
-*DatasetApi* | [**get_dataset_events**](docs/DatasetApi.md#get_dataset_events) | **GET** /datasets/events | Get dataset events
+*AssetApi* | [**get_asset_events**](docs/DatasetApi.md#get_asset_events) | **GET** /datasets/events | Get asset events
 *DatasetApi* | [**get_datasets**](docs/DatasetApi.md#get_datasets) | **GET** /datasets | List datasets
 *DatasetApi* | [**get_upstream_dataset_events**](docs/DatasetApi.md#get_upstream_dataset_events) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents | Get dataset events for a DAG run
 *EventLogApi* | [**get_event_log**](docs/EventLogApi.md#get_event_log) | **GET** /eventLogs/{event_log_id} | Get a log entry
