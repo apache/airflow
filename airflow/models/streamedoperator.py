@@ -178,7 +178,7 @@ class StreamedOperator(BaseOperator):
         self._expand_input = expand_input
         self._partial_kwargs = partial_kwargs or {}
         self._mapped_kwargs = []
-        self._semaphore = Semaphore(self.max_active_tis_per_dag)
+        self._semaphore = Semaphore(self.max_active_tis_per_dag or os.cpu_count())
         XComArg.apply_upstream_relationship(self, self._expand_input.value)
 
     @property
@@ -318,9 +318,7 @@ def stream(self, **mapped_kwargs: OperatorExpandArgument) -> StreamedOperator:
     task_group = partial_kwargs.pop("task_group")
     start_date = partial_kwargs.pop("start_date")
     end_date = partial_kwargs.pop("end_date")
-    max_active_tis_per_dag = (
-        partial_kwargs.pop("max_active_tis_per_dag", None) or os.cpu_count()
-    )
+    max_active_tis_per_dag = (partial_kwargs.pop("max_active_tis_per_dag", None))
 
     return StreamedOperator(
         task_id=task_id,
