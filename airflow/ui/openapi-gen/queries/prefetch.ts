@@ -1,34 +1,32 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.0
 import { type QueryClient } from "@tanstack/react-query";
 
-import { DagService, DatasetService } from "../requests/services.gen";
+import { AssetService, DagService } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
- * Next Run Datasets
+ * Next Run Assets
  * @param data The data for the request.
  * @param data.dagId
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const prefetchUseDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGet =
-  (
-    queryClient: QueryClient,
-    {
-      dagId,
-    }: {
-      dagId: string;
-    },
-  ) =>
-    queryClient.prefetchQuery({
-      queryKey:
-        Common.UseDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetKeyFn({
-          dagId,
-        }),
-      queryFn: () =>
-        DatasetService.nextRunDatasetsUiNextRunDatasetsDagIdGet({ dagId }),
-    });
+export const prefetchUseAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGet = (
+  queryClient: QueryClient,
+  {
+    dagId,
+  }: {
+    dagId: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetKeyFn(
+      { dagId },
+    ),
+    queryFn: () =>
+      AssetService.nextRunAssetsUiNextRunDatasetsDagIdGet({ dagId }),
+  });
 /**
  * Get Dags
  * Get all DAGs.

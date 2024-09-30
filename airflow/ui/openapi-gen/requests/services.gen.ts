@@ -3,25 +3,27 @@ import type { CancelablePromise } from "./core/CancelablePromise";
 import { OpenAPI } from "./core/OpenAPI";
 import { request as __request } from "./core/request";
 import type {
-  NextRunDatasetsUiNextRunDatasetsDagIdGetData,
-  NextRunDatasetsUiNextRunDatasetsDagIdGetResponse,
+  NextRunAssetsUiNextRunDatasetsDagIdGetData,
+  NextRunAssetsUiNextRunDatasetsDagIdGetResponse,
   GetDagsPublicDagsGetData,
   GetDagsPublicDagsGetResponse,
+  PatchDagsPublicDagsPatchData,
+  PatchDagsPublicDagsPatchResponse,
   PatchDagPublicDagsDagIdPatchData,
   PatchDagPublicDagsDagIdPatchResponse,
 } from "./types.gen";
 
-export class DatasetService {
+export class AssetService {
   /**
-   * Next Run Datasets
+   * Next Run Assets
    * @param data The data for the request.
    * @param data.dagId
    * @returns unknown Successful Response
    * @throws ApiError
    */
-  public static nextRunDatasetsUiNextRunDatasetsDagIdGet(
-    data: NextRunDatasetsUiNextRunDatasetsDagIdGetData,
-  ): CancelablePromise<NextRunDatasetsUiNextRunDatasetsDagIdGetResponse> {
+  public static nextRunAssetsUiNextRunDatasetsDagIdGet(
+    data: NextRunAssetsUiNextRunDatasetsDagIdGetData,
+  ): CancelablePromise<NextRunAssetsUiNextRunDatasetsDagIdGetResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/ui/next_run_datasets/{dag_id}",
@@ -78,8 +80,54 @@ export class DagService {
   }
 
   /**
+   * Patch Dags
+   * Patch multiple DAGs.
+   * @param data The data for the request.
+   * @param data.requestBody
+   * @param data.updateMask
+   * @param data.limit
+   * @param data.offset
+   * @param data.tags
+   * @param data.owners
+   * @param data.dagIdPattern
+   * @param data.onlyActive
+   * @param data.paused
+   * @param data.lastDagRunState
+   * @returns DAGCollectionResponse Successful Response
+   * @throws ApiError
+   */
+  public static patchDagsPublicDagsPatch(
+    data: PatchDagsPublicDagsPatchData,
+  ): CancelablePromise<PatchDagsPublicDagsPatchResponse> {
+    return __request(OpenAPI, {
+      method: "PATCH",
+      url: "/public/dags",
+      query: {
+        update_mask: data.updateMask,
+        limit: data.limit,
+        offset: data.offset,
+        tags: data.tags,
+        owners: data.owners,
+        dag_id_pattern: data.dagIdPattern,
+        only_active: data.onlyActive,
+        paused: data.paused,
+        last_dag_run_state: data.lastDagRunState,
+      },
+      body: data.requestBody,
+      mediaType: "application/json",
+      errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
    * Patch Dag
-   * Update the specific DAG.
+   * Patch the specific DAG.
    * @param data The data for the request.
    * @param data.dagId
    * @param data.requestBody

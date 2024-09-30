@@ -125,14 +125,7 @@ for the paths that should be ignored. You do not need to have that file in any o
 In the example above the DAGs are only in ``my_custom_dags`` folder, the ``common_package`` should not be
 scanned by scheduler when searching for DAGS, so we should ignore ``common_package`` folder. You also
 want to ignore the ``base_dag.py`` if you keep a base DAG there that ``my_dag1.py`` and ``my_dag2.py`` derives
-from. Your ``.airflowignore`` should look then like this:
-
-.. code-block:: none
-
-   my_company/common_package/.*
-   my_company/my_custom_dags/base_dag\.py
-
-If ``DAG_IGNORE_FILE_SYNTAX`` is set to ``glob``, the equivalent ``.airflowignore`` file would be:
+from. Your ``.airflowignore`` should look then like this (using the default ``glob`` syntax):
 
 .. code-block:: none
 

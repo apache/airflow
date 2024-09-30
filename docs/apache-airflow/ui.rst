@@ -61,7 +61,7 @@ Native Airflow dashboard page into the UI to collect several useful metrics for 
 ------------
 
 
-.. _ui:datasets-view:
+.. _ui:assets-view:
 
 Datasets View
 .............
@@ -72,7 +72,7 @@ Clicking on any dataset in either the list or the graph will highlight it and it
 
 ------------
 
-.. image:: img/datasets.png
+.. image:: img/assets.png
 
 ------------
 

@@ -264,22 +264,22 @@ def test_dag_autocomplete_success(client_all_dags):
         {"name": "airflow", "type": "owner", "dag_display_name": None},
         {
             "dag_display_name": None,
-            "name": "dataset_alias_example_alias_consumer_with_no_taskflow",
+            "name": "asset_alias_example_alias_consumer_with_no_taskflow",
             "type": "dag",
         },
         {
             "dag_display_name": None,
-            "name": "dataset_alias_example_alias_producer_with_no_taskflow",
+            "name": "asset_alias_example_alias_producer_with_no_taskflow",
             "type": "dag",
         },
         {
             "dag_display_name": None,
-            "name": "dataset_s3_bucket_consumer_with_no_taskflow",
+            "name": "asset_s3_bucket_consumer_with_no_taskflow",
             "type": "dag",
         },
         {
             "dag_display_name": None,
-            "name": "dataset_s3_bucket_producer_with_no_taskflow",
+            "name": "asset_s3_bucket_producer_with_no_taskflow",
             "type": "dag",
         },
         {

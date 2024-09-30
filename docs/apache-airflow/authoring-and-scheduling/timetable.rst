@@ -176,27 +176,27 @@ first, event for the data interval. Otherwise, manual runs begin with a ``data_i
     def example_dag():
         pass
 
-.. _dataset-timetable-section:
+.. _asset-timetable-section:
 
-Dataset event based scheduling with time based scheduling
+Asset event based scheduling with time based scheduling
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Combining conditional dataset expressions with time-based schedules enhances scheduling flexibility.
+Combining conditional asset expressions with time-based schedules enhances scheduling flexibility.
 
-The ``DatasetOrTimeSchedule`` is a specialized timetable that allows for the scheduling of DAGs based on both time-based schedules and dataset events. It also facilitates the creation of both scheduled runs, as per traditional timetables, and dataset-triggered runs, which operate independently.
+The ``AssetOrTimeSchedule`` is a specialized timetable that allows for the scheduling of DAGs based on both time-based schedules and asset events. It also facilitates the creation of both scheduled runs, as per traditional timetables, and asset-triggered runs, which operate independently.
 
-This feature is particularly useful in scenarios where a DAG needs to run on dataset updates and also at periodic intervals. It ensures that the workflow remains responsive to data changes and consistently runs regular checks or updates.
+This feature is particularly useful in scenarios where a DAG needs to run on asset updates and also at periodic intervals. It ensures that the workflow remains responsive to data changes and consistently runs regular checks or updates.
 
-Here's an example of a DAG using ``DatasetOrTimeSchedule``:
+Here's an example of a DAG using ``AssetOrTimeSchedule``:
 
 .. code-block:: python
 
-    from airflow.timetables.datasets import DatasetOrTimeSchedule
+    from airflow.timetables.assets import AssetOrTimeSchedule
     from airflow.timetables.trigger import CronTriggerTimetable
 
 
     @dag(
-        schedule=DatasetOrTimeSchedule(
-            timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), datasets=(dag1_dataset & dag2_dataset)
+        schedule=AssetOrTimeSchedule(
+            timetable=CronTriggerTimetable("0 1 * * 3", timezone="UTC"), assets=(dag1_asset & dag2_asset)
         )
         # Additional arguments here, replace this comment with actual arguments
     )
