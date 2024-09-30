@@ -25,7 +25,6 @@ import pytest
 from openlineage.client.event_v2 import Dataset as OpenLineageDataset
 from openlineage.client.facet_v2 import documentation_dataset, ownership_dataset, schema_dataset
 
-from airflow.datasets import Dataset
 from airflow.io.path import ObjectStoragePath
 from airflow.lineage.entities import Column, File, Table, User
 from airflow.models.baseoperator import BaseOperator
@@ -33,11 +32,35 @@ from airflow.models.taskinstance import TaskInstance
 from airflow.operators.python import PythonOperator
 from airflow.providers.openlineage.extractors import OperatorLineage
 from airflow.providers.openlineage.extractors.manager import ExtractorManager
+from airflow.providers.openlineage.utils.utils import Asset
 from airflow.utils.state import State
 from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+if AIRFLOW_V_2_10_PLUS:
+
+    @pytest.fixture
+    def hook_lineage_collector():
+        from importlib.util import find_spec
+
+        from airflow.lineage import hook
+
+        if find_spec("airflow.assets"):
+            # Dataset has been renamed as Asset in 3.0
+            from airflow.lineage.hook import get_hook_lineage_collector
+        else:
+            from airflow.providers.openlineage.utils.asset_compat_lineage_collector import (
+                get_hook_lineage_collector,
+            )
+
+        hook._hook_lineage_collector = None
+        hook._hook_lineage_collector = hook.HookLineageCollector()
+
+        yield get_hook_lineage_collector()
+
+        hook._hook_lineage_collector = None
 
 
 @pytest.mark.parametrize(
@@ -213,8 +236,8 @@ def test_extractor_manager_uses_hook_level_lineage(hook_lineage_collector):
     del task.get_openlineage_facets_on_complete
     ti = MagicMock()
 
-    hook_lineage_collector.add_input_dataset(None, uri="s3://bucket/input_key")
-    hook_lineage_collector.add_output_dataset(None, uri="s3://bucket/output_key")
+    hook_lineage_collector.add_input_asset(None, uri="s3://bucket/input_key")
+    hook_lineage_collector.add_output_asset(None, uri="s3://bucket/output_key")
     extractor_manager = ExtractorManager()
     metadata = extractor_manager.extract_metadata(dagrun=dagrun, task=task, complete=True, task_instance=ti)
 
@@ -236,7 +259,7 @@ def test_extractor_manager_does_not_use_hook_level_lineage_when_operator(hook_li
     dagrun = MagicMock()
     task = FakeSupportedOperator(task_id="test_task_extractor")
     ti = MagicMock()
-    hook_lineage_collector.add_input_dataset(None, uri="s3://bucket/input_key")
+    hook_lineage_collector.add_input_asset(None, uri="s3://bucket/input_key")
 
     extractor_manager = ExtractorManager()
     metadata = extractor_manager.extract_metadata(dagrun=dagrun, task=task, complete=True, task_instance=ti)
@@ -269,7 +292,7 @@ def test_extractor_manager_gets_data_from_pythonoperator(session, dag_maker, hoo
 
     ti.run()
 
-    datasets = hook_lineage_collector.collected_datasets
+    datasets = hook_lineage_collector.collected_assets
 
     assert len(datasets.outputs) == 1
-    assert datasets.outputs[0].dataset == Dataset(uri=path)
+    assert datasets.outputs[0].asset == Asset(uri=path)

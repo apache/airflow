@@ -19,7 +19,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from airflow import models
-from airflow.datasets import Dataset
+from airflow.assets import Asset
 from airflow.providers.microsoft.azure.operators.msgraph import MSGraphAsyncOperator
 
 DAG_ID = "example_msfabric"
@@ -44,7 +44,7 @@ with models.DAG(
         query_parameters={"jobType": "Pipeline"},
         dag=dag,
         outlets=[
-            Dataset(
+            Asset(
                 "workspaces/e90b2873-4812-4dfb-9246-593638165644/items/65448530-e5ec-4aeb-a97e-7cebf5d67c18/jobs/instances?jobType=Pipeline"
             )
         ],

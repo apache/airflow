@@ -151,13 +151,13 @@ from airflow_breeze.utils.run_tests import convert_parallel_types_to_folders, co
         (
             "Other",
             [
+                "tests/assets",
                 "tests/auth",
                 "tests/callbacks",
                 "tests/charts",
                 "tests/cluster_policies",
                 "tests/config_templates",
                 "tests/dag_processing",
-                "tests/datasets",
                 "tests/decorators",
                 "tests/hooks",
                 "tests/io",

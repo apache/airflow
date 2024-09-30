@@ -642,7 +642,7 @@ Dataset URIs are now validated on input (#37005)
 
 Datasets must use a URI that conform to rules laid down in AIP-60, and the value
 will be automatically normalized when the DAG file is parsed. See
-`documentation on Datasets <https://airflow.apache.org/docs/apache-airflow/stable/authoring-and-scheduling/datasets.html>`_ for
+`documentation on Datasets <https://airflow.apache.org/docs/apache-airflow/2.9.0/authoring-and-scheduling/datasets.html>`_ for
 a more detailed description on the rules.
 
 You may need to change your Dataset identifiers if they look like a URI, but are
@@ -3264,7 +3264,7 @@ If you have the producer and consumer in different files you do not need to use 
 Datasets represent the abstract concept of a dataset, and (for now) do not have any direct read or write
 capability - in this release we are adding the foundational feature that we will build upon.
 
-For more info on Datasets please see :doc:`/authoring-and-scheduling/datasets`.
+For more info on Datasets please see `Datasets documentation <https://airflow.apache.org/docs/apache-airflow/2.4.0/authoring-and-scheduling/datasets.html>`_.
 
 Expanded dynamic task mapping support
 """""""""""""""""""""""""""""""""""""

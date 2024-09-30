@@ -10,9 +10,9 @@ paths:
   /ui/next_run_datasets/{dag_id}:
     get:
       tags:
-      - Dataset
-      summary: Next Run Datasets
-      operationId: next_run_datasets_ui_next_run_datasets__dag_id__get
+      - Asset
+      summary: Next Run Assets
+      operationId: next_run_assets_ui_next_run_datasets__dag_id__get
       parameters:
       - name: dag_id
         in: path
@@ -27,7 +27,7 @@ paths:
             application/json:
               schema:
                 type: object
-                title: Response Next Run Datasets Ui Next Run Datasets  Dag Id  Get
+                title: Response Next Run Assets Ui Next Run Datasets  Dag Id  Get
         '422':
           description: Validation Error
           content:

@@ -18,8 +18,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from airflow.api_fastapi.views.ui.datasets import datasets_router
+from airflow.api_fastapi.views.ui.assets import assets_router
 
 ui_router = APIRouter(prefix="/ui")
 
-ui_router.include_router(datasets_router)
+ui_router.include_router(assets_router)

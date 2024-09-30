@@ -58,9 +58,9 @@ def import_all_models():
     for name in __lazy_imports:
         __getattr__(name)
 
+    import airflow.models.asset
     import airflow.models.backfill
     import airflow.models.dagwarning
-    import airflow.models.dataset
     import airflow.models.errors
     import airflow.models.serialized_dag
     import airflow.models.taskinstancehistory

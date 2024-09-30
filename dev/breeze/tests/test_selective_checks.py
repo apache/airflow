@@ -136,7 +136,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
             pytest.param(
                 ("airflow/api/file.py",),
                 {
-                    "affected-providers-list-as-string": "fab",
+                    "affected-providers-list-as-string": "common.compat fab",
                     "all-python-versions": "['3.8']",
                     "all-python-versions-list-as-string": "3.8",
                     "python-versions": "['3.8']",
@@ -150,13 +150,13 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,"
                     "mypy-docs,mypy-providers,ts-compile-format-lint-ui,ts-compile-format-lint-www",
                     "upgrade-to-newer-dependencies": "false",
-                    "parallel-test-types-list-as-string": "API Always Providers[fab]",
-                    "providers-test-types-list-as-string": "Providers[fab]",
-                    "separate-test-types-list-as-string": "API Always Providers[fab]",
+                    "parallel-test-types-list-as-string": "API Always Providers[common.compat,fab]",
+                    "providers-test-types-list-as-string": "Providers[common.compat,fab]",
+                    "separate-test-types-list-as-string": "API Always Providers[common.compat] Providers[fab]",
                     "needs-mypy": "true",
                     "mypy-folders": "['airflow']",
                 },
-                id="Only API tests and DOCS and FAB provider should run",
+                id="Only API tests and DOCS and common.compat, FAB providers should run",
             )
         ),
         (
@@ -324,7 +324,7 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "tests/providers/postgres/file.py",
                 ),
                 {
-                    "affected-providers-list-as-string": "amazon common.sql fab google openlineage "
+                    "affected-providers-list-as-string": "amazon common.compat common.sql fab google openlineage "
                     "pgvector postgres",
                     "all-python-versions": "['3.8']",
                     "all-python-versions-list-as-string": "3.8",
@@ -340,10 +340,10 @@ def assert_outputs_are_printed(expected_outputs: dict[str, str], stderr: str):
                     "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                     "upgrade-to-newer-dependencies": "false",
                     "parallel-test-types-list-as-string": "API Always Providers[amazon] "
-                    "Providers[common.sql,fab,openlineage,pgvector,postgres] Providers[google]",
+                    "Providers[common.compat,common.sql,fab,openlineage,pgvector,postgres] Providers[google]",
                     "providers-test-types-list-as-string": "Providers[amazon] "
-                    "Providers[common.sql,fab,openlineage,pgvector,postgres] Providers[google]",
-                    "separate-test-types-list-as-string": "API Always Providers[amazon] Providers[common.sql] "
+                    "Providers[common.compat,common.sql,fab,openlineage,pgvector,postgres] Providers[google]",
+                    "separate-test-types-list-as-string": "API Always Providers[amazon] Providers[common.compat] Providers[common.sql] "
                     "Providers[fab] Providers[google] Providers[openlineage] Providers[pgvector] "
                     "Providers[postgres]",
                     "needs-mypy": "true",
@@ -1390,7 +1390,7 @@ def test_expected_output_pull_request_v2_7(
                 "airflow/api/file.py",
             ),
             {
-                "affected-providers-list-as-string": "fab",
+                "affected-providers-list-as-string": "common.compat fab",
                 "all-python-versions": "['3.8']",
                 "all-python-versions-list-as-string": "3.8",
                 "ci-image-build": "true",
@@ -1398,17 +1398,17 @@ def test_expected_output_pull_request_v2_7(
                 "needs-helm-tests": "false",
                 "run-tests": "true",
                 "docs-build": "true",
-                "docs-list-as-string": "apache-airflow fab",
+                "docs-list-as-string": "apache-airflow common.compat fab",
                 "skip-pre-commits": "check-provider-yaml-valid,identity,lint-helm-chart,mypy-airflow,mypy-dev,mypy-docs,mypy-providers,"
                 "ts-compile-format-lint-ui,ts-compile-format-lint-www",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
                 "skip-provider-tests": "false",
-                "parallel-test-types-list-as-string": "API Always CLI Operators Providers[fab] WWW",
+                "parallel-test-types-list-as-string": "API Always CLI Operators Providers[common.compat,fab] WWW",
                 "needs-mypy": "true",
                 "mypy-folders": "['airflow']",
             },
-            id="No providers tests except fab should run if only CLI/API/Operators/WWW file changed",
+            id="No providers tests except common.compat fab should run if only CLI/API/Operators/WWW file changed",
         ),
         pytest.param(
             ("airflow/models/test.py",),

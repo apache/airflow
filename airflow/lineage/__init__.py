@@ -104,7 +104,7 @@ def prepare_lineage(func: T) -> T:
     * "auto" -> picks up any outlets from direct upstream tasks that have outlets defined, as such that
       if A -> B -> C and B does not have outlets but A does, these are provided as inlets.
     * "list of task_ids" -> picks up outlets from the upstream task_ids
-    * "list of datasets" -> manually defined list of data
+    * "list of datasets" -> manually defined list of dataset
 
     """
 

@@ -94,7 +94,7 @@ const Node = (props: NodeProps<CustomNodeProps>) => {
     );
   }
 
-  if (data.class === "dataset") return <DatasetNode {...props} />;
+  if (data.class === "asset") return <DatasetNode {...props} />;
 
   return <DagNode {...props} />;
 };

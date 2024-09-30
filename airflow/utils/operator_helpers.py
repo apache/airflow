@@ -251,7 +251,7 @@ class ExecutionCallableRunner:
     def run(self, *args, **kwargs) -> Any:
         import inspect
 
-        from airflow.datasets.metadata import Metadata
+        from airflow.assets.metadata import Metadata
         from airflow.utils.types import NOTSET
 
         if not inspect.isgeneratorfunction(self.func):

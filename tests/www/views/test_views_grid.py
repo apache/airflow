@@ -24,11 +24,11 @@ import pendulum
 import pytest
 from dateutil.tz import UTC
 
-from airflow.datasets import Dataset
+from airflow.assets import Asset
 from airflow.decorators import task_group
 from airflow.lineage.entities import File
 from airflow.models import DagBag
-from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent, DatasetModel
+from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -36,7 +36,7 @@ from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 from airflow.www.views import dag_to_grid
 from tests.test_utils.asserts import assert_queries_count
-from tests.test_utils.db import clear_db_datasets, clear_db_runs
+from tests.test_utils.db import clear_db_assets, clear_db_runs
 from tests.test_utils.mock_operators import MockOperator
 
 pytestmark = pytest.mark.db_test
@@ -56,10 +56,10 @@ def examples_dag_bag():
 @pytest.fixture(autouse=True)
 def clean():
     clear_db_runs()
-    clear_db_datasets()
+    clear_db_assets()
     yield
     clear_db_runs()
-    clear_db_datasets()
+    clear_db_assets()
 
 
 @pytest.fixture
@@ -419,7 +419,7 @@ def test_query_count(dag_with_runs, session):
         dag_to_grid(run1.dag, (run1, run2), session)
 
 
-def test_has_outlet_dataset_flag(admin_client, dag_maker, session, app, monkeypatch):
+def test_has_outlet_asset_flag(admin_client, dag_maker, session, app, monkeypatch):
     with monkeypatch.context() as m:
         # Remove global operator links for this test
         m.setattr("airflow.plugins_manager.global_operator_extra_links", [])
@@ -430,8 +430,8 @@ def test_has_outlet_dataset_flag(admin_client, dag_maker, session, app, monkeypa
             lineagefile = File("/tmp/does_not_exist")
             EmptyOperator(task_id="task1")
             EmptyOperator(task_id="task2", outlets=[lineagefile])
-            EmptyOperator(task_id="task3", outlets=[Dataset("foo"), lineagefile])
-            EmptyOperator(task_id="task4", outlets=[Dataset("foo")])
+            EmptyOperator(task_id="task3", outlets=[Asset("foo"), lineagefile])
+            EmptyOperator(task_id="task4", outlets=[Asset("foo")])
 
         m.setattr(app, "dag_bag", dag_maker.dagbag)
         resp = admin_client.get(f"/object/grid_data?dag_id={DAG_ID}", follow_redirects=True)
@@ -470,37 +470,37 @@ def test_has_outlet_dataset_flag(admin_client, dag_maker, session, app, monkeypa
 @pytest.mark.need_serialized_dag
 def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
     with monkeypatch.context() as m:
-        datasets = [Dataset(uri=f"s3://bucket/key/{i}") for i in [1, 2]]
+        assets = [Asset(uri=f"s3://bucket/key/{i}") for i in [1, 2]]
 
-        with dag_maker(dag_id=DAG_ID, schedule=datasets, serialized=True, session=session):
+        with dag_maker(dag_id=DAG_ID, schedule=assets, serialized=True, session=session):
             EmptyOperator(task_id="task1")
 
         m.setattr(app, "dag_bag", dag_maker.dagbag)
 
-        ds1_id = session.query(DatasetModel.id).filter_by(uri=datasets[0].uri).scalar()
-        ds2_id = session.query(DatasetModel.id).filter_by(uri=datasets[1].uri).scalar()
-        ddrq = DatasetDagRunQueue(
-            target_dag_id=DAG_ID, dataset_id=ds1_id, created_at=pendulum.DateTime(2022, 8, 2, tzinfo=UTC)
+        asset1_id = session.query(AssetModel.id).filter_by(uri=assets[0].uri).scalar()
+        asset2_id = session.query(AssetModel.id).filter_by(uri=assets[1].uri).scalar()
+        adrq = AssetDagRunQueue(
+            target_dag_id=DAG_ID, dataset_id=asset1_id, created_at=pendulum.DateTime(2022, 8, 2, tzinfo=UTC)
         )
-        session.add(ddrq)
-        dataset_events = [
-            DatasetEvent(
-                dataset_id=ds1_id,
+        session.add(adrq)
+        asset_events = [
+            AssetEvent(
+                dataset_id=asset1_id,
                 extra={},
                 timestamp=pendulum.DateTime(2022, 8, 1, 1, tzinfo=UTC),
             ),
-            DatasetEvent(
-                dataset_id=ds1_id,
+            AssetEvent(
+                dataset_id=asset1_id,
                 extra={},
                 timestamp=pendulum.DateTime(2022, 8, 2, 1, tzinfo=UTC),
             ),
-            DatasetEvent(
-                dataset_id=ds1_id,
+            AssetEvent(
+                dataset_id=asset1_id,
                 extra={},
                 timestamp=pendulum.DateTime(2022, 8, 2, 2, tzinfo=UTC),
             ),
         ]
-        session.add_all(dataset_events)
+        session.add_all(asset_events)
         session.commit()
 
         resp = admin_client.get(f"/object/next_run_datasets/{DAG_ID}", follow_redirects=True)
@@ -509,8 +509,8 @@ def test_next_run_datasets(admin_client, dag_maker, session, app, monkeypatch):
     assert resp.json == {
         "dataset_expression": {"all": ["s3://bucket/key/1", "s3://bucket/key/2"]},
         "events": [
-            {"id": ds1_id, "uri": "s3://bucket/key/1", "lastUpdate": "2022-08-02T02:00:00+00:00"},
-            {"id": ds2_id, "uri": "s3://bucket/key/2", "lastUpdate": None},
+            {"id": asset1_id, "uri": "s3://bucket/key/1", "lastUpdate": "2022-08-02T02:00:00+00:00"},
+            {"id": asset2_id, "uri": "s3://bucket/key/2", "lastUpdate": None},
         ],
     }
 
