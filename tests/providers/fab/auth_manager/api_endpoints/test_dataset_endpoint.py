@@ -22,11 +22,13 @@ import pytest
 import time_machine
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.models.asset import AssetDagRunQueue, AssetModel
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS, ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("3.0.0+", __file__):
+    from airflow.models.asset import AssetDagRunQueue, AssetModel
 from airflow.security import permissions
 from airflow.utils import timezone
 from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.db import clear_db_assets, clear_db_runs
 from tests.test_utils.www import _check_last_log
 

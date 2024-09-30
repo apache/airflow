@@ -27,13 +27,15 @@ from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunTriggeredByType, DagRunType
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS, ignore_provider_compatibility_error
+
+with ignore_provider_compatibility_error("3.0.0+", __file__):
+    from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     delete_roles,
     delete_user,
 )
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 pytestmark = [
