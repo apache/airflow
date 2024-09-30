@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-28T13:40:34.896917
+# This constraints file was automatically generated on 2024-09-30T07:41:00.448203
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -51,7 +51,7 @@ adlfs==2024.7.0
 aiobotocore==2.15.1
 aiofiles==23.2.1
 aiohappyeyeballs==2.4.2
-aiohttp==3.10.7
+aiohttp==3.10.8
 aioitertools==0.12.0
 aioresponses==0.7.6
 aiosignal==1.3.1
@@ -98,7 +98,7 @@ azure-cosmos==4.7.0
 azure-datalake-store==0.0.53
 azure-identity==1.18.0
 azure-keyvault-secrets==4.8.0
-azure-kusto-data==4.5.1
+azure-kusto-data==4.6.1
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==10.3.0
 azure-mgmt-core==1.4.0
@@ -239,7 +239,7 @@ google-cloud-memcache==1.9.5
 google-cloud-monitoring==2.22.2
 google-cloud-orchestration-airflow==1.14.0
 google-cloud-os-login==2.14.6
-google-cloud-pubsub==2.23.1
+google-cloud-pubsub==2.25.1
 google-cloud-redis==2.15.5
 google-cloud-resource-manager==1.12.5
 google-cloud-run==0.10.8
@@ -355,7 +355,7 @@ microsoft-kiota-http==1.3.3
 mmh3==4.1.0
 mongomock==4.2.0.post1
 more-itertools==10.5.0
-moto==5.0.15
+moto==5.0.16
 mpmath==1.3.0
 msal-extensions==1.2.0
 msal==1.31.0
@@ -460,7 +460,7 @@ pydot==1.4.2
 pydruid==0.6.9
 pyenchant==3.2.2
 pyexasol==0.27.0
-pygraphviz==1.13
+pygraphviz==1.14
 pyiceberg==0.7.1
 pyjsparser==2.7.1
 pykerberos==1.2.4
@@ -488,7 +488,7 @@ python-dotenv==1.0.1
 python-http-client==3.3.7
 python-jenkins==1.8.2
 python-ldap==3.4.4
-python-multipart==0.0.11
+python-multipart==0.0.12
 python-nvd3==0.16.0
 python-slugify==8.0.4
 python-telegram-bot==21.6
