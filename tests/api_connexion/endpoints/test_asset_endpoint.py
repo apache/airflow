@@ -580,7 +580,7 @@ class TestPostDatasetEvents(TestDatasetEndpoint):
     @pytest.mark.usefixtures("time_freezer")
     def test_should_respond_200(self, session):
         self._create_dataset(session)
-        event_payload = {"dataset_uri": "s3://bucket/key", "extra": {"foo": "bar"}}
+        event_payload = {"asset_uri": "s3://bucket/key", "extra": {"foo": "bar"}}
         response = self.client.post(
             "/api/v1/datasets/events", json=event_payload, environ_overrides={"REMOTE_USER": "test"}
         )
@@ -590,7 +590,7 @@ class TestPostDatasetEvents(TestDatasetEndpoint):
         assert response_data == {
             "id": ANY,
             "created_dagruns": [],
-            "dataset_uri": event_payload["dataset_uri"],
+            "dataset_uri": event_payload["asset_uri"],
             "dataset_id": ANY,
             "extra": {"foo": "bar", "from_rest_api": True},
             "source_dag_id": None,
@@ -610,7 +610,7 @@ class TestPostDatasetEvents(TestDatasetEndpoint):
     @pytest.mark.enable_redact
     def test_should_mask_sensitive_extra_logs(self, session):
         self._create_dataset(session)
-        event_payload = {"dataset_uri": "s3://bucket/key", "extra": {"password": "bar"}}
+        event_payload = {"asset_uri": "s3://bucket/key", "extra": {"password": "bar"}}
         response = self.client.post(
             "/api/v1/datasets/events", json=event_payload, environ_overrides={"REMOTE_USER": "test"}
         )
@@ -627,7 +627,7 @@ class TestPostDatasetEvents(TestDatasetEndpoint):
 
     def test_order_by_raises_400_for_invalid_attr(self, session):
         self._create_dataset(session)
-        event_invalid_payload = {"dataset_uri": "TEST_DATASET_URI", "extra": {"foo": "bar"}, "fake": {}}
+        event_invalid_payload = {"asset_uri": "TEST_ASSET_URI", "extra": {"foo": "bar"}, "fake": {}}
         response = self.client.post(
             "/api/v1/datasets/events", json=event_invalid_payload, environ_overrides={"REMOTE_USER": "test"}
         )
@@ -635,7 +635,7 @@ class TestPostDatasetEvents(TestDatasetEndpoint):
 
     def test_should_raises_401_unauthenticated(self, session):
         self._create_dataset(session)
-        response = self.client.post("/api/v1/datasets/events", json={"dataset_uri": "TEST_DATASET_URI"})
+        response = self.client.post("/api/v1/datasets/events", json={"asset_uri": "TEST_ASSET_URI"})
         assert_401(response)
 
 
