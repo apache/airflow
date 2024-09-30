@@ -68,13 +68,13 @@ DEFAULT_DAGRUN = "TEST_DAGRUN"
 
 
 @pytest.fixture(scope="module", autouse=True)
-def reset_dagruns():
+def _reset_dagruns():
     """Clean up stray garbage from other tests."""
     clear_db_runs()
 
 
 @pytest.fixture(autouse=True)
-def init_dagruns(app):
+def _init_dagruns(app):
     with time_machine.travel(DEFAULT_DATE, tick=False):
         triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         app.dag_bag.get_dag("example_bash_operator").create_dagrun(

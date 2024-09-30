@@ -310,7 +310,7 @@ core:
       version_added: 2.3.0
       type: string
       example: ~
-      default: "regexp"
+      default: "glob"
     default_task_retries:
       description: |
         The number of retries each task is going to have by default. Can be overridden at dag or task level.
@@ -470,22 +470,22 @@ core:
       type: string
       default: "0o077"
       example: ~
-    dataset_manager_class:
-      description: Class to use as dataset manager.
-      version_added: 2.4.0
+    asset_manager_class:
+      description: Class to use as asset manager.
+      version_added: 3.0.0
       type: string
       default: ~
-      example: 'airflow.datasets.manager.DatasetManager'
-    dataset_manager_kwargs:
-      description: Kwargs to supply to dataset manager.
-      version_added: 2.4.0
+      example: 'airflow.datasets.manager.AssetManager'
+    asset_manager_kwargs:
+      description: Kwargs to supply to asset manager.
+      version_added: 3.0.0
       type: string
       sensitive: true
       default: ~
       example: '{"some_param": "some_value"}'
-    strict_dataset_uri_validation:
+    strict_asset_uri_validation:
       description: |
-        Dataset URI validation should raise an exception if it is not compliant with AIP-60.
+        Asset URI validation should raise an exception if it is not compliant with AIP-60.
         By default this configuration is false, meaning that Airflow 2.x only warns the user.
         In Airflow 3, this configuration will be enabled by default.
       default: "False"

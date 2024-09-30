@@ -10,9 +10,9 @@ paths:
   /ui/next_run_datasets/{dag_id}:
     get:
       tags:
-      - Dataset
-      summary: Next Run Datasets
-      operationId: next_run_datasets_ui_next_run_datasets__dag_id__get
+      - Asset
+      summary: Next Run Assets
+      operationId: next_run_assets_ui_next_run_datasets__dag_id__get
       parameters:
       - name: dag_id
         in: path
@@ -27,7 +27,7 @@ paths:
             application/json:
               schema:
                 type: object
-                title: Response Next Run Datasets Ui Next Run Datasets  Dag Id  Get
+                title: Response Next Run Assets Ui Next Run Datasets  Dag Id  Get
         '422':
           description: Validation Error
           content:
@@ -103,6 +103,14 @@ paths:
           - type: boolean
           - type: 'null'
           title: Paused
+      - name: last_dag_run_state
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - $ref: '#/components/schemas/DagRunState'
+          - type: 'null'
+          title: Last Dag Run State
       - name: order_by
         in: query
         required: false
@@ -160,6 +168,30 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DAGResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Bad Request
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Unauthorized
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Forbidden
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPExceptionResponse'
+          description: Not Found
         '422':
           description: Validation Error
           content:
@@ -347,6 +379,22 @@ components:
       - file_token
       title: DAGResponse
       description: DAG serializer for responses.
+    DagRunState:
+      type: string
+      enum:
+      - queued
+      - running
+      - success
+      - failed
+      title: DagRunState
+      description: 'All possible states that a DagRun can be in.
+
+
+        These are "shared" with TaskInstanceState in some parts of the code,
+
+        so please ensure that their values always match the ones with the
+
+        same name in TaskInstanceState.'
     DagTagPydantic:
       properties:
         name:
@@ -362,6 +410,18 @@ components:
       title: DagTagPydantic
       description: Serializable representation of the DagTag ORM SqlAlchemyModel used
         by internal API.
+    HTTPExceptionResponse:
+      properties:
+        detail:
+          anyOf:
+          - type: string
+          - type: object
+          title: Detail
+      type: object
+      required:
+      - detail
+      title: HTTPExceptionResponse
+      description: HTTPException Model used for error response.
     HTTPValidationError:
       properties:
         detail:

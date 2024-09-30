@@ -35,14 +35,27 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.17.1
+......
+
+Latest change: 2024-09-26
+
+=================================================================================================  ===========  ==============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================================
+`7ad586ed6a <https://github.com/apache/airflow/commit/7ad586ed6a6cb93fc25ae0405eb9f6c17d360ef0>`_  2024-09-26   ``fix(providers/common/sql): add dummy connection setter for backward compatibility (#42490)``
+`47c71108a8 <https://github.com/apache/airflow/commit/47c71108a8d0c1dcddc027554ec2747070f8f6ad>`_  2024-09-22   ``Changed type hinting for handler function (#42275)``
+=================================================================================================  ===========  ==============================================================================================
+
 1.17.0
 ......
 
-Latest change: 2024-09-05
+Latest change: 2024-09-21
 
 =================================================================================================  ===========  =================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =================================================================================
+`7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
 `17c30b4f21 <https://github.com/apache/airflow/commit/17c30b4f21432d7fc419e048305315bba6d04522>`_  2024-09-05   ``feat: log client db messages for provider postgres (#40171)``
 `2e813eb87d <https://github.com/apache/airflow/commit/2e813eb87d7793d7bb2a2fbb4e485c896c1dc2c4>`_  2024-09-04   ``Generalize caching of connection in DbApiHook to improve performance (#40751)``
 `1613e9ec1c <https://github.com/apache/airflow/commit/1613e9ec1c4e5523953e045c8adcef1b9d4ce95d>`_  2024-08-25   ``remove soft_fail (#41710)``

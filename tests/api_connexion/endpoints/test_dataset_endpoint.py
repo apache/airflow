@@ -25,21 +25,21 @@ import time_machine
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.models import DagModel
-from airflow.models.dagrun import DagRun
-from airflow.models.dataset import (
-    DagScheduleDatasetReference,
-    DatasetDagRunQueue,
-    DatasetEvent,
-    DatasetModel,
-    TaskOutletDatasetReference,
+from airflow.models.asset import (
+    AssetDagRunQueue,
+    AssetEvent,
+    AssetModel,
+    DagScheduleAssetReference,
+    TaskOutletAssetReference,
 )
+from airflow.models.dagrun import DagRun
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_datasets, clear_db_runs
+from tests.test_utils.db import clear_db_assets, clear_db_runs
 from tests.test_utils.www import _check_last_log
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
@@ -68,30 +68,30 @@ class TestDatasetEndpoint:
     def setup_attrs(self, configured_app) -> None:
         self.app = configured_app
         self.client = self.app.test_client()
-        clear_db_datasets()
+        clear_db_assets()
         clear_db_runs()
 
     def teardown_method(self) -> None:
-        clear_db_datasets()
+        clear_db_assets()
         clear_db_runs()
 
     def _create_dataset(self, session):
-        dataset_model = DatasetModel(
+        asset_model = AssetModel(
             id=1,
             uri="s3://bucket/key",
             extra={"foo": "bar"},
             created_at=timezone.parse(self.default_time),
             updated_at=timezone.parse(self.default_time),
         )
-        session.add(dataset_model)
+        session.add(asset_model)
         session.commit()
-        return dataset_model
+        return asset_model
 
 
 class TestGetDatasetEndpoint(TestDatasetEndpoint):
     def test_should_respond_200(self, session):
         self._create_dataset(session)
-        assert session.query(DatasetModel).count() == 1
+        assert session.query(AssetModel).count() == 1
 
         with assert_queries_count(6):
             response = self.client.get(
@@ -117,9 +117,9 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
         )
         assert response.status_code == 404
         assert {
-            "detail": "The Dataset with uri: `s3://bucket/key` was not found",
+            "detail": "The Asset with uri: `s3://bucket/key` was not found",
             "status": 404,
-            "title": "Dataset not found",
+            "title": "Asset not found",
             "type": EXCEPTIONS_LINK_MAP[404],
         } == response.json
 
@@ -131,8 +131,8 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
 
 class TestGetDatasets(TestDatasetEndpoint):
     def test_should_respond_200(self, session):
-        datasets = [
-            DatasetModel(
+        assets = [
+            AssetModel(
                 id=i,
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
@@ -141,9 +141,9 @@ class TestGetDatasets(TestDatasetEndpoint):
             )
             for i in [1, 2]
         ]
-        session.add_all(datasets)
+        session.add_all(assets)
         session.commit()
-        assert session.query(DatasetModel).count() == 2
+        assert session.query(AssetModel).count() == 2
 
         with assert_queries_count(10):
             response = self.client.get("/api/v1/datasets", environ_overrides={"REMOTE_USER": "test"})
@@ -177,8 +177,8 @@ class TestGetDatasets(TestDatasetEndpoint):
         }
 
     def test_order_by_raises_400_for_invalid_attr(self, session):
-        datasets = [
-            DatasetModel(
+        assets = [
+            AssetModel(
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
                 created_at=timezone.parse(self.default_time),
@@ -186,9 +186,9 @@ class TestGetDatasets(TestDatasetEndpoint):
             )
             for i in [1, 2]
         ]
-        session.add_all(datasets)
+        session.add_all(assets)
         session.commit()
-        assert session.query(DatasetModel).count() == 2
+        assert session.query(AssetModel).count() == 2
 
         response = self.client.get(
             "/api/v1/datasets?order_by=fake", environ_overrides={"REMOTE_USER": "test"}
@@ -199,8 +199,8 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert response.json["detail"] == msg
 
     def test_should_raises_401_unauthenticated(self, session):
-        datasets = [
-            DatasetModel(
+        assets = [
+            AssetModel(
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
                 created_at=timezone.parse(self.default_time),
@@ -208,9 +208,9 @@ class TestGetDatasets(TestDatasetEndpoint):
             )
             for i in [1, 2]
         ]
-        session.add_all(datasets)
+        session.add_all(assets)
         session.commit()
-        assert session.query(DatasetModel).count() == 2
+        assert session.query(AssetModel).count() == 2
 
         response = self.client.get("/api/v1/datasets")
 
@@ -238,11 +238,11 @@ class TestGetDatasets(TestDatasetEndpoint):
     )
     @provide_session
     def test_filter_datasets_by_uri_pattern_works(self, url, expected_datasets, session):
-        dataset1 = DatasetModel("s3://folder/key")
-        dataset2 = DatasetModel("gcp://bucket/key")
-        dataset3 = DatasetModel("somescheme://dataset/key")
-        dataset4 = DatasetModel("wasb://some_dataset_bucket_/key")
-        session.add_all([dataset1, dataset2, dataset3, dataset4])
+        asset1 = AssetModel("s3://folder/key")
+        asset2 = AssetModel("gcp://bucket/key")
+        asset3 = AssetModel("somescheme://dataset/key")
+        asset4 = AssetModel("wasb://some_dataset_bucket_/key")
+        session.add_all([asset1, asset2, asset3, asset4])
         session.commit()
         response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 200
@@ -257,12 +257,12 @@ class TestGetDatasets(TestDatasetEndpoint):
         dag1 = DagModel(dag_id="dag1")
         dag2 = DagModel(dag_id="dag2")
         dag3 = DagModel(dag_id="dag3")
-        dataset1 = DatasetModel("s3://folder/key")
-        dataset2 = DatasetModel("gcp://bucket/key")
-        dataset3 = DatasetModel("somescheme://dataset/key")
-        dag_ref1 = DagScheduleDatasetReference(dag_id="dag1", dataset=dataset1)
-        dag_ref2 = DagScheduleDatasetReference(dag_id="dag2", dataset=dataset2)
-        task_ref1 = TaskOutletDatasetReference(dag_id="dag3", task_id="task1", dataset=dataset3)
+        dataset1 = AssetModel("s3://folder/key")
+        dataset2 = AssetModel("gcp://bucket/key")
+        dataset3 = AssetModel("somescheme://dataset/key")
+        dag_ref1 = DagScheduleAssetReference(dag_id="dag1", dataset=dataset1)
+        dag_ref2 = DagScheduleAssetReference(dag_id="dag2", dataset=dataset2)
+        task_ref1 = TaskOutletAssetReference(dag_id="dag3", task_id="task1", dataset=dataset3)
         session.add_all([dataset1, dataset2, dataset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1])
         session.commit()
         response = self.client.get(
@@ -284,13 +284,13 @@ class TestGetDatasets(TestDatasetEndpoint):
         dag1 = DagModel(dag_id="dag1")
         dag2 = DagModel(dag_id="dag2")
         dag3 = DagModel(dag_id="dag3")
-        dataset1 = DatasetModel("s3://folder/key")
-        dataset2 = DatasetModel("gcp://bucket/key")
-        dataset3 = DatasetModel("somescheme://dataset/key")
-        dag_ref1 = DagScheduleDatasetReference(dag_id="dag1", dataset=dataset1)
-        dag_ref2 = DagScheduleDatasetReference(dag_id="dag2", dataset=dataset2)
-        task_ref1 = TaskOutletDatasetReference(dag_id="dag3", task_id="task1", dataset=dataset3)
-        session.add_all([dataset1, dataset2, dataset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1])
+        asset1 = AssetModel("s3://folder/key")
+        asset2 = AssetModel("gcp://bucket/key")
+        asset3 = AssetModel("somescheme://dataset/key")
+        dag_ref1 = DagScheduleAssetReference(dag_id="dag1", dataset=asset1)
+        dag_ref2 = DagScheduleAssetReference(dag_id="dag2", dataset=asset2)
+        task_ref1 = TaskOutletAssetReference(dag_id="dag3", task_id="task1", dataset=asset3)
+        session.add_all([asset1, asset2, asset3, dag1, dag2, dag3, dag_ref1, dag_ref2, task_ref1])
         session.commit()
         response = self.client.get(
             f"/api/v1/datasets?dag_ids={dag_ids}&uri_pattern={uri_pattern}",
@@ -317,8 +317,8 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
     )
     @provide_session
     def test_limit_and_offset(self, url, expected_dataset_uris, session):
-        datasets = [
-            DatasetModel(
+        assets = [
+            AssetModel(
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
                 created_at=timezone.parse(self.default_time),
@@ -326,7 +326,7 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
             )
             for i in range(1, 110)
         ]
-        session.add_all(datasets)
+        session.add_all(assets)
         session.commit()
 
         response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
@@ -336,8 +336,8 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
         assert dataset_uris == expected_dataset_uris
 
     def test_should_respect_page_size_limit_default(self, session):
-        datasets = [
-            DatasetModel(
+        assets = [
+            AssetModel(
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
                 created_at=timezone.parse(self.default_time),
@@ -345,7 +345,7 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
             )
             for i in range(1, 110)
         ]
-        session.add_all(datasets)
+        session.add_all(assets)
         session.commit()
 
         response = self.client.get("/api/v1/datasets", environ_overrides={"REMOTE_USER": "test"})
@@ -355,8 +355,8 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self, session):
-        datasets = [
-            DatasetModel(
+        assets = [
+            AssetModel(
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
                 created_at=timezone.parse(self.default_time),
@@ -364,7 +364,7 @@ class TestGetDatasetsEndpointPagination(TestDatasetEndpoint):
             )
             for i in range(1, 200)
         ]
-        session.add_all(datasets)
+        session.add_all(assets)
         session.commit()
 
         response = self.client.get("/api/v1/datasets?limit=180", environ_overrides={"REMOTE_USER": "test"})
@@ -386,10 +386,10 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
             "created_dagruns": [],
         }
 
-        events = [DatasetEvent(id=i, timestamp=timezone.parse(self.default_time), **common) for i in [1, 2]]
+        events = [AssetEvent(id=i, timestamp=timezone.parse(self.default_time), **common) for i in [1, 2]]
         session.add_all(events)
         session.commit()
-        assert session.query(DatasetEvent).count() == 2
+        assert session.query(AssetEvent).count() == 2
 
         response = self.client.get("/api/v1/datasets/events", environ_overrides={"REMOTE_USER": "test"})
 
@@ -425,8 +425,8 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
     )
     @provide_session
     def test_filtering(self, attr, value, session):
-        datasets = [
-            DatasetModel(
+        assets = [
+            AssetModel(
                 id=i,
                 uri=f"s3://bucket/key/{i}",
                 extra={"foo": "bar"},
@@ -435,10 +435,10 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
             )
             for i in [1, 2, 3]
         ]
-        session.add_all(datasets)
+        session.add_all(assets)
         session.commit()
         events = [
-            DatasetEvent(
+            AssetEvent(
                 id=i,
                 dataset_id=i,
                 source_dag_id=f"dag{i}",
@@ -451,7 +451,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         ]
         session.add_all(events)
         session.commit()
-        assert session.query(DatasetEvent).count() == 3
+        assert session.query(AssetEvent).count() == 3
 
         response = self.client.get(
             f"/api/v1/datasets/events?{attr}={value}", environ_overrides={"REMOTE_USER": "test"}
@@ -464,7 +464,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
                 {
                     "id": 2,
                     "dataset_id": 2,
-                    "dataset_uri": datasets[1].uri,
+                    "dataset_uri": assets[1].uri,
                     "extra": {},
                     "source_dag_id": "dag2",
                     "source_task_id": "task2",
@@ -480,7 +480,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
     def test_order_by_raises_400_for_invalid_attr(self, session):
         self._create_dataset(session)
         events = [
-            DatasetEvent(
+            AssetEvent(
                 dataset_id=1,
                 extra="{'foo': 'bar'}",
                 source_dag_id="foo",
@@ -493,7 +493,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         ]
         session.add_all(events)
         session.commit()
-        assert session.query(DatasetEvent).count() == 2
+        assert session.query(AssetEvent).count() == 2
 
         response = self.client.get(
             "/api/v1/datasets/events?order_by=fake", environ_overrides={"REMOTE_USER": "test"}
@@ -509,7 +509,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
 
     def test_includes_created_dagrun(self, session):
         self._create_dataset(session)
-        event = DatasetEvent(
+        event = AssetEvent(
             id=1,
             dataset_id=1,
             timestamp=timezone.parse(self.default_time),
@@ -669,7 +669,7 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
     def test_limit_and_offset(self, url, expected_event_runids, session):
         self._create_dataset(session)
         events = [
-            DatasetEvent(
+            AssetEvent(
                 dataset_id=1,
                 source_dag_id="foo",
                 source_task_id="bar",
@@ -691,7 +691,7 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
     def test_should_respect_page_size_limit_default(self, session):
         self._create_dataset(session)
         events = [
-            DatasetEvent(
+            AssetEvent(
                 dataset_id=1,
                 source_dag_id="foo",
                 source_task_id="bar",
@@ -713,7 +713,7 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
     def test_should_return_conf_max_if_req_max_above_conf(self, session):
         self._create_dataset(session)
         events = [
-            DatasetEvent(
+            AssetEvent(
                 dataset_id=1,
                 source_dag_id="foo",
                 source_task_id="bar",
@@ -745,10 +745,10 @@ class TestQueuedEventEndpoint(TestDatasetEndpoint):
         freezer.stop()
 
     def _create_dataset_dag_run_queues(self, dag_id, dataset_id, session):
-        ddrq = DatasetDagRunQueue(target_dag_id=dag_id, dataset_id=dataset_id)
-        session.add(ddrq)
+        adrq = AssetDagRunQueue(target_dag_id=dag_id, dataset_id=dataset_id)
+        session.add(adrq)
         session.commit()
-        return ddrq
+        return adrq
 
 
 class TestGetDagDatasetQueuedEvent(TestQueuedEventEndpoint):

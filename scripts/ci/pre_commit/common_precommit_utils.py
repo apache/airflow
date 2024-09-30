@@ -211,3 +211,20 @@ def check_list_sorted(the_list: list[str], message: str, errors: list[str]) -> b
     console.print()
     errors.append(f"ERROR in {message}. The elements are not sorted/unique.")
     return False
+
+
+def validate_cmd_result(cmd_result, include_ci_env_check=False):
+    if include_ci_env_check:
+        if cmd_result.returncode != 0 and os.environ.get("CI") != "true":
+            console.print(
+                "\n[yellow]If you see strange stacktraces above, especially about missing imports "
+                "run this command:[/]\n"
+            )
+            console.print("[magenta]breeze ci-image build --python 3.8 --upgrade-to-newer-dependencies[/]\n")
+
+    elif cmd_result.returncode != 0:
+        console.print(
+            "[warning]\nIf you see strange stacktraces above, "
+            "run `breeze ci-image build --python 3.8` and try again."
+        )
+    sys.exit(cmd_result.returncode)

@@ -3,25 +3,25 @@ import type { CancelablePromise } from "./core/CancelablePromise";
 import { OpenAPI } from "./core/OpenAPI";
 import { request as __request } from "./core/request";
 import type {
-  NextRunDatasetsUiNextRunDatasetsDagIdGetData,
-  NextRunDatasetsUiNextRunDatasetsDagIdGetResponse,
+  NextRunAssetsUiNextRunDatasetsDagIdGetData,
+  NextRunAssetsUiNextRunDatasetsDagIdGetResponse,
   GetDagsPublicDagsGetData,
   GetDagsPublicDagsGetResponse,
   PatchDagPublicDagsDagIdPatchData,
   PatchDagPublicDagsDagIdPatchResponse,
 } from "./types.gen";
 
-export class DatasetService {
+export class AssetService {
   /**
-   * Next Run Datasets
+   * Next Run Assets
    * @param data The data for the request.
    * @param data.dagId
    * @returns unknown Successful Response
    * @throws ApiError
    */
-  public static nextRunDatasetsUiNextRunDatasetsDagIdGet(
-    data: NextRunDatasetsUiNextRunDatasetsDagIdGetData,
-  ): CancelablePromise<NextRunDatasetsUiNextRunDatasetsDagIdGetResponse> {
+  public static nextRunAssetsUiNextRunDatasetsDagIdGet(
+    data: NextRunAssetsUiNextRunDatasetsDagIdGetData,
+  ): CancelablePromise<NextRunAssetsUiNextRunDatasetsDagIdGetResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/ui/next_run_datasets/{dag_id}",
@@ -48,6 +48,7 @@ export class DagService {
    * @param data.dagDisplayNamePattern
    * @param data.onlyActive
    * @param data.paused
+   * @param data.lastDagRunState
    * @param data.orderBy
    * @returns DAGCollectionResponse Successful Response
    * @throws ApiError
@@ -67,6 +68,7 @@ export class DagService {
         dag_display_name_pattern: data.dagDisplayNamePattern,
         only_active: data.onlyActive,
         paused: data.paused,
+        last_dag_run_state: data.lastDagRunState,
         order_by: data.orderBy,
       },
       errors: {
@@ -100,6 +102,10 @@ export class DagService {
       body: data.requestBody,
       mediaType: "application/json",
       errors: {
+        400: "Bad Request",
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
         422: "Validation Error",
       },
     });

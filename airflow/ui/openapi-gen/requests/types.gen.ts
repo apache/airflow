@@ -51,11 +51,31 @@ export type DAGResponse = {
 };
 
 /**
+ * All possible states that a DagRun can be in.
+ *
+ * These are "shared" with TaskInstanceState in some parts of the code,
+ * so please ensure that their values always match the ones with the
+ * same name in TaskInstanceState.
+ */
+export type DagRunState = "queued" | "running" | "success" | "failed";
+
+/**
  * Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.
  */
 export type DagTagPydantic = {
   name: string;
   dag_id: string;
+};
+
+/**
+ * HTTPException Model used for error response.
+ */
+export type HTTPExceptionResponse = {
+  detail:
+    | string
+    | {
+        [key: string]: unknown;
+      };
 };
 
 export type HTTPValidationError = {
@@ -68,17 +88,18 @@ export type ValidationError = {
   type: string;
 };
 
-export type NextRunDatasetsUiNextRunDatasetsDagIdGetData = {
+export type NextRunAssetsUiNextRunDatasetsDagIdGetData = {
   dagId: string;
 };
 
-export type NextRunDatasetsUiNextRunDatasetsDagIdGetResponse = {
+export type NextRunAssetsUiNextRunDatasetsDagIdGetResponse = {
   [key: string]: unknown;
 };
 
 export type GetDagsPublicDagsGetData = {
   dagDisplayNamePattern?: string | null;
   dagIdPattern?: string | null;
+  lastDagRunState?: DagRunState | null;
   limit?: number;
   offset?: number;
   onlyActive?: boolean;
@@ -101,7 +122,7 @@ export type PatchDagPublicDagsDagIdPatchResponse = DAGResponse;
 export type $OpenApiTs = {
   "/ui/next_run_datasets/{dag_id}": {
     get: {
-      req: NextRunDatasetsUiNextRunDatasetsDagIdGetData;
+      req: NextRunAssetsUiNextRunDatasetsDagIdGetData;
       res: {
         /**
          * Successful Response
@@ -139,6 +160,22 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: DAGResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
         /**
          * Validation Error
          */

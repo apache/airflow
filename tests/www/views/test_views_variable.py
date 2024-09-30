@@ -43,7 +43,7 @@ VARIABLE = {
 
 
 @pytest.fixture(autouse=True)
-def clear_variables():
+def _clear_variables():
     with create_session() as session:
         session.query(Variable).delete()
 

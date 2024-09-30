@@ -67,7 +67,6 @@ class ProduceToTopicOperator(BaseOperator):
 
     template_fields = (
         "topic",
-        "producer_function",
         "producer_function_args",
         "producer_function_kwargs",
         "kafka_config_id",

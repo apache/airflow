@@ -36,7 +36,7 @@ EXAMPLE_DAG_FILE = os.path.join("airflow", "example_dags", "example_bash_operato
 EXAMPLE_DAG_ID = "example_bash_operator"
 TEST_DAG_ID = "latest_only"
 NOT_READABLE_DAG_ID = "latest_only_with_trigger"
-TEST_MULTIPLE_DAGS_ID = "dataset_produces_1"
+TEST_MULTIPLE_DAGS_ID = "asset_produces_1"
 
 
 @pytest.fixture(scope="module")

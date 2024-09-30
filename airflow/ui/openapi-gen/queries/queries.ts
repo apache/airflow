@@ -6,19 +6,19 @@ import {
   UseQueryOptions,
 } from "@tanstack/react-query";
 
-import { DagService, DatasetService } from "../requests/services.gen";
-import { DAGPatchBody } from "../requests/types.gen";
+import { AssetService, DagService } from "../requests/services.gen";
+import { DAGPatchBody, DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
- * Next Run Datasets
+ * Next Run Assets
  * @param data The data for the request.
  * @param data.dagId
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const useDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGet = <
-  TData = Common.DatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetDefaultResponse,
+export const useAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGet = <
+  TData = Common.AssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -31,15 +31,12 @@ export const useDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGet = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey:
-      Common.UseDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetKeyFn(
-        { dagId },
-        queryKey,
-      ),
+    queryKey: Common.UseAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetKeyFn(
+      { dagId },
+      queryKey,
+    ),
     queryFn: () =>
-      DatasetService.nextRunDatasetsUiNextRunDatasetsDagIdGet({
-        dagId,
-      }) as TData,
+      AssetService.nextRunAssetsUiNextRunDatasetsDagIdGet({ dagId }) as TData,
     ...options,
   });
 /**
@@ -54,6 +51,7 @@ export const useDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGet = <
  * @param data.dagDisplayNamePattern
  * @param data.onlyActive
  * @param data.paused
+ * @param data.lastDagRunState
  * @param data.orderBy
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
@@ -66,6 +64,7 @@ export const useDagServiceGetDagsPublicDagsGet = <
   {
     dagDisplayNamePattern,
     dagIdPattern,
+    lastDagRunState,
     limit,
     offset,
     onlyActive,
@@ -76,6 +75,7 @@ export const useDagServiceGetDagsPublicDagsGet = <
   }: {
     dagDisplayNamePattern?: string;
     dagIdPattern?: string;
+    lastDagRunState?: DagRunState;
     limit?: number;
     offset?: number;
     onlyActive?: boolean;
@@ -92,6 +92,7 @@ export const useDagServiceGetDagsPublicDagsGet = <
       {
         dagDisplayNamePattern,
         dagIdPattern,
+        lastDagRunState,
         limit,
         offset,
         onlyActive,
@@ -106,6 +107,7 @@ export const useDagServiceGetDagsPublicDagsGet = <
       DagService.getDagsPublicDagsGet({
         dagDisplayNamePattern,
         dagIdPattern,
+        lastDagRunState,
         limit,
         offset,
         onlyActive,
