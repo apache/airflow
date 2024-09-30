@@ -12,8 +12,8 @@ import * as Common from "./common";
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const useAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetSuspense = <
-  TData = Common.AssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetDefaultResponse,
+export const useAssetServiceNextRunAssetsSuspense = <
+  TData = Common.AssetServiceNextRunAssetsDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -26,12 +26,8 @@ export const useAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetKeyFn(
-      { dagId },
-      queryKey,
-    ),
-    queryFn: () =>
-      AssetService.nextRunAssetsUiNextRunDatasetsDagIdGet({ dagId }) as TData,
+    queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }, queryKey),
+    queryFn: () => AssetService.nextRunAssets({ dagId }) as TData,
     ...options,
   });
 /**
@@ -51,8 +47,8 @@ export const useAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetSuspense = <
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useDagServiceGetDagsPublicDagsGetSuspense = <
-  TData = Common.DagServiceGetDagsPublicDagsGetDefaultResponse,
+export const useDagServiceGetDagsSuspense = <
+  TData = Common.DagServiceGetDagsDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -83,7 +79,7 @@ export const useDagServiceGetDagsPublicDagsGetSuspense = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useSuspenseQuery<TData, TError>({
-    queryKey: Common.UseDagServiceGetDagsPublicDagsGetKeyFn(
+    queryKey: Common.UseDagServiceGetDagsKeyFn(
       {
         dagDisplayNamePattern,
         dagIdPattern,
@@ -99,7 +95,7 @@ export const useDagServiceGetDagsPublicDagsGetSuspense = <
       queryKey,
     ),
     queryFn: () =>
-      DagService.getDagsPublicDagsGet({
+      DagService.getDags({
         dagDisplayNamePattern,
         dagIdPattern,
         lastDagRunState,
