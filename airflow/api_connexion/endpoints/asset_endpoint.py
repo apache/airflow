@@ -62,8 +62,8 @@ RESOURCE_EVENT_PREFIX = "dataset"
 
 @security.requires_access_asset("GET")
 @provide_session
-def get_dataset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
-    """Get an asset ."""
+def get_asset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
+    """Get an asset."""
     asset = session.scalar(
         select(AssetModel)
         .where(AssetModel.uri == uri)

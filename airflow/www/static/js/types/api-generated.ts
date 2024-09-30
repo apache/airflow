@@ -787,7 +787,7 @@ export interface paths {
   };
   "/datasets/{uri}": {
     /** Get a dataset by uri. */
-    get: operations["get_dataset"];
+    get: operations["get_asset"];
     parameters: {
       path: {
         /** The encoded Dataset URI */
@@ -5081,7 +5081,7 @@ export interface operations {
     };
   };
   /** Get a dataset by uri. */
-  get_dataset: {
+  get_asset: {
     parameters: {
       path: {
         /** The encoded Dataset URI */
@@ -5790,8 +5790,8 @@ export type GetDagWarningsVariables = CamelCasedPropertiesDeep<
 export type GetAssetsVariables = CamelCasedPropertiesDeep<
   operations["get_assets"]["parameters"]["query"]
 >;
-export type GetDatasetVariables = CamelCasedPropertiesDeep<
-  operations["get_dataset"]["parameters"]["path"]
+export type GetAssetVariables = CamelCasedPropertiesDeep<
+  operations["get_asset"]["parameters"]["path"]
 >;
 export type GetAssetEventsVariables = CamelCasedPropertiesDeep<
   operations["get_asset_events"]["parameters"]["query"]

@@ -416,7 +416,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
     @pytest.mark.parametrize(
         "attr, value",
         [
-            ("dataset_id", "2"),
+            ("asset_id", "2"),
             ("source_dag_id", "dag2"),
             ("source_task_id", "task2"),
             ("source_run_id", "run2"),

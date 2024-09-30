@@ -2562,7 +2562,7 @@ paths:
       summary: Get a dataset
       description: Get a dataset by uri.
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
-      operationId: get_dataset
+      operationId: get_asset
       tags: [Asset]
       responses:
         "200":

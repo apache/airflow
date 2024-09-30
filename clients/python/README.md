@@ -348,7 +348,7 @@ Class | Method | HTTP request | Description
 *DAGRunApi* | [**set_dag_run_note**](docs/DAGRunApi.md#set_dag_run_note) | **PATCH** /dags/{dag_id}/dagRuns/{dag_run_id}/setNote | Update the DagRun note.
 *DAGRunApi* | [**update_dag_run_state**](docs/DAGRunApi.md#update_dag_run_state) | **PATCH** /dags/{dag_id}/dagRuns/{dag_run_id} | Modify a DAG run
 *DagWarningApi* | [**get_dag_warnings**](docs/DagWarningApi.md#get_dag_warnings) | **GET** /dagWarnings | List dag warnings
-*DatasetApi* | [**get_dataset**](docs/DatasetApi.md#get_dataset) | **GET** /datasets/{uri} | Get a dataset
+*AssetApi* | [**get_asset**](docs/DatasetApi.md#get_asset) | **GET** /datasets/{uri} | Get an asset
 *AssetApi* | [**get_asset_events**](docs/DatasetApi.md#get_asset_events) | **GET** /datasets/events | Get asset events
 *DatasetApi* | [**get_assets**](docs/DatasetApi.md#get_assets) | **GET** /datasets | List assets
 *DatasetApi* | [**get_upstream_dataset_events**](docs/DatasetApi.md#get_upstream_dataset_events) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents | Get dataset events for a DAG run
