@@ -37,8 +37,9 @@ import {
   FiSun,
 } from "react-icons/fi";
 
-import { AirflowPin } from "../../assets/AirflowPin";
-import { DagIcon } from "../../assets/DagIcon";
+import { AirflowPin } from "src/assets/AirflowPin";
+import { DagIcon } from "src/assets/DagIcon";
+
 import { DocsButton } from "./DocsButton";
 import { NavButton } from "./NavButton";
 
