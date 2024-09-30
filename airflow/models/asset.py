@@ -106,7 +106,7 @@ class AssetAliasModel(Base):
 
     __tablename__ = "dataset_alias"
     __table_args__ = (
-        Index("idx_name_unique", name, unique=True),
+        Index("idx_dataset_alias_name_unique", name, unique=True),
         {"sqlite_autoincrement": True},  # ensures PK values not reused
     )
 
@@ -151,10 +151,10 @@ class AssetModel(Base):
     """
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    uri = Column(
-        String(length=3000).with_variant(
+    name = Column(
+        String(length=1500).with_variant(
             String(
-                length=3000,
+                length=1500,
                 # latin1 allows for more indexed length in mysql
                 # and this field should only be ascii chars
                 collation="latin1_general_cs",
@@ -163,7 +163,33 @@ class AssetModel(Base):
         ),
         nullable=False,
     )
+    uri = Column(
+        String(length=1500).with_variant(
+            String(
+                length=1500,
+                # latin1 allows for more indexed length in mysql
+                # and this field should only be ascii chars
+                collation="latin1_general_cs",
+            ),
+            "mysql",
+        ),
+        nullable=False,
+    )
+    group = Column(
+        String(length=1500).with_variant(
+            String(
+                length=1500,
+                # latin1 allows for more indexed length in mysql
+                # and this field should only be ascii chars
+                collation="latin1_general_cs",
+            ),
+            "mysql",
+        ),
+        default=str,
+        nullable=False,
+    )
     extra = Column(sqlalchemy_jsonfield.JSONField(json=json), nullable=False, default={})
+
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
     is_orphaned = Column(Boolean, default=False, nullable=False, server_default="0")
@@ -173,7 +199,7 @@ class AssetModel(Base):
 
     __tablename__ = "dataset"
     __table_args__ = (
-        Index("idx_uri_unique", uri, unique=True),
+        Index("idx_dataset_name_uri_unique", name, uri, unique=True),
         {"sqlite_autoincrement": True},  # ensures PK values not reused
     )
 
@@ -189,16 +215,15 @@ class AssetModel(Base):
         parsed = urlsplit(uri)
         if parsed.scheme and parsed.scheme.lower() == "airflow":
             raise ValueError("Scheme `airflow` is reserved.")
-        super().__init__(uri=uri, **kwargs)
+        super().__init__(name=uri, uri=uri, **kwargs)
 
     def __eq__(self, other):
         if isinstance(other, (self.__class__, Asset)):
-            return self.uri == other.uri
-        else:
-            return NotImplemented
+            return self.name == other.name and self.uri == other.uri
+        return NotImplemented
 
     def __hash__(self):
-        return hash(self.uri)
+        return hash((self.name, self.uri))
 
     def __repr__(self):
         return f"{self.__class__.__name__}(uri={self.uri!r}, extra={self.extra!r})"
