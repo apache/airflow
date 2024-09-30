@@ -421,7 +421,7 @@ labels.try_number="3"'''
             'logName="projects/project_id/logs/airflow"',
             f'labels.task_id="{self.ti.task_id}"',
             f'labels.dag_id="{self.DAG_ID}"',
-            f'labels.execution_date="{self.ti.execution_date.isoformat()}"',
+            f'labels.execution_date="{self.ti.logical_date.isoformat()}"',
             f'labels.try_number="{self.ti.try_number}"',
         ]
         assert set(expected_filter) == set(filter_params)

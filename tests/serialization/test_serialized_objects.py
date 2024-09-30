@@ -352,7 +352,7 @@ sample_objects = {
             sample_objects.get(DagRunPydantic),
             DagRunPydantic,
             DAT.DAG_RUN,
-            lambda a, b: equal_time(a.execution_date, b.execution_date)
+            lambda a, b: equal_time(a.logical_date, b.logical_date)
             and equal_time(a.start_date, b.start_date),
         ),
         # Asset is already serialized by non-Pydantic serialization. Is AssetPydantic needed then?

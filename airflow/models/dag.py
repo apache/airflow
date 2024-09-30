@@ -1323,7 +1323,7 @@ class DAG(LoggingMixin):
         return dagruns
 
     @provide_session
-    def get_latest_execution_date(self, session: Session = NEW_SESSION) -> pendulum.DateTime | None:
+    def get_latest_logical_date(self, session: Session = NEW_SESSION) -> pendulum.DateTime | None:
         """Return the latest date for which at least one dag run exists."""
         return session.scalar(select(func.max(DagRun.logical_date)).where(DagRun.dag_id == self.dag_id))
 
@@ -1572,7 +1572,7 @@ class DAG(LoggingMixin):
                     .where(
                         TI.dag_id == task.external_dag_id,
                         TI.task_id == task.external_task_id,
-                        DagRun.logical_date == pendulum.parse(task.execution_date),
+                        DagRun.logical_date == pendulum.parse(task.logical_date),
                     )
                 )
 

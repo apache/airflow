@@ -169,7 +169,7 @@ def test_trigger_dag_execution_date_data_interval(admin_client):
     assert run is not None
     assert DagRunType.MANUAL in run.run_id
     assert run.run_type == DagRunType.MANUAL
-    assert run.execution_date == exec_date
+    assert run.logical_date == exec_date
 
     # Since example_bash_operator runs once per day, the data interval should be
     # between midnight yesterday and midnight today.
