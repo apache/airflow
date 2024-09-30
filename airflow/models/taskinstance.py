@@ -3679,7 +3679,7 @@ class TaskInstance(Base, LoggingMixin):
             partial_dag = task.dag.partial_subset(
                 task.downstream_task_ids,
                 include_downstream=True,
-                include_upstream=False,
+                include_upstream=True,
                 include_direct_upstream=True,
             )
 
