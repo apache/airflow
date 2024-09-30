@@ -1276,13 +1276,13 @@ paths:
           $ref: "#/components/responses/NotFound"
 
     delete:
-      summary: Delete a queued Dataset event for a DAG.
+      summary: Delete a queued Asset event for a DAG.
       description: |
-        Delete a queued Dataset event for a DAG.
+        Delete a queued Asset event for a DAG.
 
         *New in version 2.9.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
-      operationId: delete_dag_dataset_queued_event
+      operationId: delete_dag_asset_queued_event
       parameters:
         - $ref: "#/components/parameters/Before"
       tags: [Asset]

@@ -206,7 +206,7 @@ def get_dag_dataset_queued_event(
 @security.requires_access_dag("GET")
 @provide_session
 @action_logging
-def delete_dag_dataset_queued_event(
+def delete_dag_asset_queued_event(
     *, dag_id: str, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Delete a queued asset event for a DAG."""

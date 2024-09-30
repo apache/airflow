@@ -306,7 +306,7 @@ export interface paths {
      *
      * *New in version 2.9.0*
      */
-    delete: operations["delete_dag_dataset_queued_event"];
+    delete: operations["delete_dag_asset_queued_event"];
     parameters: {
       path: {
         /** The DAG ID. */
@@ -3684,7 +3684,7 @@ export interface operations {
    *
    * *New in version 2.9.0*
    */
-  delete_dag_dataset_queued_event: {
+  delete_dag_asset_queued_event: {
     parameters: {
       path: {
         /** The DAG ID. */
@@ -5645,8 +5645,8 @@ export type GetDagDatasetQueuedEventVariables = CamelCasedPropertiesDeep<
     operations["get_dag_dataset_queued_event"]["parameters"]["query"]
 >;
 export type DeleteDagDatasetQueuedEventVariables = CamelCasedPropertiesDeep<
-  operations["delete_dag_dataset_queued_event"]["parameters"]["path"] &
-    operations["delete_dag_dataset_queued_event"]["parameters"]["query"]
+  operations["delete_dag_asset_queued_event"]["parameters"]["path"] &
+    operations["delete_dag_asset_queued_event"]["parameters"]["query"]
 >;
 export type GetDagDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
   operations["get_dag_dataset_queued_events"]["parameters"]["path"] &
