@@ -47,7 +47,7 @@ from airflow.models import DagModel
 dags_router = APIRouter(tags=["DAG"])
 
 
-@dags_router.get("/dags")
+@dags_router.get("/dags", operation_id="get_dags")
 async def get_dags(
     limit: QueryLimit,
     offset: QueryOffset,
@@ -86,7 +86,11 @@ async def get_dags(
     )
 
 
-@dags_router.patch("/dags/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))
+@dags_router.patch(
+    "/dags/{dag_id}",
+    responses=create_openapi_http_exception_doc([400, 401, 403, 404]),
+    operation_id="patch_dag",
+)
 async def patch_dag(
     dag_id: str,
     patch_body: DAGPatchBody,

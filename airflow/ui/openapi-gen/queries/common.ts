@@ -4,37 +4,31 @@ import { UseQueryResult } from "@tanstack/react-query";
 import { AssetService, DagService } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 
-export type AssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetDefaultResponse =
-  Awaited<
-    ReturnType<typeof AssetService.nextRunAssetsUiNextRunDatasetsDagIdGet>
-  >;
-export type AssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetQueryResult<
-  TData = AssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetDefaultResponse,
+export type AssetServiceNextRunAssetsDefaultResponse = Awaited<
+  ReturnType<typeof AssetService.nextRunAssets>
+>;
+export type AssetServiceNextRunAssetsQueryResult<
+  TData = AssetServiceNextRunAssetsDefaultResponse,
   TError = unknown,
 > = UseQueryResult<TData, TError>;
-export const useAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetKey =
-  "AssetServiceNextRunAssetsUiNextRunDatasetsDagIdGet";
-export const UseAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetKeyFn = (
+export const useAssetServiceNextRunAssetsKey = "AssetServiceNextRunAssets";
+export const UseAssetServiceNextRunAssetsKeyFn = (
   {
     dagId,
   }: {
     dagId: string;
   },
   queryKey?: Array<unknown>,
-) => [
-  useAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetKey,
-  ...(queryKey ?? [{ dagId }]),
-];
-export type DagServiceGetDagsPublicDagsGetDefaultResponse = Awaited<
-  ReturnType<typeof DagService.getDagsPublicDagsGet>
+) => [useAssetServiceNextRunAssetsKey, ...(queryKey ?? [{ dagId }])];
+export type DagServiceGetDagsDefaultResponse = Awaited<
+  ReturnType<typeof DagService.getDags>
 >;
-export type DagServiceGetDagsPublicDagsGetQueryResult<
-  TData = DagServiceGetDagsPublicDagsGetDefaultResponse,
+export type DagServiceGetDagsQueryResult<
+  TData = DagServiceGetDagsDefaultResponse,
   TError = unknown,
 > = UseQueryResult<TData, TError>;
-export const useDagServiceGetDagsPublicDagsGetKey =
-  "DagServiceGetDagsPublicDagsGet";
-export const UseDagServiceGetDagsPublicDagsGetKeyFn = (
+export const useDagServiceGetDagsKey = "DagServiceGetDags";
+export const UseDagServiceGetDagsKeyFn = (
   {
     dagDisplayNamePattern,
     dagIdPattern,
@@ -60,7 +54,7 @@ export const UseDagServiceGetDagsPublicDagsGetKeyFn = (
   } = {},
   queryKey?: Array<unknown>,
 ) => [
-  useDagServiceGetDagsPublicDagsGetKey,
+  useDagServiceGetDagsKey,
   ...(queryKey ?? [
     {
       dagDisplayNamePattern,
@@ -79,6 +73,6 @@ export const UseDagServiceGetDagsPublicDagsGetKeyFn = (
 export type DagServicePatchDagsPublicDagsPatchMutationResult = Awaited<
   ReturnType<typeof DagService.patchDagsPublicDagsPatch>
 >;
-export type DagServicePatchDagPublicDagsDagIdPatchMutationResult = Awaited<
-  ReturnType<typeof DagService.patchDagPublicDagsDagIdPatch>
+export type DagServicePatchDagMutationResult = Awaited<
+  ReturnType<typeof DagService.patchDag>
 >;
