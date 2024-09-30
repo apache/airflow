@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-25T05:18:56.105234
+# This constraints file was automatically generated on 2024-09-30T16:03:13.536613
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -71,8 +71,8 @@ adal==1.2.7
 adlfs==2024.7.0
 aiobotocore==2.15.1
 aiofiles==23.2.1
-aiohappyeyeballs==2.4.0
-aiohttp==3.10.6
+aiohappyeyeballs==2.4.2
+aiohttp==3.10.8
 aioitertools==0.12.0
 aioresponses==0.7.6
 aiosignal==1.3.1
@@ -210,7 +210,7 @@ azure-cosmos==4.7.0
 azure-datalake-store==0.0.53
 azure-identity==1.18.0
 azure-keyvault-secrets==4.8.0
-azure-kusto-data==4.5.1
+azure-kusto-data==4.6.1
 azure-mgmt-containerinstance==10.1.0
 azure-mgmt-containerregistry==10.3.0
 azure-mgmt-core==1.4.0
@@ -223,7 +223,7 @@ azure-mgmt-resource==23.1.1
 azure-mgmt-storage==21.2.1
 azure-nspkg==3.0.2
 azure-servicebus==7.12.3
-azure-storage-blob==12.23.0
+azure-storage-blob==12.23.1
 azure-storage-file-datalake==12.17.0
 azure-storage-file-share==12.18.0
 azure-synapse-artifacts==0.19.0
@@ -279,7 +279,7 @@ db-dtypes==1.3.0
 debugpy==1.8.6
 decorator==5.1.1
 defusedxml==0.7.1
-deltalake==0.20.0
+deltalake==0.20.1
 diagrams==0.23.4
 dill==0.3.1.1
 distlib==0.3.8
@@ -348,7 +348,7 @@ google-cloud-memcache==1.9.5
 google-cloud-monitoring==2.22.2
 google-cloud-orchestration-airflow==1.14.0
 google-cloud-os-login==2.14.6
-google-cloud-pubsub==2.23.1
+google-cloud-pubsub==2.25.1
 google-cloud-redis==2.15.5
 google-cloud-resource-manager==1.12.5
 google-cloud-run==0.10.8
@@ -376,7 +376,7 @@ grpcio-gcp==0.2.2
 grpcio-health-checking==1.62.3
 grpcio-status==1.62.3
 grpcio-tools==1.62.3
-grpcio==1.66.1
+grpcio==1.66.2
 gssapi==1.8.3
 gunicorn==23.0.0
 h11==0.14.0
@@ -415,7 +415,7 @@ isodate==0.6.1
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
 jaraco.context==6.0.1
-jaraco.functools==4.0.2
+jaraco.functools==4.1.0
 jedi==0.19.1
 jeepney==0.8.0
 jiter==0.5.0
@@ -481,7 +481,7 @@ mysql-connector-python==9.0.0
 mysqlclient==2.2.4
 nbclient==0.10.0
 nbformat==5.10.4
-neo4j==5.24.0
+neo4j==5.25.0
 nest-asyncio==1.6.0
 networkx==3.3
 nh3==0.2.18
@@ -489,7 +489,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.47.1
+openai==1.50.2
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.22.0
@@ -524,7 +524,7 @@ pbr==6.1.0
 pdpyras==5.2.0
 pendulum==3.0.0
 pexpect==4.9.0
-pgvector==0.3.3
+pgvector==0.3.4
 pinecone-client==5.0.1
 pinecone-plugin-inference==1.1.0
 pinecone-plugin-interface==0.0.7
@@ -542,7 +542,7 @@ pre-commit==3.8.0
 presto-python-client==0.8.4
 prison==0.2.1
 prometheus_client==0.21.0
-prompt_toolkit==3.0.47
+prompt_toolkit==3.0.48
 proto-plus==1.24.0
 protobuf==4.25.5
 psutil==6.0.0
@@ -567,7 +567,7 @@ pydot==1.4.2
 pydruid==0.6.9
 pyenchant==3.2.2
 pyexasol==0.27.0
-pygraphviz==1.13
+pygraphviz==1.14
 pyiceberg==0.7.1
 pyjsparser==2.7.1
 pykerberos==1.2.4
@@ -605,7 +605,7 @@ pyzmq==26.2.0
 qdrant-client==1.11.3
 reactivex==4.0.4
 readme_renderer==43.0
-redis==5.0.8
+redis==5.1.0
 redshift-connector==2.1.3
 referencing==0.35.1
 regex==2024.9.11
@@ -675,13 +675,13 @@ sshtunnel==0.4.0
 stack-data==0.6.3
 starkbank-ecdsa==2.2.0
 statsd==4.0.1
-std-uritemplate==1.0.6
+std-uritemplate==2.0.0
 strictyaml==1.7.3
 sympy==1.13.3
 tableauserverclient==0.33
 tabulate==0.9.0
 tenacity==8.5.0
-teradatasql==20.0.0.15
+teradatasql==20.0.0.16
 teradatasqlalchemy==20.0.0.2
 termcolor==2.4.0
 text-unidecode==1.3
@@ -694,7 +694,7 @@ tornado==6.4.1
 towncrier==24.8.0
 tqdm==4.66.5
 traitlets==5.14.3
-trino==0.329.0
+trino==0.330.0
 trove-classifiers==2024.9.12
 twine==5.1.1
 typed-ast==1.5.5
@@ -707,7 +707,7 @@ types-certifi==2021.10.8.3
 types-cffi==1.16.0.20240331
 types-croniter==3.0.3.20240731
 types-docutils==0.21.0.20240907
-types-paramiko==3.5.0.20240918
+types-paramiko==3.5.0.20240928
 types-protobuf==5.28.0.20240924
 types-pyOpenSSL==24.1.0.20240722
 types-python-dateutil==2.9.0.20240906
@@ -733,7 +733,7 @@ uv==0.4.1
 validators==0.33.0
 vertica-python==1.4.0
 vine==5.1.0
-virtualenv==20.26.5
+virtualenv==20.26.6
 watchtower==3.3.1
 wcwidth==0.2.13
 weaviate-client==4.8.0
@@ -745,8 +745,8 @@ xmltodict==0.13.0
 yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.319.0
-yarl==1.12.1
-ydb==3.17.2
+yarl==1.13.1
+ydb==3.18.0
 zeep==4.2.1
 zenpy==2.0.53
 zipp==3.20.2
