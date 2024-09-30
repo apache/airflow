@@ -45,11 +45,11 @@ def upgrade():
         # hack. The primary_key here sets autoincrement
         batch_op.add_column(sa.Column("id", sa.Integer(), primary_key=True), insert_before="dag_id")
         batch_op.create_primary_key("serialized_dag_pkey", ["id"])
-        batch_op.create_unique_constraint(
-            batch_op.f("dag_hash_version_number_unique"), ["dag_hash", "version"]
-        )
         batch_op.add_column(
             sa.Column("version_number", sa.Integer(), nullable=False, default=1), insert_before="dag_id"
+        )
+        batch_op.create_unique_constraint(
+            batch_op.f("dag_hash_version_number_unique"), ["dag_hash", "version_number"]
         )
 
 
