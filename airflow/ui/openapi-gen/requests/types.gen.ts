@@ -88,11 +88,11 @@ export type ValidationError = {
   type: string;
 };
 
-export type NextRunDatasetsUiNextRunDatasetsDagIdGetData = {
+export type NextRunAssetsUiNextRunDatasetsDagIdGetData = {
   dagId: string;
 };
 
-export type NextRunDatasetsUiNextRunDatasetsDagIdGetResponse = {
+export type NextRunAssetsUiNextRunDatasetsDagIdGetResponse = {
   [key: string]: unknown;
 };
 
@@ -111,6 +111,21 @@ export type GetDagsPublicDagsGetData = {
 
 export type GetDagsPublicDagsGetResponse = DAGCollectionResponse;
 
+export type PatchDagsPublicDagsPatchData = {
+  dagIdPattern?: string | null;
+  lastDagRunState?: DagRunState | null;
+  limit?: number;
+  offset?: number;
+  onlyActive?: boolean;
+  owners?: Array<string>;
+  paused?: boolean | null;
+  requestBody: DAGPatchBody;
+  tags?: Array<string>;
+  updateMask?: Array<string> | null;
+};
+
+export type PatchDagsPublicDagsPatchResponse = DAGCollectionResponse;
+
 export type PatchDagPublicDagsDagIdPatchData = {
   dagId: string;
   requestBody: DAGPatchBody;
@@ -128,7 +143,7 @@ export type DeleteConnectionPublicConnectionsConnectionIdDeleteResponse = void;
 export type $OpenApiTs = {
   "/ui/next_run_datasets/{dag_id}": {
     get: {
-      req: NextRunDatasetsUiNextRunDatasetsDagIdGetData;
+      req: NextRunAssetsUiNextRunDatasetsDagIdGetData;
       res: {
         /**
          * Successful Response
@@ -151,6 +166,35 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: DAGCollectionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: PatchDagsPublicDagsPatchData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGCollectionResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
         /**
          * Validation Error
          */

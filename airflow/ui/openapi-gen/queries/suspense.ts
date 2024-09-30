@@ -1,43 +1,39 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.0
 import { UseQueryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
-import { DagService, DatasetService } from "../requests/services.gen";
+import { AssetService, DagService } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
 
 /**
- * Next Run Datasets
+ * Next Run Assets
  * @param data The data for the request.
  * @param data.dagId
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const useDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetSuspense =
-  <
-    TData = Common.DatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetDefaultResponse,
-    TError = unknown,
-    TQueryKey extends Array<unknown> = unknown[],
-  >(
-    {
-      dagId,
-    }: {
-      dagId: string;
-    },
-    queryKey?: TQueryKey,
-    options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
-  ) =>
-    useSuspenseQuery<TData, TError>({
-      queryKey:
-        Common.UseDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetKeyFn(
-          { dagId },
-          queryKey,
-        ),
-      queryFn: () =>
-        DatasetService.nextRunDatasetsUiNextRunDatasetsDagIdGet({
-          dagId,
-        }) as TData,
-      ...options,
-    });
+export const useAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetSuspense = <
+  TData = Common.AssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetDefaultResponse,
+  TError = unknown,
+  TQueryKey extends Array<unknown> = unknown[],
+>(
+  {
+    dagId,
+  }: {
+    dagId: string;
+  },
+  queryKey?: TQueryKey,
+  options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
+) =>
+  useSuspenseQuery<TData, TError>({
+    queryKey: Common.UseAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetKeyFn(
+      { dagId },
+      queryKey,
+    ),
+    queryFn: () =>
+      AssetService.nextRunAssetsUiNextRunDatasetsDagIdGet({ dagId }) as TData,
+    ...options,
+  });
 /**
  * Get Dags
  * Get all DAGs.

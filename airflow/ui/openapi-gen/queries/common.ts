@@ -1,24 +1,20 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.0
 import { UseQueryResult } from "@tanstack/react-query";
 
-import {
-  ConnectionService,
-  DagService,
-  DatasetService,
-} from "../requests/services.gen";
+import { AssetService, DagService } from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 
-export type DatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetDefaultResponse =
+export type AssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetDefaultResponse =
   Awaited<
-    ReturnType<typeof DatasetService.nextRunDatasetsUiNextRunDatasetsDagIdGet>
+    ReturnType<typeof AssetService.nextRunAssetsUiNextRunDatasetsDagIdGet>
   >;
-export type DatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetQueryResult<
-  TData = DatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetDefaultResponse,
+export type AssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetQueryResult<
+  TData = AssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetDefaultResponse,
   TError = unknown,
 > = UseQueryResult<TData, TError>;
-export const useDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetKey =
-  "DatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGet";
-export const UseDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetKeyFn = (
+export const useAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetKey =
+  "AssetServiceNextRunAssetsUiNextRunDatasetsDagIdGet";
+export const UseAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetKeyFn = (
   {
     dagId,
   }: {
@@ -26,7 +22,7 @@ export const UseDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetKeyFn = (
   },
   queryKey?: Array<unknown>,
 ) => [
-  useDatasetServiceNextRunDatasetsUiNextRunDatasetsDagIdGetKey,
+  useAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetKey,
   ...(queryKey ?? [{ dagId }]),
 ];
 export type DagServiceGetDagsPublicDagsGetDefaultResponse = Awaited<
@@ -80,12 +76,9 @@ export const UseDagServiceGetDagsPublicDagsGetKeyFn = (
     },
   ]),
 ];
+export type DagServicePatchDagsPublicDagsPatchMutationResult = Awaited<
+  ReturnType<typeof DagService.patchDagsPublicDagsPatch>
+>;
 export type DagServicePatchDagPublicDagsDagIdPatchMutationResult = Awaited<
   ReturnType<typeof DagService.patchDagPublicDagsDagIdPatch>
 >;
-export type ConnectionServiceDeleteConnectionPublicConnectionsConnectionIdDeleteMutationResult =
-  Awaited<
-    ReturnType<
-      typeof ConnectionService.deleteConnectionPublicConnectionsConnectionIdDelete
-    >
-  >;
