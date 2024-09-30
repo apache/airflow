@@ -220,6 +220,13 @@ class TaskDoneTrigger(BaseTrigger):
                         self.log_group,
                     )
                     return None
+                if ce.response["Error"]["Code"] == "RequestTimeoutException":
+                    self.log.info(
+                        "Tried to get logs from stream %s in group %s but the request timed out.",
+                        self.log_stream,
+                        self.log_group,
+                    )
+                    return None
                 raise
 
             events = response["events"]
