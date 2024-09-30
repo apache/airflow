@@ -1036,7 +1036,7 @@ class TestTaskInstance:
                 retry_delay=datetime.timedelta(seconds=0),
                 pool="test_pool",
             ).expand(poke_interval=[0])
-        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         assert ti.try_number == 0
 
@@ -1102,7 +1102,7 @@ class TestTaskInstance:
                 retry_delay=datetime.timedelta(seconds=0),
                 pool="test_pool",
             )
-        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         assert ti.try_number == 0
 
@@ -1156,7 +1156,7 @@ class TestTaskInstance:
         run_date = task.start_date + datetime.timedelta(days=5)
 
         dr = dag_maker.create_dagrun(
-            execution_date=run_date,
+            logical_date=run_date,
             run_type=DagRunType.SCHEDULED,
         )
 
@@ -1428,7 +1428,7 @@ class TestTaskInstance:
             assert task.start_date is not None
             run_date = task.start_date + datetime.timedelta(days=5)
 
-        dr = dag_maker.create_dagrun(execution_date=run_date)
+        dr = dag_maker.create_dagrun(logical_date=run_date)
         dag_maker.session.commit()
         ti = dr.get_task_instance(downstream.task_id)
         ti.task = downstream
@@ -1778,7 +1778,7 @@ class TestTaskInstance:
                 python_callable=lambda: value,
                 do_xcom_push=False,
             )
-        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         ti.run()
         assert ti.xcom_pull(task_ids=task_id, key=XCOM_RETURN_KEY) is None
@@ -1796,7 +1796,7 @@ class TestTaskInstance:
                 python_callable=lambda: value,
                 do_xcom_push=True,
             )
-        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         ti.run()
         assert ti.xcom_pull(task_ids=task_id, key=XCOM_RETURN_KEY) == value
@@ -1815,7 +1815,7 @@ class TestTaskInstance:
                 do_xcom_push=True,
                 multiple_outputs=True,
             )
-        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti = dag_maker.create_dagrun(logical_date=timezone.utcnow()).task_instances[0]
         ti.task = task
         ti.run()
         assert ti.xcom_pull(task_ids=task_id, key=XCOM_RETURN_KEY) == value
@@ -3261,7 +3261,7 @@ class TestTaskInstance:
         session.commit()
         template_context = ti.get_template_context()
         with pytest.deprecated_call():
-            result = ti.task.render_template("Execution date: {{ execution_date }}", template_context)
+            result = ti.task.render_template("Execution date: {{ logical_date }}", template_context)
         assert result.startswith("Execution date: ")
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
@@ -3411,19 +3411,19 @@ class TestTaskInstance:
         session.commit()
         context = ti.get_template_context()
         with pytest.deprecated_call():
-            assert context["execution_date"] == pendulum.DateTime(2021, 9, 6, tzinfo=TIMEZONE)
+            assert context["logical_date"] == pendulum.DateTime(2021, 9, 6, tzinfo=TIMEZONE)
         with pytest.deprecated_call():
             assert context["next_ds"] == "2021-09-07"
         with pytest.deprecated_call():
             assert context["next_ds_nodash"] == "20210907"
         with pytest.deprecated_call():
-            assert context["next_execution_date"] == pendulum.DateTime(2021, 9, 7, tzinfo=TIMEZONE)
+            assert context["next_logical_date"] == pendulum.DateTime(2021, 9, 7, tzinfo=TIMEZONE)
         with pytest.deprecated_call():
             assert context["prev_ds"] is None, "Does not make sense for custom timetable"
         with pytest.deprecated_call():
             assert context["prev_ds_nodash"] is None, "Does not make sense for custom timetable"
         with pytest.deprecated_call():
-            assert context["prev_execution_date"] is None, "Does not make sense for custom timetable"
+            assert context["prev_logical_date"] is None, "Does not make sense for custom timetable"
 
     def test_execute_callback(self, create_task_instance):
         called = False

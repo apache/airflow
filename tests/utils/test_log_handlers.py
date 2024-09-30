@@ -280,7 +280,7 @@ class TestFileTaskLogHandler:
         dagrun = dag.create_dagrun(
             run_type=DagRunType.MANUAL,
             state=State.RUNNING,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
             **triggered_by_kwargs,
         )
@@ -440,7 +440,7 @@ class TestFileTaskLogHandler:
     @pytest.mark.parametrize("is_a_trigger", [True, False])
     def test_set_context_trigger(self, create_dummy_dag, dag_maker, is_a_trigger, session, tmp_path):
         create_dummy_dag(dag_id="test_fth", task_id="dummy")
-        (ti,) = dag_maker.create_dagrun(execution_date=pendulum.datetime(2023, 1, 1, tz="UTC")).task_instances
+        (ti,) = dag_maker.create_dagrun(logical_date=pendulum.datetime(2023, 1, 1, tz="UTC")).task_instances
         assert isinstance(ti, TaskInstance)
         if is_a_trigger:
             ti.is_trigger_log_context = True

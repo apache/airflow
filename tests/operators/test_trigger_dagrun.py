@@ -488,7 +488,7 @@ class TestDagRunOperator:
         dagruns = (
             dag_maker.session.query(DagRun)
             .filter(DagRun.dag_id == TEST_DAG_ID)
-            .order_by(DagRun.execution_date)
+            .order_by(DagRun.logical_date)
             .all()
         )
         assert len(dagruns) == 2
