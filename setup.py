@@ -45,7 +45,7 @@ PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
-version = '2.3.4.post40'
+version = '2.3.4.post41'
 
 AIRFLOW_SOURCES_ROOT = Path(__file__).parent.resolve()
 my_dir = dirname(__file__)
