@@ -25,18 +25,7 @@ import pendulum
 import pytest
 
 from airflow.models import DagBag, DagModel
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
-
-try:
-    from airflow.models.backfill import Backfill
-except ImportError:
-    if not AIRFLOW_V_3_0_PLUS:
-        pytest.skip(
-            "Skipping tests that require airflow.models.backfill for Airflow < 3.0.0",
-            allow_module_level=True,
-        )
-    else:
-        raise
+from airflow.models.backfill import Backfill
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
