@@ -691,7 +691,7 @@ class DAG(LoggingMixin):
             warnings.warn(
                 "Creating a DAG with an implicit schedule is deprecated, and will stop working "
                 "in a future release. Set `schedule=datetime.timedelta(days=1)` explicitly "
-                f"in {self.dag_id=}.,
+                f"in {self.dag_id=}.",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
@@ -731,7 +731,7 @@ class DAG(LoggingMixin):
         elif default_view == "tree":
             warnings.warn(
                 "`default_view` of 'tree' has been renamed to 'grid' -- please update your DAG "
-                f"in {self.dag_id=}.,
+                f"in {self.dag_id=}.",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
