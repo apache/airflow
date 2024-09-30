@@ -41,9 +41,8 @@ from sqlalchemy import delete, select, update
 from tabulate import tabulate
 
 import airflow.models
-from airflow import example_dags
 from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.callbacks.callback_requests import CallbackRequest, SlaCallbackRequest
+from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.models.dag import DagModel
@@ -69,8 +68,6 @@ from airflow.utils.process_utils import (
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, with_row_locks
-
-example_dag_folder = next(iter(example_dags.__path__))
 
 if TYPE_CHECKING:
     from multiprocessing.connection import Connection as MultiprocessingConnection
@@ -529,22 +526,14 @@ class DagFileProcessorManager(LoggingMixin):
         dags_parsed = session.execute(query)
 
         for dag in dags_parsed:
-            # When the DAG processor runs as part of the scheduler, and the user changes the DAGs folder,
-            # DAGs from the previous DAGs folder will be marked as stale. We also need to handle example dags
-            # differently. Note that this change has no impact on standalone DAG processors.
-            dag_not_in_current_dag_folder = (
-                not os.path.commonpath([dag.fileloc, example_dag_folder]) == example_dag_folder
-            ) and (os.path.commonpath([dag.fileloc, dag_directory]) != dag_directory)
             # The largest valid difference between a DagFileStat's last_finished_time and a DAG's
             # last_parsed_time is the processor_timeout. Longer than that indicates that the DAG is
             # no longer present in the file. We have a stale_dag_threshold configured to prevent a
             # significant delay in deactivation of stale dags when a large timeout is configured
-            dag_removed_from_dag_folder_or_file = (
+            if (
                 dag.fileloc in last_parsed
                 and (dag.last_parsed_time + timedelta(seconds=stale_dag_threshold)) < last_parsed[dag.fileloc]
-            )
-
-            if dag_not_in_current_dag_folder or dag_removed_from_dag_folder_or_file:
+            ):
                 cls.logger().info("DAG %s is missing and will be deactivated.", dag.dag_id)
                 to_deactivate.add(dag.dag_id)
 
@@ -763,40 +752,17 @@ class DagFileProcessorManager(LoggingMixin):
         return callback_queue
 
     def _add_callback_to_queue(self, request: CallbackRequest):
-        # requests are sent by dag processors. SLAs exist per-dag, but can be generated once per SLA-enabled
-        # task in the dag. If treated like other callbacks, SLAs can cause feedback where a SLA arrives,
-        # goes to the front of the queue, gets processed, triggers more SLAs from the same DAG, which go to
-        # the front of the queue, and we never get round to picking stuff off the back of the queue
-        if isinstance(request, SlaCallbackRequest):
-            if request in self._callback_to_execute[request.full_filepath]:
-                self.log.debug("Skipping already queued SlaCallbackRequest")
-                return
-
-            # not already queued, queue the callback
-            # do NOT add the file of this SLA to self._file_path_queue. SLAs can arrive so rapidly that
-            # they keep adding to the file queue and never letting it drain. This in turn prevents us from
-            # ever rescanning the dags folder for changes to existing dags. We simply store the callback, and
-            # periodically, when self._file_path_queue is drained, we rescan and re-queue all DAG files.
-            # The SLAs will be picked up then. It means a delay in reacting to the SLAs (as controlled by the
-            # min_file_process_interval config) but stops SLAs from DoS'ing the queue.
-            self.log.debug("Queuing SlaCallbackRequest for %s", request.dag_id)
-            self._callback_to_execute[request.full_filepath].append(request)
-            Stats.incr("dag_processing.sla_callback_count")
-
-        # Other callbacks have a higher priority over DAG Run scheduling, so those callbacks gazump, even if
-        # already in the file path queue
-        else:
-            self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
-            self._callback_to_execute[request.full_filepath].append(request)
-            if request.full_filepath in self._file_path_queue:
-                # Remove file paths matching request.full_filepath from self._file_path_queue
-                # Since we are already going to use that filepath to run callback,
-                # there is no need to have same file path again in the queue
-                self._file_path_queue = deque(
-                    file_path for file_path in self._file_path_queue if file_path != request.full_filepath
-                )
-            self._add_paths_to_queue([request.full_filepath], True)
-            Stats.incr("dag_processing.other_callback_count")
+        self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
+        self._callback_to_execute[request.full_filepath].append(request)
+        if request.full_filepath in self._file_path_queue:
+            # Remove file paths matching request.full_filepath from self._file_path_queue
+            # Since we are already going to use that filepath to run callback,
+            # there is no need to have same file path again in the queue
+            self._file_path_queue = deque(
+                file_path for file_path in self._file_path_queue if file_path != request.full_filepath
+            )
+        self._add_paths_to_queue([request.full_filepath], True)
+        Stats.incr("dag_processing.other_callback_count")
 
     def _refresh_requested_filelocs(self) -> None:
         """Refresh filepaths from dag dir as requested by users via APIs."""

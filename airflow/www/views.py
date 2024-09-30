@@ -87,10 +87,10 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
     set_state,
 )
+from airflow.assets import Asset, AssetAlias
 from airflow.auth.managers.models.resource_details import AccessView, DagAccessEntity, DagDetails
 from airflow.compat.functools import cache
 from airflow.configuration import AIRFLOW_CONFIG, conf
-from airflow.datasets import Dataset, DatasetAlias
 from airflow.exceptions import (
     AirflowConfigException,
     AirflowException,
@@ -104,9 +104,9 @@ from airflow.jobs.job import Job
 from airflow.jobs.scheduler_job_runner import SchedulerJobRunner
 from airflow.jobs.triggerer_job_runner import TriggererJobRunner
 from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, Trigger, XCom
-from airflow.models.dag import get_dataset_triggered_next_run_info
+from airflow.models.asset import AssetDagRunQueue, AssetEvent, AssetModel, DagScheduleAssetReference
+from airflow.models.dag import get_asset_triggered_next_run_info
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun, DagRunType
-from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue, DatasetEvent, DatasetModel
 from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import TaskInstance, TaskInstanceNote
@@ -120,6 +120,7 @@ from airflow.timetables.base import DataInterval, TimeRestriction
 from airflow.timetables.simple import ContinuousTimetable
 from airflow.utils import json as utils_json, timezone, usage_data_collection, yaml
 from airflow.utils.airflow_flask_app import get_airflow_app
+from airflow.utils.api_migration import mark_fastapi_migration_done
 from airflow.utils.dag_edges import dag_edges
 from airflow.utils.db import get_query_count
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
@@ -468,9 +469,7 @@ def dag_to_grid(dag: DagModel, dag_runs: Sequence[DagRun], session: Session) -> 
                 "label": item.label,
                 "extra_links": item.extra_links,
                 "is_mapped": item_is_mapped,
-                "has_outlet_datasets": any(
-                    isinstance(i, (Dataset, DatasetAlias)) for i in (item.outlets or [])
-                ),
+                "has_outlet_datasets": any(isinstance(i, (Asset, AssetAlias)) for i in (item.outlets or [])),
                 "operator": item.operator_name,
                 "trigger_rule": item.trigger_rule,
                 **setup_teardown_type,
@@ -708,12 +707,16 @@ def show_traceback(error):
             "airflow/traceback.html",
             python_version=sys.version.split(" ")[0] if is_logged_in else "redacted",
             airflow_version=version if is_logged_in else "redacted",
-            hostname=get_hostname()
-            if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and is_logged_in
-            else "redacted",
-            info=traceback.format_exc()
-            if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and is_logged_in
-            else "Error! Please contact server admin.",
+            hostname=(
+                get_hostname()
+                if conf.getboolean("webserver", "EXPOSE_HOSTNAME") and is_logged_in
+                else "redacted"
+            ),
+            info=(
+                traceback.format_exc()
+                if conf.getboolean("webserver", "EXPOSE_STACKTRACE") and is_logged_in
+                else "Error! Please contact server admin."
+            ),
         ),
         500,
     )
@@ -1000,13 +1003,13 @@ class Airflow(AirflowBaseView):
                 .all()
             )
 
-            dataset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.dataset_expression is not None}
-            if dataset_triggered_dag_ids:
-                dataset_triggered_next_run_info = get_dataset_triggered_next_run_info(
-                    dataset_triggered_dag_ids, session=session
+            asset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.dataset_expression is not None}
+            if asset_triggered_dag_ids:
+                asset_triggered_next_run_info = get_asset_triggered_next_run_info(
+                    asset_triggered_dag_ids, session=session
                 )
             else:
-                dataset_triggered_next_run_info = {}
+                asset_triggered_next_run_info = {}
 
             file_tokens = {}
             for dag in dags:
@@ -1088,9 +1091,7 @@ class Airflow(AirflowBaseView):
             section="webserver", key="instance_name_has_markup", fallback=False
         )
 
-        dashboard_alerts = [
-            fm for fm in settings.DASHBOARD_UIALERTS if fm.should_show(get_airflow_app().appbuilder)
-        ]
+        dashboard_alerts = [fm for fm in settings.DASHBOARD_UIALERTS if fm.should_show()]
 
         def _iter_parsed_moved_data_table_names():
             for table_name in inspect(session.get_bind()).get_table_names():
@@ -1165,15 +1166,15 @@ class Airflow(AirflowBaseView):
             sorting_key=arg_sorting_key,
             sorting_direction=arg_sorting_direction,
             auto_refresh_interval=conf.getint("webserver", "auto_refresh_interval"),
-            dataset_triggered_next_run_info=dataset_triggered_next_run_info,
+            asset_triggered_next_run_info=asset_triggered_next_run_info,
             scarf_url=scarf_url,
             file_tokens=file_tokens,
         )
 
     @expose("/datasets")
-    @auth.has_access_dataset("GET")
+    @auth.has_access_asset("GET")
     def datasets(self):
-        """Datasets view."""
+        """Assets view."""
         state_color_mapping = State.state_color.copy()
         state_color_mapping["null"] = state_color_mapping.pop(None)
         return self.render_template(
@@ -1219,11 +1220,11 @@ class Airflow(AirflowBaseView):
             .where(DagModel.dataset_expression.is_not(None))
         ).all()
 
-        dataset_triggered_next_run_info = get_dataset_triggered_next_run_info(
+        asset_triggered_next_run_info = get_asset_triggered_next_run_info(
             dataset_triggered_dag_ids, session=session
         )
 
-        return flask.json.jsonify(dataset_triggered_next_run_info)
+        return flask.json.jsonify(asset_triggered_next_run_info)
 
     @expose("/dag_stats", methods=["POST"])
     @auth.has_access_dag("GET", DagAccessEntity.RUN)
@@ -3404,7 +3405,8 @@ class Airflow(AirflowBaseView):
 
     @expose("/object/next_run_datasets/<string:dag_id>")
     @auth.has_access_dag("GET", DagAccessEntity.RUN)
-    @auth.has_access_dataset("GET")
+    @auth.has_access_asset("GET")
+    @mark_fastapi_migration_done
     def next_run_datasets(self, dag_id):
         """Return datasets necessary, and their status, for the next dag run."""
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
@@ -3420,34 +3422,34 @@ class Airflow(AirflowBaseView):
                 dict(info._mapping)
                 for info in session.execute(
                     select(
-                        DatasetModel.id,
-                        DatasetModel.uri,
-                        func.max(DatasetEvent.timestamp).label("lastUpdate"),
+                        AssetModel.id,
+                        AssetModel.uri,
+                        func.max(AssetEvent.timestamp).label("lastUpdate"),
                     )
+                    .join(DagScheduleAssetReference, DagScheduleAssetReference.dataset_id == AssetModel.id)
                     .join(
-                        DagScheduleDatasetReference, DagScheduleDatasetReference.dataset_id == DatasetModel.id
-                    )
-                    .join(
-                        DatasetDagRunQueue,
+                        AssetDagRunQueue,
                         and_(
-                            DatasetDagRunQueue.dataset_id == DatasetModel.id,
-                            DatasetDagRunQueue.target_dag_id == DagScheduleDatasetReference.dag_id,
+                            AssetDagRunQueue.dataset_id == AssetModel.id,
+                            AssetDagRunQueue.target_dag_id == DagScheduleAssetReference.dag_id,
                         ),
                         isouter=True,
                     )
                     .join(
-                        DatasetEvent,
+                        AssetEvent,
                         and_(
-                            DatasetEvent.dataset_id == DatasetModel.id,
-                            DatasetEvent.timestamp >= latest_run.execution_date
-                            if latest_run and latest_run.execution_date
-                            else True,
+                            AssetEvent.dataset_id == AssetModel.id,
+                            (
+                                AssetEvent.timestamp >= latest_run.execution_date
+                                if latest_run and latest_run.execution_date
+                                else True
+                            ),
                         ),
                         isouter=True,
                     )
-                    .where(DagScheduleDatasetReference.dag_id == dag_id, ~DatasetModel.is_orphaned)
-                    .group_by(DatasetModel.id, DatasetModel.uri)
-                    .order_by(DatasetModel.uri)
+                    .where(DagScheduleAssetReference.dag_id == dag_id, ~AssetModel.is_orphaned)
+                    .group_by(AssetModel.id, AssetModel.uri)
+                    .order_by(AssetModel.uri)
                 )
             ]
             data = {"dataset_expression": dag_model.dataset_expression, "events": events}
@@ -3467,7 +3469,7 @@ class Airflow(AirflowBaseView):
             dag_node_id = f"dag:{dag}"
             if dag_node_id not in nodes_dict:
                 for dep in dependencies:
-                    if dep.dependency_type in ("dag", "dataset", "dataset-alias"):
+                    if dep.dependency_type in ("dag", "asset", "asset-alias"):
                         # add node
                         nodes_dict[dag_node_id] = node_dict(dag_node_id, dag, "dag")
                         if dep.node_id not in nodes_dict:
@@ -3503,7 +3505,7 @@ class Airflow(AirflowBaseView):
         )
 
     @expose("/object/datasets_summary")
-    @auth.has_access_dataset("GET")
+    @auth.has_access_asset("GET")
     def datasets_summary(self):
         """
         Get a summary of datasets.
@@ -3537,54 +3539,54 @@ class Airflow(AirflowBaseView):
         with create_session() as session:
             if lstripped_orderby == "uri":
                 if order_by.startswith("-"):
-                    order_by = (DatasetModel.uri.desc(),)
+                    order_by = (AssetModel.uri.desc(),)
                 else:
-                    order_by = (DatasetModel.uri.asc(),)
+                    order_by = (AssetModel.uri.asc(),)
             elif lstripped_orderby == "last_dataset_update":
                 if order_by.startswith("-"):
                     order_by = (
-                        func.max(DatasetEvent.timestamp).desc(),
-                        DatasetModel.uri.asc(),
+                        func.max(AssetEvent.timestamp).desc(),
+                        AssetModel.uri.asc(),
                     )
                     if session.bind.dialect.name == "postgresql":
                         order_by = (order_by[0].nulls_last(), *order_by[1:])
                 else:
                     order_by = (
-                        func.max(DatasetEvent.timestamp).asc(),
-                        DatasetModel.uri.desc(),
+                        func.max(AssetEvent.timestamp).asc(),
+                        AssetModel.uri.desc(),
                     )
                     if session.bind.dialect.name == "postgresql":
                         order_by = (order_by[0].nulls_first(), *order_by[1:])
 
-            count_query = select(func.count(DatasetModel.id))
+            count_query = select(func.count(AssetModel.id))
 
             has_event_filters = bool(updated_before or updated_after)
 
             query = (
                 select(
-                    DatasetModel.id,
-                    DatasetModel.uri,
-                    func.max(DatasetEvent.timestamp).label("last_dataset_update"),
-                    func.sum(case((DatasetEvent.id.is_not(None), 1), else_=0)).label("total_updates"),
+                    AssetModel.id,
+                    AssetModel.uri,
+                    func.max(AssetEvent.timestamp).label("last_dataset_update"),
+                    func.sum(case((AssetEvent.id.is_not(None), 1), else_=0)).label("total_updates"),
                 )
-                .join(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id, isouter=not has_event_filters)
+                .join(AssetEvent, AssetEvent.dataset_id == AssetModel.id, isouter=not has_event_filters)
                 .group_by(
-                    DatasetModel.id,
-                    DatasetModel.uri,
+                    AssetModel.id,
+                    AssetModel.uri,
                 )
                 .order_by(*order_by)
             )
 
             if has_event_filters:
-                count_query = count_query.join(DatasetEvent, DatasetEvent.dataset_id == DatasetModel.id)
+                count_query = count_query.join(AssetEvent, AssetEvent.dataset_id == AssetModel.id)
 
-            filters = [~DatasetModel.is_orphaned]
+            filters = [~AssetModel.is_orphaned]
             if uri_pattern:
-                filters.append(DatasetModel.uri.ilike(f"%{uri_pattern}%"))
+                filters.append(AssetModel.uri.ilike(f"%{uri_pattern}%"))
             if updated_after:
-                filters.append(DatasetEvent.timestamp >= updated_after)
+                filters.append(AssetEvent.timestamp >= updated_after)
             if updated_before:
-                filters.append(DatasetEvent.timestamp <= updated_before)
+                filters.append(AssetEvent.timestamp <= updated_before)
 
             query = query.where(*filters).offset(offset).limit(limit)
             count_query = count_query.where(*filters)

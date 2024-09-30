@@ -29,9 +29,9 @@ But we want to limit modifications to the legacy ``airflow/www`` views, to mainl
 2. The minimum necessary to unblock other Airflow 3.0 feature work
 3. Fixes to react views which we haven't migrated over yet, but can still be ported over to the new UI
 
-Custom endpoints for the UI will also be moved away from ``airflow/www/views.py`` and to ``airflow/api_ui``.
+Custom endpoints for the UI will also be moved away from ``airflow/www/views.py`` and to ``airflow/api_fastapi``.
 Contributions to the legacy views file will follow the same rules.
-Committers will exercise their judgement on what endpoints should exist in the public ``airflow/api_connexion`` versus the private ``airflow/api_ui``
+Committers will exercise their judgement on what endpoints should exist in the public ``airflow/api_connexion`` versus the private ``airflow/api_fastapi``
 
 Airflow UI
 ----------
@@ -69,6 +69,9 @@ Follow the `pnpm docs <https://pnpm.io/installation>`__ to install pnpm locally 
 
     # Run tests for all .test.ts, test.tsx files
     pnpm test
+
+    # Run coverage
+    pnpm coverage
 
     # Generate queries and types from the REST API OpenAPI spec
     pnpm codegen

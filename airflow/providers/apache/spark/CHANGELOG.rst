@@ -29,6 +29,18 @@
 Changelog
 ---------
 
+4.11.0
+......
+
+Features
+~~~~~~~~
+
+* ``Add kerberos related connection fields(principal, keytab) on SparkSubmitHook (#40757)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 4.10.0
 ......
 

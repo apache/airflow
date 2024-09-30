@@ -65,7 +65,7 @@ The connection ID can alternatively be passed in with a keyword argument:
 
     ObjectStoragePath("s3://airflow-tutorial-data/", conn_id="aws_default")
 
-This is useful when reusing a URL defined for another purpose (e.g. Dataset),
+This is useful when reusing a URL defined for another purpose (e.g. Asset),
 which generally does not contain a username part. The explicit keyword argument
 takes precedence over the URL's username value if both are specified.
 

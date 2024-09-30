@@ -37,7 +37,7 @@ EXAMPLE_DAG_FILE = os.path.join("airflow", "example_dags", "example_bash_operato
 EXAMPLE_DAG_ID = "example_bash_operator"
 TEST_DAG_ID = "latest_only"
 NOT_READABLE_DAG_ID = "latest_only_with_trigger"
-TEST_MULTIPLE_DAGS_ID = "dataset_produces_1"
+TEST_MULTIPLE_DAGS_ID = "asset_produces_1"
 
 
 @pytest.fixture(scope="module")
@@ -202,19 +202,3 @@ class TestGetSource:
         )
         assert response.status_code == 403
         assert read_dag.status_code == 200
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, url_safe_serializer):
-        dagbag = DagBag(dag_folder=EXAMPLE_DAG_FILE)
-        dagbag.sync_to_db()
-        test_dag: DAG = dagbag.dags[TEST_DAG_ID]
-        self._get_dag_file_docstring(test_dag.fileloc)
-
-        url = f"/api/v1/dagSources/{url_safe_serializer.dumps(test_dag.fileloc)}"
-        response = self.client.get(url, headers={"Accept": "text/plain"})
-
-        assert response.status_code == expected_status_code

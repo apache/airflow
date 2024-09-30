@@ -264,11 +264,11 @@ TEST_TYPE_MATCHES = HashableDict(
             r"^airflow/api/",
             r"^airflow/api_connexion/",
             r"^airflow/api_internal/",
-            r"^airflow/api_ui/",
+            r"^airflow/api_fastapi/",
             r"^tests/api/",
             r"^tests/api_connexion/",
             r"^tests/api_internal/",
-            r"^tests/api_ui/",
+            r"^tests/api_fastapi/",
         ],
         SelectiveUnitTestTypes.CLI: [
             r"^airflow/cli/",
@@ -873,7 +873,9 @@ class SelectiveChecks:
         current_test_types = set(self._get_test_types_to_run(split_to_individual_providers=True))
         if "Providers" in current_test_types:
             current_test_types.remove("Providers")
-            current_test_types.update({f"Providers[{provider}]" for provider in get_available_packages()})
+            current_test_types.update(
+                {f"Providers[{provider}]" for provider in get_available_packages(include_not_ready=True)}
+            )
         if self.skip_provider_tests:
             current_test_types = {
                 test_type for test_type in current_test_types if not test_type.startswith("Providers")

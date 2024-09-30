@@ -88,6 +88,8 @@ asctime
 asend
 asia
 assertEqualIgnoreMultipleSpaces
+AssetEvent
+AssetEvents
 assigment
 ast
 astroid
@@ -600,6 +602,7 @@ falsy
 faq
 Fargate
 fargate
+fastapi
 fbee
 fc
 fd
@@ -973,6 +976,7 @@ loglevel
 Logstash
 logstash
 longblob
+lookups
 Lowin
 lshift
 lxml
@@ -1442,6 +1446,7 @@ Seedlist
 seedlist
 seekable
 segmentGranularity
+selectin
 Sendgrid
 sendgrid
 sentimentMax
@@ -1533,6 +1538,7 @@ stacktrace
 starttls
 StatefulSet
 StatefulSets
+statics
 StatsD
 statsd
 stderr
@@ -1680,6 +1686,7 @@ tooltip
 tooltips
 traceback
 tracebacks
+tracemalloc
 TrainingPipeline
 travis
 triage
@@ -1796,6 +1803,7 @@ verticaql
 Vevo
 videointelligence
 VideoIntelligenceServiceClient
+views
 virtualenv
 virtualenvs
 vm

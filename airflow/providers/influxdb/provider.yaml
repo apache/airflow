@@ -29,9 +29,10 @@ dependencies:
   - requests>=2.27.0,<3
 
 state: ready
-source-date-epoch: 1723970310
+source-date-epoch: 1726860951
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 2.7.1
   - 2.7.0
   - 2.6.0
   - 2.5.1

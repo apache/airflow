@@ -91,13 +91,14 @@ You can use these events to react to ``LocalTaskJob`` state changes.
     :end-before: [END howto_listen_ti_failure_task]
 
 
-Dataset Events
+Asset Events
 --------------
 
-- ``on_dataset_created``
-- ``on_dataset_changed``
+- ``on_asset_created``
+- ``on_dataset_alias_created``
+- ``on_asset_changed``
 
-Dataset events occur when Dataset management operations are run.
+Asset events occur when Asset management operations are run.
 
 
 Dag Import Error Events

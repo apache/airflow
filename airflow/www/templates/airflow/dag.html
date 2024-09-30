@@ -120,7 +120,7 @@
         {% endif %}
         <label class="switch-label{{' disabled' if not can_edit_dag else ''  }} js-tooltip" title="{{ switch_tooltip }}">
           <input class="switch-input" id="pause_resume" data-dag-id="{{ dag.dag_id }}"
-                  data-require-confirmation="{{ appbuilder.require_confirmation_dag_change }}"
+                  {{ "data-require-confirmation" if appbuilder.require_confirmation_dag_change else "" }}
                   type="checkbox"{{ " checked" if not dag_is_paused else "" }}
                   {{ " disabled" if not can_edit_dag else "" }}>
           <span class="switch" aria-hidden="true"></span>
@@ -149,29 +149,29 @@
           </p>
         {% endif %}
         {% if dag_model is defined and dag_model.dataset_expression is defined and dag_model.dataset_expression != None %}
-          {%- with ds_info = dag_model.get_dataset_triggered_next_run_info() -%}
+          {%- with asset_info = dag_model.get_asset_triggered_next_run_info() -%}
             <span
               id="next-dataset-tooltip"
               class="js-tooltip"
               title="Click to see dataset details."
               data-html="true"
               data-placement="bottom"
-              data-uri="{{ ds_info.uri }}"
+              data-uri="{{ asset_info.uri }}"
             >
                 <p
                   class="label label-default next-dataset-triggered"
                   style="margin-left: 5px;"
                   data-summary="
-                    {%- if ds_info.total == 1 -%}
-                    On {{ ds_info.uri }}
+                    {%- if asset_info.total == 1 -%}
+                    On {{ asset_info.uri }}
                     {%- else -%}
-                    {{ ds_info.ready }} of {{ ds_info.total }} datasets updated
+                    {{ asset_info.ready }} of {{ asset_info.total }} datasets updated
                     {%- endif -%}"
                   >
-                  {% if ds_info.total == 1 -%}
-                    On {{ ds_info.uri }}
+                  {% if asset_info.total == 1 -%}
+                    On {{ asset_info.uri }}
                   {%- else -%}
-                  {{ ds_info.ready }} of {{ ds_info.total }} datasets updated
+                  {{ asset_info.ready }} of {{ asset_info.total }} datasets updated
                   {%- endif %}
                 </p>
             </span>

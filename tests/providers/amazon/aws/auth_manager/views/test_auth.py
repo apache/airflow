@@ -26,8 +26,6 @@ from airflow.www import app as application
 from tests.test_utils.compat import AIRFLOW_V_2_9_PLUS
 from tests.test_utils.config import conf_vars
 
-pytest.importorskip("onelogin")
-
 pytestmark = [
     pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="Test requires Airflow 2.9+"),
     pytest.mark.skip_if_database_isolation_mode,
@@ -71,7 +69,7 @@ def aws_app():
         ) as mock_is_policy_store_schema_up_to_date:
             mock_is_policy_store_schema_up_to_date.return_value = True
             mock_parser.parse_remote.return_value = SAML_METADATA_PARSED
-            return application.create_app(testing=True)
+            return application.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})
 
 
 @pytest.mark.db_test
@@ -84,7 +82,7 @@ class TestAwsAuthManagerAuthenticationViews:
 
     def test_logout_redirect_to_identity_center(self, aws_app):
         with aws_app.test_client() as client:
-            response = client.get("/logout")
+            response = client.post("/logout")
             assert response.status_code == 302
             assert response.location.startswith("https://portal.sso.us-east-1.amazonaws.com/saml/logout/")
 

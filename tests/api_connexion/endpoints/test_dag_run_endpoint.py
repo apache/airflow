@@ -24,10 +24,10 @@ import pytest
 import time_machine
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.datasets import Dataset
+from airflow.assets import Asset
+from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import DatasetEvent, DatasetModel
 from airflow.models.param import Param
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
@@ -57,7 +57,7 @@ def configured_app(minimal_app_for_api):
         role_name="Test",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_ASSET),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
@@ -72,7 +72,7 @@ def configured_app(minimal_app_for_api):
         role_name="TestNoDagRunCreatePermission",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_ASSET),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
@@ -239,18 +239,6 @@ class TestDeleteDagRun(TestDagRunEndpoint):
         )
         assert response.status_code == 403
 
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 204)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, session):
-        session.add_all(self._create_test_dag_run())
-        session.commit()
-        response = self.client.delete("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID_1")
-
-        assert response.status_code == expected_status_code
-
 
 class TestGetDagRun(TestDagRunEndpoint):
     def test_should_respond_200(self, session):
@@ -373,29 +361,6 @@ class TestGetDagRun(TestDagRunEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400, f"Current code: {response.status_code}"
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, session):
-        dagrun_model = DagRun(
-            dag_id="TEST_DAG_ID",
-            run_id="TEST_DAG_RUN_ID",
-            run_type=DagRunType.MANUAL,
-            execution_date=timezone.parse(self.default_time),
-            start_date=timezone.parse(self.default_time),
-            external_trigger=True,
-            state="running",
-        )
-        session.add(dagrun_model)
-        session.commit()
-        result = session.query(DagRun).all()
-        assert len(result) == 1
-
-        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID")
-        assert response.status_code == expected_status_code
 
 
 class TestGetDagRuns(TestDagRunEndpoint):
@@ -580,18 +545,6 @@ class TestGetDagRuns(TestDagRunEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 400, f"Current code: {response.status_code}"
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, session):
-        self._create_test_dag_run()
-        result = session.query(DagRun).all()
-        assert len(result) == 2
-        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns")
-        assert response.status_code == expected_status_code
 
 
 class TestGetDagRunsPagination(TestDagRunEndpoint):
@@ -1031,18 +984,6 @@ class TestGetDagRunBatch(TestDagRunEndpoint):
         response = self.client.post("api/v1/dags/~/dagRuns/list", json={"dag_ids": ["TEST_DAG_ID"]})
 
         assert_401(response)
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
-        self._create_test_dag_run()
-
-        response = self.client.post("api/v1/dags/~/dagRuns/list", json={"dag_ids": ["TEST_DAG_ID"]})
-
-        assert response.status_code == expected_status_code
 
 
 class TestGetDagRunBatchPagination(TestDagRunEndpoint):
@@ -1702,26 +1643,6 @@ class TestPostDagRun(TestDagRunEndpoint):
         )
         assert response.status_code == 403
 
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
-        execution_date = "2020-11-10T08:25:56.939143+00:00"
-        logical_date = "2020-11-10T08:25:56.939143+00:00"
-        self._create_dag("TEST_DAG_ID")
-
-        response = self.client.post(
-            "api/v1/dags/TEST_DAG_ID/dagRuns",
-            json={
-                "execution_date": execution_date,
-                "logical_date": logical_date,
-            },
-        )
-
-        assert response.status_code == expected_status_code
-
 
 class TestPatchDagRunState(TestDagRunEndpoint):
     @pytest.mark.parametrize("state", ["failed", "success", "queued"])
@@ -1847,31 +1768,6 @@ class TestPatchDagRunState(TestDagRunEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, dag_maker, session):
-        dag_id = "TEST_DAG_ID"
-        dag_run_id = "TEST_DAG_RUN_ID"
-        with dag_maker(dag_id) as dag:
-            task = EmptyOperator(task_id="task_id", dag=dag)
-        self.app.dag_bag.bag_dag(dag)
-        dr = dag_maker.create_dagrun(run_id=dag_run_id, run_type=DagRunType.SCHEDULED)
-        ti = dr.get_task_instance(task_id="task_id")
-        ti.task = task
-        ti.state = State.RUNNING
-        session.merge(ti)
-        session.commit()
-
-        response = self.client.patch(
-            f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}",
-            json={"state": "failed"},
-        )
-
-        assert response.status_code == expected_status_code
 
 
 class TestClearDagRun(TestDagRunEndpoint):
@@ -2011,45 +1907,20 @@ class TestClearDagRun(TestDagRunEndpoint):
         )
         assert response.status_code == 404
 
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, dag_maker, session):
-        dag_id = "TEST_DAG_ID"
-        dag_run_id = "TEST_DAG_RUN_ID"
-        with dag_maker(dag_id) as dag:
-            task = EmptyOperator(task_id="task_id", dag=dag)
-        self.app.dag_bag.bag_dag(dag)
-        dr = dag_maker.create_dagrun(run_id=dag_run_id, run_type=DagRunType.SCHEDULED)
-        ti = dr.get_task_instance(task_id="task_id")
-        ti.task = task
-        ti.state = State.RUNNING
-        session.merge(ti)
-        session.commit()
-
-        response = self.client.patch(
-            f"api/v1/dags/{dag_id}/dagRuns/{dag_run_id}",
-            json={"state": "failed"},
-        )
-
-        assert response.status_code == expected_status_code
-
 
 @pytest.mark.need_serialized_dag
 class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
     def test_should_respond_200(self, dag_maker, session):
-        dataset1 = Dataset(uri="ds1")
+        asset1 = Asset(uri="ds1")
 
         with dag_maker(dag_id="source_dag", start_date=timezone.utcnow(), session=session):
-            EmptyOperator(task_id="task", outlets=[dataset1])
+            EmptyOperator(task_id="task", outlets=[asset1])
         dr = dag_maker.create_dagrun()
         ti = dr.task_instances[0]
 
-        ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
-        event = DatasetEvent(
-            dataset_id=ds1_id,
+        asset1_id = session.query(AssetModel.id).filter_by(uri=asset1.uri).scalar()
+        event = AssetEvent(
+            dataset_id=asset1_id,
             source_task_id=ti.task_id,
             source_dag_id=ti.dag_id,
             source_run_id=ti.run_id,
@@ -2074,8 +1945,8 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
             "dataset_events": [
                 {
                     "timestamp": event.timestamp.isoformat(),
-                    "dataset_id": ds1_id,
-                    "dataset_uri": dataset1.uri,
+                    "dataset_id": asset1_id,
+                    "dataset_uri": asset1.uri,
                     "extra": {},
                     "id": event.id,
                     "source_dag_id": ti.dag_id,
@@ -2129,42 +2000,6 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamDatasetEvents")
 
         assert_401(response)
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, dag_maker, session):
-        dataset1 = Dataset(uri="ds1")
-
-        with dag_maker(dag_id="source_dag", start_date=timezone.utcnow(), session=session):
-            EmptyOperator(task_id="task", outlets=[dataset1])
-        dr = dag_maker.create_dagrun()
-        ti = dr.task_instances[0]
-
-        ds1_id = session.query(DatasetModel.id).filter_by(uri=dataset1.uri).scalar()
-        event = DatasetEvent(
-            dataset_id=ds1_id,
-            source_task_id=ti.task_id,
-            source_dag_id=ti.dag_id,
-            source_run_id=ti.run_id,
-            source_map_index=ti.map_index,
-        )
-        session.add(event)
-
-        with dag_maker(dag_id="TEST_DAG_ID", start_date=timezone.utcnow(), session=session):
-            pass
-        dr = dag_maker.create_dagrun(run_id="TEST_DAG_RUN_ID", run_type=DagRunType.DATASET_TRIGGERED)
-        dr.consumed_dataset_events.append(event)
-
-        session.commit()
-        assert event.timestamp
-
-        response = self.client.get(
-            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamDatasetEvents",
-        )
-        assert response.status_code == expected_status_code
 
 
 class TestSetDagRunNote(TestDagRunEndpoint):
@@ -2282,23 +2117,3 @@ class TestSetDagRunNote(TestDagRunEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
         assert response.status_code == 404
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, session):
-        dag_runs: list[DagRun] = self._create_test_dag_run(DagRunState.SUCCESS)
-        session.add_all(dag_runs)
-        session.commit()
-        created_dr: DagRun = dag_runs[0]
-        new_note_value = "My super cool DagRun notes"
-        response = self.client.patch(
-            f"api/v1/dags/{created_dr.dag_id}/dagRuns/{created_dr.run_id}/setNote",
-            json={"note": new_note_value},
-        )
-
-        session.query(DagRun).filter(DagRun.run_id == created_dr.run_id).first()
-
-        assert response.status_code == expected_status_code

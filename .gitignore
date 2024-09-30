@@ -12,6 +12,7 @@ airflow.db
 airflow/git_version
 airflow/www/static/coverage/
 airflow/www/*.log
+airflow/ui/coverage/
 logs/
 airflow-webserver.pid
 standalone_admin_password.txt
@@ -127,9 +128,6 @@ ENV/
 .idea/
 *.iml
 
-# Visual Studio Code
-.vscode/
-
 # vim
 *.swp
 
@@ -172,6 +170,8 @@ pnpm-debug.log*
 .vscode/*
 !.vscode/extensions.json
 /.vite/
+.pnpm-store
+*.tsbuildinfo
 
 # Airflow log files when airflow is run locally
 airflow-*.err

@@ -34,7 +34,14 @@ def minimal_app_for_auth_api():
         ]
     )
     def factory():
-        with conf_vars({("api", "auth_backends"): "tests.test_utils.remote_user_api_auth_backend"}):
+        with conf_vars(
+            {
+                (
+                    "api",
+                    "auth_backends",
+                ): "tests.test_utils.remote_user_api_auth_backend,airflow.api.auth.backend.session"
+            }
+        ):
             _app = app.create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
             _app.config["AUTH_ROLE_PUBLIC"] = None
             return _app
@@ -43,7 +50,7 @@ def minimal_app_for_auth_api():
 
 
 @pytest.fixture
-def set_auto_role_public(request):
+def set_auth_role_public(request):
     app = request.getfixturevalue("minimal_app_for_auth_api")
     auto_role_public = app.config["AUTH_ROLE_PUBLIC"]
     app.config["AUTH_ROLE_PUBLIC"] = request.param

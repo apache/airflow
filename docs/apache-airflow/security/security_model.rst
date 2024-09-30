@@ -81,7 +81,7 @@ Non-authenticated UI users
 ..........................
 
 Airflow doesn't support unauthenticated users by default. If allowed, potential vulnerabilities
-must be assessed and addressed by the Deployment Manager.
+must be assessed and addressed by the Deployment Manager. However, there are exceptions to this. The ``/health`` endpoint responsible to get health check updates should be publicly accessible. This is because other systems would want to retrieve that information. Another exception is the ``/login`` endpoint, as the users are expected to be unauthenticated to use it.
 
 Capabilities of authenticated UI users
 --------------------------------------

@@ -29,6 +29,7 @@ from airflow.providers.amazon.aws.operators.datasync import DataSyncOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 
 TEST_DAG_ID = "unit_tests"
 DEFAULT_DATE = datetime(2018, 1, 1)
@@ -362,6 +363,10 @@ class TestDataSyncOperatorCreate(DataSyncTestCaseBase):
         assert self.datasync.execute(ti.get_template_context()) is not None
         # ### Check mocks:
         mock_get_conn.assert_called()
+
+    def test_template_fields(self, mock_get_conn):
+        self.set_up_operator()
+        validate_template_fields(self.datasync)
 
 
 @mock_aws

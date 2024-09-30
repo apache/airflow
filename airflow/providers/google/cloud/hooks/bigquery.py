@@ -2415,10 +2415,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table_id = cmpt[1]
         else:
             raise ValueError(
-                f"{var_print(var_name)} Expect format of (<project.|<project:)<dataset>.<table>, "
+                f"{var_print(var_name)}Expect format of (<project.|<project:)<dataset>.<table>, "
                 f"got {table_input}"
             )
-
         if project_id is None:
             if var_name is not None:
                 self.log.info(
@@ -3282,6 +3281,11 @@ def _escape(s: str) -> str:
     return e
 
 
+@deprecated(
+    planned_removal_date="April 01, 2025",
+    use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.split_tablename",
+    category=AirflowProviderDeprecationWarning,
+)
 def split_tablename(
     table_input: str, default_project_id: str, var_name: str | None = None
 ) -> tuple[str, str, str]:
@@ -3329,6 +3333,9 @@ def split_tablename(
         raise ValueError(
             f"{var_print(var_name)}Expect format of (<project.|<project:)<dataset>.<table>, got {table_input}"
         )
+
+    # Exclude partition from the table name
+    table_id = table_id.split("$")[0]
 
     if project_id is None:
         if var_name is not None:

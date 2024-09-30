@@ -22,9 +22,10 @@ description: |
     `MySQL <https://www.mysql.com/>`__
 
 state: ready
-source-date-epoch: 1723970439
+source-date-epoch: 1726861041
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 5.7.1
   - 5.7.0
   - 5.6.3
   - 5.6.2
@@ -112,6 +113,12 @@ connection-types:
   - hook-class-name: airflow.providers.mysql.hooks.mysql.MySqlHook
     connection-type: mysql
 
+asset-uris:
+  - schemes: [mysql, mariadb]
+    handler: airflow.providers.mysql.assets.mysql.sanitize_uri
+
+# dataset has been renamed to asset in Airflow 3.0
+# This is kept for backward compatibility.
 dataset-uris:
   - schemes: [mysql, mariadb]
-    handler: airflow.providers.mysql.datasets.mysql.sanitize_uri
+    handler: airflow.providers.mysql.assets.mysql.sanitize_uri

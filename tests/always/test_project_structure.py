@@ -75,6 +75,7 @@ class TestProjectStructure:
             "tests/providers/amazon/aws/triggers/test_step_function.py",
             "tests/providers/amazon/aws/utils/test_rds.py",
             "tests/providers/amazon/aws/utils/test_sagemaker.py",
+            "tests/providers/amazon/aws/utils/test_asset_compat_lineage_collector.py",
             "tests/providers/amazon/aws/waiters/test_base_waiter.py",
             "tests/providers/apache/cassandra/hooks/test_cassandra.py",
             "tests/providers/apache/drill/operators/test_drill.py",
@@ -101,7 +102,6 @@ class TestProjectStructure:
             "tests/providers/cncf/kubernetes/utils/test_delete_from.py",
             "tests/providers/cncf/kubernetes/utils/test_k8s_hashlib_wrapper.py",
             "tests/providers/cncf/kubernetes/utils/test_xcom_sidecar.py",
-            "tests/providers/databricks/hooks/test_databricks_base.py",
             "tests/providers/google/cloud/fs/test_gcs.py",
             "tests/providers/google/cloud/links/test_automl.py",
             "tests/providers/google/cloud/links/test_base.py",
@@ -151,7 +151,7 @@ class TestProjectStructure:
             "tests/providers/google/test_go_module_utils.py",
             "tests/providers/microsoft/azure/operators/test_adls.py",
             "tests/providers/microsoft/azure/transfers/test_azure_blob_to_gcs.py",
-            "tests/providers/mongo/sensors/test_mongo.py",
+            "tests/providers/openlineage/utils/test_asset_compat_lineage_collector.py",
             "tests/providers/slack/notifications/test_slack_notifier.py",
             "tests/providers/snowflake/triggers/test_snowflake_trigger.py",
             "tests/providers/yandex/hooks/test_yandexcloud_dataproc.py",
@@ -170,6 +170,8 @@ class TestProjectStructure:
         modules_files = list(f for f in modules_files if "/_vendor/" not in f)
         # Exclude __init__.py
         modules_files = list(f for f in modules_files if not f.endswith("__init__.py"))
+        # Exclude versions file
+        modules_files = list(f for f in modules_files if "/versions/" not in f)
         # Change airflow/ to tests/
         expected_test_files = list(
             f'tests/{f.partition("/")[2]}' for f in modules_files if not f.endswith("__init__.py")
@@ -389,6 +391,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.bigquery.BigQueryPatchDatasetOperator",
         "airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator",
         "airflow.providers.google.cloud.operators.bigquery.BigQueryExecuteQueryOperator",
+        "airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator",
         "airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistenceAsyncSensor",
         "airflow.providers.google.cloud.sensors.bigquery.BigQueryTableExistencePartitionAsyncSensor",
         "airflow.providers.google.cloud.sensors.cloud_composer.CloudComposerEnvironmentSensor",
@@ -412,6 +415,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.dataproc._DataprocStartStopClusterBaseOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.custom_job.CustomTrainingJobBaseOperator",
         "airflow.providers.google.cloud.operators.cloud_base.GoogleCloudBaseOperator",
+        "airflow.providers.google.marketing_platform.operators.search_ads._GoogleSearchAdsBaseOperator",
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {
@@ -428,6 +432,7 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "airflow.providers.google.cloud.operators.vertex_ai.generative_model.GenerateTextEmbeddingsOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelOperator",
         "airflow.providers.google.cloud.operators.vertex_ai.generative_model.PromptMultimodalModelWithMediaOperator",
+        "airflow.providers.google.cloud.operators.automl.AutoMLBatchPredictOperator",
     }
 
     ASSETS_NOT_REQUIRED = {
@@ -510,7 +515,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         "GoogleDisplayVideo360GetSDFDownloadOperationSensor",
         "airflow.providers.google.marketing_platform.sensors.display_video."
         "GoogleDisplayVideo360ReportSensor",
-        "airflow.providers.google.marketing_platform.sensors.search_ads.GoogleSearchAdsReportSensor",
     }
 
     @pytest.mark.xfail(reason="We did not reach full coverage yet")
