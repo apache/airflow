@@ -41,7 +41,13 @@ def google_openid_app():
     )
     def factory():
         with conf_vars(
-            {("api", "auth_backends"): "airflow.providers.google.common.auth_backend.google_openid"}
+            {
+                ("api", "auth_backends"): "airflow.providers.google.common.auth_backend.google_openid",
+                (
+                    "core",
+                    "auth_manager",
+                ): "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager",
+            }
         ):
             _app = create_app(testing=True, config={"WTF_CSRF_ENABLED": False})  # type:ignore
             _app.config["AUTH_ROLE_PUBLIC"] = None
