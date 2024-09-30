@@ -88,7 +88,7 @@ def get_task_instance(
             SlaMiss,
             and_(
                 SlaMiss.dag_id == TI.dag_id,
-                SlaMiss.logical_date == DR.logical_date,
+                SlaMiss.execution_date == DR.logical_date,
                 SlaMiss.task_id == TI.task_id,
             ),
         )
@@ -131,7 +131,7 @@ def get_mapped_task_instance(
             SlaMiss,
             and_(
                 SlaMiss.dag_id == TI.dag_id,
-                SlaMiss.logical_date == DR.logical_date,
+                SlaMiss.execution_date == DR.logical_date,
                 SlaMiss.task_id == TI.task_id,
             ),
         )
@@ -239,7 +239,7 @@ def get_mapped_task_instances(
             and_(
                 SlaMiss.dag_id == TI.dag_id,
                 SlaMiss.task_id == TI.task_id,
-                SlaMiss.logical_date == DR.logical_date,
+                SlaMiss.execution_date == DR.logical_date,
             ),
         )
         .add_columns(SlaMiss)
@@ -391,7 +391,7 @@ def get_task_instances(
             and_(
                 SlaMiss.dag_id == TI.dag_id,
                 SlaMiss.task_id == TI.task_id,
-                SlaMiss.logical_date == DR.logical_date,
+                SlaMiss.execution_date == DR.logical_date,
             ),
         )
         .add_columns(SlaMiss)
@@ -469,7 +469,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
         and_(
             SlaMiss.dag_id == TI.dag_id,
             SlaMiss.task_id == TI.task_id,
-            SlaMiss.logical_date == DR.logical_date,
+            SlaMiss.execution_date == DR.logical_date,
         ),
         isouter=True,
     ).add_columns(SlaMiss)
@@ -675,7 +675,7 @@ def set_task_instance_note(
             SlaMiss,
             and_(
                 SlaMiss.dag_id == TI.dag_id,
-                SlaMiss.logical_date == DR.logical_date,
+                SlaMiss.execution_date == DR.logical_date,
                 SlaMiss.task_id == TI.task_id,
             ),
         )
