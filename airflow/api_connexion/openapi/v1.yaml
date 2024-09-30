@@ -1376,9 +1376,9 @@ paths:
       - $ref: "#/components/parameters/DatasetURI"
 
     get:
-      summary: Get queued Dataset events for a Dataset.
+      summary: Get queued Asset events for an Asset.
       description: |
-        Get queued Dataset events for a Dataset
+        Get queued Asset events for an Asset
 
         *New in version 2.9.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
@@ -1401,9 +1401,9 @@ paths:
           $ref: "#/components/responses/NotFound"
 
     delete:
-      summary: Delete queued Dataset events for a Dataset.
+      summary: Delete queued Asset events for an Asset.
       description: |
-        Delete queued Dataset events for a Dataset.
+        Delete queued Asset events for a Asset.
 
         *New in version 2.9.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
@@ -2540,7 +2540,7 @@ paths:
             type: string
           required: false
           description: |
-            One or more DAG IDs separated by commas to filter datasets by associated DAGs either consuming or producing.
+            One or more DAG IDs separated by commas to filter assets by associated DAGs either consuming or producing.
 
             *New in version 2.9.0*
       responses:
@@ -2580,8 +2580,8 @@ paths:
 
   /datasets/events:
     get:
-      summary: Get dataset events
-      description: Get dataset events
+      summary: Get asset events
+      description: Get asset events
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: get_asset_events
       tags: [Asset]

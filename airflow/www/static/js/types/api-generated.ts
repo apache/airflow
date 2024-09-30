@@ -352,13 +352,13 @@ export interface paths {
   };
   "/datasets/queuedEvent/{uri}": {
     /**
-     * Get queued Dataset events for a Dataset
+     * Get queued Asset events for an Asset
      *
      * *New in version 2.9.0*
      */
     get: operations["get_asset_queued_events"];
     /**
-     * Delete queued Dataset events for a Dataset.
+     * Delete queued Asset events for a Asset.
      *
      * *New in version 2.9.0*
      */
@@ -796,7 +796,7 @@ export interface paths {
     };
   };
   "/datasets/events": {
-    /** Get dataset events */
+    /** Get asset events */
     get: operations["get_asset_events"];
     /** Create asset event */
     post: operations["create_asset_event"];
@@ -3780,7 +3780,7 @@ export interface operations {
     };
   };
   /**
-   * Get queued Dataset events for a Dataset
+   * Get queued Asset events for an Asset
    *
    * *New in version 2.9.0*
    */
@@ -3808,7 +3808,7 @@ export interface operations {
     };
   };
   /**
-   * Delete queued Dataset events for a Dataset.
+   * Delete queued Asset events for a Asset.
    *
    * *New in version 2.9.0*
    */
@@ -5062,7 +5062,7 @@ export interface operations {
         /** If set, only return assets with uris matching this pattern. */
         uri_pattern?: string;
         /**
-         * One or more DAG IDs separated by commas to filter datasets by associated DAGs either consuming or producing.
+         * One or more DAG IDs separated by commas to filter assets by associated DAGs either consuming or producing.
          *
          * *New in version 2.9.0*
          */
@@ -5100,7 +5100,7 @@ export interface operations {
       404: components["responses"]["NotFound"];
     };
   };
-  /** Get dataset events */
+  /** Get asset events */
   get_asset_events: {
     parameters: {
       query: {
