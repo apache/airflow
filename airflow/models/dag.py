@@ -585,7 +585,8 @@ class DAG(LoggingMixin):
 
         if full_filepath:
             warnings.warn(
-                "Passing full_filepath to DAG() is deprecated and has no effect",
+                "Passing full_filepath to DAG() is deprecated and has no effect "
+                f"in {self.dag_id=}.",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
@@ -598,7 +599,8 @@ class DAG(LoggingMixin):
         if concurrency:
             # TODO: Remove in Airflow 3.0
             warnings.warn(
-                "The 'concurrency' parameter is deprecated. Please use 'max_active_tasks'.",
+                "The 'concurrency' parameter is deprecated. Please use 'max_active_tasks' "
+                f"in {self.dag_id=}.",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
@@ -654,14 +656,14 @@ class DAG(LoggingMixin):
         if schedule_interval is not NOTSET:
             warnings.warn(
                 "Param `schedule_interval` is deprecated and will be removed in a future release. "
-                "Please use `schedule` instead. ",
+                f"Please use `schedule` instead in {self.dag_id=}.",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
         if timetable is not None:
             warnings.warn(
                 "Param `timetable` is deprecated and will be removed in a future release. "
-                "Please use `schedule` instead. ",
+                f"Please use `schedule` instead in {self.dag_id=}.",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
@@ -688,7 +690,8 @@ class DAG(LoggingMixin):
         elif isinstance(schedule, ArgNotSet):
             warnings.warn(
                 "Creating a DAG with an implicit schedule is deprecated, and will stop working "
-                "in a future release. Set `schedule=datetime.timedelta(days=1)` explicitly.",
+                "in a future release. Set `schedule=datetime.timedelta(days=1)` explicitly in"
+                f"in {self.dag_id=}.",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
