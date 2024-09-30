@@ -80,7 +80,7 @@ def get_dataset(*, uri: str, session: Session = NEW_SESSION) -> APIResponse:
 @security.requires_access_asset("GET")
 @format_parameters({"limit": check_limit})
 @provide_session
-def get_datasets(
+def get_assets(
     *,
     limit: int,
     offset: int = 0,

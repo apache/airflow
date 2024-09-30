@@ -2521,7 +2521,7 @@ paths:
     get:
       summary: List assets
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
-      operationId: get_datasets
+      operationId: get_assets
       tags: [Asset]
       parameters:
         - $ref: "#/components/parameters/PageLimit"
@@ -2533,7 +2533,7 @@ paths:
             type: string
           required: false
           description: |
-            If set, only return datasets with uris matching this pattern.
+            If set, only return assets with uris matching this pattern.
         - name: dag_ids
           in: query
           schema:

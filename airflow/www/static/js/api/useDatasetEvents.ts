@@ -24,15 +24,15 @@ import { getMetaValue } from "src/utils";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 import type {
   DatasetEventCollection,
-  GetDatasetEventsVariables,
+  GetAssetEventsVariables,
 } from "src/types/api-generated";
 
-interface Props extends GetDatasetEventsVariables {
+interface Props extends GetAssetEventsVariables {
   options?: UseQueryOptions<DatasetEventCollection>;
 }
 
 const useDatasetEvents = ({
-  datasetId,
+  assetId,
   sourceDagId,
   sourceRunId,
   sourceTaskId,
@@ -45,7 +45,7 @@ const useDatasetEvents = ({
   const query = useQuery<DatasetEventCollection>(
     [
       "datasets-events",
-      datasetId,
+      assetId,
       sourceDagId,
       sourceRunId,
       sourceTaskId,
@@ -62,7 +62,7 @@ const useDatasetEvents = ({
       if (limit) params.set("limit", limit.toString());
       if (offset) params.set("offset", offset.toString());
       if (orderBy) params.set("order_by", orderBy);
-      if (datasetId) params.set("dataset_id", datasetId.toString());
+      if (assetId) params.set("asset_id", assetId.toString());
       if (sourceDagId) params.set("source_dag_id", sourceDagId);
       if (sourceRunId) params.set("source_run_id", sourceRunId);
       if (sourceTaskId) params.set("source_task_id", sourceTaskId);

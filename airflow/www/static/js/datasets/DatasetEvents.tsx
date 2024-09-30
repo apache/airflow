@@ -29,7 +29,7 @@ import type { DatasetEvent } from "src/types/api-generated";
 import DatasetEventCard from "src/components/DatasetEventCard";
 
 type Props = {
-  datasetId?: number;
+  assetId?: number;
   showLabel?: boolean;
 };
 
@@ -37,7 +37,7 @@ const cardDef: CardDef<DatasetEvent> = {
   card: ({ row }) => <DatasetEventCard datasetEvent={row} />,
 };
 
-const Events = ({ datasetId, showLabel }: Props) => {
+const Events = ({ assetId, showLabel }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
   const [sortBy, setSortBy] = useState<SortingRule<object>[]>([
@@ -51,7 +51,7 @@ const Events = ({ datasetId, showLabel }: Props) => {
     data: { datasetEvents = [], totalEntries = 0 },
     isLoading: isEventsLoading,
   } = useDatasetEvents({
-    datasetId,
+    assetId,
     limit,
     offset,
     orderBy,

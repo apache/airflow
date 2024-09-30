@@ -302,7 +302,7 @@ export interface paths {
      */
     get: operations["get_dag_asset_queued_event"];
     /**
-     * Delete a queued Dataset event for a DAG.
+     * Delete a queued Asset event for a DAG.
      *
      * *New in version 2.9.0*
      */
@@ -318,13 +318,13 @@ export interface paths {
   };
   "/dags/{dag_id}/datasets/queuedEvent": {
     /**
-     * Get queued Dataset events for a DAG.
+     * Get queued Asset events for a DAG.
      *
      * *New in version 2.9.0*
      */
     get: operations["get_dag_asset_queued_events"];
     /**
-     * Delete queued Dataset events for a DAG.
+     * Delete queued Asset events for a DAG.
      *
      * *New in version 2.9.0*
      */
@@ -783,7 +783,7 @@ export interface paths {
     get: operations["get_dag_warnings"];
   };
   "/datasets": {
-    get: operations["get_datasets"];
+    get: operations["get_assets"];
   };
   "/datasets/{uri}": {
     /** Get a dataset by uri. */
@@ -2621,7 +2621,7 @@ export interface components {
      * *New in version 2.2.0*
      */
     FilterTags: string[];
-    /** @description The Dataset ID that updated the dataset. */
+    /** @description The Asset ID that updated the asset. */
     FilterAssetID: number;
     /** @description The DAG ID that updated the dataset. */
     FilterSourceDAGID: string;
@@ -3680,7 +3680,7 @@ export interface operations {
     };
   };
   /**
-   * Delete a queued Dataset event for a DAG.
+   * Delete a queued Asset event for a DAG.
    *
    * *New in version 2.9.0*
    */
@@ -3707,7 +3707,7 @@ export interface operations {
     };
   };
   /**
-   * Get queued Dataset events for a DAG.
+   * Get queued Asset events for a DAG.
    *
    * *New in version 2.9.0*
    */
@@ -3735,7 +3735,7 @@ export interface operations {
     };
   };
   /**
-   * Delete queued Dataset events for a DAG.
+   * Delete queued Asset events for a DAG.
    *
    * *New in version 2.9.0*
    */
@@ -5045,7 +5045,7 @@ export interface operations {
       403: components["responses"]["PermissionDenied"];
     };
   };
-  get_datasets: {
+  get_assets: {
     parameters: {
       query: {
         /** The numbers of items to return. */
@@ -5059,7 +5059,7 @@ export interface operations {
          * *New in version 2.1.0*
          */
         order_by?: components["parameters"]["OrderBy"];
-        /** If set, only return datasets with uris matching this pattern. */
+        /** If set, only return assets with uris matching this pattern. */
         uri_pattern?: string;
         /**
          * One or more DAG IDs separated by commas to filter datasets by associated DAGs either consuming or producing.
@@ -5115,8 +5115,8 @@ export interface operations {
          * *New in version 2.1.0*
          */
         order_by?: components["parameters"]["OrderBy"];
-        /** The Dataset ID that updated the dataset. */
-        dataset_id?: components["parameters"]["FilterAssetID"];
+        /** The Asset ID that updated the asset. */
+        asset_id?: components["parameters"]["FilterAssetID"];
         /** The DAG ID that updated the dataset. */
         source_dag_id?: components["parameters"]["FilterSourceDAGID"];
         /** The task ID that updated the dataset. */
@@ -5640,19 +5640,19 @@ export type SetDagRunNoteVariables = CamelCasedPropertiesDeep<
   operations["set_dag_run_note"]["parameters"]["path"] &
     operations["set_dag_run_note"]["requestBody"]["content"]["application/json"]
 >;
-export type GetDagDatasetQueuedEventVariables = CamelCasedPropertiesDeep<
+export type GetDagAssetQueuedEventVariables = CamelCasedPropertiesDeep<
   operations["get_dag_asset_queued_event"]["parameters"]["path"] &
     operations["get_dag_asset_queued_event"]["parameters"]["query"]
 >;
-export type DeleteDagDatasetQueuedEventVariables = CamelCasedPropertiesDeep<
+export type DeleteDagAssetQueuedEventVariables = CamelCasedPropertiesDeep<
   operations["delete_dag_asset_queued_event"]["parameters"]["path"] &
     operations["delete_dag_asset_queued_event"]["parameters"]["query"]
 >;
-export type GetDagDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
+export type GetDagAssetQueuedEventsVariables = CamelCasedPropertiesDeep<
   operations["get_dag_asset_queued_events"]["parameters"]["path"] &
     operations["get_dag_asset_queued_events"]["parameters"]["query"]
 >;
-export type DeleteDagDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
+export type DeleteDagAssetQueuedEventsVariables = CamelCasedPropertiesDeep<
   operations["delete_dag_asset_queued_events"]["parameters"]["path"] &
     operations["delete_dag_asset_queued_events"]["parameters"]["query"]
 >;
@@ -5787,13 +5787,13 @@ export type GetDagSourceVariables = CamelCasedPropertiesDeep<
 export type GetDagWarningsVariables = CamelCasedPropertiesDeep<
   operations["get_dag_warnings"]["parameters"]["query"]
 >;
-export type GetDatasetsVariables = CamelCasedPropertiesDeep<
-  operations["get_datasets"]["parameters"]["query"]
+export type GetAssetsVariables = CamelCasedPropertiesDeep<
+  operations["get_assets"]["parameters"]["query"]
 >;
 export type GetDatasetVariables = CamelCasedPropertiesDeep<
   operations["get_dataset"]["parameters"]["path"]
 >;
-export type GetDatasetEventsVariables = CamelCasedPropertiesDeep<
+export type GetAssetEventsVariables = CamelCasedPropertiesDeep<
   operations["get_asset_events"]["parameters"]["query"]
 >;
 export type CreateAssetEventVariables = CamelCasedPropertiesDeep<

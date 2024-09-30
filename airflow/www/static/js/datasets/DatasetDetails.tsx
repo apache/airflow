@@ -102,7 +102,7 @@ const DatasetDetails = ({ uri }: Props) => {
         />
       )}
       <Box mt={2}>
-        {dataset && dataset.id && <Events datasetId={dataset.id} showLabel />}
+        {dataset && dataset.id && <Events assetId={dataset.id} showLabel />}
       </Box>
     </Flex>
   );

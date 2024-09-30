@@ -350,7 +350,7 @@ Class | Method | HTTP request | Description
 *DagWarningApi* | [**get_dag_warnings**](docs/DagWarningApi.md#get_dag_warnings) | **GET** /dagWarnings | List dag warnings
 *DatasetApi* | [**get_dataset**](docs/DatasetApi.md#get_dataset) | **GET** /datasets/{uri} | Get a dataset
 *AssetApi* | [**get_asset_events**](docs/DatasetApi.md#get_asset_events) | **GET** /datasets/events | Get asset events
-*DatasetApi* | [**get_datasets**](docs/DatasetApi.md#get_datasets) | **GET** /datasets | List datasets
+*DatasetApi* | [**get_assets**](docs/DatasetApi.md#get_assets) | **GET** /datasets | List assets
 *DatasetApi* | [**get_upstream_dataset_events**](docs/DatasetApi.md#get_upstream_dataset_events) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents | Get dataset events for a DAG run
 *EventLogApi* | [**get_event_log**](docs/EventLogApi.md#get_event_log) | **GET** /eventLogs/{event_log_id} | Get a log entry
 *EventLogApi* | [**get_event_logs**](docs/EventLogApi.md#get_event_logs) | **GET** /eventLogs | List log entries
