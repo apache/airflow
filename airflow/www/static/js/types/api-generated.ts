@@ -362,7 +362,7 @@ export interface paths {
      *
      * *New in version 2.9.0*
      */
-    delete: operations["delete_dataset_queued_events"];
+    delete: operations["delete_asset_queued_events"];
     parameters: {
       path: {
         /** The encoded Dataset URI */
@@ -3812,7 +3812,7 @@ export interface operations {
    *
    * *New in version 2.9.0*
    */
-  delete_dataset_queued_events: {
+  delete_asset_queued_events: {
     parameters: {
       path: {
         /** The encoded Dataset URI */
@@ -5664,8 +5664,8 @@ export type GetDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
     operations["get_dataset_queued_events"]["parameters"]["query"]
 >;
 export type DeleteDatasetQueuedEventsVariables = CamelCasedPropertiesDeep<
-  operations["delete_dataset_queued_events"]["parameters"]["path"] &
-    operations["delete_dataset_queued_events"]["parameters"]["query"]
+  operations["delete_asset_queued_events"]["parameters"]["path"] &
+    operations["delete_asset_queued_events"]["parameters"]["query"]
 >;
 export type GetEventLogsVariables = CamelCasedPropertiesDeep<
   operations["get_event_logs"]["parameters"]["query"]

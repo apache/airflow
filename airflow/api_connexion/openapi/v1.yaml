@@ -1407,7 +1407,7 @@ paths:
 
         *New in version 2.9.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
-      operationId: delete_dataset_queued_events
+      operationId: delete_asset_queued_events
       parameters:
         - $ref: "#/components/parameters/Before"
       tags: [Asset]

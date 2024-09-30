@@ -303,7 +303,7 @@ def get_dataset_queued_events(
 @security.requires_access_asset("DELETE")
 @action_logging
 @provide_session
-def delete_dataset_queued_events(
+def delete_asset_queued_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Delete queued asset events for an asset."""

@@ -846,7 +846,7 @@ class TestGetDatasetQueuedEvents(TestQueuedEventEndpoint):
         assert response.status_code == 403
 
 
-class TestDeleteDatasetQueuedEvents(TestQueuedEventEndpoint):
+class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
     def test_should_raises_401_unauthenticated(self):
         dataset_uri = "not_exists"
 
