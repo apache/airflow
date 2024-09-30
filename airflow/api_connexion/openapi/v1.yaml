@@ -1256,7 +1256,7 @@ paths:
         Get a queued Dataset event for a DAG.
 
         *New in version 2.9.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: get_dag_dataset_queued_event
       parameters:
         - $ref: "#/components/parameters/Before"
@@ -1281,7 +1281,7 @@ paths:
         Delete a queued Dataset event for a DAG.
 
         *New in version 2.9.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: delete_dag_dataset_queued_event
       parameters:
         - $ref: "#/components/parameters/Before"
@@ -1308,7 +1308,7 @@ paths:
         Get queued Dataset events for a DAG.
 
         *New in version 2.9.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: get_dag_dataset_queued_events
       parameters:
         - $ref: "#/components/parameters/Before"
@@ -1333,7 +1333,7 @@ paths:
         Delete queued Dataset events for a DAG.
 
         *New in version 2.9.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: delete_dag_dataset_queued_events
       parameters:
         - $ref: "#/components/parameters/Before"
@@ -1381,7 +1381,7 @@ paths:
         Get queued Dataset events for a Dataset
 
         *New in version 2.9.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: get_dataset_queued_events
       parameters:
         - $ref: "#/components/parameters/Before"
@@ -1406,7 +1406,7 @@ paths:
         Delete queued Dataset events for a Dataset.
 
         *New in version 2.9.0*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: delete_dataset_queued_events
       parameters:
         - $ref: "#/components/parameters/Before"
@@ -2519,8 +2519,8 @@ paths:
 
   /datasets:
     get:
-      summary: List datasets
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      summary: List assets
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: get_datasets
       tags: [Dataset]
       parameters:
@@ -2561,7 +2561,7 @@ paths:
     get:
       summary: Get a dataset
       description: Get a dataset by uri.
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: get_dataset
       tags: [Dataset]
       responses:
@@ -2582,7 +2582,7 @@ paths:
     get:
       summary: Get dataset events
       description: Get dataset events
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: get_dataset_events
       tags: [Dataset]
       parameters:
@@ -2610,7 +2610,7 @@ paths:
     post:
       summary: Create dataset event
       description: Create dataset event
-      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: create_dataset_event
       tags: [Dataset]
       requestBody:
