@@ -1260,7 +1260,7 @@ paths:
       operationId: get_dag_dataset_queued_event
       parameters:
         - $ref: "#/components/parameters/Before"
-      tags: [Dataset]
+      tags: [Asset]
       responses:
         "200":
           description: Success.
@@ -1285,7 +1285,7 @@ paths:
       operationId: delete_dag_dataset_queued_event
       parameters:
         - $ref: "#/components/parameters/Before"
-      tags: [Dataset]
+      tags: [Asset]
       responses:
         "204":
           description: Success.
@@ -1312,7 +1312,7 @@ paths:
       operationId: get_dag_dataset_queued_events
       parameters:
         - $ref: "#/components/parameters/Before"
-      tags: [Dataset]
+      tags: [Asset]
       responses:
         "200":
           description: Success.
@@ -1337,7 +1337,7 @@ paths:
       operationId: delete_dag_dataset_queued_events
       parameters:
         - $ref: "#/components/parameters/Before"
-      tags: [Dataset]
+      tags: [Asset]
       responses:
         "204":
           description: Success.
@@ -1385,7 +1385,7 @@ paths:
       operationId: get_dataset_queued_events
       parameters:
         - $ref: "#/components/parameters/Before"
-      tags: [Dataset]
+      tags: [Asset]
       responses:
         "200":
           description: Success.
@@ -1410,7 +1410,7 @@ paths:
       operationId: delete_dataset_queued_events
       parameters:
         - $ref: "#/components/parameters/Before"
-      tags: [Dataset]
+      tags: [Asset]
       responses:
         "204":
           description: Success.
@@ -2522,7 +2522,7 @@ paths:
       summary: List assets
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: get_datasets
-      tags: [Dataset]
+      tags: [Asset]
       parameters:
         - $ref: "#/components/parameters/PageLimit"
         - $ref: "#/components/parameters/PageOffset"
@@ -2563,7 +2563,7 @@ paths:
       description: Get a dataset by uri.
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: get_dataset
-      tags: [Dataset]
+      tags: [Asset]
       responses:
         "200":
           description: Success.
@@ -2584,7 +2584,7 @@ paths:
       description: Get dataset events
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: get_dataset_events
-      tags: [Dataset]
+      tags: [Asset]
       parameters:
         - $ref: "#/components/parameters/PageLimit"
         - $ref: "#/components/parameters/PageOffset"
@@ -2612,7 +2612,7 @@ paths:
       description: Create dataset event
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: create_dataset_event
-      tags: [Dataset]
+      tags: [Asset]
       requestBody:
         required: true
         content:
