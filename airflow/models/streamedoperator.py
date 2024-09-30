@@ -168,7 +168,7 @@ class StreamedOperator(BaseOperator):
     def __init__(
         self,
         *,
-        operator_class: type[BaseOperator] | dict[str, Any],
+        operator_class: type[BaseOperator],
         expand_input: ExpandInput,
         partial_kwargs: dict[str, Any] | None = None,
         **kwargs: Any,
@@ -177,7 +177,7 @@ class StreamedOperator(BaseOperator):
         self._operator_class = operator_class
         self._expand_input = expand_input
         self._partial_kwargs = partial_kwargs or {}
-        self._mapped_kwargs = []
+        self._mapped_kwargs: list[dict] = []
         self._semaphore = Semaphore(self.max_active_tis_per_dag or os.cpu_count())
         XComArg.apply_upstream_relationship(self, self._expand_input.value)
 
@@ -279,7 +279,6 @@ class StreamedOperator(BaseOperator):
         operator.render_template_fields(context=context)
         task_instance = TaskInstance(
             task=operator,
-            execution_date=context["ti"].execution_date,
             run_id=context["ti"].run_id,
             state=context["ti"].state,
             map_index=index,
