@@ -128,10 +128,7 @@ class TestDagRunEndpoint:
         with create_session() as session:
             session.add(dag_instance)
         dag = DAG(dag_id=dag_id, schedule=None, params={"validated_number": Param(1, minimum=1, maximum=10)})
-        if AIRFLOW_V_3_0_PLUS:
-            self.app.dag_bag.bag_dag(dag)
-        else:
-            self.app.dag_bag.bag_dag(dag, root_dag=dag)
+        self.app.dag_bag.bag_dag(dag)
         return dag_instance
 
     def _create_test_dag_run(self, state=DagRunState.RUNNING, extra_dag=False, commit=True, idx_start=1):

@@ -29,7 +29,6 @@ from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils.session import provide_session
 from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 from tests.test_utils.www import _check_last_log
 
@@ -118,37 +117,32 @@ class TestDagEndpoint:
     @provide_session
     def _create_dag_models(self, count, dag_id_prefix="TEST_DAG", is_paused=False, session=None):
         for num in range(1, count + 1):
-            if AIRFLOW_V_3_0_PLUS:
-                kwargs = {"timetable_summary": "2 2 * * *"}
-            else:
-                kwargs = {"schedule_interval": "2 2 * * *"}
             dag_model = DagModel(
                 dag_id=f"{dag_id_prefix}_{num}",
                 fileloc=f"/tmp/dag_{num}.py",
+                timetable_summary="2 2 * * *",
                 is_active=True,
                 is_paused=is_paused,
-                **kwargs,
             )
             session.add(dag_model)
 
     @provide_session
     def _create_dag_model_for_details_endpoint(self, dag_id, session=None):
-        if AIRFLOW_V_3_0_PLUS:
-            kwargs = {"timetable_summary": "2 2 * * *"}
-        else:
-            kwargs = {"schedule_interval": "2 2 * * *"}
-        dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag.py", is_active=True, is_paused=False, **kwargs)
+        dag_model = DagModel(
+            dag_id=dag_id,
+            fileloc="/tmp/dag.py",
+            timetable_summary="2 2 * * *",
+            is_active=True,
+            is_paused=False,
+        )
         session.add(dag_model)
 
     @provide_session
     def _create_dag_model_for_details_endpoint_with_dataset_expression(self, dag_id, session=None):
-        if AIRFLOW_V_3_0_PLUS:
-            kwargs = {"timetable_summary": "2 2 * * *"}
-        else:
-            kwargs = {"schedule_interval": "2 2 * * *"}
         dag_model = DagModel(
             dag_id=dag_id,
             fileloc="/tmp/dag.py",
+            timetable_summary="2 2 * * *",
             is_active=True,
             is_paused=False,
             dataset_expression={
@@ -157,21 +151,16 @@ class TestDagEndpoint:
                     {"all": ["s3://dag2/output_1.txt", "s3://dag3/output_3.txt"]},
                 ]
             },
-            **kwargs,
         )
         session.add(dag_model)
 
     @provide_session
     def _create_deactivated_dag(self, session=None):
-        if AIRFLOW_V_3_0_PLUS:
-            kwargs = {"timetable_summary": "2 2 * * *"}
-        else:
-            kwargs = {"schedule_interval": "2 2 * * *"}
         dag_model = DagModel(
             dag_id="TEST_DAG_DELETED_1",
             fileloc="/tmp/dag_del_1.py",
+            timetable_summary="2 2 * * *",
             is_active=False,
-            **kwargs,
         )
         session.add(dag_model)
 
@@ -206,11 +195,9 @@ class TestGetDags(TestDagEndpoint):
 class TestPatchDag(TestDagEndpoint):
     @provide_session
     def _create_dag_model(self, session=None):
-        if AIRFLOW_V_3_0_PLUS:
-            kwargs = {"timetable_summary": "2 2 * * *"}
-        else:
-            kwargs = {"schedule_interval": "2 2 * * *"}
-        dag_model = DagModel(dag_id="TEST_DAG_1", fileloc="/tmp/dag_1.py", is_paused=True, **kwargs)
+        dag_model = DagModel(
+            dag_id="TEST_DAG_1", fileloc="/tmp/dag_1.py", timetable_summary="2 2 * * *", is_paused=True
+        )
         session.add(dag_model)
         return dag_model
 
