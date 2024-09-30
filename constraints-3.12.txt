@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-09-30T07:48:33.527262
+# This constraints file was automatically generated on 2024-09-30T13:52:12.197971
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -670,7 +670,7 @@ stack-data==0.6.3
 starkbank-ecdsa==2.2.0
 starlette==0.38.6
 statsd==4.0.1
-std-uritemplate==1.0.6
+std-uritemplate==2.0.0
 strictyaml==1.7.3
 sympy==1.13.3
 tableauserverclient==0.33
@@ -747,7 +747,7 @@ yamllint==1.35.1
 yandex-query-client==0.1.4
 yandexcloud==0.319.0
 yarl==1.13.1
-ydb==3.17.2
+ydb==3.18.0
 zeep==4.2.1
 zenpy==2.0.53
 zipp==3.20.2
