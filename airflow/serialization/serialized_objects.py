@@ -26,7 +26,7 @@ import logging
 import weakref
 from inspect import signature
 from textwrap import dedent
-from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple, Union, cast
+from typing import TYPE_CHECKING, Any, Collection, Iterable, Mapping, NamedTuple, Type, Union, cast
 
 import attrs
 import lazy_object_proxy
@@ -1033,7 +1033,7 @@ class DependencyDetector:
             )
         elif (
             isinstance(task, MappedOperator)
-            and issubclass(cast(type[BaseOperator], task.operator_class), TriggerDagRunOperator)
+            and issubclass(cast(Type[BaseOperator], task.operator_class), TriggerDagRunOperator)
             and "trigger_dag_id" in task.partial_kwargs
         ):
             deps.append(
@@ -1055,7 +1055,7 @@ class DependencyDetector:
             )
         elif (
             isinstance(task, MappedOperator)
-            and issubclass(cast(type[BaseOperator], task.operator_class), ExternalTaskSensor)
+            and issubclass(cast(Type[BaseOperator], task.operator_class), ExternalTaskSensor)
             and "external_dag_id" in task.partial_kwargs
         ):
             deps.append(
