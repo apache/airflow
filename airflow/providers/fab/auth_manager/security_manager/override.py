@@ -280,6 +280,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DATASET),
     ]
     if _is_3_0:
+        USER_PERMISSIONS.append((permissions.ACTION_CAN_CREATE, permissions.RESOURCE_BACKFILL))
         USER_PERMISSIONS.append((permissions.ACTION_CAN_EDIT, permissions.RESOURCE_BACKFILL))
     # [END security_user_perms]
 

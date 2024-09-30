@@ -30,6 +30,7 @@ from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
+from airflow.security.permissions import RESOURCE_DAG
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from tests.test_utils.api_connexion_utils import create_user, delete_user
@@ -63,18 +64,27 @@ def configured_app(minimal_app_for_api):
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_BACKFILL),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_BACKFILL),
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_BACKFILL),
             (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
         ],
     )
     create_user(app, username=USER_NO_PERMS, role_name="TestNoPermissions")  # type: ignore
-    create_user(app, username=USER_GRANULAR, role_name=ROLE_GRANULAR)  # type: ignore
+    create_user(
+        app,
+        username=USER_GRANULAR,
+        role_name=ROLE_GRANULAR,
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_BACKFILL),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_BACKFILL),
+            (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_BACKFILL),
+        ],
+    )  # type: ignore
     app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
         "TEST_DAG_1",
         access_control={
             ROLE_GRANULAR: {
-                permissions.RESOURCE_DAG: {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ},
-                permissions.RESOURCE_BACKFILL: {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ},
-            },
+                RESOURCE_DAG: {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ},
+            }
         },
     )
 
