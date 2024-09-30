@@ -1,28 +1,45 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 from __future__ import annotations
 
 import asyncio
 import logging
 import os
-from asyncio import AbstractEventLoop, iscoroutinefunction, Semaphore, ensure_future
+from asyncio import AbstractEventLoop, Semaphore, ensure_future, iscoroutinefunction
 from contextlib import contextmanager
 from datetime import datetime
 from math import ceil
 from time import sleep
-from typing import Any, Sequence, Callable, Generator
+from typing import Any, Callable, Generator, Sequence
 
 import jinja2
 from sqlalchemy.orm import Session
 
 from airflow import XComArg
 from airflow.exceptions import (
-    TaskDeferred,
     AirflowException,
     AirflowRescheduleTaskInstanceException,
+    TaskDeferred,
 )
 from airflow.models import BaseOperator, TaskInstance
 from airflow.models.expandinput import (
-    ExpandInput,
     DictOfListsExpandInput,
+    ExpandInput,
     OperatorExpandArgument,
     _needs_run_time_resolution,
 )
@@ -30,7 +47,7 @@ from airflow.models.mappedoperator import (
     ensure_xcomarg_return_value,
     validate_mapping_kwargs,
 )
-from airflow.triggers.base import TriggerEvent, BaseTrigger
+from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils import timezone
 from airflow.utils.context import Context, context_get_outlet_events
 from airflow.utils.helpers import prevent_duplicates
@@ -115,9 +132,7 @@ class OperatorMethodExecutor(LoggingMixin):
                     self.task_instance.try_number += 1
                     self.task_instance.end_date = timezone.utcnow()
 
-                    raise AirflowRescheduleTaskInstanceException(
-                        task_instance=self.task_instance
-                    )
+                    raise AirflowRescheduleTaskInstanceException(task_instance=self.task_instance)
 
     async def run_deferrable(self, context: Context, task_deferred: TaskDeferred):
         event = next(iter(await run_trigger(task_deferred.trigger)))
@@ -135,18 +150,12 @@ class OperatorMethodExecutor(LoggingMixin):
 
     async def run(self, method: Callable, *args, **kwargs):
         self.operator.pre_execute(context=self.context)
-        self.task_instance._run_execute_callback(
-            context=self.context, task=self.operator
-        )
+        self.task_instance._run_execute_callback(context=self.context, task=self.operator)
 
         try:
-            return await self._run_callable(
-                method, *(list(args or ()) + [self.context]), **kwargs
-            )
+            return await self._run_callable(method, *(list(args or ()) + [self.context]), **kwargs)
         except TaskDeferred as task_deferred:
-            return await self._run_callable(
-                self.run_deferrable, *[self.context, task_deferred]
-            )
+            return await self._run_callable(self.run_deferrable, *[self.context, task_deferred])
         finally:
             self.operator.post_execute(context=self.context)
 
@@ -211,24 +220,18 @@ class StreamedOperator(BaseOperator):
         session = get_current_task_instance_session()
         self._resolve_expand_input(context=context, session=session)
 
-    def _run_futures(
-        self, context: Context, futures, results: list[Any] | None = None
-    ) -> list[Any]:
+    def _run_futures(self, context: Context, futures, results: list[Any] | None = None) -> list[Any]:
         reschedule_date: datetime | None = None
         results = results or []
         failed_futures = []
 
         with event_loop() as loop:
-            for result in loop.run_until_complete(
-                asyncio.gather(*futures, return_exceptions=True)
-            ):
+            for result in loop.run_until_complete(asyncio.gather(*futures, return_exceptions=True)):
                 if isinstance(result, Exception):
                     if not isinstance(result, AirflowRescheduleTaskInstanceException):
                         raise result
                     reschedule_date = result.reschedule_date
-                    failed_futures.append(
-                        ensure_future(self._run_task(context, result.task_instance))
-                    )
+                    failed_futures.append(ensure_future(self._run_task(context, result.task_instance)))
                 else:
                     results.append(result)
 
@@ -304,9 +307,7 @@ def stream(self, **mapped_kwargs: OperatorExpandArgument) -> StreamedOperator:
     if not mapped_kwargs:
         raise TypeError("no arguments to expand against")
     validate_mapping_kwargs(self.operator_class, "stream", mapped_kwargs)
-    prevent_duplicates(
-        self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified"
-    )
+    prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified")
 
     expand_input = DictOfListsExpandInput(mapped_kwargs)
     ensure_xcomarg_return_value(expand_input.value)
