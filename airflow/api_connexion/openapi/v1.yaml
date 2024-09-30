@@ -1257,7 +1257,7 @@ paths:
 
         *New in version 2.9.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
-      operationId: get_dag_dataset_queued_event
+      operationId: get_dag_asset_queued_event
       parameters:
         - $ref: "#/components/parameters/Before"
       tags: [Asset]
