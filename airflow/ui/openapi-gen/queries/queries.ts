@@ -119,8 +119,94 @@ export const useDagServiceGetDagsPublicDagsGet = <
     ...options,
   });
 /**
+ * Patch Dags
+ * Patch multiple DAGs.
+ * @param data The data for the request.
+ * @param data.requestBody
+ * @param data.updateMask
+ * @param data.limit
+ * @param data.offset
+ * @param data.tags
+ * @param data.owners
+ * @param data.dagIdPattern
+ * @param data.onlyActive
+ * @param data.paused
+ * @param data.lastDagRunState
+ * @returns DAGCollectionResponse Successful Response
+ * @throws ApiError
+ */
+export const useDagServicePatchDagsPublicDagsPatch = <
+  TData = Common.DagServicePatchDagsPublicDagsPatchMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
+      TData,
+      TError,
+      {
+        dagIdPattern?: string;
+        lastDagRunState?: DagRunState;
+        limit?: number;
+        offset?: number;
+        onlyActive?: boolean;
+        owners?: string[];
+        paused?: boolean;
+        requestBody: DAGPatchBody;
+        tags?: string[];
+        updateMask?: string[];
+      },
+      TContext
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      dagIdPattern?: string;
+      lastDagRunState?: DagRunState;
+      limit?: number;
+      offset?: number;
+      onlyActive?: boolean;
+      owners?: string[];
+      paused?: boolean;
+      requestBody: DAGPatchBody;
+      tags?: string[];
+      updateMask?: string[];
+    },
+    TContext
+  >({
+    mutationFn: ({
+      dagIdPattern,
+      lastDagRunState,
+      limit,
+      offset,
+      onlyActive,
+      owners,
+      paused,
+      requestBody,
+      tags,
+      updateMask,
+    }) =>
+      DagService.patchDagsPublicDagsPatch({
+        dagIdPattern,
+        lastDagRunState,
+        limit,
+        offset,
+        onlyActive,
+        owners,
+        paused,
+        requestBody,
+        tags,
+        updateMask,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });
+/**
  * Patch Dag
- * Update the specific DAG.
+ * Patch the specific DAG.
  * @param data The data for the request.
  * @param data.dagId
  * @param data.requestBody
