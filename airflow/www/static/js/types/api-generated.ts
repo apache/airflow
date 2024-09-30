@@ -798,7 +798,7 @@ export interface paths {
   "/datasets/events": {
     /** Get dataset events */
     get: operations["get_dataset_events"];
-    /** Create dataset event */
+    /** Create asset event */
     post: operations["create_asset_event"];
   };
   "/config": {
@@ -1925,10 +1925,10 @@ export interface components {
       /** @description The dataset event creation time */
       timestamp?: string;
     };
-    CreateDatasetEvent: {
-      /** @description The URI of the dataset */
-      dataset_uri: string;
-      /** @description The dataset event extra */
+    CreateAssetEvent: {
+      /** @description The URI of the asset */
+      asset_uri: string;
+      /** @description The asset event extra */
       extra?: { [key: string]: unknown } | null;
     };
     QueuedEvent: {
@@ -5139,7 +5139,7 @@ export interface operations {
       404: components["responses"]["NotFound"];
     };
   };
-  /** Create dataset event */
+  /** Create asset event */
   create_asset_event: {
     responses: {
       /** Success. */
@@ -5155,7 +5155,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["CreateDatasetEvent"];
+        "application/json": components["schemas"]["CreateAssetEvent"];
       };
     };
   };
@@ -5437,8 +5437,8 @@ export type DatasetCollection = CamelCasedPropertiesDeep<
 export type DatasetEvent = CamelCasedPropertiesDeep<
   components["schemas"]["DatasetEvent"]
 >;
-export type CreateDatasetEvent = CamelCasedPropertiesDeep<
-  components["schemas"]["CreateDatasetEvent"]
+export type CreateAssetEvent = CamelCasedPropertiesDeep<
+  components["schemas"]["CreateAssetEvent"]
 >;
 export type QueuedEvent = CamelCasedPropertiesDeep<
   components["schemas"]["QueuedEvent"]
@@ -5796,7 +5796,7 @@ export type GetDatasetVariables = CamelCasedPropertiesDeep<
 export type GetDatasetEventsVariables = CamelCasedPropertiesDeep<
   operations["get_dataset_events"]["parameters"]["query"]
 >;
-export type CreateDatasetEventVariables = CamelCasedPropertiesDeep<
+export type CreateAssetEventVariables = CamelCasedPropertiesDeep<
   operations["create_asset_event"]["requestBody"]["content"]["application/json"]
 >;
 export type GetConfigVariables = CamelCasedPropertiesDeep<

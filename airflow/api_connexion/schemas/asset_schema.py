@@ -164,7 +164,7 @@ class AssetEventCollectionSchema(Schema):
 class CreateAssetEventSchema(Schema):
     """Create Asset Event Schema."""
 
-    dataset_uri = fields.String()
+    asset_uri = fields.String()
     extra = JsonObjectField()
 
 

@@ -2618,7 +2618,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateDatasetEvent'
+              $ref: '#/components/schemas/CreateAssetEvent'
       responses:
         '200':
           description: Success.
@@ -4644,18 +4644,18 @@ components:
           description: The dataset event creation time
           nullable: false
 
-    CreateDatasetEvent:
+    CreateAssetEvent:
       type: object
       required:
-        - dataset_uri
+        - asset_uri
       properties:
-        dataset_uri:
+        asset_uri:
           type: string
-          description: The URI of the dataset
+          description: The URI of the asset
           nullable: false
         extra:
           type: object
-          description: The dataset event extra
+          description: The asset event extra
           nullable: true
 
     QueuedEvent:

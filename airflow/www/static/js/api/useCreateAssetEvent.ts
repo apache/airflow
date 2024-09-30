@@ -31,20 +31,17 @@ interface Props {
 
 const createAssetUrl = getMetaValue("create_asset_event_api");
 
-export default function useCreateDatasetEvent({ datasetId, uri }: Props) {
+export default function useCreateAssetEvent({ datasetId, uri }: Props) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
 
   return useMutation(
-    ["createDatasetEvent", uri],
+    ["createAssetEvent", uri],
     (extra?: API.DatasetEvent["extra"]) =>
-      axios.post<AxiosResponse, API.CreateDatasetEventVariables>(
-        createAssetUrl,
-        {
-          dataset_uri: uri,
-          extra: extra || {},
-        }
-      ),
+      axios.post<AxiosResponse, API.CreateAssetEventVariables>(createAssetUrl, {
+        asset_uri: uri,
+        extra: extra || {},
+      }),
     {
       onSuccess: () => {
         queryClient.invalidateQueries(["datasets-events", datasetId]);

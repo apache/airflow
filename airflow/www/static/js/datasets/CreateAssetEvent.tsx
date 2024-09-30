@@ -34,7 +34,7 @@ import {
 } from "@chakra-ui/react";
 
 import { useContainerRef } from "src/context/containerRef";
-import { useCreateDatasetEvent, useDataset } from "src/api";
+import { useCreateAssetEvent, useDataset } from "src/api";
 
 interface Props {
   isOpen: boolean;
@@ -51,7 +51,7 @@ function checkJsonString(str: string) {
   return true;
 }
 
-const CreateDatasetEventModal = ({ uri, isOpen, onClose }: Props) => {
+const CreateAssetEventModal = ({ uri, isOpen, onClose }: Props) => {
   const containerRef = useContainerRef();
   const [extra, setExtra] = useState("");
   const { data: dataset } = useDataset({ uri });
@@ -59,13 +59,13 @@ const CreateDatasetEventModal = ({ uri, isOpen, onClose }: Props) => {
   const isJson = checkJsonString(extra);
   const isDisabled = !!extra && !isJson;
 
-  const { mutate: createDatasetEvent, isLoading } = useCreateDatasetEvent({
+  const { mutate: createAssetEvent, isLoading } = useCreateAssetEvent({
     datasetId: dataset?.id,
     uri: dataset?.uri,
   });
 
   const onSubmit = () => {
-    createDatasetEvent(extra ? JSON.parse(extra) : undefined);
+    createAssetEvent(extra ? JSON.parse(extra) : undefined);
     onClose();
   };
 
@@ -110,4 +110,4 @@ const CreateDatasetEventModal = ({ uri, isOpen, onClose }: Props) => {
   );
 };
 
-export default CreateDatasetEventModal;
+export default CreateAssetEventModal;

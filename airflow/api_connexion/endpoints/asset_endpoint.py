@@ -333,7 +333,7 @@ def create_asset_event(session: Session = NEW_SESSION) -> APIResponse:
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
-    uri = json_body["dataset_uri"]
+    uri = json_body["asset_uri"]
     asset = session.scalar(select(AssetModel).where(AssetModel.uri == uri).limit(1))
     if not asset:
         raise NotFound(title="Asset not found", detail=f"Asset with uri: '{uri}' not found")

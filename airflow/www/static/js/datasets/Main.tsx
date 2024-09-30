@@ -53,7 +53,7 @@ import DatasetDetails from "./DatasetDetails";
 import type { OnSelectProps } from "./types";
 import Graph from "./Graph";
 import SearchBar from "./SearchBar";
-import CreateDatasetEventModal from "./CreateDatasetEvent";
+import CreateAssetEventModal from "./CreateAssetEvent";
 
 const DATASET_URI_PARAM = "uri";
 const DAG_ID_PARAM = "dag_id";
@@ -281,7 +281,7 @@ const Datasets = () => {
         </TabPanels>
       </Tabs>
       {selectedUri && (
-        <CreateDatasetEventModal
+        <CreateAssetEventModal
           isOpen={isOpen}
           onClose={onClose}
           uri={selectedUri}

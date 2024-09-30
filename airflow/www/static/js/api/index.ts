@@ -53,7 +53,7 @@ import useHistoricalMetricsData from "./useHistoricalMetricsData";
 import { useTaskXcomEntry, useTaskXcomCollection } from "./useTaskXcom";
 import useEventLogs from "./useEventLogs";
 import useCalendarData from "./useCalendarData";
-import useCreateDatasetEvent from "./useCreateDatasetEvent";
+import useCreateAssetEvent from "./useCreateAssetEvent";
 import useRenderedK8s from "./useRenderedK8s";
 import useTaskDetail from "./useTaskDetail";
 import useTIHistory from "./useTIHistory";
@@ -112,7 +112,7 @@ export {
   useTaskFailedDependency,
   useEventLogs,
   useCalendarData,
-  useCreateDatasetEvent,
+  useCreateAssetEvent,
   useRenderedK8s,
   useTaskDetail,
   useTIHistory,
