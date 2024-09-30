@@ -295,7 +295,9 @@ class StreamedOperator(BaseOperator):
 
         return self._run_futures(
             context=context,
-            futures=[self._create_future(context, index) for index, mapped_kwargs in enumerate(self._mapped_kwargs)],
+            futures=[
+                self._create_future(context, index) for index, mapped_kwargs in enumerate(self._mapped_kwargs)
+            ],
         )
 
 
