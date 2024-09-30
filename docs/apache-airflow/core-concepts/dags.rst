@@ -712,8 +712,7 @@ configuration parameter (*added in Airflow 2.3*): ``regexp`` and ``glob``.
 
 .. note::
 
-    The default ``DAG_IGNORE_FILE_SYNTAX`` is ``glob`` in Airflow 3 or later.
-    The default was ``regexp`` in previous Airflow versions.
+    The default ``DAG_IGNORE_FILE_SYNTAX`` is ``glob`` in Airflow 3 or later (in previous versions it was ``regexp``).
 
 With the ``glob`` syntax (the default), the patterns work just like those in a ``.gitignore`` file:
 
