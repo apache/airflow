@@ -271,7 +271,7 @@ def delete_dag_dataset_queued_events(
 
 @security.requires_access_asset("GET")
 @provide_session
-def get_dataset_queued_events(
+def get_asset_queued_events(
     *, uri: str, before: str | None = None, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Get queued asset events for an asset."""
