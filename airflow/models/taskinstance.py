@@ -479,7 +479,7 @@ class TaskInstance(Base, LoggingMixin):
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
     executor_config = Column(ExecutorConfigType(pickler=dill))
-
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow)
     external_executor_id = Column(String(ID_LEN, **COLLATION_ARGS))
 
     # The trigger to resume on if we are in state DEFERRED
