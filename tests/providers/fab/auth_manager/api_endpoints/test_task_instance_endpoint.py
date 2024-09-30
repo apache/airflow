@@ -329,7 +329,6 @@ class TestGetTaskInstancesBatch(TestTaskInstanceEndpoint):
             ),
         ],
     )
-    @pytest.mark.filterwarnings("ignore::airflow.exceptions.RemovedInAirflow3Warning")
     def test_should_respond_200(
         self, task_instances, update_extras, payload, expected_ti_count, username, session
     ):
