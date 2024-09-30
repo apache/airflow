@@ -186,7 +186,7 @@ class TestXCom:
             key="key",
             value="value",
             timestamp=timezone.utcnow(),
-            execution_date=timezone.utcnow(),
+            logical_date=timezone.utcnow(),
             task_id="task_id",
             dag_id="dag_id",
         )
@@ -380,8 +380,8 @@ class TestXComGet:
     def tis_for_xcom_get_many_from_prior_dates(self, task_instance_factory, push_simple_json_xcom):
         date1 = timezone.datetime(2021, 12, 3, 4, 56)
         date2 = date1 + datetime.timedelta(days=1)
-        ti1 = task_instance_factory(dag_id="dag", task_id="task_1", execution_date=date1)
-        ti2 = task_instance_factory(dag_id="dag", task_id="task_1", execution_date=date2)
+        ti1 = task_instance_factory(dag_id="dag", task_id="task_1", logical_date=date1)
+        ti2 = task_instance_factory(dag_id="dag", task_id="task_1", logical_date=date2)
         push_simple_json_xcom(ti=ti1, key="xcom_1", value={"key1": "value1"})
         push_simple_json_xcom(ti=ti2, key="xcom_1", value={"key2": "value2"})
         return ti1, ti2
@@ -400,7 +400,7 @@ class TestXComGet:
 
         # The retrieved XComs should be ordered by logical date, latest first.
         assert [x.value for x in stored_xcoms] == [{"key2": "value2"}, {"key1": "value1"}]
-        assert [x.logical_date for x in stored_xcoms] == [ti2.execution_date, ti1.execution_date]
+        assert [x.logical_date for x in stored_xcoms] == [ti2.logical_date, ti1.logical_date]
 
 
 @pytest.mark.usefixtures("setup_xcom_pickling")
@@ -419,7 +419,7 @@ class TestXComSet:
         assert stored_xcoms[0].value == {"key": "value"}
         assert stored_xcoms[0].dag_id == "dag"
         assert stored_xcoms[0].task_id == "task_1"
-        assert stored_xcoms[0].logical_date == task_instance.execution_date
+        assert stored_xcoms[0].logical_date == task_instance.logical_date
 
     @pytest.fixture
     def setup_for_xcom_set_again_replace(self, task_instance, push_simple_json_xcom):

@@ -289,7 +289,7 @@ DIFFERENT_LOG_FILENAME = "{{ ti.dag_id }}/{{ ti.run_id }}/{{ ti.task_id }}/{{ tr
 
 @pytest.fixture
 def dag_run_with_log_filename(tis):
-    run_filters = [DagRun.dag_id == DAG_ID, DagRun.execution_date == DEFAULT_DATE]
+    run_filters = [DagRun.dag_id == DAG_ID, DagRun.logical_date == DEFAULT_DATE]
     with create_session() as session:
         log_template = session.merge(
             LogTemplate(filename=DIFFERENT_LOG_FILENAME, elasticsearch_id="irrelevant")

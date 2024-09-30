@@ -71,7 +71,7 @@ class TestNotInReschedulePeriodDep:
             dag_id=self.dag_id,
             task_id=self.task_id,
             run_id=self.run_id,
-            execution_date=DEFAULT_DATE,
+            logical_date=DEFAULT_DATE,
             map_index=map_index,
             state=state,
         )
