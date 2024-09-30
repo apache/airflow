@@ -690,7 +690,7 @@ class DAG(LoggingMixin):
         elif isinstance(schedule, ArgNotSet):
             warnings.warn(
                 "Creating a DAG with an implicit schedule is deprecated, and will stop working "
-                "in a future release. Set `schedule=datetime.timedelta(days=1)` explicitly in"
+                "in a future release. Set `schedule=datetime.timedelta(days=1)` explicitly "
                 f"in {self.dag_id=}.",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
