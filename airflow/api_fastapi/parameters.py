@@ -176,6 +176,10 @@ class SortParam(BaseParam[str]):
         # MySQL does not support `nullslast`, and True/False ordering depends on the
         # database implementation.
         nullscheck = case((column.isnot(None), 0), else_=1)
+
+        # Reset default sorting
+        select = select.order_by(None)
+
         if self.value[0] == "-":
             return select.order_by(nullscheck, column.desc(), DagModel.dag_id.desc())
         else:

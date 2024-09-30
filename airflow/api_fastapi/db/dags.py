@@ -43,4 +43,5 @@ dags_select_with_latest_dag_run = (
         and DagRun.dag_id == latest_dag_run_per_dag_id_cte.c.dag_id,
         isouter=True,
     )
+    .order_by(DagModel.dag_id)
 )
