@@ -170,6 +170,10 @@ export const $DAGResponse = {
       type: "integer",
       title: "Max Active Tasks",
     },
+    max_active_tasks_include_deferred: {
+      type: "boolean",
+      title: "Max Active Tasks Include Deferred",
+    },
     max_active_runs: {
       anyOf: [
         {
@@ -273,6 +277,7 @@ export const $DAGResponse = {
     "timetable_description",
     "tags",
     "max_active_tasks",
+    "max_active_tasks_include_deferred",
     "max_active_runs",
     "max_consecutive_failed_dag_runs",
     "has_task_concurrency_limits",

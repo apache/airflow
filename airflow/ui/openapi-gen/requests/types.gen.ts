@@ -35,6 +35,7 @@ export type DAGResponse = {
   timetable_description: string | null;
   tags: Array<DagTagPydantic>;
   max_active_tasks: number;
+  max_active_tasks_include_deferred: boolean;
   max_active_runs: number | null;
   max_consecutive_failed_dag_runs: number;
   has_task_concurrency_limits: boolean;

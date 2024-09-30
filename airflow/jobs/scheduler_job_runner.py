@@ -30,7 +30,7 @@ from functools import lru_cache, partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Iterator
 
-from sqlalchemy import and_, delete, func, not_, or_, select, text, update
+from sqlalchemy import and_, case, delete, func, not_, or_, select, text, update
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import lazyload, load_only, make_transient, selectinload
 from sqlalchemy.sql import expression
@@ -57,7 +57,7 @@ from airflow.models.dataset import (
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance
 from airflow.stats import Stats
-from airflow.ti_deps.dependencies_states import EXECUTION_STATES
+from airflow.ti_deps.dependencies_states import DEFERRED_STATES, EXECUTION_STATES
 from airflow.timetables.simple import DatasetTriggeredTimetable
 from airflow.traces import utils as trace_utils
 from airflow.traces.tracer import Trace, add_span
@@ -263,11 +263,21 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         :param states: List of states to query for
         :return: Concurrency map
         """
-        ti_concurrency_query: Result = session.execute(
-            select(TI.task_id, TI.run_id, TI.dag_id, func.count("*"))
-            .where(TI.state.in_(states))
+        ti_concurrency_query: Result = (
+            session.query(TI.task_id, TI.run_id, TI.dag_id, func.count("*"))
+            .join(DagModel, TI.dag_id == DagModel.dag_id)
+            .filter(
+                case(
+                    (
+                        DagModel.max_active_tasks_include_deferred,
+                        TI.state.in_(set(states) | DEFERRED_STATES),
+                    ),
+                    else_=TI.state.in_(states),
+                )
+            )
             .group_by(TI.task_id, TI.run_id, TI.dag_id)
         )
+
         return ConcurrencyMap.from_concurrency_map(
             {(dag_id, run_id, task_id): count for task_id, run_id, dag_id, count in ti_concurrency_query}
         )
@@ -469,20 +479,40 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
 
                 current_active_tasks_per_dag = concurrency_map.dag_active_tasks_map[dag_id]
                 max_active_tasks_per_dag_limit = task_instance.dag_model.max_active_tasks
-                self.log.info(
-                    "DAG %s has %s/%s running and queued tasks",
-                    dag_id,
-                    current_active_tasks_per_dag,
-                    max_active_tasks_per_dag_limit,
-                )
-                if current_active_tasks_per_dag >= max_active_tasks_per_dag_limit:
+
+                if task_instance.dag_model.max_active_tasks_include_deferred:
                     self.log.info(
-                        "Not executing %s since the number of tasks running or queued "
-                        "from DAG %s is >= to the DAG's max_active_tasks limit of %s",
-                        task_instance,
+                        "DAG %s has %s/%s running, queued and deferred tasks",
                         dag_id,
+                        current_active_tasks_per_dag,
                         max_active_tasks_per_dag_limit,
                     )
+                else:
+                    self.log.info(
+                        "DAG %s has %s/%s running and queued tasks",
+                        dag_id,
+                        current_active_tasks_per_dag,
+                        max_active_tasks_per_dag_limit,
+                    )
+
+                if current_active_tasks_per_dag >= max_active_tasks_per_dag_limit:
+                    if task_instance.dag_model.max_active_tasks_include_deferred:
+                        self.log.info(
+                            "Not executing %s since the number of tasks running or queued or "
+                            "deferred from DAG "
+                            "%s is >= to the DAG's max_active_tasks limit of %s",
+                            task_instance,
+                            dag_id,
+                            max_active_tasks_per_dag_limit,
+                        )
+                    else:
+                        self.log.info(
+                            "Not executing %s since the number of tasks running or queued from DAG "
+                            "%s is >= to the DAG's max_active_tasks limit of %s",
+                            task_instance,
+                            dag_id,
+                            max_active_tasks_per_dag_limit,
+                        )
                     starved_dags.add(dag_id)
                     continue
 

@@ -342,6 +342,7 @@ DAG_ARGS_EXPECTED_TYPES = {
     "description": str,
     "max_active_tasks": int,
     "max_active_runs": int,
+    "max_active_tasks_include_deferred": bool,
     "max_consecutive_failed_dag_runs": int,
     "dagrun_timeout": timedelta,
     "default_view": str,
@@ -422,6 +423,8 @@ class DAG(LoggingMixin):
     :param max_active_runs: maximum number of active DAG runs, beyond this
         number of DAG runs in a running state, the scheduler won't create
         new active DAG runs
+    :param max_active_tasks_include_deferred: If enabled, it includes the active deferred task
+        count in the calculation for max_active_tasks.
     :param max_consecutive_failed_dag_runs: (experimental) maximum number of consecutive failed DAG runs,
         beyond this the scheduler will disable the DAG
     :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
@@ -507,6 +510,9 @@ class DAG(LoggingMixin):
         user_defined_filters: dict | None = None,
         default_args: dict | None = None,
         max_active_tasks: int = airflow_conf.getint("core", "max_active_tasks_per_dag"),
+        max_active_tasks_include_deferred: bool = airflow_conf.getboolean(
+            "core", "max_active_tasks_include_deferred"
+        ),
         max_active_runs: int = airflow_conf.getint("core", "max_active_runs_per_dag"),
         max_consecutive_failed_dag_runs: int = airflow_conf.getint(
             "core", "max_consecutive_failed_dag_runs_per_dag"
@@ -615,6 +621,7 @@ class DAG(LoggingMixin):
         self.last_loaded: datetime = timezone.utcnow()
         self.safe_dag_id = dag_id.replace(".", "__dot__")
         self.max_active_runs = max_active_runs
+        self.max_active_tasks_include_deferred = max_active_tasks_include_deferred
         self.max_consecutive_failed_dag_runs = max_consecutive_failed_dag_runs
         if self.max_consecutive_failed_dag_runs == 0:
             self.max_consecutive_failed_dag_runs = airflow_conf.getint(
@@ -2944,6 +2951,7 @@ class DagModel(Base):
     )
 
     max_active_tasks = Column(Integer, nullable=False)
+    max_active_tasks_include_deferred = Column(Boolean, nullable=False)
     max_active_runs = Column(Integer, nullable=True)
     max_consecutive_failed_dag_runs = Column(Integer, nullable=False)
 
@@ -2985,6 +2993,11 @@ class DagModel(Base):
         super().__init__(**kwargs)
         if self.max_active_tasks is None:
             self.max_active_tasks = airflow_conf.getint("core", "max_active_tasks_per_dag")
+
+        if self.max_active_tasks_include_deferred is None:
+            self.max_active_tasks_include_deferred = airflow_conf.getboolean(
+                "core", "max_active_tasks_include_deferred"
+            )
 
         if self.max_active_runs is None:
             self.max_active_runs = airflow_conf.getint("core", "max_active_runs_per_dag")
@@ -3288,6 +3301,9 @@ def dag(
     user_defined_filters: dict | None = None,
     default_args: dict | None = None,
     max_active_tasks: int = airflow_conf.getint("core", "max_active_tasks_per_dag"),
+    max_active_tasks_include_deferred: bool = airflow_conf.getboolean(
+        "core", "max_active_tasks_include_deferred"
+    ),
     max_active_runs: int = airflow_conf.getint("core", "max_active_runs_per_dag"),
     max_consecutive_failed_dag_runs: int = airflow_conf.getint(
         "core", "max_consecutive_failed_dag_runs_per_dag"
@@ -3342,6 +3358,7 @@ def dag(
                 user_defined_filters=user_defined_filters,
                 default_args=default_args,
                 max_active_tasks=max_active_tasks,
+                max_active_tasks_include_deferred=max_active_tasks_include_deferred,
                 max_active_runs=max_active_runs,
                 max_consecutive_failed_dag_runs=max_consecutive_failed_dag_runs,
                 dagrun_timeout=dagrun_timeout,

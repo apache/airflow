@@ -67,6 +67,7 @@ class DAGSchema(SQLAlchemySchema):
     timetable_description = auto_field(dump_only=True)
     tags = fields.List(fields.Nested(DagTagSchema), dump_only=True)
     max_active_tasks = auto_field(dump_only=True)
+    max_active_tasks_include_deferred = auto_field(dump_only=True)
     max_active_runs = auto_field(dump_only=True)
     max_consecutive_failed_dag_runs = auto_field(dump_only=True)
     has_task_concurrency_limits = auto_field(dump_only=True)
