@@ -28,7 +28,6 @@ import {
 import { motion } from "framer-motion";
 import {
   FiBarChart2,
-  FiBookOpen,
   FiCornerUpLeft,
   FiDatabase,
   FiGlobe,
@@ -38,8 +37,9 @@ import {
   FiSun,
 } from "react-icons/fi";
 
-import { AirflowPin } from "../assets/AirflowPin";
-import { DagIcon } from "../assets/DagIcon";
+import { AirflowPin } from "../../assets/AirflowPin";
+import { DagIcon } from "../../assets/DagIcon";
+import { DocsButton } from "./DocsButton";
 import { NavButton } from "./NavButton";
 
 export const Nav = () => {
@@ -104,13 +104,7 @@ export const Nav = () => {
           icon={<FiCornerUpLeft size="1.5rem" />}
           title="Return to legacy UI"
         />
-        <NavButton
-          aria-label="Docs"
-          as={Link}
-          href={`${import.meta.env.VITE_FASTAPI_URL}/docs`}
-          icon={<FiBookOpen size="1.5rem" />}
-          target="_blank"
-        />
+        <DocsButton />
         <NavButton
           icon={
             colorMode === "light" ? (
