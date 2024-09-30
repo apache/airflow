@@ -325,7 +325,7 @@ def delete_dataset_queued_events(
 @security.requires_access_asset("POST")
 @provide_session
 @action_logging
-def create_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
+def create_asset_event(session: Session = NEW_SESSION) -> APIResponse:
     """Create asset event."""
     body = get_json_request_dict()
     try:
@@ -341,7 +341,7 @@ def create_dataset_event(session: Session = NEW_SESSION) -> APIResponse:
     extra = json_body.get("extra", {})
     extra["from_rest_api"] = True
     asset_event = asset_manager.register_asset_change(
-        asset=Asset(uri),
+        asset=Asset(uri=uri),
         timestamp=timestamp,
         extra=extra,
         session=session,

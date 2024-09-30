@@ -2608,10 +2608,10 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
     post:
-      summary: Create dataset event
-      description: Create dataset event
+      summary: Create asset event
+      description: Create asset event
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
-      operationId: create_dataset_event
+      operationId: create_asset_event
       tags: [Asset]
       requestBody:
         required: true

@@ -602,7 +602,7 @@ class TestPostDatasetEvents(TestDatasetEndpoint):
         _check_last_log(
             session,
             dag_id=None,
-            event="api.create_dataset_event",
+            event="api.create_asset_event",
             execution_date=None,
             expected_extra=event_payload,
         )
@@ -620,7 +620,7 @@ class TestPostDatasetEvents(TestDatasetEndpoint):
         _check_last_log(
             session,
             dag_id=None,
-            event="api.create_dataset_event",
+            event="api.create_asset_event",
             execution_date=None,
             expected_extra=expected_extra,
         )

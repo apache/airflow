@@ -799,7 +799,7 @@ export interface paths {
     /** Get dataset events */
     get: operations["get_dataset_events"];
     /** Create dataset event */
-    post: operations["create_dataset_event"];
+    post: operations["create_asset_event"];
   };
   "/config": {
     get: operations["get_config"];
@@ -5140,7 +5140,7 @@ export interface operations {
     };
   };
   /** Create dataset event */
-  create_dataset_event: {
+  create_asset_event: {
     responses: {
       /** Success. */
       200: {
@@ -5797,7 +5797,7 @@ export type GetDatasetEventsVariables = CamelCasedPropertiesDeep<
   operations["get_dataset_events"]["parameters"]["query"]
 >;
 export type CreateDatasetEventVariables = CamelCasedPropertiesDeep<
-  operations["create_dataset_event"]["requestBody"]["content"]["application/json"]
+  operations["create_asset_event"]["requestBody"]["content"]["application/json"]
 >;
 export type GetConfigVariables = CamelCasedPropertiesDeep<
   operations["get_config"]["parameters"]["query"]

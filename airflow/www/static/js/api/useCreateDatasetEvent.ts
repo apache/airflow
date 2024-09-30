@@ -29,7 +29,7 @@ interface Props {
   uri?: string;
 }
 
-const createDatasetUrl = getMetaValue("create_dataset_event_api");
+const createAssetUrl = getMetaValue("create_asset_event_api");
 
 export default function useCreateDatasetEvent({ datasetId, uri }: Props) {
   const queryClient = useQueryClient();
@@ -39,7 +39,7 @@ export default function useCreateDatasetEvent({ datasetId, uri }: Props) {
     ["createDatasetEvent", uri],
     (extra?: API.DatasetEvent["extra"]) =>
       axios.post<AxiosResponse, API.CreateDatasetEventVariables>(
-        createDatasetUrl,
+        createAssetUrl,
         {
           dataset_uri: uri,
           extra: extra || {},
