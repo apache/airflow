@@ -21,11 +21,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
-from airflow.api_fastapi.db import get_session
+from airflow.api_fastapi.db.common import get_session
 from airflow.api_fastapi.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.models import Connection
 
-connections_router = APIRouter(tags=["CONNECTION"])
+connections_router = APIRouter(tags=["Connection"])
 
 
 @connections_router.delete(
@@ -34,7 +34,6 @@ connections_router = APIRouter(tags=["CONNECTION"])
     responses=create_openapi_http_exception_doc([401, 403, 404]),
 )
 async def delete_connection(
-    *,
     connection_id: str,
     session: Annotated[Session, Depends(get_session)],
 ):

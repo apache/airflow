@@ -22,6 +22,8 @@ from airflow.models import Connection
 from airflow.utils.session import provide_session
 from tests.test_utils.db import clear_db_connections
 
+pytestmark = pytest.mark.db_test
+
 TEST_CONN_ID = "test_connection_id"
 TEST_CONN_TYPE = "test_type"
 
@@ -34,7 +36,7 @@ def _create_connection(session) -> None:
 
 class TestConnectionEndpoint:
     @pytest.fixture(autouse=True)
-    def setup_attrs(self) -> None:
+    def setup(self) -> None:
         clear_db_connections(False)
 
     def teardown_method(self) -> None:
@@ -45,7 +47,6 @@ class TestConnectionEndpoint:
 
 
 class TestDeleteConnection(TestConnectionEndpoint):
-    @pytest.mark.db_test
     def test_delete_should_respond_204(self, test_client, session):
         self.create_connection()
         conns = session.query(Connection).all()
@@ -55,7 +56,6 @@ class TestDeleteConnection(TestConnectionEndpoint):
         connection = session.query(Connection).all()
         assert len(connection) == 0
 
-    @pytest.mark.db_test
     def test_delete_should_respond_404(self, test_client):
         response = test_client.delete(f"/public/connections/{TEST_CONN_ID}")
         assert response.status_code == 404

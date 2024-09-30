@@ -322,7 +322,7 @@ paths:
   /public/connections/{connection_id}:
     delete:
       tags:
-      - CONNECTION
+      - Connection
       summary: Delete Connection
       description: Delete a connection entry.
       operationId: delete_connection_public_connections__connection_id__delete

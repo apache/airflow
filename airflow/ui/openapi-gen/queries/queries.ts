@@ -6,7 +6,11 @@ import {
   UseQueryOptions,
 } from "@tanstack/react-query";
 
-import { AssetService, DagService } from "../requests/services.gen";
+import {
+  AssetService,
+  ConnectionService,
+  DagService,
+} from "../requests/services.gen";
 import { DAGPatchBody, DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
 
@@ -251,3 +255,43 @@ export const useDagServicePatchDagPublicDagsDagIdPatch = <
       }) as unknown as Promise<TData>,
     ...options,
   });
+/**
+ * Delete Connection
+ * Delete a connection entry.
+ * @param data The data for the request.
+ * @param data.connectionId
+ * @returns void Successful Response
+ * @throws ApiError
+ */
+export const useConnectionServiceDeleteConnectionPublicConnectionsConnectionIdDelete =
+  <
+    TData = Common.ConnectionServiceDeleteConnectionPublicConnectionsConnectionIdDeleteMutationResult,
+    TError = unknown,
+    TContext = unknown,
+  >(
+    options?: Omit<
+      UseMutationOptions<
+        TData,
+        TError,
+        {
+          connectionId: string;
+        },
+        TContext
+      >,
+      "mutationFn"
+    >,
+  ) =>
+    useMutation<
+      TData,
+      TError,
+      {
+        connectionId: string;
+      },
+      TContext
+    >({
+      mutationFn: ({ connectionId }) =>
+        ConnectionService.deleteConnectionPublicConnectionsConnectionIdDelete({
+          connectionId,
+        }) as unknown as Promise<TData>,
+      ...options,
+    });
