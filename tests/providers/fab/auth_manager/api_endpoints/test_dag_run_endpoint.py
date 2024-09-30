@@ -27,10 +27,15 @@ from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS, ignore_provider_compatibility_error
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
-with ignore_provider_compatibility_error("3.0.0+", __file__):
+try:
     from airflow.utils.types import DagRunTriggeredByType, DagRunType
+except ImportError:
+    if AIRFLOW_V_3_0_PLUS:
+        raise
+    else:
+        raise
 from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     delete_roles,

@@ -25,10 +25,15 @@ import pendulum
 import pytest
 
 from airflow.models import DagBag, DagModel
-from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS, ignore_provider_compatibility_error
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 
-with ignore_provider_compatibility_error("3.0.0+", __file__):
+try:
     from airflow.models.backfill import Backfill
+except ImportError:
+    if AIRFLOW_V_3_0_PLUS:
+        raise
+    else:
+        raise
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
