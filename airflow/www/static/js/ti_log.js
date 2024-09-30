@@ -59,13 +59,6 @@ function scrollBottom() {
 window.toggleWrapLogs = toggleWrap;
 window.scrollBottomLogs = scrollBottom;
 
-function getMetaValue(name) {
-  const elem = document.querySelector(`meta[name="${name}"]`);
-  if (!elem) {
-    return null;
-  }
-  return elem.getAttribute('content');
-}
 
 
 // Streaming log with auto-tailing.
