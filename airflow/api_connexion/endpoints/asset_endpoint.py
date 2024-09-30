@@ -156,7 +156,6 @@ def get_dataset_events(
 def _generate_queued_event_where_clause(
     *,
     dag_id: str | None = None,
-    dataset_id: int | None = None,
     uri: str | None = None,
     before: str | None = None,
     permitted_dag_ids: set[str] | None = None,
@@ -165,8 +164,6 @@ def _generate_queued_event_where_clause(
     where_clause = []
     if dag_id is not None:
         where_clause.append(AssetDagRunQueue.target_dag_id == dag_id)
-    if dataset_id is not None:
-        where_clause.append(AssetDagRunQueue.dataset_id == dataset_id)
     if uri is not None:
         where_clause.append(
             AssetDagRunQueue.dataset_id.in_(
