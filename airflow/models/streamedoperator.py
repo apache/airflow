@@ -296,10 +296,7 @@ class StreamedOperator(BaseOperator):
 
         return self._run_futures(
             context=context,
-            futures=[
-                self._create_future(context, index)
-                for index, mapped_kwargs in enumerate(self._mapped_kwargs)
-            ],
+            futures=[self._create_future(context, index) for index, mapped_kwargs in enumerate(self._mapped_kwargs)],
         )
 
 
@@ -318,7 +315,7 @@ def stream(self, **mapped_kwargs: OperatorExpandArgument) -> StreamedOperator:
     task_group = partial_kwargs.pop("task_group")
     start_date = partial_kwargs.pop("start_date")
     end_date = partial_kwargs.pop("end_date")
-    max_active_tis_per_dag = (partial_kwargs.pop("max_active_tis_per_dag", None))
+    max_active_tis_per_dag = partial_kwargs.pop("max_active_tis_per_dag", None)
 
     return StreamedOperator(
         task_id=task_id,
