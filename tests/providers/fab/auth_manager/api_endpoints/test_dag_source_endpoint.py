@@ -25,9 +25,14 @@ import pytest
 from airflow.models import DagBag
 from airflow.security import permissions
 from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.db import clear_db_dag_code, clear_db_dags, clear_db_serialized_dags
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = [
+    pytest.mark.db_test,
+    pytest.mark.skip_if_database_isolation_mode,
+    pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0+"),
+]
 
 if TYPE_CHECKING:
     from airflow.models.dag import DAG

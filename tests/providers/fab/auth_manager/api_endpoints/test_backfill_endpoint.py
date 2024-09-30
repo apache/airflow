@@ -33,9 +33,13 @@ from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.db import clear_db_backfills, clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
-pytestmark = [pytest.mark.db_test]
+pytestmark = [
+    pytest.mark.db_test,
+    pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0+"),
+]
 
 
 DAG_ID = "test_dag"

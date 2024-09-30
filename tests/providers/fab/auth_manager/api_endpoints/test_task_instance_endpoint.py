@@ -33,9 +33,14 @@ from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import (
     delete_roles,
     delete_user,
 )
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.db import clear_db_runs, clear_db_sla_miss, clear_rendered_ti_fields
 
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = [
+    pytest.mark.db_test,
+    pytest.mark.skip_if_database_isolation_mode,
+    pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0+"),
+]
 
 DEFAULT_DATETIME_1 = datetime(2020, 1, 1)
 DEFAULT_DATETIME_STR_1 = "2020-01-01T00:00:00+00:00"

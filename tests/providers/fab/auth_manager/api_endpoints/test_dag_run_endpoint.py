@@ -27,7 +27,7 @@ from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     delete_roles,
@@ -36,10 +36,11 @@ from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import (
 from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
-if AIRFLOW_V_3_0_PLUS:
-    from airflow.utils.types import DagRunTriggeredByType
-
-pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
+pytestmark = [
+    pytest.mark.db_test,
+    pytest.mark.skip_if_database_isolation_mode,
+    pytest.mark.skipif(not AIRFLOW_V_3_0_PLUS, reason="Test requires Airflow 3.0+"),
+]
 
 
 @pytest.fixture(scope="module")
