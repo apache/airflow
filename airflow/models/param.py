@@ -290,6 +290,7 @@ class DagParam(ResolveMixin):
             current_dag.params[name] = default
         self._name = name
         self._default = default
+        self.current_dag = current_dag
 
     def iter_references(self) -> Iterable[tuple[Operator, str]]:
         return ()
@@ -303,6 +304,30 @@ class DagParam(ResolveMixin):
         with contextlib.suppress(KeyError):
             return context["params"][self._name]
         raise AirflowException(f"No value could be resolved for parameter {self._name}")
+
+    def serialize(self) -> dict:
+        """Serialize the DagParam object into a dictionary."""
+        return {
+            "dag_id": self.current_dag.dag_id,
+            "name": self._name,
+            "default": self._default,
+        }
+
+    @classmethod
+    def deserialize(cls, data: dict, dags: dict) -> DagParam:
+        """
+        Deserializes the dictionary back into a DagParam object.
+
+        :param data: The serialized representation of the DagParam.
+        :param dags: A dictionary of available DAGs to look up the DAG.
+        """
+        dag_id = data["dag_id"]
+        # Retrieve the current DAG from the provided DAGs dictionary
+        current_dag = dags.get(dag_id)
+        if not current_dag:
+            raise ValueError(f"DAG with id {dag_id} not found.")
+
+        return cls(current_dag=current_dag, name=data["name"], default=data["default"])
 
 
 def process_params(
