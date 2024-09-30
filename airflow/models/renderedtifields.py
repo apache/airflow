@@ -114,7 +114,7 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         viewonly=True,
     )
 
-    execution_date = association_proxy("dag_run", "execution_date")
+    logical_date = association_proxy("dag_run", "logical_date")
 
     def __init__(self, ti: TaskInstance, render_templates=True, rendered_fields=None):
         self.dag_id = ti.dag_id
@@ -254,11 +254,11 @@ class RenderedTaskInstanceFields(TaskInstanceDependencies):
         from airflow.models.dagrun import DagRun
 
         tis_to_keep_query = (
-            select(cls.dag_id, cls.task_id, cls.run_id, DagRun.execution_date)
+            select(cls.dag_id, cls.task_id, cls.run_id, DagRun.logical_date)
             .where(cls.dag_id == dag_id, cls.task_id == task_id)
             .join(cls.dag_run)
             .distinct()
-            .order_by(DagRun.execution_date.desc())
+            .order_by(DagRun.logical_date.desc())
             .limit(num_to_keep)
         )
 

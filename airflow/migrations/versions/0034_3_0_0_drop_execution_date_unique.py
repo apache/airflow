@@ -23,8 +23,8 @@ The column has also been renamed to logical_date, although the Python model is
 not changed. This allows us to not need to fix all the Python code at once, but
 still do the two changes in one migration instead of two.
 
-Revision ID: 1cdc775ca98f
-Revises: 0bfc26bc256e
+Revision ID: a1b2c3d4e5f6
+Revises: 0d9e73a75ee4
 Create Date: 2024-08-28 08:35:26.634475
 
 """
@@ -35,8 +35,8 @@ import sqlalchemy as sa
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "1cdc775ca98f"
-down_revision = "0bfc26bc256e"
+revision = "a1b2c3d4e5f6"
+down_revision = "0d9e73a75ee4"
 branch_labels = None
 depends_on = None
 airflow_version = "3.0.0"

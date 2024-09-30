@@ -188,26 +188,26 @@ def find_task_relatives(tasks, downstream, upstream):
 
 
 @provide_session
-def get_execution_dates(
-    dag: DAG, execution_date: datetime, future: bool, past: bool, *, session: SASession = NEW_SESSION
+def get_logical_dates(
+    dag: DAG, logical_date: datetime, future: bool, past: bool, *, session: SASession = NEW_SESSION
 ) -> list[datetime]:
     """Return DAG execution dates."""
-    latest_execution_date = dag.get_latest_execution_date(session=session)
-    if latest_execution_date is None:
-        raise ValueError(f"Received non-localized date {execution_date}")
-    execution_date = timezone.coerce_datetime(execution_date)
+    latest_logical_date = dag.get_latest_logical_date(session=session)
+    if latest_logical_date is None:
+        raise ValueError(f"Received non-localized date {logical_date}")
+    logical_date = timezone.coerce_datetime(logical_date)
     # determine date range of dag runs and tasks to consider
-    end_date = latest_execution_date if future else execution_date
+    end_date = latest_logical_date if future else logical_date
     if dag.start_date:
         start_date = dag.start_date
     else:
-        start_date = execution_date
-    start_date = execution_date if not past else start_date
+        start_date = logical_date
+    start_date = logical_date if not past else start_date
     if not dag.timetable.can_be_scheduled:
         # If the DAG never schedules, need to look at existing DagRun if the user wants future or
         # past runs.
         dag_runs = dag.get_dagruns_between(start_date=start_date, end_date=end_date)
-        dates = sorted({d.execution_date for d in dag_runs})
+        dates = sorted({d.logical_date for d in dag_runs})
     elif not dag.timetable.periodic:
         dates = [start_date]
     else:
@@ -223,7 +223,7 @@ def get_run_ids(dag: DAG, run_id: str, future: bool, past: bool, session: SASess
     last_dagrun = dag.get_last_dagrun(include_externally_triggered=True, session=session)
     current_dagrun = dag.get_dagrun(run_id=run_id, session=session)
     first_dagrun = session.scalar(
-        select(DagRun).filter(DagRun.dag_id == dag.dag_id).order_by(DagRun.execution_date.asc()).limit(1)
+        select(DagRun).filter(DagRun.dag_id == dag.dag_id).order_by(DagRun.logical_date.asc()).limit(1)
     )
 
     if last_dagrun is None:
@@ -282,7 +282,7 @@ def set_dag_run_state_to_success(
     :param session: database session
     :return: If commit is true, list of tasks that have been updated,
              otherwise list of tasks that will be updated
-    :raises: ValueError if dag or execution_date is invalid
+    :raises: ValueError if dag or logical_date is invalid
     """
     if not dag:
         return []
@@ -323,7 +323,7 @@ def set_dag_run_state_to_failed(
     :param session: database session
     :return: If commit is true, list of tasks that have been updated,
              otherwise list of tasks that will be updated
-    :raises: AssertionError if dag or execution_date is invalid
+    :raises: AssertionError if dag or logical_date is invalid
     """
     if not dag:
         return []

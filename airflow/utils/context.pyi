@@ -102,24 +102,23 @@ class Context(TypedDict, total=False):
     ds: str
     ds_nodash: str
     exception: BaseException | str | None
-    execution_date: DateTime
+    logical_date: DateTime
     expanded_ti_count: int | None
     inlets: list
     inlet_events: InletEventsAccessors
-    logical_date: DateTime
     macros: Any
     map_index_template: str
     next_ds: str | None
     next_ds_nodash: str | None
-    next_execution_date: DateTime | None
+    next_logical_date: DateTime | None
     outlets: list
     params: ParamsDict
     prev_data_interval_start_success: DateTime | None
     prev_data_interval_end_success: DateTime | None
     prev_ds: str | None
     prev_ds_nodash: str | None
-    prev_execution_date: DateTime | None
-    prev_execution_date_success: DateTime | None
+    prev_logical_date: DateTime | None
+    prev_logical_date_success: DateTime | None
     prev_start_date_success: DateTime | None
     prev_end_date_success: DateTime | None
     reason: str | None

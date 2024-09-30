@@ -65,7 +65,7 @@ def dag_trigger(args) -> None:
             dag_id=args.dag_id,
             run_id=args.run_id,
             conf=args.conf,
-            execution_date=args.exec_date,
+            logical_date=args.exec_date,
             replace_microseconds=args.replace_microseconds,
         )
         AirflowConsole().print_as(
@@ -267,7 +267,7 @@ def dag_state(args, session: Session = NEW_SESSION) -> None:
 
     if not dag:
         raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
-    dr = session.scalar(select(DagRun).filter_by(dag_id=args.dag_id, execution_date=args.execution_date))
+    dr = session.scalar(select(DagRun).filter_by(dag_id=args.dag_id, logical_date=args.logical_date))
     out = dr.state if dr else None
     conf_out = ""
     if out and dr.conf:
@@ -469,7 +469,7 @@ def dag_list_dag_runs(args, dag: DAG | None = None, session: Session = NEW_SESSI
         session=session,
     )
 
-    dag_runs.sort(key=lambda x: x.execution_date, reverse=True)
+    dag_runs.sort(key=lambda x: x.logical_date, reverse=True)
     AirflowConsole().print_as(
         data=dag_runs,
         output=args.output,
@@ -495,7 +495,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
             run_conf = json.loads(args.conf)
         except ValueError as e:
             raise SystemExit(f"Configuration {args.conf!r} is not valid JSON. Error: {e}")
-    execution_date = args.execution_date or timezone.utcnow()
+    logical_date = args.logical_date or timezone.utcnow()
     use_executor = args.use_executor
 
     mark_success_pattern = (
@@ -505,7 +505,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
     with _airflow_parsing_context_manager(dag_id=args.dag_id):
         dag = dag or get_dag(subdir=args.subdir, dag_id=args.dag_id)
     dr: DagRun = dag.test(
-        logical_date=execution_date,
+        logical_date=logical_date,
         run_conf=run_conf,
         use_executor=use_executor,
         mark_success_pattern=mark_success_pattern,
@@ -518,7 +518,7 @@ def dag_test(args, dag: DAG | None = None, session: Session = NEW_SESSION) -> No
         tis = session.scalars(
             select(TaskInstance).where(
                 TaskInstance.dag_id == args.dag_id,
-                TaskInstance.execution_date == execution_date,
+                TaskInstance.logical_date == logical_date,
             )
         ).all()
 

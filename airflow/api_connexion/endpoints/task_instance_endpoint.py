@@ -194,7 +194,7 @@ def get_mapped_task_instances(
     # Other search criteria
     base_query = _apply_range_filter(
         base_query,
-        key=DR.execution_date,
+        key=DR.logical_date,
         value_range=(execution_date_gte, execution_date_lte),
     )
     base_query = _apply_range_filter(
@@ -331,7 +331,7 @@ def get_task_instances(
         base_query = base_query.where(TI.run_id == dag_run_id)
     base_query = _apply_range_filter(
         base_query,
-        key=DR.execution_date,
+        key=DR.logical_date,
         value_range=(execution_date_gte, execution_date_lte),
     )
     base_query = _apply_range_filter(
@@ -393,7 +393,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     base_query = _apply_array_filter(base_query, key=TI.task_id, values=data["task_ids"])
     base_query = _apply_range_filter(
         base_query,
-        key=DR.execution_date,
+        key=DR.logical_date,
         value_range=(data["execution_date_gte"], data["execution_date_lte"]),
     )
     base_query = _apply_range_filter(
