@@ -561,7 +561,7 @@ exit 0
                 .filter(
                     TI.dag_id == dag_external_id,
                     TI.state == State.FAILED,
-                    TI.execution_date == DEFAULT_DATE + timedelta(seconds=1),
+                    TI.logical_date == DEFAULT_DATE + timedelta(seconds=1),
                 )
                 .all()
             )

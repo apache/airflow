@@ -627,7 +627,7 @@ class TestGetDagRunsPaginationFilters(TestDagRunEndpoint):
         dagrun_models = self._create_dag_runs()
         session.add_all(dagrun_models)
         for d in dagrun_models:
-            d.updated_at = d.execution_date
+            d.updated_at = d.logical_date
         session.commit()
 
         response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})

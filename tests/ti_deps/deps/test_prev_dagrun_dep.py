@@ -237,7 +237,7 @@ def test_dagrun_dep(
         wait_for_downstream=wait_for_downstream,
     )
     if prev_tis:
-        prev_dagrun = Mock(execution_date=datetime(2016, 1, 2))
+        prev_dagrun = Mock(logical_date=datetime(2016, 1, 2))
     else:
         prev_dagrun = None
     mock_get_previous_scheduled_dagrun.return_value = prev_dagrun

@@ -172,8 +172,8 @@ EXPECTED_JSON = {
 
 
 def test_build_task_group_context_manager():
-    execution_date = pendulum.parse("20200101")
-    with DAG("test_build_task_group_context_manager", schedule=None, start_date=execution_date) as dag:
+    logical_date = pendulum.parse("20200101")
+    with DAG("test_build_task_group_context_manager", schedule=None, start_date=logical_date) as dag:
         task1 = EmptyOperator(task_id="task1")
         with TaskGroup("group234") as group234:
             _ = EmptyOperator(task_id="task2")
@@ -209,8 +209,8 @@ def test_build_task_group():
     This is an alternative syntax to use TaskGroup. It should result in the same TaskGroup
     as using context manager.
     """
-    execution_date = pendulum.parse("20200101")
-    dag = DAG("test_build_task_group", schedule=None, start_date=execution_date)
+    logical_date = pendulum.parse("20200101")
+    dag = DAG("test_build_task_group", schedule=None, start_date=logical_date)
     task1 = EmptyOperator(task_id="task1", dag=dag)
     group234 = TaskGroup("group234", dag=dag)
     _ = EmptyOperator(task_id="task2", dag=dag, task_group=group234)

@@ -1423,10 +1423,10 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             yesterday_ds,
             yesterday_ds_nodash,
             # pendulum-specific
-            execution_date,
-            next_execution_date,
-            prev_execution_date,
-            prev_execution_date_success,
+            logical_date,
+            next_logical_date,
+            prev_elogical_date,
+            prev_logical_date_success,
             prev_start_date_success,
             prev_end_date_success,
             # airflow-specific
@@ -1471,10 +1471,10 @@ class TestPythonVirtualenvOperator(BaseTestPythonVirtualenvOperator):
             yesterday_ds,
             yesterday_ds_nodash,
             # pendulum-specific
-            execution_date,
-            next_execution_date,
-            prev_execution_date,
-            prev_execution_date_success,
+            logical_date,
+            next_logical_date,
+            prev_logical_date,
+            prev_logical_date_success,
             prev_start_date_success,
             prev_end_date_success,
             # other

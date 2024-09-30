@@ -1436,7 +1436,7 @@ class TestDag:
         with create_session() as session:
             dag_run = dag.create_dagrun(
                 state=State.RUNNING,
-                execution_date=when,
+                logical_date=when,
                 run_type=DagRunType.MANUAL,
                 session=session,
                 data_interval=(when, when),
@@ -1474,7 +1474,7 @@ class TestDag:
             triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dag_run = dag.create_dagrun(
                 state=State.RUNNING,
-                execution_date=TEST_DATE,
+                logical_date=TEST_DATE,
                 run_type=DagRunType.MANUAL,
                 session=session,
                 data_interval=(TEST_DATE, TEST_DATE),
@@ -2217,7 +2217,7 @@ my_postgres_conn:
         """
         Test if the schedule will be auto aligned with the start_date
         such that if the start_date coincides with the schedule the first
-        execution_date will be start_date, otherwise it will be start_date +
+        logical_date will be start_date, otherwise it will be start_date +
         interval.
         """
         dag = DAG(

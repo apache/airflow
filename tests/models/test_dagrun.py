@@ -132,7 +132,7 @@ class TestDagRun:
         now = timezone.utcnow()
         dag_id = "test_clear_task_instances_for_backfill_dagrun"
         dag = DAG(dag_id=dag_id, schedule=datetime.timedelta(days=1), start_date=now)
-        dag_run = self.create_dag_run(dag, execution_date=now, is_backfill=True, state=state, session=session)
+        dag_run = self.create_dag_run(dag, logical_date=now, is_backfill=True, state=state, session=session)
 
         task0 = EmptyOperator(task_id="backfill_task_0", owner="test", dag=dag)
         ti0 = TI(task=task0, run_id=dag_run.run_id)
@@ -142,7 +142,7 @@ class TestDagRun:
         clear_task_instances(qry, session)
         session.commit()
         ti0.refresh_from_db()
-        dr0 = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.execution_date == now).first()
+        dr0 = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.logical_date == now).first()
         assert dr0.state == state
         assert dr0.clear_number < 1
 
@@ -151,7 +151,7 @@ class TestDagRun:
         now = timezone.utcnow()
         dag_id = "test_clear_task_instances_for_backfill_dagrun"
         dag = DAG(dag_id=dag_id, schedule=datetime.timedelta(days=1), start_date=now)
-        dag_run = self.create_dag_run(dag, execution_date=now, is_backfill=True, state=state, session=session)
+        dag_run = self.create_dag_run(dag, logical_date=now, is_backfill=True, state=state, session=session)
 
         task0 = EmptyOperator(task_id="backfill_task_0", owner="test", dag=dag)
         ti0 = TI(task=task0, run_id=dag_run.run_id)
@@ -161,7 +161,7 @@ class TestDagRun:
         clear_task_instances(qry, session)
         session.commit()
         ti0.refresh_from_db()
-        dr0 = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.execution_date == now).first()
+        dr0 = session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.logical_date == now).first()
         assert dr0.state == DagRunState.QUEUED
         assert dr0.clear_number == 1
 
@@ -842,13 +842,13 @@ class TestDagRun:
 
         dag_run_1 = self.create_dag_run(
             dag,
-            execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0),
+            logical_date=timezone.datetime(2016, 1, 1, 0, 0, 0),
             is_backfill=True,
             session=session,
         )
         dag_run_2 = self.create_dag_run(
             dag,
-            execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0),
+            logical_date=timezone.datetime(2016, 1, 2, 0, 0, 0),
             is_backfill=True,
             session=session,
         )
@@ -880,13 +880,13 @@ class TestDagRun:
         # Otherwise ti.previous_ti returns an unpersisted TI
         dag_run_1 = self.create_dag_run(
             dag,
-            execution_date=timezone.datetime(2016, 1, 1, 0, 0, 0),
+            logical_date=timezone.datetime(2016, 1, 1, 0, 0, 0),
             is_backfill=True,
             session=session,
         )
         dag_run_2 = self.create_dag_run(
             dag,
-            execution_date=timezone.datetime(2016, 1, 2, 0, 0, 0),
+            logical_date=timezone.datetime(2016, 1, 2, 0, 0, 0),
             is_backfill=True,
             session=session,
         )
