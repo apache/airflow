@@ -585,8 +585,7 @@ class DAG(LoggingMixin):
 
         if full_filepath:
             warnings.warn(
-                "Passing full_filepath to DAG() is deprecated and has no effect "
-                f"in {self.dag_id=}.",
+                f"Passing full_filepath to DAG() is deprecated and has no effect in {self.dag_id=}.",
                 RemovedInAirflow3Warning,
                 stacklevel=2,
             )
