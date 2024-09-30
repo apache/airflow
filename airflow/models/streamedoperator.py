@@ -25,10 +25,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from math import ceil
 from time import sleep
-from typing import Any, Callable, Generator, Sequence
-
-import jinja2
-from sqlalchemy.orm import Session
+from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence
 
 from airflow import XComArg
 from airflow.exceptions import (
@@ -47,13 +44,18 @@ from airflow.models.mappedoperator import (
     ensure_xcomarg_return_value,
     validate_mapping_kwargs,
 )
-from airflow.triggers.base import BaseTrigger, TriggerEvent
 from airflow.utils import timezone
 from airflow.utils.context import Context, context_get_outlet_events
 from airflow.utils.helpers import prevent_duplicates
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.task_instance_session import get_current_task_instance_session
+
+if TYPE_CHECKING:
+    import jinja2
+
+    from sqlalchemy.orm import Session
+    from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 @contextmanager
@@ -73,7 +75,17 @@ async def run_trigger(trigger: BaseTrigger) -> list[TriggerEvent]:
     return events
 
 
-class OperatorMethodExecutor(LoggingMixin):
+class OperatorExecutor(LoggingMixin):
+    """
+    Run an operator with given task context and task instance.
+
+    If the execute function raises a TaskDeferred exception, then the trigger instance within the
+    TaskDeferred exception will be executed with the given context and task instance. The operator
+    or trigger will always be executed in an async way.
+
+    :meta private:
+    """
+
     def __init__(
         self,
         semaphore: Semaphore,
@@ -161,6 +173,8 @@ class OperatorMethodExecutor(LoggingMixin):
 
 
 class StreamedOperator(BaseOperator):
+    """Object representing a streamed operator in a DAG."""
+
     _operator_class: type[BaseOperator] | dict[str, Any]
     _expand_input: ExpandInput
     _partial_kwargs: dict[str, Any]
@@ -263,7 +277,7 @@ class StreamedOperator(BaseOperator):
     async def _run_task(self, context: Context, task_instance: TaskInstance):
         operator = task_instance.task
         self.log.debug("operator: %s", operator)
-        result = await OperatorMethodExecutor(
+        result = await OperatorExecutor(
             semaphore=self._semaphore,
             operator=operator,
             context=context,
