@@ -443,7 +443,7 @@
 <polygon fill="none" stroke="black" points="466,-4727 466,-4752 727,-4752 727,-4727 466,-4727"/>
 <text text-anchor="start" x="471" y="-4736.8" font-family="Helvetica,sans-Serif" font-size="14.00">name</text>
 <text text-anchor="start" x="511" y="-4736.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="516" y="-4736.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(3000)]</text>
+<text text-anchor="start" x="516" y="-4736.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(1500)]</text>
 <text text-anchor="start" x="646" y="-4736.8" font-family="Helvetica,sans-Serif" font-size="14.00"> NOT NULL</text>
 </g>
 <!-- dataset_alias_dataset -->
