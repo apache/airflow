@@ -30,7 +30,7 @@ except ImportError:
     if AIRFLOW_V_3_0_PLUS:
         raise
     else:
-        raise
+        pass
 from airflow.security import permissions
 from airflow.utils import timezone
 from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import create_user, delete_user

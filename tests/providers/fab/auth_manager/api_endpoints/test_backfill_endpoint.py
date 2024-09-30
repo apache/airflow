@@ -33,7 +33,7 @@ except ImportError:
     if AIRFLOW_V_3_0_PLUS:
         raise
     else:
-        raise
+        pass
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
