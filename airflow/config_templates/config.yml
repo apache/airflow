@@ -310,7 +310,7 @@ core:
       version_added: 2.3.0
       type: string
       example: ~
-      default: "regexp"
+      default: "glob"
     default_task_retries:
       description: |
         The number of retries each task is going to have by default. Can be overridden at dag or task level.
