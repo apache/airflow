@@ -27,7 +27,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Column, ForeignKeyConstraint, Integer, UniqueConstraint, func, select
-from sqlalchemy.orm import Session, relationship
+from sqlalchemy.orm import relationship
 from sqlalchemy_jsonfield import JSONField
 
 from airflow.api_connexion.exceptions import NotFound
@@ -36,7 +36,7 @@ from airflow.models.base import Base, StringID
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.settings import json
 from airflow.utils import timezone
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import create_session
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunTriggeredByType, DagRunType
@@ -109,7 +109,6 @@ class BackfillDagRun(Base):
     )
 
 
-@provide_session
 def _create_backfill(
     *,
     dag_id: str,
@@ -118,69 +117,69 @@ def _create_backfill(
     max_active_runs: int,
     reverse: bool,
     dag_run_conf: dict | None,
-    session: Session = NEW_SESSION,
 ) -> Backfill | None:
-    serdag = session.get(SerializedDagModel, dag_id)
-    if not serdag:
-        raise NotFound(f"Could not find dag {dag_id}")
+    with create_session() as session:
+        serdag = session.get(SerializedDagModel, dag_id)
+        if not serdag:
+            raise NotFound(f"Could not find dag {dag_id}")
 
-    num_active = session.scalar(
-        select(func.count()).where(Backfill.dag_id == dag_id, Backfill.completed_at.is_(None))
-    )
-    if num_active > 0:
-        raise AlreadyRunningBackfill(
-            f"Another backfill is running for dag {dag_id}. "
-            f"There can be only one running backfill per dag."
+        num_active = session.scalar(
+            select(func.count()).where(Backfill.dag_id == dag_id, Backfill.completed_at.is_(None))
         )
-
-    br = Backfill(
-        dag_id=dag_id,
-        from_date=from_date,
-        to_date=to_date,
-        max_active_runs=max_active_runs,
-        dag_run_conf=dag_run_conf,
-    )
-    session.add(br)
-    session.commit()
-
-    dag = serdag.dag
-    depends_on_past = any(x.depends_on_past for x in dag.tasks)
-    if depends_on_past:
-        if reverse is True:
-            raise ValueError(
-                "Backfill cannot be run in reverse when the dag has tasks where depends_on_past=True"
+        if num_active > 0:
+            raise AlreadyRunningBackfill(
+                f"Another backfill is running for dag {dag_id}. "
+                f"There can be only one running backfill per dag."
             )
 
-    backfill_sort_ordinal = 0
-    dagrun_info_list = dag.iter_dagrun_infos_between(from_date, to_date)
-    if reverse:
-        dagrun_info_list = reversed([x for x in dag.iter_dagrun_infos_between(from_date, to_date)])
-    for info in dagrun_info_list:
-        backfill_sort_ordinal += 1
-        log.info("creating backfill dag run %s dag_id=%s backfill_id=%s, info=", dag.dag_id, br.id, info)
-        dr = None
-        try:
-            dr = dag.create_dagrun(
-                triggered_by=DagRunTriggeredByType.BACKFILL,
-                execution_date=info.logical_date,
-                data_interval=info.data_interval,
-                start_date=timezone.utcnow(),
-                state=DagRunState.QUEUED,
-                external_trigger=False,
-                conf=br.dag_run_conf,
-                run_type=DagRunType.BACKFILL_JOB,
-                creating_job_id=None,
-                session=session,
-            )
-        except Exception:
-            dag.log.exception("something failed")
-            session.rollback()
-        session.add(
-            BackfillDagRun(
-                backfill_id=br.id,
-                dag_run_id=dr.id if dr else None,  # this means we failed to create the dag run
-                sort_ordinal=backfill_sort_ordinal,
-            )
+        br = Backfill(
+            dag_id=dag_id,
+            from_date=from_date,
+            to_date=to_date,
+            max_active_runs=max_active_runs,
+            dag_run_conf=dag_run_conf,
         )
+        session.add(br)
         session.commit()
+
+        dag = serdag.dag
+        depends_on_past = any(x.depends_on_past for x in dag.tasks)
+        if depends_on_past:
+            if reverse is True:
+                raise ValueError(
+                    "Backfill cannot be run in reverse when the dag has tasks where depends_on_past=True"
+                )
+
+        backfill_sort_ordinal = 0
+        dagrun_info_list = dag.iter_dagrun_infos_between(from_date, to_date)
+        if reverse:
+            dagrun_info_list = reversed([x for x in dag.iter_dagrun_infos_between(from_date, to_date)])
+        for info in dagrun_info_list:
+            backfill_sort_ordinal += 1
+            log.info("creating backfill dag run %s dag_id=%s backfill_id=%s, info=", dag.dag_id, br.id, info)
+            dr = None
+            try:
+                dr = dag.create_dagrun(
+                    triggered_by=DagRunTriggeredByType.BACKFILL,
+                    execution_date=info.logical_date,
+                    data_interval=info.data_interval,
+                    start_date=timezone.utcnow(),
+                    state=DagRunState.QUEUED,
+                    external_trigger=False,
+                    conf=br.dag_run_conf,
+                    run_type=DagRunType.BACKFILL_JOB,
+                    creating_job_id=None,
+                    session=session,
+                )
+            except Exception:
+                dag.log.exception("something failed")
+                session.rollback()
+            session.add(
+                BackfillDagRun(
+                    backfill_id=br.id,
+                    dag_run_id=dr.id if dr else None,  # this means we failed to create the dag run
+                    sort_ordinal=backfill_sort_ordinal,
+                )
+            )
+            session.commit()
     return br
