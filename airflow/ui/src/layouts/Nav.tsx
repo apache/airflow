@@ -28,6 +28,7 @@ import {
 import { motion } from "framer-motion";
 import {
   FiBarChart2,
+  FiBookOpen,
   FiCornerUpLeft,
   FiDatabase,
   FiGlobe,
@@ -78,7 +79,7 @@ export const Nav = () => {
         <NavButton
           icon={<FiDatabase size="1.75rem" />}
           isDisabled
-          title="Datasets"
+          title="Assets"
         />
         <NavButton
           icon={<FiBarChart2 size="1.75rem" />}
@@ -102,6 +103,13 @@ export const Nav = () => {
           href="/"
           icon={<FiCornerUpLeft size="1.5rem" />}
           title="Return to legacy UI"
+        />
+        <NavButton
+          aria-label="Docs"
+          as={Link}
+          href={`${import.meta.env.VITE_FASTAPI_URL}/docs`}
+          icon={<FiBookOpen size="1.5rem" />}
+          target="_blank"
         />
         <NavButton
           icon={

@@ -23,6 +23,7 @@ import { Link as RouterLink } from "react-router-dom";
 type NavButtonProps = {
   readonly href?: string;
   readonly icon: ReactElement;
+  readonly target?: string;
   readonly title?: string;
   readonly to?: string;
 } & ButtonProps;
