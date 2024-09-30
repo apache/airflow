@@ -88,11 +88,11 @@ export type ValidationError = {
   type: string;
 };
 
-export type NextRunDatasetsUiNextRunDatasetsDagIdGetData = {
+export type NextRunAssetsUiNextRunDatasetsDagIdGetData = {
   dagId: string;
 };
 
-export type NextRunDatasetsUiNextRunDatasetsDagIdGetResponse = {
+export type NextRunAssetsUiNextRunDatasetsDagIdGetResponse = {
   [key: string]: unknown;
 };
 
@@ -122,7 +122,7 @@ export type PatchDagPublicDagsDagIdPatchResponse = DAGResponse;
 export type $OpenApiTs = {
   "/ui/next_run_datasets/{dag_id}": {
     get: {
-      req: NextRunDatasetsUiNextRunDatasetsDagIdGetData;
+      req: NextRunAssetsUiNextRunDatasetsDagIdGetData;
       res: {
         /**
          * Successful Response
