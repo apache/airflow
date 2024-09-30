@@ -250,6 +250,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         if kubeconfig is not None:
             with tempfile.NamedTemporaryFile() as temp_config:
                 self.log.debug("loading kube_config from: connection kube_config")
+                if isinstance(kubeconfig, dict):
+                    kubeconfig = json.dumps(kubeconfig)
                 temp_config.write(kubeconfig.encode())
                 temp_config.flush()
                 self._is_in_cluster = False
