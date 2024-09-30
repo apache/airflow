@@ -256,7 +256,7 @@ class Asset(os.PathLike, BaseAsset):
 
     uri: str = attr.field(
         converter=_sanitize_uri,
-        validator=[attr.validators.min_len(1), attr.validators.max_len(3000)],
+        validator=[attr.validators.min_len(1), attr.validators.max_len(1500)],
     )
     extra: dict[str, Any] = attr.field(factory=dict, converter=_set_extra_default)
 
