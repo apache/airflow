@@ -112,37 +112,37 @@ def setup(dag_maker) -> None:
     "query_params, expected_total_entries, expected_ids",
     [
         # Filters
-        ({}, 2, ["test_dag1", "test_dag2"]),
-        ({"limit": 1}, 2, ["test_dag1"]),
-        ({"offset": 1}, 2, ["test_dag2"]),
-        ({"tags": ["example"]}, 1, ["test_dag1"]),
-        ({"only_active": False}, 3, ["test_dag1", "test_dag2", "test_dag3"]),
-        ({"paused": True, "only_active": False}, 1, ["test_dag3"]),
-        ({"paused": False}, 2, ["test_dag1", "test_dag2"]),
-        ({"owners": ["airflow"]}, 2, ["test_dag1", "test_dag2"]),
-        ({"owners": ["test_owner"], "only_active": False}, 1, ["test_dag3"]),
-        ({"last_dag_run_state": "success", "only_active": False}, 1, ["test_dag3"]),
-        ({"last_dag_run_state": "failed", "only_active": False}, 1, ["test_dag1"]),
+        ({}, 2, [DAG1_ID, DAG2_ID]),
+        ({"limit": 1}, 2, [DAG1_ID]),
+        ({"offset": 1}, 2, [DAG2_ID]),
+        ({"tags": ["example"]}, 1, [DAG1_ID]),
+        ({"only_active": False}, 3, [DAG1_ID, DAG2_ID, DAG3_ID]),
+        ({"paused": True, "only_active": False}, 1, [DAG3_ID]),
+        ({"paused": False}, 2, [DAG1_ID, DAG2_ID]),
+        ({"owners": ["airflow"]}, 2, [DAG1_ID, DAG2_ID]),
+        ({"owners": ["test_owner"], "only_active": False}, 1, [DAG3_ID]),
+        ({"last_dag_run_state": "success", "only_active": False}, 1, [DAG3_ID]),
+        ({"last_dag_run_state": "failed", "only_active": False}, 1, [DAG1_ID]),
         # # Sort
-        ({"order_by": "-dag_id"}, 2, ["test_dag2", "test_dag1"]),
-        ({"order_by": "-dag_display_name"}, 2, ["test_dag2", "test_dag1"]),
-        ({"order_by": "dag_display_name"}, 2, ["test_dag1", "test_dag2"]),
-        ({"order_by": "next_dagrun", "only_active": False}, 3, ["test_dag3", "test_dag1", "test_dag2"]),
-        ({"order_by": "last_run_state", "only_active": False}, 3, ["test_dag1", "test_dag3", "test_dag2"]),
-        ({"order_by": "-last_run_state", "only_active": False}, 3, ["test_dag3", "test_dag1", "test_dag2"]),
+        ({"order_by": "-dag_id"}, 2, [DAG2_ID, DAG1_ID]),
+        ({"order_by": "-dag_display_name"}, 2, [DAG2_ID, DAG1_ID]),
+        ({"order_by": "dag_display_name"}, 2, [DAG1_ID, DAG2_ID]),
+        ({"order_by": "next_dagrun", "only_active": False}, 3, [DAG3_ID, DAG1_ID, DAG2_ID]),
+        ({"order_by": "last_run_state", "only_active": False}, 3, [DAG1_ID, DAG3_ID, DAG2_ID]),
+        ({"order_by": "-last_run_state", "only_active": False}, 3, [DAG3_ID, DAG1_ID, DAG2_ID]),
         (
             {"order_by": "last_run_start_date", "only_active": False},
             3,
-            ["test_dag1", "test_dag3", "test_dag2"],
+            [DAG1_ID, DAG3_ID, DAG2_ID],
         ),
         (
             {"order_by": "-last_run_start_date", "only_active": False},
             3,
-            ["test_dag3", "test_dag1", "test_dag2"],
+            [DAG3_ID, DAG1_ID, DAG2_ID],
         ),
         # Search
-        ({"dag_id_pattern": "1"}, 1, ["test_dag1"]),
-        ({"dag_display_name_pattern": "display2"}, 1, ["test_dag2"]),
+        ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
+        ({"dag_display_name_pattern": "display2"}, 1, [DAG2_ID]),
     ],
 )
 def test_get_dags(test_client, query_params, expected_total_entries, expected_ids):
@@ -173,3 +173,55 @@ def test_patch_dag(test_client, query_params, dag_id, body, expected_status_code
     if expected_status_code == 200:
         body = response.json()
         assert body["is_paused"] == expected_is_paused
+
+
+@pytest.mark.parametrize(
+    "query_params, body, expected_status_code, expected_ids, expected_paused_ids",
+    [
+        ({"update_mask": ["field_1", "is_paused"]}, {"is_paused": True}, 400, None, None),
+        (
+            {"only_active": False},
+            {"is_paused": True},
+            200,
+            [],
+            [],
+        ),  # no-op because the dag_id_pattern is not provided
+        (
+            {"only_active": False, "dag_id_pattern": "~"},
+            {"is_paused": True},
+            200,
+            [DAG1_ID, DAG2_ID, DAG3_ID],
+            [DAG1_ID, DAG2_ID, DAG3_ID],
+        ),
+        (
+            {"only_active": False, "dag_id_pattern": "~"},
+            {"is_paused": False},
+            200,
+            [DAG1_ID, DAG2_ID, DAG3_ID],
+            [],
+        ),
+        (
+            {"dag_id_pattern": "~"},
+            {"is_paused": True},
+            200,
+            [DAG1_ID, DAG2_ID],
+            [DAG1_ID, DAG2_ID],
+        ),
+        (
+            {"dag_id_pattern": "dag1"},
+            {"is_paused": True},
+            200,
+            [DAG1_ID],
+            [DAG1_ID],
+        ),
+    ],
+)
+def test_patch_dags(test_client, query_params, body, expected_status_code, expected_ids, expected_paused_ids):
+    response = test_client.patch("/public/dags", json=body, params=query_params)
+
+    assert response.status_code == expected_status_code
+    if expected_status_code == 200:
+        body = response.json()
+        assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
+        paused_dag_ids = [dag["dag_id"] for dag in body["dags"] if dag["is_paused"]]
+        assert paused_dag_ids == expected_paused_ids

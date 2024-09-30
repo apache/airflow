@@ -111,6 +111,21 @@ export type GetDagsPublicDagsGetData = {
 
 export type GetDagsPublicDagsGetResponse = DAGCollectionResponse;
 
+export type PatchDagsPublicDagsPatchData = {
+  dagIdPattern?: string | null;
+  lastDagRunState?: DagRunState | null;
+  limit?: number;
+  offset?: number;
+  onlyActive?: boolean;
+  owners?: Array<string>;
+  paused?: boolean | null;
+  requestBody: DAGPatchBody;
+  tags?: Array<string>;
+  updateMask?: Array<string> | null;
+};
+
+export type PatchDagsPublicDagsPatchResponse = DAGCollectionResponse;
+
 export type PatchDagPublicDagsDagIdPatchData = {
   dagId: string;
   requestBody: DAGPatchBody;
@@ -145,6 +160,35 @@ export type $OpenApiTs = {
          * Successful Response
          */
         200: DAGCollectionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: PatchDagsPublicDagsPatchData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGCollectionResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
         /**
          * Validation Error
          */
