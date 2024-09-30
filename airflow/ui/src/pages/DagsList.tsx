@@ -38,17 +38,24 @@ import { useTableURLState } from "../components/DataTable/useTableUrlState";
 import { QuickFilterButton } from "../components/QuickFilterButton";
 import { SearchBar } from "../components/SearchBar";
 import { pluralize } from "../utils/pluralize";
+import { TogglePause } from "src/components/TogglePause";
 
 const columns: Array<ColumnDef<DAGResponse>> = [
+  {
+    accessorKey: "is_paused",
+    cell: ({ row }) => (
+      <TogglePause
+        dagId={row.original.dag_id}
+        isPaused={row.original.is_paused}
+      />
+    ),
+    enableSorting: false,
+    header: "",
+  },
   {
     accessorKey: "dag_id",
     cell: ({ row }) => row.original.dag_display_name,
     header: "DAG",
-  },
-  {
-    accessorKey: "is_paused",
-    enableSorting: false,
-    header: () => "Is Paused",
   },
   {
     accessorKey: "timetable_description",
