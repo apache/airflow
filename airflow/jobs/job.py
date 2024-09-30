@@ -34,7 +34,7 @@ from airflow.listeners.listener import get_listener_manager
 from airflow.models.base import ID_LEN, Base
 from airflow.serialization.pydantic.job import JobPydantic
 from airflow.stats import Stats
-from airflow.traces.tracer import Trace, span
+from airflow.traces.tracer import Trace, add_span
 from airflow.utils import timezone
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -459,7 +459,7 @@ def execute_job(job: Job, execute_callable: Callable[[], int | None]) -> int | N
     return ret
 
 
-@span
+@add_span
 def perform_heartbeat(
     job: Job, heartbeat_callback: Callable[[Session], None], only_if_necessary: bool
 ) -> None:

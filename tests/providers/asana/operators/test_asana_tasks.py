@@ -16,6 +16,7 @@
 # under the License.
 from __future__ import annotations
 
+from datetime import timedelta
 from unittest.mock import Mock, patch
 
 import pytest
@@ -46,7 +47,7 @@ class TestAsanaTaskOperators:
 
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG(TEST_DAG_ID, default_args=args)
+        dag = DAG(TEST_DAG_ID, schedule=timedelta(days=1), default_args=args)
         self.dag = dag
         db.merge_conn(Connection(conn_id="asana_test", conn_type="asana", password="test"))
 

@@ -29,19 +29,9 @@ from babel import Locale
 from babel.dates import LC_TIME, format_datetime
 
 import airflow.utils.yaml as yaml  # noqa: F401
-from airflow.utils.deprecation_tools import add_deprecated_classes
 
 if TYPE_CHECKING:
     from pendulum import DateTime
-
-__deprecated_classes = {
-    "hive": {
-        "closest_ds_partition": "airflow.providers.apache.hive.macros.hive.closest_ds_partition",
-        "max_partition": "airflow.providers.apache.hive.macros.hive.max_partition",
-    },
-}
-
-add_deprecated_classes(__deprecated_classes, __name__)
 
 
 def ds_add(ds: str, days: int) -> str:

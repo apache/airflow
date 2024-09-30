@@ -35,14 +35,44 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+10.5.0
+......
+
+Latest change: 2024-09-05
+
+=================================================================================================  ===========  ========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================
+`ede34ebee7 <https://github.com/apache/airflow/commit/ede34ebee70648f83209c43e51d39ac6779c66b5>`_  2024-09-05   ``Allow custom api versions in MSGraphAsyncOperator (#41331)``
+`85ad5c374d <https://github.com/apache/airflow/commit/85ad5c374d93a0f95891b15c27c14e012b7c8974>`_  2024-09-05   `` Add callback to process Azure Service Bus message contents (#41601)``
+`1613e9ec1c <https://github.com/apache/airflow/commit/1613e9ec1c4e5523953e045c8adcef1b9d4ce95d>`_  2024-08-25   ``remove soft_fail (#41710)``
+`716c4300a6 <https://github.com/apache/airflow/commit/716c4300a6507609ae64148b9726272fd5071492>`_  2024-08-20   ``Remove deprecated log handler argument filename_template (#41552)``
+=================================================================================================  ===========  ========================================================================
+
+10.4.0
+......
+
+Latest change: 2024-08-19
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`75fb7acbac <https://github.com/apache/airflow/commit/75fb7acbaca09a040067f0a5a37637ff44eb9e14>`_  2024-08-19   ``Prepare docs for Aug 2nd wave of providers (#41559)``
+`01390839dd <https://github.com/apache/airflow/commit/01390839dd57bc8a104a8d41c923beb5455fe489>`_  2024-08-14   ``Microsoft Power BI operator to refresh the dataset (#40356)``
+`d2c9e8cfc0 <https://github.com/apache/airflow/commit/d2c9e8cfc00f30f4b3102197c2145c6e44b3d837>`_  2024-08-14   ``Export Azure Container Instance log messages to XCOM (#41142)``
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+`68a6a0583b <https://github.com/apache/airflow/commit/68a6a0583b5100c1f313d7bff3dc664205d9a1ad>`_  2024-08-11   ``Fix mypy checks for new azure libraries (#41386)``
+=================================================================================================  ===========  =======================================================================
+
 10.3.0
 ......
 
-Latest change: 2024-07-13
+Latest change: 2024-08-03
 
 =================================================================================================  ===========  ==============================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
 `e6d382244e <https://github.com/apache/airflow/commit/e6d382244e066fdb655dc64cafd40184753e6346>`_  2024-07-13   ``Bump minimum version for azure containerinstance. (#40767)``
 `63000a77ba <https://github.com/apache/airflow/commit/63000a77ba4ab70b50950f506cee6964e10c88a3>`_  2024-07-09   ``Added priority to Azure Container Instances (#40616)``
 =================================================================================================  ===========  ==============================================================

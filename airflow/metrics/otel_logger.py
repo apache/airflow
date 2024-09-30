@@ -31,11 +31,12 @@ from opentelemetry.sdk.metrics._internal.export import ConsoleMetricExporter, Pe
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 
 from airflow.configuration import conf
+from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.metrics.protocols import Timer
 from airflow.metrics.validators import (
     OTEL_NAME_MAX_LENGTH,
-    AllowListValidator,
     ListValidator,
+    PatternAllowListValidator,
     get_validator,
     stat_name_otel_handler,
 )
@@ -70,6 +71,14 @@ UP_DOWN_COUNTERS = {"airflow.dag_processing.processes"}
 DEFAULT_METRIC_NAME_PREFIX = "airflow"
 # Delimiter is placed between the universal metric prefix and the unique metric name.
 DEFAULT_METRIC_NAME_DELIMITER = "."
+
+metrics_consistency_on = conf.getboolean("metrics", "metrics_consistency_on", fallback=True)
+if not metrics_consistency_on:
+    warnings.warn(
+        "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
+        AirflowProviderDeprecationWarning,
+        stacklevel=2,
+    )
 
 
 def full_name(name: str, *, prefix: str = DEFAULT_METRIC_NAME_PREFIX) -> str:
@@ -170,7 +179,7 @@ class SafeOtelLogger:
         self,
         otel_provider,
         prefix: str = DEFAULT_METRIC_NAME_PREFIX,
-        metrics_validator: ListValidator = AllowListValidator(),
+        metrics_validator: ListValidator = PatternAllowListValidator(),
     ):
         self.otel: Callable = otel_provider
         self.prefix: str = prefix
@@ -274,7 +283,10 @@ class SafeOtelLogger:
         """OTel does not have a native timer, stored as a Gauge whose value is number of seconds elapsed."""
         if self.metrics_validator.test(stat) and name_is_otel_safe(self.prefix, stat):
             if isinstance(dt, datetime.timedelta):
-                dt = dt.total_seconds()
+                if metrics_consistency_on:
+                    dt = dt.total_seconds() * 1000.0
+                else:
+                    dt = dt.total_seconds()
             self.metrics_map.set_gauge_value(full_name(prefix=self.prefix, name=stat), float(dt), False, tags)
 
     def timer(
@@ -396,8 +408,9 @@ def get_otel_logger(cls) -> SafeOtelLogger:
     # PeriodicExportingMetricReader will default to an interval of 60000 millis.
     interval = conf.getint("metrics", "otel_interval_milliseconds", fallback=None)  # ex: 30000
     debug = conf.getboolean("metrics", "otel_debugging_on")
+    service_name = conf.get("metrics", "otel_service")
 
-    resource = Resource(attributes={SERVICE_NAME: "Airflow"})
+    resource = Resource(attributes={SERVICE_NAME: service_name})
 
     protocol = "https" if ssl_active else "http"
     endpoint = f"{protocol}://{host}:{port}/v1/metrics"

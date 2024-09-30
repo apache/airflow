@@ -25,15 +25,13 @@ from datetime import datetime, timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Sequence, cast
 
-from deprecated import deprecated
-
 from airflow.configuration import conf
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.triggers.s3 import S3KeysUnchangedTrigger, S3KeyTrigger
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only
@@ -219,15 +217,7 @@ class S3KeySensor(BaseSensorOperator):
             if not found_keys:
                 self._defer()
         elif event["status"] == "error":
-            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
-            if self.soft_fail:
-                raise AirflowSkipException(event["message"])
             raise AirflowException(event["message"])
-
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
-    def get_hook(self) -> S3Hook:
-        """Create and return an S3Hook."""
-        return self.hook
 
     @cached_property
     def hook(self) -> S3Hook:
@@ -342,14 +332,9 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
                 )
                 return False
 
-            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
-            message = (
-                f"Illegal behavior: objects were deleted in"
-                f" {os.path.join(self.bucket_name, self.prefix)} between pokes."
+            raise AirflowException(
+                f"Illegal behavior: objects were deleted in {os.path.join(self.bucket_name, self.prefix)} between pokes."
             )
-            if self.soft_fail:
-                raise AirflowSkipException(message)
-            raise AirflowException(message)
 
         if self.last_activity_time:
             self.inactivity_seconds = int((datetime.now() - self.last_activity_time).total_seconds())
@@ -411,8 +396,5 @@ class S3KeysUnchangedSensor(BaseSensorOperator):
         event = validate_execute_complete_event(event)
 
         if event and event["status"] == "error":
-            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
-            if self.soft_fail:
-                raise AirflowSkipException(event["message"])
             raise AirflowException(event["message"])
         return None

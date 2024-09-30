@@ -20,9 +20,7 @@ import time
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from deprecated import deprecated
-
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import LogState, SageMakerHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -45,11 +43,6 @@ class SageMakerBaseSensor(BaseSensorOperator):
         self.aws_conn_id = aws_conn_id
         self.resource_type = resource_type  # only used for logs, to say what kind of resource we are sensing
 
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
-    def get_hook(self) -> SageMakerHook:
-        """Get SageMakerHook."""
-        return self.hook
-
     @cached_property
     def hook(self) -> SageMakerHook:
         return SageMakerHook(aws_conn_id=self.aws_conn_id)
@@ -65,11 +58,9 @@ class SageMakerBaseSensor(BaseSensorOperator):
             return False
         if state in self.failed_states():
             failed_reason = self.get_failed_reason_from_response(response)
-            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
-            message = f"Sagemaker {self.resource_type} failed for the following reason: {failed_reason}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
-            raise AirflowException(message)
+            raise AirflowException(
+                f"Sagemaker {self.resource_type} failed for the following reason: {failed_reason}"
+            )
         return True
 
     def non_terminal_states(self) -> set[str]:
@@ -240,7 +231,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         return SageMakerHook.non_terminal_states
 
     def failed_states(self):
-        return SageMakerHook.failed_states
+        return SageMakerHook.training_failed_states
 
     def get_sagemaker_response(self):
         if self.print_log:

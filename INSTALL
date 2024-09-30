@@ -256,9 +256,9 @@ Those extras are available as regular core airflow extras - they install optiona
 
 # START CORE EXTRAS HERE
 
-aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, deprecated-api, github-
-enterprise, google-auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, pydantic,
-rabbitmq, s3fs, saml, sentry, statsd, uv, virtualenv
+aiobotocore, apache-atlas, apache-webhdfs, async, cgroups, cloudpickle, github-enterprise, google-
+auth, graphviz, kerberos, ldap, leveldb, otel, pandas, password, rabbitmq, s3fs, sentry, statsd, uv,
+virtualenv
 
 # END CORE EXTRAS HERE
 
@@ -274,11 +274,11 @@ airbyte, alibaba, amazon, apache.beam, apache.cassandra, apache.drill, apache.dr
 apache.hdfs, apache.hive, apache.iceberg, apache.impala, apache.kafka, apache.kylin, apache.livy,
 apache.pig, apache.pinot, apache.spark, apprise, arangodb, asana, atlassian.jira, celery, cloudant,
 cncf.kubernetes, cohere, common.compat, common.io, common.sql, databricks, datadog, dbt.cloud,
-dingding, discord, docker, elasticsearch, exasol, fab, facebook, ftp, github, google, grpc,
+dingding, discord, docker, edge, elasticsearch, exasol, fab, facebook, ftp, github, google, grpc,
 hashicorp, http, imap, influxdb, jdbc, jenkins, microsoft.azure, microsoft.mssql, microsoft.psrp,
 microsoft.winrm, mongo, mysql, neo4j, odbc, openai, openfaas, openlineage, opensearch, opsgenie,
 oracle, pagerduty, papermill, pgvector, pinecone, postgres, presto, qdrant, redis, salesforce,
-samba, segment, sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, tableau, tabular,
+samba, segment, sendgrid, sftp, singularity, slack, smtp, snowflake, sqlite, ssh, standard, tableau,
 telegram, teradata, trino, vertica, weaviate, yandex, ydb, zendesk
 
 # END PROVIDER EXTRAS HERE

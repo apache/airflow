@@ -32,7 +32,6 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Iterable, Mapping, NoReturn, Sequence, Union, cast
 
 from aiohttp import ClientSession as ClientSession
-from deprecated import deprecated
 from gcloud.aio.bigquery import Job, Table as Table_async
 from google.cloud.bigquery import (
     DEFAULT_RETRY,
@@ -66,6 +65,7 @@ from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.cloud.utils.bigquery import bq_cast
 from airflow.providers.google.cloud.utils.credentials_provider import _get_scopes
 from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import (
     PROVIDE_PROJECT_ID,
     GoogleBaseAsyncHook,
@@ -175,10 +175,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
     @cached_property
     @deprecated(
-        reason=(
-            "`BigQueryHook.credentials_path` property is deprecated and will be removed in the future. "
-            "This property used for obtaining credentials path but no longer in actual use. "
-        ),
+        planned_removal_date="November 01, 2024",
+        reason="This property is no longer in actual use. ",
         category=AirflowProviderDeprecationWarning,
     )
     def credentials_path(self) -> str:
@@ -198,7 +196,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         )
 
     @deprecated(
-        reason=("Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client`"),
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_client.",
         category=AirflowProviderDeprecationWarning,
     )
     def get_service(self) -> Resource:
@@ -604,10 +603,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         )
 
     @deprecated(
-        reason=(
-            "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table` "
-            "method with passing the `table_resource` object. This gives more flexibility than this method."
-        ),
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table",
+        instructions="Use the replacement method with passing the `table_resource` object. "
+        "This gives more flexibility.",
         category=AirflowProviderDeprecationWarning,
     )
     @GoogleBaseHook.fallback_to_default_project_id
@@ -806,9 +805,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return table_object.to_api_repr()
 
     @deprecated(
-        reason=(
-            "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_table` method."
-        ),
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_table",
         category=AirflowProviderDeprecationWarning,
     )
     @GoogleBaseHook.fallback_to_default_project_id
@@ -1017,9 +1015,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return dataset
 
     @deprecated(
-        reason=(
-            "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_dataset` method."
-        ),
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_dataset",
         category=AirflowProviderDeprecationWarning,
     )
     def patch_dataset(
@@ -1065,9 +1062,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return dataset
 
     @deprecated(
-        reason=(
-            "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables` method."
-        ),
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables",
         category=AirflowProviderDeprecationWarning,
     )
     def get_dataset_tables_list(
@@ -1271,9 +1267,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return table
 
     @deprecated(
-        reason=(
-            "Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.delete_table` method."
-        ),
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.delete_table",
         category=AirflowProviderDeprecationWarning,
     )
     def run_table_delete(self, deletion_dataset_table: str, ignore_if_missing: bool = False) -> None:
@@ -1320,7 +1315,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.log.info("Deleted table %s", table_id)
 
     @deprecated(
-        reason=("Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.list_rows` method."),
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.list_rows",
         category=AirflowProviderDeprecationWarning,
     )
     def get_tabledata(
@@ -1556,7 +1552,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return job.done(retry=retry)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.cancel_job`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.cancel_job",
         category=AirflowProviderDeprecationWarning,
     )
     def cancel_query(self) -> None:
@@ -1709,7 +1706,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return job_api_repr
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job",
         category=AirflowProviderDeprecationWarning,
     )
     def run_with_configuration(self, configuration: dict) -> str:
@@ -1730,7 +1728,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return job.job_id
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job",
         category=AirflowProviderDeprecationWarning,
     )
     def run_load(
@@ -1971,7 +1970,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return job.job_id
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job",
         category=AirflowProviderDeprecationWarning,
     )
     def run_copy(
@@ -2057,7 +2057,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return job.job_id
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job",
         category=AirflowProviderDeprecationWarning,
     )
     def run_extract(
@@ -2131,7 +2132,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return job.job_id
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job",
         category=AirflowProviderDeprecationWarning,
     )
     def run_query(
@@ -2413,10 +2415,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table_id = cmpt[1]
         else:
             raise ValueError(
-                f"{var_print(var_name)} Expect format of (<project.|<project:)<dataset>.<table>, "
+                f"{var_print(var_name)}Expect format of (<project.|<project:)<dataset>.<table>, "
                 f"got {table_input}"
             )
-
         if project_id is None:
             if var_name is not None:
                 self.log.info(
@@ -2548,7 +2549,8 @@ class BigQueryBaseCursor(LoggingMixin):
         self.hook = hook
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table",
         category=AirflowProviderDeprecationWarning,
     )
     def create_empty_table(self, *args, **kwargs):
@@ -2561,7 +2563,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.create_empty_table(*args, **kwargs)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_dataset`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_dataset",
         category=AirflowProviderDeprecationWarning,
     )
     def create_empty_dataset(self, *args, **kwargs) -> dict[str, Any]:
@@ -2574,7 +2577,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.create_empty_dataset(*args, **kwargs)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables",
         category=AirflowProviderDeprecationWarning,
     )
     def get_dataset_tables(self, *args, **kwargs) -> list[dict[str, Any]]:
@@ -2587,7 +2591,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.get_dataset_tables(*args, **kwargs)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.delete_dataset`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.delete_dataset",
         category=AirflowProviderDeprecationWarning,
     )
     def delete_dataset(self, *args, **kwargs) -> None:
@@ -2600,7 +2605,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.delete_dataset(*args, **kwargs)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_external_table`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_external_table",
         category=AirflowProviderDeprecationWarning,
     )
     def create_external_table(self, *args, **kwargs):
@@ -2613,7 +2619,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.create_external_table(*args, **kwargs)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.patch_table`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.patch_table",
         category=AirflowProviderDeprecationWarning,
     )
     def patch_table(self, *args, **kwargs) -> None:
@@ -2626,7 +2633,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.patch_table(*args, **kwargs)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_all`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_all",
         category=AirflowProviderDeprecationWarning,
     )
     def insert_all(self, *args, **kwargs) -> None:
@@ -2639,7 +2647,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.insert_all(*args, **kwargs)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_dataset`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.update_dataset",
         category=AirflowProviderDeprecationWarning,
     )
     def update_dataset(self, *args, **kwargs) -> dict:
@@ -2652,7 +2661,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return Dataset.to_api_repr(self.hook.update_dataset(*args, **kwargs))
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.patch_dataset`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.patch_dataset",
         category=AirflowProviderDeprecationWarning,
     )
     def patch_dataset(self, *args, **kwargs) -> dict:
@@ -2665,7 +2675,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.patch_dataset(*args, **kwargs)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables_list`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset_tables_list",
         category=AirflowProviderDeprecationWarning,
     )
     def get_dataset_tables_list(self, *args, **kwargs) -> list[dict[str, Any]]:
@@ -2678,7 +2689,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.get_dataset_tables_list(*args, **kwargs)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_datasets_list`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_datasets_list",
         category=AirflowProviderDeprecationWarning,
     )
     def get_datasets_list(self, *args, **kwargs) -> list | HTTPIterator:
@@ -2691,7 +2703,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.get_datasets_list(*args, **kwargs)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_dataset",
         category=AirflowProviderDeprecationWarning,
     )
     def get_dataset(self, *args, **kwargs) -> Dataset:
@@ -2704,7 +2717,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.get_dataset(*args, **kwargs)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_grant_dataset_view_access`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_grant_dataset_view_access",
         category=AirflowProviderDeprecationWarning,
     )
     def run_grant_dataset_view_access(self, *args, **kwargs) -> dict:
@@ -2718,7 +2732,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.run_grant_dataset_view_access(*args, **kwargs)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_upsert`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_upsert",
         category=AirflowProviderDeprecationWarning,
     )
     def run_table_upsert(self, *args, **kwargs) -> dict:
@@ -2731,7 +2746,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.run_table_upsert(*args, **kwargs)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_delete`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_table_delete",
         category=AirflowProviderDeprecationWarning,
     )
     def run_table_delete(self, *args, **kwargs) -> None:
@@ -2744,7 +2760,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.run_table_delete(*args, **kwargs)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_tabledata`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_tabledata",
         category=AirflowProviderDeprecationWarning,
     )
     def get_tabledata(self, *args, **kwargs) -> list[dict]:
@@ -2757,7 +2774,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.get_tabledata(*args, **kwargs)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_schema`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_schema",
         category=AirflowProviderDeprecationWarning,
     )
     def get_schema(self, *args, **kwargs) -> dict:
@@ -2770,7 +2788,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.get_schema(*args, **kwargs)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.poll_job_complete`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.poll_job_complete",
         category=AirflowProviderDeprecationWarning,
     )
     def poll_job_complete(self, *args, **kwargs) -> bool:
@@ -2783,7 +2802,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.poll_job_complete(*args, **kwargs)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.cancel_query`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.cancel_query",
         category=AirflowProviderDeprecationWarning,
     )
     def cancel_query(self, *args, **kwargs) -> None:
@@ -2796,7 +2816,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.cancel_query(*args, **kwargs)  # type: ignore
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_with_configuration",
         category=AirflowProviderDeprecationWarning,
     )
     def run_with_configuration(self, *args, **kwargs) -> str:
@@ -2809,7 +2830,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.run_with_configuration(*args, **kwargs)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_load`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_load",
         category=AirflowProviderDeprecationWarning,
     )
     def run_load(self, *args, **kwargs) -> str:
@@ -2822,7 +2844,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.run_load(*args, **kwargs)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_copy`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_copy",
         category=AirflowProviderDeprecationWarning,
     )
     def run_copy(self, *args, **kwargs) -> str:
@@ -2835,7 +2858,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.run_copy(*args, **kwargs)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_extract`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_extract",
         category=AirflowProviderDeprecationWarning,
     )
     def run_extract(self, *args, **kwargs) -> str | BigQueryJob:
@@ -2848,7 +2872,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return self.hook.run_extract(*args, **kwargs)
 
     @deprecated(
-        reason="Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_query`",
+        planned_removal_date="November 01, 2024",
+        use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.run_query",
         category=AirflowProviderDeprecationWarning,
     )
     def run_query(self, *args, **kwargs) -> str:
@@ -3256,6 +3281,11 @@ def _escape(s: str) -> str:
     return e
 
 
+@deprecated(
+    planned_removal_date="April 01, 2025",
+    use_instead="airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.split_tablename",
+    category=AirflowProviderDeprecationWarning,
+)
 def split_tablename(
     table_input: str, default_project_id: str, var_name: str | None = None
 ) -> tuple[str, str, str]:
@@ -3303,6 +3333,9 @@ def split_tablename(
         raise ValueError(
             f"{var_print(var_name)}Expect format of (<project.|<project:)<dataset>.<table>, got {table_input}"
         )
+
+    # Exclude partition from the table name
+    table_id = table_id.split("$")[0]
 
     if project_id is None:
         if var_name is not None:

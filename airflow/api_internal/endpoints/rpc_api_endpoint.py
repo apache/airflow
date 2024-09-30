@@ -101,7 +101,6 @@ def initialize_method_map() -> dict[str, Callable]:
         DagFileProcessor._execute_task_callbacks,
         DagFileProcessor.execute_callbacks,
         DagFileProcessor.execute_callbacks_without_dag,
-        DagFileProcessor.manage_slas,
         DagFileProcessor.save_dag_to_db,
         DagFileProcessor.update_import_errors,
         DagFileProcessor._validate_task_pools_and_update_dag_warnings,
@@ -126,9 +125,9 @@ def initialize_method_map() -> dict[str, Callable]:
         # XCom.get_many, # Not supported because it returns query
         XCom.clear,
         XCom.set,
-        Variable.set,
-        Variable.update,
-        Variable.delete,
+        Variable._set,
+        Variable._update,
+        Variable._delete,
         DAG.fetch_callback,
         DAG.fetch_dagrun,
         DagRun.fetch_task_instances,
@@ -237,7 +236,8 @@ def internal_airflow_api(body: dict[str, Any]) -> APIResponse:
             response = json.dumps(output_json) if output_json is not None else None
             log.info("Sending response: %s", response)
             return Response(response=response, headers={"Content-Type": "application/json"})
-    except AirflowException as e:  # In case of AirflowException transport the exception class back to caller
+    # In case of AirflowException or other selective known types, transport the exception class back to caller
+    except (KeyError, AttributeError, AirflowException) as e:
         exception_json = BaseSerialization.serialize(e, use_pydantic_models=True)
         response = json.dumps(exception_json)
         log.info("Sending exception response: %s", response)

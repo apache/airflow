@@ -260,14 +260,13 @@ put dataset id to ``dataset_id`` parameter in operator.
 How to run AutoML Text Training Job
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLTextTrainingJobOperator`
 
-Before start running this Job you must prepare and create ``Text`` dataset. After that you should
-put dataset id to ``dataset_id`` parameter in operator.
+Operator is deprecated, the non-training (existing legacy models) AutoMLText API will be deprecated
+on June 15, 2025.
+There are 2 options for text classification, extraction, and sentiment analysis tasks replacement:
+- Prompts with pre-trained Gemini model, using :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.TextGenerationModelPredictOperator`.
+- Fine tuning over Gemini model, For more tailored results, using :class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`.
 
-.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_auto_ml_text_training.py
-    :language: python
-    :dedent: 4
-    :start-after: [START how_to_cloud_vertex_ai_create_auto_ml_text_training_job_operator]
-    :end-before: [END how_to_cloud_vertex_ai_create_auto_ml_text_training_job_operator]
+Please visit the https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini-tuning for more details.
 
 How to run AutoML Video Training Job
 :class:`~airflow.providers.google.cloud.operators.vertex_ai.auto_ml.CreateAutoMLVideoTrainingJobOperator`
@@ -582,7 +581,7 @@ To get a pipeline job list you can use
     :start-after: [START how_to_cloud_vertex_ai_list_pipeline_job_operator]
     :end-before: [END how_to_cloud_vertex_ai_list_pipeline_job_operator]
 
-Interacting with a Generative Model
+Interacting with Generative AI
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To generate a prediction via language model you can use
@@ -614,6 +613,37 @@ The operator returns the model's response in :ref:`XCom <concepts:xcom>` under `
     :dedent: 4
     :start-after: [START how_to_cloud_vertex_ai_generative_model_generate_content_operator]
     :end-before: [END how_to_cloud_vertex_ai_generative_model_generate_content_operator]
+
+To run a supervised fine tuning job you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.SupervisedFineTuningTrainOperator`.
+The operator returns the tuned model's endpoint name in :ref:`XCom <concepts:xcom>` under ``tuned_model_endpoint_name`` key.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model_tuning.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
+    :end-before: [END how_to_cloud_vertex_ai_supervised_fine_tuning_train_operator]
+
+
+To calculates the number of input tokens before sending a request to the Gemini API you can use:
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.CountTokensOperator`.
+The operator returns the total tokens in :ref:`XCom <concepts:xcom>` under ``total_tokens`` key.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_count_tokens_operator]
+    :end-before: [END how_to_cloud_vertex_ai_count_tokens_operator]
+
+To evaluate a model you can use
+:class:`~airflow.providers.google.cloud.operators.vertex_ai.generative_model.RunEvaluationOperator`.
+The operator returns the evaluation summary metrics in :ref:`XCom <concepts:xcom>` under ``summary_metrics`` key.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/vertex_ai/example_vertex_ai_generative_model.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_vertex_ai_run_evaluation_operator]
+    :end-before: [END how_to_cloud_vertex_ai_run_evaluation_operator]
 
 Reference
 ^^^^^^^^^

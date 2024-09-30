@@ -20,10 +20,8 @@ from datetime import timedelta
 from functools import cached_property
 from typing import TYPE_CHECKING, Any, Sequence
 
-from deprecated import deprecated
-
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.triggers.redshift_cluster import RedshiftClusterTrigger
 from airflow.providers.amazon.aws.utils import validate_execute_complete_event
@@ -93,19 +91,10 @@ class RedshiftClusterSensor(BaseSensorOperator):
 
         status = event["status"]
         if status == "error":
-            # TODO: remove this if block when min_airflow_version is set to higher than 2.7.1
-            message = f"{event['status']}: {event['message']}"
-            if self.soft_fail:
-                raise AirflowSkipException(message)
-            raise AirflowException(message)
+            raise AirflowException(f"{event['status']}: {event['message']}")
         elif status == "success":
             self.log.info("%s completed successfully.", self.task_id)
             self.log.info("Cluster Identifier %s is in %s state", self.cluster_identifier, self.target_status)
-
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
-    def get_hook(self) -> RedshiftHook:
-        """Create and return a RedshiftHook."""
-        return self.hook
 
     @cached_property
     def hook(self) -> RedshiftHook:

@@ -29,6 +29,8 @@ from airflow.hooks.base import BaseHook
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
+    from elastic_transport import ObjectApiResponse
+
     from airflow.models.connection import Connection as AirflowConnection
 
 
@@ -68,6 +70,10 @@ class ESConnection:
         else:
             self.es = Elasticsearch(self.url, **self.kwargs)
 
+    def execute_sql(self, query: str) -> ObjectApiResponse:
+        sql_query = {"query": query}
+        return self.es.sql.query(body=sql_query)
+
 
 class ElasticsearchSQLHook(DbApiHook):
     """
@@ -87,12 +93,11 @@ class ElasticsearchSQLHook(DbApiHook):
     def __init__(self, schema: str = "http", connection: AirflowConnection | None = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.schema = schema
-        self.connection = connection
+        self._connection = connection
 
     def get_conn(self) -> ESConnection:
         """Return an elasticsearch connection object."""
-        conn_id = self.get_conn_id()
-        conn = self.connection or self.get_connection(conn_id)
+        conn = self.connection
 
         conn_args = {
             "host": conn.host,
@@ -111,8 +116,7 @@ class ElasticsearchSQLHook(DbApiHook):
         return connect(**conn_args)
 
     def get_uri(self) -> str:
-        conn_id = self.get_conn_id()
-        conn = self.connection or self.get_connection(conn_id)
+        conn = self.connection
 
         login = ""
         if conn.login:

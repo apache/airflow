@@ -24,10 +24,11 @@ description: |
     `pgvector <https://github.com/pgvector/pgvector>`__
 
 state: ready
-source-date-epoch: 1722664705
+source-date-epoch: 1723970510
 
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.3.0
   - 1.2.2
   - 1.2.1
   - 1.2.0
@@ -42,7 +43,7 @@ integrations:
     tags: [software]
 
 dependencies:
-  - apache-airflow>=2.7.0
+  - apache-airflow>=2.8.0
   - apache-airflow-providers-postgres>=5.7.1
   # setting !=0.3.0 version due to https://github.com/pgvector/pgvector-python/issues/79
   # observed in 0.3.0.

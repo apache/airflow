@@ -355,11 +355,3 @@ class ExecutorLoader:
 
         local_kubernetes_executor_cls = import_string(cls.executors[LOCAL_KUBERNETES_EXECUTOR])
         return local_kubernetes_executor_cls(local_executor, kubernetes_executor)
-
-
-# This tuple is deprecated due to AIP-51 and is no longer used in core Airflow.
-# TODO: Remove in Airflow 3.0
-UNPICKLEABLE_EXECUTORS = (
-    LOCAL_EXECUTOR,
-    SEQUENTIAL_EXECUTOR,
-)

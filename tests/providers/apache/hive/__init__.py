@@ -32,7 +32,7 @@ DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 class TestHiveEnvironment:
     def setup_method(self, method):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        dag = DAG("test_dag_id", default_args=args)
+        dag = DAG("test_dag_id", schedule=None, default_args=args)
         self.dag = dag
         self.hql = """
         USE airflow;

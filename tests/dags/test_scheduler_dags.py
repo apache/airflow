@@ -27,10 +27,18 @@ DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 # DAG tests backfill with pooled tasks
 # Previously backfill would queue the task but never run it
-dag1 = DAG(dag_id="test_start_date_scheduling", start_date=timezone.utcnow() + timedelta(days=1))
+dag1 = DAG(
+    dag_id="test_start_date_scheduling",
+    start_date=timezone.utcnow() + timedelta(days=1),
+    schedule=timedelta(days=1),
+)
 dag1_task1 = EmptyOperator(task_id="dummy", dag=dag1, owner="airflow")
 
-dag2 = DAG(dag_id="test_task_start_date_scheduling", start_date=DEFAULT_DATE)
+dag2 = DAG(
+    dag_id="test_task_start_date_scheduling",
+    start_date=DEFAULT_DATE,
+    schedule=timedelta(days=1),
+)
 dag2_task1 = EmptyOperator(
     task_id="dummy1", dag=dag2, owner="airflow", start_date=DEFAULT_DATE + timedelta(days=3)
 )

@@ -26,6 +26,71 @@
 Changelog
 ---------
 
+1.12.1
+......
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: OpenLineage dag start event not being emitted (#42448)``
+* ``fix: typo in error stack trace formatting for clearer output (#42017)``
+
+1.12.0
+......
+
+Features
+~~~~~~~~
+
+* ``feat: notify about potential serialization failures when sending DagRun, don't serialize unnecessary params, guard listener for exceptions (#41690)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: cast list to flattened string in openlineage InfoJsonEncodable (#41786)``
+
+Misc
+~~~~
+
+* ``chore: bump OL provider dependencies versions (#42059)``
+* ``move to dag_run.logical_date from execution date in OpenLineage provider (#41889)``
+* ``Unify DAG schedule args and change default to None (#41453)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+1.11.0
+......
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``feat: add debug facet to all OpenLineage events (#41217)``
+* ``feat: add fileloc to DAG info in AirflowRunFacet (#41311)``
+* ``feat: remove openlineage client deprecated from_environment() method (#41310)``
+* ``feat: openlineage listener captures hook-level lineage (#41482)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: get task dependencies without serializing task tree to string (#41494)``
+* ``fix: return empty data instead of None when OpenLineage on_start method is missing (#41268)``
+* ``fix: replace dagTree with downstream_task_ids (#41587)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+* ``chore: remove openlineage deprecation warnings (#41284)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Prepare docs for Aug 2nd wave of providers (#41559)``
+
 1.10.0
 ......
 

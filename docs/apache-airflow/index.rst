@@ -166,7 +166,6 @@ so coding will always be required.
     CLI <cli-and-env-variables-ref>
     Templates <templates-ref>
     Stable REST API <stable-rest-api-ref>
-    deprecated-rest-api-ref
     Configurations <configurations-ref>
     Extra packages <extra-packages-ref>
 

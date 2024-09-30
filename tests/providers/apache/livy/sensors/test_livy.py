@@ -35,7 +35,7 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 class TestLivySensor:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
         db.merge_conn(Connection(conn_id="livyunittest", conn_type="livy", host="http://localhost:8998"))
 
     @pytest.mark.parametrize(

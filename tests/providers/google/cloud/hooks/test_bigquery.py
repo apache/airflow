@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import re
 from datetime import datetime
 from unittest import mock
 from unittest.mock import AsyncMock
@@ -35,7 +34,6 @@ from google.cloud.exceptions import NotFound
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.bigquery import (
     BigQueryAsyncHook,
-    BigQueryCursor,
     BigQueryHook,
     BigQueryTableAsyncHook,
     _api_resource_configs_duplication_check,
@@ -1032,11 +1030,9 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             == result
         )
 
-
-class TestBigQueryTableSplitter:
-    def test_internal_need_default_project(self):
+    def test_split_tablename_internal_need_default_project(self):
         with pytest.raises(ValueError, match="INTERNAL: No default project is specified"):
-            split_tablename("dataset.table", None)
+            self.hook.split_tablename("dataset.table", None)
 
     @pytest.mark.parametrize(
         "project_expected, dataset_expected, table_expected, table_input",
@@ -1050,7 +1046,7 @@ class TestBigQueryTableSplitter:
     )
     def test_split_tablename(self, project_expected, dataset_expected, table_expected, table_input):
         default_project_id = "project"
-        project, dataset, table = split_tablename(table_input, default_project_id)
+        project, dataset, table = self.hook.split_tablename(table_input, default_project_id)
         assert project_expected == project
         assert dataset_expected == dataset
         assert table_expected == table
@@ -1082,9 +1078,65 @@ class TestBigQueryTableSplitter:
             ),
         ],
     )
-    def test_invalid_syntax(self, table_input, var_name, exception_message):
+    def test_split_tablename_invalid_syntax(self, table_input, var_name, exception_message):
         default_project_id = "project"
         with pytest.raises(ValueError, match=exception_message.format(table_input)):
+            self.hook.split_tablename(table_input, default_project_id, var_name)
+
+
+class TestBigQueryTableSplitter:
+    def test_internal_need_default_project(self):
+        with pytest.raises(AirflowProviderDeprecationWarning):
+            split_tablename("dataset.table", None)
+
+    @pytest.mark.parametrize("partition", ["$partition", ""])
+    @pytest.mark.parametrize(
+        "project_expected, dataset_expected, table_expected, table_input",
+        [
+            ("project", "dataset", "table", "dataset.table"),
+            ("alternative", "dataset", "table", "alternative:dataset.table"),
+            ("alternative", "dataset", "table", "alternative.dataset.table"),
+            ("alt1:alt", "dataset", "table", "alt1:alt.dataset.table"),
+            ("alt1:alt", "dataset", "table", "alt1:alt:dataset.table"),
+        ],
+    )
+    def test_split_tablename(
+        self, project_expected, dataset_expected, table_expected, table_input, partition
+    ):
+        default_project_id = "project"
+        with pytest.raises(AirflowProviderDeprecationWarning):
+            split_tablename(table_input + partition, default_project_id)
+
+    @pytest.mark.parametrize(
+        "table_input, var_name, exception_message",
+        [
+            ("alt1:alt2:alt3:dataset.table", None, "Use either : or . to specify project got {}"),
+            (
+                "alt1.alt.dataset.table",
+                None,
+                r"Expect format of \(<project\.\|<project\:\)<dataset>\.<table>, got {}",
+            ),
+            (
+                "alt1:alt2:alt.dataset.table",
+                "var_x",
+                "Format exception for var_x: Use either : or . to specify project got {}",
+            ),
+            (
+                "alt1:alt2:alt:dataset.table",
+                "var_x",
+                "Format exception for var_x: Use either : or . to specify project got {}",
+            ),
+            (
+                "alt1.alt.dataset.table",
+                "var_x",
+                r"Format exception for var_x: Expect format of "
+                r"\(<project\.\|<project:\)<dataset>.<table>, got {}",
+            ),
+        ],
+    )
+    def test_invalid_syntax(self, table_input, var_name, exception_message):
+        default_project_id = "project"
+        with pytest.raises(AirflowProviderDeprecationWarning):
             split_tablename(table_input, default_project_id, var_name)
 
 
@@ -2106,55 +2158,6 @@ class TestBigQueryWithKMS(_BigQueryBaseTestClass):
         assert (
             kwargs["configuration"]["load"]["destinationEncryptionConfiguration"] is encryption_configuration
         )
-
-
-class TestBigQueryBaseCursorMethodsDeprecationWarning:
-    @pytest.mark.parametrize(
-        "func_name",
-        [
-            "create_empty_table",
-            "create_empty_dataset",
-            "get_dataset_tables",
-            "delete_dataset",
-            "create_external_table",
-            "patch_table",
-            "insert_all",
-            "update_dataset",
-            "patch_dataset",
-            "get_dataset_tables_list",
-            "get_datasets_list",
-            "get_dataset",
-            "run_grant_dataset_view_access",
-            "run_table_upsert",
-            "run_table_delete",
-            "get_tabledata",
-            "get_schema",
-            "poll_job_complete",
-            "cancel_query",
-            "run_with_configuration",
-            "run_load",
-            "run_copy",
-            "run_extract",
-            "run_query",
-        ],
-    )
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook")
-    def test_deprecation_warning(self, mock_bq_hook, func_name):
-        args, kwargs = [1], {"param1": "val1"}
-        new_path = re.escape(f"airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.{func_name}")
-        message_pattern = rf"Call to deprecated method {func_name}\.\s+\(Please use `{new_path}`\)"
-        message_regex = re.compile(message_pattern, re.MULTILINE)
-
-        mocked_func = getattr(mock_bq_hook, func_name)
-        bq_cursor = BigQueryCursor(mock.MagicMock(), PROJECT_ID, mock_bq_hook)
-        func = getattr(bq_cursor, func_name)
-
-        with pytest.warns(AirflowProviderDeprecationWarning, match=message_regex):
-            _ = func(*args, **kwargs)
-
-        mocked_func.assert_called_once_with(*args, **kwargs)
-
-        assert re.search(f".*:func:`~{new_path}`.*", func.__doc__)
 
 
 @pytest.mark.db_test

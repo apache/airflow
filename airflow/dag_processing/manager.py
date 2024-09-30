@@ -42,7 +42,7 @@ from tabulate import tabulate
 
 import airflow.models
 from airflow.api_internal.internal_api_call import internal_api_call
-from airflow.callbacks.callback_requests import CallbackRequest, SlaCallbackRequest
+from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
 from airflow.dag_processing.processor import DagFileProcessorProcess
 from airflow.models.dag import DagModel
@@ -53,7 +53,7 @@ from airflow.models.errors import ParseImportError
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.secrets.cache import SecretCache
 from airflow.stats import Stats
-from airflow.traces.tracer import Trace, span
+from airflow.traces.tracer import Trace, add_span
 from airflow.utils import timezone
 from airflow.utils.dates import datetime_to_nano
 from airflow.utils.file import list_py_file_paths, might_contain_dag
@@ -752,40 +752,17 @@ class DagFileProcessorManager(LoggingMixin):
         return callback_queue
 
     def _add_callback_to_queue(self, request: CallbackRequest):
-        # requests are sent by dag processors. SLAs exist per-dag, but can be generated once per SLA-enabled
-        # task in the dag. If treated like other callbacks, SLAs can cause feedback where a SLA arrives,
-        # goes to the front of the queue, gets processed, triggers more SLAs from the same DAG, which go to
-        # the front of the queue, and we never get round to picking stuff off the back of the queue
-        if isinstance(request, SlaCallbackRequest):
-            if request in self._callback_to_execute[request.full_filepath]:
-                self.log.debug("Skipping already queued SlaCallbackRequest")
-                return
-
-            # not already queued, queue the callback
-            # do NOT add the file of this SLA to self._file_path_queue. SLAs can arrive so rapidly that
-            # they keep adding to the file queue and never letting it drain. This in turn prevents us from
-            # ever rescanning the dags folder for changes to existing dags. We simply store the callback, and
-            # periodically, when self._file_path_queue is drained, we rescan and re-queue all DAG files.
-            # The SLAs will be picked up then. It means a delay in reacting to the SLAs (as controlled by the
-            # min_file_process_interval config) but stops SLAs from DoS'ing the queue.
-            self.log.debug("Queuing SlaCallbackRequest for %s", request.dag_id)
-            self._callback_to_execute[request.full_filepath].append(request)
-            Stats.incr("dag_processing.sla_callback_count")
-
-        # Other callbacks have a higher priority over DAG Run scheduling, so those callbacks gazump, even if
-        # already in the file path queue
-        else:
-            self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
-            self._callback_to_execute[request.full_filepath].append(request)
-            if request.full_filepath in self._file_path_queue:
-                # Remove file paths matching request.full_filepath from self._file_path_queue
-                # Since we are already going to use that filepath to run callback,
-                # there is no need to have same file path again in the queue
-                self._file_path_queue = deque(
-                    file_path for file_path in self._file_path_queue if file_path != request.full_filepath
-                )
-            self._add_paths_to_queue([request.full_filepath], True)
-            Stats.incr("dag_processing.other_callback_count")
+        self.log.debug("Queuing %s CallbackRequest: %s", type(request).__name__, request)
+        self._callback_to_execute[request.full_filepath].append(request)
+        if request.full_filepath in self._file_path_queue:
+            # Remove file paths matching request.full_filepath from self._file_path_queue
+            # Since we are already going to use that filepath to run callback,
+            # there is no need to have same file path again in the queue
+            self._file_path_queue = deque(
+                file_path for file_path in self._file_path_queue if file_path != request.full_filepath
+            )
+        self._add_paths_to_queue([request.full_filepath], True)
+        Stats.incr("dag_processing.other_callback_count")
 
     def _refresh_requested_filelocs(self) -> None:
         """Refresh filepaths from dag dir as requested by users via APIs."""
@@ -1135,7 +1112,8 @@ class DagFileProcessorManager(LoggingMixin):
             while not processor.done:
                 time.sleep(0.1)
 
-    def _collect_results_from_processor(self, processor) -> None:
+    @provide_session
+    def _collect_results_from_processor(self, processor, session: Session = NEW_SESSION) -> None:
         self.log.debug("Processor for %s finished", processor.file_path)
         Stats.decr("dag_processing.processes", tags={"file_path": processor.file_path, "action": "finish"})
         last_finish_time = timezone.utcnow()
@@ -1176,6 +1154,19 @@ class DagFileProcessorManager(LoggingMixin):
             span.set_attribute("import_errors", count_import_errors)
             if count_import_errors > 0:
                 span.set_attribute("error", True)
+                import_errors = session.scalars(
+                    select(ParseImportError).where(ParseImportError.filename == processor.file_path)
+                ).all()
+                for import_error in import_errors:
+                    span.add_event(
+                        name="exception",
+                        attributes={
+                            "filename": import_error.filename,
+                            "exception.type": "ParseImportError",
+                            "exception.name": "Import error when processing DAG file",
+                            "exception.stacktrace": import_error.stacktrace,
+                        },
+                    )
 
         span.end(end_time=datetime_to_nano(last_finish_time))
 
@@ -1210,7 +1201,7 @@ class DagFileProcessorManager(LoggingMixin):
             callback_requests=callback_requests,
         )
 
-    @span
+    @add_span
     def start_new_processes(self):
         """Start more processors if we have enough slots and files to process."""
         # initialize cache to mutualize calls to Variable.get in DAGs
@@ -1248,7 +1239,7 @@ class DagFileProcessorManager(LoggingMixin):
 
             Stats.gauge("dag_processing.file_path_queue_size", len(self._file_path_queue))
 
-    @span
+    @add_span
     def add_new_file_path_to_queue(self):
         for file_path in self.file_paths:
             if file_path not in self._file_stats:

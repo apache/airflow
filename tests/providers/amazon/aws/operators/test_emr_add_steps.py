@@ -31,6 +31,7 @@ from airflow.providers.amazon.aws.operators.emr import EmrAddStepsOperator
 from airflow.providers.amazon.aws.triggers.emr import EmrAddStepsTrigger
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -68,7 +69,7 @@ class TestEmrAddStepsOperator:
             job_flow_id="j-8989898989",
             aws_conn_id="aws_default",
             steps=self._config,
-            dag=DAG("test_dag_id", default_args=self.args),
+            dag=DAG("test_dag_id", schedule=None, default_args=self.args),
         )
 
     def test_init(self):
@@ -132,6 +133,7 @@ class TestEmrAddStepsOperator:
     def test_render_template_from_file(self, mocked_hook_client, session, clean_dags_and_dagruns):
         dag = DAG(
             dag_id="test_file",
+            schedule=None,
             default_args=self.args,
             template_searchpath=TEMPLATE_SEARCHPATH,
             template_undefined=StrictUndefined,
@@ -188,7 +190,7 @@ class TestEmrAddStepsOperator:
             job_flow_name="test_cluster",
             cluster_states=["RUNNING", "WAITING"],
             aws_conn_id="aws_default",
-            dag=DAG("test_dag_id", default_args=self.args),
+            dag=DAG("test_dag_id", schedule=None, default_args=self.args),
         )
 
         with patch(
@@ -207,7 +209,7 @@ class TestEmrAddStepsOperator:
             job_flow_name=cluster_name,
             cluster_states=["RUNNING", "WAITING"],
             aws_conn_id="aws_default",
-            dag=DAG("test_dag_id", default_args=self.args),
+            dag=DAG("test_dag_id", schedule=None, default_args=self.args),
         )
 
         with patch(
@@ -223,7 +225,7 @@ class TestEmrAddStepsOperator:
             task_id="test_task",
             job_flow_id=job_flow_id,
             aws_conn_id="aws_default",
-            dag=DAG("test_dag_id", default_args=self.args),
+            dag=DAG("test_dag_id", schedule=None, default_args=self.args),
             wait_for_completion=False,
         )
 
@@ -247,7 +249,7 @@ class TestEmrAddStepsOperator:
             task_id="test_task",
             job_flow_id=job_flow_id,
             aws_conn_id="aws_default",
-            dag=DAG("test_dag_id", default_args=self.args),
+            dag=DAG("test_dag_id", schedule=None, default_args=self.args),
             wait_for_completion=True,
             deferrable=True,
         )
@@ -264,7 +266,7 @@ class TestEmrAddStepsOperator:
             task_id="test_task",
             job_flow_id=job_flow_id,
             aws_conn_id="aws_default",
-            dag=DAG("test_dag_id", default_args=self.args),
+            dag=DAG("test_dag_id", schedule=None, default_args=self.args),
             wait_for_completion=True,
             deferrable=True,
         )
@@ -273,3 +275,12 @@ class TestEmrAddStepsOperator:
             operator.execute(MagicMock())
 
         assert isinstance(exc.value.trigger, EmrAddStepsTrigger), "Trigger is not a EmrAddStepsTrigger"
+
+    def test_template_fields(self):
+        op = EmrAddStepsOperator(
+            task_id="test_task",
+            job_flow_id="j-8989898989",
+            aws_conn_id="aws_default",
+            steps=self._config,
+        )
+        validate_template_fields(op)

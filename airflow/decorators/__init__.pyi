@@ -23,6 +23,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Any, Callable, Collection, Container, Iterable, Mapping, TypeVar, overload
 
+from docker.types import Mount
 from kubernetes.client import models as k8s
 
 from airflow.decorators.base import FParams, FReturn, Task, TaskDecorator, _TaskDecorator
@@ -125,6 +126,7 @@ class TaskDecoratorCollection:
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
         use_dill: bool = False,
+        use_airflow_context: bool = False,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a virtual environment task.
@@ -176,6 +178,7 @@ class TaskDecoratorCollection:
         :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
             the args and result (pickle is default). This allows more complex types
             but requires you to include dill in your requirements.
+        :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
         """
     @overload
     def virtualenv(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
@@ -192,6 +195,7 @@ class TaskDecoratorCollection:
         env_vars: dict[str, str] | None = None,
         inherit_env: bool = True,
         use_dill: bool = False,
+        use_airflow_context: bool = False,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to convert the decorated callable to a virtual environment task.
@@ -225,6 +229,7 @@ class TaskDecoratorCollection:
         :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
             the args and result (pickle is default). This allows more complex types
             but requires you to include dill in your requirements.
+        :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
         """
     @overload
     def branch(  # type: ignore[misc]
@@ -258,6 +263,7 @@ class TaskDecoratorCollection:
         venv_cache_path: None | str = None,
         show_return_value_in_logs: bool = True,
         use_dill: bool = False,
+        use_airflow_context: bool = False,
         **kwargs,
     ) -> TaskDecorator:
         """Create a decorator to wrap the decorated callable into a BranchPythonVirtualenvOperator.
@@ -299,6 +305,7 @@ class TaskDecoratorCollection:
         :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
             the args and result (pickle is default). This allows more complex types
             but requires you to include dill in your requirements.
+        :param use_airflow_context: Whether to provide ``get_current_context()`` to the python_callable.
         """
     @overload
     def branch_virtualenv(self, python_callable: Callable[FParams, FReturn]) -> Task[FParams, FReturn]: ...
@@ -373,8 +380,9 @@ class TaskDecoratorCollection:
         self,
         *,
         multiple_outputs: bool | None = None,
-        use_dill: bool = False,  # Added by _DockerDecoratedOperator.
         python_command: str = "python3",
+        serializer: Literal["pickle", "cloudpickle", "dill"] | None = None,
+        use_dill: bool = False,  # Added by _DockerDecoratedOperator.
         # 'command', 'retrieve_output', and 'retrieve_output_path' are filled by
         # _DockerDecoratedOperator.
         image: str,
@@ -398,7 +406,7 @@ class TaskDecoratorCollection:
         mount_tmp_dir: bool = True,
         tmp_dir: str = "/tmp/airflow",
         user: str | int | None = None,
-        mounts: list[str] | None = None,
+        mounts: list[Mount] | None = None,
         entrypoint: str | list[str] | None = None,
         working_dir: str | None = None,
         xcom_all: bool = False,
@@ -426,8 +434,17 @@ class TaskDecoratorCollection:
 
         :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
             Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
-        :param use_dill: Whether to use dill or pickle for serialization
         :param python_command: Python command for executing functions, Default: python3
+        :param serializer: Which serializer use to serialize the args and result. It can be one of the following:
+
+            - ``"pickle"``: (default) Use pickle for serialization. Included in the Python Standard Library.
+            - ``"cloudpickle"``: Use cloudpickle for serialize more complex types,
+              this requires to include cloudpickle in your requirements.
+            - ``"dill"``: Use dill for serialize more complex types,
+              this requires to include dill in your requirements.
+        :param use_dill: Deprecated, use ``serializer`` instead. Whether to use dill to serialize
+            the args and result (pickle is default). This allows more complex types
+            but requires you to include dill in your requirements.
         :param image: Docker image from which to create the container.
             If image tag is omitted, "latest" will be used.
         :param api_version: Remote API version. Set to ``auto`` to automatically

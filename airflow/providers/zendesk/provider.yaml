@@ -22,9 +22,10 @@ description: |
     `Zendesk <https://www.zendesk.com/>`__
 
 state: ready
-source-date-epoch: 1716289258
+source-date-epoch: 1723970723
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 4.8.0
   - 4.7.1
   - 4.7.0
   - 4.6.0
@@ -46,7 +47,7 @@ versions:
   - 1.0.0
 
 dependencies:
-  - apache-airflow>=2.7.0
+  - apache-airflow>=2.8.0
   - zenpy>=2.0.40
 
 integrations:

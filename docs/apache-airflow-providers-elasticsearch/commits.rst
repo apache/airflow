@@ -35,14 +35,42 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.5.1
+.....
+
+Latest change: 2024-09-04
+
+=================================================================================================  ===========  =================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================================
+`2e813eb87d <https://github.com/apache/airflow/commit/2e813eb87d7793d7bb2a2fbb4e485c896c1dc2c4>`_  2024-09-04   ``Generalize caching of connection in DbApiHook to improve performance (#40751)``
+`b1e4f37505 <https://github.com/apache/airflow/commit/b1e4f375058102b6dc16a4bac7f166dbf4b7713b>`_  2024-09-01   ``Fix ElasticSearch SQLClient deprecation warning (#41871)``
+`79f6383c38 <https://github.com/apache/airflow/commit/79f6383c38d1ed7409684b9475a903bcc77b2e4b>`_  2024-08-21   ``filename template arg in providers file task handlers backward compitability support (#41633)``
+`716c4300a6 <https://github.com/apache/airflow/commit/716c4300a6507609ae64148b9726272fd5071492>`_  2024-08-20   ``Remove deprecated log handler argument filename_template (#41552)``
+=================================================================================================  ===========  =================================================================================================
+
+5.5.0
+.....
+
+Latest change: 2024-08-19
+
+=================================================================================================  ===========  ==============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================
+`75fb7acbac <https://github.com/apache/airflow/commit/75fb7acbaca09a040067f0a5a37637ff44eb9e14>`_  2024-08-19   ``Prepare docs for Aug 2nd wave of providers (#41559)``
+`7622192441 <https://github.com/apache/airflow/commit/7622192441e48c65b2f92779386863782604b9e6>`_  2024-08-17   ``Fix 'ElasticsearchSQLHook' fails with 'AttributeError: __enter__' (#41537)``
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+=================================================================================================  ===========  ==============================================================================
+
 5.4.2
 .....
 
-Latest change: 2024-07-19
+Latest change: 2024-08-03
 
 =================================================================================================  ===========  ============================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ============================================================
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
 `bef82d6ab3 <https://github.com/apache/airflow/commit/bef82d6ab38d627dc1b42981c90b9f8d36852f4c>`_  2024-07-19   ``Clean up remaining getattr connection DbApiHook (#40665)``
 `09a7bd1d58 <https://github.com/apache/airflow/commit/09a7bd1d585d2d306dd30435689f22b614fe0abf>`_  2024-07-09   ``Prepare docs 1st wave July 2024 (#40644)``
 `a62bd83188 <https://github.com/apache/airflow/commit/a62bd831885957c55b073bf309bc59a1d505e8fb>`_  2024-06-27   ``Enable enforcing pydocstyle rule D213 in ruff. (#40448)``

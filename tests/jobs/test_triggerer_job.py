@@ -90,7 +90,7 @@ def session():
 
 def create_trigger_in_db(session, trigger, operator=None):
     dag_model = DagModel(dag_id="test_dag")
-    dag = DAG(dag_id=dag_model.dag_id, start_date=pendulum.datetime(2023, 1, 1))
+    dag = DAG(dag_id=dag_model.dag_id, schedule="@daily", start_date=pendulum.datetime(2023, 1, 1))
     run = DagRun(
         dag_id=dag_model.dag_id,
         run_id="test_run",
@@ -103,7 +103,7 @@ def create_trigger_in_db(session, trigger, operator=None):
         operator.dag = dag
     else:
         operator = BaseOperator(task_id="test_ti", dag=dag)
-    task_instance = TaskInstance(operator, execution_date=run.execution_date, run_id=run.run_id)
+    task_instance = TaskInstance(operator, run_id=run.run_id)
     task_instance.trigger_id = trigger_orm.id
     session.add(dag_model)
     session.add(run)

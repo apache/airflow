@@ -50,7 +50,7 @@ POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodMana
 
 
 def create_context(task) -> Context:
-    dag = DAG(dag_id="dag")
+    dag = DAG(dag_id="dag", schedule=None)
     execution_date = timezone.datetime(
         2016, 1, 1, 1, 0, 0, tzinfo=timezone.parse_timezone("Europe/Amsterdam")
     )

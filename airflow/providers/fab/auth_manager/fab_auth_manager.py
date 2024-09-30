@@ -22,11 +22,14 @@ from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Container
 
+import packaging.version
 from connexion import FlaskApi
 from flask import Blueprint, url_for
+from packaging.version import Version
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
+from airflow import __version__ as airflow_version
 from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
 from airflow.auth.managers.models.resource_details import (
     AccessView,
@@ -47,6 +50,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.models import DagModel
 from airflow.providers.fab.auth_manager.cli_commands.definition import (
+    DB_COMMANDS,
     ROLES_COMMANDS,
     SYNC_PERM_COMMAND,
     USERS_COMMANDS,
@@ -81,6 +85,7 @@ from airflow.security.permissions import (
 )
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.yaml import safe_load
+from airflow.version import version
 from airflow.www.constants import SWAGGER_BUNDLE, SWAGGER_ENABLED
 from airflow.www.extensions.init_views import _CustomErrorRequestBodyValidator, _LazyResolver
 
@@ -132,7 +137,7 @@ class FabAuthManager(BaseAuthManager):
     @staticmethod
     def get_cli_commands() -> list[CLICommand]:
         """Vends CLI commands to be included in Airflow CLI."""
-        return [
+        commands: list[CLICommand] = [
             GroupCommand(
                 name="users",
                 help="Manage users",
@@ -145,6 +150,12 @@ class FabAuthManager(BaseAuthManager):
             ),
             SYNC_PERM_COMMAND,  # not in a command group
         ]
+        # If Airflow version is 3.0.0 or higher, add the fab-db command group
+        if packaging.version.parse(
+            packaging.version.parse(airflow_version).base_version
+        ) >= packaging.version.parse("3.0.0"):
+            commands.append(GroupCommand(name="fab-db", help="Manage FAB", subcommands=DB_COMMANDS))
+        return commands
 
     def get_api_endpoints(self) -> None | Blueprint:
         folder = Path(__file__).parents[0].resolve()  # this is airflow/auth/managers/fab/
@@ -179,7 +190,13 @@ class FabAuthManager(BaseAuthManager):
 
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
-        return not self.get_user().is_anonymous
+        user = self.get_user()
+        if Version(Version(version).base_version) < Version("3.0.0"):
+            return not user.is_anonymous and user.is_active
+        else:
+            return self.appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None) or (
+                not user.is_anonymous and user.is_active
+            )
 
     def is_authorized_configuration(
         self,
@@ -325,10 +342,7 @@ class FabAuthManager(BaseAuthManager):
                         resources.add(resource[len(permissions.RESOURCE_DAG_PREFIX) :])
                     else:
                         resources.add(resource)
-        return {
-            dag.dag_id
-            for dag in session.execute(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources)))
-        }
+        return set(session.scalars(select(DagModel.dag_id).where(DagModel.dag_id.in_(resources))))
 
     @cached_property
     def security_manager(self) -> FabAirflowSecurityManagerOverride:
@@ -364,9 +378,14 @@ class FabAuthManager(BaseAuthManager):
 
     def get_url_user_profile(self) -> str | None:
         """Return the url to a page displaying info about the current user."""
-        if not self.security_manager.user_view:
+        if not self.security_manager.user_view or self.appbuilder.get_app.config.get(
+            "AUTH_ROLE_PUBLIC", None
+        ):
             return None
         return url_for(f"{self.security_manager.user_view.endpoint}.userinfo")
+
+    def register_views(self) -> None:
+        self.security_manager.register_views()
 
     def _is_authorized(
         self,
@@ -503,7 +522,7 @@ class FabAuthManager(BaseAuthManager):
 
         :meta private:
         """
-        if "." in dag_id:
+        if "." in dag_id and hasattr(DagModel, "root_dag_id"):
             return self.appbuilder.get_session.scalar(
                 select(DagModel.dag_id, DagModel.root_dag_id).where(DagModel.dag_id == dag_id).limit(1)
             )
@@ -519,9 +538,11 @@ class FabAuthManager(BaseAuthManager):
         # Otherwise, when the name of a view or menu is changed, the framework
         # will add the new Views and Menus names to the backend, but will not
         # delete the old ones.
-        if conf.getboolean(
-            "fab", "UPDATE_FAB_PERMS", fallback=conf.getboolean("webserver", "UPDATE_FAB_PERMS")
-        ):
+        if Version(Version(version).base_version) >= Version("3.0.0"):
+            fallback = None
+        else:
+            fallback = conf.getboolean("webserver", "UPDATE_FAB_PERMS")
+        if conf.getboolean("fab", "UPDATE_FAB_PERMS", fallback=fallback):
             self.security_manager.sync_roles()
 
 

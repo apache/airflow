@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import re
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -48,24 +47,26 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         For more detail about Spark Application Object have a look at the reference:
         https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/v1beta2-1.3.3-3.1.1/docs/api-docs.md#sparkapplication
 
-    :param application_file: filepath to kubernetes custom_resource_definition of sparkApplication
-    :param kubernetes_conn_id: the connection to Kubernetes cluster
     :param image: Docker image you wish to launch. Defaults to hub.docker.com,
     :param code_path: path to the spark code in image,
     :param namespace: kubernetes namespace to put sparkApplication
-    :param cluster_context: context of the cluster
-    :param application_file: yaml file if passed
+    :param name: name of the pod in which the task will run, will be used (plus a random
+        suffix if random_name_suffix is True) to generate a pod id (DNS-1123 subdomain,
+        containing only [a-z0-9.-]).
+    :param application_file: filepath to kubernetes custom_resource_definition of sparkApplication
+    :param template_spec: kubernetes sparkApplication specification
     :param get_logs: get the stdout of the container as logs of the tasks.
     :param do_xcom_push: If True, the content of the file
         /airflow/xcom/return.json in the container will also be pushed to an
         XCom when the container completes.
     :param success_run_history_limit: Number of past successful runs of the application to keep.
-    :param delete_on_termination: What to do when the pod reaches its final
-        state, or the execution is interrupted. If True (default), delete the
-        pod; if False, leave the pod.
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
     :param log_events_on_failure: Log the pod's events if a failure occurs
     :param reattach_on_restart: if the scheduler dies while the pod is running, reattach and monitor
+    :param delete_on_termination: What to do when the pod reaches its final
+        state, or the execution is interrupted. If True (default), delete the
+        pod; if False, leave the pod.
+    :param kubernetes_conn_id: the connection to Kubernetes cluster
     """
 
     template_fields = ["application_file", "namespace", "template_spec"]
@@ -81,7 +82,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         image: str | None = None,
         code_path: str | None = None,
         namespace: str = "default",
-        name: str = "default",
+        name: str | None = None,
         application_file: str | None = None,
         template_spec=None,
         get_logs: bool = True,
@@ -101,7 +102,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         self.code_path = code_path
         self.application_file = application_file
         self.template_spec = template_spec
-        self.name = self.create_job_name()
         self.kubernetes_conn_id = kubernetes_conn_id
         self.startup_timeout_seconds = startup_timeout_seconds
         self.reattach_on_restart = reattach_on_restart
@@ -159,8 +159,13 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return template_body
 
     def create_job_name(self):
-        initial_name = add_unique_suffix(name=self.task_id, max_len=MAX_LABEL_LEN)
-        return re.sub(r"[^a-z0-9-]+", "-", initial_name.lower())
+        name = (
+            self.name or self.template_body.get("spark", {}).get("metadata", {}).get("name") or self.task_id
+        )
+
+        updated_name = add_unique_suffix(name=name, max_len=MAX_LABEL_LEN)
+
+        return self._set_name(updated_name)
 
     @staticmethod
     def _get_pod_identifying_label_string(labels) -> str:
@@ -200,7 +205,8 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             labels.update(try_number=ti.try_number)
 
         # In the case of sub dags this is just useful
-        if context["dag"].is_subdag:
+        # TODO: Remove this when the minimum version of Airflow is bumped to 3.0
+        if getattr(context["dag"], "is_subdag", False):
             labels["parent_dag_id"] = context["dag"].parent_dag.dag_id
         # Ensure that label is valid for Kube,
         # and if not truncate/remove invalid chars and replace with short hash.
@@ -279,6 +285,8 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return CustomObjectsApi()
 
     def execute(self, context: Context):
+        self.name = self.create_job_name()
+
         self.log.info("Creating sparkApplication.")
         self.launcher = CustomObjectLauncher(
             name=self.name,

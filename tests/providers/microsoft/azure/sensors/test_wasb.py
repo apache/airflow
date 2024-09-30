@@ -24,7 +24,7 @@ from unittest import mock
 import pendulum
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException, TaskDeferred
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.models.dagrun import DagRun
@@ -52,7 +52,7 @@ class TestWasbBlobSensor:
 
     def setup_method(self):
         args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     def test_init(self):
         sensor = WasbBlobSensor(task_id="wasb_sensor_1", dag=self.dag, **self._config)
@@ -95,7 +95,7 @@ class TestWasbBlobAsyncSensor:
 
     def create_context(self, task, dag=None):
         if dag is None:
-            dag = DAG(dag_id="dag")
+            dag = DAG(dag_id="dag", schedule=None)
         tzinfo = pendulum.timezone("UTC")
         execution_date = timezone.datetime(2022, 1, 1, 1, 0, 0, tzinfo=tzinfo)
         dag_run = DagRun(
@@ -160,14 +160,10 @@ class TestWasbBlobAsyncSensor:
                 self.SENSOR.execute_complete(context={}, event=event)
             mock_log_info.assert_called_with(event["message"])
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
-    def test_wasb_blob_sensor_execute_complete_failure(self, soft_fail, expected_exception):
+    def test_wasb_blob_sensor_execute_complete_failure(self):
         """Assert execute_complete method raises an exception when the triggerer fires an error event."""
 
-        self.SENSOR.soft_fail = soft_fail
-        with pytest.raises(expected_exception):
+        with pytest.raises(AirflowException):
             self.SENSOR.execute_complete(context={}, event={"status": "error", "message": ""})
 
 
@@ -181,7 +177,7 @@ class TestWasbPrefixSensor:
 
     def setup_method(self):
         args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     def test_init(self):
         sensor = WasbPrefixSensor(task_id="wasb_sensor_1", dag=self.dag, **self._config)
@@ -224,7 +220,7 @@ class TestWasbPrefixAsyncSensor:
 
     def create_context(self, task, dag=None):
         if dag is None:
-            dag = DAG(dag_id="dag")
+            dag = DAG(dag_id="dag", schedule=None)
         tzinfo = pendulum.timezone("UTC")
         execution_date = timezone.datetime(2022, 1, 1, 1, 0, 0, tzinfo=tzinfo)
         dag_run = DagRun(
@@ -289,12 +285,8 @@ class TestWasbPrefixAsyncSensor:
                 self.SENSOR.execute_complete(context={}, event=event)
             mock_log_info.assert_called_with(event["message"])
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
-    def test_wasb_prefix_sensor_execute_complete_failure(self, soft_fail, expected_exception):
+    def test_wasb_prefix_sensor_execute_complete_failure(self):
         """Assert execute_complete method raises an exception when the triggerer fires an error event."""
 
-        self.SENSOR.soft_fail = soft_fail
         with pytest.raises(AirflowException):
             self.SENSOR.execute_complete(context={}, event={"status": "error", "message": ""})

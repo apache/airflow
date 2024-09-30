@@ -37,7 +37,7 @@ class TestLocalFilesystemToWasbOperator:
 
     def setup_method(self):
         args = {"owner": "airflow", "start_date": datetime.datetime(2017, 1, 1)}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     def test_init(self):
         operator = LocalFilesystemToWasbOperator(task_id="wasb_operator_1", dag=self.dag, **self._config)

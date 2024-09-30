@@ -296,7 +296,7 @@ class TestAzureDataFactoryRunPipelineOperatorWithDeferrable:
 
     def create_context(self, task, dag=None):
         if dag is None:
-            dag = DAG(dag_id="dag")
+            dag = DAG(dag_id="dag", schedule=None)
         tzinfo = pendulum.timezone("UTC")
         execution_date = timezone.datetime(2022, 1, 1, 1, 0, 0, tzinfo=tzinfo)
         dag_run = DagRun(

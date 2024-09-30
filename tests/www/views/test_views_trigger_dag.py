@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import json
+from decimal import Decimal
 from urllib.parse import quote
 
 import pytest
@@ -28,17 +29,18 @@ from airflow.models.param import Param
 from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
+from airflow.utils.json import WebEncoder
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import create_test_client
 from tests.test_utils.config import conf_vars
-from tests.test_utils.www import check_content_in_response, check_content_not_in_response
+from tests.test_utils.www import check_content_in_response
 
 pytestmark = pytest.mark.db_test
 
 
 @pytest.fixture(autouse=True)
-def initialize_one_dag():
+def _initialize_one_dag():
     with create_session() as session:
         DagBag().get_dag("example_bash_operator").sync_to_db(session=session)
     yield
@@ -90,6 +92,32 @@ def test_trigger_dag_conf(admin_client):
     assert DagRunType.MANUAL in run.run_id
     assert run.run_type == DagRunType.MANUAL
     assert run.conf == conf_dict
+
+
+def test_trigger_dag_conf_serializable_fields(admin_client):
+    test_dag_id = "example_bash_operator"
+    time_now = timezone.utcnow()
+    conf_dict = {
+        "string": "Hello, World!",
+        "date_str": "2024-08-08T09:57:35.300858",
+        "datetime": time_now,
+        "decimal": Decimal(10.465),
+    }
+    expected_conf = {
+        "string": "Hello, World!",
+        "date_str": "2024-08-08T09:57:35.300858",
+        "datetime": time_now.isoformat(),
+        "decimal": 10.465,
+    }
+
+    admin_client.post(f"dags/{test_dag_id}/trigger", data={"conf": json.dumps(conf_dict, cls=WebEncoder)})
+
+    with create_session() as session:
+        run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
+    assert run is not None
+    assert DagRunType.MANUAL in run.run_id
+    assert run.run_type == DagRunType.MANUAL
+    assert run.conf == expected_conf
 
 
 def test_trigger_dag_conf_malformed(admin_client):
@@ -243,55 +271,6 @@ def test_trigger_dag_params_render(admin_client, dag_maker, session, app, monkey
         f'<textarea style="display: none;" id="json_start" name="json_start">{expected_dag_conf}</textarea>',
         resp,
     )
-
-
-@pytest.mark.parametrize("allow_html", [False, True])
-def test_trigger_dag_html_allow(admin_client, dag_maker, session, app, monkeypatch, allow_html):
-    """
-    Test that HTML is escaped per default in description.
-    """
-    from markupsafe import escape
-
-    DAG_ID = "params_dag"
-    HTML_DESCRIPTION1 = "HTML <code>raw code</code>."
-    HTML_DESCRIPTION2 = "HTML <code>in md text</code>."
-    expect_escape = not allow_html
-    with conf_vars({("webserver", "allow_raw_html_descriptions"): str(allow_html)}):
-        param1 = Param(
-            42,
-            description_html=HTML_DESCRIPTION1,
-            type="integer",
-            minimum=1,
-            maximum=100,
-        )
-        param2 = Param(
-            42,
-            description_md=HTML_DESCRIPTION2,
-            type="integer",
-            minimum=1,
-            maximum=100,
-        )
-        with monkeypatch.context() as m:
-            with dag_maker(
-                dag_id=DAG_ID, serialized=True, session=session, params={"param1": param1, "param2": param2}
-            ):
-                EmptyOperator(task_id="task1")
-
-            m.setattr(app, "dag_bag", dag_maker.dagbag)
-            resp = admin_client.get(f"dags/{DAG_ID}/trigger")
-
-        if expect_escape:
-            check_content_in_response(escape(HTML_DESCRIPTION1), resp)
-            check_content_in_response(escape(HTML_DESCRIPTION2), resp)
-            check_content_in_response(
-                "At least one field in the trigger form uses a raw HTML form definition.", resp
-            )
-        else:
-            check_content_in_response(HTML_DESCRIPTION1, resp)
-            check_content_in_response(HTML_DESCRIPTION2, resp)
-            check_content_not_in_response(
-                "At least one field in the trigger form uses a raw HTML form definition.", resp
-            )
 
 
 def test_trigger_endpoint_uses_existing_dagbag(admin_client):

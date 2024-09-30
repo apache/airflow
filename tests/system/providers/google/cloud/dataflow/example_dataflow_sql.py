@@ -57,6 +57,7 @@ INSERT_ROWS_QUERY = (
 with DAG(
     dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
+    schedule=None,
     catchup=False,
     tags=["example", "dataflow-sql"],
 ) as dag:

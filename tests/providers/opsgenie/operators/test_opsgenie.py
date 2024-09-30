@@ -79,7 +79,7 @@ class TestOpsgenieCreateAlertOperator:
 
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     def test_build_opsgenie_payload(self):
         # Given / When
@@ -120,7 +120,7 @@ class TestOpsgenieCloseAlertOperator:
 
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     def test_build_opsgenie_payload(self):
         # Given / When
@@ -147,7 +147,7 @@ class TestOpsgenieCloseAlertOperator:
 class TestOpsgenieDeleteAlertOperator:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
 
     @mock.patch("airflow.providers.opsgenie.operators.opsgenie.OpsgenieAlertHook")
     def test_operator(self, mock_opsgenie_hook):

@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 import pymongo
 import pytest
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowConfigException, AirflowProviderDeprecationWarning
 from airflow.models import Connection
 from airflow.providers.mongo.hooks.mongo import MongoHook
 from tests.test_utils.compat import connection_as_json
@@ -49,6 +49,14 @@ def mongo_connections():
         Connection(conn_id="mongo_default", conn_type="mongo", host="mongo", port=27017),
         Connection(
             conn_id="mongo_default_with_srv",
+            conn_type="mongo",
+            host="mongo",
+            extra='{"srv": true}',
+        ),
+        Connection(conn_id="mongo_invalid_conn_type", conn_type="mongodb", host="mongo", port=27017),
+        Connection(conn_id="mongo_invalid_conn_type_srv", conn_type="mongodb+srv", host="mongo", port=27017),
+        Connection(
+            conn_id="mongo_invalid_srv_with_port",
             conn_type="mongo",
             host="mongo",
             port=27017,
@@ -108,6 +116,24 @@ class TestMongoHook:
     def test_srv(self):
         hook = MongoHook(mongo_conn_id="mongo_default_with_srv")
         assert hook.uri.startswith("mongodb+srv://")
+
+    def test_invalid_conn_type(self):
+        with pytest.raises(
+            AirflowConfigException,
+            match="conn_type 'mongodb' not allowed for MongoHook; conn_type must be 'mongo'",
+        ):
+            MongoHook(mongo_conn_id="mongo_invalid_conn_type")
+
+    def test_invalid_conn_type_srv(self):
+        with pytest.raises(
+            AirflowConfigException,
+            match="Mongo SRV connections should have the conn_type 'mongo' and set 'use_srv=true' in extras",
+        ):
+            MongoHook(mongo_conn_id="mongo_invalid_conn_type_srv")
+
+    def test_invalid_srv_with_port(self):
+        with pytest.raises(AirflowConfigException, match="srv URI should not specify a port"):
+            MongoHook(mongo_conn_id="mongo_invalid_srv_with_port")
 
     def test_insert_one(self):
         collection = mongomock.MongoClient().db.collection

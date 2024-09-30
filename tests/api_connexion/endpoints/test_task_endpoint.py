@@ -70,11 +70,11 @@ class TestTaskEndpoint:
 
     @pytest.fixture(scope="class")
     def setup_dag(self, configured_app):
-        with DAG(self.dag_id, start_date=self.task1_start_date, doc_md="details") as dag:
+        with DAG(self.dag_id, schedule=None, start_date=self.task1_start_date, doc_md="details") as dag:
             task1 = EmptyOperator(task_id=self.task_id, params={"foo": "bar"})
             task2 = EmptyOperator(task_id=self.task_id2, start_date=self.task2_start_date)
 
-        with DAG(self.mapped_dag_id, start_date=self.task1_start_date) as mapped_dag:
+        with DAG(self.mapped_dag_id, schedule=None, start_date=self.task1_start_date) as mapped_dag:
             EmptyOperator(task_id=self.task_id3)
             # Use the private _expand() method to avoid the empty kwargs check.
             # We don't care about how the operator runs here, only its presence.

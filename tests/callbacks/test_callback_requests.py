@@ -23,7 +23,6 @@ import pytest
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
-    SlaCallbackRequest,
     TaskCallbackRequest,
 )
 from airflow.models.dag import DAG
@@ -55,21 +54,16 @@ class TestCallbackRequest:
                 ),
                 DagCallbackRequest,
             ),
-            (
-                SlaCallbackRequest(
-                    full_filepath="filepath",
-                    dag_id="fake_dag",
-                    processor_subdir="/test_dir",
-                ),
-                SlaCallbackRequest,
-            ),
         ],
     )
     def test_from_json(self, input, request_class):
         if input is None:
             ti = TaskInstance(
                 task=BashOperator(
-                    task_id="test", bash_command="true", dag=DAG(dag_id="id"), start_date=datetime.now()
+                    task_id="test",
+                    bash_command="true",
+                    start_date=datetime.now(),
+                    dag=DAG(dag_id="id", schedule=None),
                 ),
                 run_id="fake_run",
                 state=State.RUNNING,

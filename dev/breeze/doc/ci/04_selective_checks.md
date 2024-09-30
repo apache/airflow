@@ -27,7 +27,7 @@
   - [Skipping pre-commits (Static checks)](#skipping-pre-commits-static-checks)
   - [Suspended providers](#suspended-providers)
   - [Selective check outputs](#selective-check-outputs)
-  - [Committer vs. non-committer PRs](#committer-vs-non-committer-prs)
+  - [Committer vs. Non-committer PRs](#committer-vs-non-committer-prs)
   - [Changing behaviours of the CI runs by setting labels](#changing-behaviours-of-the-ci-runs-by-setting-labels)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
@@ -59,6 +59,7 @@ We have the following Groups of files for CI that determine which tests are run:
   provider and `hatch_build.py` for all regular dependencies.
 * `DOC files` - change in those files indicate that we should run documentation builds (both airflow sources
   and airflow documentation)
+* `UI files` - those are files for the new full React UI (useful to determine if UI tests should run)
 * `WWW files` - those are files for the WWW part of our UI (useful to determine if UI tests should run)
 * `System test files` - those are the files that are part of system tests (system tests are not automatically
   run in our CI, but Airflow stakeholders are running the tests and expose dashboards for them at
@@ -143,6 +144,7 @@ when some files are not changed. Those are the rules implemented:
   * if no `All Airflow Python files` changed - `mypy-airflow` check is skipped
   * if no `All Docs Python files` changed - `mypy-docs` check is skipped
   * if no `All Dev Python files` changed - `mypy-dev` check is skipped
+  * if no `UI files` changed - `ts-compile-format-lint-ui` check is skipped
   * if no `WWW files` changed - `ts-compile-format-lint-www` check is skipped
   * if no `All Python files` changed - `flynt` check is skipped
   * if no `Helm files` changed - `lint-helm-chart` check is skipped
@@ -222,6 +224,7 @@ Github Actions to pass the list of parameters to a command to execute
 | run-amazon-tests                       | Whether Amazon tests should be run ("true"/"false")                                                  | true                                      |                |
 | run-kubernetes-tests                   | Whether Kubernetes tests should be run ("true"/"false")                                              | true                                      |                |
 | run-tests                              | Whether unit tests should be run ("true"/"false")                                                    | true                                      |                |
+| run-ui-tests                           | Whether WWW tests should be run ("true"/"false")                                                     | true                                      |                |
 | run-www-tests                          | Whether WWW tests should be run ("true"/"false")                                                     | true                                      |                |
 | runs-on-as-json-default                | List of labels assigned for runners for that build for default runs for that build (as string)       | ["ubuntu-22.04"]                          |                |
 | runs-on-as-json-self-hosted            | List of labels assigned for runners for that build for self hosted runners                           | ["self-hosted", "Linux", "X64"]           |                |
@@ -250,23 +253,25 @@ That's why we do not base our `full tests needed` decision on changes in depende
 from the `provider.yaml` files, but on `generated/provider_dependencies.json` and `pyproject.toml` files being
 modified. This can be overridden by setting `full tests needed` label in the PR.
 
-## Committer vs. non-committer PRs
+## Committer vs. Non-committer PRs
 
 There is a difference in how the CI jobs are run for committer and non-committer PRs from forks.
-Main reason is security - we do not want to run untrusted code on our infrastructure for self-hosted runners,
-but also we do not want to run unverified code during the `Build imaage` workflow, because that workflow has
-access to GITHUB_TOKEN that has access to write to the Github Registry of ours (which is used to cache
-images between runs). Also those images are build on self-hosted runners and we have to make sure that
-those runners are not used to (fore example) mine cryptocurrencies on behalf of the person who opened the
-pull request from their newly opened fork of airflow.
+The main reason is security; we do not want to run untrusted code on our infrastructure for self-hosted runners.
+Additionally, we do not want to run unverified code during the `Build imaage` workflow, as that workflow has
+access to the `GITHUB_TOKEN`, which can write to our Github Registry (used to cache
+images between runs). These images are built on self-hosted runners, and we must ensure that
+those runners are not misused, such as for mining cryptocurrencies on behalf of the person who opened the
+pull request from their newly created fork of Airflow.
 
-This is why the `Build Images` workflow checks if the actor of the PR (GITHUB_ACTOR) is one of the committers,
-and if not, then workflows and scripts used to run image building are coming  only from the ``target`` branch
-of the repository, where such scripts were reviewed and approved by the committers before being merged.
+This is why the `Build Images` workflow checks whether the actor of the PR (`GITHUB_ACTOR`) is one of the committers.
+If not, the workflows and scripts used to run image building come only from the ``target`` branch
+of the repository, where these scripts have been reviewed and approved by committers before being merged. This is controlled by the selective checks that set `is-committer-build` to `true` in
+the build-info job of the workflow to determine if the actor is in the committers'
+list. This setting can be overridden by the `non-committer build` label in the PR.
 
-This is controlled by `Selective checks <04_selective_checks.md>`__ that set appropriate output in
-the build-info job of the workflow (see`is-committer-build` to `true`) if the actor is in the committer's
-list and can be overridden by `non committer build` label in the PR.
+Also, for most of the jobs, committer builds use "Self-hosted" runners by default, while non-committer
+builds use "Public" runners. For committers, this can be overridden by setting the
+`use public runners` label in the PR.
 
 ## Changing behaviours of the CI runs by setting labels
 

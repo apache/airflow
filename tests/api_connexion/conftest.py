@@ -28,7 +28,7 @@ def minimal_app_for_api():
     @dont_initialize_flask_app_submodules(
         skip_all_except=[
             "init_appbuilder",
-            "init_api_experimental_auth",
+            "init_api_auth",
             "init_api_connexion",
             "init_api_error_handlers",
             "init_airflow_session_interface",
@@ -58,14 +58,3 @@ def dagbag():
 
     DagBag(include_examples=True, read_dags_from_db=False).sync_to_db()
     return DagBag(include_examples=True, read_dags_from_db=True)
-
-
-@pytest.fixture
-def set_auto_role_public(request):
-    app = request.getfixturevalue("minimal_app_for_api")
-    auto_role_public = app.config["AUTH_ROLE_PUBLIC"]
-    app.config["AUTH_ROLE_PUBLIC"] = request.param
-
-    yield
-
-    app.config["AUTH_ROLE_PUBLIC"] = auto_role_public

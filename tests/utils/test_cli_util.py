@@ -83,11 +83,8 @@ class TestCliUtil:
         assert os.path.join(settings.DAGS_FOLDER, "abc") == cli.process_subdir("DAGS_FOLDER/abc")
 
     def test_get_dags(self):
-        dags = cli.get_dags(None, "example_subdag_operator")
+        dags = cli.get_dags(None, "example_bash_operator")
         assert len(dags) == 1
-
-        dags = cli.get_dags(None, "subdag", True)
-        assert len(dags) > 1
 
         with pytest.raises(AirflowException):
             cli.get_dags(None, "foobar", True)

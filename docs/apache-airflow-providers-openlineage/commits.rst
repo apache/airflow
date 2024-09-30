@@ -35,14 +35,64 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+1.12.1
+......
+
+Latest change: 2024-09-26
+
+=================================================================================================  ===========  ========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================
+`84e8cdf674 <https://github.com/apache/airflow/commit/84e8cdf67475c4b2eeadde99cb11eb02459cc9f5>`_  2024-09-26   ``fix: OL dag start event not being emitted (#42448)``
+`ffff0e8b33 <https://github.com/apache/airflow/commit/ffff0e8b338855b44d89981f89109f50dbd0d279>`_  2024-09-23   ``Fix typo in error stack trace formatting for clearer output (#42017)``
+=================================================================================================  ===========  ========================================================================
+
+1.12.0
+......
+
+Latest change: 2024-09-21
+
+=================================================================================================  ===========  =======================================================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================================================================================================
+`7628d47d04 <https://github.com/apache/airflow/commit/7628d47d0481966d9a9b25dfd4870b7a6797ebbf>`_  2024-09-21   ``Prepare docs for Sep 1st wave of providers (#42387)``
+`e05c0358af <https://github.com/apache/airflow/commit/e05c0358af23cd4ff8db755b6d02d081998b409a>`_  2024-09-10   ``chore: bump OL provider dependencies versions (#42059)``
+`aa23bfdbc7 <https://github.com/apache/airflow/commit/aa23bfdbc735645b2cdeda4bb1360b60ae60e6e1>`_  2024-09-02   ``feat: notify about potential serialization failures when sending DagRun, don't serialize unnecessary params, guard listener for exceptions (#41690)``
+`8640f3e397 <https://github.com/apache/airflow/commit/8640f3e397ae23d7b6db8e020e82277de32e83e6>`_  2024-09-02   ``move to dag_run.logical_date from execution date in OpenLineage provider (#41889)``
+`00db98b5fe <https://github.com/apache/airflow/commit/00db98b5fea9c6341972d07b9644ac7e563789c1>`_  2024-09-02   ``fix: cast list to flattened string in openlineage InfoJsonEncodable (#41786)``
+`e8a5996891 <https://github.com/apache/airflow/commit/e8a59968918e84a6221cd72cb3a8c6ddb563840c>`_  2024-08-26   ``Unify DAG schedule args and change default to None (#41453)``
+=================================================================================================  ===========  =======================================================================================================================================================
+
+1.11.0
+......
+
+Latest change: 2024-08-25
+
+=================================================================================================  ===========  ===============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================================================
+`2f952909f5 <https://github.com/apache/airflow/commit/2f952909f5028e416c951084727bd71ff8f22b72>`_  2024-08-25   ``Prepare docs for Aug 3rd wave of providers (#41714)``
+`4b42691021 <https://github.com/apache/airflow/commit/4b42691021df8cb9ff6bd7a5e1ce447d17c0d660>`_  2024-08-23   ``feat: openlineage listener captures hook-level lineage (#41482)``
+`86e12a9a30 <https://github.com/apache/airflow/commit/86e12a9a307c3e5ac5d0294ee1a5c973f080ad53>`_  2024-08-21   ``fix: replace dagTree with downstream_task_ids (#41587)``
+`75fb7acbac <https://github.com/apache/airflow/commit/75fb7acbaca09a040067f0a5a37637ff44eb9e14>`_  2024-08-19   ``Prepare docs for Aug 2nd wave of providers (#41559)``
+`0e7c757a1b <https://github.com/apache/airflow/commit/0e7c757a1b2432bcf32ba7c9b8d1a0f82d33487e>`_  2024-08-15   ``fix: get task dependencies without serializing task tree to string (#41494)``
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+`d12eb43960 <https://github.com/apache/airflow/commit/d12eb439603f896f22e4cd6f4e5daef22ae86254>`_  2024-08-12   ``feat: add debug facet to all OpenLineage events (#41217)``
+`ec0e9f28ea <https://github.com/apache/airflow/commit/ec0e9f28eafe7484887b21ded0c7a78bfc590ce0>`_  2024-08-08   ``feat: add fileloc to DAG info in AirflowRunFacet (#41311)``
+`c3286e8b54 <https://github.com/apache/airflow/commit/c3286e8b5422de97c0d6a040966ee0eef752e557>`_  2024-08-08   ``feat: remove openlineage client deprecated from_environment() method (#41310)``
+`d9f7febe33 <https://github.com/apache/airflow/commit/d9f7febe3357c83e3eecc8b2c14dec117c6915d8>`_  2024-08-08   ``chore: remove openlineage deprecation warnings (#41284)``
+`a7353d200e <https://github.com/apache/airflow/commit/a7353d200e2800102cf1834a9fce5aa8cde35093>`_  2024-08-05   ``fix: return empty data instead of None when OpenLineage on_start method is missing (#41268)``
+=================================================================================================  ===========  ===============================================================================================
+
 1.10.0
 ......
 
-Latest change: 2024-08-02
+Latest change: 2024-08-03
 
 =================================================================================================  ===========  ===================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================================================
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
 `4d27069d9c <https://github.com/apache/airflow/commit/4d27069d9ceedfb45f74e5d9b05bd643174b7197>`_  2024-08-02   ``Adjust default extractor's on_failure detection for airflow 2.10 fix (#41094)``
 `4ab0183cfa <https://github.com/apache/airflow/commit/4ab0183cfad9a4afc8543970b8910da0ef1f3b19>`_  2024-07-28   ``Add AirflowRun on COMPLETE/FAIL events (#40996)``
 `10f250347d <https://github.com/apache/airflow/commit/10f250347d17e8f1362e8fffc3dddce655a11cf7>`_  2024-07-24   ``openlineage: make value of slots in attrs.define consistent across all OL usages (#40992)``

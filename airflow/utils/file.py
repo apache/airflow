@@ -30,7 +30,6 @@ import re2
 from pathspec.patterns import GitWildMatchPattern
 
 from airflow.configuration import conf
-from airflow.exceptions import RemovedInAirflow3Warning
 
 log = logging.getLogger(__name__)
 
@@ -119,39 +118,6 @@ class _GlobIgnoreRule(NamedTuple):
             if rule.include is not None and rule.pattern.match(rel_path) is not None:
                 matched = rule.include
         return matched
-
-
-def TemporaryDirectory(*args, **kwargs):
-    """Use `tempfile.TemporaryDirectory`, this function is deprecated."""
-    import warnings
-    from tempfile import TemporaryDirectory as TmpDir
-
-    warnings.warn(
-        "This function is deprecated. Please use `tempfile.TemporaryDirectory`",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-
-    return TmpDir(*args, **kwargs)
-
-
-def mkdirs(path, mode):
-    """
-    Create the directory specified by path, creating intermediate directories as necessary.
-
-    If directory already exists, this is a no-op.
-
-    :param path: The directory to create
-    :param mode: The mode to give to the directory e.g. 0o755, ignores umask
-    """
-    import warnings
-
-    warnings.warn(
-        f"This function is deprecated. Please use `pathlib.Path({path}).mkdir`",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    Path(path).mkdir(mode=mode, parents=True, exist_ok=True)
 
 
 ZIP_REGEX = re2.compile(rf"((.*\.zip){re2.escape(os.sep)})?(.*)")
@@ -255,7 +221,7 @@ def _find_path_from_directory(
 def find_path_from_directory(
     base_dir_path: str | os.PathLike[str],
     ignore_file_name: str,
-    ignore_file_syntax: str = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="regexp"),
+    ignore_file_syntax: str = conf.get_mandatory_value("core", "DAG_IGNORE_FILE_SYNTAX", fallback="glob"),
 ) -> Generator[str, None, None]:
     """
     Recursively search the base path for a list of file paths that should not be ignored.
@@ -266,9 +232,9 @@ def find_path_from_directory(
 
     :return: a generator of file paths.
     """
-    if ignore_file_syntax == "glob":
+    if ignore_file_syntax == "glob" or not ignore_file_syntax:
         return _find_path_from_directory(base_dir_path, ignore_file_name, _GlobIgnoreRule)
-    elif ignore_file_syntax == "regexp" or not ignore_file_syntax:
+    elif ignore_file_syntax == "regexp":
         return _find_path_from_directory(base_dir_path, ignore_file_name, _RegexpIgnoreRule)
     else:
         raise ValueError(f"Unsupported ignore_file_syntax: {ignore_file_syntax}")

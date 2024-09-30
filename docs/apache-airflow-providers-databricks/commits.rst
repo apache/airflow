@@ -35,14 +35,40 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+6.10.0
+......
+
+Latest change: 2024-08-30
+
+=================================================================================================  ===========  ==============================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================================================================
+`365b42f5a1 <https://github.com/apache/airflow/commit/365b42f5a1d29f9fa99f15864222bfeb490865da>`_  2024-08-30   ``[FEAT] databricks repair run with reason match and appropriate new settings (#41412)``
+`8765039214 <https://github.com/apache/airflow/commit/87650392147831210af00f34e8d3018b29ba8409>`_  2024-08-27   ``Removed deprecated method referance airflow.www.auth.has_access when min airflow version >= 2.8.0 (#41747)``
+`1613e9ec1c <https://github.com/apache/airflow/commit/1613e9ec1c4e5523953e045c8adcef1b9d4ce95d>`_  2024-08-25   ``remove soft_fail (#41710)``
+=================================================================================================  ===========  ==============================================================================================================
+
+6.9.0
+.....
+
+Latest change: 2024-08-19
+
+=================================================================================================  ===========  =======================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================
+`75fb7acbac <https://github.com/apache/airflow/commit/75fb7acbaca09a040067f0a5a37637ff44eb9e14>`_  2024-08-19   ``Prepare docs for Aug 2nd wave of providers (#41559)``
+`fcbff15bda <https://github.com/apache/airflow/commit/fcbff15bda151f70db0ca13fdde015bace5527c4>`_  2024-08-12   ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+=================================================================================================  ===========  =======================================================================
+
 6.8.0
 .....
 
-Latest change: 2024-07-27
+Latest change: 2024-08-03
 
 =================================================================================================  ===========  ===================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===================================================================================
+`d23881c648 <https://github.com/apache/airflow/commit/d23881c6489916113921dcedf85077441b44aaf3>`_  2024-08-03   ``Prepare docs for Aug 1st wave of providers (#41230)``
 `4535e08b86 <https://github.com/apache/airflow/commit/4535e08b862e2b7ff4f2a76de7124983d4efe9db>`_  2024-07-27   ``[Databricks Provider] Revert PRs #40864 and #40471 (#41050)``
 `dd10f472c5 <https://github.com/apache/airflow/commit/dd10f472c540d7f726415940d66ee4762aeffba5>`_  2024-07-26   ``DatabricksPlugin - Fix dag view redirect URL by using url_for redirect (#41040)``
 `cfe1d53ed0 <https://github.com/apache/airflow/commit/cfe1d53ed041ea903292e3789e1a5238db5b5031>`_  2024-07-19   ``Fix named parameters templating in Databricks operators (#40864)``

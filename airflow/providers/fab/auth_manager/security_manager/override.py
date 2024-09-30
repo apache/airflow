@@ -609,7 +609,7 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
     @property
     def auth_role_public(self):
         """Get the public role."""
-        return self.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]
+        return self.appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None)
 
     @property
     def oauth_providers(self):
@@ -832,7 +832,6 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         app = self.appbuilder.get_app
         # Base Security Config
         app.config.setdefault("AUTH_ROLE_ADMIN", "Admin")
-        app.config.setdefault("AUTH_ROLE_PUBLIC", "Public")
         app.config.setdefault("AUTH_TYPE", AUTH_DB)
         # Self Registration
         app.config.setdefault("AUTH_USER_REGISTRATION", False)
@@ -955,7 +954,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
                 self.add_role(role_name)
             if self.auth_role_admin not in self._builtin_roles:
                 self.add_role(self.auth_role_admin)
-            self.add_role(self.auth_role_public)
+            if self.auth_role_public:
+                self.add_role(self.auth_role_public)
             if self.count_users() == 0 and self.auth_role_public != self.auth_role_admin:
                 log.warning(const.LOGMSG_WAR_SEC_NO_USER)
         except Exception:
@@ -1073,7 +1073,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         dags = dagbag.dags.values()
 
         for dag in dags:
-            root_dag_id = dag.parent_dag.dag_id if dag.parent_dag else dag.dag_id
+            # TODO: Remove this when the minimum version of Airflow is bumped to 3.0
+            root_dag_id = (getattr(dag, "parent_dag", None) or dag).dag_id
             for resource_name, resource_values in self.RESOURCE_DETAILS_MAP.items():
                 dag_resource_name = self._resource_name(root_dag_id, resource_name)
                 for action_name in resource_values["actions"]:
@@ -2828,7 +2829,8 @@ class FabAirflowSecurityManagerOverride(AirflowSecurityManagerV2):
         ).all()
 
     def _get_root_dag_id(self, dag_id: str) -> str:
-        if "." in dag_id:
+        # TODO: The "root_dag_id" check can be remove when the minimum version of Airflow is bumped to 3.0
+        if "." in dag_id and hasattr(DagModel, "root_dag_id"):
             dm = self.appbuilder.get_session.execute(
                 select(DagModel.dag_id, DagModel.root_dag_id).where(DagModel.dag_id == dag_id)
             ).one()

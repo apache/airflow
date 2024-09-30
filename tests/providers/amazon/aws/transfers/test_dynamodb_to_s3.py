@@ -25,9 +25,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from airflow import DAG
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.models import DagRun, TaskInstance
-from airflow.providers.amazon.aws.transfers.base import _DEPRECATION_MSG
 from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import (
     DynamoDBToS3Operator,
     JSONEncoder,
@@ -152,41 +150,6 @@ class TestDynamodbToS3:
 
     @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.S3Hook")
     @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBHook")
-    def test_dynamodb_to_s3_with_aws_conn_id(self, mock_aws_dynamodb_hook, mock_s3_hook):
-        responses = [
-            {
-                "Items": [{"a": 1}, {"b": 2}],
-                "LastEvaluatedKey": "123",
-            },
-            {
-                "Items": [{"c": 3}],
-            },
-        ]
-        table = MagicMock()
-        table.return_value.scan.side_effect = responses
-        mock_aws_dynamodb_hook.return_value.get_conn.return_value.Table = table
-
-        s3_client = MagicMock()
-        s3_client.return_value.upload_file = self.mock_upload_file
-        mock_s3_hook.return_value.get_conn = s3_client
-
-        aws_conn_id = "test-conn-id"
-        with pytest.warns(AirflowProviderDeprecationWarning, match=_DEPRECATION_MSG):
-            dynamodb_to_s3_operator = DynamoDBToS3Operator(
-                task_id="dynamodb_to_s3",
-                dynamodb_table_name="airflow_rocks",
-                s3_bucket_name="airflow-bucket",
-                file_size=4000,
-                aws_conn_id=aws_conn_id,
-            )
-
-        dynamodb_to_s3_operator.execute(context={})
-
-        mock_s3_hook.assert_called_with(aws_conn_id=aws_conn_id)
-        mock_aws_dynamodb_hook.assert_called_with(aws_conn_id=aws_conn_id)
-
-    @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.S3Hook")
-    @patch("airflow.providers.amazon.aws.transfers.dynamodb_to_s3.DynamoDBHook")
     def test_dynamodb_to_s3_with_different_aws_conn_id(self, mock_aws_dynamodb_hook, mock_s3_hook):
         responses = [
             {
@@ -297,7 +260,7 @@ class TestDynamodbToS3:
 
     @pytest.mark.db_test
     def test_render_template(self, session):
-        dag = DAG("test_render_template_dag_id", start_date=datetime(2020, 1, 1))
+        dag = DAG("test_render_template_dag_id", schedule=None, start_date=datetime(2020, 1, 1))
         operator = DynamoDBToS3Operator(
             task_id="dynamodb_to_s3_test_render",
             dag=dag,
@@ -348,6 +311,7 @@ class TestDynamodbToS3:
             dynamodb_table_name="airflow_rocks",
             s3_bucket_name="airflow-bucket",
             file_size=4000,
+            point_in_time_export=True,
             export_time=datetime(year=1983, month=1, day=1),
         )
         dynamodb_to_s3_operator.execute(context={})
@@ -362,5 +326,6 @@ class TestDynamodbToS3:
                 dynamodb_table_name="airflow_rocks",
                 s3_bucket_name="airflow-bucket",
                 file_size=4000,
+                point_in_time_export=True,
                 export_time=datetime(year=3000, month=1, day=1),
             ).execute(context={})

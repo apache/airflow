@@ -28,7 +28,6 @@ import os
 import re
 import shutil
 import time
-import warnings
 from contextlib import suppress
 from copy import deepcopy
 from datetime import datetime
@@ -55,7 +54,7 @@ from asgiref.sync import sync_to_async
 from boto3.s3.transfer import S3Transfer, TransferConfig
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException, AirflowNotFoundException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.utils.tags import format_tags
@@ -119,15 +118,6 @@ def provide_bucket_name(func: Callable) -> Callable:
 
                 if "bucket_name" in self.service_config:
                     bound_args.arguments["bucket_name"] = self.service_config["bucket_name"]
-                elif self.conn_config and self.conn_config.schema:
-                    warnings.warn(
-                        "s3 conn_type, and the associated schema field, is deprecated. "
-                        "Please use aws conn_type instead, and specify `bucket_name` "
-                        "in `service_config.s3` within `extras`.",
-                        AirflowProviderDeprecationWarning,
-                        stacklevel=2,
-                    )
-                    bound_args.arguments["bucket_name"] = self.conn_config.schema
 
             return func(*bound_args.args, **bound_args.kwargs)
 
@@ -238,7 +228,7 @@ class S3Hook(AwsBaseHook):
         valid_s3_virtual_hosted_format = "https://bucket-name.s3.region-code.amazonaws.com/key-name"
         format = s3url.split("//")
         if re.match(r"s3[na]?:", format[0], re.IGNORECASE):
-            parsed_url = urlsplit(s3url)
+            parsed_url = urlsplit(s3url, allow_fragments=False)
             if not parsed_url.netloc:
                 raise S3HookUriParseFailure(
                     "Please provide a bucket name using a valid format of the form: "

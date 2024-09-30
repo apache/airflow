@@ -27,6 +27,89 @@
 Changelog
 ---------
 
+10.23.0
+.......
+
+Features
+~~~~~~~~
+
+* ``Add ability to create Flink Jobs in dataproc cluster (#42342)``
+* ``Add new Google Search 360 Reporting Operators (#42255)``
+* ``Add return_immediately as argument to the PubSubPullSensor class (#41842)``
+* ``Add parent_model param in 'UploadModelOperator' (#42091)``
+* ``Add DataflowStartYamlJobOperator (#41576)``
+* ``Add RunEvaluationOperator for Google Vertex AI Rapid Evaluation API (#41940)``
+* ``Add CountTokensOperator for Google Generative AI CountTokensAPI (#41908)``
+* ``Add Supervised Fine Tuning Train Operator, Hook, Tests, Docs (#41807)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Minor fixes to ensure successful Vertex AI LLMops pipeline (#41997)``
+* ``Exclude partition from BigQuery table name (#42130)``
+* ``[Fix #41763]: Redundant forward slash in SFTPToGCSOperator when destination_path is not specified or have default value (#41928)``
+* ``Fix poll_interval in GKEJobTrigger (#41712)``
+* ``update pattern for dataflow job id extraction (#41794)``
+* ``Enforce deprecation message format with EOL for google provider package (#41637)``
+* ``Fix 'do_xcom_push' and 'get_logs' functionality for KubernetesJobOperator (#40814)``
+
+Misc
+~~~~
+
+* ``Mark VertexAI AutoMLText deprecation (#42251)``
+* ``Exclude google-cloud-spanner 3.49.0 (#42011)``
+* ``Remove system test for derepcated Google analytics operators (#41946)``
+* ``Update min version of google-cloud-bigquery package (#41882)``
+* ``Unpin google-cloud-bigquery package version for Google provider (#41839)``
+* ``Move away from deprecated DAG.following_schedule() method (#41773)``
+* ``remove deprecated soft_fail from providers (#41710)``
+* ``Update the version of google-ads (#41638)``
+* ``Remove deprecated log handler argument filename_template (#41552)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+Main
+.......
+
+.. warning::
+  The previous Search Ads 360 Reporting API <https://developers.google.com/search-ads/v2/how-tos/reporting>
+  (which is currently in use in google-provider) was already decommissioned on June 30, 2024
+  (see details <https://developers.google.com/search-ads/v2/migration>).
+  All new reporting development should use the new Search Ads 360 Reporting API.
+  Currently, the Reporting operators, sensors and hooks are failing due to the decommission.
+  The new API is not a replacement for the old one, it has a different approach and endpoints.
+  Therefore, new operators implemented for the new API.
+
+10.22.0
+.......
+
+.. note::
+  This release of provider is only available for Airflow 2.8+ as explained in the
+  `Apache Airflow providers support policy <https://github.com/apache/airflow/blob/main/PROVIDERS.rst#minimum-supported-version-of-airflow-for-community-managed-providers>`_.
+
+Features
+~~~~~~~~
+
+* ``Add 'CloudRunServiceHook' and 'CloudRunCreateServiceOperator' (#40008)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix(providers/google): add missing sync_hook_class to CloudDataTransferServiceAsyncHook (#41417)``
+
+Misc
+~~~~
+
+* ``Bump minimum Airflow version in providers to Airflow 2.8.0 (#41396)``
+* ``Refactor 'DataprocCreateBatchOperator' (#41527)``
+* ``Upgrade package gcloud-aio-auth>=5.2.0 (#41262)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 10.21.1
 .......
 

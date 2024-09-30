@@ -49,7 +49,7 @@ const SourceTaskInstance = ({
     dagId: sourceDagId || "",
     dagRunId: sourceRunId || "",
     taskId: sourceTaskId || "",
-    mapIndex: sourceMapIndex || undefined,
+    mapIndex: sourceMapIndex == null ? undefined : sourceMapIndex,
     options: {
       enabled: !!(sourceDagId && sourceRunId && sourceTaskId),
       refetchInterval: false,

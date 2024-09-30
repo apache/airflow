@@ -37,7 +37,7 @@ class TestTrinoToMySqlTransfer:
             task_id="test_trino_to_mysql_transfer",
         )
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_trino_to_mysql_transfer", default_args=args)
+        self.dag = DAG("test_trino_to_mysql_transfer", schedule=None, default_args=args)
 
     @patch("airflow.providers.mysql.transfers.trino_to_mysql.MySqlHook")
     @patch("airflow.providers.mysql.transfers.trino_to_mysql.TrinoHook")

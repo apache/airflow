@@ -27,7 +27,6 @@ from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.exceptions import AirflowSkipException
 from airflow.providers.amazon.aws.hooks.cloud_formation import CloudFormationHook
 
 
@@ -67,11 +66,7 @@ class CloudFormationCreateStackSensor(AwsBaseSensor[CloudFormationHook]):
         if stack_status in ("CREATE_IN_PROGRESS", None):
             return False
 
-        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-        message = f"Stack {self.stack_name} in bad state: {stack_status}"
-        if self.soft_fail:
-            raise AirflowSkipException(message)
-        raise ValueError(message)
+        raise ValueError(f"Stack {self.stack_name} in bad state: {stack_status}")
 
 
 class CloudFormationDeleteStackSensor(AwsBaseSensor[CloudFormationHook]):
@@ -119,8 +114,4 @@ class CloudFormationDeleteStackSensor(AwsBaseSensor[CloudFormationHook]):
         if stack_status == "DELETE_IN_PROGRESS":
             return False
 
-        # TODO: remove this if check when min_airflow_version is set to higher than 2.7.1
-        message = f"Stack {self.stack_name} in bad state: {stack_status}"
-        if self.soft_fail:
-            raise AirflowSkipException(message)
-        raise ValueError(message)
+        raise ValueError(f"Stack {self.stack_name} in bad state: {stack_status}")

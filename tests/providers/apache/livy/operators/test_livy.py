@@ -41,7 +41,7 @@ LOG_RESPONSE = {"total": 3, "log": ["first_line", "second_line", "third_line"]}
 class TestLivyOperator:
     def setup_method(self):
         args = {"owner": "airflow", "start_date": DEFAULT_DATE}
-        self.dag = DAG("test_dag_id", default_args=args)
+        self.dag = DAG("test_dag_id", schedule=None, default_args=args)
         db.merge_conn(
             Connection(
                 conn_id="livyunittest", conn_type="livy", host="localhost:8998", port="8998", schema="http"

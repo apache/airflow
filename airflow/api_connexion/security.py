@@ -16,9 +16,8 @@
 # under the License.
 from __future__ import annotations
 
-import warnings
 from functools import wraps
-from typing import TYPE_CHECKING, Callable, Sequence, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 from flask import Response, g
 
@@ -33,7 +32,6 @@ from airflow.auth.managers.models.resource_details import (
     PoolDetails,
     VariableDetails,
 )
-from airflow.exceptions import RemovedInAirflow3Warning
 from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 
@@ -50,35 +48,9 @@ def check_authentication() -> None:
         if response.status_code == 200:
             return
 
-    # Even if the current_user is anonymous, the AUTH_ROLE_PUBLIC might still have permission.
-    appbuilder = get_airflow_app().appbuilder
-    if appbuilder.get_app.config.get("AUTH_ROLE_PUBLIC", None):
-        return
-
     # since this handler only checks authentication, not authorization,
     # we should always return 401
     raise Unauthenticated(headers=response.headers)
-
-
-def requires_access(permissions: Sequence[tuple[str, str]] | None = None) -> Callable[[T], T]:
-    """
-    Check current user's permissions against required permissions.
-
-    Deprecated. Do not use this decorator, use one of the decorator `has_access_*` defined in
-    airflow/api_connexion/security.py instead.
-    This decorator will only work with FAB authentication and not with other auth providers.
-
-    This decorator might be used in user plugins, do not remove it.
-    """
-    warnings.warn(
-        "The 'requires_access' decorator is deprecated. Please use one of the decorator `requires_access_*`"
-        "defined in airflow/api_connexion/security.py instead.",
-        RemovedInAirflow3Warning,
-        stacklevel=2,
-    )
-    from airflow.providers.fab.auth_manager.decorators.auth import _requires_access_fab
-
-    return _requires_access_fab(permissions)
 
 
 def _requires_access(*, is_authorized_callback: Callable[[], bool], func: Callable, args, kwargs) -> bool:
@@ -141,26 +113,32 @@ def requires_access_dag(
     method: ResourceMethod, access_entity: DagAccessEntity | None = None
 ) -> Callable[[T], T]:
     def _is_authorized_callback(dag_id: str):
-        def callback():
-            access = get_auth_manager().is_authorized_dag(
-                method=method,
-                access_entity=access_entity,
-                details=DagDetails(id=dag_id),
-            )
+        def callback() -> bool | DagAccessEntity:
+            if dag_id:
+                # a DAG id is provided; is the user authorized to access this DAG?
+                return get_auth_manager().is_authorized_dag(
+                    method=method,
+                    access_entity=access_entity,
+                    details=DagDetails(id=dag_id),
+                )
+            else:
+                # here we know dag_id is not provided.
+                # check is the user authorized to access all DAGs?
+                if get_auth_manager().is_authorized_dag(
+                    method=method,
+                    access_entity=access_entity,
+                ):
+                    return True
+                elif access_entity:
+                    # no dag_id provided, and user does not have access to all dags
+                    return False
 
-            # ``access`` means here:
-            # - if a DAG id is provided (``dag_id`` not None): is the user authorized to access this DAG
-            # - if no DAG id is provided: is the user authorized to access all DAGs
-            if dag_id or access or access_entity:
-                return access
-
-            # No DAG id is provided, the user is not authorized to access all DAGs and authorization is done
-            # on DAG level
-            # If method is "GET", return whether the user has read access to any DAGs
-            # If method is "PUT", return whether the user has edit access to any DAGs
-            return (method == "GET" and any(get_auth_manager().get_permitted_dag_ids(methods=["GET"]))) or (
-                method == "PUT" and any(get_auth_manager().get_permitted_dag_ids(methods=["PUT"]))
-            )
+            # dag_id is not provided, and the user is not authorized to access *all* DAGs
+            # so we check that the user can access at least *one* dag
+            # but we leave it to the endpoint function to properly restrict access beyond that
+            if method not in ("GET", "PUT"):
+                return False
+            return any(get_auth_manager().get_permitted_dag_ids(methods=[method]))
 
         return callback
 
