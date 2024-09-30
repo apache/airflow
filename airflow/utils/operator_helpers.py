@@ -92,7 +92,7 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
         (task, "owner", "AIRFLOW_CONTEXT_DAG_OWNER"),
         (task_instance, "dag_id", "AIRFLOW_CONTEXT_DAG_ID"),
         (task_instance, "task_id", "AIRFLOW_CONTEXT_TASK_ID"),
-        (task_instance, "execution_date", "AIRFLOW_CONTEXT_EXECUTION_DATE"),
+        (task_instance, "logical_date", "AIRFLOW_CONTEXT_EXECUTION_DATE"),
         (task_instance, "try_number", "AIRFLOW_CONTEXT_TRY_NUMBER"),
         (dag_run, "run_id", "AIRFLOW_CONTEXT_DAG_RUN_ID"),
     ]

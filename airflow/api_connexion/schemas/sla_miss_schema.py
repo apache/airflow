@@ -31,7 +31,7 @@ class SlaMissSchema(SQLAlchemySchema):
 
     task_id = auto_field(dump_only=True)
     dag_id = auto_field(dump_only=True)
-    execution_date = auto_field(dump_only=True)
+    logical_date = auto_field(dump_only=True)
     email_sent = auto_field(dump_only=True)
     timestamp = auto_field(dump_only=True)
     description = auto_field(dump_only=True)

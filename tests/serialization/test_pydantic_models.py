@@ -73,7 +73,7 @@ def test_serializing_pydantic_task_instance(session, create_task_instance):
     assert deserialized_model.dag_id == dag_id
     assert deserialized_model.state == State.RUNNING
     assert deserialized_model.try_number == ti.try_number
-    assert deserialized_model.execution_date == ti.execution_date
+    assert deserialized_model.logical_date == ti.logical_date
     assert deserialized_model.next_kwargs == {"foo": "bar"}
 
 

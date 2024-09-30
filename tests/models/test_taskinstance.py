@@ -141,7 +141,7 @@ class CallbackWrapper:
     def wrap_task_instance(self, ti):
         self.task_id = ti.task_id
         self.dag_id = ti.dag_id
-        self.execution_date = ti.execution_date
+        self.execution_date = ti.logical_date
         self.task_state_in_callback = ""
         self.callback_ran = False
 
@@ -1741,7 +1741,7 @@ class TestTaskInstance:
             task_id="test_xcom",
             pool="test_xcom",
         )
-        exec_date = ti.dag_run.execution_date
+        exec_date = ti.dag_run.logical_date
 
         ti.run(mark_success=True)
         ti.xcom_push(key=key, value=value)
@@ -2096,7 +2096,7 @@ class TestTaskInstance:
         assert query["dag_id"][0] == "dag"
         assert query["task_id"][0] == "op"
         assert query["dag_run_id"][0] == "test"
-        assert ti.execution_date == now
+        assert ti.logical_date == now
 
     def test_overwrite_params_with_dag_run_conf(self, create_task_instance):
         ti = create_task_instance()
@@ -3110,12 +3110,12 @@ class TestTaskInstance:
         ti_list = self._test_previous_dates_setup(schedule, catchup, scenario, dag_maker)
         # vivify
         for ti in ti_list:
-            ti.execution_date
+            ti.logical_date
 
-        assert ti_list[0].get_previous_execution_date(state=State.SUCCESS) is None
-        assert ti_list[1].get_previous_execution_date(state=State.SUCCESS) is None
-        assert ti_list[3].get_previous_execution_date(state=State.SUCCESS) == ti_list[1].execution_date
-        assert ti_list[3].get_previous_execution_date(state=State.SUCCESS) != ti_list[2].execution_date
+        assert ti_list[0].get_previous_logical_date(state=State.SUCCESS) is None
+        assert ti_list[1].get_previous_logical_date(state=State.SUCCESS) is None
+        assert ti_list[3].get_previous_logical_date(state=State.SUCCESS) == ti_list[1].logical_date
+        assert ti_list[3].get_previous_logical_date(state=State.SUCCESS) != ti_list[2].logical_date
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.parametrize("schedule, catchup", _prev_dates_param_list)

@@ -1932,8 +1932,8 @@ class TestBackfillJob:
         job_runner = BackfillJobRunner(
             job=job,
             dag=dag,
-            start_date=dr.execution_date,
-            end_date=dr.execution_date,
+            start_date=dr.logical_date,
+            end_date=dr.logical_date,
             donot_pickle=True,
         )
 
@@ -1957,7 +1957,7 @@ class TestBackfillJob:
         with patch.object(executor, "change_state", side_effect=on_change_state):
             job_runner._process_backfill_task_instances(
                 ti_status=ti_status,
-                start_date=dr.execution_date,
+                start_date=dr.logical_date,
                 pickle_id=None,
                 session=session,
             )

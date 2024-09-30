@@ -400,7 +400,7 @@ class TestXComGet:
 
         # The retrieved XComs should be ordered by logical date, latest first.
         assert [x.value for x in stored_xcoms] == [{"key2": "value2"}, {"key1": "value1"}]
-        assert [x.execution_date for x in stored_xcoms] == [ti2.execution_date, ti1.execution_date]
+        assert [x.logical_date for x in stored_xcoms] == [ti2.execution_date, ti1.execution_date]
 
 
 @pytest.mark.usefixtures("setup_xcom_pickling")
@@ -419,7 +419,7 @@ class TestXComSet:
         assert stored_xcoms[0].value == {"key": "value"}
         assert stored_xcoms[0].dag_id == "dag"
         assert stored_xcoms[0].task_id == "task_1"
-        assert stored_xcoms[0].execution_date == task_instance.execution_date
+        assert stored_xcoms[0].logical_date == task_instance.execution_date
 
     @pytest.fixture
     def setup_for_xcom_set_again_replace(self, task_instance, push_simple_json_xcom):

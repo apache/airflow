@@ -62,7 +62,7 @@ def generate_pod_yaml(args):
             pod_id=create_pod_id(args.dag_id, ti.task_id),
             try_number=ti.try_number,
             kube_image=kube_config.kube_image,
-            date=ti.execution_date,
+            date=ti.logical_date,
             args=ti.command_as_list(),
             pod_override_object=PodGenerator.from_obj(ti.executor_config),
             scheduler_job_id="worker-config",

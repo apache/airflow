@@ -158,7 +158,7 @@ def scale_time_units(time_seconds_arr: Collection[float], unit: TimeUnit) -> Col
     return [x / factor for x in time_seconds_arr]
 
 
-def parse_execution_date(execution_date_str):
+def parse_logical_date(execution_date_str):
     """Parse execution date string to datetime object."""
     return timezone.parse(execution_date_str)
 

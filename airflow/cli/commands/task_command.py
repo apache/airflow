@@ -162,7 +162,7 @@ def _get_dag_run(
             return dag_run, False
         elif not create_if_necessary:
             raise DagRunNotFound(
-                f"DagRun for {dag.dag_id} with run_id or execution_date "
+                f"DagRun for {dag.dag_id} with run_id or logical_date "
                 f"of {logical_date_or_run_id!r} not found"
             )
 
@@ -232,7 +232,7 @@ def _get_ti_db_access(
         if not create_if_necessary:
             raise TaskInstanceNotFound(
                 f"TaskInstance for {dag.dag_id}, {task.task_id}, map={map_index} with "
-                f"run_id or execution_date of {logical_date_or_run_id!r} not found"
+                f"run_id or logical_date of {logical_date_or_run_id!r} not found"
             )
         # TODO: Validate map_index is in range?
         ti = TaskInstance(task, run_id=dag_run.run_id, map_index=map_index)
@@ -634,16 +634,16 @@ def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
     )
     if not dag_run:
         try:
-            execution_date = timezone.parse(args.execution_date_or_run_id)
+            logical_date = timezone.parse(args.execution_date_or_run_id)
             dag_run = session.scalar(
-                select(DagRun).where(DagRun.execution_date == execution_date, DagRun.dag_id == args.dag_id)
+                select(DagRun).where(DagRun.logical_date == logical_date, DagRun.dag_id == args.dag_id)
             )
         except (ParserError, TypeError) as err:
-            raise AirflowException(f"Error parsing the supplied execution_date. Error: {err}")
+            raise AirflowException(f"Error parsing the supplied logical_date. Error: {err}")
 
     if dag_run is None:
         raise DagRunNotFound(
-            f"DagRun for {args.dag_id} with run_id or execution_date of {args.execution_date_or_run_id!r} "
+            f"DagRun for {args.dag_id} with run_id or logical_date of {args.execution_date_or_run_id!r} "
             "not found"
         )
 
@@ -652,7 +652,7 @@ def task_states_for_dag_run(args, session: Session = NEW_SESSION) -> None:
     def format_task_instance(ti: TaskInstance) -> dict[str, str]:
         data = {
             "dag_id": ti.dag_id,
-            "execution_date": dag_run.execution_date.isoformat(),
+            "logical_date": dag_run.logical_date.isoformat(),
             "task_id": ti.task_id,
             "state": ti.state,
             "start_date": ti.start_date.isoformat() if ti.start_date else "",

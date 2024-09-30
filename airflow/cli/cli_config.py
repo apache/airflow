@@ -1278,10 +1278,10 @@ DAGS_COMMANDS = (
             "see: https://www.graphviz.org/doc/info/output.html\n"
             "\n"
             "If you want to create a PNG file then you should execute the following command:\n"
-            "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.png\n"
+            "airflow dags test <DAG_ID> <LOGICAL_DATE> --save-dagrun output.png\n"
             "\n"
             "If you want to create a DOT file then you should execute the following command:\n"
-            "airflow dags test <DAG_ID> <EXECUTION_DATE> --save-dagrun output.dot\n"
+            "airflow dags test <DAG_ID> <LOGICAL_DATE> --save-dagrun output.dot\n"
         ),
         func=lazy_load_command("airflow.cli.commands.dag_command.dag_test"),
         args=(

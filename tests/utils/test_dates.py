@@ -31,12 +31,12 @@ class TestDates:
         execution_date_str_w_ms = "2017-11-05 16:18:30.989729"
         bad_execution_date_str = "2017-11-06TXX:00:00Z"
 
-        assert timezone.datetime(2017, 11, 2, 0, 0, 0) == dates.parse_execution_date(execution_date_str_wo_ms)
-        assert timezone.datetime(2017, 11, 5, 16, 18, 30, 989729) == dates.parse_execution_date(
+        assert timezone.datetime(2017, 11, 2, 0, 0, 0) == dates.parse_logical_date(execution_date_str_wo_ms)
+        assert timezone.datetime(2017, 11, 5, 16, 18, 30, 989729) == dates.parse_logical_date(
             execution_date_str_w_ms
         )
         with pytest.raises(ValueError):
-            dates.parse_execution_date(bad_execution_date_str)
+            dates.parse_logical_date(bad_execution_date_str)
 
     def test_round_time(self):
         rt1 = dates.round_time(timezone.datetime(2015, 1, 1, 6), timedelta(days=1))

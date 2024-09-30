@@ -50,7 +50,7 @@ class TestSFTPDecoratorSensor:
             ret = f()
 
         dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == expected_xcom_return
 
@@ -71,7 +71,7 @@ class TestSFTPDecoratorSensor:
             ret = f(*op_args, **op_kwargs)
 
         dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == expected_xcom_return
 
@@ -97,7 +97,7 @@ class TestSFTPDecoratorSensor:
             ret = f()
 
         dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == expected_xcom_return
 
@@ -125,6 +125,6 @@ class TestSFTPDecoratorSensor:
             ret = f(*op_args, **op_kwargs)
 
         dr = dag_maker.create_dagrun()
-        ret.operator.run(start_date=dr.execution_date, end_date=dr.execution_date)
+        ret.operator.run(start_date=dr.logical_date, end_date=dr.logical_date)
         ti = dr.get_task_instances()[0]
         assert ti.xcom_pull() == expected_xcom_return

@@ -1541,9 +1541,9 @@ class TestPatchDagRunState(TestDagRunEndpoint):
             "dag_id": dag_id,
             "dag_run_id": dag_run_id,
             "end_date": dr.end_date.isoformat() if state != State.QUEUED else None,
-            "execution_date": dr.execution_date.isoformat(),
+            "execution_date": dr.logical_date.isoformat(),
             "external_trigger": False,
-            "logical_date": dr.execution_date.isoformat(),
+            "logical_date": dr.logical_date.isoformat(),
             "start_date": dr.start_date.isoformat() if state != State.QUEUED else None,
             "state": state,
             "data_interval_start": dr.data_interval_start.isoformat(),
@@ -1661,7 +1661,7 @@ class TestClearDagRun(TestDagRunEndpoint):
             "dag_id": dag_id,
             "dag_run_id": dag_run_id,
             "end_date": None,
-            "execution_date": dr.execution_date.isoformat(),
+            "execution_date": dr.logical_date.isoformat(),
             "external_trigger": False,
             "logical_date": dr.logical_date.isoformat(),
             "start_date": None,
@@ -1728,7 +1728,7 @@ class TestClearDagRun(TestDagRunEndpoint):
                 {
                     "dag_id": dag_id,
                     "dag_run_id": dag_run_id,
-                    "execution_date": dr.execution_date.isoformat(),
+                    "execution_date": dr.logical_date.isoformat(),
                     "task_id": "task_id",
                 }
             ]

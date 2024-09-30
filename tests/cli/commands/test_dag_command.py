@@ -741,7 +741,7 @@ class TestCliDags:
         assert dagrun.conf == {"foo": "bar"}
 
         # Coerced to UTC.
-        assert dagrun.execution_date.isoformat(timespec="seconds") == "2021-06-04T01:00:00+00:00"
+        assert dagrun.logical_date.isoformat(timespec="seconds") == "2021-06-04T01:00:00+00:00"
 
         # example_bash_operator runs every day at midnight, so the data interval
         # should be aligned to the previous day.
@@ -768,7 +768,7 @@ class TestCliDags:
         assert dagrun, "DagRun not created"
         assert dagrun.run_type == DagRunType.MANUAL
         assert dagrun.external_trigger
-        assert dagrun.execution_date.isoformat(timespec="microseconds") == "2021-06-04T01:00:00.000001+00:00"
+        assert dagrun.logical_date.isoformat(timespec="microseconds") == "2021-06-04T01:00:00.000001+00:00"
 
     def test_trigger_dag_invalid_conf(self):
         with pytest.raises(ValueError):

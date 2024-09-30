@@ -158,7 +158,7 @@ def annotations_to_key(annotations: dict[str, str]) -> TaskInstanceKey:
             .filter(
                 TaskInstance.dag_id == dag_id,
                 TaskInstance.task_id == task_id,
-                DagRun.execution_date == execution_date,
+                DagRun.logical_date == execution_date,
             )
             .scalar()
         )

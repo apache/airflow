@@ -34,7 +34,7 @@ class SlaMiss(Base):
 
     task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    execution_date = Column(UtcDateTime, primary_key=True)
+    logical_date = Column(UtcDateTime, primary_key=True)
     email_sent = Column(Boolean, default=False)
     timestamp = Column(UtcDateTime)
     description = Column(Text)
@@ -43,4 +43,4 @@ class SlaMiss(Base):
     __table_args__ = (Index("sm_dag", dag_id, unique=False),)
 
     def __repr__(self):
-        return str((self.dag_id, self.task_id, self.execution_date.isoformat()))
+        return str((self.dag_id, self.task_id, self.logical_date.isoformat()))

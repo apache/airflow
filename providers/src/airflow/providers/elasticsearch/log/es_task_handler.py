@@ -256,7 +256,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         if self.json_format:
             data_interval_start = self._clean_date(data_interval[0])
             data_interval_end = self._clean_date(data_interval[1])
-            execution_date = self._clean_date(dag_run.execution_date)
+            execution_date = self._clean_date(dag_run.logical_date)
         else:
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()
@@ -266,7 +266,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 data_interval_end = data_interval[1].isoformat()
             else:
                 data_interval_end = ""
-            execution_date = dag_run.execution_date.isoformat()
+            execution_date = dag_run.logical_date.isoformat()
 
         return log_id_template.format(
             dag_id=ti.dag_id,

@@ -29,18 +29,18 @@ class ExecDateAfterStartDateDep(BaseTIDep):
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
-        if ti.task.start_date and ti.execution_date < ti.task.start_date:
+        if ti.task.start_date and ti.logical_date < ti.task.start_date:
             yield self._failing_status(
                 reason=(
-                    f"The execution date is {ti.execution_date.isoformat()} but this is before "
+                    f"The execution date is {ti.logical_date.isoformat()} but this is before "
                     f"the task's start date {ti.task.start_date.isoformat()}."
                 )
             )
 
-        if ti.task.dag and ti.task.dag.start_date and ti.execution_date < ti.task.dag.start_date:
+        if ti.task.dag and ti.task.dag.start_date and ti.logical_date < ti.task.dag.start_date:
             yield self._failing_status(
                 reason=(
-                    f"The execution date is {ti.execution_date.isoformat()} but this is "
+                    f"The execution date is {ti.logical_date.isoformat()} but this is "
                     f"before the task's DAG's start date {ti.task.dag.start_date.isoformat()}."
                 )
             )

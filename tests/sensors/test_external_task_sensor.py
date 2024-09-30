@@ -1253,7 +1253,7 @@ def dag_bag_parent_child():
             task_id="task_0",
             external_dag_id="child_dag_1",
             external_task_id="task_1",
-            execution_date=day_1.isoformat(),
+            logical_date=day_1.isoformat(),
             recursion_depth=3,
         )
 
@@ -1557,7 +1557,7 @@ def dag_bag_multiple():
             task_id=f"{daily_task.task_id}_{i}",
             external_dag_id=daily_dag.dag_id,
             external_task_id=daily_task.task_id,
-            execution_date=f"{{{{ macros.ds_add(ds, -1 * {i}) }}}}",
+            logical_date=f"{{{{ macros.ds_add(ds, -1 * {i}) }}}}",
             dag=agg_dag,
         )
         begin >> task
@@ -1614,7 +1614,7 @@ def dag_bag_head_tail():
             task_id="tail",
             external_dag_id=dag.dag_id,
             external_task_id=head.task_id,
-            execution_date="{{ macros.ds_add(ds, 1) }}",
+            logical_date="{{ macros.ds_add(ds, 1) }}",
         )
         head >> body >> tail
 
@@ -1698,7 +1698,7 @@ def dag_bag_head_tail_mapped_tasks():
             task_id="tail",
             external_dag_id=dag.dag_id,
             external_task_id=head.task_id,
-            execution_date="{{ macros.ds_add(ds, 1) }}",
+            logical_date="{{ macros.ds_add(ds, 1) }}",
         )
         head >> body >> tail
 

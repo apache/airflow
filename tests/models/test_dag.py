@@ -565,7 +565,7 @@ class TestDag:
                 **triggered_by_kwargs,
             )
             dagrun.start_date = BASE_DATE + timedelta(hours=delta_h)
-            dagrun.execution_date = BASE_DATE + timedelta(hours=delta_h)
+            dagrun.logical_date = BASE_DATE + timedelta(hours=delta_h)
             return dagrun
 
         dr1 = dag_run_before(delta_h=-1, type=DagRunType.MANUAL)  # H19

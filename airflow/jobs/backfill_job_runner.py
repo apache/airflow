@@ -274,7 +274,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         :param running: dict of key, task to verify
         :return: An iterable of expanded TaskInstance per MappedTask
         """
-        # list of tuples (dag_id, task_id, execution_date, map_index) of running tasks in executor
+        # list of tuples (dag_id, task_id, logical_date, map_index) of running tasks in executor
         buffered_events = list(executor.get_event_buffer().items())
         running_tis_ids = [
             (key.dag_id, key.task_id, key.run_id, key.map_index)
@@ -485,7 +485,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
         :param pickle_id: the pickle_id if dag is pickled, None otherwise
         :param start_date: the start date of the backfill job
         :param session: the current session object
-        :return: the list of execution_dates for the finished dag runs
+        :return: the list of logical_dates for the finished dag runs
         """
         executed_run_dates = []
 
@@ -545,7 +545,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
 
                 if self.ignore_first_depends_on_past:
                     dagrun = ti.get_dagrun(session=session)
-                    ignore_depends_on_past = dagrun.execution_date == (start_date or ti.start_date)
+                    ignore_depends_on_past = dagrun.logical_date == (start_date or ti.start_date)
                 else:
                     ignore_depends_on_past = False
 
@@ -772,7 +772,7 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                 if run.state in State.finished_dr_states:
                     ti_status.finished_runs += 1
                     ti_status.active_runs.remove(run)
-                    executed_run_dates.append(run.execution_date)
+                    executed_run_dates.append(run.logical_date)
 
             self._log_progress(ti_status)
             session.commit()
@@ -958,13 +958,13 @@ class BackfillJobRunner(BaseJobRunner, LoggingMixin):
                     "Backfill cannot be created for DagRun %s in %s, as there's already %s in a RUNNING "
                     "state.",
                     run.run_id,
-                    run.execution_date.strftime("%Y-%m-%dT%H:%M:%S"),
+                    run.logical_date.strftime("%Y-%m-%dT%H:%M:%S"),
                     run.run_type,
                 )
             self.log.error(
                 "Changing DagRun into BACKFILL would cause scheduler to lose track of executing "
                 "tasks. Not changing DagRun type into BACKFILL, and trying insert another DagRun into "
-                "database would cause database constraint violation for dag_id + execution_date "
+                "database would cause database constraint violation for dag_id + logical_date "
                 "combination. Please adjust backfill dates or wait for this DagRun to finish.",
             )
             return

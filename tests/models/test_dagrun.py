@@ -750,7 +750,7 @@ class TestDagRun:
         session.close()
         for dagrun in dagruns:
             if dagrun.dag_id == "test_latest_runs_1":
-                assert dagrun.execution_date == timezone.datetime(2015, 1, 2)
+                assert dagrun.logical_date == timezone.datetime(2015, 1, 2)
 
     def test_removed_task_instances_can_be_restored(self, session):
         def with_all_tasks_removed(dag):

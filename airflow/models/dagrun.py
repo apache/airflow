@@ -427,13 +427,13 @@ class DagRun(Base, LoggingMixin):
             .order_by(
                 nulls_first(BackfillDagRun.sort_ordinal, session=session),
                 nulls_first(cls.last_scheduling_decision, session=session),
-                cls.execution_date,
+                cls.logical_date,
             )
             .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)
         )
 
         if not settings.ALLOW_FUTURE_EXEC_DATES:
-            query = query.where(DagRun.execution_date <= func.now())
+            query = query.where(DagRun.logical_date <= func.now())
 
         return session.scalars(with_row_locks(query, of=cls, session=session, skip_locked=True))
 

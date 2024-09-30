@@ -115,7 +115,7 @@ def trigger_dag(
     triggered_by: DagRunTriggeredByType,
     run_id: str | None = None,
     conf: dict | str | None = None,
-    execution_date: datetime | None = None,
+    logical_date: datetime | None = None,
     replace_microseconds: bool = True,
     session: Session = NEW_SESSION,
 ) -> DagRun | None:
@@ -125,7 +125,7 @@ def trigger_dag(
     :param dag_id: DAG ID
     :param run_id: ID of the dag_run
     :param conf: configuration
-    :param execution_date: date of execution
+    :param logical_date: date of execution
     :param replace_microseconds: whether microseconds should be zeroed
     :param session: Unused. Only added in compatibility with database isolation mode
     :param triggered_by: the entity which triggers the dag_run
@@ -141,7 +141,7 @@ def trigger_dag(
         dag_bag=dagbag,
         run_id=run_id,
         conf=conf,
-        logical_date=execution_date,
+        logical_date=logical_date,
         replace_microseconds=replace_microseconds,
         triggered_by=triggered_by,
     )
