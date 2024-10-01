@@ -24,7 +24,6 @@ import pytest
 
 from airflow.models import DagBag
 from airflow.operators.empty import EmptyOperator
-from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
@@ -53,7 +52,6 @@ def freeze_time_for_dagruns(time_machine):
 
 
 @pytest.fixture
-@provide_session
 def make_dag_runs(dag_maker, session, time_machine):
     with dag_maker(
         dag_id="test_dag_id",
