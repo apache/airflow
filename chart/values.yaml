@@ -2378,6 +2378,14 @@ redis:
     # Annotations to add to worker kubernetes service account.
     annotations: {}
 
+  service:
+    # service type, default: ClusterIP
+    type: "ClusterIP"
+    # If using ClusterIP service type, custom IP address can be specified
+    clusterIP:
+    # If using NodePort service type, custom node port can be specified
+    nodePort:
+
   persistence:
     # Enable persistent volumes
     enabled: true
