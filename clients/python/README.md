@@ -426,7 +426,7 @@ Class | Method | HTTP request | Description
  - [DAGRun](docs/DAGRun.md)
  - [DAGRunCollection](docs/DAGRunCollection.md)
  - [DAGRunCollectionAllOf](docs/DAGRunCollectionAllOf.md)
- - [DagScheduleDatasetReference](docs/DagScheduleDatasetReference.md)
+ - [DagScheduleAssetReference](docs/DagScheduleAssetReference.md)
  - [DagState](docs/DagState.md)
  - [DagWarning](docs/DagWarning.md)
  - [DagWarningCollection](docs/DagWarningCollection.md)

@@ -4536,7 +4536,7 @@ components:
         consuming_dags:
           type: array
           items:
-            $ref: "#/components/schemas/DagScheduleDatasetReference"
+            $ref: "#/components/schemas/DagScheduleAssetReference"
         producing_tasks:
           type: array
           items:
@@ -4566,24 +4566,24 @@ components:
           description: The dataset update time
           nullable: false
 
-    DagScheduleDatasetReference:
+    DagScheduleAssetReference:
       description: |
-        A datasets reference to a downstream DAG.
+        An asset reference to a downstream DAG.
 
         *New in version 2.4.0*
       type: object
       properties:
         dag_id:
           type: string
-          description: The DAG ID that depends on the dataset.
+          description: The DAG ID that depends on the asset.
           nullable: true
         created_at:
           type: string
-          description: The dataset reference creation time
+          description: The asset reference creation time
           nullable: false
         updated_at:
           type: string
-          description: The dataset reference update time
+          description: The asset reference update time
           nullable: false
 
     AssetCollection:
