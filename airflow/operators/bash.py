@@ -24,8 +24,8 @@ from functools import cached_property
 from typing import TYPE_CHECKING, Any, Callable, Container, Sequence, cast
 
 from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.hooks.subprocess import SubprocessHook
 from airflow.models.baseoperator import BaseOperator
+from airflow.providers.standard.hooks.subprocess import SubprocessHook
 from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.types import ArgNotSet
 

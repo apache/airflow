@@ -26,7 +26,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from airflow.hooks.subprocess import SubprocessHook
+from airflow.providers.standard.hooks.subprocess import SubprocessHook
 
 OS_ENV_KEY = "SUBPROCESS_ENV_TEST"
 OS_ENV_VAL = "this-is-from-os-environ"
@@ -81,11 +81,11 @@ class TestSubprocessHook:
 
     @mock.patch.dict("os.environ", clear=True)
     @mock.patch(
-        "airflow.hooks.subprocess.TemporaryDirectory",
+        "airflow.providers.standard.hooks.subprocess.TemporaryDirectory",
         return_value=MagicMock(__enter__=MagicMock(return_value="/tmp/airflowtmpcatcat")),
     )
     @mock.patch(
-        "airflow.hooks.subprocess.Popen",
+        "airflow.providers.standard.hooks.subprocess.Popen",
         return_value=MagicMock(stdout=MagicMock(readline=MagicMock(side_effect=StopIteration), returncode=0)),
     )
     def test_should_exec_subprocess(self, mock_popen, mock_temporary_directory):
