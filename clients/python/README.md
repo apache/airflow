@@ -348,9 +348,9 @@ Class | Method | HTTP request | Description
 *DAGRunApi* | [**set_dag_run_note**](docs/DAGRunApi.md#set_dag_run_note) | **PATCH** /dags/{dag_id}/dagRuns/{dag_run_id}/setNote | Update the DagRun note.
 *DAGRunApi* | [**update_dag_run_state**](docs/DAGRunApi.md#update_dag_run_state) | **PATCH** /dags/{dag_id}/dagRuns/{dag_run_id} | Modify a DAG run
 *DagWarningApi* | [**get_dag_warnings**](docs/DagWarningApi.md#get_dag_warnings) | **GET** /dagWarnings | List dag warnings
-*AssetApi* | [**get_asset**](docs/DatasetApi.md#get_asset) | **GET** /datasets/{uri} | Get an asset
-*AssetApi* | [**get_asset_events**](docs/DatasetApi.md#get_asset_events) | **GET** /datasets/events | Get asset events
-*DatasetApi* | [**get_assets**](docs/DatasetApi.md#get_assets) | **GET** /datasets | List assets
+*AssetApi* | [**get_asset**](docs/DatasetApi.md#get_asset) | **GET** /assets/{uri} | Get an asset
+*AssetApi* | [**get_asset_events**](docs/DatasetApi.md#get_asset_events) | **GET** /assets/events | Get asset events
+*DatasetApi* | [**get_assets**](docs/DatasetApi.md#get_assets) | **GET** /assets | List assets
 *DatasetApi* | [**get_upstream_asset_events**](docs/DatasetApi.md#get_upstream_asset_events) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents | Get dataset events for a DAG run
 *EventLogApi* | [**get_event_log**](docs/EventLogApi.md#get_event_log) | **GET** /eventLogs/{event_log_id} | Get a log entry
 *EventLogApi* | [**get_event_logs**](docs/EventLogApi.md#get_event_logs) | **GET** /eventLogs | List log entries

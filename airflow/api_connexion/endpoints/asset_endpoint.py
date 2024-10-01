@@ -57,7 +57,7 @@ if TYPE_CHECKING:
 
     from airflow.api_connexion.types import APIResponse
 
-RESOURCE_EVENT_PREFIX = "dataset"
+RESOURCE_EVENT_PREFIX = "asset"
 
 
 @security.requires_access_asset("GET")

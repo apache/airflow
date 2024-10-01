@@ -1245,7 +1245,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /dags/{dag_id}/datasets/queuedEvent/{uri}:
+  /dags/{dag_id}/assets/queuedEvent/{uri}:
     parameters:
       - $ref: "#/components/parameters/DAGID"
       - $ref: "#/components/parameters/AssetURI"
@@ -1298,7 +1298,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /dags/{dag_id}/datasets/queuedEvent:
+  /dags/{dag_id}/assets/queuedEvent:
     parameters:
       - $ref: "#/components/parameters/DAGID"
 
@@ -1371,7 +1371,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /datasets/queuedEvent/{uri}:
+  /assets/queuedEvent/{uri}:
     parameters:
       - $ref: "#/components/parameters/AssetURI"
 
@@ -2517,7 +2517,7 @@ paths:
         "403":
           $ref: "#/components/responses/PermissionDenied"
 
-  /datasets:
+  /assets:
     get:
       summary: List assets
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
@@ -2555,7 +2555,7 @@ paths:
         "403":
           $ref: "#/components/responses/PermissionDenied"
 
-  /datasets/{uri}:
+  /assets/{uri}:
     parameters:
       - $ref: "#/components/parameters/AssetURI"
     get:
@@ -2578,7 +2578,7 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /datasets/events:
+  /assets/events:
     get:
       summary: Get asset events
       description: Get asset events
