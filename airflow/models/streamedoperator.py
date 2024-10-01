@@ -44,6 +44,7 @@ from airflow.models.mappedoperator import (
     validate_mapping_kwargs,
 )
 from airflow.models.taskinstance import TaskInstance
+from airflow.triggers.base import run_trigger
 from airflow.utils import timezone
 from airflow.utils.context import Context, context_get_outlet_events
 from airflow.utils.helpers import prevent_duplicates
@@ -54,8 +55,6 @@ from airflow.utils.task_instance_session import get_current_task_instance_sessio
 if TYPE_CHECKING:
     import jinja2
     from sqlalchemy.orm import Session
-
-    from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
 @contextmanager
@@ -73,12 +72,6 @@ def event_loop() -> Generator[AbstractEventLoop, None, None]:
     finally:
         if new_event_loop and loop is not None:
             loop.close()
-
-
-# TODO: Check def _run_inline_trigger(trigger) method from DAG, could be refactored so it uses this method
-async def run_trigger(trigger: BaseTrigger) -> TriggerEvent:
-    async for event in trigger.run():
-        return event
 
 
 class OperatorExecutor(LoggingMixin):

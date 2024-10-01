@@ -37,6 +37,11 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
+async def run_trigger(trigger: BaseTrigger) -> TriggerEvent:
+    async for event in trigger.run():
+        return event
+
+
 @dataclass
 class StartTriggerArgs:
     """Arguments required for start task execution from triggerer."""
