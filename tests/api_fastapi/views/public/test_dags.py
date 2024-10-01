@@ -268,7 +268,7 @@ def test_dag_details(test_client, query_params, dag_id, expected_status_code, da
         "is_paused_upon_creation": None,
         "last_expired": None,
         "last_parsed": last_loaded,
-        "last_loaded": last_loaded, # TODO: remove last_loaded as it is the same as last_parsed
+        "last_loaded": last_loaded,  # TODO: remove last_loaded as it is the same as last_parsed
         "last_parsed_time": last_parsed_time,
         "last_pickled": None,
         "max_active_runs": 16,
