@@ -2570,7 +2570,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Dataset"
+                $ref: "#/components/schemas/Asset"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -4507,31 +4507,31 @@ components:
           $ref: "#/components/schemas/Resource"
           description: The permission resource
 
-    Dataset:
+    Asset:
       description: |
-        A dataset item.
+        An asset item.
 
         *New in version 2.4.0*
       type: object
       properties:
         id:
           type: integer
-          description: The dataset id
+          description: The asset id
         uri:
           type: string
-          description: The dataset uri
+          description: The asset uri
           nullable: false
         extra:
           type: object
-          description: The dataset extra
+          description: The asset extra
           nullable: true
         created_at:
           type: string
-          description: The dataset creation time
+          description: The asset creation time
           nullable: false
         updated_at:
           type: string
-          description: The dataset update time
+          description: The asset update time
           nullable: false
         consuming_dags:
           type: array
@@ -4598,7 +4598,7 @@ components:
             datasets:
               type: array
               items:
-                $ref: "#/components/schemas/Dataset"
+                $ref: "#/components/schemas/Asset"
         - $ref: "#/components/schemas/CollectionInfo"
 
     AssetEvent:
@@ -6024,12 +6024,12 @@ components:
 security: []
 
 tags:
+  - name: Asset
   - name: Config
   - name: Connection
   - name: DAG
   - name: DAGRun
   - name: DagWarning
-  - name: Dataset
   - name: EventLog
   - name: ImportError
   - name: Monitoring

@@ -99,7 +99,7 @@ const AssetsList = ({ onSelect }: Props) => {
   const data = useMemo(() => datasets, [datasets]);
   const memoSort = useMemo(() => sortBy, [sortBy]);
 
-  const onDatasetSelect = (row: Row<API.Dataset>) => {
+  const onDatasetSelect = (row: Row<API.Asset>) => {
     if (row.original.uri) onSelect({ uri: row.original.uri });
   };
 

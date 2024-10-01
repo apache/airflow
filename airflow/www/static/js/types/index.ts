@@ -193,7 +193,7 @@ export interface WebserverEdge {
   isSourceDataset?: boolean;
 }
 
-interface DatasetListItem extends API.Dataset {
+interface DatasetListItem extends API.Asset {
   lastDatasetUpdate: string | null;
   totalUpdates: number;
 }

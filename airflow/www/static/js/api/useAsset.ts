@@ -33,6 +33,6 @@ export default function useAsset({ uri }: Props) {
       "__URI__",
       encodeURIComponent(uri)
     );
-    return axios.get<AxiosResponse, API.Dataset>(datasetUrl);
+    return axios.get<AxiosResponse, API.Asset>(datasetUrl);
   });
 }

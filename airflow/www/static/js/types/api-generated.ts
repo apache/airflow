@@ -1847,20 +1847,20 @@ export interface components {
       resource?: components["schemas"]["Resource"];
     };
     /**
-     * @description A dataset item.
+     * @description An asset item.
      *
      * *New in version 2.4.0*
      */
-    Dataset: {
-      /** @description The dataset id */
+    Asset: {
+      /** @description The asset id */
       id?: number;
-      /** @description The dataset uri */
+      /** @description The asset uri */
       uri?: string;
-      /** @description The dataset extra */
+      /** @description The asset extra */
       extra?: { [key: string]: unknown } | null;
-      /** @description The dataset creation time */
+      /** @description The asset creation time */
       created_at?: string;
-      /** @description The dataset update time */
+      /** @description The asset update time */
       updated_at?: string;
       consuming_dags?: components["schemas"]["DagScheduleAssetReference"][];
       producing_tasks?: components["schemas"]["TaskOutletAssetReference"][];
@@ -1899,7 +1899,7 @@ export interface components {
      * *New in version 2.4.0*
      */
     AssetCollection: {
-      datasets?: components["schemas"]["Dataset"][];
+      datasets?: components["schemas"]["Asset"][];
     } & components["schemas"]["CollectionInfo"];
     /**
      * @description An asset event.
@@ -1922,7 +1922,7 @@ export interface components {
       /** @description The task map index that updated the asset. */
       source_map_index?: number | null;
       created_dagruns?: components["schemas"]["BasicDAGRun"][];
-      /** @description The dataset event creation time */
+      /** @description The asset event creation time */
       timestamp?: string;
     };
     CreateAssetEvent: {
@@ -1943,7 +1943,7 @@ export interface components {
       created_at?: string;
     };
     /**
-     * @description A collection of Dataset Dag Run Queues.
+     * @description A collection of asset Dag Run Queues.
      *
      * *New in version 2.9.0*
      */
@@ -2623,13 +2623,13 @@ export interface components {
     FilterTags: string[];
     /** @description The Asset ID that updated the asset. */
     FilterAssetID: number;
-    /** @description The DAG ID that updated the dataset. */
+    /** @description The DAG ID that updated the asset. */
     FilterSourceDAGID: string;
-    /** @description The task ID that updated the dataset. */
+    /** @description The task ID that updated the asset. */
     FilterSourceTaskID: string;
-    /** @description The DAG run ID that updated the dataset. */
+    /** @description The DAG run ID that updated the asset. */
     FilterSourceRunID: string;
-    /** @description The map index that updated the dataset. */
+    /** @description The map index that updated the asset. */
     FilterSourceMapIndex: number;
     /** @description Filter on map index for mapped task. */
     FilterMapIndex: number;
@@ -5092,7 +5092,7 @@ export interface operations {
       /** Success. */
       200: {
         content: {
-          "application/json": components["schemas"]["Dataset"];
+          "application/json": components["schemas"]["Asset"];
         };
       };
       401: components["responses"]["Unauthenticated"];
@@ -5117,13 +5117,13 @@ export interface operations {
         order_by?: components["parameters"]["OrderBy"];
         /** The Asset ID that updated the asset. */
         asset_id?: components["parameters"]["FilterAssetID"];
-        /** The DAG ID that updated the dataset. */
+        /** The DAG ID that updated the asset. */
         source_dag_id?: components["parameters"]["FilterSourceDAGID"];
-        /** The task ID that updated the dataset. */
+        /** The task ID that updated the asset. */
         source_task_id?: components["parameters"]["FilterSourceTaskID"];
-        /** The DAG run ID that updated the dataset. */
+        /** The DAG run ID that updated the asset. */
         source_run_id?: components["parameters"]["FilterSourceRunID"];
-        /** The map index that updated the dataset. */
+        /** The map index that updated the asset. */
         source_map_index?: components["parameters"]["FilterSourceMapIndex"];
       };
     };
@@ -5422,9 +5422,7 @@ export type Resource = CamelCasedPropertiesDeep<
 export type ActionResource = CamelCasedPropertiesDeep<
   components["schemas"]["ActionResource"]
 >;
-export type Dataset = CamelCasedPropertiesDeep<
-  components["schemas"]["Dataset"]
->;
+export type Asset = CamelCasedPropertiesDeep<components["schemas"]["Asset"]>;
 export type TaskOutletAssetReference = CamelCasedPropertiesDeep<
   components["schemas"]["TaskOutletAssetReference"]
 >;
