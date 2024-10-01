@@ -35,7 +35,14 @@ metadata:
       {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
+{{- if eq .Values.redis.service.type "ClusterIP" }}
   type: ClusterIP
+  {{- if .Values.redis.service.clusterIP }}
+  clusterIP: {{ .Values.redis.service.clusterIP }}
+  {{- end }}
+{{- else }}
+  type: {{ .Values.redis.service.type }}
+{{- end }}
   selector:
     tier: airflow
     component: redis
@@ -45,4 +52,7 @@ spec:
       protocol: TCP
       port: {{ .Values.ports.redisDB }}
       targetPort: {{ .Values.ports.redisDB }}
+      {{- if (and (eq .Values.redis.service.type "NodePort") (not (empty .Values.redis.service.nodePort))) }}
+      nodePort: {{ .Values.redis.service.nodePort }}
+      {{- end }}
 {{- end }}
