@@ -165,6 +165,7 @@ def test_get_documentation_package_path():
             "fab",
             "",
             """
+    "apache-airflow-providers-common-compat>=1.2.0",
     "apache-airflow>=2.9.0",
     "flask-appbuilder==4.5.0",
     "flask-login>=0.6.2",
@@ -178,6 +179,7 @@ def test_get_documentation_package_path():
             "fab",
             "dev0",
             """
+    "apache-airflow-providers-common-compat>=1.2.0.dev0",
     "apache-airflow>=2.9.0.dev0",
     "flask-appbuilder==4.5.0",
     "flask-login>=0.6.2",
@@ -191,6 +193,7 @@ def test_get_documentation_package_path():
             "fab",
             "beta0",
             """
+    "apache-airflow-providers-common-compat>=1.2.0b0",
     "apache-airflow>=2.9.0b0",
     "flask-appbuilder==4.5.0",
     "flask-login>=0.6.2",

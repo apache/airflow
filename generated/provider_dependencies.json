@@ -397,7 +397,9 @@
     ],
     "devel-deps": [],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "openlineage"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -563,6 +565,7 @@
   },
   "fab": {
     "deps": [
+      "apache-airflow-providers-common-compat>=1.2.0",
       "apache-airflow>=2.9.0",
       "flask-appbuilder==4.5.0",
       "flask-login>=0.6.2",
@@ -574,7 +577,9 @@
       "kerberos>=1.3.0"
     ],
     "plugins": [],
-    "cross-providers-deps": [],
+    "cross-providers-deps": [
+      "common.compat"
+    ],
     "excluded-python-versions": [],
     "state": "ready"
   },
@@ -804,7 +809,7 @@
       "azure-datalake-store>=0.0.45",
       "azure-identity>=1.3.1",
       "azure-keyvault-secrets>=4.1.0",
-      "azure-kusto-data>=4.1.0",
+      "azure-kusto-data>=4.1.0,!=4.6.0",
       "azure-mgmt-containerinstance>=10.1.0",
       "azure-mgmt-containerregistry>=8.0.0",
       "azure-mgmt-cosmosdb>=3.0.0",
@@ -969,6 +974,7 @@
       }
     ],
     "cross-providers-deps": [
+      "common.compat",
       "common.sql"
     ],
     "excluded-python-versions": [],
