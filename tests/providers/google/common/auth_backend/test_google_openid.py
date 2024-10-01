@@ -22,6 +22,7 @@ import pytest
 from google.auth.exceptions import GoogleAuthError
 
 from airflow.www.app import create_app
+from tests.test_utils.compat import AIRFLOW_V_2_9_PLUS
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools
 from tests.test_utils.decorators import dont_initialize_flask_app_submodules
@@ -73,6 +74,7 @@ def admin_user(google_openid_app):
     return role_admin
 
 
+@pytest.mark.skipif(not AIRFLOW_V_2_9_PLUS, reason="The tests should be skipped for Airflow < 2.9")
 @pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
 class TestGoogleOpenID:
