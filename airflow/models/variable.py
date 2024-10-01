@@ -34,7 +34,6 @@ from airflow.secrets.metastore import MetastoreBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.secrets_masker import mask_secret
 from airflow.utils.session import provide_session
-from airflow.operators.python import get_current_context
 
 log = logging.getLogger(__name__)
 
@@ -134,6 +133,7 @@ class Variable(Base, LoggingMixin):
         :param deserialize_json: Deserialize the value to a Python dict
         """
         try:
+            from airflow.operators.python import get_current_context
             context = get_current_context()
             ti = context["ti"]
             CrossDagComm.add(
@@ -183,6 +183,7 @@ class Variable(Base, LoggingMixin):
         :param is_multi_cluster_enabled: is set wrapped by lyft-etl sync_variable_writes_multicluster
         """
         try:
+            from airflow.operators.python import get_current_context
             context = get_current_context()
             ti = context["ti"]
             CrossDagComm.add(
