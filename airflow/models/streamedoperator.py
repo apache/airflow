@@ -175,7 +175,7 @@ class OperatorExecutor(LoggingMixin):
 class StreamedOperator(BaseOperator):
     """Object representing a streamed operator in a DAG."""
 
-    _operator_class: type[BaseOperator] | dict[str, Any]
+    _operator_class: type[BaseOperator]
     _expand_input: ExpandInput
     _partial_kwargs: dict[str, Any]
 
@@ -340,7 +340,7 @@ def stream(self, **mapped_kwargs: OperatorExpandArgument) -> StreamedOperator:
         start_date=start_date,
         end_date=end_date,
         max_active_tis_per_dag=max_active_tis_per_dag,
-        operator_class=cast(type[BaseOperator], self.operator_class),
+        operator_class=self.operator_class,
         expand_input=expand_input,
         retries=0,
         partial_kwargs=self.kwargs.copy(),
