@@ -28,7 +28,7 @@ export class AssetService {
   ): CancelablePromise<NextRunAssetsResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/ui/next_run_datasets/{dag_id}",
+      url: "/ui/next_run_assets/{dag_id}",
       path: {
         dag_id: data.dagId,
       },
