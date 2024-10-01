@@ -305,6 +305,22 @@ To use an external StatsD instance:
       statsd_host: ...
       statsd_port: ...
 
+IPv6 StatsD
+^^^^^^^^^^^^^^^
+
+To use an StatsD instance with IPv6 address. Example with Kubernetes Cluster with IPv6:
+
+.. code-block:: yaml
+  statsd:
+    enabled: true
+  config:
+    metrics:  # or 'scheduler' for Airflow 1
+      statsd_on: 'True'
+      statsd_host: ...
+      statsd_ipv6: 'True'
+      statsd_port: ...
+      statsd_prefix: airflow
+
 Datadog
 ^^^^^^^
 If you are using a Datadog agent in your environment, this will enable Airflow to export metrics to the Datadog agent.

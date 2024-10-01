@@ -1111,6 +1111,13 @@ metrics:
       type: string
       example: ~
       default: "localhost"
+    statsd_ipv6:
+      description: |
+        Enables the statsd host to be resolved into IPv6 address
+      version_added: 2.10.3
+      type: string
+      example: ~
+      default: "False"
     statsd_port:
       description: |
         Specifies the port on which the StatsD daemon (or server) is listening to

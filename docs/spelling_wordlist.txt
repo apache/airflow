@@ -832,7 +832,12 @@ intvl
 Investorise
 io
 ip
+IP
 ipc
+ipv4
+IPv4
+ipv6
+IPv6
 iPython
 irreproducible
 IRSA
