@@ -47,7 +47,7 @@ import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 import Tooltip from "src/components/Tooltip";
 import { useContainerRef } from "src/context/containerRef";
 
-import DatasetEvents from "./DatasetEvents";
+import DatasetEvents from "./AssetEvents";
 import DatasetsList from "./DatasetsList";
 import DatasetDetails from "./DatasetDetails";
 import type { OnSelectProps } from "./types";

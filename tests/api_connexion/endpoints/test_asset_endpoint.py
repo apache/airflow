@@ -396,7 +396,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         assert response.status_code == 200
         response_data = response.json
         assert response_data == {
-            "dataset_events": [
+            "asset_events": [
                 {
                     "id": 1,
                     "timestamp": self.default_time,
@@ -460,7 +460,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         assert response.status_code == 200
         response_data = response.json
         assert response_data == {
-            "dataset_events": [
+            "asset_events": [
                 {
                     "id": 2,
                     "dataset_id": 2,
@@ -538,7 +538,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         assert response.status_code == 200
         response_data = response.json
         assert response_data == {
-            "dataset_events": [
+            "asset_events": [
                 {
                     "id": 1,
                     "dataset_id": 1,
@@ -685,7 +685,7 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
         response = self.client.get(url, environ_overrides={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
-        event_runids = [event["source_run_id"] for event in response.json["dataset_events"]]
+        event_runids = [event["source_run_id"] for event in response.json["asset_events"]]
         assert event_runids == expected_event_runids
 
     def test_should_respect_page_size_limit_default(self, session):
@@ -707,7 +707,7 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
         response = self.client.get("/api/v1/datasets/events", environ_overrides={"REMOTE_USER": "test"})
 
         assert response.status_code == 200
-        assert len(response.json["dataset_events"]) == 100
+        assert len(response.json["asset_events"]) == 100
 
     @conf_vars({("api", "maximum_page_limit"): "150"})
     def test_should_return_conf_max_if_req_max_above_conf(self, session):
@@ -731,7 +731,7 @@ class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
         )
 
         assert response.status_code == 200
-        assert len(response.json["dataset_events"]) == 150
+        assert len(response.json["asset_events"]) == 150
 
 
 class TestQueuedEventEndpoint(TestDatasetEndpoint):

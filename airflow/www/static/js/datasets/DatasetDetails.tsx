@@ -33,7 +33,7 @@ import { useDataset } from "src/api";
 import { getMetaValue } from "src/utils";
 import RenderedJsonField from "src/components/RenderedJsonField";
 
-import Events from "./DatasetEvents";
+import Events from "./AssetEvents";
 
 const gridUrl = getMetaValue("grid_url");
 
