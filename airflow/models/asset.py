@@ -21,7 +21,6 @@ from urllib.parse import urlsplit
 
 import sqlalchemy_jsonfield
 from sqlalchemy import (
-    Boolean,
     Column,
     ForeignKey,
     ForeignKeyConstraint,
@@ -192,7 +191,8 @@ class AssetModel(Base):
 
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
-    is_orphaned = Column(Boolean, default=False, nullable=False, server_default="0")
+
+    active = relationship("AssetActive", lazy="joined", uselist=False, viewonly=True)
 
     consuming_dags = relationship("DagScheduleAssetReference", back_populates="dataset")
     producing_tasks = relationship("TaskOutletAssetReference", back_populates="dataset")
@@ -230,6 +230,57 @@ class AssetModel(Base):
 
     def to_public(self) -> Asset:
         return Asset(uri=self.uri, extra=self.extra)
+
+
+class AssetActive(Base):
+    """
+    Collection of active assets.
+
+    An asset is considered active if it is declared by the user in any DAG files.
+    AssetModel entries that are not active (also called orphaned in some parts
+    of the code base) are still kept in the database, but have their corresponding
+    entries in this table removed. This ensures we keep all possible history on
+    distinct assets (those with non-matching name-URI pairs), but still ensure
+    *name and URI are each unique* within active assets.
+    """
+
+    name = Column(
+        String(length=1500).with_variant(
+            String(
+                length=1500,
+                # latin1 allows for more indexed length in mysql
+                # and this field should only be ascii chars
+                collation="latin1_general_cs",
+            ),
+            "mysql",
+        ),
+        nullable=False,
+    )
+    uri = Column(
+        String(length=1500).with_variant(
+            String(
+                length=1500,
+                # latin1 allows for more indexed length in mysql
+                # and this field should only be ascii chars
+                collation="latin1_general_cs",
+            ),
+            "mysql",
+        ),
+        nullable=False,
+    )
+
+    __tablename__ = "asset_active"
+    __table_args__ = (
+        PrimaryKeyConstraint(name, uri, name="asset_active_pkey"),
+        ForeignKeyConstraint(
+            columns=[name, uri],
+            refcolumns=["dataset.name", "dataset.uri"],
+            name="asset_active_asset_name_uri_fkey",
+            ondelete="CASCADE",
+        ),
+        Index("idx_asset_active_name_unique", name, unique=True),
+        Index("idx_asset_active_uri_unique", uri, unique=True),
+    )
 
 
 class DagScheduleAssetAliasReference(Base):

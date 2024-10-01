@@ -33,11 +33,11 @@ from typing import TYPE_CHECKING, NamedTuple
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload, load_only
-from sqlalchemy.sql import expression
 
 from airflow.assets import Asset, AssetAlias
 from airflow.assets.manager import asset_manager
 from airflow.models.asset import (
+    AssetActive,
     AssetAliasModel,
     AssetModel,
     DagScheduleAssetAliasReference,
@@ -298,8 +298,6 @@ class AssetModelOperation(NamedTuple):
         orm_assets: dict[str, AssetModel] = {
             am.uri: am for am in session.scalars(select(AssetModel).where(AssetModel.uri.in_(self.assets)))
         }
-        for model in orm_assets.values():
-            model.is_orphaned = expression.false()
         orm_assets.update(
             (model.uri, model)
             for model in asset_manager.create_assets(
@@ -307,6 +305,7 @@ class AssetModelOperation(NamedTuple):
                 session=session,
             )
         )
+        session.add_all(AssetActive(name=model.name, uri=model.uri) for model in orm_assets.values())
         return orm_assets
 
     def add_asset_aliases(self, *, session: Session) -> dict[str, AssetAliasModel]:

@@ -3450,7 +3450,7 @@ class Airflow(AirflowBaseView):
                         ),
                         isouter=True,
                     )
-                    .where(DagScheduleAssetReference.dag_id == dag_id, ~AssetModel.is_orphaned)
+                    .where(DagScheduleAssetReference.dag_id == dag_id, AssetModel.active.any())
                     .group_by(AssetModel.id, AssetModel.uri)
                     .order_by(AssetModel.uri)
                 )
@@ -3583,7 +3583,7 @@ class Airflow(AirflowBaseView):
             if has_event_filters:
                 count_query = count_query.join(AssetEvent, AssetEvent.dataset_id == AssetModel.id)
 
-            filters = [~AssetModel.is_orphaned]
+            filters = [AssetModel.active.any()]
             if uri_pattern:
                 filters.append(AssetModel.uri.ilike(f"%{uri_pattern}%"))
             if updated_after:
