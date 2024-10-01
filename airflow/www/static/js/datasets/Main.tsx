@@ -42,7 +42,7 @@ import { MdEvent, MdAccountTree, MdDetails, MdPlayArrow } from "react-icons/md";
 import Time from "src/components/Time";
 import BreadcrumbText from "src/components/BreadcrumbText";
 import { useOffsetTop } from "src/utils";
-import { useDatasetDependencies } from "src/api";
+import { useAssetDependencies } from "src/api";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 import Tooltip from "src/components/Tooltip";
 import { useContainerRef } from "src/context/containerRef";
@@ -92,7 +92,7 @@ const Datasets = () => {
   const offsetTop = useOffsetTop(contentRef);
   const height = `calc(100vh - ${offsetTop + 100}px)`;
 
-  const { data: datasetDependencies, isLoading } = useDatasetDependencies();
+  const { data: datasetDependencies, isLoading } = useAssetDependencies();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const { isOpen, onToggle, onClose } = useDisclosure();

@@ -82,7 +82,7 @@ const formatDependencies = async ({ edges, nodes }: DatasetDependencies) => {
   return graph as DatasetGraph;
 };
 
-export default function useDatasetDependencies() {
+export default function useAssetDependencies() {
   return useQuery("datasetDependencies", async () => {
     const datasetDepsUrl = getMetaValue("dataset_dependencies_url");
     return axios.get<AxiosResponse, DatasetDependencies>(datasetDepsUrl);
@@ -90,7 +90,7 @@ export default function useDatasetDependencies() {
 }
 
 export const useDatasetGraphs = () => {
-  const { data: datasetDependencies } = useDatasetDependencies();
+  const { data: datasetDependencies } = useAssetDependencies();
   return useQuery(["datasetGraphs", datasetDependencies], () => {
     if (datasetDependencies) {
       return formatDependencies(datasetDependencies);

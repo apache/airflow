@@ -35,7 +35,7 @@ import useMappedInstances from "./useMappedInstances";
 import useDatasets from "./useDatasets";
 import useAssetsSummary from "./useAssetsSummary";
 import useDataset from "./useDataset";
-import useDatasetDependencies from "./useDatasetDependencies";
+import useAssetDependencies from "./useAssetDependencies";
 import useDatasetEvents from "./useDatasetEvents";
 import useSetDagRunNote from "./useSetDagRunNote";
 import useSetTaskInstanceNote from "./useSetTaskInstanceNote";
@@ -87,7 +87,7 @@ export {
   useDags,
   useDataset,
   useDatasets,
-  useDatasetDependencies,
+  useAssetDependencies,
   useDatasetEvents,
   useAssetsSummary,
   useExtraLinks,

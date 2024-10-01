@@ -34,7 +34,7 @@ import { RiFocus3Line } from "react-icons/ri";
 
 import Edge from "src/components/Graph/Edge";
 import { useContainerRef } from "src/context/containerRef";
-import { useDatasetGraphs } from "src/api/useDatasetDependencies";
+import { useDatasetGraphs } from "src/api/useAssetDependencies";
 
 import Node, { CustomNodeProps } from "./Node";
 import Legend from "./Legend";
