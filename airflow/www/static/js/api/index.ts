@@ -36,7 +36,7 @@ import useDatasets from "./useDatasets";
 import useAssetsSummary from "./useAssetsSummary";
 import useDataset from "./useDataset";
 import useAssetDependencies from "./useAssetDependencies";
-import useDatasetEvents from "./useDatasetEvents";
+import useAssetEvents from "./useAssetEvents";
 import useSetDagRunNote from "./useSetDagRunNote";
 import useSetTaskInstanceNote from "./useSetTaskInstanceNote";
 import useUpstreamAssetEvents from "./useUpstreamAssetEvents";
@@ -88,7 +88,7 @@ export {
   useDataset,
   useDatasets,
   useAssetDependencies,
-  useDatasetEvents,
+  useAssetEvents,
   useAssetsSummary,
   useExtraLinks,
   useGraphData,

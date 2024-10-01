@@ -19,7 +19,7 @@
 import React, { useMemo } from "react";
 import { Box, Text } from "@chakra-ui/react";
 
-import { useDatasetEvents } from "src/api";
+import { useAssetEvents } from "src/api";
 import type { DagRun as DagRunType } from "src/types";
 import { getMetaValue } from "src/utils";
 import { CardDef, CardList } from "src/components/Table";
@@ -41,7 +41,7 @@ const DatasetUpdateEvents = ({ runId, taskId }: Props) => {
   const {
     data: { datasetEvents = [] },
     isLoading,
-  } = useDatasetEvents({
+  } = useAssetEvents({
     sourceDagId: dagId,
     sourceRunId: runId,
     sourceTaskId: taskId,

@@ -31,7 +31,7 @@ interface Props extends GetAssetEventsVariables {
   options?: UseQueryOptions<DatasetEventCollection>;
 }
 
-const useDatasetEvents = ({
+const useAssetEvents = ({
   assetId,
   sourceDagId,
   sourceRunId,
@@ -84,4 +84,4 @@ const useDatasetEvents = ({
   };
 };
 
-export default useDatasetEvents;
+export default useAssetEvents;

@@ -32,7 +32,7 @@ import ReactFlow, {
 
 import {
   useDagDetails,
-  useDatasetEvents,
+  useAssetEvents,
   useDatasets,
   useGraphData,
   useGridData,
@@ -176,7 +176,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
 
   const {
     data: { datasetEvents: downstreamDatasetEvents = [] },
-  } = useDatasetEvents({
+  } = useAssetEvents({
     sourceDagId: dagId,
     sourceRunId: selected.runId || undefined,
     options: { enabled: !!selected.runId && showDatasets },

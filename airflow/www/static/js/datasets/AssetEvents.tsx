@@ -22,7 +22,7 @@ import { snakeCase } from "lodash";
 import type { SortingRule } from "react-table";
 import { Box, Flex, Heading, Select } from "@chakra-ui/react";
 
-import { useDatasetEvents } from "src/api";
+import { useAssetEvents } from "src/api";
 
 import { CardList, type CardDef } from "src/components/Table";
 import type { DatasetEvent } from "src/types/api-generated";
@@ -50,7 +50,7 @@ const Events = ({ assetId, showLabel }: Props) => {
   const {
     data: { datasetEvents = [], totalEntries = 0 },
     isLoading: isEventsLoading,
-  } = useDatasetEvents({
+  } = useAssetEvents({
     assetId,
     limit,
     offset,
