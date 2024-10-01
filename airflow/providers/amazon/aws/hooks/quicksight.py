@@ -18,12 +18,10 @@
 from __future__ import annotations
 
 import time
-from functools import cached_property
 
 from botocore.exceptions import ClientError
-from deprecated import deprecated
 
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
@@ -170,17 +168,3 @@ class QuickSightHook(AwsBaseHook):
 
         self.log.info("QuickSight Ingestion completed")
         return status
-
-    @cached_property
-    @deprecated(
-        reason=(
-            "`QuickSightHook.sts_hook` property is deprecated and will be removed in the future. "
-            "This property used for obtain AWS Account ID, "
-            "please consider to use `QuickSightHook.account_id` instead"
-        ),
-        category=AirflowProviderDeprecationWarning,
-    )
-    def sts_hook(self):
-        from airflow.providers.amazon.aws.hooks.sts import StsHook
-
-        return StsHook(aws_conn_id=self.aws_conn_id)

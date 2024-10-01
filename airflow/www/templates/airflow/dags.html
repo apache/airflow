@@ -284,7 +284,7 @@
               <a class="label label-default schedule"
                  href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}"
                  data-dag-id="{{ dag.dag_id }}">
-                {{ dag.schedule_interval }}
+                {{ dag.timetable_summary }}
               </a>
               {% if dag is defined and dag.timetable_description %}
                 <span class="material-icons text-muted js-tooltip" aria-hidden="true"
@@ -304,31 +304,31 @@
                     info
                   </span>
             </td>
-            <td class="text-nowrap {{ 'js-dataset-triggered' if dag.dag_id in dataset_triggered_next_run_info }}">
-              {% if dag.dag_id in dataset_triggered_next_run_info %}
-                {%- with ds_info = dataset_triggered_next_run_info[dag.dag_id] -%}
+            <td class="text-nowrap {{ 'js-dataset-triggered' if dag.dag_id in asset_triggered_next_run_info }}">
+              {% if dag.dag_id in asset_triggered_next_run_info %}
+                {%- with asset_info = asset_triggered_next_run_info[dag.dag_id] -%}
                   <span
                     data-dag-id="{{ dag.dag_id }}"
                     class="js-tooltip js-next-dataset-run-tooltip"
                     title="Click to see dataset details."
                     data-html="true"
-                    data-uri="{{ ds_info.uri }}"
+                    data-uri="{{ asset_info.uri }}"
                   >
                     <div
                       class="label label-default next-dataset-triggered"
                       data-dag-id="{{ dag.dag_id }}"
-                      data-uri="{{ ds_info.uri }}"
+                      data-uri="{{ asset_info.uri }}"
                       data-summary="
-                      {%- if ds_info.total == 1 -%}
-                      On {{ ds_info.uri }}
+                      {%- if asset_info.total == 1 -%}
+                      On {{ asset_info.uri }}
                       {%- else -%}
-                      {{ ds_info.ready }} of {{ ds_info.total }} datasets updated
+                      {{ asset_info.ready }} of {{ asset_info.total }} datasets updated
                       {%- endif -%}"
                     >
-                      {% if ds_info.total == 1 -%}
-                        On {{ ds_info.uri[0:40] + '…' if ds_info.uri and ds_info.uri|length > 40 else ds_info.uri|default('', true) }}
+                      {% if asset_info.total == 1 -%}
+                        On {{ asset_info.uri[0:40] + '…' if asset_info.uri and asset_info.uri|length > 40 else asset_info.uri|default('', true) }}
                       {%- else -%}
-                        {{ ds_info.ready }} of {{ ds_info.total }} datasets updated
+                        {{ asset_info.ready }} of {{ asset_info.total }} datasets updated
                       {%- endif %}
                     </div>
                   </span>

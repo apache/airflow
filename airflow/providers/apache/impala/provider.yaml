@@ -22,9 +22,10 @@ description: |
     `Apache Impala <https://impala.apache.org/>`__.
 
 state: ready
-source-date-epoch: 1723969232
+source-date-epoch: 1726860060
 # note that those versions are maintained by release manager - do not update them manually
 versions:
+  - 1.5.1
   - 1.5.0
   - 1.4.2
   - 1.4.1
@@ -48,6 +49,8 @@ additional-extras:
     dependencies:
       - kerberos>=1.3.0
 
+devel-dependencies:
+  - kerberos>=1.3.0
 
 integrations:
   - integration-name: Apache Impala

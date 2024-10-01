@@ -48,8 +48,12 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE as _DEFAULT_DATE
 from tests.test_utils import db
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import MockOperator
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -81,7 +85,7 @@ class TestDagRun:
         db.clear_db_pools()
         db.clear_db_dags()
         db.clear_db_variables()
-        db.clear_db_datasets()
+        db.clear_db_assets()
         db.clear_db_xcom()
         db.clear_db_task_fail()
 
@@ -97,6 +101,7 @@ class TestDagRun:
     ):
         now = timezone.utcnow()
         execution_date = pendulum.instance(execution_date or now)
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         if is_backfill:
             run_type = DagRunType.BACKFILL_JOB
             data_interval = dag.infer_automated_data_interval(execution_date)
@@ -110,6 +115,7 @@ class TestDagRun:
             start_date=now,
             state=state,
             external_trigger=False,
+            **triggered_by_kwargs,  # type: ignore
         )
 
         if task_states is not None:
@@ -294,12 +300,14 @@ class TestDagRun:
         dag.clear()
 
         now = pendulum.now("UTC")
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_id="test_dagrun_success_conditions",
             state=DagRunState.RUNNING,
             execution_date=now,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=now),
             start_date=now,
+            **triggered_by_kwargs,
         )
 
         # op1 = root
@@ -337,6 +345,7 @@ class TestDagRun:
 
         dag.clear()
         now = pendulum.now("UTC")
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_id="test_dagrun_deadlock",
             state=DagRunState.RUNNING,
@@ -344,6 +353,7 @@ class TestDagRun:
             data_interval=dag.timetable.infer_manual_data_interval(run_after=now),
             start_date=now,
             session=session,
+            **triggered_by_kwargs,
         )
 
         ti_op1: TI = dr.get_task_instance(task_id=op1.task_id, session=session)
@@ -370,12 +380,14 @@ class TestDagRun:
             op2 = EmptyOperator(task_id="downstream_task")
             op2.set_upstream(op1)
 
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_id="test_dagrun_no_deadlock_with_shutdown",
             state=DagRunState.RUNNING,
             execution_date=DEFAULT_DATE,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
             start_date=DEFAULT_DATE,
+            **triggered_by_kwargs,
         )
         upstream_ti = dr.get_task_instance(task_id="upstream_task")
         upstream_ti.set_state(TaskInstanceState.RESTARTING, session=session)
@@ -390,12 +402,14 @@ class TestDagRun:
             EmptyOperator(task_id="tc", max_active_tis_per_dag=1)
 
         dag.clear()
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_id="test_dagrun_no_deadlock_1",
             state=DagRunState.RUNNING,
             execution_date=DEFAULT_DATE,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=DEFAULT_DATE),
             start_date=DEFAULT_DATE,
+            **triggered_by_kwargs,
         )
         next_date = DEFAULT_DATE + datetime.timedelta(days=1)
         dr2 = dag.create_dagrun(
@@ -404,6 +418,7 @@ class TestDagRun:
             execution_date=next_date,
             data_interval=dag.timetable.infer_manual_data_interval(run_after=next_date),
             start_date=next_date,
+            **triggered_by_kwargs,
         )
         ti1_op1 = dr.get_task_instance(task_id="dop")
         dr2.get_task_instance(task_id="dop")
@@ -476,6 +491,31 @@ class TestDagRun:
         assert DagRunState.FAILED == dag_run.state
         # Callbacks are not added until handle_callback = False is passed to dag_run.update_state()
         assert callback is None
+
+    def test_on_success_callback_when_task_skipped(self, session):
+        mock_on_success = mock.MagicMock()
+        mock_on_success.__name__ = "mock_on_success"
+
+        dag = DAG(
+            dag_id="test_dagrun_update_state_with_handle_callback_success",
+            start_date=datetime.datetime(2017, 1, 1),
+            on_success_callback=mock_on_success,
+            schedule=datetime.timedelta(days=1),
+        )
+
+        _ = EmptyOperator(task_id="test_state_succeeded1", dag=dag)
+
+        initial_task_states = {
+            "test_state_succeeded1": TaskInstanceState.SKIPPED,
+        }
+
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        _, _ = dag_run.update_state(execute_callbacks=True)
+        task = dag_run.get_task_instances()[0]
+
+        assert task.state == TaskInstanceState.SKIPPED
+        assert DagRunState.SUCCESS == dag_run.state
+        mock_on_success.assert_called_once()
 
     def test_dagrun_update_state_with_handle_callback_success(self, session):
         def on_success_callable(context):
@@ -566,12 +606,14 @@ class TestDagRun:
         dag.clear()
 
         now = pendulum.now("UTC")
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_id="test_dagrun_set_state_end_date",
             state=DagRunState.RUNNING,
             execution_date=now,
             data_interval=dag.timetable.infer_manual_data_interval(now),
             start_date=now,
+            **triggered_by_kwargs,
         )
 
         # Initial end_date should be NULL
@@ -622,12 +664,14 @@ class TestDagRun:
         dag.clear()
 
         now = pendulum.now("UTC")
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_id="test_dagrun_update_state_end_date",
             state=DagRunState.RUNNING,
             execution_date=now,
             data_interval=dag.timetable.infer_manual_data_interval(now),
             start_date=now,
+            **triggered_by_kwargs,
         )
 
         # Initial end_date should be NULL
@@ -876,6 +920,7 @@ class TestDagRun:
         )
         session.add(orm_dag)
         session.flush()
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dr = dag.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             state=state,
@@ -883,16 +928,21 @@ class TestDagRun:
             data_interval=dag.infer_automated_data_interval(DEFAULT_DATE),
             start_date=DEFAULT_DATE if state == DagRunState.RUNNING else None,
             session=session,
+            **triggered_by_kwargs,
         )
 
-        runs = DagRun.next_dagruns_to_examine(state, session).all()
+        if state == DagRunState.RUNNING:
+            func = DagRun.get_running_dag_runs_to_examine
+        else:
+            func = DagRun.get_queued_dag_runs_to_set_running
+        runs = func(session).all()
 
         assert runs == [dr]
 
         orm_dag.is_paused = True
         session.flush()
 
-        runs = DagRun.next_dagruns_to_examine(state, session).all()
+        runs = func(session).all()
         assert runs == []
 
     @mock.patch.object(Stats, "timing")
@@ -913,19 +963,19 @@ class TestDagRun:
         assert call(f"dagrun.{dag.dag_id}.first_task_scheduling_delay") not in stats_mock.mock_calls
 
     @pytest.mark.parametrize(
-        "schedule_interval, expected",
+        "schedule, expected",
         [
             ("*/5 * * * *", True),
             (None, False),
             ("@once", False),
         ],
     )
-    def test_emit_scheduling_delay(self, session, schedule_interval, expected):
+    def test_emit_scheduling_delay(self, session, schedule, expected):
         """
         Tests that dag scheduling delay stat is set properly once running scheduled dag.
         dag_run.update_state() invokes the _emit_true_scheduling_delay_stats_for_finished_state method.
         """
-        dag = DAG(dag_id="test_emit_dag_stats", start_date=DEFAULT_DATE, schedule=schedule_interval)
+        dag = DAG(dag_id="test_emit_dag_stats", start_date=DEFAULT_DATE, schedule=schedule)
         dag_task = EmptyOperator(task_id="dummy", dag=dag, owner="airflow")
         expected_stat_tags = {"dag_id": f"{dag.dag_id}", "run_type": DagRunType.SCHEDULED}
 
@@ -943,6 +993,7 @@ class TestDagRun:
             orm_dag = DagModel(**orm_dag_kwargs)
             session.add(orm_dag)
             session.flush()
+            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dag_run = dag.create_dagrun(
                 run_type=DagRunType.SCHEDULED,
                 state=DagRunState.SUCCESS,
@@ -950,6 +1001,7 @@ class TestDagRun:
                 data_interval=dag.infer_automated_data_interval(dag.start_date),
                 start_date=dag.start_date,
                 session=session,
+                **triggered_by_kwargs,
             )
             ti = dag_run.get_task_instance(dag_task.task_id, session)
             ti.set_state(TaskInstanceState.SUCCESS, session)
@@ -1397,7 +1449,7 @@ def test_mapped_literal_faulty_state_in_db(dag_maker, session):
     assert len(decision.schedulable_tis) == 2
 
     # We insert a faulty record
-    session.add(TaskInstance(dag.get_task("task_2"), dr.execution_date, dr.run_id))
+    session.add(TaskInstance(task=dag.get_task("task_2"), run_id=dr.run_id))
     session.flush()
 
     decision = dr.task_instance_scheduling_decisions()

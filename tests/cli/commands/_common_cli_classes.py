@@ -33,7 +33,7 @@ from airflow.utils.cli import setup_locations
 console = Console(width=400, color_system="standard")
 
 
-class _ComonCLIGunicornTestClass:
+class _CommonCLIGunicornTestClass:
     main_process_regexp: str = "process_to_look_for"
 
     @pytest.fixture(autouse=True)

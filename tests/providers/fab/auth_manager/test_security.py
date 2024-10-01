@@ -22,6 +22,7 @@ import datetime
 import json
 import logging
 import os
+from typing import TYPE_CHECKING
 from unittest import mock
 from unittest.mock import patch
 
@@ -34,13 +35,12 @@ from sqlalchemy import Column, Date, Float, Integer, String
 from airflow.configuration import initialize_config
 from airflow.exceptions import AirflowException
 from airflow.models import DagModel
-from airflow.models.base import Base
 from airflow.models.dag import DAG
 from tests.test_utils.compat import ignore_provider_compatibility_error
 
 with ignore_provider_compatibility_error("2.9.0+", __file__):
     from airflow.providers.fab.auth_manager.fab_auth_manager import FabAuthManager
-    from airflow.providers.fab.auth_manager.models import User, assoc_permission_role
+    from airflow.providers.fab.auth_manager.models import assoc_permission_role
     from airflow.providers.fab.auth_manager.models.anonymous_user import AnonymousUser
 
 from airflow.security import permissions
@@ -49,7 +49,7 @@ from airflow.www import app as application
 from airflow.www.auth import get_access_denied_message
 from airflow.www.extensions.init_auth_manager import get_auth_manager
 from airflow.www.utils import CustomSQLAInterface
-from tests.test_utils.api_connexion_utils import (
+from tests.providers.fab.auth_manager.api_endpoints.api_connexion_utils import (
     create_user,
     create_user_scope,
     delete_role,
@@ -60,6 +60,15 @@ from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 from tests.test_utils.mock_security_manager import MockSecurityManager
 from tests.test_utils.permissions import _resource_name
+
+if TYPE_CHECKING:
+    from airflow.security.permissions import RESOURCE_ASSET
+else:
+    try:
+        from airflow.security.permissions import RESOURCE_ASSET
+    except ImportError:
+        from airflow.security.permissions import RESOURCE_DATASET as RESOURCE_ASSET
+
 
 pytestmark = pytest.mark.db_test
 
@@ -436,7 +445,7 @@ def test_get_user_roles_for_anonymous_user(app, security_manager):
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_READ, RESOURCE_ASSET),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_IMPORT_ERROR),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING),
@@ -455,7 +464,7 @@ def test_get_user_roles_for_anonymous_user(app, security_manager):
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_DEPENDENCIES),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DAG_RUN),
-        (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_DATASET),
+        (permissions.ACTION_CAN_ACCESS_MENU, RESOURCE_ASSET),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_CLUSTER_ACTIVITY),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_JOB),
         (permissions.ACTION_CAN_ACCESS_MENU, permissions.RESOURCE_SLA_MISS),
@@ -514,7 +523,10 @@ def test_get_accessible_dag_ids(mock_is_logged_in, app, security_manager, sessio
             ],
         ) as user:
             mock_is_logged_in.return_value = True
-            dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
+            if hasattr(DagModel, "schedule_interval"):  # Airflow 2 compat.
+                dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
+            else:  # Airflow 3.
+                dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", timetable_summary="2 2 * * *")
             session.add(dag_model)
             session.commit()
 
@@ -545,7 +557,10 @@ def test_dont_get_inaccessible_dag_ids_for_dag_resource_permission(
             ],
         ) as user:
             mock_is_logged_in.return_value = True
-            dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
+            if hasattr(DagModel, "schedule_interval"):  # Airflow 2 compat.
+                dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", schedule_interval="2 2 * * *")
+            else:  # Airflow 3.
+                dag_model = DagModel(dag_id=dag_id, fileloc="/tmp/dag_.py", timetable_summary="2 2 * * *")
             session.add(dag_model)
             session.commit()
 
@@ -927,7 +942,7 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
     dagbag_mock.collect_dags_from_db = collect_dags_from_db_mock
     dagbag_class_mock = mock.Mock()
     dagbag_class_mock.return_value = dagbag_mock
-    import airflow.www.security
+    import airflow.providers.fab.auth_manager.security_manager
 
     monkeypatch.setitem(
         airflow.providers.fab.auth_manager.security_manager.override.__dict__, "DagBag", dagbag_class_mock
@@ -1040,12 +1055,6 @@ def test_permissions_work_for_dags_with_dot_in_dagname(
             assert_user_has_dag_perms(perms=["GET", "PUT"], dag_id=dag_id, user=user)
             assert_user_does_not_have_dag_perms(perms=["GET", "PUT"], dag_id=dag_id_2, user=user)
             session.query(DagModel).delete()
-
-
-def test_fab_models_use_airflow_base_meta():
-    # TODO: move this test to appropriate place when we have more tests for FAB models
-    user = User()
-    assert user.metadata is Base.metadata
 
 
 @pytest.fixture

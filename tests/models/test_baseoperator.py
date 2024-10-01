@@ -29,7 +29,7 @@ import jinja2
 import pytest
 
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException, FailStopDagInvalidTriggerRule, RemovedInAirflow3Warning
+from airflow.exceptions import AirflowException, FailStopDagInvalidTriggerRule
 from airflow.lineage.entities import File
 from airflow.models.baseoperator import (
     BASEOPERATOR_ARGS_EXPECTED_TYPES,
@@ -50,7 +50,6 @@ from airflow.utils.template import literal
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE
-from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_operators import DeprecatedOperator, MockOperator
 
 if TYPE_CHECKING:
@@ -157,18 +156,6 @@ class TestBaseOperator:
         error_msg = "`priority_weight` for task 'test_op' only accepts integers, received '<class 'str'>'."
         with pytest.raises(AirflowException, match=error_msg):
             BaseOperator(task_id="test_op", priority_weight="2")
-
-    def test_illegal_args(self):
-        """
-        Tests that Operators reject illegal arguments
-        """
-        msg = r"Invalid arguments were passed to BaseOperator \(task_id: test_illegal_args\)"
-        with conf_vars({("operators", "allow_illegal_arguments"): "True"}):
-            with pytest.warns(RemovedInAirflow3Warning, match=msg):
-                BaseOperator(
-                    task_id="test_illegal_args",
-                    illegal_argument_1234="hello?",
-                )
 
     def test_illegal_args_forbidden(self):
         """
@@ -316,51 +303,6 @@ class TestBaseOperator:
 
         result = task.render_template(content, context)
         assert result == expected_output
-
-    def test_mapped_dag_slas_disabled_classic(self):
-        class MyOp(BaseOperator):
-            def __init__(self, x, **kwargs):
-                self.x = x
-                super().__init__(**kwargs)
-
-            def execute(self, context):
-                print(self.x)
-
-        with DAG(
-            dag_id="test-dag",
-            schedule=None,
-            start_date=DEFAULT_DATE,
-            default_args={"sla": timedelta(minutes=30)},
-        ) as dag:
-
-            @dag.task
-            def get_values():
-                return [0, 1, 2]
-
-            task1 = get_values()
-            with pytest.raises(AirflowException, match="SLAs are unsupported with mapped tasks"):
-                MyOp.partial(task_id="hi").expand(x=task1)
-
-    def test_mapped_dag_slas_disabled_taskflow(self):
-        with DAG(
-            dag_id="test-dag",
-            schedule=None,
-            start_date=DEFAULT_DATE,
-            default_args={"sla": timedelta(minutes=30)},
-        ) as dag:
-
-            @dag.task
-            def get_values():
-                return [0, 1, 2]
-
-            task1 = get_values()
-
-            @dag.task
-            def print_val(x):
-                print(x)
-
-            with pytest.raises(AirflowException, match="SLAs are unsupported with mapped tasks"):
-                print_val.expand(x=task1)
 
     @pytest.mark.db_test
     def test_render_template_fields(self):
@@ -802,15 +744,6 @@ class TestBaseOperator:
         ):
             BaseOperator(task_id="op1", trigger_rule="some_rule")
 
-    @pytest.mark.parametrize(("rule"), [("dummy"), (TriggerRule.DUMMY)])
-    def test_replace_dummy_trigger_rule(self, rule):
-        with pytest.warns(
-            DeprecationWarning, match="dummy Trigger Rule is deprecated. Please use `TriggerRule.ALWAYS`."
-        ):
-            op1 = BaseOperator(task_id="op1", trigger_rule=rule)
-
-            assert op1.trigger_rule == TriggerRule.ALWAYS
-
     def test_weight_rule_default(self):
         op = BaseOperator(task_id="test_task")
         assert _DownstreamPriorityWeightStrategy() == op.weight_rule
@@ -1116,11 +1049,11 @@ def test_get_task_instances(session):
         "run_type": DagRunType.MANUAL,
     }
     dr1 = DagRun(execution_date=first_execution_date, run_id="test_run_id_1", **common_dr_kwargs)
-    ti_1 = TaskInstance(run_id=dr1.run_id, task=task, execution_date=first_execution_date)
+    ti_1 = TaskInstance(run_id=dr1.run_id, task=task)
     dr2 = DagRun(execution_date=second_execution_date, run_id="test_run_id_2", **common_dr_kwargs)
-    ti_2 = TaskInstance(run_id=dr2.run_id, task=task, execution_date=second_execution_date)
+    ti_2 = TaskInstance(run_id=dr2.run_id, task=task)
     dr3 = DagRun(execution_date=third_execution_date, run_id="test_run_id_3", **common_dr_kwargs)
-    ti_3 = TaskInstance(run_id=dr3.run_id, task=task, execution_date=third_execution_date)
+    ti_3 = TaskInstance(run_id=dr3.run_id, task=task)
     session.add_all([dr1, dr2, dr3, ti_1, ti_2, ti_3])
     session.commit()
 

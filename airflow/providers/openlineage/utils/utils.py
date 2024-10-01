@@ -31,9 +31,8 @@ from openlineage.client.utils import RedactMixin
 from packaging.version import Version
 
 from airflow import __version__ as AIRFLOW_VERSION
-from airflow.datasets import Dataset
 from airflow.exceptions import AirflowProviderDeprecationWarning  # TODO: move this maybe to Airflow's logic?
-from airflow.models import DAG, BaseOperator, MappedOperator, Operator
+from airflow.models import DAG, BaseOperator, DagRun, MappedOperator
 from airflow.providers.openlineage import conf
 from airflow.providers.openlineage.plugins.facets import (
     AirflowDagRunFacet,
@@ -54,13 +53,17 @@ from airflow.utils.context import AirflowContextDeprecationWarning
 from airflow.utils.log.secrets_masker import Redactable, Redacted, SecretsMasker, should_hide_value_for_key
 from airflow.utils.module_loading import import_string
 
+try:
+    from airflow.assets import Asset
+except ModuleNotFoundError:
+    from airflow.datasets import Dataset as Asset  # type: ignore[no-redef]
+
 if TYPE_CHECKING:
     from openlineage.client.event_v2 import Dataset as OpenLineageDataset
     from openlineage.client.facet_v2 import RunFacet
 
-    from airflow.models import DagRun, TaskInstance
-    from airflow.utils.state import TaskInstanceState
-
+    from airflow.models import TaskInstance
+    from airflow.utils.state import DagRunState, TaskInstanceState
 
 log = logging.getLogger(__name__)
 _NOMINAL_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
@@ -199,7 +202,7 @@ class InfoJsonEncodable(dict):
             return value.isoformat()
         if isinstance(value, datetime.timedelta):
             return f"{value.total_seconds()} seconds"
-        if isinstance(value, (set, tuple)):
+        if isinstance(value, (set, list, tuple)):
             return str(list(value))
         return value
 
@@ -244,7 +247,16 @@ class InfoJsonEncodable(dict):
 class DagInfo(InfoJsonEncodable):
     """Defines encoding DAG object to JSON."""
 
-    includes = ["dag_id", "description", "fileloc", "owner", "schedule_interval", "start_date", "tags"]
+    includes = [
+        "dag_id",
+        "description",
+        "fileloc",
+        "owner",
+        "schedule_interval",  # For Airflow 2.
+        "timetable_summary",  # For Airflow 3.
+        "start_date",
+        "tags",
+    ]
     casts = {"timetable": lambda dag: dag.timetable.serialize() if getattr(dag, "timetable", None) else None}
     renames = {"_dag_id": "dag_id"}
 
@@ -275,8 +287,8 @@ class TaskInstanceInfo(InfoJsonEncodable):
     }
 
 
-class DatasetInfo(InfoJsonEncodable):
-    """Defines encoding Airflow Dataset object to JSON."""
+class AssetInfo(InfoJsonEncodable):
+    """Defines encoding Airflow Asset object to JSON."""
 
     includes = ["uri", "extra"]
 
@@ -327,8 +339,8 @@ class TaskInfo(InfoJsonEncodable):
             if hasattr(task, "task_group") and getattr(task.task_group, "_group_id", None)
             else None
         ),
-        "inlets": lambda task: [DatasetInfo(i) for i in task.inlets if isinstance(i, Dataset)],
-        "outlets": lambda task: [DatasetInfo(o) for o in task.outlets if isinstance(o, Dataset)],
+        "inlets": lambda task: [AssetInfo(i) for i in task.inlets if isinstance(i, Asset)],
+        "outlets": lambda task: [AssetInfo(o) for o in task.outlets if isinstance(o, Asset)],
     }
 
 
@@ -423,57 +435,23 @@ def get_airflow_job_facet(dag_run: DagRun) -> dict[str, AirflowJobFacet]:
         return {}
     return {
         "airflow": AirflowJobFacet(
-            taskTree=_get_parsed_dag_tree(dag_run.dag),
+            taskTree={},  # caused OOM errors, to be removed, see #41587
             taskGroups=_get_task_groups_details(dag_run.dag),
             tasks=_get_tasks_details(dag_run.dag),
         )
     }
 
 
-def get_airflow_state_run_facet(dag_run: DagRun) -> dict[str, AirflowStateRunFacet]:
+def get_airflow_state_run_facet(
+    dag_id: str, run_id: str, task_ids: list[str], dag_run_state: DagRunState
+) -> dict[str, AirflowStateRunFacet]:
+    tis = DagRun.fetch_task_instances(dag_id=dag_id, run_id=run_id, task_ids=task_ids)
     return {
         "airflowState": AirflowStateRunFacet(
-            dagRunState=dag_run.get_state(),
-            tasksState={ti.task_id: ti.state for ti in dag_run.get_task_instances()},
+            dagRunState=dag_run_state,
+            tasksState={ti.task_id: ti.state for ti in tis},
         )
     }
-
-
-def _get_parsed_dag_tree(dag: DAG) -> dict:
-    """
-    Get DAG's tasks hierarchy representation.
-
-    While the task dependencies are defined as following:
-    task >> [task_2, task_4] >> task_7
-    task_3 >> task_5
-    task_6  # has no dependencies, it's a root and a leaf
-
-    The result of this function will look like:
-    {
-        "task": {
-            "task_2": {
-                "task_7": {}
-            },
-            "task_4": {
-                "task_7": {}
-            }
-        },
-        "task_3": {
-            "task_5": {}
-        },
-        "task_6": {}
-    }
-    """
-
-    def get_downstream(task: Operator, current_dict: dict):
-        current_dict[task.task_id] = {}
-        for tmp_task in sorted(task.downstream_list, key=lambda x: x.task_id):
-            get_downstream(tmp_task, current_dict[task.task_id])
-
-    task_dict: dict = {}
-    for t in sorted(dag.roots, key=lambda x: x.task_id):
-        get_downstream(t, task_dict)
-    return task_dict
 
 
 def _get_tasks_details(dag: DAG) -> dict:
@@ -487,8 +465,9 @@ def _get_tasks_details(dag: DAG) -> dict:
             "ui_label": single_task.label,
             "is_setup": single_task.is_setup,
             "is_teardown": single_task.is_teardown,
+            "downstream_task_ids": sorted(single_task.downstream_task_ids),
         }
-        for single_task in dag.tasks
+        for single_task in sorted(dag.tasks, key=lambda x: x.task_id)
     }
 
     return tasks
@@ -666,19 +645,29 @@ def should_use_external_connection(hook) -> bool:
     return True
 
 
-def translate_airflow_dataset(dataset: Dataset, lineage_context) -> OpenLineageDataset | None:
+def translate_airflow_asset(asset: Asset, lineage_context) -> OpenLineageDataset | None:
     """
-    Convert a Dataset with an AIP-60 compliant URI to an OpenLineageDataset.
+    Convert a Asset with an AIP-60 compliant URI to an OpenLineageDataset.
 
-    This function returns None if no URI normalizer is defined, no dataset converter is found or
+    This function returns None if no URI normalizer is defined, no asset converter is found or
     some core Airflow changes are missing and ImportError is raised.
     """
     try:
-        from airflow.datasets import _get_normalized_scheme
+        from airflow.assets import _get_normalized_scheme
+    except ModuleNotFoundError:
+        try:
+            from airflow.datasets import _get_normalized_scheme  # type: ignore[no-redef]
+        except ImportError:
+            return None
+
+    try:
         from airflow.providers_manager import ProvidersManager
 
-        ol_converters = ProvidersManager().dataset_to_openlineage_converters
-        normalized_uri = dataset.normalized_uri
+        ol_converters = getattr(ProvidersManager(), "asset_to_openlineage_converters", None)
+        if not ol_converters:
+            ol_converters = ProvidersManager().dataset_to_openlineage_converters  # type: ignore[attr-defined]
+
+        normalized_uri = asset.normalized_uri
     except (ImportError, AttributeError):
         return None
 
@@ -691,4 +680,4 @@ def translate_airflow_dataset(dataset: Dataset, lineage_context) -> OpenLineageD
     if (airflow_to_ol_converter := ol_converters.get(normalized_scheme)) is None:
         return None
 
-    return airflow_to_ol_converter(Dataset(uri=normalized_uri, extra=dataset.extra), lineage_context)
+    return airflow_to_ol_converter(Asset(uri=normalized_uri, extra=asset.extra), lineage_context)

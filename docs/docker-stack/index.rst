@@ -204,7 +204,7 @@ security email, nor GitHub Issues which are exclusively about Airflow Issues not
 public security issues.
 
 Support
-=======
+========
 
 The reference Docker Image supports the following platforms and database:
 

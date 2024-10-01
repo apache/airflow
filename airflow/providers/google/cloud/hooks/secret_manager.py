@@ -22,7 +22,6 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, Sequence
 
-from deprecated import deprecated
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.cloud.secretmanager_v1 import (
     AccessSecretVersionResponse,
@@ -35,6 +34,7 @@ from google.cloud.secretmanager_v1 import (
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud._internal_client.secret_manager_client import _SecretManagerClient
 from airflow.providers.google.common.consts import CLIENT_INFO
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 if TYPE_CHECKING:
@@ -43,8 +43,8 @@ if TYPE_CHECKING:
 
 
 @deprecated(
-    reason="The SecretsManagerHook is deprecated and will be removed after 01.11.2024. "
-    "Please use GoogleCloudSecretManagerHook instead.",
+    planned_removal_date="November 01, 2024",
+    use_instead="GoogleCloudSecretManagerHook",
     category=AirflowProviderDeprecationWarning,
 )
 class SecretsManagerHook(GoogleBaseHook):

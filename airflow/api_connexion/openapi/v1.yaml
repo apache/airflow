@@ -176,7 +176,7 @@ info:
     `airflow config get-value api auth_backends` command as in the example below.
     ```bash
     $ airflow config get-value api auth_backends
-    airflow.api.auth.backend.basic_auth
+    airflow.providers.fab.auth_manager.api.auth.backend.basic_auth
     ```
     The default is to deny all requests.
 
@@ -245,6 +245,200 @@ servers:
     description: Apache Airflow Stable API.
 
 paths:
+  # Database entities
+  /backfills:
+    get:
+      summary: List backfills
+      x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
+      operationId: list_backfills
+      tags: [Backfill]
+      parameters:
+        - name: dag_id
+          in: query
+          schema:
+            type: string
+          required: true
+          description: |
+            List backfills for this dag.
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackfillCollection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+
+    post:
+      summary: Create a backfill job.
+      x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
+      operationId: create_backfill
+      tags: [Backfill]
+      parameters:
+        - name: dag_id
+          in: query
+          schema:
+            type: string
+          required: true
+          description: |
+            Create dag runs for this dag.
+
+        - name: from_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+          required: true
+          description: |
+            Create dag runs with logical dates from this date onward, including this date.
+
+        - name: to_date
+          in: query
+          schema:
+            type: string
+            format: date-time
+          required: true
+          description: |
+            Create dag runs for logical dates up to but not including this date.
+
+        - name: max_active_runs
+          in: query
+          schema:
+            type: integer
+          required: false
+          description: |
+            Maximum number of active DAG runs for the the backfill.
+
+        - name: reverse
+          in: query
+          schema:
+            type: boolean
+          required: false
+          description: |
+            If true, run the dag runs in descending order of logical date.
+
+        - name: config
+          in: query
+          schema:
+            # todo: AIP-78 make this object
+            type: string
+          required: false
+          description: |
+            If true, run the dag runs in descending order of logical date.
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Backfill"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+
+  /backfills/{backfill_id}:
+    parameters:
+      - $ref: "#/components/parameters/BackfillIdPath"
+    get:
+        summary: Get a backfill
+        x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
+        operationId: get_backfill
+        tags: [Backfill]
+        responses:
+          "200":
+            description: Success.
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/Backfill"
+          "401":
+            $ref: "#/components/responses/Unauthenticated"
+          "403":
+            $ref: "#/components/responses/PermissionDenied"
+          "404":
+            $ref: "#/components/responses/NotFound"
+
+  /backfills/{backfill_id}/pause:
+    parameters:
+      - $ref: "#/components/parameters/BackfillIdPath"
+    post:
+        summary: Pause a backfill
+        x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
+        operationId: pause_backfill
+        tags: [Backfill]
+        responses:
+          "200":
+            description: Success.
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/Backfill"
+          "401":
+            $ref: "#/components/responses/Unauthenticated"
+          "403":
+            $ref: "#/components/responses/PermissionDenied"
+          "404":
+            $ref: "#/components/responses/NotFound"
+          "409":
+            $ref: "#/components/responses/Conflict"
+
+  /backfills/{backfill_id}/unpause:
+    parameters:
+      - $ref: "#/components/parameters/BackfillIdPath"
+    post:
+        summary: Pause a backfill
+        x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
+        operationId: unpause_backfill
+        tags: [Backfill]
+        responses:
+          "200":
+            description: Success.
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/Backfill"
+          "401":
+            $ref: "#/components/responses/Unauthenticated"
+          "403":
+            $ref: "#/components/responses/PermissionDenied"
+          "404":
+            $ref: "#/components/responses/NotFound"
+          "409":
+            $ref: "#/components/responses/Conflict"
+
+  /backfills/{backfill_id}/cancel:
+    parameters:
+      - $ref: "#/components/parameters/BackfillIdPath"
+    post:
+        summary: Cancel a backfill
+        description: |
+          When a backfill is cancelled, all queued dag runs will be marked as failed.
+          Running dag runs will be allowed to continue.
+        x-openapi-router-controller: airflow.api_connexion.endpoints.backfill_endpoint
+        operationId: cancel_backfill
+        tags: [Backfill]
+        responses:
+          "200":
+            description: Success.
+            content:
+              application/json:
+                schema:
+                  $ref: "#/components/schemas/Backfill"
+          "401":
+            $ref: "#/components/responses/Unauthenticated"
+          "403":
+            $ref: "#/components/responses/PermissionDenied"
+          "404":
+            $ref: "#/components/responses/NotFound"
+          "409":
+            $ref: "#/components/responses/Conflict"
+
   # Database entities
   /connections:
     get:
@@ -1517,6 +1711,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/PageLimit"
         - $ref: "#/components/parameters/PageOffset"
+        - $ref: "#/components/parameters/TaskInstanceOrderBy"
       responses:
         "200":
           description: Success.
@@ -1675,7 +1870,7 @@ paths:
         - $ref: "#/components/parameters/FilterPool"
         - $ref: "#/components/parameters/FilterQueue"
         - $ref: "#/components/parameters/FilterExecutor"
-        - $ref: "#/components/parameters/OrderBy"
+        - $ref: "#/components/parameters/TaskInstanceOrderBy"
       responses:
         "200":
           description: Success.
@@ -2038,6 +2233,8 @@ paths:
 
             If set to true (default) the Any value will be returned as string, e.g. a Python representation
             of a dict. If set to false it will return the raw data as dict, list, string or whatever was stored.
+
+            This parameter is not meaningful when using XCom pickling, then it is always returned as string.
 
             *New in version 2.10.0*
       responses:
@@ -2590,316 +2787,6 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /roles:
-    get:
-      deprecated: true
-      summary: List roles
-      description: |
-        Get a list of roles.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: get_roles
-      tags: [Role]
-      parameters:
-        - $ref: "#/components/parameters/PageLimit"
-        - $ref: "#/components/parameters/PageOffset"
-        - $ref: "#/components/parameters/OrderBy"
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RoleCollection"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-
-    post:
-      deprecated: true
-      summary: Create a role
-      description: |
-        Create a new role.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: post_role
-      tags: [Role]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/Role"
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Role"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-
-  /roles/{role_name}:
-    parameters:
-      - $ref: "#/components/parameters/RoleName"
-
-    get:
-      deprecated: true
-      summary: Get a role
-      description: |
-        Get a role.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: get_role
-      tags: [Role]
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Role"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-        "404":
-          $ref: "#/components/responses/NotFound"
-
-    patch:
-      deprecated: true
-      summary: Update a role
-      description: |
-        Update a role.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: patch_role
-      tags: [Role]
-      parameters:
-        - $ref: "#/components/parameters/UpdateMask"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/Role"
-
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Role"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-        "404":
-          $ref: "#/components/responses/NotFound"
-
-    delete:
-      deprecated: true
-      summary: Delete a role
-      description: |
-        Delete a role.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: delete_role
-      tags: [Role]
-      responses:
-        "204":
-          description: Success.
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-        "404":
-          $ref: "#/components/responses/NotFound"
-
-  /permissions:
-    get:
-      deprecated: true
-      summary: List permissions
-      description: |
-        Get a list of permissions.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: get_permissions
-      tags: [Permission]
-      parameters:
-        - $ref: "#/components/parameters/PageLimit"
-        - $ref: "#/components/parameters/PageOffset"
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ActionCollection"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-
-  /users:
-    get:
-      deprecated: true
-      summary: List users
-      description: |
-        Get a list of users.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: get_users
-      tags: [User]
-      parameters:
-        - $ref: "#/components/parameters/PageLimit"
-        - $ref: "#/components/parameters/PageOffset"
-        - $ref: "#/components/parameters/OrderBy"
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserCollection"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-
-    post:
-      deprecated: true
-      summary: Create a user
-      description: |
-        Create a new user with unique username and email.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: post_user
-      tags: [User]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/User"
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/User"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-        "409":
-          $ref: "#/components/responses/AlreadyExists"
-
-  /users/{username}:
-    parameters:
-      - $ref: "#/components/parameters/Username"
-    get:
-      deprecated: true
-      summary: Get a user
-      description: |
-        Get a user with a specific username.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: get_user
-      tags: [User]
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserCollectionItem"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-        "404":
-          $ref: "#/components/responses/NotFound"
-
-    patch:
-      deprecated: true
-      summary: Update a user
-      description: |
-        Update fields for a user.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: patch_user
-      tags: [User]
-      parameters:
-        - $ref: "#/components/parameters/UpdateMask"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/User"
-      responses:
-        "200":
-          description: Success.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/UserCollectionItem"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-        "404":
-          $ref: "#/components/responses/NotFound"
-
-    delete:
-      deprecated: true
-      summary: Delete a user
-      description: |
-        Delete a user with a specific username.
-
-        *This API endpoint is deprecated, please use the endpoint `/auth/fab/v1` for this operation instead.*
-      x-openapi-router-controller: airflow.api_connexion.endpoints.forward_to_fab_endpoint
-      operationId: delete_user
-      tags: [User]
-      responses:
-        "204":
-          description: Success.
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthenticated"
-        "403":
-          $ref: "#/components/responses/PermissionDenied"
-        "404":
-          $ref: "#/components/responses/NotFound"
-
 components:
   # Reusable schemas (data models)
   schemas:
@@ -3009,6 +2896,66 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/UserCollectionItem"
+        - $ref: "#/components/schemas/CollectionInfo"
+
+    Backfill:
+      description: >
+        Backfill entity object.
+
+        Represents one backfill run / request.
+      type: object
+      properties:
+        id:
+          type: integer
+          description: id
+        dag_id:
+          type: string
+          description: The dag_id for the backfill.
+        from_date:
+          type: string
+          nullable: true
+          description: From date of the backfill (inclusive).
+        to_date:
+          type: string
+          nullable: true
+          description: To date of the backfill (exclusive).
+        dag_run_conf:
+          type: string
+          nullable: true
+          description: Dag run conf to be forwarded to the dag runs.
+        is_paused:
+          type: boolean
+          nullable: true
+          description: is_paused
+        max_active_runs:
+          type: integer
+          nullable: true
+          description: max_active_runs
+        created_at:
+          type: string
+          nullable: true
+          description: created_at
+        completed_at:
+          type: string
+          nullable: true
+          description: completed_at
+        updated_at:
+          type: string
+          nullable: true
+          description: updated_at
+
+
+    BackfillCollection:
+      type: object
+      description: |
+        Collection of backfill entities.
+      allOf:
+        - type: object
+          properties:
+            backfills:
+              type: array
+              items:
+                $ref: "#/components/schemas/Backfill"
         - $ref: "#/components/schemas/CollectionInfo"
 
     ConnectionCollectionItem:
@@ -3195,14 +3142,20 @@ components:
           description: >
             User-provided DAG description, which can consist of several sentences or paragraphs that
             describe DAG contents.
-        schedule_interval:
-          $ref: "#/components/schemas/ScheduleInterval"
+        timetable_summary:
+          type: string
+          readOnly: true
+          nullable: true
+          description: |
+            Timetable summary.
+
+            *New in version 3.0.0*
         timetable_description:
           type: string
           readOnly: true
           nullable: true
           description: |
-            Timetable/Schedule Interval description.
+            Timetable description.
 
             *New in version 2.3.0*
         tags:
@@ -4134,6 +4087,7 @@ components:
                 - type: array
                   items: {}
                 - type: object
+                  nullable: true
               description: The value(s),
 
     # Python objects
@@ -5176,21 +5130,18 @@ components:
           items:
             type: string
           description: The value can be repeated to retrieve multiple matching values (OR condition).
+        order_by:
+          type: string
+          description: |
+            The name of the field to order the results by. Prefix a field name
+            with `-` to reverse the sort order. `order_by` defaults to
+            `map_index` when unspecified.
+            Supported field names: `state`, `duration`, `start_date`, `end_date`
+            and `map_index`.
+
+            *New in version 3.0.0*
 
     # Common data type
-    ScheduleInterval:
-      description: |
-        Schedule interval. Defines how often DAG runs, this object gets added to your latest task instance's
-        execution_date to figure out the next schedule.
-      nullable: true
-      readOnly: true
-      anyOf:
-        - $ref: "#/components/schemas/TimeDelta"
-        - $ref: "#/components/schemas/RelativeDelta"
-        - $ref: "#/components/schemas/CronExpression"
-      discriminator:
-        propertyName: __type
-
     TimeDelta:
       description: Time delta
       type: object
@@ -5428,6 +5379,36 @@ components:
 
   # Reusable path, query, header and cookie parameters
   parameters:
+
+    BackfillIdPath:
+      in: path
+      name: backfill_id
+      schema:
+        type: integer
+      required: true
+      description: |
+        The integer id identifying the backfill entity.
+
+    FromDate:
+      in: query
+      name: from_date
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: |
+        From date.
+
+    ToDate:
+      in: query
+      name: to_date
+      schema:
+        type: string
+        format: date-time
+      required: false
+      description: |
+        To date.
+
     # Pagination parameters
     PageOffset:
       in: query
@@ -5801,6 +5782,21 @@ components:
         type: integer
       description: Filter on try_number for task instance.
 
+    TaskInstanceOrderBy:
+      in: query
+      name: order_by
+      schema:
+        type: string
+      required: false
+      description: |
+        The name of the field to order the results by. Prefix a field name
+        with `-` to reverse the sort order. `order_by` defaults to
+        `map_index` when unspecified.
+        Supported field names: `state`, `duration`, `start_date`, `end_date`
+        and `map_index`.
+
+        *New in version 3.0.0*
+
     OrderBy:
       in: query
       name: order_by
@@ -5974,6 +5970,13 @@ components:
     # 406
     "NotAcceptable":
       description: A specified Accept header is not allowed.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+    # 409
+    "Conflict":
+      description: There is some kind of conflict with the request.
       content:
         application/json:
           schema:

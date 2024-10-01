@@ -69,6 +69,10 @@ class PostgresHook(DbApiHook):
     :param options: Optional. Specifies command-line options to send to the server
         at connection start. For example, setting this to ``-c search_path=myschema``
         sets the session's value of the ``search_path`` to ``myschema``.
+    :param enable_log_db_messages: Optional. If enabled logs database messages sent to the client
+        during the session. To avoid a memory leak psycopg2 only saves the last 50 messages.
+        For details, see: `PostgreSQL logging configuration parameters
+        <https://www.postgresql.org/docs/current/runtime-config-logging.html>`__
     """
 
     conn_name_attr = "postgres_conn_id"
@@ -78,7 +82,9 @@ class PostgresHook(DbApiHook):
     supports_autocommit = True
     supports_executemany = True
 
-    def __init__(self, *args, options: str | None = None, **kwargs) -> None:
+    def __init__(
+        self, *args, options: str | None = None, enable_log_db_messages: bool = False, **kwargs
+    ) -> None:
         if "schema" in kwargs:
             warnings.warn(
                 'The "schema" arg has been renamed to "database" as it contained the database name.'
@@ -88,10 +94,10 @@ class PostgresHook(DbApiHook):
             )
             kwargs["database"] = kwargs["schema"]
         super().__init__(*args, **kwargs)
-        self.connection: Connection | None = kwargs.pop("connection", None)
         self.conn: connection = None
         self.database: str | None = kwargs.pop("database", None)
         self.options = options
+        self.enable_log_db_messages = enable_log_db_messages
 
     @property
     @deprecated(
@@ -142,8 +148,7 @@ class PostgresHook(DbApiHook):
 
     def get_conn(self) -> connection:
         """Establish a connection to a postgres database."""
-        conn_id = self.get_conn_id()
-        conn = deepcopy(self.connection or self.get_connection(conn_id))
+        conn = deepcopy(self.connection)
 
         # check for authentication via AWS IAM
         if conn.extra_dejson.get("iam", False):
@@ -396,3 +401,13 @@ class PostgresHook(DbApiHook):
                 "schema": "Database",
             },
         }
+
+    def get_db_log_messages(self, conn) -> None:
+        """
+        Log all database messages sent to the client during the session.
+
+        :param conn: Connection object
+        """
+        if self.enable_log_db_messages:
+            for output in conn.notices:
+                self.log.info(output)

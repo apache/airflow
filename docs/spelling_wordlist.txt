@@ -88,6 +88,8 @@ asctime
 asend
 asia
 assertEqualIgnoreMultipleSpaces
+AssetEvent
+AssetEvents
 assigment
 ast
 astroid
@@ -250,8 +252,8 @@ classpaths
 cleartext
 cli
 clientId
-Cloudant
 cloudant
+CloudantV
 cloudbuild
 CloudBuildClient
 cloudml
@@ -600,6 +602,7 @@ falsy
 faq
 Fargate
 fargate
+fastapi
 fbee
 fc
 fd
@@ -668,6 +671,8 @@ gcpcloudsql
 GCS
 gcs
 gdbm
+Gelf
+gelf
 generateUploadUrl
 Gentner
 geq
@@ -773,6 +778,7 @@ hyperparameter
 hyperparameters
 IaC
 iam
+ibmcloudant
 idempotence
 idempotency
 IdP
@@ -970,6 +976,7 @@ loglevel
 Logstash
 logstash
 longblob
+lookups
 Lowin
 lshift
 lxml
@@ -1439,6 +1446,7 @@ Seedlist
 seedlist
 seekable
 segmentGranularity
+selectin
 Sendgrid
 sendgrid
 sentimentMax
@@ -1530,6 +1538,7 @@ stacktrace
 starttls
 StatefulSet
 StatefulSets
+statics
 StatsD
 statsd
 stderr
@@ -1677,6 +1686,7 @@ tooltip
 tooltips
 traceback
 tracebacks
+tracemalloc
 TrainingPipeline
 travis
 triage
@@ -1793,6 +1803,7 @@ verticaql
 Vevo
 videointelligence
 VideoIntelligenceServiceClient
+views
 virtualenv
 virtualenvs
 vm

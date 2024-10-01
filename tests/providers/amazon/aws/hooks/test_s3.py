@@ -31,9 +31,9 @@ import pytest
 from botocore.exceptions import ClientError
 from moto import mock_aws
 
-from airflow.datasets import Dataset
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
+from airflow.providers.amazon.aws.assets.s3 import Asset
 from airflow.providers.amazon.aws.exceptions import S3HookUriParseFailure
 from airflow.providers.amazon.aws.hooks.s3 import (
     NO_ACL,
@@ -56,6 +56,21 @@ def s3_bucket(mocked_s3_res):
     bucket = "airflow-test-s3-bucket"
     mocked_s3_res.create_bucket(Bucket=bucket)
     return bucket
+
+
+if AIRFLOW_V_2_10_PLUS:
+
+    @pytest.fixture
+    def hook_lineage_collector():
+        from airflow.lineage import hook
+        from airflow.providers.amazon.aws.hooks.s3 import get_hook_lineage_collector
+
+        hook._hook_lineage_collector = None
+        hook._hook_lineage_collector = hook.HookLineageCollector()
+
+        yield get_hook_lineage_collector()
+
+        hook._hook_lineage_collector = None
 
 
 class TestAwsS3Hook:
@@ -81,25 +96,61 @@ class TestAwsS3Hook:
         with pytest.raises(TypeError, match="transfer_config_args expected dict, got .*"):
             S3Hook(transfer_config_args=transfer_config_args)
 
-    def test_parse_s3_url(self):
-        parsed = S3Hook.parse_s3_url("s3://test/this/is/not/a-real-key.txt")
-        assert parsed == ("test", "this/is/not/a-real-key.txt"), "Incorrect parsing of the s3 url"
-
-    def test_parse_s3_url_s3a_style(self):
-        parsed = S3Hook.parse_s3_url("s3a://test/this/is/not/a-real-key.txt")
-        assert parsed == ("test", "this/is/not/a-real-key.txt"), "Incorrect parsing of the s3 url"
-
-    def test_parse_s3_url_s3n_style(self):
-        parsed = S3Hook.parse_s3_url("s3n://test/this/is/not/a-real-key.txt")
-        assert parsed == ("test", "this/is/not/a-real-key.txt"), "Incorrect parsing of the s3 url"
-
-    def test_parse_s3_url_path_style(self):
-        parsed = S3Hook.parse_s3_url("https://s3.us-west-2.amazonaws.com/DOC-EXAMPLE-BUCKET1/test.jpg")
-        assert parsed == ("DOC-EXAMPLE-BUCKET1", "test.jpg"), "Incorrect parsing of the s3 url"
-
-    def test_parse_s3_url_virtual_hosted_style(self):
-        parsed = S3Hook.parse_s3_url("https://DOC-EXAMPLE-BUCKET1.s3.us-west-2.amazonaws.com/test.png")
-        assert parsed == ("DOC-EXAMPLE-BUCKET1", "test.png"), "Incorrect parsing of the s3 url"
+    @pytest.mark.parametrize(
+        "url, expected",
+        [
+            pytest.param(
+                "s3://test/this/is/not/a-real-key.txt", ("test", "this/is/not/a-real-key.txt"), id="s3 style"
+            ),
+            pytest.param(
+                "s3a://test/this/is/not/a-real-key.txt",
+                ("test", "this/is/not/a-real-key.txt"),
+                id="s3a style",
+            ),
+            pytest.param(
+                "s3n://test/this/is/not/a-real-key.txt",
+                ("test", "this/is/not/a-real-key.txt"),
+                id="s3n style",
+            ),
+            pytest.param(
+                "https://s3.us-west-2.amazonaws.com/DOC-EXAMPLE-BUCKET1/test.jpg",
+                ("DOC-EXAMPLE-BUCKET1", "test.jpg"),
+                id="path style",
+            ),
+            pytest.param(
+                "https://DOC-EXAMPLE-BUCKET1.s3.us-west-2.amazonaws.com/test.png",
+                ("DOC-EXAMPLE-BUCKET1", "test.png"),
+                id="virtual hosted style",
+            ),
+            pytest.param(
+                "s3://test/this/is/not/a-real-key #2.txt",
+                ("test", "this/is/not/a-real-key #2.txt"),
+                id="s3 style with #",
+            ),
+            pytest.param(
+                "s3a://test/this/is/not/a-real-key #2.txt",
+                ("test", "this/is/not/a-real-key #2.txt"),
+                id="s3a style with #",
+            ),
+            pytest.param(
+                "s3n://test/this/is/not/a-real-key #2.txt",
+                ("test", "this/is/not/a-real-key #2.txt"),
+                id="s3n style with #",
+            ),
+            pytest.param(
+                "https://s3.us-west-2.amazonaws.com/DOC-EXAMPLE-BUCKET1/test #2.jpg",
+                ("DOC-EXAMPLE-BUCKET1", "test #2.jpg"),
+                id="path style with #",
+            ),
+            pytest.param(
+                "https://DOC-EXAMPLE-BUCKET1.s3.us-west-2.amazonaws.com/test #2.png",
+                ("DOC-EXAMPLE-BUCKET1", "test #2.png"),
+                id="virtual hosted style with #",
+            ),
+        ],
+    )
+    def test_parse_s3_url(self, url: str, expected: tuple[str, str]):
+        assert S3Hook.parse_s3_url(url) == expected, "Incorrect parsing of the s3 url"
 
     def test_parse_invalid_s3_url_virtual_hosted_style(self):
         with pytest.raises(
@@ -393,9 +444,10 @@ class TestAwsS3Hook:
     @pytest.mark.skipif(not AIRFLOW_V_2_10_PLUS, reason="Hook lineage works in Airflow >= 2.10.0")
     def test_load_string_exposes_lineage(self, s3_bucket, hook_lineage_collector):
         hook = S3Hook()
+
         hook.load_string("Contént", "my_key", s3_bucket)
-        assert len(hook_lineage_collector.collected_datasets.outputs) == 1
-        assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
+        assert len(hook_lineage_collector.collected_assets.outputs) == 1
+        assert hook_lineage_collector.collected_assets.outputs[0].asset == Asset(
             uri=f"s3://{s3_bucket}/my_key"
         )
 
@@ -987,8 +1039,8 @@ class TestAwsS3Hook:
         path = tmp_path / "testfile"
         path.write_text("Content")
         hook.load_file(path, "my_key", s3_bucket)
-        assert len(hook_lineage_collector.collected_datasets.outputs) == 1
-        assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
+        assert len(hook_lineage_collector.collected_assets.outputs) == 1
+        assert hook_lineage_collector.collected_assets.outputs[0].asset == Asset(
             uri=f"s3://{s3_bucket}/my_key"
         )
 
@@ -1059,13 +1111,13 @@ class TestAwsS3Hook:
             "get_conn",
         ):
             mock_hook.copy_object("my_key", "my_key3", s3_bucket, s3_bucket)
-            assert len(hook_lineage_collector.collected_datasets.inputs) == 1
-            assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(
+            assert len(hook_lineage_collector.collected_assets.inputs) == 1
+            assert hook_lineage_collector.collected_assets.inputs[0].asset == Asset(
                 uri=f"s3://{s3_bucket}/my_key"
             )
 
-            assert len(hook_lineage_collector.collected_datasets.outputs) == 1
-            assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
+            assert len(hook_lineage_collector.collected_assets.outputs) == 1
+            assert hook_lineage_collector.collected_assets.outputs[0].asset == Asset(
                 uri=f"s3://{s3_bucket}/my_key3"
             )
 
@@ -1197,8 +1249,8 @@ class TestAwsS3Hook:
 
         s3_hook.download_file(key=key, bucket_name=bucket)
 
-        assert len(hook_lineage_collector.collected_datasets.inputs) == 1
-        assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(
+        assert len(hook_lineage_collector.collected_assets.inputs) == 1
+        assert hook_lineage_collector.collected_assets.inputs[0].asset == Asset(
             uri="s3://test_bucket/test_key"
         )
 
@@ -1249,14 +1301,14 @@ class TestAwsS3Hook:
             use_autogenerated_subdir=False,
         )
 
-        assert len(hook_lineage_collector.collected_datasets.inputs) == 1
-        assert hook_lineage_collector.collected_datasets.inputs[0].dataset == Dataset(
-            uri="s3://test_bucket/test_key/test.log"
+        assert len(hook_lineage_collector.collected_assets.inputs) == 1
+        assert hook_lineage_collector.collected_assets.inputs[0].asset == Asset(
+            uri="s3://test_bucket/test_key/test.log", extra={}
         )
 
-        assert len(hook_lineage_collector.collected_datasets.outputs) == 1
-        assert hook_lineage_collector.collected_datasets.outputs[0].dataset == Dataset(
-            uri=f"file://{local_path}/test.log",
+        assert len(hook_lineage_collector.collected_assets.outputs) == 1
+        assert hook_lineage_collector.collected_assets.outputs[0].asset == Asset(
+            uri=f"file://{local_path}/test.log", extra={}
         )
 
     @mock.patch("airflow.providers.amazon.aws.hooks.s3.open")

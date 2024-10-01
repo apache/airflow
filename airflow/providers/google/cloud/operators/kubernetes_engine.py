@@ -25,7 +25,6 @@ from typing import TYPE_CHECKING, Any, Sequence
 
 import requests
 import yaml
-from deprecated import deprecated
 from google.api_core.exceptions import AlreadyExists
 from google.cloud.container_v1.types import Cluster
 from kubernetes.client import V1JobList, models as k8s
@@ -57,6 +56,7 @@ from airflow.providers.google.cloud.triggers.kubernetes_engine import (
     GKEOperationTrigger,
     GKEStartPodTrigger,
 )
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID
 from airflow.providers_manager import ProvidersManager
 from airflow.utils.timezone import utcnow
@@ -725,7 +725,8 @@ class GKEStartPodOperator(KubernetesPodOperator):
 
     @staticmethod
     @deprecated(
-        reason="Please use `fetch_cluster_info` instead to get the cluster info for connecting to it.",
+        planned_removal_date="November 01, 2024",
+        use_instead="fetch_cluster_info",
         category=AirflowProviderDeprecationWarning,
     )
     def get_gke_config_file():
@@ -943,12 +944,25 @@ class GKEStartJobOperator(KubernetesJobOperator):
                 ssl_ca_cert=self._ssl_ca_cert,
                 job_name=self.job.metadata.name,  # type: ignore[union-attr]
                 job_namespace=self.job.metadata.namespace,  # type: ignore[union-attr]
+                pod_name=self.pod.metadata.name,  # type: ignore[union-attr]
+                pod_namespace=self.pod.metadata.namespace,  # type: ignore[union-attr]
+                base_container_name=self.base_container_name,
                 gcp_conn_id=self.gcp_conn_id,
                 poll_interval=self.job_poll_interval,
                 impersonation_chain=self.impersonation_chain,
+                get_logs=self.get_logs,
+                do_xcom_push=self.do_xcom_push,
             ),
             method_name="execute_complete",
+            kwargs={"cluster_url": self._cluster_url, "ssl_ca_cert": self._ssl_ca_cert},
         )
+
+    def execute_complete(self, context: Context, event: dict, **kwargs):
+        # It is required for hook to be initialized
+        self._cluster_url = kwargs["cluster_url"]
+        self._ssl_ca_cert = kwargs["ssl_ca_cert"]
+
+        return super().execute_complete(context, event)
 
 
 class GKEDescribeJobOperator(GoogleCloudBaseOperator):

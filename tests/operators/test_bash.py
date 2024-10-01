@@ -32,6 +32,10 @@ from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
+from tests.test_utils.compat import AIRFLOW_V_3_0_PLUS
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 DEFAULT_DATE = datetime(2016, 1, 1, tzinfo=timezone.utc)
 END_DATE = datetime(2016, 1, 2, tzinfo=timezone.utc)
@@ -101,6 +105,7 @@ class TestBashOperator:
             )
 
         execution_date = utc_now
+        triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
         dag_maker.create_dagrun(
             run_type=DagRunType.MANUAL,
             execution_date=execution_date,
@@ -108,6 +113,7 @@ class TestBashOperator:
             state=State.RUNNING,
             external_trigger=False,
             data_interval=(execution_date, execution_date),
+            **triggered_by_kwargs,
         )
 
         with mock.patch.dict(

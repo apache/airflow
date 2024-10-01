@@ -199,10 +199,6 @@ class AirflowDagDuplicatedIdException(AirflowException):
         return f"Ignoring DAG {self.dag_id} from {self.incoming} - also found in {self.existing}"
 
 
-class AirflowDagInconsistent(AirflowException):
-    """Raise when a DAG has inconsistent attributes."""
-
-
 class AirflowClusterPolicyViolation(AirflowException):
     """Raise when there is a violation of a Cluster Policy in DAG definition."""
 

@@ -19,9 +19,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Sequence
 
-from deprecated import deprecated
-
-from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 from airflow.providers.amazon.aws.sensors.base_aws import AwsBaseSensor
 from airflow.providers.amazon.aws.utils.mixins import aws_template_fields
@@ -84,8 +82,3 @@ class StepFunctionExecutionSensor(AwsBaseSensor[StepFunctionHook]):
         self.log.info("Doing xcom_push of output")
         self.xcom_push(context, "output", output)
         return True
-
-    @deprecated(reason="use `hook` property instead.", category=AirflowProviderDeprecationWarning)
-    def get_hook(self) -> StepFunctionHook:
-        """Create and return a StepFunctionHook."""
-        return self.hook

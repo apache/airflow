@@ -20,7 +20,6 @@ from __future__ import annotations
 import datetime
 import json
 import time
-import warnings
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
 from sqlalchemy import select
@@ -34,7 +33,6 @@ from airflow.exceptions import (
     AirflowSkipException,
     DagNotFound,
     DagRunAlreadyExists,
-    RemovedInAirflow3Warning,
 )
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.baseoperatorlink import BaseOperatorLink
@@ -47,7 +45,7 @@ from airflow.utils import timezone
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState
-from airflow.utils.types import DagRunType
+from airflow.utils.types import DagRunTriggeredByType, DagRunType
 
 XCOM_LOGICAL_DATE_ISO = "trigger_logical_date_iso"
 XCOM_RUN_ID = "trigger_run_id"
@@ -110,7 +108,6 @@ class TriggerDagRunOperator(BaseOperator):
         DAG for the same logical date already exists.
     :param deferrable: If waiting for completion, whether or not to defer the task until done,
         default is ``False``.
-    :param execution_date: Deprecated parameter; same as ``logical_date``.
     """
 
     template_fields: Sequence[str] = (
@@ -139,7 +136,6 @@ class TriggerDagRunOperator(BaseOperator):
         failed_states: list[str | DagRunState] | None = None,
         skip_when_already_exists: bool = False,
         deferrable: bool = conf.getboolean("operators", "default_deferrable", fallback=False),
-        execution_date: str | datetime.datetime | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -159,14 +155,6 @@ class TriggerDagRunOperator(BaseOperator):
             self.failed_states = [DagRunState.FAILED]
         self.skip_when_already_exists = skip_when_already_exists
         self._defer = deferrable
-
-        if execution_date is not None:
-            warnings.warn(
-                "Parameter 'execution_date' is deprecated. Use 'logical_date' instead.",
-                RemovedInAirflow3Warning,
-                stacklevel=2,
-            )
-            logical_date = execution_date
 
         if logical_date is not None and not isinstance(logical_date, (str, datetime.datetime)):
             type_name = type(logical_date).__name__
@@ -209,6 +197,7 @@ class TriggerDagRunOperator(BaseOperator):
                 conf=self.conf,
                 execution_date=parsed_logical_date,
                 replace_microseconds=False,
+                triggered_by=DagRunTriggeredByType.OPERATOR,
             )
 
         except DagRunAlreadyExists as e:
@@ -235,9 +224,7 @@ class TriggerDagRunOperator(BaseOperator):
             raise RuntimeError("The dag_run should be set here!")
         # Store the run id from the dag run (either created or found above) to
         # be used when creating the extra link on the webserver.
-        # TODO: Logical date as xcom stored only for backwards compatibility. Remove in Airflow 3.0
         ti = context["task_instance"]
-        ti.xcom_push(key=XCOM_LOGICAL_DATE_ISO, value=dag_run.logical_date.isoformat())
         ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id)
 
         if self.wait_for_completion:

@@ -438,10 +438,6 @@ def get_configs_and_deprecations(
     ) in AirflowConfigParser.deprecated_options.items():
         deprecated_options[deprecated_section][deprecated_key] = section, key, since_version
 
-    for (section, key), deprecated in AirflowConfigParser.many_to_one_deprecated_options.items():
-        for deprecated_section, deprecated_key, since_version in deprecated:
-            deprecated_options[deprecated_section][deprecated_key] = section, key, since_version
-
     if package_name == "apache-airflow":
         configs = retrieve_configuration_description(include_providers=False)
     else:
@@ -759,7 +755,6 @@ autoapi_ignore = [
     "*/node_modules/*",
     "*/migrations/*",
     "*/contrib/*",
-    "**/example_sla_dag.py",
     "**/example_taskflow_api_docker_virtualenv.py",
     "**/example_dag_decorator.py",
 ]

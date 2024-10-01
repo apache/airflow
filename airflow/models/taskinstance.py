@@ -38,7 +38,6 @@ import dill
 import jinja2
 import lazy_object_proxy
 import pendulum
-from deprecated import deprecated
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
     Column,
@@ -68,20 +67,19 @@ from sqlalchemy.sql.expression import case, select
 
 from airflow import settings
 from airflow.api_internal.internal_api_call import InternalApiConfig, internal_api_call
+from airflow.assets import Asset, AssetAlias
+from airflow.assets.manager import asset_manager
 from airflow.compat.functools import cache
 from airflow.configuration import conf
-from airflow.datasets import Dataset, DatasetAlias
-from airflow.datasets.manager import dataset_manager
 from airflow.exceptions import (
     AirflowException,
     AirflowFailException,
+    AirflowProviderDeprecationWarning,
     AirflowRescheduleException,
     AirflowSensorTimeout,
     AirflowSkipException,
     AirflowTaskTerminated,
     AirflowTaskTimeout,
-    DagRunNotFound,
-    RemovedInAirflow3Warning,
     TaskDeferralError,
     TaskDeferred,
     UnmappableXComLengthPushed,
@@ -89,9 +87,9 @@ from airflow.exceptions import (
     XComForMappingNotPushed,
 )
 from airflow.listeners.listener import get_listener_manager
+from airflow.models.asset import AssetEvent, AssetModel
 from airflow.models.base import Base, StringID, TaskInstanceDependencies, _sentinel
 from airflow.models.dagbag import DagBag
-from airflow.models.dataset import DatasetAliasModel, DatasetModel
 from airflow.models.log import Log
 from airflow.models.param import process_params
 from airflow.models.renderedtifields import get_serialized_template_fields
@@ -156,13 +154,13 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.expression import ColumnOperators
 
     from airflow.models.abstractoperator import TaskStateChangeCallback
+    from airflow.models.asset import AssetEvent
     from airflow.models.baseoperator import BaseOperator
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
-    from airflow.models.dataset import DatasetEvent
     from airflow.models.operator import Operator
+    from airflow.serialization.pydantic.asset import AssetEventPydantic
     from airflow.serialization.pydantic.dag import DagModelPydantic
-    from airflow.serialization.pydantic.dataset import DatasetEventPydantic
     from airflow.serialization.pydantic.taskinstance import TaskInstancePydantic
     from airflow.timetables.base import DataInterval
     from airflow.typing_compat import Literal, TypeGuard
@@ -170,6 +168,14 @@ if TYPE_CHECKING:
 
 
 PAST_DEPENDS_MET = "past_depends_met"
+
+metrics_consistency_on = conf.getboolean("metrics", "metrics_consistency_on", fallback=True)
+if not metrics_consistency_on:
+    warnings.warn(
+        "Timer and timing metrics publish in seconds were deprecated. It is enabled by default from Airflow 3 onwards. Enable metrics consistency to publish all the timer and timing metrics in milliseconds.",
+        AirflowProviderDeprecationWarning,
+        stacklevel=2,
+    )
 
 
 class TaskReturnCode(Enum):
@@ -354,12 +360,13 @@ def _run_raw_task(
         # run on_success_callback before db committing
         # otherwise, the LocalTaskJob sees the state is changed to `success`,
         # but the task_runner is still running, LocalTaskJob then treats the state is set externally!
-        _run_finished_callback(callbacks=ti.task.on_success_callback, context=context)
+        if ti.state == TaskInstanceState.SUCCESS:
+            _run_finished_callback(callbacks=ti.task.on_success_callback, context=context)
 
         if not test_mode:
             _add_log(event=ti.state, task_instance=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
-                ti._register_dataset_changes(events=context["outlet_events"], session=session)
+                ti._register_asset_changes(events=context["outlet_events"], session=session)
 
             TaskInstance.save_to_db(ti=ti, session=session)
             if ti.state == TaskInstanceState.SUCCESS:
@@ -424,7 +431,6 @@ def _stop_remaining_tasks(*, task_instance: TaskInstance | TaskInstancePydantic,
 def clear_task_instances(
     tis: list[TaskInstance],
     session: Session,
-    activate_dag_runs: None = None,
     dag: DAG | None = None,
     dag_run_state: DagRunState | Literal[False] = DagRunState.QUEUED,
 ) -> None:
@@ -442,7 +448,6 @@ def clear_task_instances(
     :param dag_run_state: state to set finished DagRuns to.
         If set to False, DagRuns state will not be changed.
     :param dag: DAG object
-    :param activate_dag_runs: Deprecated parameter, do not pass
     """
     job_ids = []
     # Keys: dag_id -> run_id -> map_indexes -> try_numbers -> task_id
@@ -519,16 +524,6 @@ def clear_task_instances(
         from airflow.jobs.job import Job
 
         session.execute(update(Job).where(Job.id.in_(job_ids)).values(state=JobState.RESTARTING))
-
-    if activate_dag_runs is not None:
-        warnings.warn(
-            "`activate_dag_runs` parameter to clear_task_instances function is deprecated. "
-            "Please use `dag_run_state`",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        if not activate_dag_runs:
-            dag_run_state = False
 
     if dag_run_state is not False and tis:
         from airflow.models.dagrun import DagRun  # Avoid circular import
@@ -942,7 +937,7 @@ def _get_template_context(
     Return TI Context.
 
     :param task_instance: the task instance for the task
-    :param dag for the task
+    :param dag: dag for the task
     :param session: SQLAlchemy ORM Session
     :param ignore_param_exceptions: flag to suppress value exceptions while initializing the ParamsDict
 
@@ -1061,9 +1056,13 @@ def _get_template_context(
         # for manually triggered tasks, i.e. triggered_date == execution_date.
         if dag_run.external_trigger:
             return logical_date
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", RemovedInAirflow3Warning)
-            return dag.previous_schedule(logical_date)
+
+        # Workaround code copy until deprecated context fields are removed in Airflow 3
+        from airflow.timetables.interval import _DataIntervalTimetable
+
+        if not isinstance(dag.timetable, _DataIntervalTimetable):
+            return None
+        return dag.timetable._get_prev(timezone.coerce_datetime(logical_date))
 
     @cache
     def get_prev_ds() -> str | None:
@@ -1078,7 +1077,7 @@ def _get_template_context(
             return None
         return prev_ds.replace("-", "")
 
-    def get_triggering_events() -> dict[str, list[DatasetEvent | DatasetEventPydantic]]:
+    def get_triggering_events() -> dict[str, list[AssetEvent | AssetEventPydantic]]:
         if TYPE_CHECKING:
             assert session is not None
 
@@ -1088,9 +1087,9 @@ def _get_template_context(
         nonlocal dag_run
         if dag_run not in session:
             dag_run = session.merge(dag_run, load=False)
-        dataset_events = dag_run.consumed_dataset_events
-        triggering_events: dict[str, list[DatasetEvent | DatasetEventPydantic]] = defaultdict(list)
-        for event in dataset_events:
+        asset_events = dag_run.consumed_dataset_events
+        triggering_events: dict[str, list[AssetEvent | AssetEventPydantic]] = defaultdict(list)
+        for event in asset_events:
             if event.dataset:
                 triggering_events[event.dataset.uri].append(event)
 
@@ -1145,7 +1144,7 @@ def _get_template_context(
         "ti": task_instance,
         "tomorrow_ds": get_tomorrow_ds(),
         "tomorrow_ds_nodash": get_tomorrow_ds_nodash(),
-        "triggering_dataset_events": lazy_object_proxy.Proxy(get_triggering_events),
+        "triggering_asset_events": lazy_object_proxy.Proxy(get_triggering_events),
         "ts": ts,
         "ts_nodash": ts_nodash,
         "ts_nodash_with_tz": ts_nodash_with_tz,
@@ -1549,12 +1548,21 @@ def _run_finished_callback(
     """
     if callbacks:
         callbacks = callbacks if isinstance(callbacks, list) else [callbacks]
-        for callback in callbacks:
-            log.info("Executing %s callback", callback.__name__)
+
+        def get_callback_representation(callback: TaskStateChangeCallback) -> Any:
+            with contextlib.suppress(AttributeError):
+                return callback.__name__
+            with contextlib.suppress(AttributeError):
+                return callback.__class__.__name__
+            return callback
+
+        for idx, callback in enumerate(callbacks):
+            callback_repr = get_callback_representation(callback)
+            log.info("Executing callback at index %d: %s", idx, callback_repr)
             try:
                 callback(context)
             except Exception:
-                log.exception("Error when executing %s callback", callback.__name__)  # type: ignore[attr-defined]
+                log.exception("Error in callback at index %d: %s", idx, callback_repr)
 
 
 def _log_state(*, task_instance: TaskInstance | TaskInstancePydantic, lead_msg: str = "") -> None:
@@ -1912,7 +1920,6 @@ class TaskInstance(Base, LoggingMixin):
     def __init__(
         self,
         task: Operator,
-        execution_date: datetime | None = None,
         run_id: str | None = None,
         state: str | None = None,
         map_index: int = -1,
@@ -1928,42 +1935,7 @@ class TaskInstance(Base, LoggingMixin):
         # init_on_load will config the log
         self.init_on_load()
 
-        if run_id is None and execution_date is not None:
-            from airflow.models.dagrun import DagRun  # Avoid circular import
-
-            warnings.warn(
-                "Passing an execution_date to `TaskInstance()` is deprecated in favour of passing a run_id",
-                RemovedInAirflow3Warning,
-                # Stack level is 4 because SQLA adds some wrappers around the constructor
-                stacklevel=4,
-            )
-            # make sure we have a localized execution_date stored in UTC
-            if execution_date and not timezone.is_localized(execution_date):
-                self.log.warning(
-                    "execution date %s has no timezone information. Using default from dag or system",
-                    execution_date,
-                )
-                if self.task.has_dag():
-                    if TYPE_CHECKING:
-                        assert self.task.dag
-                    execution_date = timezone.make_aware(execution_date, self.task.dag.timezone)
-                else:
-                    execution_date = timezone.make_aware(execution_date)
-
-                execution_date = timezone.convert_to_utc(execution_date)
-            with create_session() as session:
-                run_id = (
-                    session.query(DagRun.run_id)
-                    .filter_by(dag_id=self.dag_id, execution_date=execution_date)
-                    .scalar()
-                )
-                if run_id is None:
-                    raise DagRunNotFound(
-                        f"DagRun for {self.dag_id!r} with date {execution_date} not found"
-                    ) from None
-
         self.run_id = run_id
-
         self.try_number = 0
         self.max_tries = self.task.retries
         self.unixname = getuser()
@@ -1978,26 +1950,6 @@ class TaskInstance(Base, LoggingMixin):
 
     def __hash__(self):
         return hash((self.task_id, self.dag_id, self.run_id, self.map_index))
-
-    @property
-    @deprecated(reason="Use try_number instead.", version="2.10.0", category=RemovedInAirflow3Warning)
-    def _try_number(self):
-        """
-        Do not use. For semblance of backcompat.
-
-        :meta private:
-        """
-        return self.try_number
-
-    @_try_number.setter
-    @deprecated(reason="Use try_number instead.", version="2.10.0", category=RemovedInAirflow3Warning)
-    def _try_number(self, val):
-        """
-        Do not use. For semblance of backcompat.
-
-        :meta private:
-        """
-        self.try_number = val
 
     @property
     def stats_tags(self) -> dict[str, str]:
@@ -2040,23 +1992,6 @@ class TaskInstance(Base, LoggingMixin):
     def init_on_load(self) -> None:
         """Initialize the attributes that aren't stored in the DB."""
         self.test_mode = False  # can be changed when calling 'run'
-
-    @property
-    @deprecated(reason="Use try_number instead.", version="2.10.0", category=RemovedInAirflow3Warning)
-    def prev_attempted_tries(self) -> int:
-        """
-        Calculate the total number of attempted tries, defaulting to 0.
-
-        This used to be necessary because try_number did not always tell the truth.
-
-        :meta private:
-        """
-        return self.try_number
-
-    @property
-    def next_try_number(self) -> int:
-        # todo (dstandish): deprecate this property; we don't need a property that is just + 1
-        return self.try_number + 1
 
     @property
     def operator_name(self) -> str | None:
@@ -2488,40 +2423,6 @@ class TaskInstance(Base, LoggingMixin):
         """
         return _get_previous_ti(task_instance=self, state=state, session=session)
 
-    @property
-    def previous_ti(self) -> TaskInstance | TaskInstancePydantic | None:
-        """
-        This attribute is deprecated.
-
-        Please use :class:`airflow.models.taskinstance.TaskInstance.get_previous_ti`.
-        """
-        warnings.warn(
-            """
-            This attribute is deprecated.
-            Please use `airflow.models.taskinstance.TaskInstance.get_previous_ti` method.
-            """,
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        return self.get_previous_ti()
-
-    @property
-    def previous_ti_success(self) -> TaskInstance | TaskInstancePydantic | None:
-        """
-        This attribute is deprecated.
-
-        Please use :class:`airflow.models.taskinstance.TaskInstance.get_previous_ti`.
-        """
-        warnings.warn(
-            """
-            This attribute is deprecated.
-            Please use `airflow.models.taskinstance.TaskInstance.get_previous_ti` method.
-            """,
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        return self.get_previous_ti(state=DagRunState.SUCCESS)
-
     @provide_session
     def get_previous_execution_date(
         self,
@@ -2547,23 +2448,6 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         """
         return _get_previous_start_date(task_instance=self, state=state, session=session)
-
-    @property
-    def previous_start_date_success(self) -> pendulum.DateTime | None:
-        """
-        This attribute is deprecated.
-
-        Please use :class:`airflow.models.taskinstance.TaskInstance.get_previous_start_date`.
-        """
-        warnings.warn(
-            """
-            This attribute is deprecated.
-            Please use `airflow.models.taskinstance.TaskInstance.get_previous_start_date` method.
-            """,
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        return self.get_previous_start_date(state=DagRunState.SUCCESS)
 
     @provide_session
     def are_dependencies_met(
@@ -2934,7 +2818,10 @@ class TaskInstance(Base, LoggingMixin):
                     self.task_id,
                 )
                 return
-            timing = timezone.utcnow() - self.queued_dttm
+            if metrics_consistency_on:
+                timing = timezone.utcnow() - self.queued_dttm
+            else:
+                timing = (timezone.utcnow() - self.queued_dttm).total_seconds()
         elif new_state == TaskInstanceState.QUEUED:
             metric_name = "scheduled_duration"
             if self.start_date is None:
@@ -2947,7 +2834,10 @@ class TaskInstance(Base, LoggingMixin):
                     self.task_id,
                 )
                 return
-            timing = timezone.utcnow() - self.start_date
+            if metrics_consistency_on:
+                timing = timezone.utcnow() - self.start_date
+            else:
+                timing = (timezone.utcnow() - self.start_date).total_seconds()
         else:
             raise NotImplementedError("no metric emission setup for state %s", new_state)
 
@@ -2996,63 +2886,57 @@ class TaskInstance(Base, LoggingMixin):
             session=session,
         )
 
-    def _register_dataset_changes(self, *, events: OutletEventAccessors, session: Session) -> None:
+    def _register_asset_changes(self, *, events: OutletEventAccessors, session: Session) -> None:
         if TYPE_CHECKING:
             assert self.task
 
-        # One task only triggers one dataset event for each dataset with the same extra.
-        # This tuple[dataset uri, extra] to sets alias names mapping is used to find whether
-        # there're datasets with same uri but different extra that we need to emit more than one dataset events.
-        dataset_tuple_to_alias_names_mapping: dict[tuple[str, frozenset], set[str]] = defaultdict(set)
+        # One task only triggers one asset event for each asset with the same extra.
+        # This tuple[asset uri, extra] to sets alias names mapping is used to find whether
+        # there're assets with same uri but different extra that we need to emit more than one asset events.
+        asset_alias_names: dict[tuple[str, frozenset], set[str]] = defaultdict(set)
         for obj in self.task.outlets or []:
             self.log.debug("outlet obj %s", obj)
-            # Lineage can have other types of objects besides datasets
-            if isinstance(obj, Dataset):
-                dataset_manager.register_dataset_change(
+            # Lineage can have other types of objects besides assets
+            if isinstance(obj, Asset):
+                asset_manager.register_asset_change(
                     task_instance=self,
-                    dataset=obj,
+                    asset=obj,
                     extra=events[obj].extra,
                     session=session,
                 )
-            elif isinstance(obj, DatasetAlias):
-                if dataset_alias_event := events[obj].dataset_alias_event:
-                    dataset_uri = dataset_alias_event["dest_dataset_uri"]
-                    extra = events[obj].extra
-                    frozen_extra = frozenset(extra.items())
-                    dataset_alias_name = dataset_alias_event["source_alias_name"]
+            elif isinstance(obj, AssetAlias):
+                for asset_alias_event in events[obj].asset_alias_events:
+                    asset_alias_name = asset_alias_event["source_alias_name"]
+                    asset_uri = asset_alias_event["dest_asset_uri"]
+                    frozen_extra = frozenset(asset_alias_event["extra"].items())
+                    asset_alias_names[(asset_uri, frozen_extra)].add(asset_alias_name)
 
-                    dataset_tuple_to_alias_names_mapping[(dataset_uri, frozen_extra)].add(dataset_alias_name)
+        dataset_models: dict[str, AssetModel] = {
+            dataset_obj.uri: dataset_obj
+            for dataset_obj in session.scalars(
+                select(AssetModel).where(AssetModel.uri.in_(uri for uri, _ in asset_alias_names))
+            )
+        }
+        if missing_datasets := [Asset(uri=u) for u, _ in asset_alias_names if u not in dataset_models]:
+            dataset_models.update(
+                (dataset_obj.uri, dataset_obj)
+                for dataset_obj in asset_manager.create_assets(missing_datasets, session=session)
+            )
+            self.log.warning("Created new datasets for alias reference: %s", missing_datasets)
+            session.flush()  # Needed because we need the id for fk.
 
-        dataset_objs_cache: dict[str, DatasetModel] = {}
-        for (uri, extra_items), alias_names in dataset_tuple_to_alias_names_mapping.items():
-            if uri not in dataset_objs_cache:
-                dataset_obj = session.scalar(select(DatasetModel).where(DatasetModel.uri == uri).limit(1))
-                dataset_objs_cache[uri] = dataset_obj
-            else:
-                dataset_obj = dataset_objs_cache[uri]
-
-            if not dataset_obj:
-                dataset_obj = DatasetModel(uri=uri)
-                dataset_manager.create_datasets(dataset_models=[dataset_obj], session=session)
-                self.log.warning("Created a new %r as it did not exist.", dataset_obj)
-                dataset_objs_cache[uri] = dataset_obj
-
-            for alias in alias_names:
-                alias_obj = session.scalar(
-                    select(DatasetAliasModel).where(DatasetAliasModel.name == alias).limit(1)
-                )
-                dataset_obj.aliases.append(alias_obj)
-
-            extra = {k: v for k, v in extra_items}
+        for (uri, extra_items), alias_names in asset_alias_names.items():
+            asset_obj = dataset_models[uri]
             self.log.info(
                 'Creating event for %r through aliases "%s"',
-                dataset_obj,
+                asset_obj,
                 ", ".join(alias_names),
             )
-            dataset_manager.register_dataset_change(
+            asset_manager.register_asset_change(
                 task_instance=self,
-                dataset=dataset_obj,
-                extra=extra,
+                asset=asset_obj,
+                aliases=[AssetAlias(name) for name in alias_names],
+                extra=dict(extra_items),
                 session=session,
                 source_alias_names=alias_names,
             )
@@ -3597,7 +3481,6 @@ class TaskInstance(Base, LoggingMixin):
         self,
         key: str,
         value: Any,
-        execution_date: datetime | None = None,
         session: Session = NEW_SESSION,
     ) -> None:
         """
@@ -3607,19 +3490,7 @@ class TaskInstance(Base, LoggingMixin):
         :param value: Value to store. What types are possible depends on whether
             ``enable_xcom_pickling`` is true or not. If so, this can be any
             picklable object; only be JSON-serializable may be used otherwise.
-        :param execution_date: Deprecated parameter that has no effect.
         """
-        if execution_date is not None:
-            self_execution_date = self.get_dagrun(session).execution_date
-            if execution_date < self_execution_date:
-                raise ValueError(
-                    f"execution_date can not be in the past (current execution_date is "
-                    f"{self_execution_date}; received {execution_date})"
-                )
-            elif execution_date is not None:
-                message = "Passing 'execution_date' to 'TaskInstance.xcom_push()' is deprecated."
-                warnings.warn(message, RemovedInAirflow3Warning, stacklevel=3)
-
         XCom.set(
             key=key,
             value=value,
@@ -4105,21 +3976,6 @@ class SimpleTaskInstance:
             return self.__dict__ == other.__dict__
         return NotImplemented
 
-    def as_dict(self):
-        warnings.warn(
-            "This method is deprecated. Use BaseSerialization.serialize.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        new_dict = dict(self.__dict__)
-        for key in new_dict:
-            if key in ["start_date", "end_date"]:
-                val = new_dict[key]
-                if not val or isinstance(val, str):
-                    continue
-                new_dict.update({key: val.isoformat()})
-        return new_dict
-
     @classmethod
     def from_ti(cls, ti: TaskInstance) -> SimpleTaskInstance:
         return cls(
@@ -4140,31 +3996,13 @@ class SimpleTaskInstance:
             priority_weight=ti.priority_weight if hasattr(ti, "priority_weight") else None,
         )
 
-    @classmethod
-    def from_dict(cls, obj_dict: dict) -> SimpleTaskInstance:
-        warnings.warn(
-            "This method is deprecated. Use BaseSerialization.deserialize.",
-            RemovedInAirflow3Warning,
-            stacklevel=2,
-        )
-        ti_key = TaskInstanceKey(*obj_dict.pop("key"))
-        start_date = None
-        end_date = None
-        start_date_str: str | None = obj_dict.pop("start_date")
-        end_date_str: str | None = obj_dict.pop("end_date")
-        if start_date_str:
-            start_date = timezone.parse(start_date_str)
-        if end_date_str:
-            end_date = timezone.parse(end_date_str)
-        return cls(**obj_dict, start_date=start_date, end_date=end_date, key=ti_key)
-
 
 class TaskInstanceNote(TaskInstanceDependencies):
     """For storage of arbitrary notes concerning the task instance."""
 
     __tablename__ = "task_instance_note"
 
-    user_id = Column(Integer, nullable=True)
+    user_id = Column(String(128), nullable=True)
     task_id = Column(StringID(), primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     run_id = Column(StringID(), primary_key=True, nullable=False)

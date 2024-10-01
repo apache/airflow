@@ -23,7 +23,7 @@ from unittest.mock import MagicMock, patch
 
 from airflow import DAG
 from airflow.decorators import task
-from airflow.models.baseoperator import BaseOperator, chain
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagrun import DagRun
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance, TaskInstanceState
@@ -32,7 +32,6 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.providers.openlineage.plugins.facets import AirflowDagRunFacet, AirflowJobFacet
 from airflow.providers.openlineage.utils.utils import (
-    _get_parsed_dag_tree,
     _get_task_groups_details,
     _get_tasks_details,
     get_airflow_dag_run_facet,
@@ -71,7 +70,7 @@ def test_get_airflow_job_facet():
     result = get_airflow_job_facet(dagrun_mock)
     assert result == {
         "airflow": AirflowJobFacet(
-            taskTree={"task_0": {"section_1.task_3": {}}},
+            taskTree={},
             taskGroups={
                 "section_1": {
                     "parent_group": None,
@@ -91,6 +90,7 @@ def test_get_airflow_job_facet():
                     "ui_label": "task_0",
                     "is_setup": False,
                     "is_teardown": False,
+                    "downstream_task_ids": ["section_1.task_3"],
                 },
                 "section_1.task_3": {
                     "operator": "airflow.operators.python.PythonOperator",
@@ -101,6 +101,7 @@ def test_get_airflow_job_facet():
                     "ui_label": "task_3",
                     "is_setup": False,
                     "is_teardown": False,
+                    "downstream_task_ids": [],
                 },
             },
         )
@@ -133,18 +134,23 @@ def test_get_airflow_dag_run_facet():
     dagrun_mock.start_date = datetime.datetime(2024, 6, 1, 1, 2, 4, tzinfo=datetime.timezone.utc)
 
     result = get_airflow_dag_run_facet(dagrun_mock)
+
+    expected_dag_info = {
+        "dag_id": "dag",
+        "description": None,
+        "fileloc": pathlib.Path(__file__).resolve().as_posix(),
+        "owner": "airflow",
+        "timetable": {},
+        "start_date": "2024-06-01T00:00:00+00:00",
+        "tags": "['test']",
+    }
+    if hasattr(dag, "schedule_interval"):  # Airflow 2 compat.
+        expected_dag_info["schedule_interval"] = "@once"
+    else:  # Airflow 3 and up.
+        expected_dag_info["timetable_summary"] = "@once"
     assert result == {
         "airflowDagRun": AirflowDagRunFacet(
-            dag={
-                "dag_id": "dag",
-                "description": None,
-                "fileloc": pathlib.Path(__file__).resolve().as_posix(),
-                "owner": "airflow",
-                "timetable": {},
-                "schedule_interval": "@once",
-                "start_date": "2024-06-01T00:00:00+00:00",
-                "tags": ["test"],
-            },
+            dag=expected_dag_info,
             dagRun={
                 "conf": {},
                 "dag_id": "dag",
@@ -214,134 +220,6 @@ def test_get_operator_class_mapped_operator():
 
 
 def test_get_tasks_details():
-    with DAG(dag_id="dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
-        task = CustomOperatorForTest(task_id="task", bash_command="exit 0;")  # noqa: F841
-        task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")  # noqa: F841
-        task_1 = CustomOperatorFromEmpty(task_id="task_1")  # noqa: F841
-        task_2 = PythonOperator(task_id="task_2", python_callable=lambda: 1)  # noqa: F841
-        task_3 = BashOperator(task_id="task_3", bash_command="exit 0;")  # noqa: F841
-        task_4 = EmptyOperator(task_id="task_4.test.dot")  # noqa: F841
-        task_5 = BashOperator(task_id="task_5", bash_command="exit 0;")  # noqa: F841
-
-        with TaskGroup("section_1", prefix_group_id=True) as tg:
-            task_10 = PythonOperator(task_id="task_3", python_callable=lambda: 1)  # noqa: F841
-            with TaskGroup("section_2", parent_group=tg) as tg2:
-                task_11 = EmptyOperator(task_id="task_11")  # noqa: F841
-                with TaskGroup("section_3", parent_group=tg2):
-                    task_12 = PythonOperator(task_id="task_12", python_callable=lambda: 1)  # noqa: F841
-
-    expected = {
-        "task": {
-            "operator": "tests.providers.openlineage.utils.test_utils.CustomOperatorForTest",
-            "task_group": None,
-            "emits_ol_events": True,
-            "ui_color": CustomOperatorForTest.ui_color,
-            "ui_fgcolor": CustomOperatorForTest.ui_fgcolor,
-            "ui_label": "task",
-            "is_setup": False,
-            "is_teardown": False,
-        },
-        "task_0": {
-            "operator": "airflow.operators.bash.BashOperator",
-            "task_group": None,
-            "emits_ol_events": True,
-            "ui_color": BashOperator.ui_color,
-            "ui_fgcolor": BashOperator.ui_fgcolor,
-            "ui_label": "task_0",
-            "is_setup": False,
-            "is_teardown": False,
-        },
-        "task_1": {
-            "operator": "tests.providers.openlineage.utils.test_utils.CustomOperatorFromEmpty",
-            "task_group": None,
-            "emits_ol_events": False,
-            "ui_color": CustomOperatorFromEmpty.ui_color,
-            "ui_fgcolor": CustomOperatorFromEmpty.ui_fgcolor,
-            "ui_label": "task_1",
-            "is_setup": False,
-            "is_teardown": False,
-        },
-        "task_2": {
-            "operator": "airflow.operators.python.PythonOperator",
-            "task_group": None,
-            "emits_ol_events": True,
-            "ui_color": PythonOperator.ui_color,
-            "ui_fgcolor": PythonOperator.ui_fgcolor,
-            "ui_label": "task_2",
-            "is_setup": False,
-            "is_teardown": False,
-        },
-        "task_3": {
-            "operator": "airflow.operators.bash.BashOperator",
-            "task_group": None,
-            "emits_ol_events": True,
-            "ui_color": BashOperator.ui_color,
-            "ui_fgcolor": BashOperator.ui_fgcolor,
-            "ui_label": "task_3",
-            "is_setup": False,
-            "is_teardown": False,
-        },
-        "task_4.test.dot": {
-            "operator": "airflow.operators.empty.EmptyOperator",
-            "task_group": None,
-            "emits_ol_events": False,
-            "ui_color": EmptyOperator.ui_color,
-            "ui_fgcolor": EmptyOperator.ui_fgcolor,
-            "ui_label": "task_4.test.dot",
-            "is_setup": False,
-            "is_teardown": False,
-        },
-        "task_5": {
-            "operator": "airflow.operators.bash.BashOperator",
-            "task_group": None,
-            "emits_ol_events": True,
-            "ui_color": BashOperator.ui_color,
-            "ui_fgcolor": BashOperator.ui_fgcolor,
-            "ui_label": "task_5",
-            "is_setup": False,
-            "is_teardown": False,
-        },
-        "section_1.task_3": {
-            "operator": "airflow.operators.python.PythonOperator",
-            "task_group": "section_1",
-            "emits_ol_events": True,
-            "ui_color": PythonOperator.ui_color,
-            "ui_fgcolor": PythonOperator.ui_fgcolor,
-            "ui_label": "task_3",
-            "is_setup": False,
-            "is_teardown": False,
-        },
-        "section_1.section_2.task_11": {
-            "operator": "airflow.operators.empty.EmptyOperator",
-            "task_group": "section_1.section_2",
-            "emits_ol_events": False,
-            "ui_color": EmptyOperator.ui_color,
-            "ui_fgcolor": EmptyOperator.ui_fgcolor,
-            "ui_label": "task_11",
-            "is_setup": False,
-            "is_teardown": False,
-        },
-        "section_1.section_2.section_3.task_12": {
-            "operator": "airflow.operators.python.PythonOperator",
-            "task_group": "section_1.section_2.section_3",
-            "emits_ol_events": True,
-            "ui_color": PythonOperator.ui_color,
-            "ui_fgcolor": PythonOperator.ui_fgcolor,
-            "ui_label": "task_12",
-            "is_setup": False,
-            "is_teardown": False,
-        },
-    }
-
-    result = _get_tasks_details(dag)
-    assert result == expected
-
-
-def test_get_tasks_details_empty_dag():
-    assert _get_tasks_details(DAG("test_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1))) == {}
-
-
-def test_get_dag_tree():
     class TestMappedOperator(BaseOperator):
         def __init__(self, value, **kwargs):
             super().__init__(**kwargs)
@@ -363,17 +241,14 @@ def test_get_dag_tree():
         return sum(values)
 
     with DAG(dag_id="dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)) as dag:
-        task_ = BashOperator(task_id="task", bash_command="exit 0;")
+        task_ = CustomOperatorForTest(task_id="task", bash_command="exit 0;")
         task_0 = BashOperator(task_id="task_0", bash_command="exit 0;")
-        task_1 = BashOperator(task_id="task_1", bash_command="exit 1;")
+        task_1 = CustomOperatorFromEmpty(task_id="task_1")
         task_2 = PythonOperator(task_id="task_2", python_callable=lambda: 1)
         task_3 = BashOperator(task_id="task_3", bash_command="exit 0;")
-        task_4 = EmptyOperator(task_id="task_4")
+        task_4 = EmptyOperator(task_id="task_4.test.dot")
         task_5 = BashOperator(task_id="task_5", bash_command="exit 0;")
-        task_6 = EmptyOperator(task_id="task_6.test5")
-        task_7 = BashOperator(task_id="task_7", bash_command="exit 0;")
-        task_8 = PythonOperator(task_id="task_8", python_callable=lambda: 1)  # noqa: F841
-        task_9 = TestMappedOperator.partial(task_id="task_9").expand(value=[1, 2])
+        task_6 = TestMappedOperator.partial(task_id="task_6").expand(value=[1, 2])
 
         list_result = generate_list()
         processed_results = process_item.expand(item=list_result)
@@ -386,103 +261,241 @@ def test_get_dag_tree():
                 with TaskGroup("section_3", parent_group=tg2):
                     task_12 = PythonOperator(task_id="task_12", python_callable=lambda: 1)
 
-        task_ >> [task_2, task_7]
-        task_0 >> [task_2, task_1] >> task_3 >> [task_4, task_5] >> task_6
-        task_1 >> task_9 >> task_3 >> task_4 >> task_5 >> task_6
+        task_ >> [task_2, task_6]
+        task_0 >> [task_2, task_1] >> task_3 >> [task_4, task_5]
+        task_1 >> task_6 >> task_3 >> task_4 >> task_5
         task_3 >> task_10 >> task_12
 
-        expected = {
-            "generate_list": {"process_item": {"sum_values": {}}},
-            "section_1.section_2.task_11": {},
-            "task": {
-                "task_2": {
-                    "task_3": {
-                        "section_1.task_3": {"section_1.section_2.section_3.task_12": {}},
-                        "task_4": {"task_5": {"task_6.test5": {}}, "task_6.test5": {}},
-                        "task_5": {"task_6.test5": {}},
-                    }
-                },
-                "task_7": {},
-            },
-            "task_0": {
-                "task_1": {
-                    "task_3": {
-                        "section_1.task_3": {"section_1.section_2.section_3.task_12": {}},
-                        "task_4": {"task_5": {"task_6.test5": {}}, "task_6.test5": {}},
-                        "task_5": {"task_6.test5": {}},
-                    },
-                    "task_9": {
-                        "task_3": {
-                            "section_1.task_3": {"section_1.section_2.section_3.task_12": {}},
-                            "task_4": {"task_5": {"task_6.test5": {}}, "task_6.test5": {}},
-                            "task_5": {"task_6.test5": {}},
-                        }
-                    },
-                },
-                "task_2": {
-                    "task_3": {
-                        "section_1.task_3": {"section_1.section_2.section_3.task_12": {}},
-                        "task_4": {"task_5": {"task_6.test5": {}}, "task_6.test5": {}},
-                        "task_5": {"task_6.test5": {}},
-                    }
-                },
-            },
-            "task_8": {},
-        }
-        result = _get_parsed_dag_tree(dag)
-        assert result == expected
+    expected = {
+        "generate_list": {
+            "emits_ol_events": True,
+            "is_setup": False,
+            "is_teardown": False,
+            "operator": "airflow.decorators.python._PythonDecoratedOperator",
+            "task_group": None,
+            "ui_color": "#ffefeb",
+            "ui_fgcolor": "#000",
+            "ui_label": "generate_list",
+            "downstream_task_ids": [
+                "process_item",
+            ],
+        },
+        "process_item": {
+            "emits_ol_events": True,
+            "is_setup": False,
+            "is_teardown": False,
+            "operator": "airflow.decorators.python._PythonDecoratedOperator",
+            "task_group": None,
+            "ui_color": "#ffefeb",
+            "ui_fgcolor": "#000",
+            "ui_label": "process_item",
+            "downstream_task_ids": [
+                "sum_values",
+            ],
+        },
+        "sum_values": {
+            "emits_ol_events": True,
+            "is_setup": False,
+            "is_teardown": False,
+            "operator": "airflow.decorators.python._PythonDecoratedOperator",
+            "task_group": None,
+            "ui_color": "#ffefeb",
+            "ui_fgcolor": "#000",
+            "ui_label": "sum_values",
+            "downstream_task_ids": [],
+        },
+        "task": {
+            "operator": "tests.providers.openlineage.utils.test_utils.CustomOperatorForTest",
+            "task_group": None,
+            "emits_ol_events": True,
+            "ui_color": CustomOperatorForTest.ui_color,
+            "ui_fgcolor": CustomOperatorForTest.ui_fgcolor,
+            "ui_label": "task",
+            "is_setup": False,
+            "is_teardown": False,
+            "downstream_task_ids": [
+                "task_2",
+                "task_6",
+            ],
+        },
+        "task_0": {
+            "operator": "airflow.operators.bash.BashOperator",
+            "task_group": None,
+            "emits_ol_events": True,
+            "ui_color": BashOperator.ui_color,
+            "ui_fgcolor": BashOperator.ui_fgcolor,
+            "ui_label": "task_0",
+            "is_setup": False,
+            "is_teardown": False,
+            "downstream_task_ids": [
+                "task_1",
+                "task_2",
+            ],
+        },
+        "task_1": {
+            "operator": "tests.providers.openlineage.utils.test_utils.CustomOperatorFromEmpty",
+            "task_group": None,
+            "emits_ol_events": False,
+            "ui_color": CustomOperatorFromEmpty.ui_color,
+            "ui_fgcolor": CustomOperatorFromEmpty.ui_fgcolor,
+            "ui_label": "task_1",
+            "is_setup": False,
+            "is_teardown": False,
+            "downstream_task_ids": [
+                "task_3",
+                "task_6",
+            ],
+        },
+        "task_2": {
+            "operator": "airflow.operators.python.PythonOperator",
+            "task_group": None,
+            "emits_ol_events": True,
+            "ui_color": PythonOperator.ui_color,
+            "ui_fgcolor": PythonOperator.ui_fgcolor,
+            "ui_label": "task_2",
+            "is_setup": False,
+            "is_teardown": False,
+            "downstream_task_ids": [
+                "task_3",
+            ],
+        },
+        "task_3": {
+            "operator": "airflow.operators.bash.BashOperator",
+            "task_group": None,
+            "emits_ol_events": True,
+            "ui_color": BashOperator.ui_color,
+            "ui_fgcolor": BashOperator.ui_fgcolor,
+            "ui_label": "task_3",
+            "is_setup": False,
+            "is_teardown": False,
+            "downstream_task_ids": [
+                "section_1.task_3",
+                "task_4.test.dot",
+                "task_5",
+            ],
+        },
+        "task_4.test.dot": {
+            "operator": "airflow.operators.empty.EmptyOperator",
+            "task_group": None,
+            "emits_ol_events": False,
+            "ui_color": EmptyOperator.ui_color,
+            "ui_fgcolor": EmptyOperator.ui_fgcolor,
+            "ui_label": "task_4.test.dot",
+            "is_setup": False,
+            "is_teardown": False,
+            "downstream_task_ids": [
+                "task_5",
+            ],
+        },
+        "task_5": {
+            "operator": "airflow.operators.bash.BashOperator",
+            "task_group": None,
+            "emits_ol_events": True,
+            "ui_color": BashOperator.ui_color,
+            "ui_fgcolor": BashOperator.ui_fgcolor,
+            "ui_label": "task_5",
+            "is_setup": False,
+            "is_teardown": False,
+            "downstream_task_ids": [],
+        },
+        "task_6": {
+            "emits_ol_events": True,
+            "is_setup": False,
+            "is_teardown": False,
+            "operator": "tests.providers.openlineage.utils.test_utils.TestMappedOperator",
+            "task_group": None,
+            "ui_color": "#fff",
+            "ui_fgcolor": "#000",
+            "ui_label": "task_6",
+            "downstream_task_ids": [
+                "task_3",
+            ],
+        },
+        "section_1.task_3": {
+            "operator": "airflow.operators.python.PythonOperator",
+            "task_group": "section_1",
+            "emits_ol_events": True,
+            "ui_color": PythonOperator.ui_color,
+            "ui_fgcolor": PythonOperator.ui_fgcolor,
+            "ui_label": "task_3",
+            "is_setup": False,
+            "is_teardown": False,
+            "downstream_task_ids": [
+                "section_1.section_2.section_3.task_12",
+            ],
+        },
+        "section_1.section_2.task_11": {
+            "operator": "airflow.operators.empty.EmptyOperator",
+            "task_group": "section_1.section_2",
+            "emits_ol_events": False,
+            "ui_color": EmptyOperator.ui_color,
+            "ui_fgcolor": EmptyOperator.ui_fgcolor,
+            "ui_label": "task_11",
+            "is_setup": False,
+            "is_teardown": False,
+            "downstream_task_ids": [],
+        },
+        "section_1.section_2.section_3.task_12": {
+            "operator": "airflow.operators.python.PythonOperator",
+            "task_group": "section_1.section_2.section_3",
+            "emits_ol_events": True,
+            "ui_color": PythonOperator.ui_color,
+            "ui_fgcolor": PythonOperator.ui_fgcolor,
+            "ui_label": "task_12",
+            "is_setup": False,
+            "is_teardown": False,
+            "downstream_task_ids": [],
+        },
+    }
+
+    result = _get_tasks_details(dag)
+    assert result == expected
 
 
-def test_get_dag_tree_large_dag():
-    class LongEmptyOperator(EmptyOperator):
-        # lets make repr really long :)
-        def __repr__(self) -> str:
-            return str(self.__dict__) * 200
-
-    with DAG("aaa_big_get_tree_view", schedule=None) as dag:
-        first_set = [LongEmptyOperator(task_id=f"hello_{i}_{'a' * 230}") for i in range(900)]
-        chain(*first_set)
-
-        last_task_in_first_set = first_set[-1]
-
-        chain(
-            last_task_in_first_set, [LongEmptyOperator(task_id=f"world_{i}_{'a' * 230}") for i in range(900)]
-        )
-
-        chain(
-            last_task_in_first_set, [LongEmptyOperator(task_id=f"this_{i}_{'a' * 230}") for i in range(900)]
-        )
-
-        chain(last_task_in_first_set, [LongEmptyOperator(task_id=f"is_{i}_{'a' * 230}") for i in range(900)])
-
-        chain(
-            last_task_in_first_set, [LongEmptyOperator(task_id=f"silly_{i}_{'a' * 230}") for i in range(900)]
-        )
-
-        chain(
-            last_task_in_first_set, [LongEmptyOperator(task_id=f"stuff_{i}_{'a' * 230}") for i in range(900)]
-        )
-
-    result = _get_parsed_dag_tree(dag)
-
-    def dfs_depth(d: dict, depth: int = 0) -> int:
-        max_depth = depth
-        for v in d.values():
-            if isinstance(v, dict):
-                max_depth = max(max_depth, dfs_depth(v, depth + 1))
-        return max_depth
-
-    assert len(result) == 1
-    assert dfs_depth(result, 901)
+def test_get_tasks_details_empty_dag():
+    assert _get_tasks_details(DAG("test_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1))) == {}
 
 
-def test_get_dag_tree_empty_dag():
-    assert (
-        _get_parsed_dag_tree(
-            DAG("test_dag", schedule=None, start_date=datetime.datetime(2024, 6, 1)),
-        )
-        == {}
-    )
+def test_get_tasks_large_dag():
+    """Test how get_tasks behaves for a large dag with many dependent tasks."""
+    with DAG("test", schedule=None) as dag:
+        start = EmptyOperator(task_id="start")
+
+        a = [
+            start >> EmptyOperator(task_id=f"a_1_{i}") >> EmptyOperator(task_id=f"a_2_{i}")
+            for i in range(200)
+        ]
+
+        middle = EmptyOperator(task_id="middle")
+
+        b = [
+            middle >> EmptyOperator(task_id=f"b_1_{i}") >> EmptyOperator(task_id=f"b_2_{i}")
+            for i in range(200)
+        ]
+
+        middle2 = EmptyOperator(task_id="middle2")
+
+        c = [
+            middle2 >> EmptyOperator(task_id=f"c_1_{i}") >> EmptyOperator(task_id=f"c_2_{i}")
+            for i in range(200)
+        ]
+
+        end = EmptyOperator(task_id="end")
+
+        start >> a >> middle >> b >> middle2 >> c >> end
+
+    result = _get_tasks_details(dag)
+
+    expected_dependencies = {
+        "start": 400,
+        "middle": 400,
+        "middle2": 400,
+        "end": 0,
+    }
+
+    assert len(result) == 1204
+    for task_id, task_info in result.items():
+        assert len(task_info["downstream_task_ids"]) == expected_dependencies.get(task_id, 1)
 
 
 def test_get_task_groups_details():

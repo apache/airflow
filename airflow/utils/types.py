@@ -41,6 +41,14 @@ class ArgNotSet:
         is_arg_passed(None)  # True.
     """
 
+    @staticmethod
+    def serialize():
+        return "NOTSET"
+
+    @classmethod
+    def deserialize(cls):
+        return cls
+
 
 NOTSET = ArgNotSet()
 """Sentinel value for argument default. See ``ArgNotSet``."""
@@ -99,3 +107,15 @@ class EdgeInfoType(TypedDict):
     """Extra metadata that the DAG can store about an edge, usually generated from an EdgeModifier."""
 
     label: str | None
+
+
+class DagRunTriggeredByType(enum.Enum):
+    """Class with TriggeredBy types for DagRun."""
+
+    CLI = "cli"  # for the trigger subcommand of the CLI: airflow dags trigger
+    OPERATOR = "operator"  # for the TriggerDagRunOperator
+    REST_API = "rest_api"  # for triggering the DAG via RESTful API
+    UI = "ui"  # for clicking the `Trigger DAG` button
+    TEST = "test"  # for dag.test()
+    TIMETABLE = "timetable"  # for timetable based triggering
+    DATASET = "dataset"  # for dataset_triggered run type

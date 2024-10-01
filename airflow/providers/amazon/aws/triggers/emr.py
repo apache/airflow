@@ -17,10 +17,8 @@
 from __future__ import annotations
 
 import sys
-import warnings
 from typing import TYPE_CHECKING
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 
@@ -81,21 +79,10 @@ class EmrCreateJobFlowTrigger(AwsBaseWaiterTrigger):
     def __init__(
         self,
         job_flow_id: str,
-        poll_interval: int | None = None,  # deprecated
-        max_attempts: int | None = None,  # deprecated
         aws_conn_id: str | None = None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
     ):
-        if poll_interval is not None or max_attempts is not None:
-            warnings.warn(
-                "please use waiter_delay instead of poll_interval "
-                "and waiter_max_attempts instead of max_attempts",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            waiter_delay = poll_interval or waiter_delay
-            waiter_max_attempts = max_attempts or waiter_max_attempts
         super().__init__(
             serialized_fields={"job_flow_id": job_flow_id},
             waiter_name="job_flow_waiting",
@@ -131,21 +118,10 @@ class EmrTerminateJobFlowTrigger(AwsBaseWaiterTrigger):
     def __init__(
         self,
         job_flow_id: str,
-        poll_interval: int | None = None,  # deprecated
-        max_attempts: int | None = None,  # deprecated
         aws_conn_id: str | None = None,
         waiter_delay: int = 30,
         waiter_max_attempts: int = 60,
     ):
-        if poll_interval is not None or max_attempts is not None:
-            warnings.warn(
-                "please use waiter_delay instead of poll_interval "
-                "and waiter_max_attempts instead of max_attempts",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            waiter_delay = poll_interval or waiter_delay
-            waiter_max_attempts = max_attempts or waiter_max_attempts
         super().__init__(
             serialized_fields={"job_flow_id": job_flow_id},
             waiter_name="job_flow_terminated",
@@ -183,17 +159,9 @@ class EmrContainerTrigger(AwsBaseWaiterTrigger):
         virtual_cluster_id: str,
         job_id: str,
         aws_conn_id: str | None = "aws_default",
-        poll_interval: int | None = None,  # deprecated
         waiter_delay: int = 30,
         waiter_max_attempts: int = sys.maxsize,
     ):
-        if poll_interval is not None:
-            warnings.warn(
-                "please use waiter_delay instead of poll_interval.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            waiter_delay = poll_interval or waiter_delay
         super().__init__(
             serialized_fields={"virtual_cluster_id": virtual_cluster_id, "job_id": job_id},
             waiter_name="container_job_complete",

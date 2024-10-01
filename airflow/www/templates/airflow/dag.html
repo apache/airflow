@@ -120,7 +120,7 @@
         {% endif %}
         <label class="switch-label{{' disabled' if not can_edit_dag else ''  }} js-tooltip" title="{{ switch_tooltip }}">
           <input class="switch-input" id="pause_resume" data-dag-id="{{ dag.dag_id }}"
-                  data-require-confirmation="{{ appbuilder.require_confirmation_dag_change }}"
+                  {{ "data-require-confirmation" if appbuilder.require_confirmation_dag_change else "" }}
                   type="checkbox"{{ " checked" if not dag_is_paused else "" }}
                   {{ " disabled" if not can_edit_dag else "" }}>
           <span class="switch" aria-hidden="true"></span>
@@ -138,40 +138,40 @@
           {{ state_token }}
         {% endif %}
         <a class="label label-default" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}">
-          Schedule: {{ dag_model is defined and dag_model and dag_model.schedule_interval }}
+          Schedule: {{ dag_model is defined and dag_model and dag_model.timetable_summary }}
         </a>
         {% if dag_model is defined and dag_model and dag_model.timetable_description %}
             <span class="material-icons text-muted js-tooltip" aria-hidden="true" data-original-title="Schedule: {{ dag_model.timetable_description|string }}">info</span>
         {% endif %}
-        {% if dag_model is defined and dag_model.next_dagrun is defined and dag_model.schedule_interval != 'Dataset' %}
+        {% if dag_model is defined and dag_model.next_dagrun is defined and dag_model.dataset_expression != None %}
           <p class="label label-default js-tooltip" style="margin-left: 5px" id="next-run" data-html="true" data-placement="bottom">
             Next Run ID: <time datetime="{{ dag_model.next_dagrun }}" data-with-tz="true">{{ dag_model.next_dagrun }}</time>
           </p>
         {% endif %}
-        {% if dag_model is defined and dag_model.schedule_interval is defined and dag_model.schedule_interval == 'Dataset' %}
-          {%- with ds_info = dag_model.get_dataset_triggered_next_run_info() -%}
+        {% if dag_model is defined and dag_model.dataset_expression is defined and dag_model.dataset_expression != None %}
+          {%- with asset_info = dag_model.get_asset_triggered_next_run_info() -%}
             <span
               id="next-dataset-tooltip"
               class="js-tooltip"
               title="Click to see dataset details."
               data-html="true"
               data-placement="bottom"
-              data-uri="{{ ds_info.uri }}"
+              data-uri="{{ asset_info.uri }}"
             >
                 <p
                   class="label label-default next-dataset-triggered"
                   style="margin-left: 5px;"
                   data-summary="
-                    {%- if ds_info.total == 1 -%}
-                    On {{ ds_info.uri }}
+                    {%- if asset_info.total == 1 -%}
+                    On {{ asset_info.uri }}
                     {%- else -%}
-                    {{ ds_info.ready }} of {{ ds_info.total }} datasets updated
+                    {{ asset_info.ready }} of {{ asset_info.total }} datasets updated
                     {%- endif -%}"
                   >
-                  {% if ds_info.total == 1 -%}
-                    On {{ ds_info.uri }}
+                  {% if asset_info.total == 1 -%}
+                    On {{ asset_info.uri }}
                   {%- else -%}
-                  {{ ds_info.ready }} of {{ ds_info.total }} datasets updated
+                  {{ asset_info.ready }} of {{ asset_info.total }} datasets updated
                   {%- endif %}
                 </p>
             </span>

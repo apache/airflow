@@ -32,7 +32,7 @@ from abc import ABCMeta, abstractmethod
 from collections.abc import Container
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable, Mapping, NamedTuple, Sequence
 
 import lazy_object_proxy
 
@@ -56,15 +56,12 @@ from airflow.utils.context import context_copy_partial, context_get_outlet_event
 from airflow.utils.file import get_unique_dag_module_name
 from airflow.utils.operator_helpers import ExecutionCallableRunner, KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
-from airflow.utils.pydantic import is_pydantic_2_installed
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
 from airflow.utils.session import create_session
 
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from pendulum.datetime import DateTime
-
     from airflow.serialization.enums import Encoding
     from airflow.utils.context import Context
 
@@ -237,7 +234,7 @@ class PythonOperator(BaseOperator):
     def execute(self, context: Context) -> Any:
         context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
         self.op_kwargs = self.determine_kwargs(context)
-        self._dataset_events = context_get_outlet_events(context)
+        self._asset_events = context_get_outlet_events(context)
 
         return_value = self.execute_callable()
         if self.show_return_value_in_logs:
@@ -256,7 +253,7 @@ class PythonOperator(BaseOperator):
 
         :return: the return value of the call.
         """
-        runner = ExecutionCallableRunner(self.python_callable, self._dataset_events, logger=self.log)
+        runner = ExecutionCallableRunner(self.python_callable, self._asset_events, logger=self.log)
         return runner.run(*self.op_args, **self.op_kwargs)
 
 
@@ -341,7 +338,6 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
         self.skip(
             dag_run=dag_run,
-            execution_date=cast("DateTime", dag_run.execution_date),
             tasks=to_skip,
             map_index=context["ti"].map_index,
         )
@@ -428,7 +424,7 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
         "dag_run",
         "task",
         "params",
-        "triggering_dataset_events",
+        "triggering_asset_events",
     }
 
     def __init__(
@@ -552,8 +548,8 @@ class _BasePythonVirtualenvOperator(PythonOperator, metaclass=ABCMeta):
             self._write_args(input_path)
             self._write_string_args(string_args_path)
 
-            if self.use_airflow_context and (not is_pydantic_2_installed() or not _ENABLE_AIP_44):
-                error_msg = "`get_current_context()` needs to be used with Pydantic 2 and AIP-44 enabled."
+            if self.use_airflow_context and not _ENABLE_AIP_44:
+                error_msg = "`get_current_context()` needs to be used with AIP-44 enabled."
                 raise AirflowException(error_msg)
 
             jinja_context = {

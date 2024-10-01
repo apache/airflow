@@ -46,10 +46,10 @@ if TYPE_CHECKING:
     )
     from airflow.auth.managers.models.resource_details import (
         AccessView,
+        AssetDetails,
         ConfigurationDetails,
         ConnectionDetails,
         DagAccessEntity,
-        DatasetDetails,
         PoolDetails,
         VariableDetails,
     )
@@ -73,18 +73,12 @@ class BaseAuthManager(LoggingMixin):
         super().__init__()
         self.appbuilder = appbuilder
 
-    @staticmethod
-    def get_cli_commands() -> list[CLICommand]:
+    def init(self) -> None:
         """
-        Vends CLI commands to be included in Airflow CLI.
+        Run operations when Airflow is initializing.
 
-        Override this method to expose commands via Airflow CLI to manage this auth manager.
+        By default, do nothing.
         """
-        return []
-
-    def get_api_endpoints(self) -> None | Blueprint:
-        """Return API endpoint(s) definition for the auth manager."""
-        return None
 
     def get_user_name(self) -> str:
         """Return the username associated to the user in session."""
@@ -112,16 +106,25 @@ class BaseAuthManager(LoggingMixin):
             return str(user_id)
         return None
 
-    def init(self) -> None:
-        """
-        Run operations when Airflow is initializing.
-
-        By default, do nothing.
-        """
-
     @abstractmethod
     def is_logged_in(self) -> bool:
         """Return whether the user is logged in."""
+
+    @abstractmethod
+    def get_url_login(self, **kwargs) -> str:
+        """Return the login page url."""
+
+    @abstractmethod
+    def get_url_logout(self) -> str:
+        """Return the logout page url."""
+
+    def get_url_user_profile(self) -> str | None:
+        """
+        Return the url to a page displaying info about the current user.
+
+        By default, return None.
+        """
+        return None
 
     @abstractmethod
     def is_authorized_configuration(
@@ -175,18 +178,18 @@ class BaseAuthManager(LoggingMixin):
         """
 
     @abstractmethod
-    def is_authorized_dataset(
+    def is_authorized_asset(
         self,
         *,
         method: ResourceMethod,
-        details: DatasetDetails | None = None,
+        details: AssetDetails | None = None,
         user: BaseUser | None = None,
     ) -> bool:
         """
-        Return whether the user is authorized to perform a given action on a dataset.
+        Return whether the user is authorized to perform a given action on an asset.
 
         :param method: the method to perform
-        :param details: optional details about the dataset
+        :param details: optional details about the asset
         :param user: the user to perform the action on. If not provided (or None), it uses the current user
         """
 
@@ -413,22 +416,6 @@ class BaseAuthManager(LoggingMixin):
             accessible_items.append(menu_item_copy)
         return accessible_items
 
-    @abstractmethod
-    def get_url_login(self, **kwargs) -> str:
-        """Return the login page url."""
-
-    @abstractmethod
-    def get_url_logout(self) -> str:
-        """Return the logout page url."""
-
-    def get_url_user_profile(self) -> str | None:
-        """
-        Return the url to a page displaying info about the current user.
-
-        By default, return None.
-        """
-        return None
-
     @cached_property
     def security_manager(self) -> AirflowSecurityManagerV2:
         """
@@ -443,3 +430,19 @@ class BaseAuthManager(LoggingMixin):
         from airflow.www.security_manager import AirflowSecurityManagerV2
 
         return AirflowSecurityManagerV2(self.appbuilder)
+
+    @staticmethod
+    def get_cli_commands() -> list[CLICommand]:
+        """
+        Vends CLI commands to be included in Airflow CLI.
+
+        Override this method to expose commands via Airflow CLI to manage this auth manager.
+        """
+        return []
+
+    def get_api_endpoints(self) -> None | Blueprint:
+        """Return API endpoint(s) definition for the auth manager."""
+        return None
+
+    def register_views(self) -> None:
+        """Register views specific to the auth manager."""

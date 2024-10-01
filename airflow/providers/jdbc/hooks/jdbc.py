@@ -107,16 +107,6 @@ class JdbcHook(DbApiHook):
         }
 
     @property
-    def connection_extra_lower(self) -> dict:
-        """
-        ``connection.extra_dejson`` but where keys are converted to lower case.
-
-        This is used internally for case-insensitive access of jdbc params.
-        """
-        conn = self.get_connection(self.get_conn_id())
-        return {k.lower(): v for k, v in conn.extra_dejson.items()}
-
-    @property
     def driver_path(self) -> str | None:
         from airflow.configuration import conf
 

@@ -232,7 +232,7 @@ The following features are supported in the Trigger UI Form:
           - Example
 
         * - ``string``
-          - Generates a single-line text box to edit text.
+          - Generates a single-line text box or a text area to edit text.
           - * ``minLength``: Minimum text length
             * ``maxLength``: Maximum text length
             * | ``format="date"``: Generate a date-picker
@@ -240,6 +240,7 @@ The following features are supported in the Trigger UI Form:
             * | ``format="date-time"``: Generate a date and
               | time-picker with calendar pop-up
             * ``format="time"``: Generate a time-picker
+            * ``format="multiline"``: Generate a multi-line textarea
             * | ``enum=["a", "b", "c"]``: Generates a
               | drop-down select list for scalar values.
               | As of JSON validation, a value must be
@@ -388,14 +389,10 @@ For examples, please take a look at the two example DAGs provided: :ref:`Params 
     The trigger form can also be forced to be displayed also if no params are defined using the configuration switch
     ``webserver.show_trigger_form_if_no_params``.
 
-.. versionchanged:: 2.8.0
-    By default custom HTML is not allowed to prevent injection of scripts or other malicious HTML code. If you trust your DAG authors
-    you can change the trust level of parameter descriptions to allow raw HTML by setting the configuration entry
-    ``webserver.allow_raw_html_descriptions`` to ``True``. With the default setting all HTML will be displayed as plain text.
-    This relates to the previous feature to enable rich formatting with the attribute ``description_html`` which is now super-seeded
-    with the attribute ``description_md``.
-    Custom form elements using the attribute ``custom_html_form`` allow a DAG author to specify raw HTML form templates. These
-    custom HTML form elements are deprecated as of version 2.8.0.
+.. versionchanged:: 3.0.0
+    By default custom HTML is not allowed to prevent injection of scripts or other malicious HTML code. The previous field named
+    ``description_html`` is now super-seeded with the attribute ``description_md``. ``description_html`` is not supported anymore.
+    Custom form elements using the attribute ``custom_html_form`` was deprecated in version 2.8.0 and support was removed in 3.0.0.
 
 Disabling Runtime Param Modification
 ------------------------------------

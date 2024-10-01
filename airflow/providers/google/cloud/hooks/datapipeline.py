@@ -21,10 +21,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from deprecated import deprecated
-
 from airflow.exceptions import AirflowProviderDeprecationWarning
 from airflow.providers.google.cloud.hooks.dataflow import DataflowHook
+from airflow.providers.google.common.deprecated import deprecated
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 if TYPE_CHECKING:
@@ -34,7 +33,8 @@ DEFAULT_DATAPIPELINE_LOCATION = "us-central1"
 
 
 @deprecated(
-    reason="This hook is deprecated and will be removed after 01.12.2024. Please use `DataflowHook`.",
+    planned_removal_date="December 01, 2024",
+    use_instead="DataflowHook",
     category=AirflowProviderDeprecationWarning,
 )
 class DataPipelineHook(DataflowHook):

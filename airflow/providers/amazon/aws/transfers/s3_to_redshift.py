@@ -28,7 +28,6 @@ from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-
 AVAILABLE_METHODS = ["APPEND", "REPLACE", "UPSERT"]
 
 
@@ -40,17 +39,18 @@ class S3ToRedshiftOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:S3ToRedshiftOperator`
 
-    :param schema: reference to a specific schema in redshift database
     :param table: reference to a specific table in redshift database
     :param s3_bucket: reference to a specific S3 bucket
     :param s3_key: key prefix that selects single or multiple objects from S3
+    :param schema: reference to a specific schema in redshift database.
+        Do not provide when copying into a temporary table
     :param redshift_conn_id: reference to a specific redshift database OR a redshift data-api connection
     :param aws_conn_id: reference to a specific S3 connection
         If the AWS connection contains 'aws_iam_role' in ``extras``
         the operator will use AWS STS credentials with a token
         https://docs.aws.amazon.com/redshift/latest/dg/copy-parameters-authorization.html#copy-credentials
-    :param verify: Whether or not to verify SSL certificates for S3 connection.
-        By default SSL certificates are verified.
+    :param verify: Whether to verify SSL certificates for S3 connection.
+        By default, SSL certificates are verified.
         You can provide the following values:
 
         - ``False``: do not validate SSL certificates. SSL will still be used
@@ -59,7 +59,8 @@ class S3ToRedshiftOperator(BaseOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
-    :param column_list: list of column names to load
+    :param column_list: list of column names to load source data fields into specific target columns
+        https://docs.aws.amazon.com/redshift/latest/dg/copy-parameters-column-mapping.html#copy-column-list
     :param copy_options: reference to a list of COPY options
     :param method: Action to be performed on execution. Available ``APPEND``, ``UPSERT`` and ``REPLACE``.
     :param upsert_keys: List of fields to use as key on upsert action
@@ -86,10 +87,10 @@ class S3ToRedshiftOperator(BaseOperator):
     def __init__(
         self,
         *,
-        schema: str,
         table: str,
         s3_bucket: str,
         s3_key: str,
+        schema: str | None = None,
         redshift_conn_id: str = "redshift_default",
         aws_conn_id: str | None = "aws_default",
         verify: bool | str | None = None,
@@ -159,7 +160,7 @@ class S3ToRedshiftOperator(BaseOperator):
             credentials_block = build_credentials_block(credentials)
 
         copy_options = "\n\t\t\t".join(self.copy_options)
-        destination = f"{self.schema}.{self.table}"
+        destination = f"{self.schema}.{self.table}" if self.schema else self.table
         copy_destination = f"#{self.table}" if self.method == "UPSERT" else destination
 
         copy_statement = self._build_copy_query(
@@ -204,18 +205,13 @@ class S3ToRedshiftOperator(BaseOperator):
 
     def get_openlineage_facets_on_complete(self, task_instance):
         """Implement on_complete as we will query destination table."""
-        from pathlib import Path
-
         from airflow.providers.amazon.aws.utils.openlineage import (
             get_facets_from_redshift_table,
-            get_identity_column_lineage_facet,
         )
         from airflow.providers.common.compat.openlineage.facet import (
             Dataset,
-            Identifier,
             LifecycleStateChange,
             LifecycleStateChangeDatasetFacet,
-            SymlinksDatasetFacet,
         )
         from airflow.providers.openlineage.extractors import OperatorLineage
 
@@ -235,36 +231,8 @@ class S3ToRedshiftOperator(BaseOperator):
             database = redshift_sql_hook.conn.schema
             authority = redshift_sql_hook.get_openlineage_database_info(redshift_sql_hook.conn).authority
             output_dataset_facets = get_facets_from_redshift_table(
-                redshift_sql_hook, self.table, self.redshift_data_api_kwargs, self.schema
+                redshift_sql_hook, self.table, {}, self.schema
             )
-
-        input_dataset_facets = {}
-        if not self.column_list:
-            # If column_list is not specified, then we know that input file matches columns of output table.
-            input_dataset_facets["schema"] = output_dataset_facets["schema"]
-
-        dataset_name = self.s3_key
-        if "*" in dataset_name:
-            # If wildcard ("*") is used in s3 path, we want the name of dataset to be directory name,
-            # but we create a symlink to the full object path with wildcard.
-            input_dataset_facets["symlink"] = SymlinksDatasetFacet(
-                identifiers=[Identifier(namespace=f"s3://{self.s3_bucket}", name=dataset_name, type="file")]
-            )
-            dataset_name = Path(dataset_name).parent.as_posix()
-            if dataset_name == ".":
-                # blob path does not have leading slash, but we need root dataset name to be "/"
-                dataset_name = "/"
-
-        input_dataset = Dataset(
-            namespace=f"s3://{self.s3_bucket}",
-            name=dataset_name,
-            facets=input_dataset_facets,
-        )
-
-        output_dataset_facets["columnLineage"] = get_identity_column_lineage_facet(
-            field_names=[field.name for field in output_dataset_facets["schema"].fields],
-            input_datasets=[input_dataset],
-        )
 
         if self.method == "REPLACE":
             output_dataset_facets["lifecycleStateChange"] = LifecycleStateChangeDatasetFacet(
@@ -275,6 +243,11 @@ class S3ToRedshiftOperator(BaseOperator):
             namespace=f"redshift://{authority}",
             name=f"{database}.{self.schema}.{self.table}",
             facets=output_dataset_facets,
+        )
+
+        input_dataset = Dataset(
+            namespace=f"s3://{self.s3_bucket}",
+            name=self.s3_key,
         )
 
         return OperatorLineage(inputs=[input_dataset], outputs=[output_dataset])

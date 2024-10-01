@@ -32,10 +32,8 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 class HdfsTaskHandler(FileTaskHandler, LoggingMixin):
     """Logging handler to upload and read from HDFS."""
 
-    def __init__(
-        self, base_log_folder: str, hdfs_log_folder: str, filename_template: str | None = None, **kwargs
-    ):
-        super().__init__(base_log_folder, filename_template)
+    def __init__(self, base_log_folder: str, hdfs_log_folder: str, **kwargs):
+        super().__init__(base_log_folder)
         self.remote_base = urlsplit(hdfs_log_folder).path
         self.log_relative_path = ""
         self._hook = None

@@ -37,7 +37,11 @@ from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
 from airflow.providers.cncf.kubernetes.kubernetes_helper_functions import should_retry_creation
-from airflow.providers.cncf.kubernetes.utils.pod_manager import PodOperatorHookProtocol
+from airflow.providers.cncf.kubernetes.utils.pod_manager import (
+    PodOperatorHookProtocol,
+    container_is_completed,
+    container_is_running,
+)
 from airflow.utils import yaml
 
 if TYPE_CHECKING:
@@ -246,6 +250,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         if kubeconfig is not None:
             with tempfile.NamedTemporaryFile() as temp_config:
                 self.log.debug("loading kube_config from: connection kube_config")
+                if isinstance(kubeconfig, dict):
+                    kubeconfig = json.dumps(kubeconfig)
                 temp_config.write(kubeconfig.encode())
                 temp_config.flush()
                 self._is_in_cluster = False
@@ -682,6 +688,7 @@ class AsyncKubernetesHook(KubernetesHook):
 
         if self.config_dict:
             self.log.debug(LOADING_KUBE_CONFIG_FILE_RESOURCE.format("config dictionary"))
+            self._is_in_cluster = False
             await async_config.load_kube_config_from_dict(self.config_dict)
             return async_client.ApiClient()
 
@@ -829,4 +836,40 @@ class AsyncKubernetesHook(KubernetesHook):
             if self.is_job_complete(job=job):
                 return job
             self.log.info("The job '%s' is incomplete. Sleeping for %i sec.", name, poll_interval)
+            await asyncio.sleep(poll_interval)
+
+    async def wait_until_container_complete(
+        self, name: str, namespace: str, container_name: str, poll_interval: float = 10
+    ) -> None:
+        """
+        Wait for the given container in the given pod to be completed.
+
+        :param name: Name of Pod to fetch.
+        :param namespace: Namespace of the Pod.
+        :param container_name: name of the container within the pod to monitor
+        :param poll_interval: Interval in seconds between polling the container status
+        """
+        while True:
+            pod = await self.get_pod(name=name, namespace=namespace)
+            if container_is_completed(pod=pod, container_name=container_name):
+                break
+            self.log.info("Waiting for container '%s' state to be completed", container_name)
+            await asyncio.sleep(poll_interval)
+
+    async def wait_until_container_started(
+        self, name: str, namespace: str, container_name: str, poll_interval: float = 10
+    ) -> None:
+        """
+        Wait for the given container in the given pod to be started.
+
+        :param name: Name of Pod to fetch.
+        :param namespace: Namespace of the Pod.
+        :param container_name: name of the container within the pod to monitor
+        :param poll_interval: Interval in seconds between polling the container status
+        """
+        while True:
+            pod = await self.get_pod(name=name, namespace=namespace)
+            if container_is_running(pod=pod, container_name=container_name):
+                break
+            self.log.info("Waiting for container '%s' state to be running", container_name)
             await asyncio.sleep(poll_interval)

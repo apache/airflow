@@ -43,6 +43,7 @@ from airflow_breeze.commands.common_options import (
     option_downgrade_pendulum,
     option_downgrade_sqlalchemy,
     option_dry_run,
+    option_excluded_providers,
     option_forward_credentials,
     option_github_repository,
     option_image_tag_for_running,
@@ -57,7 +58,6 @@ from airflow_breeze.commands.common_options import (
     option_no_db_cleanup,
     option_postgres_version,
     option_project_name,
-    option_pydantic,
     option_python,
     option_run_db_tests_only,
     option_skip_db_tests,
@@ -87,8 +87,10 @@ from airflow_breeze.commands.testing_commands import (
 )
 from airflow_breeze.global_constants import (
     ALLOWED_CELERY_BROKERS,
+    ALLOWED_CELERY_EXECUTORS,
     ALLOWED_EXECUTORS,
     ALLOWED_TTY,
+    CELERY_INTEGRATION,
     DEFAULT_ALLOWED_EXECUTOR,
     DEFAULT_CELERY_BROKER,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -121,6 +123,7 @@ from airflow_breeze.utils.recording import generating_command_images
 from airflow_breeze.utils.run_utils import (
     assert_pre_commit_installed,
     run_command,
+    run_compile_ui_assets,
     run_compile_www_assets,
 )
 from airflow_breeze.utils.shared_options import get_dry_run, get_verbose, set_forced_answer
@@ -271,6 +274,7 @@ option_install_airflow_with_constraints_default_true = click.option(
 @option_downgrade_pendulum
 @option_dry_run
 @option_executor_shell
+@option_excluded_providers
 @option_force_build
 @option_force_lowest_dependencies
 @option_forward_credentials
@@ -286,7 +290,6 @@ option_install_airflow_with_constraints_default_true = click.option(
 @option_mount_sources
 @option_mysql_version
 @option_no_db_cleanup
-@option_pydantic
 @option_platform_single
 @option_postgres_version
 @option_project_name
@@ -327,6 +330,7 @@ def shell(
     docker_host: str | None,
     executor: str,
     extra_args: tuple,
+    excluded_providers: str,
     force_build: bool,
     force_lowest_dependencies: bool,
     forward_credentials: bool,
@@ -349,7 +353,6 @@ def shell(
     providers_constraints_mode: str,
     providers_constraints_reference: str,
     providers_skip_constraints: bool,
-    pydantic: str,
     python: str,
     quiet: bool,
     restart: bool,
@@ -394,6 +397,7 @@ def shell(
         downgrade_sqlalchemy=downgrade_sqlalchemy,
         downgrade_pendulum=downgrade_pendulum,
         docker_host=docker_host,
+        excluded_providers=excluded_providers,
         executor=executor,
         extra_args=extra_args if not max_time else ["exit"],
         force_build=force_build,
@@ -417,7 +421,6 @@ def shell(
         providers_constraints_mode=providers_constraints_mode,
         providers_constraints_reference=providers_constraints_reference,
         providers_skip_constraints=providers_skip_constraints,
-        pydantic=pydantic,
         python=python,
         quiet=quiet,
         restart=restart,
@@ -461,9 +464,8 @@ option_load_default_connection = click.option(
 option_executor_start_airflow = click.option(
     "--executor",
     type=click.Choice(START_AIRFLOW_ALLOWED_EXECUTORS, case_sensitive=False),
-    help="Specify the executor to use with start-airflow command.",
-    default=START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR,
-    show_default=True,
+    help="Specify the executor to use with start-airflow (defaults to LocalExecutor "
+    "or CeleryExecutor depending on the integration used).",
 )
 
 
@@ -538,7 +540,7 @@ def start_airflow(
     db_reset: bool,
     dev_mode: bool,
     docker_host: str | None,
-    executor: str,
+    executor: str | None,
     extra_args: tuple,
     force_build: bool,
     forward_credentials: bool,
@@ -577,10 +579,20 @@ def start_airflow(
         )
         skip_assets_compilation = True
     if use_airflow_version is None and not skip_assets_compilation:
-        run_compile_www_assets(dev=dev_mode, run_in_background=True, force_clean=False)
+        # Now with the /ui project, lets only do a static build of /www and focus on the /ui
+        run_compile_www_assets(dev=False, run_in_background=False, force_clean=False)
+        run_compile_ui_assets(dev=dev_mode, run_in_background=True, force_clean=False)
     airflow_constraints_reference = _determine_constraint_branch_used(
         airflow_constraints_reference, use_airflow_version
     )
+
+    if not executor:
+        if CELERY_INTEGRATION in integration:
+            # Default to a celery executor if that's the integration being used
+            executor = ALLOWED_CELERY_EXECUTORS[0]
+        else:
+            # Otherwise default to LocalExecutor
+            executor = START_AIRFLOW_DEFAULT_ALLOWED_EXECUTOR
 
     shell_params = ShellParams(
         airflow_constraints_location=airflow_constraints_location,
@@ -630,6 +642,12 @@ def start_airflow(
     rebuild_or_pull_ci_image_if_needed(command_params=shell_params)
     result = enter_shell(shell_params=shell_params)
     fix_ownership_using_docker()
+    if CELERY_INTEGRATION in integration and executor not in ALLOWED_CELERY_EXECUTORS:
+        get_console().print(
+            "[warning]A non-Celery executor was used with start-airflow in combination with the Celery "
+            "integration, this will lead to some processes failing to start (e.g.  celery worker)\n"
+        )
+
     sys.exit(result.returncode)
 
 
@@ -957,6 +975,34 @@ def compile_www_assets(dev: bool, force_clean: bool):
         dev=dev, run_in_background=False, force_clean=force_clean
     )
     if compile_www_assets_result.returncode != 0:
+        get_console().print("[warn]New assets were generated[/]")
+    sys.exit(0)
+
+
+@main.command(
+    name="compile-ui-assets",
+    help="Compiles ui assets.",
+)
+@click.option(
+    "--dev",
+    help="Run development version of assets compilation - it will not quit and automatically "
+    "recompile assets on-the-fly when they are changed.",
+    is_flag=True,
+)
+@click.option(
+    "--force-clean",
+    help="Force cleanup of compile assets before building them.",
+    is_flag=True,
+)
+@option_verbose
+@option_dry_run
+def compile_ui_assets(dev: bool, force_clean: bool):
+    perform_environment_checks()
+    assert_pre_commit_installed()
+    compile_ui_assets_result = run_compile_ui_assets(
+        dev=dev, run_in_background=False, force_clean=force_clean
+    )
+    if compile_ui_assets_result.returncode != 0:
         get_console().print("[warn]New assets were generated[/]")
     sys.exit(0)
 

@@ -22,7 +22,7 @@ from unittest.mock import PropertyMock
 
 import pytest
 
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException
 from airflow.providers.alibaba.cloud.sensors.oss_key import OSSKeySensor
 
 MODULE_NAME = "airflow.providers.alibaba.cloud.sensors.oss_key"
@@ -79,20 +79,18 @@ class TestOSSKeySensor:
         assert res is False
         mock_service.return_value.object_exists.assert_called_once_with(key=MOCK_KEY, bucket_name=MOCK_BUCKET)
 
-    @pytest.mark.parametrize(
-        "soft_fail, expected_exception", ((False, AirflowException), (True, AirflowSkipException))
-    )
     @mock.patch(f"{MODULE_NAME}.OSSKeySensor.hook", new_callable=PropertyMock)
     def test_poke_without_bucket_name(
-        self, mock_service, oss_key_sensor, soft_fail: bool, expected_exception: AirflowException
+        self,
+        mock_service,
+        oss_key_sensor,
     ):
         # Given
-        oss_key_sensor.soft_fail = soft_fail
         oss_key_sensor.bucket_name = None
         mock_service.return_value.object_exists.return_value = False
 
         # When, Then
         with pytest.raises(
-            expected_exception, match="If key is a relative path from root, please provide a bucket_name"
+            AirflowException, match="If key is a relative path from root, please provide a bucket_name"
         ):
             oss_key_sensor.poke(None)
