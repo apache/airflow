@@ -30,7 +30,7 @@ interface Props extends GetUpstreamDatasetEventsVariables {
   options?: UseQueryOptions<DatasetEventCollection>;
 }
 
-const useUpstreamDatasetEvents = ({ dagId, dagRunId, options }: Props) => {
+const useUpstreamAssetEvents = ({ dagId, dagRunId, options }: Props) => {
   const upstreamEventsUrl = (
     getMetaValue("upstream_dataset_events_api") ||
     `api/v1/dags/${dagId}/dagRuns/_DAG_RUN_ID_/upstreamDatasetEvents`
@@ -48,4 +48,4 @@ const useUpstreamDatasetEvents = ({ dagId, dagRunId, options }: Props) => {
   };
 };
 
-export default useUpstreamDatasetEvents;
+export default useUpstreamAssetEvents;

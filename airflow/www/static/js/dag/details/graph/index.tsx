@@ -36,7 +36,7 @@ import {
   useDatasets,
   useGraphData,
   useGridData,
-  useUpstreamDatasetEvents,
+  useUpstreamAssetEvents,
 } from "src/api";
 import useSelection from "src/dag/useSelection";
 import { getMetaValue, getTask, useOffsetTop } from "src/utils";
@@ -165,7 +165,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
 
   const {
     data: { datasetEvents: upstreamDatasetEvents = [] },
-  } = useUpstreamDatasetEvents({
+  } = useUpstreamAssetEvents({
     dagId,
     dagRunId: selected.runId || "",
     options: {

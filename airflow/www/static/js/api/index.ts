@@ -39,7 +39,7 @@ import useDatasetDependencies from "./useDatasetDependencies";
 import useDatasetEvents from "./useDatasetEvents";
 import useSetDagRunNote from "./useSetDagRunNote";
 import useSetTaskInstanceNote from "./useSetTaskInstanceNote";
-import useUpstreamDatasetEvents from "./useUpstreamDatasetEvents";
+import useUpstreamAssetEvents from "./useUpstreamAssetEvents";
 import useTaskInstance from "./useTaskInstance";
 import useTaskFailedDependency from "./useTaskFailedDependency";
 import useDag from "./useDag";
@@ -105,7 +105,7 @@ export {
   useSetDagRunNote,
   useSetTaskInstanceNote,
   useTaskInstance,
-  useUpstreamDatasetEvents,
+  useUpstreamAssetEvents,
   useHistoricalMetricsData,
   useTaskXcomEntry,
   useTaskXcomCollection,

@@ -19,7 +19,7 @@
 import React, { useMemo } from "react";
 import { Box, Text } from "@chakra-ui/react";
 
-import { useUpstreamDatasetEvents } from "src/api";
+import { useUpstreamAssetEvents } from "src/api";
 import type { DagRun as DagRunType } from "src/types";
 import { CardDef, CardList } from "src/components/Table";
 import type { DatasetEvent } from "src/types/api-generated";
@@ -42,7 +42,7 @@ const DatasetTriggerEvents = ({ runId }: Props) => {
   const {
     data: { datasetEvents = [] },
     isLoading,
-  } = useUpstreamDatasetEvents({ dagRunId: runId, dagId });
+  } = useUpstreamAssetEvents({ dagRunId: runId, dagId });
 
   const columns = useMemo(
     () => [
