@@ -179,6 +179,8 @@ where you can configure such local settings - This is usually done in the ``airf
 You should create a ``airflow_local_settings.py`` file and put it in a directory in ``sys.path`` or
 in the ``$AIRFLOW_HOME/config`` folder. (Airflow adds ``$AIRFLOW_HOME/config`` to ``sys.path`` when
 Airflow is initialized)
+Starting from Airflow 2.10.1, the $AIRFLOW_HOME/dags folder is no longer included in sys.path at initialization, so any local settings in that folder will not be imported. Ensure that airflow_local_settings.py is located in a path that is part of sys.path during initialization, like $AIRFLOW_HOME/config.
+For more context about this change, see the `mailing list announcement <https://lists.apache.org/thread/b4fcw33vh60yfg9990n5vmc7sy2dcgjx>`_.
 
 You can see the example of such local settings here:
 
