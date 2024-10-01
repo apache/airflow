@@ -23,11 +23,11 @@ import { snakeCase } from "lodash";
 import type { Row, SortingRule } from "react-table";
 import { useSearchParams } from "react-router-dom";
 
-import { useDatasetsSummary } from "src/api";
+import { useAssetsSummary } from "src/api";
 import { CellProps, Table, TimeCell } from "src/components/Table";
 import type { API } from "src/types";
 import { getMetaValue } from "src/utils";
-import type { DateOption } from "src/api/useDatasetsSummary";
+import type { DateOption } from "src/api/useAssetsSummary";
 
 import type { OnSelectProps } from "./types";
 
@@ -73,7 +73,7 @@ const AssetsList = ({ onSelect }: Props) => {
   const {
     data: { datasets, totalEntries },
     isLoading,
-  } = useDatasetsSummary({
+  } = useAssetsSummary({
     limit,
     offset,
     order,
