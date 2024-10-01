@@ -43,7 +43,7 @@ const queryClient = new QueryClient({
   },
 });
 
-axios.defaults.baseURL = "http://localhost:29091";
+axios.defaults.baseURL = import.meta.env.VITE_FASTAPI_URL;
 
 // redirect to login page if the API responds with unauthorized or forbidden errors
 axios.interceptors.response.use(

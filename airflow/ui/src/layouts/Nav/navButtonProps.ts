@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/consistent-type-definitions */
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -17,13 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+import type { ButtonProps } from "@chakra-ui/react";
 
-/// <reference types="vite/client" />
-
-interface ImportMetaEnv {
-  readonly VITE_FASTAPI_URL: string;
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
-}
+export const navButtonProps: ButtonProps = {
+  alignItems: "center",
+  borderRadius: "none",
+  flexDir: "column",
+  height: 16,
+  transition: "0.2s background-color ease-in-out",
+  variant: "ghost",
+  whiteSpace: "wrap",
+  width: 24,
+};
