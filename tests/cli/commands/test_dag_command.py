@@ -605,7 +605,7 @@ class TestCliDags:
             [
                 mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
                 mock.call().test(
-                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()),
+                    logical_date=timezone.parse(DEFAULT_DATE.isoformat()),
                     run_conf=None,
                     use_executor=False,
                     session=mock.ANY,
@@ -631,7 +631,7 @@ class TestCliDags:
         mock_utcnow.return_value = now
         cli_args = self.parser.parse_args(["dags", "test", "example_bash_operator"])
 
-        assert cli_args.execution_date is None
+        assert cli_args.logical_date is None
 
         dag_command.dag_test(cli_args)
 
@@ -639,7 +639,7 @@ class TestCliDags:
             [
                 mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
                 mock.call().test(
-                    execution_date=mock.ANY,
+                    logical_date=mock.ANY,
                     run_conf=None,
                     use_executor=False,
                     session=mock.ANY,
@@ -666,7 +666,7 @@ class TestCliDags:
             [
                 mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
                 mock.call().test(
-                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()),
+                    logical_date=timezone.parse(DEFAULT_DATE.isoformat()),
                     run_conf={"dag_run_conf_param": "param_value"},
                     use_executor=False,
                     session=mock.ANY,
@@ -690,7 +690,7 @@ class TestCliDags:
             [
                 mock.call(subdir=cli_args.subdir, dag_id="example_bash_operator"),
                 mock.call().test(
-                    execution_date=timezone.parse(DEFAULT_DATE.isoformat()),
+                    logical_date=timezone.parse(DEFAULT_DATE.isoformat()),
                     run_conf=None,
                     use_executor=False,
                     session=mock.ANY,

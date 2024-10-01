@@ -50,7 +50,7 @@ def _compare_xcom_collections(collection1: dict, collection_2: dict):
         return (
             record.get("dag_id"),
             record.get("task_id"),
-            record.get("execution_date"),
+            record.get("logical_date"),
             record.get("map_index"),
             record.get("key"),
         )
@@ -104,7 +104,7 @@ class TestXComCollectionItemSchema:
         assert deserialized_xcom == {
             "key": "test_key",
             "timestamp": self.default_time,
-            "execution_date": self.default_time,
+            "logical_date": self.default_time,
             "task_id": "test_task_id",
             "dag_id": "test_dag",
             "map_index": -1,
@@ -114,7 +114,7 @@ class TestXComCollectionItemSchema:
         xcom_dump = {
             "key": "test_key",
             "timestamp": self.default_time,
-            "execution_date": self.default_time,
+            "logical_date": self.default_time,
             "task_id": "test_task_id",
             "dag_id": "test_dag",
             "map_index": 2,
@@ -123,7 +123,7 @@ class TestXComCollectionItemSchema:
         assert result == {
             "key": "test_key",
             "timestamp": self.default_time_parsed,
-            "execution_date": self.default_time_parsed,
+            "logical_date": self.default_time_parsed,
             "task_id": "test_task_id",
             "dag_id": "test_dag",
             "map_index": 2,
@@ -167,7 +167,7 @@ class TestXComCollectionSchema:
                     {
                         "key": "test_key_1",
                         "timestamp": self.default_time_1,
-                        "execution_date": self.default_time_1,
+                        "logical_date": self.default_time_1,
                         "task_id": "test_task_id_1",
                         "dag_id": "test_dag_1",
                         "map_index": -1,
@@ -175,7 +175,7 @@ class TestXComCollectionSchema:
                     {
                         "key": "test_key_2",
                         "timestamp": self.default_time_2,
-                        "execution_date": self.default_time_2,
+                        "logical_date": self.default_time_2,
                         "task_id": "test_task_id_2",
                         "dag_id": "test_dag_2",
                         "map_index": -1,
@@ -204,7 +204,7 @@ class TestXComSchema:
         assert deserialized_xcom == {
             "key": "test_key",
             "timestamp": self.default_time,
-            "execution_date": self.default_time,
+            "logical_date": self.default_time,
             "task_id": "test_task_id",
             "dag_id": "test_dag",
             "value": "test_binary",
@@ -216,7 +216,7 @@ class TestXComSchema:
         xcom_dump = {
             "key": "test_key",
             "timestamp": self.default_time,
-            "execution_date": self.default_time,
+            "logical_date": self.default_time,
             "task_id": "test_task_id",
             "dag_id": "test_dag",
             "value": b"test_binary",
@@ -225,7 +225,7 @@ class TestXComSchema:
         assert result == {
             "key": "test_key",
             "timestamp": self.default_time_parsed,
-            "execution_date": self.default_time_parsed,
+            "logical_date": self.default_time_parsed,
             "task_id": "test_task_id",
             "dag_id": "test_dag",
             "value": "test_binary",
