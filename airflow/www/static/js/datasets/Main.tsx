@@ -48,7 +48,7 @@ import Tooltip from "src/components/Tooltip";
 import { useContainerRef } from "src/context/containerRef";
 
 import DatasetEvents from "./AssetEvents";
-import DatasetsList from "./DatasetsList";
+import AssetsList from "./AssetsList";
 import AssetDetails from "./AssetDetails";
 import type { OnSelectProps } from "./types";
 import Graph from "./Graph";
@@ -275,7 +275,7 @@ const Datasets = () => {
           </TabPanel>
           {!selectedUri && (
             <TabPanel>
-              <DatasetsList onSelect={onSelect} />
+              <AssetsList onSelect={onSelect} />
             </TabPanel>
           )}
         </TabPanels>

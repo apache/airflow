@@ -56,7 +56,7 @@ const dateOptions: Record<string, DateOption> = {
   hour: { count: 1, unit: "hour" },
 };
 
-const DatasetsList = ({ onSelect }: Props) => {
+const AssetsList = ({ onSelect }: Props) => {
   const limit = 25;
   const [offset, setOffset] = useState(0);
 
@@ -175,4 +175,4 @@ const DatasetsList = ({ onSelect }: Props) => {
   );
 };
 
-export default DatasetsList;
+export default AssetsList;

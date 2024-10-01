@@ -27,7 +27,7 @@ import { Wrapper } from "src/utils/testUtils";
 
 import type { UseQueryResult } from "react-query";
 import type { DatasetListItem } from "src/types";
-import DatasetsList from "./DatasetsList";
+import AssetsList from "./AssetsList";
 
 const datasets = [
   {
@@ -87,7 +87,7 @@ describe("Test Datasets List", () => {
       .mockImplementation(() => returnValue);
 
     const { getByText, queryAllByTestId } = render(
-      <DatasetsList onSelect={() => {}} />,
+      <AssetsList onSelect={() => {}} />,
       { wrapper: Wrapper }
     );
 
@@ -111,7 +111,7 @@ describe("Test Datasets List", () => {
       .mockImplementation(() => emptyReturnValue);
 
     const { getByText, queryAllByTestId, getByTestId } = render(
-      <DatasetsList onSelect={() => {}} />,
+      <AssetsList onSelect={() => {}} />,
       { wrapper: Wrapper }
     );
 
