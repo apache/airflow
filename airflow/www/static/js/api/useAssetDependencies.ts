@@ -89,7 +89,7 @@ export default function useAssetDependencies() {
   });
 }
 
-export const useDatasetGraphs = () => {
+export const useAssetGraphs = () => {
   const { data: datasetDependencies } = useAssetDependencies();
   return useQuery(["datasetGraphs", datasetDependencies], () => {
     if (datasetDependencies) {

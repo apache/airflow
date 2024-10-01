@@ -27,7 +27,7 @@ interface Props {
   uri: string;
 }
 
-export default function useDataset({ uri }: Props) {
+export default function useAsset({ uri }: Props) {
   return useQuery(["dataset", uri], () => {
     const datasetUrl = getMetaValue("dataset_api").replace(
       "__URI__",

@@ -34,7 +34,7 @@ import {
 } from "@chakra-ui/react";
 
 import { useContainerRef } from "src/context/containerRef";
-import { useCreateAssetEvent, useDataset } from "src/api";
+import { useCreateAssetEvent, useAsset } from "src/api";
 
 interface Props {
   isOpen: boolean;
@@ -54,7 +54,7 @@ function checkJsonString(str: string) {
 const CreateAssetEventModal = ({ uri, isOpen, onClose }: Props) => {
   const containerRef = useContainerRef();
   const [extra, setExtra] = useState("");
-  const { data: dataset } = useDataset({ uri });
+  const { data: dataset } = useAsset({ uri });
 
   const isJson = checkJsonString(extra);
   const isDisabled = !!extra && !isJson;

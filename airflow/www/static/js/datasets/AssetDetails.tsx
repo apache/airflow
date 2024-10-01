@@ -29,7 +29,7 @@ import {
 } from "@chakra-ui/react";
 import { isEmpty } from "lodash";
 
-import { useDataset } from "src/api";
+import { useAsset } from "src/api";
 import { getMetaValue } from "src/utils";
 import RenderedJsonField from "src/components/RenderedJsonField";
 
@@ -42,7 +42,7 @@ interface Props {
 }
 
 const AssetDetails = ({ uri }: Props) => {
-  const { data: dataset, isLoading } = useDataset({ uri });
+  const { data: dataset, isLoading } = useAsset({ uri });
 
   const hasProducingTasks = !!dataset?.producingTasks?.length;
   const hasConsumingDags = !!dataset?.consumingDags?.length;

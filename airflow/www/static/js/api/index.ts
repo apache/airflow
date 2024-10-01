@@ -34,7 +34,7 @@ import useGridData from "./useGridData";
 import useMappedInstances from "./useMappedInstances";
 import useAssets from "./useAssets";
 import useAssetsSummary from "./useAssetsSummary";
-import useDataset from "./useDataset";
+import useAsset from "./useAsset";
 import useAssetDependencies from "./useAssetDependencies";
 import useAssetEvents from "./useAssetEvents";
 import useSetDagRunNote from "./useSetDagRunNote";
@@ -85,7 +85,7 @@ export {
   useDagDetails,
   useDagRuns,
   useDags,
-  useDataset,
+  useAsset,
   useAssets,
   useAssetDependencies,
   useAssetEvents,
