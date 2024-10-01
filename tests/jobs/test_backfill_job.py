@@ -322,11 +322,11 @@ class TestBackfillJob:
         ]
         assert actual == expected
         session = settings.Session()
-        drs = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).order_by(DagRun.execution_date).all()
+        drs = session.query(DagRun).filter(DagRun.dag_id == dag.dag_id).order_by(DagRun.logical_date).all()
 
-        assert drs[0].execution_date == DEFAULT_DATE
+        assert drs[0].logical_date == DEFAULT_DATE
         assert drs[0].state == State.SUCCESS
-        assert drs[1].execution_date == DEFAULT_DATE + datetime.timedelta(days=1)
+        assert drs[1].logical_date == DEFAULT_DATE + datetime.timedelta(days=1)
         assert drs[1].state == State.SUCCESS
 
         dag.clear()
@@ -1640,7 +1640,7 @@ class TestBackfillJob:
             session.query(TI)
             .join(TI.dag_run)
             .filter(TI.dag_id == "test_start_date_scheduling" and TI.task_id == "dummy")
-            .order_by(DagRun.execution_date)
+            .order_by(DagRun.logical_date)
             .all()
         )
 

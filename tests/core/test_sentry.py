@@ -46,7 +46,7 @@ TEST_SCOPE = {
     "task_id": TASK_ID,
     "data_interval_start": DATA_INTERVAL[0],
     "data_interval_end": DATA_INTERVAL[1],
-    "execution_date": LOGICAL_DATE,
+    "logical_date": LOGICAL_DATE,
     "operator": OPERATOR,
     "try_number": TRY_NUMBER,
 }
