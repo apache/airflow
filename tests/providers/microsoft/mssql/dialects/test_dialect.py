@@ -63,10 +63,10 @@ class TestMsSqlDialect:
             {"id": "id", "name": "Norris", "firstname": "Chuck", "age": "84"},
         ]
         target_fields = ["id", "name", "firstname", "age"]
-        sql = MsSqlDialect(self.test_db_hook).generate_replace_sql(
-            "hollywood.actors", values, target_fields
-        )
-        assert sql == """
+        sql = MsSqlDialect(self.test_db_hook).generate_replace_sql("hollywood.actors", values, target_fields)
+        assert (
+            sql
+            == """
             MERGE INTO hollywood.actors AS target
             USING (SELECT ? AS id, ? AS name, ? AS firstname, ? AS age) AS source
             ON target.id = source.id
@@ -75,3 +75,4 @@ class TestMsSqlDialect:
             WHEN NOT MATCHED THEN
                 INSERT (id, name, firstname, age) VALUES (source.id, source.name, source.firstname, source.age);
         """.strip()
+        )
