@@ -85,18 +85,10 @@ class DAGRunSchema(SQLAlchemySchema):
         to `logical_date`.
         """
         logical_date = data.get("logical_date", _MISSING)
-        logical_date = data.pop("logical_date", _MISSING)
-        if logical_date is logical_date is _MISSING:  # Both missing.
+
+        # Auto-generate logical_date if missing
+        if logical_date is _MISSING:
             data["logical_date"] = str(timezone.utcnow())
-        elif logical_date is _MISSING:  # Only logical_date missing.
-            data["logical_date"] = logical_date
-        elif logical_date is _MISSING:  # Only logical_date missing.
-            pass
-        elif logical_date != logical_date:  # Both provided but don't match.
-            raise BadRequest(
-                "logical_date conflicts with logical_date",
-                detail=f"{logical_date!r} != {logical_date!r}",
-            )
 
         if "dag_run_id" not in data:
             try:
