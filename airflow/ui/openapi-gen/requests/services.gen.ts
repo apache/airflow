@@ -5,6 +5,8 @@ import { request as __request } from "./core/request";
 import type {
   NextRunAssetsData,
   NextRunAssetsResponse,
+  HistoricalMetricsDataData,
+  HistoricalMetricsDataResponse,
   GetDagsData,
   GetDagsResponse,
   PatchDagsData,
@@ -37,6 +39,33 @@ export class AssetService {
       url: "/ui/next_run_assets/{dag_id}",
       path: {
         dag_id: data.dagId,
+      },
+      errors: {
+        422: "Validation Error",
+      },
+    });
+  }
+}
+
+export class ObjectService {
+  /**
+   * Historical Metrics Data
+   * Return cluster activity historical metrics.
+   * @param data The data for the request.
+   * @param data.startDate
+   * @param data.endDate
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static historicalMetricsData(
+    data: HistoricalMetricsDataData,
+  ): CancelablePromise<HistoricalMetricsDataResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/ui/object/historical_metrics_data",
+      query: {
+        start_date: data.startDate,
+        end_date: data.endDate,
       },
       errors: {
         422: "Validation Error",
