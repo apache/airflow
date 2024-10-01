@@ -107,8 +107,8 @@ dependencies:
   - azure-mgmt-containerregistry>=8.0.0
   - azure-mgmt-containerinstance>=10.1.0
   - msgraph-core>=1.0.0
-  - microsoft-kiota-serialization-json>=1.0.0
-  - microsoft-kiota-serialization-text>=1.0.0
+  - microsoft-kiota-serialization-json==1.0.0
+  - microsoft-kiota-serialization-text==1.0.0
 
 devel-dependencies:
   - pywinrm
