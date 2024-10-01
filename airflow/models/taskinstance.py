@@ -4002,7 +4002,7 @@ class TaskInstanceNote(TaskInstanceDependencies):
 
     __tablename__ = "task_instance_note"
 
-    user_id = Column(Integer, nullable=True)
+    user_id = Column(String(128), nullable=True)
     task_id = Column(StringID(), primary_key=True, nullable=False)
     dag_id = Column(StringID(), primary_key=True, nullable=False)
     run_id = Column(StringID(), primary_key=True, nullable=False)

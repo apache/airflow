@@ -29,7 +29,6 @@ from airflow.models.backfill import Backfill
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
-from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from tests.test_utils.api_connexion_utils import create_user, delete_user
@@ -50,25 +49,11 @@ def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
 
     create_user(
-        app,  # type: ignore
+        app,
         username="test",
-        role_name="Test",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
-        ],
+        role_name="admin",
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
-    create_user(app, username="test_granular_permissions", role_name="TestGranularDag")  # type: ignore
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
-        "TEST_DAG_1",
-        access_control={
-            "TestGranularDag": {
-                permissions.RESOURCE_DAG: {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ}
-            },
-        },
-    )
+    create_user(app, username="test_no_permissions", role_name=None)
 
     with DAG(
         DAG_ID,
@@ -93,9 +78,8 @@ def configured_app(minimal_app_for_api):
 
     yield app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
-    delete_user(app, username="test_granular_permissions")  # type: ignore
+    delete_user(app, username="test")
+    delete_user(app, username="test_no_permissions")
 
 
 class TestBackfillEndpoint:
@@ -178,7 +162,6 @@ class TestListBackfills(TestBackfillEndpoint):
     @pytest.mark.parametrize(
         "user, expected",
         [
-            ("test_granular_permissions", 200),
             ("test_no_permissions", 403),
             ("test", 200),
             (None, 401),
@@ -240,7 +223,6 @@ class TestGetBackfill(TestBackfillEndpoint):
     @pytest.mark.parametrize(
         "user, expected",
         [
-            ("test_granular_permissions", 200),
             ("test_no_permissions", 403),
             ("test", 200),
             (None, 401),
@@ -268,7 +250,6 @@ class TestCreateBackfill(TestBackfillEndpoint):
     @pytest.mark.parametrize(
         "user, expected",
         [
-            ("test_granular_permissions", 200),
             ("test_no_permissions", 403),
             ("test", 200),
             (None, 401),
@@ -347,7 +328,6 @@ class TestPauseBackfill(TestBackfillEndpoint):
     @pytest.mark.parametrize(
         "user, expected",
         [
-            ("test_granular_permissions", 200),
             ("test_no_permissions", 403),
             ("test", 200),
             (None, 401),
@@ -409,7 +389,6 @@ class TestCancelBackfill(TestBackfillEndpoint):
     @pytest.mark.parametrize(
         "user, expected",
         [
-            ("test_granular_permissions", 200),
             ("test_no_permissions", 403),
             ("test", 200),
             (None, 401),

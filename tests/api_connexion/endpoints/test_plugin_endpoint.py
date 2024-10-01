@@ -24,7 +24,6 @@ from flask_appbuilder import BaseView
 
 from airflow.hooks.base import BaseHook
 from airflow.plugins_manager import AirflowPlugin
-from airflow.security import permissions
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.timetables.base import Timetable
 from airflow.utils.module_loading import qualname
@@ -105,17 +104,16 @@ class MockPlugin(AirflowPlugin):
 def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
     create_user(
-        app,  # type: ignore
+        app,
         username="test",
-        role_name="Test",
-        permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_PLUGIN)],
+        role_name="admin",
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
+    create_user(app, username="test_no_permissions", role_name=None)
 
     yield app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
+    delete_user(app, username="test")
+    delete_user(app, username="test_no_permissions")
 
 
 class TestPluginsEndpoint:
