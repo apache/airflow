@@ -1251,9 +1251,9 @@ paths:
       - $ref: "#/components/parameters/AssetURI"
 
     get:
-      summary: Get a queued Dataset event for a DAG
+      summary: Get a queued asset event for a DAG
       description: |
-        Get a queued Dataset event for a DAG.
+        Get a queued asset event for a DAG.
 
         *New in version 2.9.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
@@ -2559,8 +2559,8 @@ paths:
     parameters:
       - $ref: "#/components/parameters/AssetURI"
     get:
-      summary: Get a dataset
-      description: Get a dataset by uri.
+      summary: Get an asset
+      description: Get an asset by uri.
       x-openapi-router-controller: airflow.api_connexion.endpoints.asset_endpoint
       operationId: get_asset
       tags: [Asset]
@@ -4133,7 +4133,7 @@ components:
               nullable: true
             dataset_expression:
               type: object
-              description: Nested dataset any/all conditions
+              description: Nested asset any/all conditions
               nullable: true
             doc_md:
               type: string
@@ -4559,7 +4559,7 @@ components:
           nullable: true
         created_at:
           type: string
-          description: The dataset creation time
+          description: The asset creation time
           nullable: false
         updated_at:
           type: string
@@ -4674,7 +4674,7 @@ components:
 
     QueuedEventCollection:
       description: |
-        A collection of Dataset Dag Run Queues.
+        A collection of asset Dag Run Queues.
 
         *New in version 2.9.0*
       type: object
@@ -5745,28 +5745,28 @@ components:
       name: source_dag_id
       schema:
         type: string
-      description: The DAG ID that updated the dataset.
+      description: The DAG ID that updated the asset.
 
     FilterSourceTaskID:
       in: query
       name: source_task_id
       schema:
         type: string
-      description: The task ID that updated the dataset.
+      description: The task ID that updated the asset.
 
     FilterSourceRunID:
       in: query
       name: source_run_id
       schema:
         type: string
-      description: The DAG run ID that updated the dataset.
+      description: The DAG run ID that updated the asset.
 
     FilterSourceMapIndex:
       in: query
       name: source_map_index
       schema:
         type: integer
-      description: The map index that updated the dataset.
+      description: The map index that updated the asset.
 
     FilterMapIndex:
       in: query
