@@ -311,6 +311,7 @@ IPv6 StatsD
 To use an StatsD instance with IPv6 address. Example with Kubernetes with IPv6 enabled:
 
 .. code-block:: yaml
+
   statsd:
     enabled: true
   config:
