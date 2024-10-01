@@ -192,7 +192,7 @@ class StreamedOperator(BaseOperator):
         self._expand_input = expand_input
         self._partial_kwargs = partial_kwargs or {}
         self._mapped_kwargs: list[dict] = []
-        self._semaphore = Semaphore(self.max_active_tis_per_dag or os.cpu_count())
+        self._semaphore = Semaphore(self.max_active_tis_per_dag or os.cpu_count() or 1)
         XComArg.apply_upstream_relationship(self, self._expand_input.value)
 
     @property
