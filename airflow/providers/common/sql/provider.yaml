@@ -90,7 +90,7 @@ operators:
 
 dialects:
   - dialect-type: default
-    dialect-class-name: airflow.providers.common.sql.hooks.dialect.SqlDialect
+    dialect-class-name: airflow.providers.common.sql.dialects.dialect.Dialect
 
 hooks:
   - integration-name: Common SQL
