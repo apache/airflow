@@ -28,6 +28,21 @@ import { FiBookOpen } from "react-icons/fi";
 
 import { navButtonProps } from "./navButtonProps";
 
+const links = [
+  {
+    href: "https://airflow.apache.org/docs/",
+    title: "Documentation",
+  },
+  {
+    href: "https://github.com/apache/airflow",
+    title: "GitHub Repo",
+  },
+  {
+    href: `${import.meta.env.VITE_FASTAPI_URL}/docs`,
+    title: "REST API Reference",
+  },
+];
+
 export const DocsButton = () => (
   <Menu placement="right">
     <MenuButton
@@ -36,27 +51,17 @@ export const DocsButton = () => (
       {...navButtonProps}
     />
     <MenuList>
-      <MenuItem
-        as={Link}
-        href="https://airflow.apache.org/docs/"
-        target="_blank"
-      >
-        Documentation
-      </MenuItem>
-      <MenuItem
-        as={Link}
-        href="https://github.com/apache/airflow"
-        target="_blank"
-      >
-        Github Repo
-      </MenuItem>
-      <MenuItem
-        as={Link}
-        href={`${import.meta.env.VITE_FASTAPI_URL}/docs`}
-        target="_blank"
-      >
-        REST API Reference
-      </MenuItem>
+      {links.map((link) => (
+        <MenuItem
+          aria-label={link.title}
+          as={Link}
+          href={link.href}
+          key={link.title}
+          target="_blank"
+        >
+          {link.title}
+        </MenuItem>
+      ))}
     </MenuList>
   </Menu>
 );
