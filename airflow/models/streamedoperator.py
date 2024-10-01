@@ -211,20 +211,21 @@ class StreamedOperator(BaseOperator):
         return self._operator_class(**kwargs)
 
     def _resolve_expand_input(self, context: Context, session: Session):
-        for key, value in self._expand_input.value.items():
-            if _needs_run_time_resolution(value):
-                value = value.resolve(context=context, session=session)
+        if isinstance(self._expand_input.value, dict):
+            for key, value in self._expand_input.value.items():
+                if _needs_run_time_resolution(value):
+                    value = value.resolve(context=context, session=session)
 
-                if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
-                    value = list(value)
+                    if isinstance(value, Sequence) and not isinstance(value, (str, bytes)):
+                        value = list(value)
 
-                self.log.debug("resolved_value: %s", value)
+                    self.log.debug("resolved_value: %s", value)
 
-            if isinstance(value, list):
-                self._mapped_kwargs.extend([{key: item} for item in value])
-            else:
-                self._mapped_kwargs.append({key: value})
-        self.log.debug("resolve_expand_input: %s", self._mapped_kwargs)
+                if isinstance(value, list):
+                    self._mapped_kwargs.extend([{key: item} for item in value])
+                else:
+                    self._mapped_kwargs.append({key: value})
+            self.log.debug("resolve_expand_input: %s", self._mapped_kwargs)
 
     def render_template_fields(
         self,
