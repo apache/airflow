@@ -12,7 +12,7 @@ paths:
       tags:
       - Asset
       summary: Next Run Assets
-      operationId: next_run_assets_ui_next_run_datasets__dag_id__get
+      operationId: next_run_assets
       parameters:
       - name: dag_id
         in: path
@@ -27,7 +27,7 @@ paths:
             application/json:
               schema:
                 type: object
-                title: Response Next Run Assets Ui Next Run Datasets  Dag Id  Get
+                title: Response Next Run Assets
         '422':
           description: Validation Error
           content:
@@ -40,7 +40,7 @@ paths:
       - DAG
       summary: Get Dags
       description: Get all DAGs.
-      operationId: get_dags_public_dags_get
+      operationId: get_dags
       parameters:
       - name: limit
         in: query
@@ -136,7 +136,7 @@ paths:
       - DAG
       summary: Patch Dags
       description: Patch multiple DAGs.
-      operationId: patch_dags_public_dags_patch
+      operationId: patch_dags
       parameters:
       - name: update_mask
         in: query
@@ -258,7 +258,7 @@ paths:
       - DAG
       summary: Patch Dag
       description: Patch the specific DAG.
-      operationId: patch_dag_public_dags__dag_id__patch
+      operationId: patch_dag
       parameters:
       - name: dag_id
         in: path

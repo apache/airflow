@@ -105,10 +105,9 @@ beforeEach(() => {
     isLoading: false,
   } as QueryObserverSuccessResult<DAGCollectionResponse, unknown>;
 
-  vi.spyOn(
-    openapiQueriesModule,
-    "useDagServiceGetDagsPublicDagsGet",
-  ).mockImplementation(() => returnValue);
+  vi.spyOn(openapiQueriesModule, "useDagServiceGetDags").mockImplementation(
+    () => returnValue,
+  );
 });
 
 afterEach(() => {

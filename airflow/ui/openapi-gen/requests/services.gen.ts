@@ -3,14 +3,14 @@ import type { CancelablePromise } from "./core/CancelablePromise";
 import { OpenAPI } from "./core/OpenAPI";
 import { request as __request } from "./core/request";
 import type {
-  NextRunAssetsUiNextRunDatasetsDagIdGetData,
-  NextRunAssetsUiNextRunDatasetsDagIdGetResponse,
-  GetDagsPublicDagsGetData,
-  GetDagsPublicDagsGetResponse,
-  PatchDagsPublicDagsPatchData,
-  PatchDagsPublicDagsPatchResponse,
-  PatchDagPublicDagsDagIdPatchData,
-  PatchDagPublicDagsDagIdPatchResponse,
+  NextRunAssetsData,
+  NextRunAssetsResponse,
+  GetDagsData,
+  GetDagsResponse,
+  PatchDagsData,
+  PatchDagsResponse,
+  PatchDagData,
+  PatchDagResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -21,9 +21,9 @@ export class AssetService {
    * @returns unknown Successful Response
    * @throws ApiError
    */
-  public static nextRunAssetsUiNextRunDatasetsDagIdGet(
-    data: NextRunAssetsUiNextRunDatasetsDagIdGetData,
-  ): CancelablePromise<NextRunAssetsUiNextRunDatasetsDagIdGetResponse> {
+  public static nextRunAssets(
+    data: NextRunAssetsData,
+  ): CancelablePromise<NextRunAssetsResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/ui/next_run_datasets/{dag_id}",
@@ -55,9 +55,9 @@ export class DagService {
    * @returns DAGCollectionResponse Successful Response
    * @throws ApiError
    */
-  public static getDagsPublicDagsGet(
-    data: GetDagsPublicDagsGetData = {},
-  ): CancelablePromise<GetDagsPublicDagsGetResponse> {
+  public static getDags(
+    data: GetDagsData = {},
+  ): CancelablePromise<GetDagsResponse> {
     return __request(OpenAPI, {
       method: "GET",
       url: "/public/dags",
@@ -96,9 +96,9 @@ export class DagService {
    * @returns DAGCollectionResponse Successful Response
    * @throws ApiError
    */
-  public static patchDagsPublicDagsPatch(
-    data: PatchDagsPublicDagsPatchData,
-  ): CancelablePromise<PatchDagsPublicDagsPatchResponse> {
+  public static patchDags(
+    data: PatchDagsData,
+  ): CancelablePromise<PatchDagsResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
       url: "/public/dags",
@@ -135,9 +135,9 @@ export class DagService {
    * @returns DAGResponse Successful Response
    * @throws ApiError
    */
-  public static patchDagPublicDagsDagIdPatch(
-    data: PatchDagPublicDagsDagIdPatchData,
-  ): CancelablePromise<PatchDagPublicDagsDagIdPatchResponse> {
+  public static patchDag(
+    data: PatchDagData,
+  ): CancelablePromise<PatchDagResponse> {
     return __request(OpenAPI, {
       method: "PATCH",
       url: "/public/dags/{dag_id}",

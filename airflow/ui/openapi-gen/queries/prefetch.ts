@@ -12,7 +12,7 @@ import * as Common from "./common";
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const prefetchUseAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGet = (
+export const prefetchUseAssetServiceNextRunAssets = (
   queryClient: QueryClient,
   {
     dagId,
@@ -21,11 +21,8 @@ export const prefetchUseAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGet = (
   },
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetKeyFn(
-      { dagId },
-    ),
-    queryFn: () =>
-      AssetService.nextRunAssetsUiNextRunDatasetsDagIdGet({ dagId }),
+    queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }),
+    queryFn: () => AssetService.nextRunAssets({ dagId }),
   });
 /**
  * Get Dags
@@ -44,7 +41,7 @@ export const prefetchUseAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGet = (
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
  */
-export const prefetchUseDagServiceGetDagsPublicDagsGet = (
+export const prefetchUseDagServiceGetDags = (
   queryClient: QueryClient,
   {
     dagDisplayNamePattern,
@@ -71,7 +68,7 @@ export const prefetchUseDagServiceGetDagsPublicDagsGet = (
   } = {},
 ) =>
   queryClient.prefetchQuery({
-    queryKey: Common.UseDagServiceGetDagsPublicDagsGetKeyFn({
+    queryKey: Common.UseDagServiceGetDagsKeyFn({
       dagDisplayNamePattern,
       dagIdPattern,
       lastDagRunState,
@@ -84,7 +81,7 @@ export const prefetchUseDagServiceGetDagsPublicDagsGet = (
       tags,
     }),
     queryFn: () =>
-      DagService.getDagsPublicDagsGet({
+      DagService.getDags({
         dagDisplayNamePattern,
         dagIdPattern,
         lastDagRunState,
