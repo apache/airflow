@@ -236,7 +236,7 @@ class StreamedOperator(BaseOperator):
         self._resolve_expand_input(context=context, session=session)
 
     def _run_futures(self, context: Context, futures, results: list[Any] | None = None) -> list[Any]:
-        reschedule_date: datetime | None = None
+        reschedule_date = timezone.utcnow()
         results = results or []
         failed_futures = []
 
