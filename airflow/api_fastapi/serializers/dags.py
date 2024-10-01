@@ -22,7 +22,7 @@ from datetime import datetime, timedelta
 from typing import Any, Iterable
 
 from itsdangerous import URLSafeSerializer
-from pendulum import FixedTimezone, Timezone
+from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic import (
     BaseModel,
     computed_field,
