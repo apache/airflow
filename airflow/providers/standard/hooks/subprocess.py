@@ -52,8 +52,8 @@ class SubprocessHook(BaseHook):
         :param env: Optional dict containing environment variables to be made available to the shell
             environment in which ``command`` will be executed.  If omitted, ``os.environ`` will be used.
             Note, that in case you have Sentry configured, original variables from the environment
-            will also be passed to the subprocess with ``SUBPROCESS_`` prefix. See
-            `/administration-and-deployment/logging-monitoring/errors` for details.
+            will also be passed to the subprocess with ``SUBPROCESS_`` prefix. See:
+            https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/errors.html for details.
         :param output_encoding: encoding to use for decoding stdout
         :param cwd: Working directory to run the command in.
             If None (default), the command is run in a temporary directory.
