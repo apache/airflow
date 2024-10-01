@@ -77,7 +77,7 @@ operators:
 
 dialects:
   - dialect-type: mssql
-    dialect-class-name: airflow.providers.microsoft.mssql.hooks.mssql.MsSqlDialect
+    dialect-class-name: airflow.providers.microsoft.mssql.dialects.mssql.MsSqlDialect
 
 hooks:
   - integration-name: Microsoft SQL Server (MSSQL)
