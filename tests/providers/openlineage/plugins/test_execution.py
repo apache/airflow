@@ -124,6 +124,17 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             assert has_value_in_events(events, ["inputs", "name"], "on-start")
             assert has_value_in_events(events, ["inputs", "name"], "on-complete")
 
+        @pytest.mark.db_test
+        @conf_vars({("openlineage", "transport"): f'{{"type": "file", "log_file_path": "{listener_path}"}}'})
+        def test_not_stalled_failing_task_emits_proper_lineage(self):
+            task_name = "execute_fail"
+            run_id = "test_failure"
+            self.setup_job(task_name, run_id)
+
+            events = get_sorted_events(tmp_dir)
+            assert has_value_in_events(events, ["inputs", "name"], "on-start")
+            assert has_value_in_events(events, ["inputs", "name"], "on-failure")
+
         @conf_vars(
             {
                 ("openlineage", "transport"): f'{{"type": "file", "log_file_path": "{listener_path}"}}',
