@@ -16,23 +16,25 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
-from airflow.models.dag import DAG, DagModel
+from airflow.models.dag import DagModel
+from airflow.models.dagrun import DagRun
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.session import provide_session
+from airflow.utils.state import DagRunState
+from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
 pytestmark = pytest.mark.db_test
 
 DAG1_ID = "test_dag1"
-DAG1_DISPLAY_NAME = "a"
+DAG1_DISPLAY_NAME = "display1"
 DAG2_ID = "test_dag2"
-DAG2_DISPLAY_NAME = "b"
+DAG2_DISPLAY_NAME = "display2"
 DAG3_ID = "test_dag3"
-DAG3_DISPLAY_NAME = "c"
 TASK_ID = "op1"
 
 
@@ -44,47 +46,103 @@ def _create_deactivated_paused_dag(session=None):
         timetable_summary="2 2 * * *",
         is_active=False,
         is_paused=True,
+        owners="test_owner,another_test_owner",
+        next_dagrun=datetime(2021, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
     )
+
+    dagrun_failed = DagRun(
+        dag_id=DAG3_ID,
+        run_id="run1",
+        execution_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        start_date=datetime(2018, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        run_type=DagRunType.SCHEDULED,
+        state=DagRunState.FAILED,
+    )
+
+    dagrun_success = DagRun(
+        dag_id=DAG3_ID,
+        run_id="run2",
+        execution_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        start_date=datetime(2019, 1, 1, 12, 0, 0, tzinfo=timezone.utc),
+        run_type=DagRunType.MANUAL,
+        state=DagRunState.SUCCESS,
+    )
+
     session.add(dag_model)
+    session.add(dagrun_failed)
+    session.add(dagrun_success)
 
 
 @pytest.fixture(autouse=True)
-def setup() -> None:
+def setup(dag_maker) -> None:
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()
 
-    with DAG(
+    with dag_maker(
         DAG1_ID,
+        dag_display_name=DAG1_DISPLAY_NAME,
         schedule=None,
-        start_date=datetime(2020, 6, 15),
+        start_date=datetime(2018, 6, 15, 0, 0, tzinfo=timezone.utc),
         doc_md="details",
         params={"foo": 1},
         tags=["example"],
-    ) as dag1:
+    ):
         EmptyOperator(task_id=TASK_ID)
 
-    with DAG(DAG2_ID, schedule=None, start_date=datetime(2020, 6, 15)) as dag2:
+    dag_maker.create_dagrun(state=DagRunState.FAILED)
+
+    with dag_maker(
+        DAG2_ID,
+        dag_display_name=DAG2_DISPLAY_NAME,
+        schedule=None,
+        start_date=datetime(
+            2021,
+            6,
+            15,
+        ),
+    ):
         EmptyOperator(task_id=TASK_ID)
 
-    dag1.sync_to_db()
-    dag2.sync_to_db()
-
+    dag_maker.dagbag.sync_to_db()
     _create_deactivated_paused_dag()
 
 
 @pytest.mark.parametrize(
     "query_params, expected_total_entries, expected_ids",
     [
-        ({}, 2, ["test_dag1", "test_dag2"]),
-        ({"limit": 1}, 2, ["test_dag1"]),
-        ({"offset": 1}, 2, ["test_dag2"]),
-        ({"tags": ["example"]}, 1, ["test_dag1"]),
-        ({"dag_id_pattern": "1"}, 1, ["test_dag1"]),
-        ({"only_active": False}, 3, ["test_dag1", "test_dag2", "test_dag3"]),
-        ({"paused": True, "only_active": False}, 1, ["test_dag3"]),
-        ({"paused": False}, 2, ["test_dag1", "test_dag2"]),
-        ({"order_by": "-dag_id"}, 2, ["test_dag2", "test_dag1"]),
+        # Filters
+        ({}, 2, [DAG1_ID, DAG2_ID]),
+        ({"limit": 1}, 2, [DAG1_ID]),
+        ({"offset": 1}, 2, [DAG2_ID]),
+        ({"tags": ["example"]}, 1, [DAG1_ID]),
+        ({"only_active": False}, 3, [DAG1_ID, DAG2_ID, DAG3_ID]),
+        ({"paused": True, "only_active": False}, 1, [DAG3_ID]),
+        ({"paused": False}, 2, [DAG1_ID, DAG2_ID]),
+        ({"owners": ["airflow"]}, 2, [DAG1_ID, DAG2_ID]),
+        ({"owners": ["test_owner"], "only_active": False}, 1, [DAG3_ID]),
+        ({"last_dag_run_state": "success", "only_active": False}, 1, [DAG3_ID]),
+        ({"last_dag_run_state": "failed", "only_active": False}, 1, [DAG1_ID]),
+        # # Sort
+        ({"order_by": "-dag_id"}, 2, [DAG2_ID, DAG1_ID]),
+        ({"order_by": "-dag_display_name"}, 2, [DAG2_ID, DAG1_ID]),
+        ({"order_by": "dag_display_name"}, 2, [DAG1_ID, DAG2_ID]),
+        ({"order_by": "next_dagrun", "only_active": False}, 3, [DAG3_ID, DAG1_ID, DAG2_ID]),
+        ({"order_by": "last_run_state", "only_active": False}, 3, [DAG1_ID, DAG3_ID, DAG2_ID]),
+        ({"order_by": "-last_run_state", "only_active": False}, 3, [DAG3_ID, DAG1_ID, DAG2_ID]),
+        (
+            {"order_by": "last_run_start_date", "only_active": False},
+            3,
+            [DAG1_ID, DAG3_ID, DAG2_ID],
+        ),
+        (
+            {"order_by": "-last_run_start_date", "only_active": False},
+            3,
+            [DAG3_ID, DAG1_ID, DAG2_ID],
+        ),
+        # Search
+        ({"dag_id_pattern": "1"}, 1, [DAG1_ID]),
+        ({"dag_display_name_pattern": "display2"}, 1, [DAG2_ID]),
     ],
 )
 def test_get_dags(test_client, query_params, expected_total_entries, expected_ids):
@@ -95,3 +153,75 @@ def test_get_dags(test_client, query_params, expected_total_entries, expected_id
 
     assert body["total_entries"] == expected_total_entries
     assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
+
+
+@pytest.mark.parametrize(
+    "query_params, dag_id, body, expected_status_code, expected_is_paused",
+    [
+        ({}, "fake_dag_id", {"is_paused": True}, 404, None),
+        ({"update_mask": ["field_1", "is_paused"]}, DAG1_ID, {"is_paused": True}, 400, None),
+        ({}, DAG1_ID, {"is_paused": True}, 200, True),
+        ({}, DAG1_ID, {"is_paused": False}, 200, False),
+        ({"update_mask": ["is_paused"]}, DAG1_ID, {"is_paused": True}, 200, True),
+        ({"update_mask": ["is_paused"]}, DAG1_ID, {"is_paused": False}, 200, False),
+    ],
+)
+def test_patch_dag(test_client, query_params, dag_id, body, expected_status_code, expected_is_paused):
+    response = test_client.patch(f"/public/dags/{dag_id}", json=body, params=query_params)
+
+    assert response.status_code == expected_status_code
+    if expected_status_code == 200:
+        body = response.json()
+        assert body["is_paused"] == expected_is_paused
+
+
+@pytest.mark.parametrize(
+    "query_params, body, expected_status_code, expected_ids, expected_paused_ids",
+    [
+        ({"update_mask": ["field_1", "is_paused"]}, {"is_paused": True}, 400, None, None),
+        (
+            {"only_active": False},
+            {"is_paused": True},
+            200,
+            [],
+            [],
+        ),  # no-op because the dag_id_pattern is not provided
+        (
+            {"only_active": False, "dag_id_pattern": "~"},
+            {"is_paused": True},
+            200,
+            [DAG1_ID, DAG2_ID, DAG3_ID],
+            [DAG1_ID, DAG2_ID, DAG3_ID],
+        ),
+        (
+            {"only_active": False, "dag_id_pattern": "~"},
+            {"is_paused": False},
+            200,
+            [DAG1_ID, DAG2_ID, DAG3_ID],
+            [],
+        ),
+        (
+            {"dag_id_pattern": "~"},
+            {"is_paused": True},
+            200,
+            [DAG1_ID, DAG2_ID],
+            [DAG1_ID, DAG2_ID],
+        ),
+        (
+            {"dag_id_pattern": "dag1"},
+            {"is_paused": True},
+            200,
+            [DAG1_ID],
+            [DAG1_ID],
+        ),
+    ],
+)
+def test_patch_dags(test_client, query_params, body, expected_status_code, expected_ids, expected_paused_ids):
+    response = test_client.patch("/public/dags", json=body, params=query_params)
+
+    assert response.status_code == expected_status_code
+    if expected_status_code == 200:
+        body = response.json()
+        assert [dag["dag_id"] for dag in body["dags"]] == expected_ids
+        paused_dag_ids = [dag["dag_id"] for dag in body["dags"] if dag["is_paused"]]
+        assert paused_dag_ids == expected_paused_ids

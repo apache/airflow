@@ -25,6 +25,7 @@
 # API
 /airflow/api/ @ephraimbuddy @pierrejeambrun
 /airflow/api_connexion/ @ephraimbuddy @pierrejeambrun
+/airflow/api_fastapi/ @ephraimbuddy @pierrejeambrun
 
 # WWW
 /airflow/www/ @ryanahamilton @ashb @bbovenzi @pierrejeambrun @jscheffl
@@ -33,9 +34,9 @@
 /airflow/ui/ @bbovenzi @pierrejeambrun @ryanahamilton @jscheffl
 
 # Security/Permissions
-/airflow/api_connexion/security.py @jhtimmins
-/airflow/security/permissions.py @jhtimmins
-/airflow/www/security.py @jhtimmins
+/airflow/api_connexion/security.py @vincbeck
+/airflow/security/permissions.py @vincbeck
+/airflow/www/security.py @vincbeck
 
 # Calendar/Timetables
 /airflow/timetables/ @uranusjr

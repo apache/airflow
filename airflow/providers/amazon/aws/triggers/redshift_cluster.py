@@ -17,11 +17,9 @@
 from __future__ import annotations
 
 import asyncio
-import warnings
 from typing import TYPE_CHECKING, Any, AsyncIterator
 
-from airflow.exceptions import AirflowProviderDeprecationWarning
-from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftAsyncHook, RedshiftHook
+from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.providers.amazon.aws.triggers.base import AwsBaseWaiterTrigger
 from airflow.triggers.base import BaseTrigger, TriggerEvent
 
@@ -45,21 +43,10 @@ class RedshiftCreateClusterTrigger(AwsBaseWaiterTrigger):
     def __init__(
         self,
         cluster_identifier: str,
-        poll_interval: int | None = None,
-        max_attempt: int | None = None,
         aws_conn_id: str | None = "aws_default",
         waiter_delay: int = 15,
         waiter_max_attempts: int = 999999,
     ):
-        if poll_interval is not None or max_attempt is not None:
-            warnings.warn(
-                "please use waiter_delay instead of poll_interval "
-                "and waiter_max_attempts instead of max_attempt.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            waiter_delay = poll_interval or waiter_delay
-            waiter_max_attempts = max_attempt or waiter_max_attempts
         super().__init__(
             serialized_fields={"cluster_identifier": cluster_identifier},
             waiter_name="cluster_available",
@@ -93,21 +80,10 @@ class RedshiftPauseClusterTrigger(AwsBaseWaiterTrigger):
     def __init__(
         self,
         cluster_identifier: str,
-        poll_interval: int | None = None,
-        max_attempts: int | None = None,
         aws_conn_id: str | None = "aws_default",
         waiter_delay: int = 15,
         waiter_max_attempts: int = 999999,
     ):
-        if poll_interval is not None or max_attempts is not None:
-            warnings.warn(
-                "please use waiter_delay instead of poll_interval "
-                "and waiter_max_attempts instead of max_attempt.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            waiter_delay = poll_interval or waiter_delay
-            waiter_max_attempts = max_attempts or waiter_max_attempts
         super().__init__(
             serialized_fields={"cluster_identifier": cluster_identifier},
             waiter_name="cluster_paused",
@@ -141,21 +117,10 @@ class RedshiftCreateClusterSnapshotTrigger(AwsBaseWaiterTrigger):
     def __init__(
         self,
         cluster_identifier: str,
-        poll_interval: int | None = None,
-        max_attempts: int | None = None,
         aws_conn_id: str | None = "aws_default",
         waiter_delay: int = 15,
         waiter_max_attempts: int = 999999,
     ):
-        if poll_interval is not None or max_attempts is not None:
-            warnings.warn(
-                "please use waiter_delay instead of poll_interval "
-                "and waiter_max_attempts instead of max_attempt.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            waiter_delay = poll_interval or waiter_delay
-            waiter_max_attempts = max_attempts or waiter_max_attempts
         super().__init__(
             serialized_fields={"cluster_identifier": cluster_identifier},
             waiter_name="snapshot_available",
@@ -189,21 +154,10 @@ class RedshiftResumeClusterTrigger(AwsBaseWaiterTrigger):
     def __init__(
         self,
         cluster_identifier: str,
-        poll_interval: int | None = None,
-        max_attempts: int | None = None,
         aws_conn_id: str | None = "aws_default",
         waiter_delay: int = 15,
         waiter_max_attempts: int = 999999,
     ):
-        if poll_interval is not None or max_attempts is not None:
-            warnings.warn(
-                "please use waiter_delay instead of poll_interval "
-                "and waiter_max_attempts instead of max_attempt.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            waiter_delay = poll_interval or waiter_delay
-            waiter_max_attempts = max_attempts or waiter_max_attempts
         super().__init__(
             serialized_fields={"cluster_identifier": cluster_identifier},
             waiter_name="cluster_resumed",
@@ -234,21 +188,10 @@ class RedshiftDeleteClusterTrigger(AwsBaseWaiterTrigger):
     def __init__(
         self,
         cluster_identifier: str,
-        poll_interval: int | None = None,
-        max_attempts: int | None = None,
         aws_conn_id: str | None = "aws_default",
         waiter_delay: int = 30,
         waiter_max_attempts: int = 30,
     ):
-        if poll_interval is not None or max_attempts is not None:
-            warnings.warn(
-                "please use waiter_delay instead of poll_interval "
-                "and waiter_max_attempts instead of max_attempt.",
-                AirflowProviderDeprecationWarning,
-                stacklevel=2,
-            )
-            waiter_delay = poll_interval or waiter_delay
-            waiter_max_attempts = max_attempts or waiter_max_attempts
         super().__init__(
             serialized_fields={"cluster_identifier": cluster_identifier},
             waiter_name="cluster_deleted",
@@ -304,13 +247,11 @@ class RedshiftClusterTrigger(BaseTrigger):
     async def run(self) -> AsyncIterator[TriggerEvent]:
         """Run async until the cluster status matches the target status."""
         try:
-            hook = RedshiftAsyncHook(aws_conn_id=self.aws_conn_id)
+            hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
             while True:
-                res = await hook.cluster_status(self.cluster_identifier)
-                if (res["status"] == "success" and res["cluster_state"] == self.target_status) or res[
-                    "status"
-                ] == "error":
-                    yield TriggerEvent(res)
+                status = await hook.cluster_status_async(self.cluster_identifier)
+                if status == self.target_status:
+                    yield TriggerEvent({"status": "success", "message": "target state met"})
                     return
                 await asyncio.sleep(self.poke_interval)
         except Exception as e:

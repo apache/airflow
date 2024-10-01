@@ -6,6 +6,50 @@ import type { CamelCasedPropertiesDeep } from "type-fest";
  */
 
 export interface paths {
+  "/backfills": {
+    get: operations["list_backfills"];
+    post: operations["create_backfill"];
+  };
+  "/backfills/{backfill_id}": {
+    get: operations["get_backfill"];
+    parameters: {
+      path: {
+        /** The integer id identifying the backfill entity. */
+        backfill_id: components["parameters"]["BackfillIdPath"];
+      };
+    };
+  };
+  "/backfills/{backfill_id}/pause": {
+    post: operations["pause_backfill"];
+    parameters: {
+      path: {
+        /** The integer id identifying the backfill entity. */
+        backfill_id: components["parameters"]["BackfillIdPath"];
+      };
+    };
+  };
+  "/backfills/{backfill_id}/unpause": {
+    post: operations["unpause_backfill"];
+    parameters: {
+      path: {
+        /** The integer id identifying the backfill entity. */
+        backfill_id: components["parameters"]["BackfillIdPath"];
+      };
+    };
+  };
+  "/backfills/{backfill_id}/cancel": {
+    /**
+     * When a backfill is cancelled, all queued dag runs will be marked as failed.
+     * Running dag runs will be allowed to continue.
+     */
+    post: operations["cancel_backfill"];
+    parameters: {
+      path: {
+        /** The integer id identifying the backfill entity. */
+        backfill_id: components["parameters"]["BackfillIdPath"];
+      };
+    };
+  };
   "/connections": {
     get: operations["get_connections"];
     post: operations["post_connection"];
@@ -860,6 +904,36 @@ export interface components {
      */
     UserCollection: {
       users?: components["schemas"]["UserCollectionItem"][];
+    } & components["schemas"]["CollectionInfo"];
+    /**
+     * @description Backfill entity object.
+     * Represents one backfill run / request.
+     */
+    Backfill: {
+      /** @description id */
+      id?: number;
+      /** @description The dag_id for the backfill. */
+      dag_id?: string;
+      /** @description From date of the backfill (inclusive). */
+      from_date?: string | null;
+      /** @description To date of the backfill (exclusive). */
+      to_date?: string | null;
+      /** @description Dag run conf to be forwarded to the dag runs. */
+      dag_run_conf?: string | null;
+      /** @description is_paused */
+      is_paused?: boolean | null;
+      /** @description max_active_runs */
+      max_active_runs?: number | null;
+      /** @description created_at */
+      created_at?: string | null;
+      /** @description completed_at */
+      completed_at?: string | null;
+      /** @description updated_at */
+      updated_at?: string | null;
+    };
+    /** @description Collection of backfill entities. */
+    BackfillCollection: {
+      backfills?: components["schemas"]["Backfill"][];
     } & components["schemas"]["CollectionInfo"];
     /**
      * @description Connection collection item.
@@ -2405,6 +2479,12 @@ export interface components {
         "application/json": components["schemas"]["Error"];
       };
     };
+    /** There is some kind of conflict with the request. */
+    Conflict: {
+      content: {
+        "application/json": components["schemas"]["Error"];
+      };
+    };
     /** An existing resource conflicts with the request. */
     AlreadyExists: {
       content: {
@@ -2419,6 +2499,12 @@ export interface components {
     };
   };
   parameters: {
+    /** @description The integer id identifying the backfill entity. */
+    BackfillIdPath: number;
+    /** @description From date. */
+    FromDate: string;
+    /** @description To date. */
+    ToDate: string;
     /** @description The number of items to skip before starting to collect the result set. */
     PageOffset: number;
     /** @description The numbers of items to return. */
@@ -2621,6 +2707,136 @@ export interface components {
 }
 
 export interface operations {
+  list_backfills: {
+    parameters: {
+      query: {
+        /** List backfills for this dag. */
+        dag_id: string;
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["BackfillCollection"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+    };
+  };
+  create_backfill: {
+    parameters: {
+      query: {
+        /** Create dag runs for this dag. */
+        dag_id: string;
+        /** Create dag runs with logical dates from this date onward, including this date. */
+        from_date: string;
+        /** Create dag runs for logical dates up to but not including this date. */
+        to_date: string;
+        /** Maximum number of active DAG runs for the the backfill. */
+        max_active_runs?: number;
+        /** If true, run the dag runs in descending order of logical date. */
+        reverse?: boolean;
+        /** If true, run the dag runs in descending order of logical date. */
+        config?: string;
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Backfill"];
+        };
+      };
+      400: components["responses"]["BadRequest"];
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+    };
+  };
+  get_backfill: {
+    parameters: {
+      path: {
+        /** The integer id identifying the backfill entity. */
+        backfill_id: components["parameters"]["BackfillIdPath"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Backfill"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+    };
+  };
+  pause_backfill: {
+    parameters: {
+      path: {
+        /** The integer id identifying the backfill entity. */
+        backfill_id: components["parameters"]["BackfillIdPath"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Backfill"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+    };
+  };
+  unpause_backfill: {
+    parameters: {
+      path: {
+        /** The integer id identifying the backfill entity. */
+        backfill_id: components["parameters"]["BackfillIdPath"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Backfill"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+    };
+  };
+  /**
+   * When a backfill is cancelled, all queued dag runs will be marked as failed.
+   * Running dag runs will be allowed to continue.
+   */
+  cancel_backfill: {
+    parameters: {
+      path: {
+        /** The integer id identifying the backfill entity. */
+        backfill_id: components["parameters"]["BackfillIdPath"];
+      };
+    };
+    responses: {
+      /** Success. */
+      200: {
+        content: {
+          "application/json": components["schemas"]["Backfill"];
+        };
+      };
+      401: components["responses"]["Unauthenticated"];
+      403: components["responses"]["PermissionDenied"];
+      404: components["responses"]["NotFound"];
+      409: components["responses"]["Conflict"];
+    };
+  };
   get_connections: {
     parameters: {
       query: {
@@ -4563,6 +4779,8 @@ export interface operations {
          * If set to true (default) the Any value will be returned as string, e.g. a Python representation
          * of a dict. If set to false it will return the raw data as dict, list, string or whatever was stored.
          *
+         * This parameter is not meaningful when using XCom pickling, then it is always returned as string.
+         *
          * *New in version 2.10.0*
          */
         stringify?: boolean;
@@ -5046,6 +5264,12 @@ export type User = CamelCasedPropertiesDeep<components["schemas"]["User"]>;
 export type UserCollection = CamelCasedPropertiesDeep<
   components["schemas"]["UserCollection"]
 >;
+export type Backfill = CamelCasedPropertiesDeep<
+  components["schemas"]["Backfill"]
+>;
+export type BackfillCollection = CamelCasedPropertiesDeep<
+  components["schemas"]["BackfillCollection"]
+>;
 export type ConnectionCollectionItem = CamelCasedPropertiesDeep<
   components["schemas"]["ConnectionCollectionItem"]
 >;
@@ -5303,6 +5527,24 @@ export type HealthStatus = CamelCasedPropertiesDeep<
 export type Operations = operations;
 
 /* Types for operation variables  */
+export type ListBackfillsVariables = CamelCasedPropertiesDeep<
+  operations["list_backfills"]["parameters"]["query"]
+>;
+export type CreateBackfillVariables = CamelCasedPropertiesDeep<
+  operations["create_backfill"]["parameters"]["query"]
+>;
+export type GetBackfillVariables = CamelCasedPropertiesDeep<
+  operations["get_backfill"]["parameters"]["path"]
+>;
+export type PauseBackfillVariables = CamelCasedPropertiesDeep<
+  operations["pause_backfill"]["parameters"]["path"]
+>;
+export type UnpauseBackfillVariables = CamelCasedPropertiesDeep<
+  operations["unpause_backfill"]["parameters"]["path"]
+>;
+export type CancelBackfillVariables = CamelCasedPropertiesDeep<
+  operations["cancel_backfill"]["parameters"]["path"]
+>;
 export type GetConnectionsVariables = CamelCasedPropertiesDeep<
   operations["get_connections"]["parameters"]["query"]
 >;

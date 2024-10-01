@@ -4,14 +4,21 @@
  * DAG Collection serializer for responses.
  */
 export type DAGCollectionResponse = {
-  dags: Array<DAGModelResponse>;
+  dags: Array<DAGResponse>;
   total_entries: number;
+};
+
+/**
+ * Dag Serializer for updatable body.
+ */
+export type DAGPatchBody = {
+  is_paused: boolean;
 };
 
 /**
  * DAG serializer for responses.
  */
-export type DAGModelResponse = {
+export type DAGResponse = {
   dag_id: string;
   dag_display_name: string;
   is_paused: boolean;
@@ -44,11 +51,31 @@ export type DAGModelResponse = {
 };
 
 /**
+ * All possible states that a DagRun can be in.
+ *
+ * These are "shared" with TaskInstanceState in some parts of the code,
+ * so please ensure that their values always match the ones with the
+ * same name in TaskInstanceState.
+ */
+export type DagRunState = "queued" | "running" | "success" | "failed";
+
+/**
  * Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.
  */
 export type DagTagPydantic = {
   name: string;
   dag_id: string;
+};
+
+/**
+ * HTTPException Model used for error response.
+ */
+export type HTTPExceptionResponse = {
+  detail:
+    | string
+    | {
+        [key: string]: unknown;
+      };
 };
 
 export type HTTPValidationError = {
@@ -61,30 +88,56 @@ export type ValidationError = {
   type: string;
 };
 
-export type NextRunDatasetsUiNextRunDatasetsDagIdGetData = {
+export type NextRunAssetsData = {
   dagId: string;
 };
 
-export type NextRunDatasetsUiNextRunDatasetsDagIdGetResponse = {
+export type NextRunAssetsResponse = {
   [key: string]: unknown;
 };
 
-export type GetDagsPublicDagsGetData = {
+export type GetDagsData = {
+  dagDisplayNamePattern?: string | null;
   dagIdPattern?: string | null;
+  lastDagRunState?: DagRunState | null;
   limit?: number;
   offset?: number;
   onlyActive?: boolean;
   orderBy?: string;
+  owners?: Array<string>;
   paused?: boolean | null;
   tags?: Array<string>;
 };
 
-export type GetDagsPublicDagsGetResponse = DAGCollectionResponse;
+export type GetDagsResponse = DAGCollectionResponse;
+
+export type PatchDagsData = {
+  dagIdPattern?: string | null;
+  lastDagRunState?: DagRunState | null;
+  limit?: number;
+  offset?: number;
+  onlyActive?: boolean;
+  owners?: Array<string>;
+  paused?: boolean | null;
+  requestBody: DAGPatchBody;
+  tags?: Array<string>;
+  updateMask?: Array<string> | null;
+};
+
+export type PatchDagsResponse = DAGCollectionResponse;
+
+export type PatchDagData = {
+  dagId: string;
+  requestBody: DAGPatchBody;
+  updateMask?: Array<string> | null;
+};
+
+export type PatchDagResponse = DAGResponse;
 
 export type $OpenApiTs = {
   "/ui/next_run_datasets/{dag_id}": {
     get: {
-      req: NextRunDatasetsUiNextRunDatasetsDagIdGetData;
+      req: NextRunAssetsData;
       res: {
         /**
          * Successful Response
@@ -101,12 +154,72 @@ export type $OpenApiTs = {
   };
   "/public/dags": {
     get: {
-      req: GetDagsPublicDagsGetData;
+      req: GetDagsData;
       res: {
         /**
          * Successful Response
          */
         200: DAGCollectionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    patch: {
+      req: PatchDagsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGCollectionResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/dags/{dag_id}": {
+    patch: {
+      req: PatchDagData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
         /**
          * Validation Error
          */

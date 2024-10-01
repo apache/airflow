@@ -4,7 +4,7 @@ export const $DAGCollectionResponse = {
   properties: {
     dags: {
       items: {
-        $ref: "#/components/schemas/DAGModelResponse",
+        $ref: "#/components/schemas/DAGResponse",
       },
       type: "array",
       title: "Dags",
@@ -20,7 +20,20 @@ export const $DAGCollectionResponse = {
   description: "DAG Collection serializer for responses.",
 } as const;
 
-export const $DAGModelResponse = {
+export const $DAGPatchBody = {
+  properties: {
+    is_paused: {
+      type: "boolean",
+      title: "Is Paused",
+    },
+  },
+  type: "object",
+  required: ["is_paused"],
+  title: "DAGPatchBody",
+  description: "Dag Serializer for updatable body.",
+} as const;
+
+export const $DAGResponse = {
   properties: {
     dag_id: {
       type: "string",
@@ -271,8 +284,19 @@ export const $DAGModelResponse = {
     "owners",
     "file_token",
   ],
-  title: "DAGModelResponse",
+  title: "DAGResponse",
   description: "DAG serializer for responses.",
+} as const;
+
+export const $DagRunState = {
+  type: "string",
+  enum: ["queued", "running", "success", "failed"],
+  title: "DagRunState",
+  description: `All possible states that a DagRun can be in.
+
+These are "shared" with TaskInstanceState in some parts of the code,
+so please ensure that their values always match the ones with the
+same name in TaskInstanceState.`,
 } as const;
 
 export const $DagTagPydantic = {
@@ -291,6 +315,26 @@ export const $DagTagPydantic = {
   title: "DagTagPydantic",
   description:
     "Serializable representation of the DagTag ORM SqlAlchemyModel used by internal API.",
+} as const;
+
+export const $HTTPExceptionResponse = {
+  properties: {
+    detail: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "object",
+        },
+      ],
+      title: "Detail",
+    },
+  },
+  type: "object",
+  required: ["detail"],
+  title: "HTTPExceptionResponse",
+  description: "HTTPException Model used for error response.",
 } as const;
 
 export const $HTTPValidationError = {

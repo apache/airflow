@@ -42,7 +42,6 @@ from typing import (
     Container,
     Iterable,
     Iterator,
-    List,
     MutableSet,
     Pattern,
     Sequence,
@@ -82,8 +81,8 @@ from sqlalchemy.sql import Select, expression
 import airflow.templates
 from airflow import settings, utils
 from airflow.api_internal.internal_api_call import internal_api_call
+from airflow.assets import Asset, AssetAlias, AssetAll, BaseAsset
 from airflow.configuration import conf as airflow_conf, secrets_backend_list
-from airflow.datasets import BaseDataset, Dataset, DatasetAlias, DatasetAll
 from airflow.exceptions import (
     AirflowException,
     DuplicateTaskIdFound,
@@ -97,12 +96,15 @@ from airflow.exceptions import (
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.job import run_job
 from airflow.models.abstractoperator import AbstractOperator, TaskStateChangeCallback
+from airflow.models.asset import (
+    AssetDagRunQueue,
+    AssetModel,
+)
 from airflow.models.base import Base, StringID
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dagcode import DagCode
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import RUN_ID_REGEX, DagRun
-from airflow.models.dataset import DatasetDagRunQueue
 from airflow.models.param import DagParam, ParamsDict
 from airflow.models.taskinstance import (
     Context,
@@ -119,8 +121,8 @@ from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import (
+    AssetTriggeredTimetable,
     ContinuousTimetable,
-    DatasetTriggeredTimetable,
     NullTimetable,
     OnceTimetable,
 )
@@ -146,7 +148,6 @@ if TYPE_CHECKING:
     from airflow.decorators import TaskDecoratorCollection
     from airflow.models.dagbag import DagBag
     from airflow.models.operator import Operator
-    from airflow.models.slamiss import SlaMiss
     from airflow.serialization.pydantic.dag import DagModelPydantic
     from airflow.serialization.pydantic.dag_run import DagRunPydantic
     from airflow.typing_compat import Literal
@@ -165,11 +166,9 @@ ScheduleInterval = Union[None, str, timedelta, relativedelta]
 ScheduleArg = Union[
     ScheduleInterval,
     Timetable,
-    BaseDataset,
-    Collection[Union["Dataset", "DatasetAlias"]],
+    BaseAsset,
+    Collection[Union["Asset", "AssetAlias"]],
 ]
-
-SLAMissCallback = Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
 
 
 class InconsistentDataInterval(AirflowException):
@@ -244,16 +243,16 @@ def get_last_dagrun(dag_id, session, include_externally_triggered=False):
     return session.scalar(query.limit(1))
 
 
-def get_dataset_triggered_next_run_info(
+def get_asset_triggered_next_run_info(
     dag_ids: list[str], *, session: Session
 ) -> dict[str, dict[str, int | str]]:
     """
     Get next run info for a list of dag_ids.
 
-    Given a list of dag_ids, get string representing how close any that are dataset triggered are
-    their next run, e.g. "1 of 2 datasets updated".
+    Given a list of dag_ids, get string representing how close any that are asset triggered are
+    their next run, e.g. "1 of 2 assets updated".
     """
-    from airflow.models.dataset import DagScheduleDatasetReference, DatasetDagRunQueue as DDRQ, DatasetModel
+    from airflow.models.asset import AssetDagRunQueue as ADRQ, DagScheduleAssetReference
 
     return {
         x.dag_id: {
@@ -263,24 +262,24 @@ def get_dataset_triggered_next_run_info(
         }
         for x in session.execute(
             select(
-                DagScheduleDatasetReference.dag_id,
+                DagScheduleAssetReference.dag_id,
                 # This is a dirty hack to workaround group by requiring an aggregate,
-                # since grouping by dataset is not what we want to do here...but it works
-                case((func.count() == 1, func.max(DatasetModel.uri)), else_="").label("uri"),
+                # since grouping by asset is not what we want to do here...but it works
+                case((func.count() == 1, func.max(AssetModel.uri)), else_="").label("uri"),
                 func.count().label("total"),
-                func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)).label("ready"),
+                func.sum(case((ADRQ.target_dag_id.is_not(None), 1), else_=0)).label("ready"),
             )
             .join(
-                DDRQ,
+                ADRQ,
                 and_(
-                    DDRQ.dataset_id == DagScheduleDatasetReference.dataset_id,
-                    DDRQ.target_dag_id == DagScheduleDatasetReference.dag_id,
+                    ADRQ.dataset_id == DagScheduleAssetReference.dataset_id,
+                    ADRQ.target_dag_id == DagScheduleAssetReference.dag_id,
                 ),
                 isouter=True,
             )
-            .join(DatasetModel, DatasetModel.id == DagScheduleDatasetReference.dataset_id)
-            .group_by(DagScheduleDatasetReference.dag_id)
-            .where(DagScheduleDatasetReference.dag_id.in_(dag_ids))
+            .join(AssetModel, AssetModel.id == DagScheduleAssetReference.dataset_id)
+            .group_by(DagScheduleAssetReference.dag_id)
+            .where(DagScheduleAssetReference.dag_id.in_(dag_ids))
         ).all()
     }
 
@@ -390,7 +389,7 @@ class DAG(LoggingMixin):
     :param description: The description for the DAG to e.g. be shown on the webserver
     :param schedule: If provided, this defines the rules according to which DAG
         runs are scheduled. Possible values include a cron expression string,
-        timedelta object, Timetable, or list of Dataset objects.
+        timedelta object, Timetable, or list of Asset objects.
         See also :doc:`/howto/timetable`.
     :param start_date: The timestamp from which the scheduler will
         attempt to backfill. If this is not provided, backfilling must be done
@@ -430,10 +429,7 @@ class DAG(LoggingMixin):
         beyond this the scheduler will disable the DAG
     :param dagrun_timeout: Specify the duration a DagRun should be allowed to run before it times out or
         fails. Task instances that are running when a DagRun is timed out will be marked as skipped.
-    :param sla_miss_callback: specify a function or list of functions to call when reporting SLA
-        timeouts. See :ref:`sla_miss_callback<concepts:sla_miss_callback>` for
-        more information about the function signature and parameters that are
-        passed to the callback.
+    :param sla_miss_callback: DEPRECATED - The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1
     :param default_view: Specify DAG default view (grid, graph, duration,
                                                    gantt, landing_times), default grid
     :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT), default LR
@@ -519,7 +515,7 @@ class DAG(LoggingMixin):
             "core", "max_consecutive_failed_dag_runs_per_dag"
         ),
         dagrun_timeout: timedelta | None = None,
-        sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None,
+        sla_miss_callback: Any = None,
         default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower(),
         orientation: str = airflow_conf.get_mandatory_value("webserver", "dag_orientation"),
         catchup: bool = airflow_conf.getboolean("scheduler", "catchup_by_default"),
@@ -602,12 +598,12 @@ class DAG(LoggingMixin):
 
         if isinstance(schedule, Timetable):
             self.timetable = schedule
-        elif isinstance(schedule, BaseDataset):
-            self.timetable = DatasetTriggeredTimetable(schedule)
+        elif isinstance(schedule, BaseAsset):
+            self.timetable = AssetTriggeredTimetable(schedule)
         elif isinstance(schedule, Collection) and not isinstance(schedule, str):
-            if not all(isinstance(x, (Dataset, DatasetAlias)) for x in schedule):
-                raise ValueError("All elements in 'schedule' should be datasets or dataset aliases")
-            self.timetable = DatasetTriggeredTimetable(DatasetAll(*schedule))
+            if not all(isinstance(x, (Asset, AssetAlias)) for x in schedule):
+                raise ValueError("All elements in 'schedule' should be assets or asset aliases")
+            self.timetable = AssetTriggeredTimetable(AssetAll(*schedule))
         else:
             self.timetable = create_timetable(schedule, self.timezone)
 
@@ -639,7 +635,10 @@ class DAG(LoggingMixin):
                     f"requires max_active_runs <= {self.timetable.active_runs_limit}"
                 )
         self.dagrun_timeout = dagrun_timeout
-        self.sla_miss_callback = sla_miss_callback
+        if sla_miss_callback:
+            log.warning(
+                "The SLA feature is removed in Airflow 3.0, to be replaced with a new implementation in 3.1"
+            )
         if default_view in DEFAULT_VIEW_PRESETS:
             self._default_view: str = default_view
         else:
@@ -877,7 +876,7 @@ class DAG(LoggingMixin):
         :meta private:
         """
         timetable_type = type(self.timetable)
-        if issubclass(timetable_type, (NullTimetable, OnceTimetable, DatasetTriggeredTimetable)):
+        if issubclass(timetable_type, (NullTimetable, OnceTimetable, AssetTriggeredTimetable)):
             return DataInterval.exact(timezone.coerce_datetime(logical_date))
         start = timezone.coerce_datetime(logical_date)
         if issubclass(timetable_type, CronDataIntervalTimetable):
@@ -2653,7 +2652,7 @@ class DAG(LoggingMixin):
         if not dags:
             return
 
-        from airflow.dag_processing.collection import DagModelOperation, DatasetModelOperation
+        from airflow.dag_processing.collection import AssetModelOperation, DagModelOperation
 
         log.info("Sync %s DAGs", len(dags))
         dag_op = DagModelOperation({dag.dag_id: dag for dag in dags})
@@ -2662,15 +2661,15 @@ class DAG(LoggingMixin):
         dag_op.update_dags(orm_dags, processor_subdir=processor_subdir, session=session)
         DagCode.bulk_sync_to_db((dag.fileloc for dag in dags), session=session)
 
-        dataset_op = DatasetModelOperation.collect(dag_op.dags)
+        asset_op = AssetModelOperation.collect(dag_op.dags)
 
-        orm_datasets = dataset_op.add_datasets(session=session)
-        orm_dataset_aliases = dataset_op.add_dataset_aliases(session=session)
+        orm_assets = asset_op.add_assets(session=session)
+        orm_asset_aliases = asset_op.add_asset_aliases(session=session)
         session.flush()  # This populates id so we can create fks in later calls.
 
-        dataset_op.add_dag_dataset_references(orm_dags, orm_datasets, session=session)
-        dataset_op.add_dag_dataset_alias_references(orm_dags, orm_dataset_aliases, session=session)
-        dataset_op.add_task_dataset_references(orm_dags, orm_datasets, session=session)
+        asset_op.add_dag_asset_references(orm_dags, orm_assets, session=session)
+        asset_op.add_dag_asset_alias_references(orm_dags, orm_asset_aliases, session=session)
+        asset_op.add_task_asset_references(orm_dags, orm_assets, session=session)
         session.flush()
 
     @provide_session
@@ -2967,18 +2966,18 @@ class DagModel(Base):
     __table_args__ = (Index("idx_next_dagrun_create_after", next_dagrun_create_after, unique=False),)
 
     schedule_dataset_references = relationship(
-        "DagScheduleDatasetReference",
+        "DagScheduleAssetReference",
         back_populates="dag",
         cascade="all, delete, delete-orphan",
     )
     schedule_dataset_alias_references = relationship(
-        "DagScheduleDatasetAliasReference",
+        "DagScheduleAssetAliasReference",
         back_populates="dag",
         cascade="all, delete, delete-orphan",
     )
     schedule_datasets = association_proxy("schedule_dataset_references", "dataset")
     task_outlet_dataset_references = relationship(
-        "TaskOutletDatasetReference",
+        "TaskOutletAssetReference",
         cascade="all, delete, delete-orphan",
     )
     NUM_DAGS_PER_DAGRUN_QUERY = airflow_conf.getint(
@@ -3159,7 +3158,7 @@ class DagModel(Base):
         """
         from airflow.models.serialized_dag import SerializedDagModel
 
-        def dag_ready(dag_id: str, cond: BaseDataset, statuses: dict) -> bool | None:
+        def dag_ready(dag_id: str, cond: BaseAsset, statuses: dict) -> bool | None:
             # if dag was serialized before 2.9 and we *just* upgraded,
             # we may be dealing with old version.  In that case,
             # just wait for the dag to be reserialized.
@@ -3169,8 +3168,8 @@ class DagModel(Base):
                 log.warning("dag '%s' has old serialization; skipping DAG run creation.", dag_id)
                 return None
 
-        # this loads all the DDRQ records.... may need to limit num dags
-        all_records = session.scalars(select(DatasetDagRunQueue)).all()
+        # this loads all the ADRQ records.... may need to limit num dags
+        all_records = session.scalars(select(AssetDagRunQueue)).all()
         by_dag = defaultdict(list)
         for r in all_records:
             by_dag[r.target_dag_id].append(r)
@@ -3185,7 +3184,7 @@ class DagModel(Base):
             dag_id = ser_dag.dag_id
             statuses = dag_statuses[dag_id]
 
-            if not dag_ready(dag_id, cond=ser_dag.dag.timetable.dataset_condition, statuses=statuses):
+            if not dag_ready(dag_id, cond=ser_dag.dag.timetable.asset_condition, statuses=statuses):
                 del by_dag[dag_id]
                 del dag_statuses[dag_id]
         del dag_statuses
@@ -3269,13 +3268,13 @@ class DagModel(Base):
         )
 
     @provide_session
-    def get_dataset_triggered_next_run_info(self, *, session=NEW_SESSION) -> dict[str, int | str] | None:
+    def get_asset_triggered_next_run_info(self, *, session=NEW_SESSION) -> dict[str, int | str] | None:
         if self.dataset_expression is None:
             return None
 
-        # When a dataset alias does not resolve into datasets, get_dataset_triggered_next_run_info returns
-        # an empty dict as there's no dataset info to get. This method should thus return None.
-        return get_dataset_triggered_next_run_info([self.dag_id], session=session).get(self.dag_id, None)
+        # When an asset alias does not resolve into assets, get_asset_triggered_next_run_info returns
+        # an empty dict as there's no asset info to get. This method should thus return None.
+        return get_asset_triggered_next_run_info([self.dag_id], session=session).get(self.dag_id, None)
 
 
 # NOTE: Please keep the list of arguments in sync with DAG.__init__.
@@ -3297,7 +3296,7 @@ def dag(
         "core", "max_consecutive_failed_dag_runs_per_dag"
     ),
     dagrun_timeout: timedelta | None = None,
-    sla_miss_callback: None | SLAMissCallback | list[SLAMissCallback] = None,
+    sla_miss_callback: Any = None,
     default_view: str = airflow_conf.get_mandatory_value("webserver", "dag_default_view").lower(),
     orientation: str = airflow_conf.get_mandatory_value("webserver", "dag_orientation"),
     catchup: bool = airflow_conf.getboolean("scheduler", "catchup_by_default"),

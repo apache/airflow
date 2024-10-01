@@ -35,17 +35,17 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import joinedload, load_only
 from sqlalchemy.sql import expression
 
-from airflow.datasets import Dataset, DatasetAlias
-from airflow.datasets.manager import dataset_manager
+from airflow.assets import Asset, AssetAlias
+from airflow.assets.manager import asset_manager
+from airflow.models.asset import (
+    AssetAliasModel,
+    AssetModel,
+    DagScheduleAssetAliasReference,
+    DagScheduleAssetReference,
+    TaskOutletAssetReference,
+)
 from airflow.models.dag import DAG, DagModel, DagOwnerAttributes, DagTag
 from airflow.models.dagrun import DagRun
-from airflow.models.dataset import (
-    DagScheduleDatasetAliasReference,
-    DagScheduleDatasetReference,
-    DatasetAliasModel,
-    DatasetModel,
-    TaskOutletDatasetReference,
-)
 from airflow.utils.sqlalchemy import with_row_locks
 from airflow.utils.timezone import utcnow
 from airflow.utils.types import DagRunType
@@ -209,7 +209,7 @@ class DagModelOperation(NamedTuple):
             )
             dm.timetable_summary = dag.timetable.summary
             dm.timetable_description = dag.timetable.description
-            dm.dataset_expression = dag.timetable.dataset_condition.as_expression()
+            dm.dataset_expression = dag.timetable.asset_condition.as_expression()
             dm.processor_subdir = processor_subdir
 
             last_automated_run: DagRun | None = run_info.latest_runs.get(dag.dag_id)
@@ -222,7 +222,7 @@ class DagModelOperation(NamedTuple):
             else:
                 dm.calculate_dagrun_date_fields(dag, last_automated_data_interval)
 
-            if not dag.timetable.dataset_condition:
+            if not dag.timetable.asset_condition:
                 dm.schedule_dataset_references = []
                 dm.schedule_dataset_alias_references = []
             # FIXME: STORE NEW REFERENCES.
@@ -237,44 +237,44 @@ class DagModelOperation(NamedTuple):
                 dm.dag_owner_links = []
 
 
-def _find_all_datasets(dags: Iterable[DAG]) -> Iterator[Dataset]:
+def _find_all_assets(dags: Iterable[DAG]) -> Iterator[Asset]:
     for dag in dags:
-        for _, dataset in dag.timetable.dataset_condition.iter_datasets():
-            yield dataset
+        for _, asset in dag.timetable.asset_condition.iter_assets():
+            yield asset
         for task in dag.task_dict.values():
             for obj in itertools.chain(task.inlets, task.outlets):
-                if isinstance(obj, Dataset):
+                if isinstance(obj, Asset):
                     yield obj
 
 
-def _find_all_dataset_aliases(dags: Iterable[DAG]) -> Iterator[DatasetAlias]:
+def _find_all_asset_aliases(dags: Iterable[DAG]) -> Iterator[AssetAlias]:
     for dag in dags:
-        for _, alias in dag.timetable.dataset_condition.iter_dataset_aliases():
+        for _, alias in dag.timetable.asset_condition.iter_asset_aliases():
             yield alias
         for task in dag.task_dict.values():
             for obj in itertools.chain(task.inlets, task.outlets):
-                if isinstance(obj, DatasetAlias):
+                if isinstance(obj, AssetAlias):
                     yield obj
 
 
-class DatasetModelOperation(NamedTuple):
-    """Collect dataset/alias objects from DAGs and perform database operations for them."""
+class AssetModelOperation(NamedTuple):
+    """Collect asset/alias objects from DAGs and perform database operations for them."""
 
-    schedule_dataset_references: dict[str, list[Dataset]]
-    schedule_dataset_alias_references: dict[str, list[DatasetAlias]]
-    outlet_references: dict[str, list[tuple[str, Dataset]]]
-    datasets: dict[str, Dataset]
-    dataset_aliases: dict[str, DatasetAlias]
+    schedule_asset_references: dict[str, list[Asset]]
+    schedule_asset_alias_references: dict[str, list[AssetAlias]]
+    outlet_references: dict[str, list[tuple[str, Asset]]]
+    assets: dict[str, Asset]
+    asset_aliases: dict[str, AssetAlias]
 
     @classmethod
     def collect(cls, dags: dict[str, DAG]) -> Self:
         coll = cls(
-            schedule_dataset_references={
-                dag_id: [dataset for _, dataset in dag.timetable.dataset_condition.iter_datasets()]
+            schedule_asset_references={
+                dag_id: [asset for _, asset in dag.timetable.asset_condition.iter_assets()]
                 for dag_id, dag in dags.items()
             },
-            schedule_dataset_alias_references={
-                dag_id: [alias for _, alias in dag.timetable.dataset_condition.iter_dataset_aliases()]
+            schedule_asset_alias_references={
+                dag_id: [alias for _, alias in dag.timetable.asset_condition.iter_asset_aliases()]
                 for dag_id, dag in dags.items()
             },
             outlet_references={
@@ -282,95 +282,89 @@ class DatasetModelOperation(NamedTuple):
                     (task_id, outlet)
                     for task_id, task in dag.task_dict.items()
                     for outlet in task.outlets
-                    if isinstance(outlet, Dataset)
+                    if isinstance(outlet, Asset)
                 ]
                 for dag_id, dag in dags.items()
             },
-            datasets={dataset.uri: dataset for dataset in _find_all_datasets(dags.values())},
-            dataset_aliases={alias.name: alias for alias in _find_all_dataset_aliases(dags.values())},
+            assets={asset.uri: asset for asset in _find_all_assets(dags.values())},
+            asset_aliases={alias.name: alias for alias in _find_all_asset_aliases(dags.values())},
         )
         return coll
 
-    def add_datasets(self, *, session: Session) -> dict[str, DatasetModel]:
-        # Optimization: skip all database calls if no datasets were collected.
-        if not self.datasets:
+    def add_assets(self, *, session: Session) -> dict[str, AssetModel]:
+        # Optimization: skip all database calls if no assets were collected.
+        if not self.assets:
             return {}
-        orm_datasets: dict[str, DatasetModel] = {
-            dm.uri: dm
-            for dm in session.scalars(select(DatasetModel).where(DatasetModel.uri.in_(self.datasets)))
+        orm_assets: dict[str, AssetModel] = {
+            am.uri: am for am in session.scalars(select(AssetModel).where(AssetModel.uri.in_(self.assets)))
         }
+        for model in orm_assets.values():
+            model.is_orphaned = expression.false()
+        orm_assets.update(
+            (model.uri, model)
+            for model in asset_manager.create_assets(
+                [asset for uri, asset in self.assets.items() if uri not in orm_assets],
+                session=session,
+            )
+        )
+        return orm_assets
 
-        def _resolve_dataset_addition() -> Iterator[DatasetModel]:
-            for uri, dataset in self.datasets.items():
-                try:
-                    dm = orm_datasets[uri]
-                except KeyError:
-                    dm = orm_datasets[uri] = DatasetModel.from_public(dataset)
-                    yield dm
-                else:
-                    # The orphaned flag was bulk-set to True before parsing, so we
-                    # don't need to handle rows in the db without a public entry.
-                    dm.is_orphaned = expression.false()
-                dm.extra = dataset.extra
-
-        dataset_manager.create_datasets(list(_resolve_dataset_addition()), session=session)
-        return orm_datasets
-
-    def add_dataset_aliases(self, *, session: Session) -> dict[str, DatasetAliasModel]:
-        # Optimization: skip all database calls if no dataset aliases were collected.
-        if not self.dataset_aliases:
+    def add_asset_aliases(self, *, session: Session) -> dict[str, AssetAliasModel]:
+        # Optimization: skip all database calls if no asset aliases were collected.
+        if not self.asset_aliases:
             return {}
-        orm_aliases: dict[str, DatasetAliasModel] = {
+        orm_aliases: dict[str, AssetAliasModel] = {
             da.name: da
             for da in session.scalars(
-                select(DatasetAliasModel).where(DatasetAliasModel.name.in_(self.dataset_aliases))
+                select(AssetAliasModel).where(AssetAliasModel.name.in_(self.asset_aliases))
             )
         }
-        for name, alias in self.dataset_aliases.items():
-            try:
-                da = orm_aliases[name]
-            except KeyError:
-                da = orm_aliases[name] = DatasetAliasModel.from_public(alias)
-                session.add(da)
+        orm_aliases.update(
+            (model.name, model)
+            for model in asset_manager.create_asset_aliases(
+                [alias for name, alias in self.asset_aliases.items() if name not in orm_aliases],
+                session=session,
+            )
+        )
         return orm_aliases
 
-    def add_dag_dataset_references(
+    def add_dag_asset_references(
         self,
         dags: dict[str, DagModel],
-        datasets: dict[str, DatasetModel],
+        assets: dict[str, AssetModel],
         *,
         session: Session,
     ) -> None:
-        # Optimization: No datasets means there are no references to update.
-        if not datasets:
+        # Optimization: No assets means there are no references to update.
+        if not assets:
             return
-        for dag_id, references in self.schedule_dataset_references.items():
+        for dag_id, references in self.schedule_asset_references.items():
             # Optimization: no references at all; this is faster than repeated delete().
             if not references:
                 dags[dag_id].schedule_dataset_references = []
                 continue
-            referenced_dataset_ids = {dataset.id for dataset in (datasets[r.uri] for r in references)}
+            referenced_asset_ids = {asset.id for asset in (assets[r.uri] for r in references)}
             orm_refs = {r.dataset_id: r for r in dags[dag_id].schedule_dataset_references}
-            for dataset_id, ref in orm_refs.items():
-                if dataset_id not in referenced_dataset_ids:
+            for asset_id, ref in orm_refs.items():
+                if asset_id not in referenced_asset_ids:
                     session.delete(ref)
             session.bulk_save_objects(
-                DagScheduleDatasetReference(dataset_id=dataset_id, dag_id=dag_id)
-                for dataset_id in referenced_dataset_ids
-                if dataset_id not in orm_refs
+                DagScheduleAssetReference(dataset_id=asset_id, dag_id=dag_id)
+                for asset_id in referenced_asset_ids
+                if asset_id not in orm_refs
             )
 
-    def add_dag_dataset_alias_references(
+    def add_dag_asset_alias_references(
         self,
         dags: dict[str, DagModel],
-        aliases: dict[str, DatasetAliasModel],
+        aliases: dict[str, AssetAliasModel],
         *,
         session: Session,
     ) -> None:
         # Optimization: No aliases means there are no references to update.
         if not aliases:
             return
-        for dag_id, references in self.schedule_dataset_alias_references.items():
+        for dag_id, references in self.schedule_asset_alias_references.items():
             # Optimization: no references at all; this is faster than repeated delete().
             if not references:
                 dags[dag_id].schedule_dataset_alias_references = []
@@ -381,20 +375,20 @@ class DatasetModelOperation(NamedTuple):
                 if alias_id not in referenced_alias_ids:
                     session.delete(ref)
             session.bulk_save_objects(
-                DagScheduleDatasetAliasReference(alias_id=alias_id, dag_id=dag_id)
+                DagScheduleAssetAliasReference(alias_id=alias_id, dag_id=dag_id)
                 for alias_id in referenced_alias_ids
                 if alias_id not in orm_refs
             )
 
-    def add_task_dataset_references(
+    def add_task_asset_references(
         self,
         dags: dict[str, DagModel],
-        datasets: dict[str, DatasetModel],
+        assets: dict[str, AssetModel],
         *,
         session: Session,
     ) -> None:
-        # Optimization: No datasets means there are no references to update.
-        if not datasets:
+        # Optimization: No assets means there are no references to update.
+        if not assets:
             return
         for dag_id, references in self.outlet_references.items():
             # Optimization: no references at all; this is faster than repeated delete().
@@ -402,15 +396,15 @@ class DatasetModelOperation(NamedTuple):
                 dags[dag_id].task_outlet_dataset_references = []
                 continue
             referenced_outlets = {
-                (task_id, dataset.id)
-                for task_id, dataset in ((task_id, datasets[d.uri]) for task_id, d in references)
+                (task_id, asset.id)
+                for task_id, asset in ((task_id, assets[d.uri]) for task_id, d in references)
             }
             orm_refs = {(r.task_id, r.dataset_id): r for r in dags[dag_id].task_outlet_dataset_references}
             for key, ref in orm_refs.items():
                 if key not in referenced_outlets:
                     session.delete(ref)
             session.bulk_save_objects(
-                TaskOutletDatasetReference(dataset_id=dataset_id, dag_id=dag_id, task_id=task_id)
-                for task_id, dataset_id in referenced_outlets
-                if (task_id, dataset_id) not in orm_refs
+                TaskOutletAssetReference(dataset_id=asset_id, dag_id=dag_id, task_id=task_id)
+                for task_id, asset_id in referenced_outlets
+                if (task_id, asset_id) not in orm_refs
             )

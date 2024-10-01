@@ -70,7 +70,7 @@ class AwsTaskLogFetcher(Thread):
                     # timestamp)
                     # When a slight delay is added before logging the event, that solves the issue
                     # See https://github.com/apache/airflow/issues/40875
-                    time.sleep(0.1)
+                    time.sleep(0.001)
                 self.logger.info(self.event_to_str(log_event))
                 prev_timestamp_event = current_timestamp_event
 
