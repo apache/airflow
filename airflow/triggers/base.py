@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
-async def run_trigger(trigger: BaseTrigger) -> TriggerEvent:
+async def run_trigger(trigger: BaseTrigger) -> TriggerEvent | None:
     async for event in trigger.run():
         return event
 
