@@ -21,8 +21,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 
 import {
-  useDagServiceGetDagsPublicDagsGetKey,
-  useDagServicePatchDagPublicDagsDagIdPatch,
+  useDagServiceGetDagsKey,
+  useDagServicePatchDag,
 } from "openapi/queries";
 
 type Props = {
@@ -35,11 +35,11 @@ export const TogglePause = ({ dagId, isPaused }: Props) => {
 
   const onSuccess = async () => {
     await queryClient.invalidateQueries({
-      queryKey: [useDagServiceGetDagsPublicDagsGetKey],
+      queryKey: [useDagServiceGetDagsKey],
     });
   };
 
-  const { mutate } = useDagServicePatchDagPublicDagsDagIdPatch({
+  const { mutate } = useDagServicePatchDag({
     onSuccess,
   });
 
