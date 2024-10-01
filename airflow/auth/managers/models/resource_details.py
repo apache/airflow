@@ -80,6 +80,7 @@ class DagAccessEntity(Enum):
     """Enum of DAG entities the user tries to access."""
 
     AUDIT_LOG = "AUDIT_LOG"
+    BACKFILL = "BACKFILL"
     CODE = "CODE"
     DEPENDENCIES = "DEPENDENCIES"
     RUN = "RUN"
