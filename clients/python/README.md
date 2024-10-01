@@ -481,7 +481,7 @@ Class | Method | HTTP request | Description
  - [TaskInstanceCollectionAllOf](docs/TaskInstanceCollectionAllOf.md)
  - [TaskInstanceReference](docs/TaskInstanceReference.md)
  - [TaskInstanceReferenceCollection](docs/TaskInstanceReferenceCollection.md)
- - [TaskOutletDatasetReference](docs/TaskOutletDatasetReference.md)
+ - [TaskOutletAssetReference](docs/TaskOutletAssetReference.md)
  - [TaskState](docs/TaskState.md)
  - [TimeDelta](docs/TimeDelta.md)
  - [Trigger](docs/Trigger.md)

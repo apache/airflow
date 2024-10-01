@@ -1863,14 +1863,14 @@ export interface components {
       /** @description The dataset update time */
       updated_at?: string;
       consuming_dags?: components["schemas"]["DagScheduleAssetReference"][];
-      producing_tasks?: components["schemas"]["TaskOutletDatasetReference"][];
+      producing_tasks?: components["schemas"]["TaskOutletAssetReference"][];
     };
     /**
      * @description A datasets reference to an upstream task.
      *
      * *New in version 2.4.0*
      */
-    TaskOutletDatasetReference: {
+    TaskOutletAssetReference: {
       /** @description The DAG ID that updates the dataset. */
       dag_id?: string | null;
       /** @description The task ID that updates the dataset. */
@@ -5425,8 +5425,8 @@ export type ActionResource = CamelCasedPropertiesDeep<
 export type Dataset = CamelCasedPropertiesDeep<
   components["schemas"]["Dataset"]
 >;
-export type TaskOutletDatasetReference = CamelCasedPropertiesDeep<
-  components["schemas"]["TaskOutletDatasetReference"]
+export type TaskOutletAssetReference = CamelCasedPropertiesDeep<
+  components["schemas"]["TaskOutletAssetReference"]
 >;
 export type DagScheduleAssetReference = CamelCasedPropertiesDeep<
   components["schemas"]["DagScheduleAssetReference"]

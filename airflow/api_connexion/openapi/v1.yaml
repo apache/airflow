@@ -4540,22 +4540,22 @@ components:
         producing_tasks:
           type: array
           items:
-            $ref: "#/components/schemas/TaskOutletDatasetReference"
+            $ref: "#/components/schemas/TaskOutletAssetReference"
 
-    TaskOutletDatasetReference:
+    TaskOutletAssetReference:
       description: |
-        A datasets reference to an upstream task.
+        An asset reference to an upstream task.
 
         *New in version 2.4.0*
       type: object
       properties:
         dag_id:
           type: string
-          description: The DAG ID that updates the dataset.
+          description: The DAG ID that updates the asset.
           nullable: true
         task_id:
           type: string
-          description: The task ID that updates the dataset.
+          description: The task ID that updates the asset.
           nullable: true
         created_at:
           type: string
@@ -4563,7 +4563,7 @@ components:
           nullable: false
         updated_at:
           type: string
-          description: The dataset update time
+          description: The asset update time
           nullable: false
 
     DagScheduleAssetReference:
