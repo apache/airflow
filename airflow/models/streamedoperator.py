@@ -76,11 +76,9 @@ def event_loop() -> Generator[AbstractEventLoop, None, None]:
 
 
 # TODO: Check def _run_inline_trigger(trigger) method from DAG, could be refactored so it uses this method
-async def run_trigger(trigger: BaseTrigger) -> list[TriggerEvent]:
-    events = []
+async def run_trigger(trigger: BaseTrigger) -> TriggerEvent:
     async for event in trigger.run():
-        events.append(event)
-    return events
+        return event
 
 
 class OperatorExecutor(LoggingMixin):
@@ -155,7 +153,7 @@ class OperatorExecutor(LoggingMixin):
                     raise AirflowRescheduleTaskInstanceException(task_instance=self.task_instance)
 
     async def run_deferrable(self, context: Context, task_deferred: TaskDeferred):
-        event = next(iter(await run_trigger(task_deferred.trigger)))
+        event = await run_trigger(task_deferred.trigger)
 
         self.log.debug("event: %s", event)
         self.log.debug("next_method: %s", task_deferred.method_name)
