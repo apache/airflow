@@ -2763,6 +2763,10 @@
         "1.17.0": {
             "associated_airflow_version": "2.10.1",
             "date_released": "2024-09-24T13:49:56Z"
+        },
+        "1.17.1": {
+            "associated_airflow_version": "2.10.1",
+            "date_released": "2024-10-01T09:05:14Z"
         }
     },
     "databricks": {
@@ -6225,6 +6229,10 @@
         "1.12.0": {
             "associated_airflow_version": "2.10.1",
             "date_released": "2024-09-24T13:49:56Z"
+        },
+        "1.12.1": {
+            "associated_airflow_version": "2.10.1",
+            "date_released": "2024-10-01T09:05:14Z"
         }
     },
     "opensearch": {
