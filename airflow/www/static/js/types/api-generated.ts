@@ -264,7 +264,7 @@ export interface paths {
   };
   "/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents": {
     /**
-     * Get datasets for a dag run.
+     * Get asset for a dag run.
      *
      * *New in version 2.4.0*
      */
@@ -296,7 +296,7 @@ export interface paths {
   };
   "/dags/{dag_id}/datasets/queuedEvent/{uri}": {
     /**
-     * Get a queued Dataset event for a DAG.
+     * Get a queued asset event for a DAG.
      *
      * *New in version 2.9.0*
      */
@@ -311,8 +311,8 @@ export interface paths {
       path: {
         /** The DAG ID. */
         dag_id: components["parameters"]["DAGID"];
-        /** The encoded Dataset URI */
-        uri: components["parameters"]["DatasetURI"];
+        /** The encoded Asset URI */
+        uri: components["parameters"]["AssetURI"];
       };
     };
   };
@@ -365,8 +365,8 @@ export interface paths {
     delete: operations["delete_asset_queued_events"];
     parameters: {
       path: {
-        /** The encoded Dataset URI */
-        uri: components["parameters"]["DatasetURI"];
+        /** The encoded Asset URI */
+        uri: components["parameters"]["AssetURI"];
       };
     };
   };
@@ -786,12 +786,12 @@ export interface paths {
     get: operations["get_assets"];
   };
   "/datasets/{uri}": {
-    /** Get a dataset by uri. */
+    /** Get an asset by uri. */
     get: operations["get_asset"];
     parameters: {
       path: {
-        /** The encoded Dataset URI */
-        uri: components["parameters"]["DatasetURI"];
+        /** The encoded Asset URI */
+        uri: components["parameters"]["AssetURI"];
       };
     };
   };
@@ -1866,35 +1866,35 @@ export interface components {
       producing_tasks?: components["schemas"]["TaskOutletAssetReference"][];
     };
     /**
-     * @description A datasets reference to an upstream task.
+     * @description An asset reference to an upstream task.
      *
      * *New in version 2.4.0*
      */
     TaskOutletAssetReference: {
-      /** @description The DAG ID that updates the dataset. */
+      /** @description The DAG ID that updates the asset. */
       dag_id?: string | null;
-      /** @description The task ID that updates the dataset. */
+      /** @description The task ID that updates the asset. */
       task_id?: string | null;
       /** @description The dataset creation time */
       created_at?: string;
-      /** @description The dataset update time */
+      /** @description The asset update time */
       updated_at?: string;
     };
     /**
-     * @description A datasets reference to a downstream DAG.
+     * @description An asset reference to a downstream DAG.
      *
      * *New in version 2.4.0*
      */
     DagScheduleAssetReference: {
-      /** @description The DAG ID that depends on the dataset. */
+      /** @description The DAG ID that depends on the asset. */
       dag_id?: string | null;
-      /** @description The dataset reference creation time */
+      /** @description The asset reference creation time */
       created_at?: string;
-      /** @description The dataset reference update time */
+      /** @description The asset reference update time */
       updated_at?: string;
     };
     /**
-     * @description A collection of datasets.
+     * @description A collection of assets.
      *
      * *New in version 2.4.0*
      */
@@ -1983,11 +1983,11 @@ export interface components {
       state?: components["schemas"]["DagState"];
     };
     /**
-     * @description A collection of dataset events.
+     * @description A collection of asset events.
      *
      * *New in version 2.4.0*
      */
-    DatasetEventCollection: {
+    AssetEventCollection: {
       dataset_events?: components["schemas"]["DatasetEvent"][];
     } & components["schemas"]["CollectionInfo"];
     /** @description The option of configuration. */
@@ -2541,8 +2541,8 @@ export interface components {
     EventLogID: number;
     /** @description The import error ID. */
     ImportErrorID: number;
-    /** @description The encoded Dataset URI */
-    DatasetURI: string;
+    /** @description The encoded Asset URI */
+    AssetURI: string;
     /** @description The pool name. */
     PoolName: string;
     /** @description The variable Key. */
@@ -3591,7 +3591,7 @@ export interface operations {
     };
   };
   /**
-   * Get datasets for a dag run.
+   * Get asset for a dag run.
    *
    * *New in version 2.4.0*
    */
@@ -3608,7 +3608,7 @@ export interface operations {
       /** Success. */
       200: {
         content: {
-          "application/json": components["schemas"]["DatasetEventCollection"];
+          "application/json": components["schemas"]["AssetEventCollection"];
         };
       };
       401: components["responses"]["Unauthenticated"];
@@ -3650,7 +3650,7 @@ export interface operations {
     };
   };
   /**
-   * Get a queued Dataset event for a DAG.
+   * Get a queued asset event for a DAG.
    *
    * *New in version 2.9.0*
    */
@@ -3659,8 +3659,8 @@ export interface operations {
       path: {
         /** The DAG ID. */
         dag_id: components["parameters"]["DAGID"];
-        /** The encoded Dataset URI */
-        uri: components["parameters"]["DatasetURI"];
+        /** The encoded Asset URI */
+        uri: components["parameters"]["AssetURI"];
       };
       query: {
         /** Timestamp to select event logs occurring before. */
@@ -3689,8 +3689,8 @@ export interface operations {
       path: {
         /** The DAG ID. */
         dag_id: components["parameters"]["DAGID"];
-        /** The encoded Dataset URI */
-        uri: components["parameters"]["DatasetURI"];
+        /** The encoded Asset URI */
+        uri: components["parameters"]["AssetURI"];
       };
       query: {
         /** Timestamp to select event logs occurring before. */
@@ -3787,8 +3787,8 @@ export interface operations {
   get_asset_queued_events: {
     parameters: {
       path: {
-        /** The encoded Dataset URI */
-        uri: components["parameters"]["DatasetURI"];
+        /** The encoded Asset URI */
+        uri: components["parameters"]["AssetURI"];
       };
       query: {
         /** Timestamp to select event logs occurring before. */
@@ -3815,8 +3815,8 @@ export interface operations {
   delete_asset_queued_events: {
     parameters: {
       path: {
-        /** The encoded Dataset URI */
-        uri: components["parameters"]["DatasetURI"];
+        /** The encoded Asset URI */
+        uri: components["parameters"]["AssetURI"];
       };
       query: {
         /** Timestamp to select event logs occurring before. */
@@ -5080,12 +5080,12 @@ export interface operations {
       403: components["responses"]["PermissionDenied"];
     };
   };
-  /** Get a dataset by uri. */
+  /** Get an asset by uri. */
   get_asset: {
     parameters: {
       path: {
-        /** The encoded Dataset URI */
-        uri: components["parameters"]["DatasetURI"];
+        /** The encoded Asset URI */
+        uri: components["parameters"]["AssetURI"];
       };
     };
     responses: {
@@ -5131,7 +5131,7 @@ export interface operations {
       /** Success. */
       200: {
         content: {
-          "application/json": components["schemas"]["DatasetEventCollection"];
+          "application/json": components["schemas"]["AssetEventCollection"];
         };
       };
       401: components["responses"]["Unauthenticated"];
@@ -5449,8 +5449,8 @@ export type QueuedEventCollection = CamelCasedPropertiesDeep<
 export type BasicDAGRun = CamelCasedPropertiesDeep<
   components["schemas"]["BasicDAGRun"]
 >;
-export type DatasetEventCollection = CamelCasedPropertiesDeep<
-  components["schemas"]["DatasetEventCollection"]
+export type AssetEventCollection = CamelCasedPropertiesDeep<
+  components["schemas"]["AssetEventCollection"]
 >;
 export type ConfigOption = CamelCasedPropertiesDeep<
   components["schemas"]["ConfigOption"]

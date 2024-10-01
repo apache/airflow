@@ -23,12 +23,12 @@ import { useQuery, UseQueryOptions } from "react-query";
 import { getMetaValue } from "src/utils";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 import type {
-  DatasetEventCollection,
+  AssetEventCollection,
   GetAssetEventsVariables,
 } from "src/types/api-generated";
 
 interface Props extends GetAssetEventsVariables {
-  options?: UseQueryOptions<DatasetEventCollection>;
+  options?: UseQueryOptions<AssetEventCollection>;
 }
 
 const useAssetEvents = ({
@@ -42,7 +42,7 @@ const useAssetEvents = ({
   orderBy,
   options,
 }: Props) => {
-  const query = useQuery<DatasetEventCollection>(
+  const query = useQuery<AssetEventCollection>(
     [
       "datasets-events",
       assetId,
