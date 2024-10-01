@@ -823,8 +823,8 @@
       "azure-storage-file-share>=12.7.0",
       "azure-synapse-artifacts>=0.17.0",
       "azure-synapse-spark>=0.2.0",
-      "microsoft-kiota-serialization-json>=1.0.0",
-      "microsoft-kiota-serialization-text>=1.0.0",
+      "microsoft-kiota-serialization-json==1.0.0",
+      "microsoft-kiota-serialization-text==1.0.0",
       "msgraph-core>=1.0.0"
     ],
     "devel-deps": [
