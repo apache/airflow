@@ -60,14 +60,22 @@ if TYPE_CHECKING:
 
 @contextmanager
 def event_loop() -> Generator[AbstractEventLoop, None, None]:
+    new_event_loop = False
+    loop = None
     try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    yield loop
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            new_event_loop = True
+        yield loop
+    finally:
+        if new_event_loop and loop is not None:
+            loop.close()
 
 
+# TODO: Check def _run_inline_trigger(trigger) method from DAG, could be refactored so it uses this method
 async def run_trigger(trigger: BaseTrigger) -> list[TriggerEvent]:
     events = []
     async for event in trigger.run():
