@@ -22,7 +22,6 @@ import logging
 import os
 from asyncio import AbstractEventLoop, Semaphore, ensure_future, iscoroutinefunction
 from contextlib import contextmanager
-from datetime import datetime
 from math import ceil
 from time import sleep
 from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence
@@ -54,8 +53,8 @@ from airflow.utils.task_instance_session import get_current_task_instance_sessio
 
 if TYPE_CHECKING:
     import jinja2
-
     from sqlalchemy.orm import Session
+
     from airflow.triggers.base import BaseTrigger, TriggerEvent
 
 
