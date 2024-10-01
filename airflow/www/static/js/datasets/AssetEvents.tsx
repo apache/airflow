@@ -25,7 +25,7 @@ import { Box, Flex, Heading, Select } from "@chakra-ui/react";
 import { useAssetEvents } from "src/api";
 
 import { CardList, type CardDef } from "src/components/Table";
-import type { DatasetEvent } from "src/types/api-generated";
+import type { AssetEvent } from "src/types/api-generated";
 import DatasetEventCard from "src/components/DatasetEventCard";
 
 type Props = {
@@ -33,7 +33,7 @@ type Props = {
   showLabel?: boolean;
 };
 
-const cardDef: CardDef<DatasetEvent> = {
+const cardDef: CardDef<AssetEvent> = {
   card: ({ row }) => <DatasetEventCard datasetEvent={row} />,
 };
 

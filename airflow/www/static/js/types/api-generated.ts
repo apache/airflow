@@ -1902,24 +1902,24 @@ export interface components {
       datasets?: components["schemas"]["Dataset"][];
     } & components["schemas"]["CollectionInfo"];
     /**
-     * @description A dataset event.
+     * @description An asset event.
      *
      * *New in version 2.4.0*
      */
-    DatasetEvent: {
-      /** @description The dataset id */
+    AssetEvent: {
+      /** @description The asset id */
       dataset_id?: number;
-      /** @description The URI of the dataset */
+      /** @description The URI of the asset */
       dataset_uri?: string;
-      /** @description The dataset event extra */
+      /** @description The asset event extra */
       extra?: { [key: string]: unknown } | null;
-      /** @description The DAG ID that updated the dataset. */
+      /** @description The DAG ID that updated the asset. */
       source_dag_id?: string | null;
-      /** @description The task ID that updated the dataset. */
+      /** @description The task ID that updated the asset. */
       source_task_id?: string | null;
-      /** @description The DAG run ID that updated the dataset. */
+      /** @description The DAG run ID that updated the asset. */
       source_run_id?: string | null;
-      /** @description The task map index that updated the dataset. */
+      /** @description The task map index that updated the asset. */
       source_map_index?: number | null;
       created_dagruns?: components["schemas"]["BasicDAGRun"][];
       /** @description The dataset event creation time */
@@ -1988,7 +1988,7 @@ export interface components {
      * *New in version 2.4.0*
      */
     AssetEventCollection: {
-      dataset_events?: components["schemas"]["DatasetEvent"][];
+      dataset_events?: components["schemas"]["AssetEvent"][];
     } & components["schemas"]["CollectionInfo"];
     /** @description The option of configuration. */
     ConfigOption: {
@@ -5145,7 +5145,7 @@ export interface operations {
       /** Success. */
       200: {
         content: {
-          "application/json": components["schemas"]["DatasetEvent"];
+          "application/json": components["schemas"]["AssetEvent"];
         };
       };
       400: components["responses"]["BadRequest"];
@@ -5434,8 +5434,8 @@ export type DagScheduleAssetReference = CamelCasedPropertiesDeep<
 export type AssetCollection = CamelCasedPropertiesDeep<
   components["schemas"]["AssetCollection"]
 >;
-export type DatasetEvent = CamelCasedPropertiesDeep<
-  components["schemas"]["DatasetEvent"]
+export type AssetEvent = CamelCasedPropertiesDeep<
+  components["schemas"]["AssetEvent"]
 >;
 export type CreateAssetEvent = CamelCasedPropertiesDeep<
   components["schemas"]["CreateAssetEvent"]

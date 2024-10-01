@@ -23,7 +23,7 @@ import { useAssetEvents } from "src/api";
 import type { DagRun as DagRunType } from "src/types";
 import { getMetaValue } from "src/utils";
 import { CardDef, CardList } from "src/components/Table";
-import type { DatasetEvent } from "src/types/api-generated";
+import type { AssetEvent } from "src/types/api-generated";
 import DatasetEventCard from "src/components/DatasetEventCard";
 
 interface Props {
@@ -31,7 +31,7 @@ interface Props {
   taskId: string;
 }
 
-const cardDef: CardDef<DatasetEvent> = {
+const cardDef: CardDef<AssetEvent> = {
   card: ({ row }) => <DatasetEventCard datasetEvent={row} showSource={false} />,
 };
 

@@ -22,7 +22,7 @@ import { Box, Link, Tooltip, Flex } from "@chakra-ui/react";
 import { FiLink } from "react-icons/fi";
 
 import { useTaskInstance } from "src/api";
-import type { DatasetEvent } from "src/types/api-generated";
+import type { AssetEvent } from "src/types/api-generated";
 import { useContainerRef } from "src/context/containerRef";
 import { SimpleStatus } from "src/dag/StatusBox";
 import InstanceTooltip from "src/components/InstanceTooltip";
@@ -30,7 +30,7 @@ import type { TaskInstance } from "src/types";
 import { getMetaValue } from "src/utils";
 
 type SourceTIProps = {
-  datasetEvent: DatasetEvent;
+  datasetEvent: AssetEvent;
   showLink?: boolean;
 };
 

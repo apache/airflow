@@ -24,7 +24,7 @@ import type { ElkExtendedEdge } from "elkjs";
 import type { SelectionProps } from "src/dag/useSelection";
 import { getTask } from "src/utils";
 import type { Task, TaskInstance, NodeType } from "src/types";
-import type { DatasetEvent } from "src/types/api-generated";
+import type { AssetEvent } from "src/types/api-generated";
 
 import type { CustomNodeProps } from "./Node";
 
@@ -38,7 +38,7 @@ interface FlattenNodesProps {
   onToggleGroups: (groupIds: string[]) => void;
   hoveredTaskState?: string | null;
   isZoomedOut: boolean;
-  datasetEvents?: DatasetEvent[];
+  datasetEvents?: AssetEvent[];
 }
 
 // Generate a flattened list of nodes for react-flow to render

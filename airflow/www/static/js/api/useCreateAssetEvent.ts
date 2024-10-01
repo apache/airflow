@@ -37,7 +37,7 @@ export default function useCreateAssetEvent({ datasetId, uri }: Props) {
 
   return useMutation(
     ["createAssetEvent", uri],
-    (extra?: API.DatasetEvent["extra"]) =>
+    (extra?: API.AssetEvent["extra"]) =>
       axios.post<AxiosResponse, API.CreateAssetEventVariables>(createAssetUrl, {
         asset_uri: uri,
         extra: extra || {},

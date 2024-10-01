@@ -21,7 +21,7 @@ import React from "react";
 import { isEmpty } from "lodash";
 import { TbApi } from "react-icons/tb";
 
-import type { DatasetEvent } from "src/types/api-generated";
+import type { AssetEvent } from "src/types/api-generated";
 import {
   Box,
   Flex,
@@ -43,7 +43,7 @@ import SourceTaskInstance from "./SourceTaskInstance";
 import TriggeredDagRuns from "./TriggeredDagRuns";
 
 type CardProps = {
-  datasetEvent: DatasetEvent;
+  datasetEvent: AssetEvent;
   showSource?: boolean;
   showTriggeredDagRuns?: boolean;
 };

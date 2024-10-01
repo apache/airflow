@@ -2625,7 +2625,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DatasetEvent'
+                $ref: '#/components/schemas/AssetEvent'
         "400":
           $ref: "#/components/responses/BadRequest"
         '401':
@@ -4601,39 +4601,39 @@ components:
                 $ref: "#/components/schemas/Dataset"
         - $ref: "#/components/schemas/CollectionInfo"
 
-    DatasetEvent:
+    AssetEvent:
       description: |
-        A dataset event.
+        An asset event.
 
         *New in version 2.4.0*
       type: object
       properties:
         dataset_id:
           type: integer
-          description: The dataset id
+          description: The asset id
         dataset_uri:
           type: string
-          description: The URI of the dataset
+          description: The URI of the asset
           nullable: false
         extra:
           type: object
-          description: The dataset event extra
+          description: The asset event extra
           nullable: true
         source_dag_id:
           type: string
-          description: The DAG ID that updated the dataset.
+          description: The DAG ID that updated the asset.
           nullable: true
         source_task_id:
           type: string
-          description: The task ID that updated the dataset.
+          description: The task ID that updated the asset.
           nullable: true
         source_run_id:
           type: string
-          description: The DAG run ID that updated the dataset.
+          description: The DAG run ID that updated the asset.
           nullable: true
         source_map_index:
           type: integer
-          description: The task map index that updated the dataset.
+          description: The task map index that updated the asset.
           nullable: true
         created_dagruns:
           type: array
@@ -4641,7 +4641,7 @@ components:
             $ref: "#/components/schemas/BasicDAGRun"
         timestamp:
           type: string
-          description: The dataset event creation time
+          description: The asset event creation time
           nullable: false
 
     CreateAssetEvent:
@@ -4749,7 +4749,7 @@ components:
             dataset_events:
               type: array
               items:
-                $ref: "#/components/schemas/DatasetEvent"
+                $ref: "#/components/schemas/AssetEvent"
         - $ref: "#/components/schemas/CollectionInfo"
 
     # Configuration
