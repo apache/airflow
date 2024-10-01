@@ -42,7 +42,7 @@ object_router = AirflowRouter(tags=["Object"])
 
 
 @object_router.get("/object/historical_metrics_data", include_in_schema=False)
-def historical_metrics_data(
+async def historical_metrics_data(
     start_date: str,
     end_date: str,
     session: Annotated[Session, Depends(get_session)],

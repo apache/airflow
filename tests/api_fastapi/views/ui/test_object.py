@@ -24,7 +24,6 @@ import pytest
 
 from airflow.models import DagBag
 from airflow.operators.empty import EmptyOperator
-from airflow.utils.session import provide_session
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
@@ -53,7 +52,6 @@ def freeze_time_for_dagruns(time_machine):
 
 
 @pytest.fixture
-@provide_session
 def make_dag_runs(dag_maker, session, time_machine):
     with dag_maker(
         dag_id="test_dag_id",
@@ -102,7 +100,7 @@ def make_dag_runs(dag_maker, session, time_machine):
 
 class TestHistoricalMetricsDataEndpoint:
     @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
-    def test_historical_metrics_data(self, test_client, session, time_machine):
+    def test_historical_metrics_data(self, test_client, time_machine):
         params = {"start_date": "2023-01-01T00:00", "end_date": "2023-08-02T00:00"}
         response = test_client.get("/ui/object/historical_metrics_data", params=params)
 
@@ -128,7 +126,7 @@ class TestHistoricalMetricsDataEndpoint:
         }
 
     @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
-    def test_historical_metrics_data_date_filters(self, test_client, session):
+    def test_historical_metrics_data_date_filters(self, test_client):
         params = {"start_date": "2023-02-02T00:00", "end_date": "2023-06-02T00:00"}
         response = test_client.get("/ui/object/historical_metrics_data", params=params)
         assert response.status_code == 200
