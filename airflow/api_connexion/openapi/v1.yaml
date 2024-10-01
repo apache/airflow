@@ -1181,26 +1181,26 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
 
-  /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents:
+  /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents:
     parameters:
       - $ref: "#/components/parameters/DAGID"
       - $ref: "#/components/parameters/DAGRunID"
     get:
-      summary: Get dataset events for a DAG run
+      summary: Get asset events for a DAG run
       description: |
-        Get datasets for a dag run.
+        Get asset for a dag run.
 
         *New in version 2.4.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
-      operationId: get_upstream_dataset_events
-      tags: [DAGRun, Dataset]
+      operationId: get_upstream_asset_events
+      tags: [DAGRun, Asset]
       responses:
         "200":
           description: Success.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DatasetEventCollection"
+                $ref: "#/components/schemas/AssetEventCollection"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -2600,7 +2600,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DatasetEventCollection"
+                $ref: "#/components/schemas/AssetEventCollection"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -4737,9 +4737,9 @@ components:
         state:
           $ref: "#/components/schemas/DagState"
 
-    DatasetEventCollection:
+    AssetEventCollection:
       description: |
-        A collection of dataset events.
+        A collection of asset events.
 
         *New in version 2.4.0*
       type: object

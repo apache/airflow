@@ -23,21 +23,21 @@ import { useQuery, UseQueryOptions } from "react-query";
 import { getMetaValue } from "src/utils";
 import type {
   DatasetEventCollection,
-  GetUpstreamDatasetEventsVariables,
+  GetUpstreamAssetEventsVariables,
 } from "src/types/api-generated";
 
-interface Props extends GetUpstreamDatasetEventsVariables {
+interface Props extends GetUpstreamAssetEventsVariables {
   options?: UseQueryOptions<DatasetEventCollection>;
 }
 
 const useUpstreamAssetEvents = ({ dagId, dagRunId, options }: Props) => {
   const upstreamEventsUrl = (
     getMetaValue("upstream_dataset_events_api") ||
-    `api/v1/dags/${dagId}/dagRuns/_DAG_RUN_ID_/upstreamDatasetEvents`
+    `api/v1/dags/${dagId}/dagRuns/_DAG_RUN_ID_/upstreamAssetEvents`
   ).replace("_DAG_RUN_ID_", encodeURIComponent(dagRunId));
 
   const query = useQuery<DatasetEventCollection>(
-    ["upstreamDatasetEvents", dagRunId],
+    ["upstreamAssetEvents", dagRunId],
     () => axios.get(upstreamEventsUrl),
     options
   );

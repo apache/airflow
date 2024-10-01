@@ -219,10 +219,10 @@ class TestAssetEventCollectionSchema(TestAssetSchemaBase):
         session.add_all(events)
         session.flush()
         serialized_data = asset_event_collection_schema.dump(
-            AssetEventCollection(dataset_events=events, total_entries=2)
+            AssetEventCollection(asset_events=events, total_entries=2)
         )
         assert serialized_data == {
-            "dataset_events": [
+            "asset_events": [
                 {"id": 1, "timestamp": self.timestamp, **common},
                 {"id": 2, "timestamp": self.timestamp, **common},
             ],

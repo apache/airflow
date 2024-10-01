@@ -164,7 +164,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     );
 
   const {
-    data: { datasetEvents: upstreamDatasetEvents = [] },
+    data: { datasetEvents: upstreamAssetEvents = [] },
   } = useUpstreamAssetEvents({
     dagId,
     dagRunId: selected.runId || "",
@@ -265,7 +265,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
         hoveredTaskState,
         isZoomedOut,
         datasetEvents: selected.runId
-          ? [...upstreamDatasetEvents, ...downstreamDatasetEvents]
+          ? [...upstreamAssetEvents, ...downstreamDatasetEvents]
           : [],
       }),
     [
@@ -277,7 +277,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
       groups,
       hoveredTaskState,
       isZoomedOut,
-      upstreamDatasetEvents,
+      upstreamAssetEvents,
       downstreamDatasetEvents,
     ]
   );

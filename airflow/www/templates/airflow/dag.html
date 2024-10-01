@@ -73,7 +73,7 @@
   <meta name="task_log_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_log_endpoint_get_log', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_', task_try_number='-1') }}">
   <meta name="task_xcom_entries_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_xcom_endpoint_get_xcom_entries', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_') }}">
   <meta name="task_xcom_entry_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_xcom_endpoint_get_xcom_entry', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_', xcom_key='_XCOM_KEY_') }}">
-  <meta name="upstream_dataset_events_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_run_endpoint_get_upstream_dataset_events', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_') }}">
+  <meta name="upstream_asset_events_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dag_run_endpoint_get_upstream_asset_events', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_') }}">
   <meta name="task_instance_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_get_task_instance', dag_id='_DAG_ID_', dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_') }}">
   <meta name="set_task_instance_note" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_set_task_instance_note', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_' ) }}">
   <meta name="set_mapped_task_instance_note" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_task_instance_endpoint_set_mapped_task_instance_note', dag_id=dag.dag_id, dag_run_id='_DAG_RUN_ID_', task_id='_TASK_ID_', map_index=0 ) }}">

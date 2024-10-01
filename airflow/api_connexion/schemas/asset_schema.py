@@ -150,14 +150,14 @@ class AssetEventSchema(SQLAlchemySchema):
 class AssetEventCollection(NamedTuple):
     """List of Asset events with meta."""
 
-    dataset_events: list[AssetEvent]
+    asset_events: list[AssetEvent]
     total_entries: int
 
 
 class AssetEventCollectionSchema(Schema):
     """Asset Event Collection Schema."""
 
-    dataset_events = fields.List(fields.Nested(AssetEventSchema))
+    asset_events = fields.List(fields.Nested(AssetEventSchema))
     total_entries = fields.Int()
 
 

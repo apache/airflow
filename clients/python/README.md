@@ -343,7 +343,7 @@ Class | Method | HTTP request | Description
 *DAGRunApi* | [**get_dag_run**](docs/DAGRunApi.md#get_dag_run) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id} | Get a DAG run
 *DAGRunApi* | [**get_dag_runs**](docs/DAGRunApi.md#get_dag_runs) | **GET** /dags/{dag_id}/dagRuns | List DAG runs
 *DAGRunApi* | [**get_dag_runs_batch**](docs/DAGRunApi.md#get_dag_runs_batch) | **POST** /dags/~/dagRuns/list | List DAG runs (batch)
-*DAGRunApi* | [**get_upstream_dataset_events**](docs/DAGRunApi.md#get_upstream_dataset_events) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents | Get dataset events for a DAG run
+*DAGRunApi* | [**get_upstream_asset_events**](docs/DAGRunApi.md#get_upstream_asset_events) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents | Get asset events for a DAG run
 *DAGRunApi* | [**post_dag_run**](docs/DAGRunApi.md#post_dag_run) | **POST** /dags/{dag_id}/dagRuns | Trigger a new DAG run
 *DAGRunApi* | [**set_dag_run_note**](docs/DAGRunApi.md#set_dag_run_note) | **PATCH** /dags/{dag_id}/dagRuns/{dag_run_id}/setNote | Update the DagRun note.
 *DAGRunApi* | [**update_dag_run_state**](docs/DAGRunApi.md#update_dag_run_state) | **PATCH** /dags/{dag_id}/dagRuns/{dag_run_id} | Modify a DAG run
@@ -351,7 +351,7 @@ Class | Method | HTTP request | Description
 *AssetApi* | [**get_asset**](docs/DatasetApi.md#get_asset) | **GET** /datasets/{uri} | Get an asset
 *AssetApi* | [**get_asset_events**](docs/DatasetApi.md#get_asset_events) | **GET** /datasets/events | Get asset events
 *DatasetApi* | [**get_assets**](docs/DatasetApi.md#get_assets) | **GET** /datasets | List assets
-*DatasetApi* | [**get_upstream_dataset_events**](docs/DatasetApi.md#get_upstream_dataset_events) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents | Get dataset events for a DAG run
+*DatasetApi* | [**get_upstream_asset_events**](docs/DatasetApi.md#get_upstream_asset_events) | **GET** /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents | Get dataset events for a DAG run
 *EventLogApi* | [**get_event_log**](docs/EventLogApi.md#get_event_log) | **GET** /eventLogs/{event_log_id} | Get a log entry
 *EventLogApi* | [**get_event_logs**](docs/EventLogApi.md#get_event_logs) | **GET** /eventLogs | List log entries
 *ImportErrorApi* | [**get_import_error**](docs/ImportErrorApi.md#get_import_error) | **GET** /importErrors/{import_error_id} | Get an import error

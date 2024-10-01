@@ -262,13 +262,13 @@ export interface paths {
       };
     };
   };
-  "/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents": {
+  "/dags/{dag_id}/dagRuns/{dag_run_id}/upstreamAssetEvents": {
     /**
      * Get datasets for a dag run.
      *
      * *New in version 2.4.0*
      */
-    get: operations["get_upstream_dataset_events"];
+    get: operations["get_upstream_asset_events"];
     parameters: {
       path: {
         /** The DAG ID. */
@@ -3595,7 +3595,7 @@ export interface operations {
    *
    * *New in version 2.4.0*
    */
-  get_upstream_dataset_events: {
+  get_upstream_asset_events: {
     parameters: {
       path: {
         /** The DAG ID. */
@@ -5633,8 +5633,8 @@ export type ClearDagRunVariables = CamelCasedPropertiesDeep<
   operations["clear_dag_run"]["parameters"]["path"] &
     operations["clear_dag_run"]["requestBody"]["content"]["application/json"]
 >;
-export type GetUpstreamDatasetEventsVariables = CamelCasedPropertiesDeep<
-  operations["get_upstream_dataset_events"]["parameters"]["path"]
+export type GetUpstreamAssetEventsVariables = CamelCasedPropertiesDeep<
+  operations["get_upstream_asset_events"]["parameters"]["path"]
 >;
 export type SetDagRunNoteVariables = CamelCasedPropertiesDeep<
   operations["set_dag_run_note"]["parameters"]["path"] &

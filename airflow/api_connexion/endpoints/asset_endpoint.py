@@ -149,7 +149,7 @@ def get_asset_events(
     query = apply_sorting(query, order_by, {}, allowed_attrs)
     events = session.scalars(query.offset(offset).limit(limit)).all()
     return asset_event_collection_schema.dump(
-        AssetEventCollection(dataset_events=events, total_entries=total_entries)
+        AssetEventCollection(asset_events=events, total_entries=total_entries)
     )
 
 
