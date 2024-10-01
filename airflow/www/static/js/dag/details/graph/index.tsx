@@ -33,7 +33,7 @@ import ReactFlow, {
 import {
   useDagDetails,
   useAssetEvents,
-  useDatasets,
+  useAssets,
   useGraphData,
   useGridData,
   useUpstreamAssetEvents,
@@ -150,7 +150,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     setArrange(data?.arrange || "LR");
   }, [data?.arrange]);
 
-  const { data: datasetsCollection } = useDatasets({
+  const { data: datasetsCollection } = useAssets({
     dagIds: [dagId],
   });
 

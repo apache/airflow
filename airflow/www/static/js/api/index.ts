@@ -32,7 +32,7 @@ import useMarkTaskDryRun from "./useMarkTaskDryRun";
 import useGraphData from "./useGraphData";
 import useGridData from "./useGridData";
 import useMappedInstances from "./useMappedInstances";
-import useDatasets from "./useDatasets";
+import useAssets from "./useAssets";
 import useAssetsSummary from "./useAssetsSummary";
 import useDataset from "./useDataset";
 import useAssetDependencies from "./useAssetDependencies";
@@ -86,7 +86,7 @@ export {
   useDagRuns,
   useDags,
   useDataset,
-  useDatasets,
+  useAssets,
   useAssetDependencies,
   useAssetEvents,
   useAssetsSummary,

@@ -28,7 +28,7 @@ interface Props {
   enabled?: boolean;
 }
 
-export default function useDatasets({ dagIds, enabled = true }: Props) {
+export default function useAssets({ dagIds, enabled = true }: Props) {
   return useQuery(
     ["datasets", dagIds],
     () => {
