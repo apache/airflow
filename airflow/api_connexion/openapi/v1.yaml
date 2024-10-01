@@ -1248,7 +1248,7 @@ paths:
   /dags/{dag_id}/datasets/queuedEvent/{uri}:
     parameters:
       - $ref: "#/components/parameters/DAGID"
-      - $ref: "#/components/parameters/DatasetURI"
+      - $ref: "#/components/parameters/AssetURI"
 
     get:
       summary: Get a queued Dataset event for a DAG
@@ -1373,7 +1373,7 @@ paths:
 
   /datasets/queuedEvent/{uri}:
     parameters:
-      - $ref: "#/components/parameters/DatasetURI"
+      - $ref: "#/components/parameters/AssetURI"
 
     get:
       summary: Get queued Asset events for an Asset.
@@ -2557,7 +2557,7 @@ paths:
 
   /datasets/{uri}:
     parameters:
-      - $ref: "#/components/parameters/DatasetURI"
+      - $ref: "#/components/parameters/AssetURI"
     get:
       summary: Get a dataset
       description: Get a dataset by uri.
@@ -5545,14 +5545,14 @@ components:
       required: true
       description: The import error ID.
 
-    DatasetURI:
+    AssetURI:
       in: path
       name: uri
       schema:
         type: string
         format: path
       required: true
-      description: The encoded Dataset URI
+      description: The encoded Asset URI
 
     PoolName:
       in: path
