@@ -218,6 +218,32 @@ class TestDBCleanup:
             for row in res:
                 assert row[0] == expected_to_delete
 
+            # validate the query and delete statements
+            if table_name == "task_instance":
+                assert str(query).replace("\n", "") == (
+                    "SELECT base.* FROM task_instance AS base WHERE base.start_date < ?"
+                )
+                assert str(delete_stmt).replace("\n", "") == (
+                    "DELETE FROM task_instance AS base WHERE base.start_date < :start_date_1"
+                )
+            if table_name == "dag_run":
+                assert str(query).replace("\n", "") == (
+                    "SELECT base.*"
+                    " FROM dag_run AS base LEFT OUTER JOIN (SELECT dag_id, max(dag_run.start_date) AS max_date_per_group"
+                    " FROM dag_run"
+                    " WHERE external_trigger = 0 GROUP BY dag_id) AS latest "
+                    "ON base.dag_id = latest.dag_id AND base.start_date = max_date_per_group"
+                    " WHERE base.start_date < ? AND max_date_per_group IS NULL"
+                )
+                assert str(delete_stmt).replace("\n", "") == (
+                    "DELETE FROM dag_run AS base WHERE NOT (EXISTS (SELECT latest.dag_id, latest.max_date_per_group"
+                    " FROM (SELECT dag_id, max(dag_run.start_date) AS max_date_per_group"
+                    " FROM dag_run"
+                    " WHERE external_trigger = false GROUP BY dag_id) AS latest"
+                    " WHERE base.dag_id = latest.dag_id AND base.start_date = max_date_per_group)) "
+                    "AND base.start_date < :start_date_1"
+                )
+
     @pytest.mark.parametrize(
         "table_name, date_add_kwargs, expected_to_delete, external_trigger",
         [
