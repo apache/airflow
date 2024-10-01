@@ -38,16 +38,15 @@ if TYPE_CHECKING:
 class YDBCursor:
     """YDB cursor wrapper."""
 
-    def __init__(self, delegatee: DbApiCursor, is_ddl: bool, use_scan_query: bool):
+    def __init__(self, delegatee: DbApiCursor, is_ddl: bool):
         self.delegatee: DbApiCursor = delegatee
         self.is_ddl: bool = is_ddl
-        self.use_scan_query: bool = use_scan_query
 
     def execute(self, sql: str, parameters: Mapping[str, Any] | None = None):
         if parameters is not None:
             raise AirflowException("parameters is not supported yet")
 
-        q = YdbQuery(yql_text=sql, is_ddl=self.is_ddl, use_scan_query=self.use_scan_query)
+        q = YdbQuery(yql_text=sql, is_ddl=self.is_ddl)
         return self.delegatee.execute(q, parameters)
 
     def executemany(self, sql: str, seq_of_parameters: Sequence[Mapping[str, Any]]):
@@ -100,9 +99,10 @@ class YDBConnection:
         self.is_ddl = is_ddl
         self.use_scan_query = use_scan_query
         self.delegatee: DbApiConnection = DbApiConnection(ydb_session_pool=ydb_session_pool)
+        self.delegatee.set_ydb_scan_query(use_scan_query)
 
     def cursor(self) -> YDBCursor:
-        return YDBCursor(self.delegatee.cursor(), is_ddl=self.is_ddl, use_scan_query=self.use_scan_query)
+        return YDBCursor(self.delegatee.cursor(), is_ddl=self.is_ddl)
 
     def begin(self) -> None:
         self.delegatee.begin()

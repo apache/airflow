@@ -1,11 +1,10 @@
 import collections.abc
-from collections.abc import AsyncIterator
 import dataclasses
 import functools
 import hashlib
 import itertools
-import logging
 import posixpath
+from collections.abc import AsyncIterator
 from typing import (
     Any,
     Dict,
@@ -31,8 +30,6 @@ from .errors import (
     ProgrammingError,
 )
 
-logger = logging.getLogger(__name__)
-
 
 def get_column_type(type_obj: Any) -> str:
     return str(ydb.convert.type_to_native(type_obj))
@@ -45,7 +42,6 @@ class YdbQuery:
         default_factory=dict
     )
     is_ddl: bool = False
-    use_scan_query: bool = False
 
 
 def _handle_ydb_errors(func):
@@ -92,12 +88,14 @@ class Cursor:
         session_pool: Union[ydb.SessionPool, ydb.aio.SessionPool],
         tx_mode: ydb.AbstractTransactionModeBuilder,
         tx_context: Optional[ydb.BaseTxContext] = None,
+        use_scan_query: bool = False,
         table_path_prefix: str = "",
     ):
         self.driver = driver
         self.session_pool = session_pool
         self.tx_mode = tx_mode
         self.tx_context = tx_context
+        self.use_scan_query = use_scan_query
         self.description = None
         self.arraysize = 1
         self.rows = None
@@ -130,10 +128,9 @@ class Cursor:
     def execute(self, operation: YdbQuery, parameters: Optional[Mapping[str, Any]] = None):
         query = self._get_ydb_query(operation)
 
-        logger.info("execute sql: %s, params: %s", query, parameters)
         if operation.is_ddl:
             chunks = self._execute_ddl(query)
-        elif operation.use_scan_query:
+        elif self.use_scan_query:
             chunks = self._execute_scan_query(query, parameters)
         else:
             chunks = self._execute_dml(query, parameters)
@@ -303,7 +300,7 @@ class Cursor:
         return self.execute(script)
 
     def fetchone(self):
-        return next(self.rows or [], None)
+        return next(self.rows or iter([]), None)
 
     def fetchmany(self, size=None):
         return list(itertools.islice(self.rows, size or self.arraysize))

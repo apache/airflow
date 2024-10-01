@@ -57,10 +57,11 @@ class Connection:
         self.interactive_transaction: bool = False  # AUTOCOMMIT
         self.tx_mode: ydb.AbstractTransactionModeBuilder = ydb.SerializableReadWrite()
         self.tx_context: Optional[ydb.TxContext] = None
+        self.use_scan_query: bool = False
 
     def cursor(self):
         return self._cursor_class(
-            self.driver, self.session_pool, self.tx_mode, self.tx_context, self.table_path_prefix
+            self.driver, self.session_pool, self.tx_mode, self.tx_context, self.use_scan_query, self.table_path_prefix
         )
 
     def describe(self, table_path: str) -> ydb.TableDescription:
@@ -116,6 +117,12 @@ class Connection:
             return IsolationLevel.SNAPSHOT_READONLY
         else:
             raise NotSupportedError(f"{self.tx_mode.name} is not supported")
+
+    def set_ydb_scan_query(self, value: bool) -> None:
+        self.use_scan_query = value
+
+    def get_ydb_scan_query(self) -> bool:
+        return self.use_scan_query
 
     def begin(self):
         self.tx_context = None
