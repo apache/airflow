@@ -24,7 +24,7 @@ from asyncio import AbstractEventLoop, Semaphore, ensure_future, iscoroutinefunc
 from contextlib import contextmanager
 from math import ceil
 from time import sleep
-from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, cast
 
 from airflow import XComArg
 from airflow.exceptions import (
@@ -275,7 +275,7 @@ class StreamedOperator(BaseOperator):
         return self._run_futures(context, failed_futures, results)
 
     async def _run_task(self, context: Context, task_instance: TaskInstance):
-        operator = task_instance.task
+        operator: BaseOperator = cast(BaseOperator, task_instance.task)
         self.log.debug("operator: %s", operator)
         result = await OperatorExecutor(
             semaphore=self._semaphore,
