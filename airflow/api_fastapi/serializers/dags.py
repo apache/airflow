@@ -30,7 +30,6 @@ from pydantic import (
 )
 
 from airflow.configuration import conf
-from airflow.models.param import Param
 from airflow.serialization.pydantic.dag import DagTagPydantic
 
 
@@ -139,13 +138,15 @@ class DAGDetailsResponse(DAGResponse):
             return None
         return {param_name: param_val.serialize() for param_name, param_val in params.items()}
 
-    @computed_field
+    # Mypy issue https://github.com/python/mypy/issues/1362
+    @computed_field  # type: ignore[misc]
     @property
     def concurrency(self) -> int:
         """Return max_active_tasks as concurrency."""
         return self.max_active_tasks
 
-    @computed_field
+    # Mypy issue https://github.com/python/mypy/issues/1362
+    @computed_field  # type: ignore[misc]
     @property
     def last_parsed(self) -> datetime | None:
         """Return last_loaded as last_parsed."""
