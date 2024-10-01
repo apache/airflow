@@ -46,7 +46,7 @@ async def historical_metrics_data(
     start_date: str,
     end_date: str,
     session: Annotated[Session, Depends(get_session)],
-):
+) -> dict:
     """Return cluster activity historical metrics."""
     safe_start_date: datetime | None = _safe_parse_datetime(start_date)
     safe_end_date: datetime | None = _safe_parse_datetime(end_date)
