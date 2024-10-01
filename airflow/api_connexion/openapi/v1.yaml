@@ -4595,7 +4595,7 @@ components:
       allOf:
         - type: object
           properties:
-            datasets:
+            assets:
               type: array
               items:
                 $ref: "#/components/schemas/Asset"

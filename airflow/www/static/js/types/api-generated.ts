@@ -294,7 +294,7 @@ export interface paths {
       };
     };
   };
-  "/dags/{dag_id}/datasets/queuedEvent/{uri}": {
+  "/dags/{dag_id}/assets/queuedEvent/{uri}": {
     /**
      * Get a queued asset event for a DAG.
      *
@@ -316,7 +316,7 @@ export interface paths {
       };
     };
   };
-  "/dags/{dag_id}/datasets/queuedEvent": {
+  "/dags/{dag_id}/assets/queuedEvent": {
     /**
      * Get queued Asset events for a DAG.
      *
@@ -350,7 +350,7 @@ export interface paths {
       };
     };
   };
-  "/datasets/queuedEvent/{uri}": {
+  "/assets/queuedEvent/{uri}": {
     /**
      * Get queued Asset events for an Asset
      *
@@ -782,10 +782,10 @@ export interface paths {
   "/dagWarnings": {
     get: operations["get_dag_warnings"];
   };
-  "/datasets": {
+  "/assets": {
     get: operations["get_assets"];
   };
-  "/datasets/{uri}": {
+  "/assets/{uri}": {
     /** Get an asset by uri. */
     get: operations["get_asset"];
     parameters: {
@@ -795,7 +795,7 @@ export interface paths {
       };
     };
   };
-  "/datasets/events": {
+  "/assets/events": {
     /** Get asset events */
     get: operations["get_asset_events"];
     /** Create asset event */
@@ -1647,7 +1647,7 @@ export interface components {
        */
       start_date?: string | null;
       dag_run_timeout?: components["schemas"]["TimeDelta"] | null;
-      /** @description Nested dataset any/all conditions */
+      /** @description Nested asset any/all conditions */
       dataset_expression?: { [key: string]: unknown } | null;
       doc_md?: string | null;
       default_view?: string | null;
@@ -1875,7 +1875,7 @@ export interface components {
       dag_id?: string | null;
       /** @description The task ID that updates the asset. */
       task_id?: string | null;
-      /** @description The dataset creation time */
+      /** @description The asset creation time */
       created_at?: string;
       /** @description The asset update time */
       updated_at?: string;
@@ -1899,7 +1899,7 @@ export interface components {
      * *New in version 2.4.0*
      */
     AssetCollection: {
-      datasets?: components["schemas"]["Asset"][];
+      assets?: components["schemas"]["Asset"][];
     } & components["schemas"]["CollectionInfo"];
     /**
      * @description An asset event.
@@ -1932,7 +1932,7 @@ export interface components {
       extra?: { [key: string]: unknown } | null;
     };
     QueuedEvent: {
-      /** @description The datata uri. */
+      /** @description The asset uri. */
       uri?: string;
       /** @description The DAG ID. */
       dag_id?: string;
@@ -1948,7 +1948,7 @@ export interface components {
      * *New in version 2.9.0*
      */
     QueuedEventCollection: {
-      datasets?: components["schemas"]["QueuedEvent"][];
+      queued_events?: components["schemas"]["QueuedEvent"][];
     } & components["schemas"]["CollectionInfo"];
     BasicDAGRun: {
       /** @description Run ID. */

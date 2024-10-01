@@ -185,11 +185,11 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   if (showDatasets) {
     datasetNodes = [...upstreamDatasetNodes];
     datasetEdges = [...upstreamDatasetEdges];
-    datasetsCollection?.datasets?.forEach((dataset) => {
-      const producingTask = dataset?.producingTasks?.find(
+    datasetsCollection?.assets?.forEach((asset) => {
+      const producingTask = asset?.producingTasks?.find(
         (t) => t.dagId === dagId
       );
-      if (dataset.uri) {
+      if (asset.uri) {
         // check that the task is in the graph
         if (
           producingTask?.taskId &&
@@ -197,13 +197,13 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
         ) {
           datasetEdges.push({
             sourceId: producingTask.taskId,
-            targetId: dataset.uri,
+            targetId: asset.uri,
           });
           datasetNodes.push({
-            id: dataset.uri,
+            id: asset.uri,
             value: {
               class: "asset",
-              label: dataset.uri,
+              label: asset.uri,
             },
           });
         }
@@ -335,7 +335,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
         >
           <Panel position="top-right">
             <Box bg={colors.whiteAlpha[800]} p={1}>
-              {!!datasetsCollection?.datasets?.length && (
+              {!!datasetsCollection?.assets?.length && (
                 <Flex display="flex" alignItems="center">
                   <Text fontSize="sm" mr={1}>
                     Show datasets:
