@@ -40,6 +40,7 @@ log = logging.getLogger(__name__)
 async def run_trigger(trigger: BaseTrigger) -> TriggerEvent | None:
     async for event in trigger.run():
         return event
+    return None
 
 
 @dataclass
