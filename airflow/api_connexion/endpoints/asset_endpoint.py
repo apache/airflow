@@ -109,7 +109,7 @@ def get_assets(
         .offset(offset)
         .limit(limit)
     ).all()
-    return asset_collection_schema.dump(AssetCollection(datasets=assets, total_entries=total_entries))
+    return asset_collection_schema.dump(AssetCollection(assets=assets, total_entries=total_entries))
 
 
 @security.requires_access_asset("GET")

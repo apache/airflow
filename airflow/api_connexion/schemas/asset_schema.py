@@ -93,14 +93,14 @@ class AssetSchema(SQLAlchemySchema):
 class AssetCollection(NamedTuple):
     """List of Assets with meta."""
 
-    datasets: list[AssetModel]
+    assets: list[AssetModel]
     total_entries: int
 
 
 class AssetCollectionSchema(Schema):
     """Asset Collection Schema."""
 
-    datasets = fields.List(fields.Nested(AssetSchema))
+    assets = fields.List(fields.Nested(AssetSchema))
     total_entries = fields.Int()
 
 

@@ -36,7 +36,7 @@ export default function useAssets({ dagIds, enabled = true }: Props) {
       const dagIdsParam =
         dagIds && dagIds.length ? { dag_ids: dagIds.join(",") } : {};
 
-      return axios.get<AxiosResponse, API.DatasetCollection>(datasetsUrl, {
+      return axios.get<AxiosResponse, API.AssetCollection>(datasetsUrl, {
         params: {
           ...dagIdsParam,
         },

@@ -2549,7 +2549,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/DatasetCollection"
+                $ref: "#/components/schemas/AssetCollection"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
@@ -4586,9 +4586,9 @@ components:
           description: The dataset reference update time
           nullable: false
 
-    DatasetCollection:
+    AssetCollection:
       description: |
-        A collection of datasets.
+        A collection of assets.
 
         *New in version 2.4.0*
       type: object

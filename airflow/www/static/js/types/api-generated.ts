@@ -1898,7 +1898,7 @@ export interface components {
      *
      * *New in version 2.4.0*
      */
-    DatasetCollection: {
+    AssetCollection: {
       datasets?: components["schemas"]["Dataset"][];
     } & components["schemas"]["CollectionInfo"];
     /**
@@ -5073,7 +5073,7 @@ export interface operations {
       /** Success. */
       200: {
         content: {
-          "application/json": components["schemas"]["DatasetCollection"];
+          "application/json": components["schemas"]["AssetCollection"];
         };
       };
       401: components["responses"]["Unauthenticated"];
@@ -5431,8 +5431,8 @@ export type TaskOutletDatasetReference = CamelCasedPropertiesDeep<
 export type DagScheduleDatasetReference = CamelCasedPropertiesDeep<
   components["schemas"]["DagScheduleDatasetReference"]
 >;
-export type DatasetCollection = CamelCasedPropertiesDeep<
-  components["schemas"]["DatasetCollection"]
+export type AssetCollection = CamelCasedPropertiesDeep<
+  components["schemas"]["AssetCollection"]
 >;
 export type DatasetEvent = CamelCasedPropertiesDeep<
   components["schemas"]["DatasetEvent"]
