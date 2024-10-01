@@ -77,7 +77,7 @@ async def next_run_assets(
                 ),
                 isouter=True,
             )
-            .where(DagScheduleAssetReference.dag_id == dag_id, ~AssetModel.is_orphaned)
+            .where(DagScheduleAssetReference.dag_id == dag_id, AssetModel.active.any())
             .group_by(AssetModel.id, AssetModel.uri)
             .order_by(AssetModel.uri)
         )
