@@ -83,7 +83,7 @@ core:
       version_added: 2.7.0
       type: string
       example: ~
-      default: "airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager"
+      default: "airflow.auth.managers.simple.simple_auth_manager.SimpleAuthManager"
     parallelism:
       description: |
         This defines the maximum number of task instances that can run concurrently per scheduler in
