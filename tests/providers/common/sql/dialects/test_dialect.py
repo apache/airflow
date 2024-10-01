@@ -21,7 +21,7 @@ from unittest.mock import MagicMock
 
 from sqlalchemy.engine import Inspector
 
-from airflow.providers.common.sql.hooks.dialect import Dialect
+from airflow.providers.common.sql.dialects.dialect import Dialect
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
