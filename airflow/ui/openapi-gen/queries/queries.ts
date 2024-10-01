@@ -21,8 +21,8 @@ import * as Common from "./common";
  * @returns unknown Successful Response
  * @throws ApiError
  */
-export const useAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGet = <
-  TData = Common.AssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetDefaultResponse,
+export const useAssetServiceNextRunAssets = <
+  TData = Common.AssetServiceNextRunAssetsDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -35,12 +35,8 @@ export const useAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGet = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGetKeyFn(
-      { dagId },
-      queryKey,
-    ),
-    queryFn: () =>
-      AssetService.nextRunAssetsUiNextRunDatasetsDagIdGet({ dagId }) as TData,
+    queryKey: Common.UseAssetServiceNextRunAssetsKeyFn({ dagId }, queryKey),
+    queryFn: () => AssetService.nextRunAssets({ dagId }) as TData,
     ...options,
   });
 /**
@@ -60,8 +56,8 @@ export const useAssetServiceNextRunAssetsUiNextRunDatasetsDagIdGet = <
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useDagServiceGetDagsPublicDagsGet = <
-  TData = Common.DagServiceGetDagsPublicDagsGetDefaultResponse,
+export const useDagServiceGetDags = <
+  TData = Common.DagServiceGetDagsDefaultResponse,
   TError = unknown,
   TQueryKey extends Array<unknown> = unknown[],
 >(
@@ -92,7 +88,7 @@ export const useDagServiceGetDagsPublicDagsGet = <
   options?: Omit<UseQueryOptions<TData, TError>, "queryKey" | "queryFn">,
 ) =>
   useQuery<TData, TError>({
-    queryKey: Common.UseDagServiceGetDagsPublicDagsGetKeyFn(
+    queryKey: Common.UseDagServiceGetDagsKeyFn(
       {
         dagDisplayNamePattern,
         dagIdPattern,
@@ -108,7 +104,7 @@ export const useDagServiceGetDagsPublicDagsGet = <
       queryKey,
     ),
     queryFn: () =>
-      DagService.getDagsPublicDagsGet({
+      DagService.getDags({
         dagDisplayNamePattern,
         dagIdPattern,
         lastDagRunState,
@@ -139,8 +135,8 @@ export const useDagServiceGetDagsPublicDagsGet = <
  * @returns DAGCollectionResponse Successful Response
  * @throws ApiError
  */
-export const useDagServicePatchDagsPublicDagsPatch = <
-  TData = Common.DagServicePatchDagsPublicDagsPatchMutationResult,
+export const useDagServicePatchDags = <
+  TData = Common.DagServicePatchDagsMutationResult,
   TError = unknown,
   TContext = unknown,
 >(
@@ -194,7 +190,7 @@ export const useDagServicePatchDagsPublicDagsPatch = <
       tags,
       updateMask,
     }) =>
-      DagService.patchDagsPublicDagsPatch({
+      DagService.patchDags({
         dagIdPattern,
         lastDagRunState,
         limit,
@@ -218,8 +214,8 @@ export const useDagServicePatchDagsPublicDagsPatch = <
  * @returns DAGResponse Successful Response
  * @throws ApiError
  */
-export const useDagServicePatchDagPublicDagsDagIdPatch = <
-  TData = Common.DagServicePatchDagPublicDagsDagIdPatchMutationResult,
+export const useDagServicePatchDag = <
+  TData = Common.DagServicePatchDagMutationResult,
   TError = unknown,
   TContext = unknown,
 >(
@@ -248,7 +244,7 @@ export const useDagServicePatchDagPublicDagsDagIdPatch = <
     TContext
   >({
     mutationFn: ({ dagId, requestBody, updateMask }) =>
-      DagService.patchDagPublicDagsDagIdPatch({
+      DagService.patchDag({
         dagId,
         requestBody,
         updateMask,

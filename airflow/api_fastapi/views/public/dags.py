@@ -17,7 +17,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import Depends, HTTPException, Query
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
@@ -42,9 +42,10 @@ from airflow.api_fastapi.parameters import (
     SortParam,
 )
 from airflow.api_fastapi.serializers.dags import DAGCollectionResponse, DAGPatchBody, DAGResponse
+from airflow.api_fastapi.views.router import AirflowRouter
 from airflow.models import DagModel
 
-dags_router = APIRouter(tags=["DAG"])
+dags_router = AirflowRouter(tags=["DAG"])
 
 
 @dags_router.get("/dags")

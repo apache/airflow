@@ -30,7 +30,7 @@ The one on DatasetModel is already renamed in this PR (to include name), so we
 also rename the one on DatasetAliasModel here for consistency.
 
 Revision ID: 0d9e73a75ee4
-Revises: 16cbcb1c8c36
+Revises: 44eabb1904b4
 Create Date: 2024-08-13 09:45:32.213222
 """
 
@@ -42,7 +42,7 @@ from sqlalchemy.orm import Session
 
 # revision identifiers, used by Alembic.
 revision = "0d9e73a75ee4"
-down_revision = "16cbcb1c8c36"
+down_revision = "44eabb1904b4"
 branch_labels = None
 depends_on = None
 airflow_version = "3.0.0"

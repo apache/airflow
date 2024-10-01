@@ -88,15 +88,15 @@ export type ValidationError = {
   type: string;
 };
 
-export type NextRunAssetsUiNextRunDatasetsDagIdGetData = {
+export type NextRunAssetsData = {
   dagId: string;
 };
 
-export type NextRunAssetsUiNextRunDatasetsDagIdGetResponse = {
+export type NextRunAssetsResponse = {
   [key: string]: unknown;
 };
 
-export type GetDagsPublicDagsGetData = {
+export type GetDagsData = {
   dagDisplayNamePattern?: string | null;
   dagIdPattern?: string | null;
   lastDagRunState?: DagRunState | null;
@@ -109,9 +109,9 @@ export type GetDagsPublicDagsGetData = {
   tags?: Array<string>;
 };
 
-export type GetDagsPublicDagsGetResponse = DAGCollectionResponse;
+export type GetDagsResponse = DAGCollectionResponse;
 
-export type PatchDagsPublicDagsPatchData = {
+export type PatchDagsData = {
   dagIdPattern?: string | null;
   lastDagRunState?: DagRunState | null;
   limit?: number;
@@ -124,15 +124,15 @@ export type PatchDagsPublicDagsPatchData = {
   updateMask?: Array<string> | null;
 };
 
-export type PatchDagsPublicDagsPatchResponse = DAGCollectionResponse;
+export type PatchDagsResponse = DAGCollectionResponse;
 
-export type PatchDagPublicDagsDagIdPatchData = {
+export type PatchDagData = {
   dagId: string;
   requestBody: DAGPatchBody;
   updateMask?: Array<string> | null;
 };
 
-export type PatchDagPublicDagsDagIdPatchResponse = DAGResponse;
+export type PatchDagResponse = DAGResponse;
 
 export type DeleteConnectionPublicConnectionsConnectionIdDeleteData = {
   connectionId: string;
@@ -143,7 +143,7 @@ export type DeleteConnectionPublicConnectionsConnectionIdDeleteResponse = void;
 export type $OpenApiTs = {
   "/ui/next_run_datasets/{dag_id}": {
     get: {
-      req: NextRunAssetsUiNextRunDatasetsDagIdGetData;
+      req: NextRunAssetsData;
       res: {
         /**
          * Successful Response
@@ -160,7 +160,7 @@ export type $OpenApiTs = {
   };
   "/public/dags": {
     get: {
-      req: GetDagsPublicDagsGetData;
+      req: GetDagsData;
       res: {
         /**
          * Successful Response
@@ -173,7 +173,7 @@ export type $OpenApiTs = {
       };
     };
     patch: {
-      req: PatchDagsPublicDagsPatchData;
+      req: PatchDagsData;
       res: {
         /**
          * Successful Response
@@ -204,7 +204,7 @@ export type $OpenApiTs = {
   };
   "/public/dags/{dag_id}": {
     patch: {
-      req: PatchDagPublicDagsDagIdPatchData;
+      req: PatchDagData;
       res: {
         /**
          * Successful Response

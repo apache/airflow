@@ -1394,7 +1394,7 @@
 <polygon fill="none" stroke="black" points="929.5,-2496 929.5,-2521 1195.5,-2521 1195.5,-2496 929.5,-2496"/>
 <text text-anchor="start" x="934.5" y="-2505.8" font-family="Helvetica,sans-Serif" font-size="14.00">user_id</text>
 <text text-anchor="start" x="985.5" y="-2505.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="990.5" y="-2505.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
+<text text-anchor="start" x="990.5" y="-2505.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(100)]</text>
 </g>
 <!-- dag_run&#45;&#45;dag_run_note -->
 <g id="edge25" class="edge">
@@ -1813,7 +1813,7 @@
 <polygon fill="none" stroke="black" points="1348,-2493 1348,-2518 1614,-2518 1614,-2493 1348,-2493"/>
 <text text-anchor="start" x="1353" y="-2502.8" font-family="Helvetica,sans-Serif" font-size="14.00">user_id</text>
 <text text-anchor="start" x="1404" y="-2502.8" font-family="Helvetica,sans-Serif" font-size="14.00"> </text>
-<text text-anchor="start" x="1409" y="-2502.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [INTEGER]</text>
+<text text-anchor="start" x="1409" y="-2502.8" font-family="Helvetica,sans-Serif" font-size="14.00"> [VARCHAR(100)]</text>
 </g>
 <!-- task_instance&#45;&#45;task_instance_note -->
 <g id="edge49" class="edge">

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/consistent-type-definitions */
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -18,3 +19,11 @@
  */
 
 /// <reference types="vite/client" />
+
+interface ImportMetaEnv {
+  readonly VITE_FASTAPI_URL: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}

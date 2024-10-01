@@ -37,8 +37,10 @@ import {
   FiSun,
 } from "react-icons/fi";
 
-import { AirflowPin } from "../assets/AirflowPin";
-import { DagIcon } from "../assets/DagIcon";
+import { AirflowPin } from "src/assets/AirflowPin";
+import { DagIcon } from "src/assets/DagIcon";
+
+import { DocsButton } from "./DocsButton";
 import { NavButton } from "./NavButton";
 
 export const Nav = () => {
@@ -78,7 +80,7 @@ export const Nav = () => {
         <NavButton
           icon={<FiDatabase size="1.75rem" />}
           isDisabled
-          title="Datasets"
+          title="Assets"
         />
         <NavButton
           icon={<FiBarChart2 size="1.75rem" />}
@@ -103,6 +105,7 @@ export const Nav = () => {
           icon={<FiCornerUpLeft size="1.5rem" />}
           title="Return to legacy UI"
         />
+        <DocsButton />
         <NavButton
           icon={
             colorMode === "light" ? (
