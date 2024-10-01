@@ -145,19 +145,21 @@ class OperatorExecutor(LoggingMixin):
 
                     raise AirflowRescheduleTaskInstanceException(task_instance=self.task_instance)
 
-    async def run_deferrable(self, context: Context, task_deferred: TaskDeferred):
+    async def _run_deferrable(self, context: Context, task_deferred: TaskDeferred):
         event = await run_trigger(task_deferred.trigger)
 
         self.log.debug("event: %s", event)
-        self.log.debug("next_method: %s", task_deferred.method_name)
 
-        if task_deferred.method_name:
-            next_method = BaseOperator.next_callable(
-                self.operator, task_deferred.method_name, task_deferred.kwargs
-            )
-            result = next_method(context, event.payload)
-            self.log.debug("result: %s", result)
-            return result
+        if event:
+            self.log.debug("next_method: %s", task_deferred.method_name)
+
+            if task_deferred.method_name:
+                next_method = BaseOperator.next_callable(
+                    self.operator, task_deferred.method_name, task_deferred.kwargs
+                )
+                result = next_method(context, event.payload)
+                self.log.debug("result: %s", result)
+                return result
 
     async def run(self, method: Callable, *args, **kwargs):
         self.operator.pre_execute(context=self.context)
@@ -166,7 +168,7 @@ class OperatorExecutor(LoggingMixin):
         try:
             return await self._run_callable(method, *(list(args or ()) + [self.context]), **kwargs)
         except TaskDeferred as task_deferred:
-            return await self._run_callable(self.run_deferrable, *[self.context, task_deferred])
+            return await self._run_callable(self._run_deferrable, *[self.context, task_deferred])
         finally:
             self.operator.post_execute(context=self.context)
 
