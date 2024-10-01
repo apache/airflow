@@ -259,35 +259,34 @@ export const useDagServicePatchDag = <
  * @returns void Successful Response
  * @throws ApiError
  */
-export const useConnectionServiceDeleteConnectionPublicConnectionsConnectionIdDelete =
-  <
-    TData = Common.ConnectionServiceDeleteConnectionPublicConnectionsConnectionIdDeleteMutationResult,
-    TError = unknown,
-    TContext = unknown,
-  >(
-    options?: Omit<
-      UseMutationOptions<
-        TData,
-        TError,
-        {
-          connectionId: string;
-        },
-        TContext
-      >,
-      "mutationFn"
-    >,
-  ) =>
-    useMutation<
+export const useConnectionServiceDeleteConnection = <
+  TData = Common.ConnectionServiceDeleteConnectionMutationResult,
+  TError = unknown,
+  TContext = unknown,
+>(
+  options?: Omit<
+    UseMutationOptions<
       TData,
       TError,
       {
         connectionId: string;
       },
       TContext
-    >({
-      mutationFn: ({ connectionId }) =>
-        ConnectionService.deleteConnectionPublicConnectionsConnectionIdDelete({
-          connectionId,
-        }) as unknown as Promise<TData>,
-      ...options,
-    });
+    >,
+    "mutationFn"
+  >,
+) =>
+  useMutation<
+    TData,
+    TError,
+    {
+      connectionId: string;
+    },
+    TContext
+  >({
+    mutationFn: ({ connectionId }) =>
+      ConnectionService.deleteConnection({
+        connectionId,
+      }) as unknown as Promise<TData>,
+    ...options,
+  });

@@ -325,7 +325,7 @@ paths:
       - Connection
       summary: Delete Connection
       description: Delete a connection entry.
-      operationId: delete_connection_public_connections__connection_id__delete
+      operationId: delete_connection
       parameters:
       - name: connection_id
         in: path

@@ -134,11 +134,11 @@ export type PatchDagData = {
 
 export type PatchDagResponse = DAGResponse;
 
-export type DeleteConnectionPublicConnectionsConnectionIdDeleteData = {
+export type DeleteConnectionData = {
   connectionId: string;
 };
 
-export type DeleteConnectionPublicConnectionsConnectionIdDeleteResponse = void;
+export type DeleteConnectionResponse = void;
 
 export type $OpenApiTs = {
   "/ui/next_run_datasets/{dag_id}": {
@@ -235,7 +235,7 @@ export type $OpenApiTs = {
   };
   "/public/connections/{connection_id}": {
     delete: {
-      req: DeleteConnectionPublicConnectionsConnectionIdDeleteData;
+      req: DeleteConnectionData;
       res: {
         /**
          * Successful Response

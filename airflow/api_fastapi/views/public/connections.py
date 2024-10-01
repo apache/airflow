@@ -16,16 +16,17 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
 from airflow.api_fastapi.db.common import get_session
 from airflow.api_fastapi.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.views.router import AirflowRouter
 from airflow.models import Connection
 
-connections_router = APIRouter(tags=["Connection"])
+connections_router = AirflowRouter(tags=["Connection"])
 
 
 @connections_router.delete(

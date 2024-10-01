@@ -80,9 +80,6 @@ export type DagServicePatchDagsMutationResult = Awaited<
 export type DagServicePatchDagMutationResult = Awaited<
   ReturnType<typeof DagService.patchDag>
 >;
-export type ConnectionServiceDeleteConnectionPublicConnectionsConnectionIdDeleteMutationResult =
-  Awaited<
-    ReturnType<
-      typeof ConnectionService.deleteConnectionPublicConnectionsConnectionIdDelete
-    >
-  >;
+export type ConnectionServiceDeleteConnectionMutationResult = Awaited<
+  ReturnType<typeof ConnectionService.deleteConnection>
+>;
