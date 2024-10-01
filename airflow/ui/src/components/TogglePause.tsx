@@ -16,19 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 import { Switch } from "@chakra-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { useCallback } from "react";
 
-import { useTableURLState } from "./DataTable/useTableUrlState";
 import {
-  type DagServiceGetDagsPublicDagsGetDefaultResponse,
-  type DagServicePatchDagPublicDagsDagIdPatchMutationResult,
-  UseDagServiceGetDagsPublicDagsGetKeyFn,
+  useDagServiceGetDagsPublicDagsGetKey,
   useDagServicePatchDagPublicDagsDagIdPatch,
 } from "openapi/queries";
-import { useCallback } from "react";
 
 type Props = {
   readonly dagId: string;
@@ -36,41 +31,17 @@ type Props = {
 };
 
 export const TogglePause = ({ dagId, isPaused }: Props) => {
-  const [searchParams] = useSearchParams();
-  const { tableURLState } = useTableURLState();
-  // const { pagination, sorting } = tableURLState;
-  // const showPaused = searchParams.get("paused") === "true";
-  // const sort = sorting[0];
-  // const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
-  // const queryClient = useQueryClient();
+  const queryClient = useQueryClient();
 
-  // const onSuccess = (data: DagServicePatchDagPublicDagsDagIdPatchMutationResult) => {
-  //   // Update Dags list query on result instead of refetching it
-  //   queryClient.setQueryData(
-  //     UseDagServiceGetDagsPublicDagsGetKeyFn({
-  //       limit: pagination.pageSize,
-  //       offset: pagination.pageIndex * pagination.pageSize,
-  //       onlyActive: true,
-  //       orderBy,
-  //       paused: showPaused ? undefined : false, // undefined returns all dags
-  //     }),
-  //     (oldData: DagServiceGetDagsPublicDagsGetDefaultResponse) => {
-  //       // if (!showPaused && data.is_paused)
-  //       //   return {
-  //       //     ...oldData,
-  //       //     total_entries: oldData.total_entries
-  //       //       ? oldData.total_entries - 1
-  //       //       : oldData.total_entries,
-  //       //     dags: oldData.dags?.filter((dag) => dag.dag_id !== data.dag_id),
-  //       //   };
-  //       // return {
-  //       //   ...oldData,
-  //       //   dags: oldData.dags?.map((dag) => (dag.dag_id === dagId ? data : dag)),
-  //       // };
-  //     }
-  //   );
-  // };
-  const { mutate } = useDagServicePatchDagPublicDagsDagIdPatch();
+  const onSuccess = async () => {
+    await queryClient.invalidateQueries({
+      queryKey: [useDagServiceGetDagsPublicDagsGetKey],
+    });
+  };
+
+  const { mutate } = useDagServicePatchDagPublicDagsDagIdPatch({
+    onSuccess,
+  });
 
   const onChange = useCallback(() => {
     mutate({
@@ -79,7 +50,7 @@ export const TogglePause = ({ dagId, isPaused }: Props) => {
         is_paused: !isPaused,
       },
     });
-  }, [dagId, isPaused]);
-  
+  }, [dagId, isPaused, mutate]);
+
   return <Switch isChecked={!isPaused} onChange={onChange} size="sm" />;
 };
