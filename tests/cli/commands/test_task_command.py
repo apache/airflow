@@ -676,7 +676,7 @@ class TestCliTasks:
         assert len(actual_out) == 1
         assert actual_out[0] == {
             "dag_id": "example_python_operator",
-            "execution_date": "2016-01-09T00:00:00+00:00",
+            "logical_date": "2016-01-09T00:00:00+00:00",
             "task_id": "print_the_context",
             "state": "success",
             "start_date": ti_start.isoformat(),
@@ -898,7 +898,7 @@ class TestLogsfromTaskRunCommand:
 
         assert (
             f"INFO - Marking task as SUCCESS. dag_id={self.dag_id}, "
-            f"task_id={self.task_id}, run_id={self.run_id}, execution_date=20170101T000000" in logs
+            f"task_id={self.task_id}, run_id={self.run_id}, logical_date=20170101T000000" in logs
         )
 
     @pytest.mark.skipif(not hasattr(os, "fork"), reason="Forking not available")
@@ -941,7 +941,7 @@ class TestLogsfromTaskRunCommand:
         assert f"INFO - Running: ['airflow', 'tasks', 'run', '{self.dag_id}', '{self.task_id}'," in logs
         assert (
             f"INFO - Marking task as SUCCESS. dag_id={self.dag_id}, "
-            f"task_id={self.task_id}, run_id={self.run_id}, execution_date=20170101T000000" in logs
+            f"task_id={self.task_id}, run_id={self.run_id}, logical_date=20170101T000000" in logs
         )
 
     def test_log_file_template_with_run_task(self, session):
