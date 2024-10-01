@@ -49,7 +49,7 @@ import { useContainerRef } from "src/context/containerRef";
 
 import DatasetEvents from "./AssetEvents";
 import DatasetsList from "./DatasetsList";
-import DatasetDetails from "./DatasetDetails";
+import AssetDetails from "./AssetDetails";
 import type { OnSelectProps } from "./types";
 import Graph from "./Graph";
 import SearchBar from "./SearchBar";
@@ -245,7 +245,7 @@ const Datasets = () => {
           )}
           {!!selectedUri && (
             <TabPanel>
-              <DatasetDetails uri={selectedUri} />
+              <AssetDetails uri={selectedUri} />
             </TabPanel>
           )}
           <TabPanel>

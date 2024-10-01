@@ -41,7 +41,7 @@ interface Props {
   uri: string;
 }
 
-const DatasetDetails = ({ uri }: Props) => {
+const AssetDetails = ({ uri }: Props) => {
   const { data: dataset, isLoading } = useDataset({ uri });
 
   const hasProducingTasks = !!dataset?.producingTasks?.length;
@@ -108,4 +108,4 @@ const DatasetDetails = ({ uri }: Props) => {
   );
 };
 
-export default DatasetDetails;
+export default AssetDetails;
