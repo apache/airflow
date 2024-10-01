@@ -4663,7 +4663,7 @@ components:
       properties:
         uri:
           type: string
-          description: The datata uri.
+          description: The asset uri.
         dag_id:
           type: string
           description: The DAG ID.
@@ -4681,7 +4681,7 @@ components:
       allOf:
         - type: object
           properties:
-            datasets:
+            queued_events:
               type: array
               items:
                 $ref: "#/components/schemas/QueuedEvent"
