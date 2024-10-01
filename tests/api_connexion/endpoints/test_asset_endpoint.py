@@ -751,51 +751,7 @@ class TestQueuedEventEndpoint(TestAssetEndpoint):
         return adrq
 
 
-<<<<<<< HEAD
-class TestGetDagDatasetQueuedEvent(TestQueuedEventEndpoint):
-<<<<<<< HEAD
-=======
-=======
 class TestGetDagAssetQueuedEvent(TestQueuedEventEndpoint):
->>>>>>> 9b7df72feb (test(api_connexion): rename dataset as asset)
-    @pytest.mark.usefixtures("time_freezer")
-    def test_should_respond_200(self, session, create_dummy_dag):
-        dag, _ = create_dummy_dag()
-        dag_id = dag.dag_id
-        asset_id = self._create_asset(session).id
-        self._create_asset_dag_run_queues(dag_id, asset_id, session)
-        asset_uri = "s3://bucket/key"
-
-        response = self.client.get(
-            f"/api/v1/dags/{dag_id}/assets/queuedEvent/{asset_uri}",
-            environ_overrides={"REMOTE_USER": "test_queued_event"},
-        )
-
-        assert response.status_code == 200
-        assert response.json == {
-            "created_at": self.default_time,
-            "uri": "s3://bucket/key",
-            "dag_id": "dag",
-        }
-
-    def test_should_respond_404(self):
-        dag_id = "not_exists"
-        asset_uri = "not_exists"
-
-        response = self.client.get(
-            f"/api/v1/dags/{dag_id}/assets/queuedEvent/{asset_uri}",
-            environ_overrides={"REMOTE_USER": "test_queued_event"},
-        )
-
-        assert response.status_code == 404
-        assert {
-            "detail": "Queue event with dag_id: `not_exists` and asset uri: `not_exists` was not found",
-            "status": 404,
-            "title": "Queue event not found",
-            "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
-
->>>>>>> f2fa713cd9 (feat(api_connexion): rename endpoint datasets as assets)
     def test_should_raises_401_unauthenticated(self, session):
         dag_id = "dummy"
         asset_uri = "dummy"
@@ -833,54 +789,7 @@ class TestDeleteDagAssetQueuedEvent(TestAssetEndpoint):
         assert response.status_code == 403
 
 
-<<<<<<< HEAD
-class TestGetDagDatasetQueuedEvents(TestQueuedEventEndpoint):
-<<<<<<< HEAD
-=======
-=======
 class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
->>>>>>> 9b7df72feb (test(api_connexion): rename dataset as asset)
-    @pytest.mark.usefixtures("time_freezer")
-    def test_should_respond_200(self, session, create_dummy_dag):
-        dag, _ = create_dummy_dag()
-        dag_id = dag.dag_id
-        asset_id = self._create_asset(session).id
-        self._create_asset_dag_run_queues(dag_id, asset_id, session)
-
-        response = self.client.get(
-            f"/api/v1/dags/{dag_id}/assets/queuedEvent",
-            environ_overrides={"REMOTE_USER": "test_queued_event"},
-        )
-
-        assert response.status_code == 200
-        assert response.json == {
-            "queued_events": [
-                {
-                    "created_at": self.default_time,
-                    "uri": "s3://bucket/key",
-                    "dag_id": "dag",
-                }
-            ],
-            "total_entries": 1,
-        }
-
-    def test_should_respond_404(self):
-        dag_id = "not_exists"
-
-        response = self.client.get(
-            f"/api/v1/dags/{dag_id}/assets/queuedEvent",
-            environ_overrides={"REMOTE_USER": "test_queued_event"},
-        )
-
-        assert response.status_code == 404
-        assert {
-            "detail": "Queue event with dag_id: `not_exists` was not found",
-            "status": 404,
-            "title": "Queue event not found",
-            "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
-
->>>>>>> f2fa713cd9 (feat(api_connexion): rename endpoint datasets as assets)
     def test_should_raises_401_unauthenticated(self):
         dag_id = "dummy"
 
@@ -899,30 +808,7 @@ class TestGetDagAssetQueuedEvents(TestQueuedEventEndpoint):
         assert response.status_code == 403
 
 
-<<<<<<< HEAD
-class TestDeleteDagDatasetQueuedEvents(TestDatasetEndpoint):
-<<<<<<< HEAD
-=======
-=======
 class TestDeleteDagAssetQueuedEvents(TestAssetEndpoint):
->>>>>>> 9b7df72feb (test(api_connexion): rename dataset as asset)
-    def test_should_respond_404(self):
-        dag_id = "not_exists"
-
-        response = self.client.delete(
-            f"/api/v1/dags/{dag_id}/assets/queuedEvent",
-            environ_overrides={"REMOTE_USER": "test_queued_event"},
-        )
-
-        assert response.status_code == 404
-        assert {
-            "detail": "Queue event with dag_id: `not_exists` was not found",
-            "status": 404,
-            "title": "Queue event not found",
-            "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
-
->>>>>>> f2fa713cd9 (feat(api_connexion): rename endpoint datasets as assets)
     def test_should_raises_401_unauthenticated(self):
         dag_id = "dummy"
 
@@ -941,55 +827,7 @@ class TestDeleteDagAssetQueuedEvents(TestAssetEndpoint):
         assert response.status_code == 403
 
 
-<<<<<<< HEAD
-class TestGetDatasetQueuedEvents(TestQueuedEventEndpoint):
-<<<<<<< HEAD
-=======
-=======
 class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
->>>>>>> 9b7df72feb (test(api_connexion): rename dataset as asset)
-    @pytest.mark.usefixtures("time_freezer")
-    def test_should_respond_200(self, session, create_dummy_dag):
-        dag, _ = create_dummy_dag()
-        dag_id = dag.dag_id
-        asset_id = self._create_asset(session).id
-        self._create_asset_dag_run_queues(dag_id, asset_id, session)
-        asset_uri = "s3://bucket/key"
-
-        response = self.client.get(
-            f"/api/v1/assets/queuedEvent/{asset_uri}",
-            environ_overrides={"REMOTE_USER": "test_queued_event"},
-        )
-
-        assert response.status_code == 200
-        assert response.json == {
-            "queued_events": [
-                {
-                    "created_at": self.default_time,
-                    "uri": "s3://bucket/key",
-                    "dag_id": "dag",
-                }
-            ],
-            "total_entries": 1,
-        }
-
-    def test_should_respond_404(self):
-        asset_uri = "not_exists"
-
-        response = self.client.get(
-            f"/api/v1/assets/queuedEvent/{asset_uri}",
-            environ_overrides={"REMOTE_USER": "test_queued_event"},
-        )
-
-        assert response.status_code == 404
-        assert {
-            "detail": "Queue event with asset uri: `not_exists` was not found",
-            "status": 404,
-            "title": "Queue event not found",
-            "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
-
->>>>>>> f2fa713cd9 (feat(api_connexion): rename endpoint datasets as assets)
     def test_should_raises_401_unauthenticated(self):
         asset_uri = "not_exists"
 
@@ -1009,42 +847,6 @@ class TestGetAssetQueuedEvents(TestQueuedEventEndpoint):
 
 
 class TestDeleteAssetQueuedEvents(TestQueuedEventEndpoint):
-<<<<<<< HEAD
-=======
-    def test_delete_should_respond_204(self, session, create_dummy_dag):
-        dag, _ = create_dummy_dag()
-        dag_id = dag.dag_id
-        asset_id = self._create_asset(session).id
-        self._create_asset_dag_run_queues(dag_id, asset_id, session)
-        asset_uri = "s3://bucket/key"
-
-        response = self.client.delete(
-            f"/api/v1/assets/queuedEvent/{asset_uri}",
-            environ_overrides={"REMOTE_USER": "test_queued_event"},
-        )
-
-        assert response.status_code == 204
-        conn = session.query(AssetDagRunQueue).all()
-        assert len(conn) == 0
-        _check_last_log(session, dag_id=None, event="api.delete_asset_queued_events", execution_date=None)
-
-    def test_should_respond_404(self):
-        asset_uri = "not_exists"
-
-        response = self.client.delete(
-            f"/api/v1/assets/queuedEvent/{asset_uri}",
-            environ_overrides={"REMOTE_USER": "test_queued_event"},
-        )
-
-        assert response.status_code == 404
-        assert {
-            "detail": "Queue event with asset uri: `not_exists` was not found",
-            "status": 404,
-            "title": "Queue event not found",
-            "type": EXCEPTIONS_LINK_MAP[404],
-        } == response.json
-
->>>>>>> f2fa713cd9 (feat(api_connexion): rename endpoint datasets as assets)
     def test_should_raises_401_unauthenticated(self):
         asset_uri = "not_exists"
 
