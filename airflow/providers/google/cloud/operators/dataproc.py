@@ -40,7 +40,11 @@ from google.cloud.dataproc_v1 import Batch, Cluster, ClusterStatus, JobStatus
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, AirflowProviderDeprecationWarning
-from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
+from airflow.providers.google.cloud.hooks.dataproc import (
+    DataprocHook,
+    DataProcJobBuilder,
+    DataprocResourceIsNotReadyError,
+)
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.links.dataproc import (
     DATAPROC_BATCH_LINK,
@@ -593,6 +597,8 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
     :param delete_on_error: If true the cluster will be deleted if created with ERROR state. Default
         value is true.
     :param use_if_exists: If true use existing cluster
+    :param num_retries_if_resource_is_not_ready: Optional. The number of retry for cluster creation request
+        when resource is not ready error appears.
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
         ``DeleteClusterRequest`` requests with the same id, then the second request will be ignored and the
         first ``google.longrunning.Operation`` created and stored in the backend is returned.
@@ -639,6 +645,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         request_id: str | None = None,
         delete_on_error: bool = True,
         use_if_exists: bool = True,
+        num_retries_if_resource_is_not_ready: int = 0,
         retry: AsyncRetry | _MethodDefault | Retry = DEFAULT,
         timeout: float = 1 * 60 * 60,
         metadata: Sequence[tuple[str, str]] = (),
@@ -695,6 +702,7 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
         self.virtual_cluster_config = virtual_cluster_config
         self.deferrable = deferrable
         self.polling_interval_seconds = polling_interval_seconds
+        self.num_retries_if_resource_is_not_ready = num_retries_if_resource_is_not_ready
 
     def _create_cluster(self, hook: DataprocHook):
         return hook.create_cluster(
@@ -729,20 +737,26 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
             return
         self.log.info("Cluster is in ERROR state")
         self.log.info("Gathering diagnostic information.")
-        operation = hook.diagnose_cluster(
-            region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
-        )
-        operation.result()
-        gcs_uri = str(operation.operation.response.value)
-        self.log.info("Diagnostic information for cluster %s available at: %s", self.cluster_name, gcs_uri)
-
-        if self.delete_on_error:
-            self._delete_cluster(hook)
-            # The delete op is asynchronous and can cause further failure if the cluster finishes
-            # deleting between catching AlreadyExists and checking state
-            self._wait_for_cluster_in_deleting_state(hook)
-            raise AirflowException("Cluster was created in an ERROR state then deleted.")
-        raise AirflowException("Cluster was created but is in ERROR state")
+        try:
+            operation = hook.diagnose_cluster(
+                region=self.region, cluster_name=self.cluster_name, project_id=self.project_id
+            )
+            operation.result()
+            gcs_uri = str(operation.operation.response.value)
+            self.log.info(
+                "Diagnostic information for cluster %s available at: %s", self.cluster_name, gcs_uri
+            )
+        except Exception as diagnose_error:
+            self.log.info("Some error occurred when trying to diagnose cluster.")
+            self.log.exception(diagnose_error)
+        finally:
+            if self.delete_on_error:
+                self._delete_cluster(hook)
+                # The delete op is asynchronous and can cause further failure if the cluster finishes
+                # deleting between catching AlreadyExists and checking state
+                self._wait_for_cluster_in_deleting_state(hook)
+                raise AirflowException("Cluster was created in an ERROR state then deleted.")
+            raise AirflowException("Cluster was created but is in ERROR state")
 
     def _wait_for_cluster_in_deleting_state(self, hook: DataprocHook) -> None:
         time_left = self.timeout
@@ -779,6 +793,16 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
             metadata=self.metadata,
         )
         return hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=op)
+
+    def _retry_cluster_creation(self, hook: DataprocHook):
+        self.log.info("Retrying creation process for Cluster %s", self.cluster_name)
+        self._delete_cluster(hook)
+        self._wait_for_cluster_in_deleting_state(hook)
+        self.log.info("Starting a new creation for Cluster %s", self.cluster_name)
+        operation = self._create_cluster(hook)
+        cluster = hook.wait_for_operation(timeout=self.timeout, result_retry=self.retry, operation=operation)
+        self.log.info("Cluster created.")
+        return Cluster.to_dict(cluster)
 
     def execute(self, context: Context) -> dict:
         self.log.info("Creating cluster: %s", self.cluster_name)
@@ -829,6 +853,25 @@ class DataprocCreateClusterOperator(GoogleCloudBaseOperator):
                 raise
             self.log.info("Cluster already exists.")
             cluster = self._get_cluster(hook)
+        except DataprocResourceIsNotReadyError as resource_not_ready_error:
+            if self.num_retries_if_resource_is_not_ready:
+                attempt = self.num_retries_if_resource_is_not_ready
+                while attempt > 0:
+                    attempt -= 1
+                    try:
+                        cluster = self._retry_cluster_creation(hook)
+                    except DataprocResourceIsNotReadyError:
+                        continue
+                    else:
+                        return cluster
+                self.log.info(
+                    "Retrying Cluster %s creation because of resource not ready was unsuccessful.",
+                    self.cluster_name,
+                )
+            if self.delete_on_error:
+                self._delete_cluster(hook)
+                self._wait_for_cluster_in_deleting_state(hook)
+            raise resource_not_ready_error
         except AirflowException as ae:
             # There still could be a cluster created here in an ERROR state which
             # should be deleted immediately rather than consuming another retry attempt
@@ -2948,6 +2991,8 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
     :param request_id: Optional. A unique id used to identify the request. If the server receives two
         ``CreateBatchRequest`` requests with the same id, then the second request will be ignored and
         the first ``google.longrunning.Operation`` created and stored in the backend is returned.
+    :param num_retries_if_resource_is_not_ready: Optional. The number of retry for cluster creation request
+        when resource is not ready error appears.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
     :param result_retry: Result retry object used to retry requests. Is used to decrease delay between
@@ -2988,6 +3033,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         batch: dict | Batch,
         batch_id: str | None = None,
         request_id: str | None = None,
+        num_retries_if_resource_is_not_ready: int = 0,
         retry: Retry | _MethodDefault = DEFAULT,
         timeout: float | None = None,
         metadata: Sequence[tuple[str, str]] = (),
@@ -3007,6 +3053,7 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         self.batch = batch
         self.batch_id = batch_id
         self.request_id = request_id
+        self.num_retries_if_resource_is_not_ready = num_retries_if_resource_is_not_ready
         self.retry = retry
         self.result_retry = result_retry
         self.timeout = timeout
@@ -3091,6 +3138,15 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        if self.num_retries_if_resource_is_not_ready and self.hook.check_error_for_resource_is_not_ready_msg(
+            batch.state_message
+        ):
+            attempt = self.num_retries_if_resource_is_not_ready
+            while attempt > 0:
+                attempt -= 1
+                batch, batch_id = self.retry_batch_creation(batch_id)
+                if not self.hook.check_error_for_resource_is_not_ready_msg(batch.state_message):
+                    break
 
         self.handle_batch_status(context, batch.state, batch_id, batch.state_message)
         return Batch.to_dict(batch)
@@ -3132,6 +3188,50 @@ class DataprocCreateBatchOperator(GoogleCloudBaseOperator):
         if state == Batch.State.STATE_UNSPECIFIED:
             raise AirflowException(f"Batch job {batch_id} unspecified. Driver logs: {link}")
         self.log.info("Batch job %s completed. Driver logs: %s", batch_id, link)
+
+    def retry_batch_creation(
+        self,
+        previous_batch_id: str,
+    ):
+        self.log.info("Retrying creation process for batch_id %s", self.batch_id)
+        self.log.info("Deleting previous failed Batch")
+        self.hook.delete_batch(
+            batch_id=previous_batch_id,
+            region=self.region,
+            project_id=self.project_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+        self.log.info("Starting a new creation for batch_id %s", self.batch_id)
+        try:
+            self.operation = self.hook.create_batch(
+                region=self.region,
+                project_id=self.project_id,
+                batch=self.batch,
+                batch_id=self.batch_id,
+                request_id=self.request_id,
+                retry=self.retry,
+                timeout=self.timeout,
+                metadata=self.metadata,
+            )
+        except AlreadyExists:
+            self.log.info("Batch with given id already exists.")
+            self.log.info("Attaching to the job %s if it is still running.", self.batch_id)
+        else:
+            batch_id = self.operation.metadata.batch.split("/")[-1]
+            self.log.info("The batch %s was created.", batch_id)
+
+        self.log.info("Waiting for the completion of batch job %s", batch_id)
+        batch = self.hook.wait_for_batch(
+            batch_id=batch_id,
+            region=self.region,
+            project_id=self.project_id,
+            retry=self.retry,
+            timeout=self.timeout,
+            metadata=self.metadata,
+        )
+        return batch, batch_id
 
 
 class DataprocDeleteBatchOperator(GoogleCloudBaseOperator):
