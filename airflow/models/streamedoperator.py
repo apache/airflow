@@ -33,7 +33,7 @@ from airflow.exceptions import (
     AirflowRescheduleTaskInstanceException,
     TaskDeferred,
 )
-from airflow.models import BaseOperator, TaskInstance
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.expandinput import (
     DictOfListsExpandInput,
     ExpandInput,
@@ -44,6 +44,7 @@ from airflow.models.mappedoperator import (
     ensure_xcomarg_return_value,
     validate_mapping_kwargs,
 )
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.context import Context, context_get_outlet_events
 from airflow.utils.helpers import prevent_duplicates
