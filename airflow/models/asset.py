@@ -212,7 +212,7 @@ class AssetModel(Base):
 
     __tablename__ = "dataset"
     __table_args__ = (
-        Index("idx_dataset_name_uri_unique", name, uri, unique=True),
+        Index("idx_asset_name_uri_unique", name, uri, unique=True),
         {"sqlite_autoincrement": True},  # ensures PK values not reused
     )
 
