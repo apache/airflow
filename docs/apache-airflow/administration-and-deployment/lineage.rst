@@ -101,7 +101,7 @@ The collector then uses this data to construct AIP-60 compliant Assets, a standa
 
 .. code-block:: python
 
-    from airflow.lineage.hook_lineage import get_hook_lineage_collector
+    from airflow.lineage.hook.lineage import get_hook_lineage_collector
 
 
     class CustomHook(BaseHook):
