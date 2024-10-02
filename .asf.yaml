@@ -81,43 +81,43 @@ github:
       required_pull_request_reviews:
         required_approving_review_count: 1
       required_linear_history: true
-      #    v2-3-stable:
-      #      required_pull_request_reviews:
-      #        required_approving_review_count: 1
-      #      required_linear_history: true
-      #    v2-4-stable:
-      #      required_pull_request_reviews:
-      #        required_approving_review_count: 1
-      #      required_linear_history: true
-      #    v2-5-stable:
-      #      required_pull_request_reviews:
-      #        required_approving_review_count: 1
-      #      required_linear_history: true
-      #    v2-6-stable:
-      #      required_pull_request_reviews:
-      #        required_approving_review_count: 1
-      #      required_linear_history: true
-      #    v2-7-stable:
-      #      required_pull_request_reviews:
-      #        required_approving_review_count: 1
-      #      required_linear_history: true
-      #    v2-8-stable:
-      #      required_pull_request_reviews:
-      #        required_approving_review_count: 1
-      #      required_linear_history: true
-      #    v2-9-stable:
-      #      required_pull_request_reviews:
-      #        required_approving_review_count: 1
-      #      required_linear_history: true
-      #    v2-10-stable:
-      #      required_pull_request_reviews:
-      #        required_approving_review_count: 1
-      #      required_linear_history: true
-      #    v2-10-test:
-      #      required_pull_request_reviews:
-      #        required_approving_review_count: 1
-      #      required_linear_history: true
-      #      required_conversation_resolution: true
+    v2-3-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+    v2-4-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+    v2-5-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+    v2-6-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+    v2-7-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+    v2-8-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+    v2-9-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+    v2-10-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+    v2-10-test:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+      required_linear_history: true
+      required_conversation_resolution: true
   collaborators:
     # Max 10 collaborators allowed
     # https://github.com/apache/infrastructure-asfyaml/blob/main/README.md#assigning-the-github-triage-role-to-external-collaborators
