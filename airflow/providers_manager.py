@@ -1096,12 +1096,6 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
             )
             return None
 
-        dialect_class_name: str | None = None
-
-        if provider_info:
-            #for dialect_class_name, dialect_type in provider_info.data.get("dialects", [])
-            pass
-
         return HookInfo(
             hook_class_name=hook_class_name,
             connection_id_attribute_name=connection_id_attribute_name,
