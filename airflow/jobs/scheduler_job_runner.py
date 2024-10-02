@@ -1884,23 +1884,27 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         return len(to_reset)
 
     @provide_session
-    def check_trigger_timeouts(self, session: Session = NEW_SESSION) -> None:
+    def check_trigger_timeouts(
+        self, max_retries: int = MAX_DB_RETRIES, session: Session = NEW_SESSION
+    ) -> None:
         """Mark any "deferred" task as failed if the trigger or execution timeout has passed."""
-        num_timed_out_tasks = session.execute(
-            update(TI)
-            .where(
-                TI.state == TaskInstanceState.DEFERRED,
-                TI.trigger_timeout < timezone.utcnow(),
-            )
-            .values(
-                state=TaskInstanceState.SCHEDULED,
-                next_method="__fail__",
-                next_kwargs={"error": "Trigger/execution timeout"},
-                trigger_id=None,
-            )
-        ).rowcount
-        if num_timed_out_tasks:
-            self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
+        for attempt in run_with_db_retries(max_retries, logger=self.log):
+            with attempt:
+                num_timed_out_tasks = session.execute(
+                    update(TI)
+                    .where(
+                        TI.state == TaskInstanceState.DEFERRED,
+                        TI.trigger_timeout < timezone.utcnow(),
+                    )
+                    .values(
+                        state=TaskInstanceState.SCHEDULED,
+                        next_method="__fail__",
+                        next_kwargs={"error": "Trigger/execution timeout"},
+                        trigger_id=None,
+                    )
+                ).rowcount
+                if num_timed_out_tasks:
+                    self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
 
     # [START find_zombies]
     def _find_zombies(self) -> None:
