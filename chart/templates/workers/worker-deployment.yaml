@@ -108,6 +108,9 @@ spec:
       {{- if .Values.workers.priorityClassName }}
       priorityClassName: {{ .Values.workers.priorityClassName }}
       {{- end }}
+      {{- if .Values.workers.podManagementPolicy }}
+      podManagementPolicy: {{ .Values.workers.podManagementPolicy }}
+      {{- end }}
       {{- if .Values.schedulerName }}
       schedulerName: {{ .Values.schedulerName }}
       {{- end }}
