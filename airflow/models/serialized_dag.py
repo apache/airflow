@@ -34,11 +34,12 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     and_,
+    delete,
     exc,
     or_,
     select,
 )
-from sqlalchemy.orm import backref, foreign, relationship
+from sqlalchemy.orm import backref, relationship
 from sqlalchemy.sql.expression import func, literal
 
 from airflow.api_internal.internal_api_call import internal_api_call
@@ -46,7 +47,6 @@ from airflow.exceptions import TaskNotFound
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dag import DagModel
 from airflow.models.dagcode import DagCode
-from airflow.models.dagrun import DagRun
 from airflow.serialization.dag_dependency import DagDependency
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.settings import COMPRESS_SERIALIZED_DAGS, MIN_SERIALIZED_DAG_UPDATE_INTERVAL, json
@@ -106,11 +106,8 @@ class SerializedDagModel(Base):
         UniqueConstraint("dag_hash", "version_number", name="dag_hash_version_number_unique"),
     )
 
-    dag_runs = relationship(
-        DagRun,
-        primaryjoin=dag_id == foreign(DagRun.dag_id),  # type: ignore
-        backref=backref("serialized_dag", uselist=False, innerjoin=True),
-    )
+    dag_run = relationship("DagRun", back_populates="serialized_dag")
+    task_instance = relationship("TaskInstance", back_populates="serialized_dag")
 
     dag_model = relationship(
         DagModel,
@@ -311,7 +308,7 @@ class SerializedDagModel(Base):
         :param dag_id: dag_id to be deleted
         :param session: ORM Session.
         """
-        session.execute(cls.__table__.delete().where(cls.dag_id == dag_id))
+        session.execute(delete(cls).where(cls.dag_id == dag_id))
 
     @classmethod
     @internal_api_call

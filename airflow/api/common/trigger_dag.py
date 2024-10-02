@@ -58,6 +58,8 @@ def _trigger_dag(
     :param replace_microseconds: whether microseconds should be zeroed
     :return: list of triggered dags
     """
+    from airflow.models.serialized_dag import SerializedDagModel
+
     dag = dag_bag.get_dag(dag_id)  # prefetch dag if it is stored serialized
 
     if dag is None or dag_id not in dag_bag.dags:
@@ -99,7 +101,7 @@ def _trigger_dag(
         state=DagRunState.QUEUED,
         conf=run_conf,
         external_trigger=True,
-        dag_hash=dag_bag.dags_hash.get(dag_id),
+        serialized_dag=SerializedDagModel.get(dag_id),
         data_interval=data_interval,
         triggered_by=triggered_by,
     )
