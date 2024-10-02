@@ -96,9 +96,12 @@ class SnowflakeHook(DbApiHook):
     @classmethod
     def get_connection_form_widgets(cls) -> dict[str, Any]:
         """Return connection widgets to add to connection form."""
-        from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import (
+            BS3PasswordFieldWidget,
+            BS3TextFieldWidget,
+        )
         from flask_babel import lazy_gettext
-        from wtforms import BooleanField, StringField
+        from wtforms import BooleanField, PasswordField, StringField
 
         return {
             "account": StringField(lazy_gettext("Account"), widget=BS3TextFieldWidget()),
@@ -107,8 +110,8 @@ class SnowflakeHook(DbApiHook):
             "region": StringField(lazy_gettext("Region"), widget=BS3TextFieldWidget()),
             "role": StringField(lazy_gettext("Role"), widget=BS3TextFieldWidget()),
             "private_key_file": StringField(lazy_gettext("Private key (Path)"), widget=BS3TextFieldWidget()),
-            "private_key_content": StringField(
-                lazy_gettext("Private key (Text)"), widget=BS3TextAreaFieldWidget()
+            "private_key_content": PasswordField(
+                lazy_gettext("Private key (Text)"), widget=BS3PasswordFieldWidget()
             ),
             "insecure_mode": BooleanField(
                 label=lazy_gettext("Insecure mode"), description="Turns off OCSP certificate checks"
