@@ -23,6 +23,7 @@ from typing_extensions import Annotated
 
 from airflow.api_fastapi.db.common import get_session
 from airflow.api_fastapi.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.parameters import QueryLimit, QueryOffset, SortParam
 from airflow.api_fastapi.views.router import AirflowRouter
 from airflow.models import Connection
 
@@ -45,3 +46,22 @@ async def delete_connection(
         raise HTTPException(404, f"The Connection with connection_id: `{connection_id}` was not found")
 
     session.delete(connection)
+
+
+@connections_router.get("/connections")
+async def get_connections(
+    limit: QueryLimit,
+    offset: QueryOffset,
+    order_by: Annotated[
+        SortParam,
+        Depends(
+            SortParam(
+                ["connection_id", "conn_type", "host", "login", "schema", "port"],
+            ).depends
+        ),
+    ],
+    session: Annotated[Session, Depends(get_session)],
+):
+    """Get all connection entries."""
+    connections = session.execute(select(Connection)).scalars().all()
+    return {"connections": connections}

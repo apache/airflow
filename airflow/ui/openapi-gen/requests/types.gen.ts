@@ -140,6 +140,14 @@ export type DeleteConnectionData = {
 
 export type DeleteConnectionResponse = void;
 
+export type GetConnectionsData = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+};
+
+export type GetConnectionsResponse = unknown;
+
 export type $OpenApiTs = {
   "/ui/next_run_datasets/{dag_id}": {
     get: {
@@ -253,6 +261,21 @@ export type $OpenApiTs = {
          * Not Found
          */
         404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+  };
+  "/public/connections": {
+    get: {
+      req: GetConnectionsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
         /**
          * Validation Error
          */

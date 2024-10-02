@@ -13,6 +13,8 @@ import type {
   PatchDagResponse,
   DeleteConnectionData,
   DeleteConnectionResponse,
+  GetConnectionsData,
+  GetConnectionsResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -184,6 +186,33 @@ export class ConnectionService {
         401: "Unauthorized",
         403: "Forbidden",
         404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Connections
+   * Get all connection entries.
+   * @param data The data for the request.
+   * @param data.limit
+   * @param data.offset
+   * @param data.orderBy
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getConnections(
+    data: GetConnectionsData = {},
+  ): CancelablePromise<GetConnectionsResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
+      url: "/public/connections",
+      query: {
+        limit: data.limit,
+        offset: data.offset,
+        order_by: data.orderBy,
+      },
+      errors: {
         422: "Validation Error",
       },
     });
