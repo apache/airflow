@@ -61,3 +61,19 @@ class TestDeleteConnection(TestConnectionEndpoint):
         assert response.status_code == 404
         body = response.json()
         assert f"The Connection with connection_id: `{TEST_CONN_ID}` was not found" == body["detail"]
+
+
+class TestGetConnection(TestConnectionEndpoint):
+    def test_get_should_respond_200(self, test_client, session):
+        self.create_connection()
+        response = test_client.get(f"/public/connections/{TEST_CONN_ID}")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["conn_id"] == TEST_CONN_ID
+        assert body["conn_type"] == TEST_CONN_TYPE
+
+    def test_get_should_respond_404(self, test_client):
+        response = test_client.get(f"/public/connections/{TEST_CONN_ID}")
+        assert response.status_code == 404
+        body = response.json()
+        assert f"The Connection with connection_id: `{TEST_CONN_ID}` was not found" == body["detail"]
