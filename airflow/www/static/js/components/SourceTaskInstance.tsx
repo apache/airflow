@@ -30,20 +30,16 @@ import type { TaskInstance } from "src/types";
 import { getMetaValue } from "src/utils";
 
 type SourceTIProps = {
-  datasetEvent: AssetEvent;
+  assetEvent: AssetEvent;
   showLink?: boolean;
 };
 
 const gridUrl = getMetaValue("grid_url");
 const dagId = getMetaValue("dag_id") || "__DAG_ID__";
 
-const SourceTaskInstance = ({
-  datasetEvent,
-  showLink = true,
-}: SourceTIProps) => {
+const SourceTaskInstance = ({ assetEvent, showLink = true }: SourceTIProps) => {
   const containerRef = useContainerRef();
-  const { sourceDagId, sourceRunId, sourceTaskId, sourceMapIndex } =
-    datasetEvent;
+  const { sourceDagId, sourceRunId, sourceTaskId, sourceMapIndex } = assetEvent;
 
   const { data: taskInstance } = useTaskInstance({
     dagId: sourceDagId || "",

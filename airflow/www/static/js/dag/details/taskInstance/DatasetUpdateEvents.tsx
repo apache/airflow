@@ -32,7 +32,7 @@ interface Props {
 }
 
 const cardDef: CardDef<AssetEvent> = {
-  card: ({ row }) => <DatasetEventCard datasetEvent={row} showSource={false} />,
+  card: ({ row }) => <DatasetEventCard assetEvent={row} showSource={false} />,
 };
 
 const dagId = getMetaValue("dag_id") || undefined;

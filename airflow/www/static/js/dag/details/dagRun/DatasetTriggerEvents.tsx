@@ -34,7 +34,7 @@ const dagId = getMetaValue("dag_id");
 
 const cardDef: CardDef<AssetEvent> = {
   card: ({ row }) => (
-    <DatasetEventCard datasetEvent={row} showTriggeredDagRuns={false} />
+    <DatasetEventCard assetEvent={row} showTriggeredDagRuns={false} />
   ),
 };
 

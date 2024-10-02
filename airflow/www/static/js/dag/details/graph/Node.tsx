@@ -49,7 +49,7 @@ export interface CustomNodeProps {
   style?: string;
   isZoomedOut: boolean;
   class: DepNode["value"]["class"];
-  datasetEvent?: AssetEvent;
+  assetEvent?: AssetEvent;
 }
 
 const Node = (props: NodeProps<CustomNodeProps>) => {

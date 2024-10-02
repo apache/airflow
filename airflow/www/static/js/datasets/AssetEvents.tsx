@@ -34,7 +34,7 @@ type Props = {
 };
 
 const cardDef: CardDef<AssetEvent> = {
-  card: ({ row }) => <DatasetEventCard datasetEvent={row} />,
+  card: ({ row }) => <DatasetEventCard assetEvent={row} />,
 };
 
 const Events = ({ assetId, showLabel }: Props) => {

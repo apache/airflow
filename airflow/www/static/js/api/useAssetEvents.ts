@@ -55,7 +55,7 @@ const useAssetEvents = ({
       orderBy,
     ],
     () => {
-      const datasetsUrl = getMetaValue("dataset_events_api");
+      const datasetsUrl = getMetaValue("asset_events_api");
 
       const params = new URLSearchParamsWrapper();
 

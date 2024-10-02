@@ -91,7 +91,7 @@ export const flattenNodes = ({
           }
           onToggleGroups(newGroupIds);
         },
-        datasetEvent:
+        assetEvent:
           node.value.class === "asset"
             ? assetEvents?.find((de) => de.datasetUri === node.value.label)
             : undefined,
