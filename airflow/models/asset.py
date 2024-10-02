@@ -462,7 +462,7 @@ class AssetDagRunQueue(Base):
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
-            name="ddrq_dataset_fkey",
+            name="ddrq_asset_fkey",
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
