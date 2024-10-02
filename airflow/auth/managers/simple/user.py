@@ -24,10 +24,10 @@ class SimpleAuthManagerUser(BaseUser):
     User model for users managed by the simple auth manager.
 
     :param username: The username
-    :param role: The role associated to the user
+    :param role: The role associated to the user. If not provided, the user has no permission
     """
 
-    def __init__(self, *, username: str, role: str) -> None:
+    def __init__(self, *, username: str, role: str | None) -> None:
         self.username = username
         self.role = role
 
@@ -37,5 +37,5 @@ class SimpleAuthManagerUser(BaseUser):
     def get_name(self) -> str:
         return self.username
 
-    def get_role(self):
+    def get_role(self) -> str | None:
         return self.role

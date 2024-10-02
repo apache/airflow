@@ -1184,10 +1184,10 @@ are not part of the public API. We deal with it in one of the following ways:
 
 .. code-block:: python
 
-  from tests.test_utils.compat import AIRFLOW_V_2_7_PLUS
+  from tests.test_utils.compat import AIRFLOW_V_2_8_PLUS
 
 
-  @pytest.mark.skipif(not AIRFLOW_V_2_7_PLUS, reason="The tests should be skipped for Airflow < 2.7")
+  @pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="The tests should be skipped for Airflow < 2.8")
   def some_test_that_only_works_for_airflow_2_7_plus():
       pass
 

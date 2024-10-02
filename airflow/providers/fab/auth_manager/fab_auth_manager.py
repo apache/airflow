@@ -37,7 +37,6 @@ from airflow.auth.managers.models.resource_details import (
     ConnectionDetails,
     DagAccessEntity,
     DagDetails,
-    DatasetDetails,
     PoolDetails,
     VariableDetails,
 )
@@ -67,7 +66,6 @@ from airflow.security.permissions import (
     RESOURCE_DAG_DEPENDENCIES,
     RESOURCE_DAG_RUN,
     RESOURCE_DAG_WARNING,
-    RESOURCE_DATASET,
     RESOURCE_DOCS,
     RESOURCE_IMPORT_ERROR,
     RESOURCE_JOB,
@@ -94,7 +92,15 @@ if TYPE_CHECKING:
     from airflow.cli.cli_config import (
         CLICommand,
     )
+    from airflow.providers.common.compat.assets import AssetDetails
     from airflow.providers.fab.auth_manager.security_manager.override import FabAirflowSecurityManagerOverride
+    from airflow.security.permissions import RESOURCE_ASSET
+else:
+    try:
+        from airflow.security.permissions import RESOURCE_ASSET
+    except ImportError:
+        from airflow.security.permissions import RESOURCE_DATASET as RESOURCE_ASSET
+
 
 _MAP_DAG_ACCESS_ENTITY_TO_FAB_RESOURCE_TYPE: dict[DagAccessEntity, tuple[str, ...]] = {
     DagAccessEntity.AUDIT_LOG: (RESOURCE_AUDIT_LOG,),
@@ -263,10 +269,10 @@ class FabAuthManager(BaseAuthManager):
                 for resource_type in resource_types
             )
 
-    def is_authorized_dataset(
-        self, *, method: ResourceMethod, details: DatasetDetails | None = None, user: BaseUser | None = None
+    def is_authorized_asset(
+        self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
     ) -> bool:
-        return self._is_authorized(method=method, resource_type=RESOURCE_DATASET, user=user)
+        return self._is_authorized(method=method, resource_type=RESOURCE_ASSET, user=user)
 
     def is_authorized_pool(
         self, *, method: ResourceMethod, details: PoolDetails | None = None, user: BaseUser | None = None

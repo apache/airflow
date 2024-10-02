@@ -165,6 +165,7 @@ def patch_dag(*, dag_id: str, update_mask: UpdateMask = None, session: Session =
     return dag_schema.dump(dag)
 
 
+@mark_fastapi_migration_done
 @security.requires_access_dag("PUT")
 @format_parameters({"limit": check_limit})
 @action_logging
