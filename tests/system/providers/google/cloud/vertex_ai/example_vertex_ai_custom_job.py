@@ -68,8 +68,8 @@ def TABULAR_DATASET(bucket_name):
     }
 
 
-CONTAINER_URI = "gcr.io/cloud-aiplatform/training/tf-cpu.2-2:latest"
-MODEL_SERVING_CONTAINER_URI = "gcr.io/cloud-aiplatform/prediction/tf2-cpu.2-2:latest"
+CONTAINER_URI = "us-docker.pkg.dev/vertex-ai/training/tf-cpu.2-2:latest"
+MODEL_SERVING_CONTAINER_URI = "us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-2:latest"
 REPLICA_COUNT = 1
 
 # VERTEX_AI_LOCAL_TRAINING_SCRIPT_PATH should be set for Airflow which is running on distributed system.
