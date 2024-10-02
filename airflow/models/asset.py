@@ -374,7 +374,7 @@ class DagScheduleAssetReference(Base):
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
-            name="dsar_dataset_fkey",
+            name="dsar_asset_fkey",
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
