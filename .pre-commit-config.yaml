@@ -1290,7 +1290,7 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/mypy.py --namespace-packages
         files: \.py$
-        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^scripts|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py|^clients/python/test_.*\.py
+        exclude: ^.*/.*_vendor/|^airflow/migrations|^airflow/providers|^dev|^scripts|^docs|^provider_packages|^tests/providers|^tests/system/providers|^tests/dags/test_imports.py|^clients/python/test_.*\.py|^performance
         require_serial: true
         additional_dependencies: ['rich>=12.4.4']
       - id: mypy-airflow
