@@ -230,5 +230,30 @@ def test_xcom_zip(dag_maker, session, fillvalue, expected_results):
 
 def test_plain_xcom_arg_hash():
     empty_operator = EmptyOperator(task_id="task_id")
-    plain_xcom_arg = PlainXComArg(empty_operator, key="key")
+    plain_xcom_arg = XComArg(empty_operator, key="key")
     assert hash(plain_xcom_arg) == hash((empty_operator, "key"))
+
+
+def test_map_xcom_arg_hash():
+    empty_operator = EmptyOperator(task_id="task_id")
+    plain_xcom_arg = XComArg(empty_operator, key="return_value")
+    map_xcom_arg = plain_xcom_arg.map(lambda x: x)
+    assert hash(map_xcom_arg) != hash(plain_xcom_arg)
+
+
+def test_zip_xcom_arg_hash():
+    empty_operator = EmptyOperator(task_id="task_id")
+    plain_xcom_arg = XComArg(empty_operator, key="return_value")
+    plain_xcom_arg_return_key1 = XComArg(empty_operator, key="key1")
+    plain_xcom_arg_return_key2 = XComArg(empty_operator, key="key2")
+    zip_xcom_arg = plain_xcom_arg.zip(plain_xcom_arg_return_key1, plain_xcom_arg_return_key2)
+    assert hash(zip_xcom_arg) != hash(plain_xcom_arg)
+
+
+def test_concat_xcom_arg_hash():
+    empty_operator = EmptyOperator(task_id="task_id")
+    plain_xcom_arg = XComArg(empty_operator, key="return_value")
+    plain_xcom_arg_return_key1 = XComArg(empty_operator, key="key1")
+    plain_xcom_arg_return_key2 = XComArg(empty_operator, key="key2")
+    concat_xcom_arg = plain_xcom_arg.concat(plain_xcom_arg_return_key1, plain_xcom_arg_return_key2)
+    assert hash(concat_xcom_arg) != hash(plain_xcom_arg)
