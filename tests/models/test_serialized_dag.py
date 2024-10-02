@@ -69,10 +69,13 @@ class TestSerializedDagModel:
         """Verifies the correctness of hashing file path."""
         assert DagCode.dag_fileloc_hash("/airflow/dags/test_dag.py") == 33826252060516589
 
-    def _write_example_dags(self):
+    def _write_example_dags(self, processor_subdir=None):
         example_dags = make_example_dags(example_dags_module)
         for dag in example_dags.values():
-            SDM.write_dag(dag)
+            if not processor_subdir:
+                SDM.write_dag(dag)
+            else:
+                SDM.write_dag(dag=dag, processor_subdir=processor_subdir)
         return example_dags
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
@@ -201,7 +204,7 @@ class TestSerializedDagModel:
             DAG("dag_2", schedule=None),
             DAG("dag_3", schedule=None),
         ]
-        with assert_queries_count(10):
+        with assert_queries_count(12):
             SDM.bulk_sync_to_db(dags)
 
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
@@ -295,3 +298,20 @@ class TestSerializedDagModel:
         first_hashes = get_hash_set()
         # assert that the hashes are the same
         assert first_hashes == get_hash_set()
+
+    def test_versions_increment_on_serialized_dag_change(self, session):
+        example_dags = make_example_dags(example_dags_module)
+        example_bash_op_dag = example_dags.get("example_bash_operator")
+        for i in range(3):
+            SDM.write_dag(dag=example_bash_op_dag, processor_subdir=f"/tmp/test-{i+1}")
+
+        sdm_dags = session.scalars(select(SDM).where(SDM.dag_id == "example_bash_operator")).all()
+        assert len(sdm_dags) == 3
+        assert sorted([s.version_number for s in sdm_dags]) == [1, 2, 3]
+
+    def test_read_all_dags_gets_the_latest_of_the_serdags(self, session):
+        dags = self._write_example_dags()
+        # sync it again
+        self._write_example_dags(processor_subdir="/tmp/subdir")
+        all_dags = SDM.read_all_dags()
+        assert len(dags) == len(all_dags)
