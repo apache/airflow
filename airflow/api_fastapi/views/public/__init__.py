@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+from airflow.api_fastapi.views.public.connections import connections_router
 from airflow.api_fastapi.views.public.dags import dags_router
 from airflow.api_fastapi.views.router import AirflowRouter
 
@@ -24,3 +25,4 @@ public_router = AirflowRouter(prefix="/public")
 
 
 public_router.include_router(dags_router)
+public_router.include_router(connections_router)

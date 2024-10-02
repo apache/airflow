@@ -1,7 +1,11 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.0
 import { UseQueryResult } from "@tanstack/react-query";
 
-import { AssetService, DagService } from "../requests/services.gen";
+import {
+  AssetService,
+  ConnectionService,
+  DagService,
+} from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 
 export type AssetServiceNextRunAssetsDefaultResponse = Awaited<
@@ -75,4 +79,7 @@ export type DagServicePatchDagsMutationResult = Awaited<
 >;
 export type DagServicePatchDagMutationResult = Awaited<
   ReturnType<typeof DagService.patchDag>
+>;
+export type ConnectionServiceDeleteConnectionMutationResult = Awaited<
+  ReturnType<typeof ConnectionService.deleteConnection>
 >;
