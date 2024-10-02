@@ -1605,7 +1605,10 @@
                         "string"
                     ],
                     "default": null,
-                    "enum": ["OrderedReady", "Parallel"]
+                    "enum": [
+                        "OrderedReady",
+                        "Parallel"
+                    ]
                 },
                 "strategy": {
                     "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment.",
