@@ -578,6 +578,7 @@ class BaseDatabricksHook(BaseHook):
                     )
                     self.log.debug("Response Status Code: %s", response.status_code)
                     self.log.debug("Response text: %s", response.text)
+                    response.raise_for_status()
                     return response.json()
         except RetryError:
             raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
