@@ -144,7 +144,7 @@ class TestSchedulerJob:
     @pytest.fixture(autouse=True)
     def per_test(self) -> Generator:
         self.clean_db()
-        self.job_runner = None
+        self.job_runner: SchedulerJobRunner | None = None
 
         yield
 
@@ -5250,16 +5250,20 @@ class TestSchedulerJob:
         might_fail_session = MagicMock(wraps=session)
 
         def check_if_trigger_timeout(max_retries: int):
-            def side_effect(*args, **kwargs):
-                calls = side_effect.call_count
-                side_effect.call_count += 1
-                if calls < retry_times - 1:
-                    raise OperationalError("any_statement", "any_params", "any_orig")
-                else:
-                    return session.execute(*args, **kwargs)
+            def make_side_effect():
+                call_count = 0
 
-            side_effect.call_count = 0
-            might_fail_session.execute.side_effect = side_effect
+                def side_effect(*args, **kwargs):
+                    nonlocal call_count
+                    if call_count < retry_times - 1:
+                        call_count += 1
+                        raise OperationalError("any_statement", "any_params", "any_orig")
+                    else:
+                        return session.execute(*args, **kwargs)
+
+                return side_effect
+
+            might_fail_session.execute.side_effect = make_side_effect()
 
             try:
                 # Create a Task Instance for the task that is allegedly deferred
