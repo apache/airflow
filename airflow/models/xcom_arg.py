@@ -527,6 +527,9 @@ class MapXComArg(XComArg):
         self.arg = arg
         self.callables = callables
 
+    def __hash__(self) -> int:
+        return hash((self.arg, tuple(self.callables)))
+
     def __repr__(self) -> str:
         map_calls = "".join(f".map({_get_callable_name(f)})" for f in self.callables)
         return f"{self.arg!r}{map_calls}"
@@ -599,6 +602,9 @@ class ZipXComArg(XComArg):
             raise ValueError("At least one input is required")
         self.args = args
         self.fillvalue = fillvalue
+
+    def __hash__(self) -> int:
+        return hash((tuple(self.args), self.fillvalue))
 
     def __repr__(self) -> str:
         args_iter = iter(self.args)
@@ -687,11 +693,14 @@ class ConcatXComArg(XComArg):
         rest = ", ".join(repr(arg) for arg in args_iter)
         return f"{first}.concat({rest})"
 
-    def _serialize(self) -> dict[str, Any]:
+    def __hash__(self) -> int:
+        return hash(tuple(self.args))
+
+    def serialize(self) -> dict[str, Any]:
         return {"args": [serialize_xcom_arg(arg) for arg in self.args]}
 
     @classmethod
-    def _deserialize(cls, data: dict[str, Any], dag: DAG) -> XComArg:
+    def deserialize(cls, data: dict[str, Any], dag: DAG) -> XComArg:
         return cls([deserialize_xcom_arg(arg, dag) for arg in data["args"]])
 
     def iter_references(self) -> Iterator[tuple[Operator, str]]:
