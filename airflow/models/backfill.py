@@ -177,7 +177,11 @@ def _create_backfill(
                     session=session,
                 )
             except Exception:
-                dag.log.exception("something failed")
+                dag.log.exception(
+                    "Error while attempting to create a dag run dag_id='%s' logical_date='%s'",
+                    dag.dag_id,
+                    info.logical_date,
+                )
                 session.rollback()
             session.add(
                 BackfillDagRun(
