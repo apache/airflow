@@ -118,7 +118,7 @@ class AssetAliasModel(Base):
 
     __tablename__ = "asset_alias"
     __table_args__ = (
-        Index("idx_dataset_alias_name_unique", name, unique=True),
+        Index("idx_asset_alias_name_unique", name, unique=True),
         {"sqlite_autoincrement": True},  # ensures PK values not reused
     )
 
