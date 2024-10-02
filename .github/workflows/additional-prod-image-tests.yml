@@ -20,8 +20,8 @@ name: Additional PROD image tests
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-public:
-        description: "The array of labels (in json form) determining public runners."
+      runs-on-as-json-default:
+        description: "The array of labels (in json form) determining default runners."
         required: true
         type: string
       default-branch:
@@ -61,7 +61,7 @@ jobs:
     name: PROD image extra checks (main)
     uses: ./.github/workflows/prod-image-extra-checks.yml
     with:
-      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
+      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       python-versions: "[ '${{ inputs.default-python-version }}' ]"
       default-python-version: ${{ inputs.default-python-version }}
       branch: ${{ inputs.default-branch }}
@@ -78,7 +78,7 @@ jobs:
     name: PROD image extra checks (release)
     uses: ./.github/workflows/prod-image-extra-checks.yml
     with:
-      runs-on-as-json-public: ${{ inputs.runs-on-as-json-public }}
+      runs-on-as-json-default: ${{ inputs.runs-on-as-json-default }}
       python-versions: "[ '${{ inputs.default-python-version }}' ]"
       default-python-version: ${{ inputs.default-python-version }}
       branch: ${{ inputs.default-branch }}

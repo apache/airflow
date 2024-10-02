@@ -191,13 +191,13 @@ class TestExecuteAsRoot:
             image=default_docker_image,
         )
 
-    def test_run_custom_python_packages_as_root(self, tmp_path, default_docker_image):
-        (tmp_path / "__init__.py").write_text("")
-        (tmp_path / "awesome.py").write_text('print("Awesome")')
+    def test_run_custom_python_packages_as_root(self, shared_tmp_path, default_docker_image):
+        (shared_tmp_path / "__init__.py").write_text("")
+        (shared_tmp_path / "awesome.py").write_text('print("Awesome")')
 
         output = run_cmd_in_docker(
             envs={"PYTHONPATH": "/custom/mount", "PYTHONDONTWRITEBYTECODE": "true"},
-            volumes=[(tmp_path.as_posix(), "/custom/mount")],
+            volumes=[(shared_tmp_path.as_posix(), "/custom/mount")],
             user=0,
             cmd=["python", "-c", "import awesome"],
             image=default_docker_image,

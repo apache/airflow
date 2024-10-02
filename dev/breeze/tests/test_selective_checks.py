@@ -1808,7 +1808,7 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
     (
         "github_event, github_actor, github_repository, pr_labels, "
         "github_context_dict, runs_on_as_json_default, runs_on_as_docs_build, is_self_hosted_runner, "
-        "is_airflow_runner, is_amd_runner, is_arm_runner, is_vm_runner, is_k8s_runner, exception"
+        "is_airflow_runner, is_amd_runner, is_arm_runner, exception"
     ),
     [
         pytest.param(
@@ -1817,20 +1817,11 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "apache/airflow",
             (),
             dict(),
-            # TODO: revert it when we fix self-hosted runners
-            '["ubuntu-22.04"]',
-            '["self-hosted", "asf-runner"]',
-            # '["self-hosted", "Linux", "X64"]',
-            # TODO: revert it when we fix self-hosted runners
-            "false",
-            "false",
-            # "true",
-            # "true",
+            '["arc-large-amd"]',
+            '["arc-large-amd"]',
             "true",
-            "false",
-            # TODO: revert it when we fix self-hosted runners
-            "false",
-            # "true",
+            "true",
+            "true",
             "false",
             False,
             id="Push event",
@@ -1847,8 +1838,6 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "true",
             "false",
-            "false",
-            "false",
             False,
             id="Push event for private repo",
         ),
@@ -1863,8 +1852,6 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "false",
             "true",
-            "false",
-            "false",
             "false",
             False,
             id="Pull request",
@@ -1881,8 +1868,6 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "true",
             "false",
-            "false",
-            "false",
             False,
             id="Pull request private repo",
         ),
@@ -1897,8 +1882,6 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "false",
             "true",
-            "false",
-            "false",
             "false",
             False,
             id="Pull request committer",
@@ -1915,8 +1898,6 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "true",
             "false",
-            "false",
-            "false",
             False,
             id="Pull request committer pr non-committer",
         ),
@@ -1931,8 +1912,6 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "false",
             "true",
-            "false",
-            "false",
             "false",
             False,
             id="Pull request private repo committer",
@@ -1949,8 +1928,6 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "true",
             "false",
-            "false",
-            "false",
             False,
             id="Pull request target",
         ),
@@ -1965,8 +1942,6 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "false",
             "true",
-            "false",
-            "false",
             "false",
             False,
             id="Pull request target private repo",
@@ -1983,8 +1958,6 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "true",
             "false",
-            "false",
-            "false",
             False,
             id="Pull request target committer",
         ),
@@ -1999,8 +1972,6 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "false",
             "true",
-            "false",
-            "false",
             "false",
             False,
             id="Pull request target committer pr non-committer",
@@ -2017,8 +1988,6 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "true",
             "false",
-            "false",
-            "false",
             False,
             id="Pull request targe private repo committer",
         ),
@@ -2034,8 +2003,6 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "true",
             "false",
-            "false",
-            "false",
             True,
             id="Pull request by non committer with 'use self-hosted runners' label.",
         ),
@@ -2050,8 +2017,6 @@ def test_helm_tests_trigger_ci_build(files: tuple[str, ...], expected_outputs: d
             "false",
             "false",
             "true",
-            "false",
-            "false",
             "false",
             False,
             id="Pull request by committer with 'use public runners' label.",
@@ -2070,8 +2035,6 @@ def test_runs_on(
     is_airflow_runner: str,
     is_amd_runner: str,
     is_arm_runner: str,
-    is_vm_runner: str,
-    is_k8s_runner: str,
     exception: bool,
 ):
     def get_output() -> str:
@@ -2099,8 +2062,6 @@ def test_runs_on(
         assert_outputs_are_printed({"is-airflow-runner": is_airflow_runner}, str(stderr))
         assert_outputs_are_printed({"is-amd-runner": is_amd_runner}, str(stderr))
         assert_outputs_are_printed({"is-arm-runner": is_arm_runner}, str(stderr))
-        assert_outputs_are_printed({"is-vm-runner": is_vm_runner}, str(stderr))
-        assert_outputs_are_printed({"is-k8s-runner": is_k8s_runner}, str(stderr))
 
 
 @pytest.mark.parametrize(

@@ -16,7 +16,6 @@
 # under the License.
 from __future__ import annotations
 
-import os
 from typing import cast
 from unittest.mock import patch
 
@@ -55,13 +54,9 @@ class TestFilesystem:
         assert fs.config_kwargs["key"] == "value"
 
     @patch("s3fs.S3FileSystem", autospec=True)
-    def test_get_s3fs_anonymous(self, s3fs, monkeypatch):
+    @pytest.mark.usefixtures("clear_aws_credentials", "mock_metadata_service")
+    def test_get_s3fs_anonymous(self, s3fs):
         from airflow.providers.amazon.aws.fs.s3 import get_fs
-
-        # remove all AWS_* env vars
-        for env_name in os.environ:
-            if env_name.startswith("AWS"):
-                monkeypatch.delenv(env_name, raising=False)
 
         get_fs(conn_id=None, storage_options=None)
 

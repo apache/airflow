@@ -20,12 +20,8 @@ name: Build CI images
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      runs-on-as-json-public:
-        description: "The array of labels (in json form) determining public runners."
-        required: true
-        type: string
-      runs-on-as-json-self-hosted:
-        description: "The array of labels (in json form) determining self-hosted runners."
+      runs-on-as-json-default:
+        description: "The array of labels (in json form) determining default runners."
         required: true
         type: string
       do-build:
@@ -118,7 +114,7 @@ ${{ inputs.do-build == 'true' && inputs.image-tag || '' }}"
     # adding space before (with >) apparently turns the `runs-on` processed line into a string "Array"
     # instead of an array of strings.
     # yamllint disable-line rule:line-length
-    runs-on: ${{ (inputs.platform == 'linux/amd64') && fromJSON(inputs.runs-on-as-json-public) || fromJSON(inputs.runs-on-as-json-self-hosted) }}
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-default) }}
     env:
       BACKEND: sqlite
       DEFAULT_BRANCH: ${{ inputs.branch }}

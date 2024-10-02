@@ -196,9 +196,7 @@ Github Actions to pass the list of parameters to a command to execute
 | is-amd-runner                          | Whether runner used is an AMD one                                                                    | true                                      |                |
 | is-arm-runner                          | Whether runner used is an ARM one                                                                    | false                                     |                |
 | is-committer-build                     | Whether the build is triggered by a committer                                                        | false                                     |                |
-| is-k8s-runner                          | Whether the build runs on our k8s infrastructure                                                     | false                                     |                |
 | is-self-hosted-runner                  | Whether the runner is self-hosted                                                                    | false                                     |                |
-| is-vm-runner                           | Whether the runner uses VM to run                                                                    | true                                      |                |
 | kind-version                           | Which Kind version to use for tests                                                                  | v0.16.0                                   |                |
 | kubernetes-combos-list-as-string       | All combinations of Python version and Kubernetes version to use for tests as space-separated string | 3.8-v1.25.2 3.9-v1.26.4                   | *              |
 | kubernetes-versions                    | All Kubernetes versions to use for tests as JSON array                                               | ['v1.25.2']                               |                |

@@ -20,6 +20,7 @@ from __future__ import annotations
 import os
 import warnings
 from importlib import metadata
+from unittest.mock import patch
 
 import pytest
 
@@ -105,4 +106,27 @@ def setup_default_aws_connections():
     with pytest.MonkeyPatch.context() as mp_ctx:
         mp_ctx.setenv("AIRFLOW_CONN_AWS_DEFAULT", '{"conn_type": "aws"}')
         mp_ctx.setenv("AIRFLOW_CONN_EMR_DEFAULT", '{"conn_type": "emr", "extra": {}}')
+        yield
+
+
+@pytest.fixture
+def clear_aws_credentials(monkeypatch):
+    for env_key in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN", "AWS_SECURITY_TOKEN"):
+        # Delete aws credentials environment variables
+        monkeypatch.delenv(env_key, raising=False)
+
+
+@pytest.fixture
+def mock_metadata_service():
+    # For Instance Profile (EC2 Role), the metadata service is available at
+    # http://169.254.169.254/latest/meta-data/iam/security-credentials/
+    # and boto3 will automatically fetch the credentials from there using
+    # InstanceMetadataFetcher.
+    with patch(
+        "botocore.credentials.InstanceMetadataFetcher.retrieve_iam_role_credentials"
+    ) as sync_mock, patch(
+        "aiobotocore.credentials.AioInstanceMetadataFetcher.retrieve_iam_role_credentials"
+    ) as async_mock:
+        sync_mock.return_value = {}
+        async_mock.return_value = {}
         yield
