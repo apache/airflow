@@ -29,7 +29,11 @@ import jinja2
 import pytest
 
 from airflow.decorators import task as task_decorator
-from airflow.exceptions import AirflowException, FailStopDagInvalidTriggerRule
+from airflow.exceptions import (
+    AirflowException,
+    FailStopDagInvalidTriggerRule,
+    TaskDeferralTimeout,
+)
 from airflow.lineage.entities import File
 from airflow.models.baseoperator import (
     BASEOPERATOR_ARGS_EXPECTED_TYPES,
@@ -777,6 +781,15 @@ class TestBaseOperator:
         operator = BaseOperator(task_id="test")
 
         mock_validate_instance_args.assert_called_once_with(operator, BASEOPERATOR_ARGS_EXPECTED_TYPES)
+
+    def test_resume_execution(self):
+        op = BaseOperator(task_id="hi")
+        with pytest.raises(TaskDeferralTimeout):
+            op.resume_execution(
+                next_method="__fail__",
+                next_kwargs={"error": "Trigger timeout"},
+                context={},
+            )
 
 
 def test_init_subclass_args():
