@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.models.xcom_arg import PlainXComArg, XComArg
+from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
