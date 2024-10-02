@@ -32,7 +32,7 @@ interface Props extends GetUpstreamAssetEventsVariables {
 
 const useUpstreamAssetEvents = ({ dagId, dagRunId, options }: Props) => {
   const upstreamEventsUrl = (
-    getMetaValue("upstream_dataset_events_api") ||
+    getMetaValue("upstream_asset_events_api") ||
     `api/v1/dags/${dagId}/dagRuns/_DAG_RUN_ID_/upstreamAssetEvents`
   ).replace("_DAG_RUN_ID_", encodeURIComponent(dagRunId));
 
@@ -44,7 +44,7 @@ const useUpstreamAssetEvents = ({ dagId, dagRunId, options }: Props) => {
 
   return {
     ...query,
-    data: query.data ?? { datasetEvents: [], totalEntries: 0 },
+    data: query.data ?? { assetEvents: [], totalEntries: 0 },
   };
 };
 

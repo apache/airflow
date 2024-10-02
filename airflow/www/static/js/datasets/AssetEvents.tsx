@@ -48,7 +48,7 @@ const Events = ({ assetId, showLabel }: Props) => {
   const orderBy = sort ? `${sort.desc ? "-" : ""}${snakeCase(sort.id)}` : "";
 
   const {
-    data: { datasetEvents = [], totalEntries = 0 },
+    data: { assetEvents = [], totalEntries = 0 },
     isLoading: isEventsLoading,
   } = useAssetEvents({
     assetId,
@@ -83,7 +83,7 @@ const Events = ({ assetId, showLabel }: Props) => {
     []
   );
 
-  const data = useMemo(() => datasetEvents, [datasetEvents]);
+  const data = useMemo(() => assetEvents, [assetEvents]);
 
   return (
     <Box>

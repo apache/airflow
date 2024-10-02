@@ -40,7 +40,7 @@ const cardDef: CardDef<AssetEvent> = {
 
 const DatasetTriggerEvents = ({ runId }: Props) => {
   const {
-    data: { datasetEvents = [] },
+    data: { assetEvents = [] },
     isLoading,
   } = useUpstreamAssetEvents({ dagRunId: runId, dagId });
 
@@ -66,7 +66,7 @@ const DatasetTriggerEvents = ({ runId }: Props) => {
     []
   );
 
-  const data = useMemo(() => datasetEvents, [datasetEvents]);
+  const data = useMemo(() => assetEvents, [assetEvents]);
 
   return (
     <Box mt={3} flexGrow={1}>

@@ -39,7 +39,7 @@ const dagId = getMetaValue("dag_id") || undefined;
 
 const DatasetUpdateEvents = ({ runId, taskId }: Props) => {
   const {
-    data: { datasetEvents = [] },
+    data: { assetEvents = [] },
     isLoading,
   } = useAssetEvents({
     sourceDagId: dagId,
@@ -69,7 +69,7 @@ const DatasetUpdateEvents = ({ runId, taskId }: Props) => {
     []
   );
 
-  const data = useMemo(() => datasetEvents, [datasetEvents]);
+  const data = useMemo(() => assetEvents, [assetEvents]);
 
   return (
     <Box my={3} flexGrow={1}>

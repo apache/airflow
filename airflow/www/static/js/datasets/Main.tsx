@@ -47,7 +47,7 @@ import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 import Tooltip from "src/components/Tooltip";
 import { useContainerRef } from "src/context/containerRef";
 
-import DatasetEvents from "./AssetEvents";
+import AssetEvents from "./AssetEvents";
 import AssetsList from "./AssetsList";
 import AssetDetails from "./AssetDetails";
 import type { OnSelectProps } from "./types";
@@ -240,7 +240,7 @@ const Datasets = () => {
         <TabPanels>
           {!selectedUri && (
             <TabPanel>
-              <DatasetEvents />
+              <AssetEvents />
             </TabPanel>
           )}
           {!!selectedUri && (

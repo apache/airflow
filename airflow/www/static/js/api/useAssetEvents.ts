@@ -80,7 +80,7 @@ const useAssetEvents = ({
   );
   return {
     ...query,
-    data: query.data ?? { datasetEvents: [], totalEntries: 0 },
+    data: query.data ?? { assetEvents: [], totalEntries: 0 },
   };
 };
 

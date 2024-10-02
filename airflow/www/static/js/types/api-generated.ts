@@ -1988,7 +1988,7 @@ export interface components {
      * *New in version 2.4.0*
      */
     AssetEventCollection: {
-      dataset_events?: components["schemas"]["AssetEvent"][];
+      asset_events?: components["schemas"]["AssetEvent"][];
     } & components["schemas"]["CollectionInfo"];
     /** @description The option of configuration. */
     ConfigOption: {

@@ -38,7 +38,7 @@ interface FlattenNodesProps {
   onToggleGroups: (groupIds: string[]) => void;
   hoveredTaskState?: string | null;
   isZoomedOut: boolean;
-  datasetEvents?: AssetEvent[];
+  assetEvents?: AssetEvent[];
 }
 
 // Generate a flattened list of nodes for react-flow to render
@@ -52,7 +52,7 @@ export const flattenNodes = ({
   parent,
   hoveredTaskState,
   isZoomedOut,
-  datasetEvents,
+  assetEvents,
 }: FlattenNodesProps) => {
   let nodes: ReactFlowNode<CustomNodeProps>[] = [];
   let edges: ElkExtendedEdge[] = [];
@@ -93,7 +93,7 @@ export const flattenNodes = ({
         },
         datasetEvent:
           node.value.class === "asset"
-            ? datasetEvents?.find((de) => de.datasetUri === node.value.label)
+            ? assetEvents?.find((de) => de.datasetUri === node.value.label)
             : undefined,
         ...node.value,
       },

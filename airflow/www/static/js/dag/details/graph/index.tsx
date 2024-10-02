@@ -164,7 +164,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     );
 
   const {
-    data: { datasetEvents: upstreamAssetEvents = [] },
+    data: { assetEvents: upstreamAssetEvents = [] },
   } = useUpstreamAssetEvents({
     dagId,
     dagRunId: selected.runId || "",
@@ -175,7 +175,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
   });
 
   const {
-    data: { datasetEvents: downstreamDatasetEvents = [] },
+    data: { assetEvents: downstreamAssetEvents = [] },
   } = useAssetEvents({
     sourceDagId: dagId,
     sourceRunId: selected.runId || undefined,
@@ -211,7 +211,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
     });
 
     // Check if there is a dataset event even though we did not find a dataset
-    downstreamDatasetEvents.forEach((de) => {
+    downstreamAssetEvents.forEach((de) => {
       const hasNode = datasetNodes.find((node) => node.id === de.datasetUri);
       if (!hasNode && de.sourceTaskId && de.datasetUri) {
         datasetEdges.push({
@@ -264,8 +264,8 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
         groups,
         hoveredTaskState,
         isZoomedOut,
-        datasetEvents: selected.runId
-          ? [...upstreamAssetEvents, ...downstreamDatasetEvents]
+        assetEvents: selected.runId
+          ? [...upstreamAssetEvents, ...downstreamAssetEvents]
           : [],
       }),
     [
@@ -278,7 +278,7 @@ const Graph = ({ openGroupIds, onToggleGroups, hoveredTaskState }: Props) => {
       hoveredTaskState,
       isZoomedOut,
       upstreamAssetEvents,
-      downstreamDatasetEvents,
+      downstreamAssetEvents,
     ]
   );
 
