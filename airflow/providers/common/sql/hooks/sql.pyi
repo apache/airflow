@@ -65,7 +65,6 @@ class DbApiHook(BaseHook):
     supports_autocommit: bool
     supports_executemany: bool
     connector: ConnectorProtocol | None
-    dialects: dict[str, type[Dialect]]
     log_sql: Incomplete
     descriptions: Incomplete
     def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs) -> None: ...
