@@ -67,18 +67,8 @@ def upgrade():
         sa.UniqueConstraint("backfill_id", "dag_run_id", name="ix_bdr_backfill_id_dag_run_id"),
     )
 
-    with op.batch_alter_table("dag_run", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("backfill_id", sa.Integer(), nullable=True))
-        batch_op.create_foreign_key(
-            batch_op.f("dag_run_backfill_id_fkey"), "backfill", ["backfill_id"], ["id"]
-        )
-
 
 def downgrade():
     """Unapply Add tables for backfill."""
-    with op.batch_alter_table("dag_run", schema=None) as batch_op:
-        batch_op.drop_constraint(batch_op.f("dag_run_backfill_id_fkey"), type_="foreignkey")
-        batch_op.drop_column("backfill_id")
-
     op.drop_table("backfill_dag_run")
     op.drop_table("backfill")
