@@ -24,9 +24,9 @@ from typing import Any, Iterable
 from itsdangerous import URLSafeSerializer
 from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic import (
-    AliasGenerator,
+    AliasChoices,
     BaseModel,
-    ConfigDict,
+    Field,
     computed_field,
     field_validator,
 )
@@ -103,7 +103,9 @@ class DAGDetailsResponse(DAGResponse):
     """Specific serializer for DAG Details responses."""
 
     catchup: bool
-    dag_run_timeout: timedelta | None
+    dag_run_timeout: timedelta | None = Field(
+        validation_alias=AliasChoices("dag_run_timeout", "dagrun_timeout")
+    )
     dataset_expression: dict | None
     doc_md: str | None
     start_date: datetime | None
@@ -112,19 +114,11 @@ class DAGDetailsResponse(DAGResponse):
     orientation: str
     params: abc.MutableMapping | None
     render_template_as_native_obj: bool
-    template_search_path: Iterable[str] | None
-    timezone: str | None
-    last_parsed: datetime | None
-
-    model_config = ConfigDict(
-        alias_generator=AliasGenerator(
-            validation_alias=lambda field_name: {
-                "dag_run_timeout": "dagrun_timeout",
-                "last_parsed": "last_loaded",
-                "template_search_path": "template_searchpath",
-            }.get(field_name, field_name),
-        )
+    template_search_path: Iterable[str] | None = Field(
+        validation_alias=AliasChoices("template_search_path", "template_searchpath")
     )
+    timezone: str | None
+    last_parsed: datetime | None = Field(validation_alias=AliasChoices("last_parsed", "last_loaded"))
 
     @field_validator("timezone", mode="before")
     @classmethod
