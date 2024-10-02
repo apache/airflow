@@ -55,7 +55,7 @@ class MsSqlDialect(Dialect):
         self.log.debug("primary_keys: %s", primary_keys)
         self.log.debug("columns: %s", columns)
 
-        return f"""MERGE INTO {table} AS target
+        return f"""MERGE INTO {table} WITH (ROWLOCK, UPDLOCK) AS target
             USING (SELECT {', '.join(map(lambda column: f'{self.placeholder} AS {column}', target_fields))}) AS source
             ON {' AND '.join(map(lambda column: f'target.{column} = source.{column}', primary_keys))}
             WHEN MATCHED THEN
