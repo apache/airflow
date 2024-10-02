@@ -19,10 +19,10 @@ from __future__ import annotations
 
 import datetime
 import json
-import re
 import time
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
+import re2
 from sqlalchemy import select
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -78,7 +78,7 @@ class TriggerDagRunLink(BaseOperatorLink):
         old_trigger_dag_id: str | None = str(cast(TriggerDagRunOperator, operator).trigger_dag_id)
         # So the Triggered DAG button in the UI will be grayed out until the dag run is can be retrieved from
         # the XCom
-        if isinstance(old_trigger_dag_id, str) and re.match(r"^.*{{.+}}.*$", old_trigger_dag_id):
+        if isinstance(old_trigger_dag_id, str) and re2.match(r"^.*{{.+}}.*$", old_trigger_dag_id):
             old_trigger_dag_id = None
 
         # Includes the dag id from the XCom during execution or the one passed into the operator
