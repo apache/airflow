@@ -96,7 +96,7 @@ Impact of Sentry on Environment variables passed to Subprocess Hook
 
 When Sentry is enabled, by default it changes the standard library to pass all environment variables to
 subprocesses opened by Airflow. This changes the default behaviour of
-:class:`airflow.providers.standard.hooks.subprocess.SubprocessHook` - always all environment variables are passed to the
+:class:`airflow.hooks.subprocess.SubprocessHook` - always all environment variables are passed to the
 subprocess executed with specific set of environment variables. In this case not only the specified
 environment variables are passed but also all existing environment variables are passed with
 ``SUBPROCESS_`` prefix added. This happens also for all other subprocesses.
