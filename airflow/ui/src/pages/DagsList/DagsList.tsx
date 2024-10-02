@@ -18,7 +18,6 @@
  */
 import {
   Badge,
-  Checkbox,
   Heading,
   HStack,
   Select,
@@ -26,29 +25,35 @@ import {
   VStack,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Select as ReactSelect } from "chakra-react-select";
 import { type ChangeEventHandler, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useDagServiceGetDags } from "openapi/queries";
 import type { DAGResponse } from "openapi/requests/types.gen";
+import { DataTable } from "src/components/DataTable";
+import { useTableURLState } from "src/components/DataTable/useTableUrlState";
+import { SearchBar } from "src/components/SearchBar";
+import { TogglePause } from "src/components/TogglePause";
+import { pluralize } from "src/utils/pluralize";
 
-import { DataTable } from "../components/DataTable";
-import { useTableURLState } from "../components/DataTable/useTableUrlState";
-import { QuickFilterButton } from "../components/QuickFilterButton";
-import { SearchBar } from "../components/SearchBar";
-import { pluralize } from "../utils/pluralize";
+import { DagsFilters } from "./DagsFilters";
 
 const columns: Array<ColumnDef<DAGResponse>> = [
+  {
+    accessorKey: "is_paused",
+    cell: ({ row }) => (
+      <TogglePause
+        dagId={row.original.dag_id}
+        isPaused={row.original.is_paused}
+      />
+    ),
+    enableSorting: false,
+    header: "",
+  },
   {
     accessorKey: "dag_id",
     cell: ({ row }) => row.original.dag_display_name,
     header: "DAG",
-  },
-  {
-    accessorKey: "is_paused",
-    enableSorting: false,
-    header: () => "Is Paused",
   },
   {
     accessorKey: "timetable_description",
@@ -82,9 +87,9 @@ const PAUSED_PARAM = "paused";
 
 // eslint-disable-next-line complexity
 export const DagsList = ({ cardView = false }) => {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
-  const showPaused = searchParams.get(PAUSED_PARAM) === "true";
+  const showPaused = searchParams.get(PAUSED_PARAM);
 
   const { setTableURLState, tableURLState } = useTableURLState();
   const { pagination, sorting } = tableURLState;
@@ -98,21 +103,8 @@ export const DagsList = ({ cardView = false }) => {
     offset: pagination.pageIndex * pagination.pageSize,
     onlyActive: true,
     orderBy,
-    paused: showPaused,
+    paused: showPaused === null ? undefined : showPaused === "true",
   });
-
-  const handlePausedChange = useCallback(() => {
-    searchParams[showPaused ? "delete" : "set"](PAUSED_PARAM, "true");
-    setSearchParams(searchParams);
-    setTableURLState({ pagination: { ...pagination, pageIndex: 0 }, sorting });
-  }, [
-    pagination,
-    searchParams,
-    setSearchParams,
-    setTableURLState,
-    showPaused,
-    sorting,
-  ]);
 
   const handleSortChange = useCallback<ChangeEventHandler<HTMLSelectElement>>(
     ({ currentTarget: { value } }) => {
@@ -136,20 +128,7 @@ export const DagsList = ({ cardView = false }) => {
               buttonProps={{ isDisabled: true }}
               inputProps={{ isDisabled: true }}
             />
-            <HStack justifyContent="space-between">
-              <HStack>
-                <HStack>
-                  <QuickFilterButton isActive>All</QuickFilterButton>
-                  <QuickFilterButton isDisabled>Failed</QuickFilterButton>
-                  <QuickFilterButton isDisabled>Running</QuickFilterButton>
-                  <QuickFilterButton isDisabled>Successful</QuickFilterButton>
-                </HStack>
-                <Checkbox isChecked={showPaused} onChange={handlePausedChange}>
-                  Show Paused DAGs
-                </Checkbox>
-              </HStack>
-              <ReactSelect isDisabled placeholder="Filter by tag" />
-            </HStack>
+            <DagsFilters />
             <HStack justifyContent="space-between">
               <Heading size="md">
                 {pluralize("DAG", data?.total_entries)}
