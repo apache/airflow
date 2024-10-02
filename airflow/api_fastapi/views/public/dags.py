@@ -18,7 +18,6 @@
 from __future__ import annotations
 
 from fastapi import Depends, HTTPException, Query, Request
-from pydantic import ValidationError
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
@@ -100,25 +99,19 @@ async def get_dag_details(
     dag_id: str, session: Annotated[Session, Depends(get_session)], request: Request
 ) -> DAGDetailsResponse:
     """Get details of DAG."""
-    if not session:
-        raise HTTPException(401, "Invalid session")
-
     dag: DAG = request.app.state.dag_bag.get_dag(dag_id)
     if not dag:
         raise HTTPException(404, f"Dag with id {dag_id} was not found")
 
     dag_model: DagModel = session.get(DagModel, dag_id)
     if not dag_model:
-        raise HTTPException(400, f"Unable to obtain dag with id {dag_id} from session")
+        raise HTTPException(404, f"Unable to obtain dag with id {dag_id} from session")
 
     for key, value in dag.__dict__.items():
         if not key.startswith("_") and not hasattr(dag_model, key):
             setattr(dag_model, key, value)
 
-    try:
-        return DAGDetailsResponse.model_validate(dag_model, from_attributes=True)
-    except ValidationError as ve:
-        raise HTTPException(422, f"Error while validating dag model with id {dag_id}, details: {str(ve)}")
+    return DAGDetailsResponse.model_validate(dag_model, from_attributes=True)
 
 
 @dags_router.patch("/dags/{dag_id}", responses=create_openapi_http_exception_doc([400, 401, 403, 404]))

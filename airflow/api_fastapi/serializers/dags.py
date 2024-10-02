@@ -24,12 +24,15 @@ from typing import Any, Iterable
 from itsdangerous import URLSafeSerializer
 from pendulum.tz.timezone import FixedTimezone, Timezone
 from pydantic import (
+    AliasGenerator,
     BaseModel,
+    ConfigDict,
     computed_field,
     field_validator,
 )
 
 from airflow.configuration import conf
+from airflow.models.param import Param
 from airflow.serialization.pydantic.dag import DagTagPydantic
 
 
@@ -101,18 +104,32 @@ class DAGDetailsResponse(DAGResponse):
     """Specific serializer for DAG Details responses."""
 
     catchup: bool
-    dagrun_timeout: timedelta | None
+    dag_run_timeout: timedelta | None
     dataset_expression: dict | None
     doc_md: str | None
     start_date: datetime | None
     end_date: datetime | None
     is_paused_upon_creation: bool | None
     orientation: str
-    params: Any | None
+    params: abc.MutableMapping | None
     render_template_as_native_obj: bool
-    template_searchpath: str | Iterable[str] | None
+    template_search_path: Iterable[str] | None
     timezone: str | None
-    last_loaded: datetime | None
+    last_parsed: datetime | None
+
+    def _validation_alias_fn(field_name: str):
+        val_dict = {
+            "dag_run_timeout": "dagrun_timeout",
+            "last_parsed": "last_loaded",
+            "template_search_path": "template_searchpath",
+        }
+        return val_dict.get(field_name, field_name)
+
+    model_config = ConfigDict(
+        alias_generator=AliasGenerator(
+            validation_alias=_validation_alias_fn,
+        )
+    )
 
     @field_validator("timezone", mode="before")
     @classmethod
@@ -136,7 +153,7 @@ class DAGDetailsResponse(DAGResponse):
         """Convert params attribute to dict representation."""
         if params is None:
             return None
-        return {param_name: param_val.serialize() for param_name, param_val in params.items()}
+        return {param_name: param_val.dump() for param_name, param_val in params.items()}
 
     # Mypy issue https://github.com/python/mypy/issues/1362
     @computed_field  # type: ignore[misc]
@@ -144,10 +161,3 @@ class DAGDetailsResponse(DAGResponse):
     def concurrency(self) -> int:
         """Return max_active_tasks as concurrency."""
         return self.max_active_tasks
-
-    # Mypy issue https://github.com/python/mypy/issues/1362
-    @computed_field  # type: ignore[misc]
-    @property
-    def last_parsed(self) -> datetime | None:
-        """Return last_loaded as last_parsed."""
-        return self.last_loaded

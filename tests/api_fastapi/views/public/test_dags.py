@@ -77,7 +77,8 @@ def _create_deactivated_paused_dag(session=None):
 
 
 @pytest.fixture(autouse=True)
-def setup(dag_maker) -> None:
+@provide_session
+def setup(dag_maker, session=None) -> None:
     clear_db_runs()
     clear_db_dags()
     clear_db_serialized_dags()
@@ -108,6 +109,9 @@ def setup(dag_maker) -> None:
         EmptyOperator(task_id=TASK_ID)
 
     dag_maker.dagbag.sync_to_db()
+    dag_maker.dag_model.has_task_concurrency_limits = True
+    session.merge(dag_maker.dag_model)
+    session.commit()
     _create_deactivated_paused_dag()
 
 
@@ -245,7 +249,7 @@ def test_dag_details(test_client, query_params, dag_id, expected_status_code, da
 
     # Match expected and actual responses below.
     res_json = response.json()
-    last_loaded = res_json["last_loaded"]
+    last_parsed = res_json["last_parsed"]
     last_parsed_time = res_json["last_parsed_time"]
     file_token = res_json["file_token"]
     expected = {
@@ -253,7 +257,7 @@ def test_dag_details(test_client, query_params, dag_id, expected_status_code, da
         "concurrency": 16,
         "dag_id": dag_id,
         "dag_display_name": dag_display_name,
-        "dagrun_timeout": None,
+        "dag_run_timeout": None,
         "dataset_expression": None,
         "default_view": "grid",
         "description": None,
@@ -262,13 +266,12 @@ def test_dag_details(test_client, query_params, dag_id, expected_status_code, da
         "fileloc": "/opt/airflow/tests/api_fastapi/views/public/test_dags.py",
         "file_token": file_token,
         "has_import_errors": False,
-        "has_task_concurrency_limits": False,
+        "has_task_concurrency_limits": True,
         "is_active": True,
         "is_paused": False,
         "is_paused_upon_creation": None,
         "last_expired": None,
-        "last_parsed": last_loaded,
-        "last_loaded": last_loaded,  # TODO: remove last_loaded as it is the same as last_parsed
+        "last_parsed": last_parsed,
         "last_parsed_time": last_parsed_time,
         "last_pickled": None,
         "max_active_runs": 16,
@@ -282,6 +285,7 @@ def test_dag_details(test_client, query_params, dag_id, expected_status_code, da
         "owners": ["airflow"],
         "params": {
             "foo": {
+                "__class": "airflow.models.param.Param",
                 "description": None,
                 "schema": {},
                 "value": 1,
@@ -293,7 +297,7 @@ def test_dag_details(test_client, query_params, dag_id, expected_status_code, da
         "scheduler_lock": None,
         "start_date": start_date.replace(tzinfo=None).isoformat() + "Z",  # pydantic datetime format
         "tags": [],
-        "template_searchpath": None,
+        "template_search_path": None,
         "timetable_description": "Never, external triggers only",
         "timezone": UTC_JSON_REPR,
     }
