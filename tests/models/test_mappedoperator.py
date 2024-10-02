@@ -220,6 +220,15 @@ def test_partial_on_class_invalid_ctor_args() -> None:
         MockOperator.partial(task_id="a", foo="bar", bar=2)
 
 
+def test_partial_on_invalid_pool_slots_raises() -> None:
+    """Test that when we pass an invalid value to pool_slots in partial(),
+
+    i.e. if the value is not an integer, an error is raised at import time."""
+
+    with pytest.raises(TypeError, match="'<' not supported between instances of 'str' and 'int'"):
+        MockOperator.partial(task_id="pool_slots_test", pool="test", pool_slots="a").expand(arg1=[1, 2, 3])
+
+
 @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
 @pytest.mark.parametrize(
     ["num_existing_tis", "expected"],
