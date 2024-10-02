@@ -56,7 +56,7 @@ from airflow.models.expandinput import (
     ListOfDictsExpandInput,
     is_mappable,
 )
-from airflow.models.mappedoperator import MappedOperator, ensure_xcomarg_return_value, validate_mapping_kwargs
+from airflow.models.mappedoperator import MappedOperator, ensure_xcomarg_return_value
 from airflow.models.pool import Pool
 from airflow.models.xcom_arg import XComArg
 from airflow.typing_compat import ParamSpec, Protocol
@@ -537,7 +537,6 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
 
         if not mapped_kwargs:
             raise TypeError("no arguments to expand against")
-        validate_mapping_kwargs(self.operator_class, "stream", mapped_kwargs)
         prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified")
 
         expand_input = DictOfListsExpandInput(mapped_kwargs)
