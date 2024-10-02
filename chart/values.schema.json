@@ -1598,6 +1598,15 @@
                     ],
                     "default": null
                 },
+                "podManagementPolicy": {
+                    "description": "Specifies the policy for managing pods within the worker. Only applicable to StatefulSet.",
+                    "type": [
+                        "null",
+                        "string"
+                    ],
+                    "default": null,
+                    "enum": ["OrderedReady", "Parallel"]
+                },
                 "strategy": {
                     "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment.",
                     "type": [
