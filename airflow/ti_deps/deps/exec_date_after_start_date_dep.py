@@ -30,11 +30,9 @@ class ExecDateAfterStartDateDep(BaseTIDep):
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
-        # todo: AIP-78 can we pass DR in the dep context instead, to avoid a query?
         dagrun = ti.get_dagrun(session)
         if dagrun.run_type == DagRunType.BACKFILL_JOB:
             return
-        # todo: should we log actual reasons for not running rather than having webserver re-evaluate?
         if ti.task.start_date and ti.execution_date < ti.task.start_date:
             yield self._failing_status(
                 reason=(
