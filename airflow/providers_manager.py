@@ -1293,7 +1293,7 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
     def dialects(self) -> MutableMapping[str, DialectInfo]:
         """Return dictionary of connection_type-to-dialect mapping."""
         self.initialize_providers_hooks()
-        # When we return hooks here it will only be used to retrieve hook information
+        # When we return dialects here it will only be used to retrieve dialect information
         return self._dialect_provider_dict
 
     @property
