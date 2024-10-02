@@ -124,7 +124,12 @@ def _create_backfill(
     dag_run_conf: dict | None,
 ) -> Backfill | None:
     with create_session() as session:
-        serdag = session.get(SerializedDagModel, dag_id)
+        serdag = session.scalar(
+            select(SerializedDagModel)
+            .where(SerializedDagModel.dag_id == dag_id)
+            .order_by(SerializedDagModel.id.desc())
+            .limit(1)
+        )
         if not serdag:
             raise NotFound(f"Could not find dag {dag_id}")
 
