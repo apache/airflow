@@ -234,6 +234,7 @@ def _import_users(users_list: list[dict[str, Any]]):
             raise SystemExit(
                 "Error: Input file didn't pass validation. See below:\n{}".format("\n".join(msg))
             )
+
         for user in users_list:
             roles = []
             for rolename in user["roles"]:
