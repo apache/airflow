@@ -875,11 +875,14 @@ class ProvidersManager(LoggingMixin, metaclass=Singleton):
         dialects = provider.data.get("dialects", [])
         if dialects:
             self._dialect_provider_dict.update(
-                {item['dialect-type']: DialectInfo(
-                    name=item["dialect-type"],
-                    dialect_class_name=item['dialect-class-name'],
-                    provider_name=provider_name
-                ) for item in dialects}
+                {
+                    item["dialect-type"]: DialectInfo(
+                        name = item["dialect-type"],
+                        dialect_class_name = item["dialect-class-name"],
+                        provider_name = provider_name,
+                    )
+                    for item in dialects
+                }
             )
 
     @provider_info_cache("import_all_hooks")
