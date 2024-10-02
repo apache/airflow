@@ -273,7 +273,6 @@ class TestSerializedDagModel:
         with DAG(
             dag_id="example",
             start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
-            schedule=None,
         ) as dag:
             t1 = PythonOperator(
                 task_id="t1",
@@ -288,7 +287,25 @@ class TestSerializedDagModel:
 
         dag_data_json = mock_md5.call_args_list[0].args[0]
         serialzied_dag_data = json.loads(dag_data_json)
-        assert (
-            serialzied_dag_data["dag"]["tasks"][1]["__var"]["trigger_dag_id"]
-            == "{{ task_instance.xcom_pull(task_ids='t1', dag_id='example', key='return_value') }}"
-        )
+        assert serialzied_dag_data["dag"]["tasks"][1]["__var"]["trigger_dag_id"] == {
+            "key": "return_value",
+            "task_id": "t1",
+        }
+
+    def test_example_dag_hashes_are_always_consistent(self, session):
+        """
+        This test asserts that the hashes of the example dags are always consistent.
+        """
+
+        def get_hash_set():
+            example_dags = self._write_example_dags()
+            ordered_example_dags = dict(sorted(example_dags.items()))
+            hashes = set()
+            for dag_id in ordered_example_dags.keys():
+                smd = session.execute(select(SDM.dag_hash).where(SDM.dag_id == dag_id)).one()
+                hashes.add(smd.dag_hash)
+            return hashes
+
+        first_hashes = get_hash_set()
+        # assert that the hashes are the same
+        assert first_hashes == get_hash_set()
