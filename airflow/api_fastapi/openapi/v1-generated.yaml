@@ -370,50 +370,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /public/dags/{dag_id}/details:
-      get:
-        tags:
-        - DAG
-        summary: Get DAG details.
-        description: Get details of a specific DAG.
-        operationId: get_dag_details_public_dags_get_details
-        responses:
-          '200':
-            description: Successful Response
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/DAGDetailsResponse'
-          '400':
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/HTTPExceptionResponse'
-            description: Bad Request
-          '401':
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/HTTPExceptionResponse'
-            description: Unauthorized
-          '403':
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/HTTPExceptionResponse'
-            description: Forbidden
-          '404':
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/HTTPExceptionResponse'
-            description: Not Found
-          '422':
-            description: Validation Error
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/HTTPValidationError'
   /public/connections/{connection_id}:
     delete:
       tags:
