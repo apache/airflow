@@ -5552,7 +5552,7 @@ class TestSchedulerJob:
         def watch_set_state(dr: DagRun, state, **kwargs):
             if state in (DagRunState.SUCCESS, DagRunState.FAILED):
                 # Stop the scheduler
-                self.job_runner.num_runs = 1  # type: ignore[attr-defined]
+                self.job_runner.num_runs = 1  # type: ignore[union-attr]
             orig_set_state(dr, state, **kwargs)  # type: ignore[call-arg]
 
         def watch_heartbeat(*args, **kwargs):
