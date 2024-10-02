@@ -1188,7 +1188,7 @@ are not part of the public API. We deal with it in one of the following ways:
 
 
   @pytest.mark.skipif(not AIRFLOW_V_2_8_PLUS, reason="The tests should be skipped for Airflow < 2.8")
-  def some_test_that_only_works_for_airflow_2_7_plus():
+  def some_test_that_only_works_for_airflow_2_8_plus():
       pass
 
 4) Sometimes, the tests should only be run when airflow is installed from the sources in main.
