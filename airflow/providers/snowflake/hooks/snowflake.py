@@ -98,7 +98,7 @@ class SnowflakeHook(DbApiHook):
         """Return connection widgets to add to connection form."""
         from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import BooleanField, StringField
+        from wtforms import BooleanField, PasswordField, StringField
 
         return {
             "account": StringField(lazy_gettext("Account"), widget=BS3TextFieldWidget()),
@@ -107,7 +107,7 @@ class SnowflakeHook(DbApiHook):
             "region": StringField(lazy_gettext("Region"), widget=BS3TextFieldWidget()),
             "role": StringField(lazy_gettext("Role"), widget=BS3TextFieldWidget()),
             "private_key_file": StringField(lazy_gettext("Private key (Path)"), widget=BS3TextFieldWidget()),
-            "private_key_content": StringField(
+            "private_key_content": PasswordField(
                 lazy_gettext("Private key (Text)"), widget=BS3TextAreaFieldWidget()
             ),
             "insecure_mode": BooleanField(
