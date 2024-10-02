@@ -248,6 +248,9 @@ Name                                                 Description
 ``triggers.running.<hostname>``                      Number of triggers currently running for a triggerer (described by hostname)
 ``triggers.running``                                 Number of triggers currently running for a triggerer (described by hostname).
                                                      Metric with hostname tagging.
+``triggerer.capacity_left.<hostname>``               Capacity left on a triggerer to run triggers (described by hostname)
+``triggerer.capacity_left``                          Capacity left on a triggerer to run triggers (described by hostname).
+                                                     Metric with hostname tagging.
 ==================================================== ========================================================================
 
 Timers
