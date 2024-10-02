@@ -353,8 +353,3 @@ FILEFORMAT = {self._file_format}
         self.log.info("Executing: %s", sql)
         hook = self._get_hook()
         hook.run(sql)
-
-    def on_kill(self) -> None:
-        # NB: on_kill isn't required for this operator since query cancelling gets
-        # handled in `DatabricksSqlHook.run()` method which is called in `execute()`
-        ...

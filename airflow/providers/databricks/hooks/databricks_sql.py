@@ -16,12 +16,10 @@
 # under the License.
 from __future__ import annotations
 
-import threading
 import warnings
 from collections import namedtuple
 from contextlib import closing
 from copy import copy
-from datetime import timedelta
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -49,16 +47,6 @@ LIST_SQL_ENDPOINTS_ENDPOINT = ("GET", "api/2.0/sql/endpoints")
 
 
 T = TypeVar("T")
-
-
-def create_timeout_thread(cur, execution_timeout: timedelta | None) -> threading.Timer | None:
-    if execution_timeout is not None:
-        seconds_to_timeout = execution_timeout.total_seconds()
-        t = threading.Timer(seconds_to_timeout, cur.connection.cancel)
-    else:
-        t = None
-
-    return t
 
 
 class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
@@ -192,7 +180,6 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         self,
         sql: str | Iterable[str],
         autocommit: bool = ...,
-        execution_timeout: timedelta | None = ...,
         parameters: Iterable | Mapping[str, Any] | None = ...,
         handler: None = ...,
         split_statements: bool = ...,
@@ -204,7 +191,6 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         self,
         sql: str | Iterable[str],
         autocommit: bool = ...,
-        execution_timeout: timedelta | None = ...,
         parameters: Iterable | Mapping[str, Any] | None = ...,
         handler: Callable[[Any], T] = ...,
         split_statements: bool = ...,
@@ -215,7 +201,6 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         self,
         sql: str | Iterable[str],
         autocommit: bool = False,
-        execution_timeout: timedelta | None = None,
         parameters: Iterable | Mapping[str, Any] | None = None,
         handler: Callable[[Any], T] | None = None,
         split_statements: bool = True,
@@ -237,8 +222,6 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         :param handler: The result handler which is called with the result of each statement.
         :param split_statements: Whether to split a single SQL string into statements and run separately
         :param return_last: Whether to return result for only last statement or for all after split
-        :param execution_timeout: max time allowed for the execution of
-        this task instance, if it goes beyond it will raise and fail.
         :return: return only result of the LAST SQL expression if handler was provided unless return_last
             is set to False.
         """
@@ -265,22 +248,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
                 self.set_autocommit(conn, autocommit)
 
                 with closing(conn.cursor()) as cur:
-                    t = create_timeout_thread(cur, execution_timeout)
-
-                    # todo; adjust this to make testing easier
-                    try:
-                        self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
-                    except Exception as e:
-                        if t is None or t.is_alive():
-                            raise AirflowException(f"Error running statement: {sql_statement}. {str(e)}")
-                        else:
-                            raise AirflowException(
-                                f"Timeout threshold exceeded for query: {sql_statement} was cancelled."
-                            )
-                    finally:
-                        if t is not None:
-                            t.cancel()
-
+                    self._run_command(cur, sql_statement, parameters)  # type: ignore[attr-defined]
                     if handler is not None:
                         raw_result = handler(cur)
                         if self.return_tuple:
