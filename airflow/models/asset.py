@@ -415,14 +415,14 @@ class TaskOutletAssetReference(Base):
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
-            name="todr_asset_fkey",
+            name="toar_asset_fkey",
             ondelete="CASCADE",
         ),
-        PrimaryKeyConstraint(dataset_id, dag_id, task_id, name="todr_pkey"),
+        PrimaryKeyConstraint(dataset_id, dag_id, task_id, name="toar_pkey"),
         ForeignKeyConstraint(
             columns=(dag_id,),
             refcolumns=["dag.dag_id"],
-            name="todr_dag_id_fkey",
+            name="toar_dag_id_fkey",
             ondelete="CASCADE",
         ),
         Index("idx_task_outlet_asset_reference_dag_id", dag_id),
