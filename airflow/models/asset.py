@@ -462,13 +462,13 @@ class AssetDagRunQueue(Base):
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
-            name="ddrq_asset_fkey",
+            name="adrq_asset_fkey",
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
             (target_dag_id,),
             ["dag.dag_id"],
-            name="ddrq_dag_fkey",
+            name="adrq_dag_fkey",
             ondelete="CASCADE",
         ),
         Index("idx_asset_dag_run_queue_target_dag_id", target_dag_id),
