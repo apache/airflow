@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-01T13:25:33.287893
+# This constraints file was automatically generated on 2024-10-02T08:24:34.810236
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -324,7 +324,7 @@ google-api-python-client==2.147.0
 google-auth-httplib2==0.2.0
 google-auth-oauthlib==1.2.1
 google-auth==2.35.0
-google-cloud-aiplatform==1.68.0
+google-cloud-aiplatform==1.69.0
 google-cloud-appengine-logging==1.4.5
 google-cloud-audit-log==0.3.0
 google-cloud-automl==2.13.5
@@ -388,7 +388,7 @@ hatchling==1.25.0
 hdfs==2.7.3
 hmsclient==0.1.1
 hpack==4.0.0
-httpcore==1.0.5
+httpcore==1.0.6
 httplib2==0.22.0
 httpx==0.27.0
 humanize==4.10.0
@@ -474,7 +474,7 @@ msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
 multidict==6.1.0
 mypy-boto3-appflow==1.35.0
-mypy-boto3-rds==1.35.25
+mypy-boto3-rds==1.35.31
 mypy-boto3-redshift-data==1.35.10
 mypy-boto3-s3==1.35.22
 mypy-extensions==1.0.0
@@ -491,7 +491,7 @@ nodeenv==1.9.1
 numpy==1.26.4
 oauthlib==3.2.2
 objsize==0.7.0
-openai==1.50.2
+openai==1.51.0
 openapi-schema-validator==0.6.2
 openapi-spec-validator==0.7.1
 openlineage-integration-common==1.22.0
@@ -573,7 +573,7 @@ pygraphviz==1.14
 pyiceberg==0.7.1
 pyjsparser==2.7.1
 pykerberos==1.2.4
-pymongo==4.10.0
+pymongo==4.10.1
 pymssql==2.3.1
 pyodbc==5.1.0
 pyparsing==3.1.4
@@ -590,7 +590,7 @@ pytest-rerunfailures==14.0
 pytest-timeouts==1.2.1
 pytest-xdist==3.6.1
 pytest==8.3.3
-python-arango==8.1.1
+python-arango==8.1.2
 python-daemon==3.0.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
@@ -624,7 +624,7 @@ rfc3339-validator==0.1.4
 rfc3986==2.0.0
 rich-argparse==1.5.2
 rich-click==1.8.3
-rich==13.9.0
+rich==13.9.1
 rpds-py==0.20.0
 rsa==4.9
 ruff==0.5.5
@@ -635,7 +635,7 @@ scrapbook==0.5.0
 semver==3.0.2
 sendgrid==6.11.0
 sentinels==1.0.0
-sentry-sdk==2.14.0
+sentry-sdk==2.15.0
 setproctitle==1.3.3
 shapely==2.0.6
 shellingham==1.5.4
@@ -683,7 +683,7 @@ sympy==1.13.3
 tableauserverclient==0.33
 tabulate==0.9.0
 tenacity==8.5.0
-teradatasql==20.0.0.16
+teradatasql==20.0.0.17
 teradatasqlalchemy==20.0.0.2
 termcolor==2.4.0
 text-unidecode==1.3
