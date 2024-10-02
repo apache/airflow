@@ -458,7 +458,7 @@ class AssetDagRunQueue(Base):
 
     __tablename__ = "asset_dag_run_queue"
     __table_args__ = (
-        PrimaryKeyConstraint(dataset_id, target_dag_id, name="datasetdagrunqueue_pkey"),
+        PrimaryKeyConstraint(dataset_id, target_dag_id, name="assetdagrunqueue_pkey"),
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
