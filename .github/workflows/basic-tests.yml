@@ -197,9 +197,11 @@ jobs:
         working-directory: ./clients/python
       - name: "Prepare FAB provider packages: wheel"
         run: >
-            breeze release-management prepare-provider-packages fab --package-format wheel --skip-tag-check
+            breeze release-management prepare-provider-packages fab standard --package-format wheel --skip-tag-check
       - name: "Install Airflow with fab for webserver tests"
         run: pip install . dist/apache_airflow_providers_fab-*.whl
+      - name: "Install Airflow with stardard for webserver tests"
+        run: pip install . dist/apache_airflow_providers_standard-*.whl
       - name: "Install Python client"
         run: pip install ./dist/apache_airflow_client-*.whl
       - name: "Initialize Airflow DB and start webserver"
