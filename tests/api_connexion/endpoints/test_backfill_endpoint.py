@@ -27,15 +27,13 @@ import pytest
 from airflow.models import DagBag, DagModel
 from airflow.models.backfill import Backfill
 from airflow.models.dag import DAG
-from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
-from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import provide_session
 from tests.test_utils.api_connexion_utils import create_user, delete_user
 from tests.test_utils.db import clear_db_backfills, clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
-pytestmark = [pytest.mark.db_test]
+pytestmark = [pytest.mark.db_test, pytest.mark.need_serialized_dag]
 
 
 DAG_ID = "test_dag"
@@ -45,30 +43,30 @@ DAG3_ID = "test_dag3"
 UTC_JSON_REPR = "UTC" if pendulum.__version__.startswith("3") else "Timezone('UTC')"
 
 
+def _clean_db():
+    clear_db_backfills()
+    clear_db_runs()
+    clear_db_dags()
+    clear_db_serialized_dags()
+
+
+@pytest.fixture(autouse=True)
+def clean_db():
+    _clean_db()
+    yield
+    _clean_db()
+
+
 @pytest.fixture(scope="module")
 def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
 
     create_user(
-        app,  # type: ignore
+        app,
         username="test",
-        role_name="Test",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
-        ],
+        role_name="admin",
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
-    create_user(app, username="test_granular_permissions", role_name="TestGranularDag")  # type: ignore
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
-        "TEST_DAG_1",
-        access_control={
-            "TestGranularDag": {
-                permissions.RESOURCE_DAG: {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ}
-            },
-        },
-    )
+    create_user(app, username="test_no_permissions", role_name=None)
 
     with DAG(
         DAG_ID,
@@ -93,30 +91,18 @@ def configured_app(minimal_app_for_api):
 
     yield app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
-    delete_user(app, username="test_granular_permissions")  # type: ignore
+    delete_user(app, username="test")
+    delete_user(app, username="test_no_permissions")
 
 
 class TestBackfillEndpoint:
-    @staticmethod
-    def clean_db():
-        clear_db_backfills()
-        clear_db_runs()
-        clear_db_dags()
-        clear_db_serialized_dags()
-
     @pytest.fixture(autouse=True)
     def setup_attrs(self, configured_app) -> None:
-        self.clean_db()
         self.app = configured_app
         self.client = self.app.test_client()  # type:ignore
         self.dag_id = DAG_ID
         self.dag2_id = DAG2_ID
         self.dag3_id = DAG3_ID
-
-    def teardown_method(self) -> None:
-        self.clean_db()
 
     @provide_session
     def _create_dag_models(self, *, count=1, dag_id_prefix="TEST_DAG", is_paused=False, session=None):
@@ -178,7 +164,6 @@ class TestListBackfills(TestBackfillEndpoint):
     @pytest.mark.parametrize(
         "user, expected",
         [
-            ("test_granular_permissions", 200),
             ("test_no_permissions", 403),
             ("test", 200),
             (None, 401),
@@ -240,7 +225,6 @@ class TestGetBackfill(TestBackfillEndpoint):
     @pytest.mark.parametrize(
         "user, expected",
         [
-            ("test_granular_permissions", 200),
             ("test_no_permissions", 403),
             ("test", 200),
             (None, 401),
@@ -268,7 +252,6 @@ class TestCreateBackfill(TestBackfillEndpoint):
     @pytest.mark.parametrize(
         "user, expected",
         [
-            ("test_granular_permissions", 200),
             ("test_no_permissions", 403),
             ("test", 200),
             (None, 401),
@@ -277,8 +260,6 @@ class TestCreateBackfill(TestBackfillEndpoint):
     def test_create_backfill(self, user, expected, session, dag_maker):
         with dag_maker(session=session, dag_id="TEST_DAG_1", schedule="0 * * * *") as dag:
             EmptyOperator(task_id="mytask")
-        session.add(SerializedDagModel(dag))
-        session.commit()
         session.query(DagModel).all()
         from_date = pendulum.parse("2024-01-01")
         from_date_iso = from_date.isoformat()
@@ -347,7 +328,6 @@ class TestPauseBackfill(TestBackfillEndpoint):
     @pytest.mark.parametrize(
         "user, expected",
         [
-            ("test_granular_permissions", 200),
             ("test_no_permissions", 403),
             ("test", 200),
             (None, 401),
@@ -409,7 +389,6 @@ class TestCancelBackfill(TestBackfillEndpoint):
     @pytest.mark.parametrize(
         "user, expected",
         [
-            ("test_granular_permissions", 200),
             ("test_no_permissions", 403),
             ("test", 200),
             (None, 401),

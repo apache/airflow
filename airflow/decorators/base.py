@@ -431,18 +431,29 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         dag = task_kwargs.pop("dag", None) or DagContext.get_current_dag()
         task_group = task_kwargs.pop("task_group", None) or TaskGroupContext.get_current_task_group(dag)
 
-        partial_kwargs, partial_params = get_merged_defaults(
+        default_args, partial_params = get_merged_defaults(
             dag=dag,
             task_group=task_group,
             task_params=task_kwargs.pop("params", None),
             task_default_args=task_kwargs.pop("default_args", None),
         )
-        partial_kwargs.update(
-            task_kwargs,
-            is_setup=self.is_setup,
-            is_teardown=self.is_teardown,
-            on_failure_fail_dagrun=self.on_failure_fail_dagrun,
-        )
+        partial_kwargs: dict[str, Any] = {
+            "is_setup": self.is_setup,
+            "is_teardown": self.is_teardown,
+            "on_failure_fail_dagrun": self.on_failure_fail_dagrun,
+        }
+        base_signature = inspect.signature(BaseOperator)
+        ignore = {
+            "default_args",  # This is target we are working on now.
+            "kwargs",  # A common name for a keyword argument.
+            "do_xcom_push",  # In the same boat as `multiple_outputs`
+            "multiple_outputs",  # We will use `self.multiple_outputs` instead.
+            "params",  # Already handled above `partial_params`.
+            "task_concurrency",  # Deprecated(replaced by `max_active_tis_per_dag`).
+        }
+        partial_keys = set(base_signature.parameters) - ignore
+        partial_kwargs.update({key: value for key, value in default_args.items() if key in partial_keys})
+        partial_kwargs.update(task_kwargs)
 
         task_id = get_unique_task_id(partial_kwargs.pop("task_id"), dag, task_group)
         if task_group:
@@ -457,6 +468,12 @@ class _TaskDecorator(ExpandableFactory, Generic[FParams, FReturn, OperatorSubcla
         end_date = timezone.convert_to_utc(partial_kwargs.pop("end_date", None))
         if partial_kwargs.get("pool") is None:
             partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME
+        if "pool_slots" in partial_kwargs:
+            if partial_kwargs["pool_slots"] < 1:
+                dag_str = ""
+                if dag:
+                    dag_str = f" in dag {dag.dag_id}"
+                raise ValueError(f"pool slots for {task_id}{dag_str} cannot be less than 1")
         partial_kwargs["retries"] = parse_retries(partial_kwargs.get("retries", DEFAULT_RETRIES))
         partial_kwargs["retry_delay"] = coerce_timedelta(
             partial_kwargs.get("retry_delay", DEFAULT_RETRY_DELAY),
