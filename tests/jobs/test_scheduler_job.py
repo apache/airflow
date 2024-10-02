@@ -144,7 +144,7 @@ class TestSchedulerJob:
     @pytest.fixture(autouse=True)
     def per_test(self) -> Generator:
         self.clean_db()
-        self.job_runner = None
+        self.job_runner: SchedulerJobRunner | None = None
 
         yield
 
@@ -5227,6 +5227,82 @@ class TestSchedulerJob:
         assert ti1.next_method == "__fail__"
         assert ti2.state == State.DEFERRED
 
+    def test_retry_on_db_error_when_update_timeout_triggers(self, dag_maker):
+        """
+        Tests that it will retry on DB error like deadlock when updating timeout triggers.
+        """
+        from sqlalchemy.exc import OperationalError
+
+        retry_times = 3
+
+        session = settings.Session()
+        # Create the test DAG and task
+        with dag_maker(
+            dag_id="test_retry_on_db_error_when_update_timeout_triggers",
+            start_date=DEFAULT_DATE,
+            schedule="@once",
+            max_active_runs=1,
+            session=session,
+        ):
+            EmptyOperator(task_id="dummy1")
+
+        # Mock the db failure within retry times
+        might_fail_session = MagicMock(wraps=session)
+
+        def check_if_trigger_timeout(max_retries: int):
+            def make_side_effect():
+                call_count = 0
+
+                def side_effect(*args, **kwargs):
+                    nonlocal call_count
+                    if call_count < retry_times - 1:
+                        call_count += 1
+                        raise OperationalError("any_statement", "any_params", "any_orig")
+                    else:
+                        return session.execute(*args, **kwargs)
+
+                return side_effect
+
+            might_fail_session.execute.side_effect = make_side_effect()
+
+            try:
+                # Create a Task Instance for the task that is allegedly deferred
+                # but past its timeout, and one that is still good.
+                # We don't actually need a linked trigger here; the code doesn't check.
+                dr1 = dag_maker.create_dagrun()
+                dr2 = dag_maker.create_dagrun(
+                    run_id="test2", execution_date=DEFAULT_DATE + datetime.timedelta(seconds=1)
+                )
+                ti1 = dr1.get_task_instance("dummy1", session)
+                ti2 = dr2.get_task_instance("dummy1", session)
+                ti1.state = State.DEFERRED
+                ti1.trigger_timeout = timezone.utcnow() - datetime.timedelta(seconds=60)
+                ti2.state = State.DEFERRED
+                ti2.trigger_timeout = timezone.utcnow() + datetime.timedelta(seconds=60)
+                session.flush()
+
+                # Boot up the scheduler and make it check timeouts
+                scheduler_job = Job()
+                self.job_runner = SchedulerJobRunner(job=scheduler_job, subdir=os.devnull)
+
+                self.job_runner.check_trigger_timeouts(max_retries=max_retries, session=might_fail_session)
+
+                # Make sure that TI1 is now scheduled to fail, and 2 wasn't touched
+                session.refresh(ti1)
+                session.refresh(ti2)
+                assert ti1.state == State.SCHEDULED
+                assert ti1.next_method == "__fail__"
+                assert ti2.state == State.DEFERRED
+            finally:
+                self.clean_db()
+
+        # Positive case, will retry until success before reach max retry times
+        check_if_trigger_timeout(retry_times)
+
+        # Negative case: no retries, execute only once.
+        with pytest.raises(OperationalError):
+            check_if_trigger_timeout(1)
+
     def test_find_zombies_nothing(self):
         executor = MockExecutor(do_update=False)
         scheduler_job = Job(executor=executor)
@@ -5504,7 +5580,7 @@ class TestSchedulerJob:
         def watch_set_state(dr: DagRun, state, **kwargs):
             if state in (DagRunState.SUCCESS, DagRunState.FAILED):
                 # Stop the scheduler
-                self.job_runner.num_runs = 1  # type: ignore[attr-defined]
+                self.job_runner.num_runs = 1  # type: ignore[union-attr]
             orig_set_state(dr, state, **kwargs)  # type: ignore[call-arg]
 
         def watch_heartbeat(*args, **kwargs):
