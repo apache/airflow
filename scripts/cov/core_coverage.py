@@ -47,6 +47,7 @@ files_not_fully_covered = [
     "airflow/jobs/triggerer_job_runner.py",
     # models
     "airflow/models/abstractoperator.py",
+    "airflow/models/asset.py",
     "airflow/models/base.py",
     "airflow/models/baseoperator.py",
     "airflow/models/connection.py",
@@ -57,7 +58,6 @@ files_not_fully_covered = [
     "airflow/models/dagpickle.py",
     "airflow/models/dagrun.py",
     "airflow/models/dagwarning.py",
-    "airflow/models/dataset.py",
     "airflow/models/expandinput.py",
     "airflow/models/log.py",
     "airflow/models/mappedoperator.py",

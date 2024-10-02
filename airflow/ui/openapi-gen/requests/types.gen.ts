@@ -88,15 +88,15 @@ export type ValidationError = {
   type: string;
 };
 
-export type NextRunDatasetsUiNextRunDatasetsDagIdGetData = {
+export type NextRunAssetsData = {
   dagId: string;
 };
 
-export type NextRunDatasetsUiNextRunDatasetsDagIdGetResponse = {
+export type NextRunAssetsResponse = {
   [key: string]: unknown;
 };
 
-export type GetDagsPublicDagsGetData = {
+export type GetDagsData = {
   dagDisplayNamePattern?: string | null;
   dagIdPattern?: string | null;
   lastDagRunState?: DagRunState | null;
@@ -109,20 +109,35 @@ export type GetDagsPublicDagsGetData = {
   tags?: Array<string>;
 };
 
-export type GetDagsPublicDagsGetResponse = DAGCollectionResponse;
+export type GetDagsResponse = DAGCollectionResponse;
 
-export type PatchDagPublicDagsDagIdPatchData = {
+export type PatchDagsData = {
+  dagIdPattern?: string | null;
+  lastDagRunState?: DagRunState | null;
+  limit?: number;
+  offset?: number;
+  onlyActive?: boolean;
+  owners?: Array<string>;
+  paused?: boolean | null;
+  requestBody: DAGPatchBody;
+  tags?: Array<string>;
+  updateMask?: Array<string> | null;
+};
+
+export type PatchDagsResponse = DAGCollectionResponse;
+
+export type PatchDagData = {
   dagId: string;
   requestBody: DAGPatchBody;
   updateMask?: Array<string> | null;
 };
 
-export type PatchDagPublicDagsDagIdPatchResponse = DAGResponse;
+export type PatchDagResponse = DAGResponse;
 
 export type $OpenApiTs = {
   "/ui/next_run_datasets/{dag_id}": {
     get: {
-      req: NextRunDatasetsUiNextRunDatasetsDagIdGetData;
+      req: NextRunAssetsData;
       res: {
         /**
          * Successful Response
@@ -139,7 +154,7 @@ export type $OpenApiTs = {
   };
   "/public/dags": {
     get: {
-      req: GetDagsPublicDagsGetData;
+      req: GetDagsData;
       res: {
         /**
          * Successful Response
@@ -151,10 +166,39 @@ export type $OpenApiTs = {
         422: HTTPValidationError;
       };
     };
+    patch: {
+      req: PatchDagsData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: DAGCollectionResponse;
+        /**
+         * Bad Request
+         */
+        400: HTTPExceptionResponse;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
   };
   "/public/dags/{dag_id}": {
     patch: {
-      req: PatchDagPublicDagsDagIdPatchData;
+      req: PatchDagData;
       res: {
         /**
          * Successful Response
