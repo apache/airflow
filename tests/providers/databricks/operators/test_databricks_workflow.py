@@ -28,7 +28,6 @@ from airflow.operators.empty import EmptyOperator
 from airflow.providers.databricks.hooks.databricks import RunLifeCycleState
 from airflow.providers.databricks.operators.databricks_workflow import (
     DatabricksWorkflowTaskGroup,
-    WorkflowRunMetadata,
     _CreateDatabricksWorkflowOperator,
     _flatten_node,
 )
@@ -58,11 +57,6 @@ def mock_task_group():
     mock_group = MagicMock(spec=DatabricksWorkflowTaskGroup)
     mock_group.group_id = "test_group"
     return mock_group
-
-
-@pytest.fixture
-def mock_workflow_run_metadata():
-    return MagicMock(spec=WorkflowRunMetadata)
 
 
 def test_flatten_node():
@@ -183,7 +177,7 @@ def mock_databricks_workflow_operator():
 
 def test_task_group_initialization():
     """Test that DatabricksWorkflowTaskGroup initializes correctly."""
-    with DAG(dag_id="example_databricks_workflow_dag", schedule=None, start_date=DEFAULT_DATE) as example_dag:
+    with DAG(dag_id="example_databricks_workflow_dag", start_date=DEFAULT_DATE) as example_dag:
         with DatabricksWorkflowTaskGroup(
             group_id="test_databricks_workflow", databricks_conn_id="databricks_conn"
         ) as task_group:
@@ -196,7 +190,7 @@ def test_task_group_initialization():
 
 def test_task_group_exit_creates_operator(mock_databricks_workflow_operator):
     """Test that DatabricksWorkflowTaskGroup creates a _CreateDatabricksWorkflowOperator on exit."""
-    with DAG(dag_id="example_databricks_workflow_dag", schedule=None, start_date=DEFAULT_DATE) as example_dag:
+    with DAG(dag_id="example_databricks_workflow_dag", start_date=DEFAULT_DATE) as example_dag:
         with DatabricksWorkflowTaskGroup(
             group_id="test_databricks_workflow",
             databricks_conn_id="databricks_conn",
@@ -226,7 +220,7 @@ def test_task_group_exit_creates_operator(mock_databricks_workflow_operator):
 
 def test_task_group_root_tasks_set_upstream_to_operator(mock_databricks_workflow_operator):
     """Test that tasks added to a DatabricksWorkflowTaskGroup are set upstream to the operator."""
-    with DAG(dag_id="example_databricks_workflow_dag", schedule=None, start_date=DEFAULT_DATE):
+    with DAG(dag_id="example_databricks_workflow_dag", start_date=DEFAULT_DATE):
         with DatabricksWorkflowTaskGroup(
             group_id="test_databricks_workflow1",
             databricks_conn_id="databricks_conn",
@@ -237,19 +231,3 @@ def test_task_group_root_tasks_set_upstream_to_operator(mock_databricks_workflow
 
     create_operator_instance = mock_databricks_workflow_operator.return_value
     task1.set_upstream.assert_called_once_with(create_operator_instance)
-
-
-def test_on_kill(mock_databricks_hook, context, mock_workflow_run_metadata):
-    """Test that _CreateDatabricksWorkflowOperator.execute runs the task group."""
-    operator = _CreateDatabricksWorkflowOperator(task_id="test_task", databricks_conn_id="databricks_default")
-    operator.workflow_run_metadata = mock_workflow_run_metadata
-
-    RUN_ID = 789
-
-    mock_workflow_run_metadata.conn_id = operator.databricks_conn_id
-    mock_workflow_run_metadata.job_id = "123"
-    mock_workflow_run_metadata.run_id = RUN_ID
-
-    operator.on_kill()
-
-    operator._hook.cancel_run.assert_called_once_with(RUN_ID)
