@@ -22,6 +22,7 @@ import boto3
 
 from airflow.models.baseoperator import chain
 from airflow.models.dag import DAG
+from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
 from airflow.providers.amazon.aws.operators.emr import (
     EmrServerlessCreateApplicationOperator,
     EmrServerlessDeleteApplicationOperator,
@@ -108,7 +109,7 @@ with DAG(
         application_id=emr_serverless_app_id,
         job_run_id=start_job.output,
         # the default is to wait for job completion, here we just wait for the job to be running.
-        target_states={"RUNNING"},
+        target_states={*EmrServerlessHook.JOB_SUCCESS_STATES, "RUNNING"},
     )
     # [END howto_sensor_emr_serverless_job]
     wait_for_job.poke_interval = 10
