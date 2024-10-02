@@ -21,7 +21,7 @@ import asyncio
 import logging
 import os
 from asyncio import AbstractEventLoop, Semaphore, ensure_future, iscoroutinefunction
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from math import ceil
 from time import sleep
 from typing import TYPE_CHECKING, Any, Callable, Generator, Sequence, cast
@@ -64,7 +64,8 @@ def event_loop() -> Generator[AbstractEventLoop, None, None]:
         yield loop
     finally:
         if new_event_loop and loop is not None:
-            loop.close()
+            with suppress(AttributeError):
+                loop.close()
 
 
 class OperatorExecutor(LoggingMixin):
