@@ -27,7 +27,7 @@ from airflow.api_connexion.schemas.dag_schema import (
     DAGDetailSchema,
     DAGSchema,
 )
-from airflow.datasets import Dataset
+from airflow.assets import Asset
 from airflow.models import DagModel, DagTag
 from airflow.models.dag import DAG
 
@@ -185,7 +185,10 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
             }
         },
         "start_date": "2020-06-19T00:00:00+00:00",
-        "tags": [{"name": "example1"}, {"name": "example2"}],
+        "tags": sorted(
+            [{"name": "example1"}, {"name": "example2"}],
+            key=lambda val: val["name"],
+        ),
         "template_searchpath": None,
         "timetable_summary": "1 day, 0:00:00",
         "timezone": UTC_JSON_REPR,
@@ -198,14 +201,18 @@ def test_serialize_test_dag_detail_schema(url_safe_serializer):
     }
     obj = schema.dump(dag)
     expected.update({"last_parsed": obj["last_parsed"]})
+    obj["tags"] = sorted(
+        obj["tags"],
+        key=lambda val: val["name"],
+    )
     assert obj == expected
 
 
 @pytest.mark.skip_if_database_isolation_mode
 @pytest.mark.db_test
-def test_serialize_test_dag_with_dataset_schedule_detail_schema(url_safe_serializer):
-    dataset1 = Dataset(uri="s3://bucket/obj1")
-    dataset2 = Dataset(uri="s3://bucket/obj2")
+def test_serialize_test_dag_with_asset_schedule_detail_schema(url_safe_serializer):
+    asset1 = Asset(uri="s3://bucket/obj1")
+    asset2 = Asset(uri="s3://bucket/obj2")
     dag = DAG(
         dag_id="test_dag",
         start_date=datetime(2020, 6, 19),
@@ -213,7 +220,7 @@ def test_serialize_test_dag_with_dataset_schedule_detail_schema(url_safe_seriali
         orientation="LR",
         default_view="duration",
         params={"foo": 1},
-        schedule=dataset1 & dataset2,
+        schedule=asset1 & asset2,
         tags=["example1", "example2"],
     )
     schema = DAGDetailSchema()
@@ -243,9 +250,12 @@ def test_serialize_test_dag_with_dataset_schedule_detail_schema(url_safe_seriali
             }
         },
         "start_date": "2020-06-19T00:00:00+00:00",
-        "tags": [{"name": "example1"}, {"name": "example2"}],
+        "tags": sorted(
+            [{"name": "example1"}, {"name": "example2"}],
+            key=lambda val: val["name"],
+        ),
         "template_searchpath": None,
-        "timetable_summary": "Dataset",
+        "timetable_summary": "Asset",
         "timezone": UTC_JSON_REPR,
         "max_active_runs": 16,
         "max_consecutive_failed_dag_runs": 0,
@@ -256,4 +266,8 @@ def test_serialize_test_dag_with_dataset_schedule_detail_schema(url_safe_seriali
     }
     obj = schema.dump(dag)
     expected.update({"last_parsed": obj["last_parsed"]})
+    obj["tags"] = sorted(
+        obj["tags"],
+        key=lambda val: val["name"],
+    )
     assert obj == expected

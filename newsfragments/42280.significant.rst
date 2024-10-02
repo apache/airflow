@@ -1,0 +1,5 @@
+Removed deprecated Rest API endpoints:
+
+* /api/v1/roles. Use /auth/fab/v1/roles instead
+* /api/v1/permissions. Use /auth/fab/v1/permissions instead
+* /api/v1/users. Use /auth/fab/v1/users instead

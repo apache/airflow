@@ -306,6 +306,38 @@ Here is an example of running Dataflow SQL job with
 See the `Dataflow SQL reference
 <https://cloud.google.com/dataflow/docs/reference/sql>`_.
 
+.. _howto/operator:DataflowStartYamlJobOperator:
+
+Dataflow YAML
+""""""""""""""
+Beam YAML is a no-code SDK for configuring Apache Beam pipelines by using YAML files.
+You can use Beam YAML to author and run a Beam pipeline without writing any code.
+This API can be used to define both streaming and batch pipelines.
+
+Here is an example of running Dataflow YAML job with
+:class:`~airflow.providers.google.cloud.operators.dataflow.DataflowStartYamlJobOperator`:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_yaml.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataflow_start_yaml_job]
+    :end-before: [END howto_operator_dataflow_start_yaml_job]
+
+This operator can be run in deferrable mode by passing ``deferrable=True`` as a parameter.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataflow/example_dataflow_yaml.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_dataflow_start_yaml_job_def]
+    :end-before: [END howto_operator_dataflow_start_yaml_job_def]
+
+.. warning::
+    This operator requires ``gcloud`` command (Google Cloud SDK) must be installed on the Airflow worker
+    <https://cloud.google.com/sdk/docs/install>`__
+
+See the `Dataflow YAML reference
+<https://cloud.google.com/sdk/gcloud/reference/dataflow/yaml>`_.
+
 .. _howto/operator:DataflowStopJobOperator:
 
 Stopping a pipeline

@@ -24,8 +24,10 @@ from typing import TYPE_CHECKING, Any, Sequence
 from google.cloud.dataflow_v1beta3 import JobState
 from google.cloud.dataflow_v1beta3.types import (
     AutoscalingEvent,
+    Job,
     JobMessage,
     JobMetrics,
+    JobType,
     MetricUpdate,
 )
 
@@ -157,7 +159,7 @@ class TemplateJobStartTrigger(BaseTrigger):
 
 class DataflowJobStatusTrigger(BaseTrigger):
     """
-    Trigger that checks for metrics associated with a Dataflow job.
+    Trigger that monitors if a Dataflow job has reached any of the expected statuses.
 
     :param job_id: Required. ID of the job.
     :param expected_statuses: The expected state(s) of the operation.
@@ -263,6 +265,148 @@ class DataflowJobStatusTrigger(BaseTrigger):
             gcp_conn_id=self.gcp_conn_id,
             poll_sleep=self.poll_sleep,
             impersonation_chain=self.impersonation_chain,
+        )
+
+
+class DataflowStartYamlJobTrigger(BaseTrigger):
+    """
+    Dataflow trigger that checks the state of a Dataflow YAML job.
+
+    :param job_id: Required. ID of the job.
+    :param project_id: Required. The Google Cloud project ID in which the job was started.
+    :param location: The location where job is executed. If set to None then
+        the value of DEFAULT_DATAFLOW_LOCATION will be used.
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :param poll_sleep: Optional. The time in seconds to sleep between polling Google Cloud Platform
+        for the Dataflow job.
+    :param cancel_timeout: Optional. How long (in seconds) operator should wait for the pipeline to be
+        successfully cancelled when task is being killed.
+    :param expected_terminal_state: Optional. The expected terminal state of the Dataflow job at which the
+        operator task is set to succeed. Defaults to 'JOB_STATE_DONE' for the batch jobs and
+        'JOB_STATE_RUNNING' for the streaming jobs.
+    :param impersonation_chain: Optional. Service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    def __init__(
+        self,
+        job_id: str,
+        project_id: str | None,
+        location: str = DEFAULT_DATAFLOW_LOCATION,
+        gcp_conn_id: str = "google_cloud_default",
+        poll_sleep: int = 10,
+        cancel_timeout: int | None = 5 * 60,
+        expected_terminal_state: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+    ):
+        super().__init__()
+        self.project_id = project_id
+        self.job_id = job_id
+        self.location = location
+        self.gcp_conn_id = gcp_conn_id
+        self.poll_sleep = poll_sleep
+        self.cancel_timeout = cancel_timeout
+        self.expected_terminal_state = expected_terminal_state
+        self.impersonation_chain = impersonation_chain
+
+    def serialize(self) -> tuple[str, dict[str, Any]]:
+        """Serialize class arguments and classpath."""
+        return (
+            "airflow.providers.google.cloud.triggers.dataflow.DataflowStartYamlJobTrigger",
+            {
+                "project_id": self.project_id,
+                "job_id": self.job_id,
+                "location": self.location,
+                "gcp_conn_id": self.gcp_conn_id,
+                "poll_sleep": self.poll_sleep,
+                "expected_terminal_state": self.expected_terminal_state,
+                "impersonation_chain": self.impersonation_chain,
+                "cancel_timeout": self.cancel_timeout,
+            },
+        )
+
+    async def run(self):
+        """
+        Fetch job and yield events depending on the job's type and state.
+
+        Yield TriggerEvent if the job reaches a terminal state.
+        Otherwise awaits for a specified amount of time stored in self.poll_sleep variable.
+        """
+        hook: AsyncDataflowHook = self._get_async_hook()
+        try:
+            while True:
+                job: Job = await hook.get_job(
+                    job_id=self.job_id,
+                    project_id=self.project_id,
+                    location=self.location,
+                )
+                job_state = job.current_state
+                job_type = job.type_
+                if job_state.name == self.expected_terminal_state:
+                    yield TriggerEvent(
+                        {
+                            "job": Job.to_dict(job),
+                            "status": "success",
+                            "message": f"Job reached the expected terminal state: {self.expected_terminal_state}.",
+                        }
+                    )
+                    return
+                elif job_type == JobType.JOB_TYPE_STREAMING and job_state == JobState.JOB_STATE_RUNNING:
+                    yield TriggerEvent(
+                        {
+                            "job": Job.to_dict(job),
+                            "status": "success",
+                            "message": "Streaming job reached the RUNNING state.",
+                        }
+                    )
+                    return
+                elif job_type == JobType.JOB_TYPE_BATCH and job_state == JobState.JOB_STATE_DONE:
+                    yield TriggerEvent(
+                        {
+                            "job": Job.to_dict(job),
+                            "status": "success",
+                            "message": "Batch job completed.",
+                        }
+                    )
+                    return
+                elif job_state == JobState.JOB_STATE_FAILED:
+                    yield TriggerEvent(
+                        {
+                            "job": Job.to_dict(job),
+                            "status": "error",
+                            "message": "Job failed.",
+                        }
+                    )
+                    return
+                elif job_state == JobState.JOB_STATE_STOPPED:
+                    yield TriggerEvent(
+                        {
+                            "job": Job.to_dict(job),
+                            "status": "stopped",
+                            "message": "Job was stopped.",
+                        }
+                    )
+                    return
+                else:
+                    self.log.info("Current job status is: %s", job_state.name)
+                    self.log.info("Sleeping for %s seconds.", self.poll_sleep)
+                    await asyncio.sleep(self.poll_sleep)
+        except Exception as e:
+            self.log.exception("Exception occurred while checking for job completion.")
+            yield TriggerEvent({"job": None, "status": "error", "message": str(e)})
+
+    def _get_async_hook(self) -> AsyncDataflowHook:
+        return AsyncDataflowHook(
+            gcp_conn_id=self.gcp_conn_id,
+            poll_sleep=self.poll_sleep,
+            impersonation_chain=self.impersonation_chain,
+            cancel_timeout=self.cancel_timeout,
         )
 
 

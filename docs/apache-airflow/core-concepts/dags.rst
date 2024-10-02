@@ -494,7 +494,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
 
 
 Setup and teardown
-------------------
+~~~~~~~~~~~~~~~~~~
 
 In data workflows it's common to create a resource (such as a compute resource), use it to do some work, and then tear it down. Airflow provides setup and teardown tasks to support this need.
 
@@ -653,8 +653,8 @@ doc_md      markdown
 doc_rst     reStructuredText
 ==========  ================
 
-Please note that for DAGs, ``doc_md`` is the only attribute interpreted. For DAGs it can contain a string or the reference to a template file. Template references are recognized by str ending in ``.md``.
-If a relative path is supplied it will start from the folder of the DAG file. Also the template file must exist or Airflow will throw a ``jinja2.exceptions.TemplateNotFound`` exception.
+Please note that for DAGs, ``doc_md`` is the only attribute interpreted. For DAGs it can contain a string or the reference to a markdown file. Markdown files are recognized by str ending in ``.md``.
+If a relative path is supplied it will be loaded from the path relative to which the Airflow Scheduler or DAG parser was started. If the markdown file does not exist, the passed filename will be used as text, no exception will be displayed. Note that the markdown file is loaded during DAG parsing, changes to the markdown content take one DAG parsing cycle to have changes be displayed.
 
 This is especially useful if your tasks are built dynamically from configuration files, as it allows you to expose the configuration that led to the related tasks in Airflow:
 
@@ -712,19 +712,9 @@ configuration parameter (*added in Airflow 2.3*): ``regexp`` and ``glob``.
 
 .. note::
 
-    The default ``DAG_IGNORE_FILE_SYNTAX`` is ``regexp`` to ensure backwards compatibility.
+    The default ``DAG_IGNORE_FILE_SYNTAX`` is ``glob`` in Airflow 3 or later (in previous versions it was ``regexp``).
 
-For the ``regexp`` pattern syntax (the default), each line in ``.airflowignore``
-specifies a regular expression pattern, and directories or files whose names (not DAG id)
-match any of the patterns would be ignored (under the hood, ``Pattern.search()`` is used
-to match the pattern). Use the ``#`` character to indicate a comment; all characters
-on lines starting with ``#`` will be ignored.
-
-As with most regexp matching in Airflow, the regexp engine is ``re2``, which explicitly
-doesn't support many advanced features, please check its
-`documentation <https://github.com/google/re2/wiki/Syntax>`_ for more information.
-
-With the ``glob`` syntax, the patterns work just like those in a ``.gitignore`` file:
+With the ``glob`` syntax (the default), the patterns work just like those in a ``.gitignore`` file:
 
 * The ``*`` character will match any number of characters, except ``/``
 * The ``?`` character will match any single character, except ``/``
@@ -738,15 +728,18 @@ With the ``glob`` syntax, the patterns work just like those in a ``.gitignore`` 
   is relative to the directory level of the particular .airflowignore file itself. Otherwise the
   pattern may also match at any level below the .airflowignore level.
 
+For the ``regexp`` pattern syntax, each line in ``.airflowignore``
+specifies a regular expression pattern, and directories or files whose names (not DAG id)
+match any of the patterns would be ignored (under the hood, ``Pattern.search()`` is used
+to match the pattern). Use the ``#`` character to indicate a comment; all characters
+on lines starting with ``#`` will be ignored.
+
+As with most regexp matching in Airflow, the regexp engine is ``re2``, which explicitly
+doesn't support many advanced features, please check its
+`documentation <https://github.com/google/re2/wiki/Syntax>`_ for more information.
+
 The ``.airflowignore`` file should be put in your ``DAG_FOLDER``. For example, you can prepare
-a ``.airflowignore`` file using the ``regexp`` syntax with content
-
-.. code-block::
-
-    project_a
-    tenant_[\d]
-
-Or, equivalently, in the ``glob`` syntax
+a ``.airflowignore`` file with the ``glob`` syntax
 
 .. code-block::
 

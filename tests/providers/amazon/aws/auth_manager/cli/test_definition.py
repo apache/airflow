@@ -21,4 +21,4 @@ from airflow.providers.amazon.aws.auth_manager.cli.definition import AWS_AUTH_MA
 
 class TestAwsCliDefinition:
     def test_aws_auth_manager_cli_commands(self):
-        assert len(AWS_AUTH_MANAGER_COMMANDS) == 3
+        assert len(AWS_AUTH_MANAGER_COMMANDS) == 2

@@ -121,7 +121,9 @@ spec:
             claimName: {{ .Values.redis.persistence.existingClaim }}
   {{- else }}
   volumeClaimTemplates:
-    - metadata:
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
         name: redis-db
         {{- if .Values.redis.persistence.annotations }}
         annotations: {{- toYaml .Values.redis.persistence.annotations | nindent 10 }}

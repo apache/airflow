@@ -72,6 +72,14 @@ Below is an example of using this operator to refresh PowerBI dataset.
     :start-after: [START howto_operator_powerbi_refresh_dataset]
     :end-before: [END howto_operator_powerbi_refresh_dataset]
 
+Below is an example of using this operator to create an item schedule in Fabric.
+
+.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_msfabric.py
+    :language: python
+    :dedent: 0
+    :start-after: [START howto_operator_ms_fabric_create_item_schedule]
+    :end-before: [END howto_operator_ms_fabric_create_item_schedule]
+
 
 Reference
 ---------
@@ -80,3 +88,4 @@ For further information, look at:
 
 * `Use the Microsoft Graph API <https://learn.microsoft.com/en-us/graph/use-the-api/>`__
 * `Using the Power BI REST APIs <https://learn.microsoft.com/en-us/rest/api/power-bi/>`__
+* `Using the Fabric REST APIs <https://learn.microsoft.com/en-us/rest/api/fabric/articles/using-fabric-apis/>`__

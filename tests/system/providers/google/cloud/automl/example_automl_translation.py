@@ -34,7 +34,9 @@ from airflow.providers.google.cloud.operators.automl import (
     AutoMLCreateDatasetOperator,
     AutoMLDeleteDatasetOperator,
     AutoMLDeleteModelOperator,
+    AutoMLGetModelOperator,
     AutoMLImportDataOperator,
+    AutoMLPredictOperator,
     AutoMLTrainModelOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
@@ -126,9 +128,30 @@ with DAG(
     )
 
     MODEL["dataset_id"] = dataset_id
-
+    # [START howto_operator_automl_create_model]
     create_model = AutoMLTrainModelOperator(task_id="create_model", model=MODEL, location=GCP_AUTOML_LOCATION)
+    # [END howto_operator_automl_create_model]
     model_id = cast(str, XComArg(create_model, key="model_id"))
+
+    # [START howto_operator_get_model]
+    get_model = AutoMLGetModelOperator(
+        task_id="get_model",
+        model_id=model_id,
+        location=GCP_AUTOML_LOCATION,
+        project_id=GCP_PROJECT_ID,
+    )
+    # [END howto_operator_get_model]
+
+    # [START howto_operator_prediction]
+    TRANSLATION_STR = "A Dog walks down the street"
+    predict_task = AutoMLPredictOperator(
+        task_id="predict_task",
+        model_id=model_id,
+        payload={"text_snippet": {"content": TRANSLATION_STR}},
+        location=GCP_AUTOML_LOCATION,
+        project_id=GCP_PROJECT_ID,
+    )
+    # [END howto_operator_prediction]
 
     delete_model = AutoMLDeleteModelOperator(
         task_id="delete_model",
@@ -157,6 +180,8 @@ with DAG(
         >> create_dataset
         >> import_dataset
         >> create_model
+        >> get_model
+        >> predict_task
         # TEST TEARDOWN
         >> delete_dataset
         >> delete_model

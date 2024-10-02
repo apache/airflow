@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import pytest
 
-from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import create_user, delete_user
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
@@ -28,15 +27,14 @@ pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
     create_user(
-        app,  # type:ignore
+        app,
         username="test",
-        role_name="Test",
-        permissions=[(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONFIG)],  # type: ignore
+        role_name="admin",
     )
 
     yield minimal_app_for_api
 
-    delete_user(app, username="test")  # type: ignore
+    delete_user(app, username="test")
 
 
 class TestSession:

@@ -36,6 +36,7 @@ from airflow.providers.amazon.aws.auth_manager.cli.definition import (
 from airflow.providers.amazon.aws.auth_manager.security_manager.aws_security_manager_override import (
     AwsSecurityManagerOverride,
 )
+from airflow.providers.amazon.aws.auth_manager.views.auth import AwsAuthManagerAuthenticationViews
 
 try:
     from airflow.auth.managers.base_auth_manager import BaseAuthManager, ResourceMethod
@@ -62,10 +63,7 @@ if TYPE_CHECKING:
         IsAuthorizedPoolRequest,
         IsAuthorizedVariableRequest,
     )
-    from airflow.auth.managers.models.resource_details import (
-        ConfigurationDetails,
-        DatasetDetails,
-    )
+    from airflow.auth.managers.models.resource_details import AssetDetails, ConfigurationDetails
     from airflow.providers.amazon.aws.auth_manager.user import AwsAuthManagerUser
     from airflow.www.extensions.init_appbuilder import AirflowAppBuilder
 
@@ -160,15 +158,12 @@ class AwsAuthManager(BaseAuthManager):
             context=context,
         )
 
-    def is_authorized_dataset(
-        self, *, method: ResourceMethod, details: DatasetDetails | None = None, user: BaseUser | None = None
+    def is_authorized_asset(
+        self, *, method: ResourceMethod, details: AssetDetails | None = None, user: BaseUser | None = None
     ) -> bool:
-        dataset_uri = details.uri if details else None
+        asset_uri = details.uri if details else None
         return self.avp_facade.is_authorized(
-            method=method,
-            entity_type=AvpEntities.DATASET,
-            user=user or self.get_user(),
-            entity_id=dataset_uri,
+            method=method, entity_type=AvpEntities.ASSET, user=user or self.get_user(), entity_id=asset_uri
         )
 
     def is_authorized_pool(
@@ -422,6 +417,9 @@ class AwsAuthManager(BaseAuthManager):
                 subcommands=AWS_AUTH_MANAGER_COMMANDS,
             ),
         ]
+
+    def register_views(self) -> None:
+        self.appbuilder.add_view_no_menu(AwsAuthManagerAuthenticationViews())
 
     @staticmethod
     def _get_menu_item_request(resource_name: str) -> IsAuthorizedRequest:

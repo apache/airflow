@@ -26,8 +26,9 @@ from typing import ClassVar
 
 import attr
 import pytest
+from pydantic import BaseModel
 
-from airflow.datasets import Dataset
+from airflow.assets import Asset
 from airflow.serialization.serde import (
     CLASSNAME,
     DATA,
@@ -42,7 +43,6 @@ from airflow.serialization.serde import (
     serialize,
 )
 from airflow.utils.module_loading import import_string, iter_namespace, qualname
-from airflow.utils.pydantic import BaseModel
 from tests.test_utils.config import conf_vars
 
 
@@ -336,7 +336,7 @@ class TestSerDe:
         """
         uri = "s3://does/not/exist"
         data = {
-            "__type": "airflow.datasets.Dataset",
+            "__type": "airflow.assets.Asset",
             "__source": None,
             "__var": {
                 "__var": {
@@ -364,7 +364,7 @@ class TestSerDe:
         assert e["extra"] == {"hi": "bye"}
 
     def test_encode_dataset(self):
-        dataset = Dataset("mytest://dataset")
+        dataset = Asset("mytest://dataset")
         obj = deserialize(serialize(dataset))
         assert dataset.uri == obj.uri
 

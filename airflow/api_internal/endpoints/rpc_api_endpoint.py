@@ -54,11 +54,11 @@ log = logging.getLogger(__name__)
 @functools.lru_cache
 def initialize_method_map() -> dict[str, Callable]:
     from airflow.api.common.trigger_dag import trigger_dag
+    from airflow.assets import expand_alias_to_assets
+    from airflow.assets.manager import AssetManager
     from airflow.cli.commands.task_command import _get_ti_db_access
     from airflow.dag_processing.manager import DagFileProcessorManager
     from airflow.dag_processing.processor import DagFileProcessor
-    from airflow.datasets import expand_alias_to_datasets
-    from airflow.datasets.manager import DatasetManager
     from airflow.models import Trigger, Variable, XCom
     from airflow.models.dag import DAG, DagModel
     from airflow.models.dagrun import DagRun
@@ -101,7 +101,6 @@ def initialize_method_map() -> dict[str, Callable]:
         DagFileProcessor._execute_task_callbacks,
         DagFileProcessor.execute_callbacks,
         DagFileProcessor.execute_callbacks_without_dag,
-        DagFileProcessor.manage_slas,
         DagFileProcessor.save_dag_to_db,
         DagFileProcessor.update_import_errors,
         DagFileProcessor._validate_task_pools_and_update_dag_warnings,
@@ -110,8 +109,8 @@ def initialize_method_map() -> dict[str, Callable]:
         DagFileProcessorManager.clear_nonexistent_import_errors,
         DagFileProcessorManager.deactivate_stale_dags,
         DagWarning.purge_inactive_dag_warnings,
-        expand_alias_to_datasets,
-        DatasetManager.register_dataset_change,
+        expand_alias_to_assets,
+        AssetManager.register_asset_change,
         FileTaskHandler._render_filename_db_access,
         Job._add_to_db,
         Job._fetch_from_db,

@@ -27,7 +27,11 @@ except ImportError:
 
 
 class AwsSecurityManagerOverride(AirflowSecurityManagerV2):
-    """The security manager override specific to AWS auth manager."""
+    """
+    The security manager override specific to AWS auth manager.
+
+    This class is only used in Airflow 2. This can be safely be removed when min Airflow version >= 3
+    """
 
     def register_views(self):
         """Register views specific to AWS auth manager."""

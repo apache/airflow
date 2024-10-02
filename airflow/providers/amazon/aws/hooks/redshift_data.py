@@ -18,8 +18,12 @@
 from __future__ import annotations
 
 import time
+from dataclasses import dataclass
 from pprint import pformat
 from typing import TYPE_CHECKING, Any, Iterable
+from uuid import UUID
+
+from pendulum import duration
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 from airflow.providers.amazon.aws.utils import trim_none_values
@@ -33,6 +37,14 @@ FAILED_STATE = "FAILED"
 ABORTED_STATE = "ABORTED"
 FAILURE_STATES = {FAILED_STATE, ABORTED_STATE}
 RUNNING_STATES = {"PICKED", "STARTED", "SUBMITTED"}
+
+
+@dataclass
+class QueryExecutionOutput:
+    """Describes the output of a query execution."""
+
+    statement_id: str
+    session_id: str | None
 
 
 class RedshiftDataQueryFailedError(ValueError):
@@ -65,8 +77,8 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
 
     def execute_query(
         self,
-        database: str,
         sql: str | list[str],
+        database: str | None = None,
         cluster_identifier: str | None = None,
         db_user: str | None = None,
         parameters: Iterable | None = None,
@@ -76,23 +88,28 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         wait_for_completion: bool = True,
         poll_interval: int = 10,
         workgroup_name: str | None = None,
-    ) -> str:
+        session_id: str | None = None,
+        session_keep_alive_seconds: int | None = None,
+    ) -> QueryExecutionOutput:
         """
         Execute a statement against Amazon Redshift.
 
-        :param database: the name of the database
         :param sql: the SQL statement or list of  SQL statement to run
+        :param database: the name of the database
         :param cluster_identifier: unique identifier of a cluster
         :param db_user: the database username
         :param parameters: the parameters for the SQL statement
         :param secret_arn: the name or ARN of the secret that enables db access
         :param statement_name: the name of the SQL statement
-        :param with_event: indicates whether to send an event to EventBridge
-        :param wait_for_completion: indicates whether to wait for a result, if True wait, if False don't wait
+        :param with_event: whether to send an event to EventBridge
+        :param wait_for_completion: whether to wait for a result
         :param poll_interval: how often in seconds to check the query status
         :param workgroup_name: name of the Redshift Serverless workgroup. Mutually exclusive with
             `cluster_identifier`. Specify this parameter to query Redshift Serverless. More info
             https://docs.aws.amazon.com/redshift/latest/mgmt/working-with-serverless.html
+        :param session_id: the session identifier of the query
+        :param session_keep_alive_seconds: duration in seconds to keep the session alive after the query
+            finishes. The maximum time a session can keep alive is 24 hours
 
         :returns statement_id: str, the UUID of the statement
         """
@@ -105,7 +122,28 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
             "SecretArn": secret_arn,
             "StatementName": statement_name,
             "WorkgroupName": workgroup_name,
+            "SessionId": session_id,
+            "SessionKeepAliveSeconds": session_keep_alive_seconds,
         }
+
+        if sum(x is not None for x in (cluster_identifier, workgroup_name, session_id)) != 1:
+            raise ValueError(
+                "Exactly one of cluster_identifier, workgroup_name, or session_id must be provided"
+            )
+
+        if session_id is not None:
+            msg = "session_id must be a valid UUID4"
+            try:
+                if UUID(session_id).version != 4:
+                    raise ValueError(msg)
+            except ValueError:
+                raise ValueError(msg)
+
+        if session_keep_alive_seconds is not None and (
+            session_keep_alive_seconds < 0 or duration(seconds=session_keep_alive_seconds).hours > 24
+        ):
+            raise ValueError("Session keep alive duration must be between 0 and 86400 seconds.")
+
         if isinstance(sql, list):
             kwargs["Sqls"] = sql
             resp = self.conn.batch_execute_statement(**trim_none_values(kwargs))
@@ -115,13 +153,10 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
 
         statement_id = resp["Id"]
 
-        if bool(cluster_identifier) is bool(workgroup_name):
-            raise ValueError("Either 'cluster_identifier' or 'workgroup_name' must be specified.")
-
         if wait_for_completion:
             self.wait_for_results(statement_id, poll_interval=poll_interval)
 
-        return statement_id
+        return QueryExecutionOutput(statement_id=statement_id, session_id=resp.get("SessionId"))
 
     def wait_for_results(self, statement_id: str, poll_interval: int) -> str:
         while True:
@@ -135,9 +170,9 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
     def check_query_is_finished(self, statement_id: str) -> bool:
         """Check whether query finished, raise exception is failed."""
         resp = self.conn.describe_statement(Id=statement_id)
-        return self.parse_statement_resposne(resp)
+        return self.parse_statement_response(resp)
 
-    def parse_statement_resposne(self, resp: DescribeStatementResponseTypeDef) -> bool:
+    def parse_statement_response(self, resp: DescribeStatementResponseTypeDef) -> bool:
         """Parse the response of describe_statement."""
         status = resp["Status"]
         if status == FINISHED_STATE:
@@ -179,8 +214,10 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         :param table: Name of the target table
         :param database: the name of the database
         :param schema: Name of the target schema, public by default
-        :param sql: the SQL statement or list of  SQL statement to run
         :param cluster_identifier: unique identifier of a cluster
+        :param workgroup_name: name of the Redshift Serverless workgroup. Mutually exclusive with
+            `cluster_identifier`. Specify this parameter to query Redshift Serverless. More info
+            https://docs.aws.amazon.com/redshift/latest/mgmt/working-with-serverless.html
         :param db_user: the database username
         :param secret_arn: the name or ARN of the secret that enables db access
         :param statement_name: the name of the SQL statement
@@ -212,7 +249,8 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
             with_event=with_event,
             wait_for_completion=wait_for_completion,
             poll_interval=poll_interval,
-        )
+        ).statement_id
+
         pk_columns = []
         token = ""
         while True:
@@ -251,4 +289,4 @@ class RedshiftDataHook(AwsGenericHook["RedshiftDataAPIServiceClient"]):
         """
         async with self.async_conn as client:
             resp = await client.describe_statement(Id=statement_id)
-            return self.parse_statement_resposne(resp)
+            return self.parse_statement_response(resp)

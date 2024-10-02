@@ -186,6 +186,11 @@ labelPRBasedOnFilePath:
     - tests/providers/common/sql/**/*
     - tests/system/providers/common/sql/**/*
 
+  provider:standard:
+    - airflow/providers/standard/**/*
+    - docs/apache-airflow-providers-standard/**/*
+    - tests/providers/standard/**/*
+
   provider:databricks:
     - airflow/providers/databricks/**/*
     - docs/apache-airflow-providers-databricks/**/*
@@ -488,11 +493,6 @@ labelPRBasedOnFilePath:
     - tests/providers/tableau/**/*
     - tests/system/providers/tableau/**/*
 
-  provider:tabular:
-    - airflow/providers/tabular/**/*
-    - docs/apache-airflow-providers-tabular/**/*
-    - tests/providers/tabular/**/*
-
   provider:telegram:
     - airflow/providers/telegram/**/*
     - docs/apache-airflow-providers-telegram/**/*
@@ -597,6 +597,7 @@ labelPRBasedOnFilePath:
     - airflow/www/webpack.config.js
     - airflow/www/yarn.lock
     - docs/apache-airflow/ui.rst
+    - airflow/ui/**/*
 
   area:CLI:
     - airflow/cli/**/*.py

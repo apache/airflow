@@ -142,7 +142,7 @@ def test_get_airflow_dag_run_facet():
         "owner": "airflow",
         "timetable": {},
         "start_date": "2024-06-01T00:00:00+00:00",
-        "tags": ["test"],
+        "tags": "['test']",
     }
     if hasattr(dag, "schedule_interval"):  # Airflow 2 compat.
         expected_dag_info["schedule_interval"] = "@once"

@@ -48,7 +48,7 @@ from airflow.utils.db_cleanup import (
     run_cleanup,
 )
 from airflow.utils.session import create_session
-from tests.test_utils.db import clear_db_dags, clear_db_datasets, clear_db_runs, drop_tables_with_prefix
+from tests.test_utils.db import clear_db_assets, clear_db_dags, clear_db_runs, drop_tables_with_prefix
 
 pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 
@@ -57,11 +57,11 @@ pytestmark = [pytest.mark.db_test, pytest.mark.skip_if_database_isolation_mode]
 def clean_database():
     """Fixture that cleans the database before and after every test."""
     clear_db_runs()
-    clear_db_datasets()
+    clear_db_assets()
     clear_db_dags()
     yield  # Test runs here
     clear_db_dags()
-    clear_db_datasets()
+    clear_db_assets()
     clear_db_runs()
 
 
@@ -297,10 +297,6 @@ class TestDBCleanup:
             assert len(session.query(model).all()) == 5
             assert len(_get_archived_table_names(["dag_run"], session)) == expected_archives
 
-    @pytest.mark.filterwarnings(
-        # This test case might import some deprecated modules, ignore it
-        "ignore:This module is deprecated.*:airflow.exceptions.RemovedInAirflow3Warning"
-    )
     def test_no_models_missing(self):
         """
         1. Verify that for all tables in `airflow.models`, we either have them enabled in db cleanup,
@@ -324,6 +320,8 @@ class TestDBCleanup:
                     with suppress(AttributeError):
                         all_models.update({class_.__tablename__: class_})
         exclusion_list = {
+            "backfill",  # todo: AIP-78
+            "backfill_dag_run",  # todo: AIP-78
             "ab_user",
             "variable",  # leave alone
             "dataset",  # not good way to know if "stale"

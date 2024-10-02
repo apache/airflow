@@ -42,16 +42,49 @@ except ImportError:
 from airflow import __version__ as airflow_version
 
 AIRFLOW_VERSION = Version(airflow_version)
-AIRFLOW_V_2_7_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.7.0")
 AIRFLOW_V_2_8_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.8.0")
 AIRFLOW_V_2_9_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.9.0")
 AIRFLOW_V_2_10_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("2.10.0")
+AIRFLOW_V_3_0_PLUS = Version(AIRFLOW_VERSION.base_version) >= Version("3.0.0")
 
 try:
     from airflow.models.baseoperatorlink import BaseOperatorLink
 except ImportError:
     # Compatibility for Airflow 2.7.*
     from airflow.models.baseoperator import BaseOperatorLink
+
+
+if TYPE_CHECKING:
+    from airflow.models.asset import (
+        AssetAliasModel,
+        AssetDagRunQueue,
+        AssetEvent,
+        AssetModel,
+        DagScheduleAssetReference,
+        TaskOutletAssetReference,
+    )
+else:
+    try:
+        from airflow.models.asset import (
+            AssetAliasModel,
+            AssetDagRunQueue,
+            AssetEvent,
+            AssetModel,
+            DagScheduleAssetReference,
+            TaskOutletAssetReference,
+        )
+    except ModuleNotFoundError:
+        # dataset is renamed to asset since Airflow 3.0
+        from airflow.models.dataset import (
+            DagScheduleDatasetReference as DagScheduleAssetReference,
+            DatasetDagRunQueue as AssetDagRunQueue,
+            DatasetEvent as AssetEvent,
+            DatasetModel as AssetModel,
+            TaskOutletDatasetReference as TaskOutletAssetReference,
+        )
+
+        if AIRFLOW_V_2_10_PLUS:
+            from airflow.models.dataset import DatasetAliasModel as AssetAliasModel
 
 
 def deserialize_operator(serialized_operator: dict[str, Any]) -> Operator:

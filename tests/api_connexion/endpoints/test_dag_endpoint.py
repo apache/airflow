@@ -28,7 +28,6 @@ from airflow.models import DagBag, DagModel
 from airflow.models.dag import DAG
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
-from airflow.security import permissions
 from airflow.utils.session import provide_session
 from airflow.utils.state import TaskInstanceState
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
@@ -56,33 +55,11 @@ def configured_app(minimal_app_for_api):
     app = minimal_app_for_api
 
     create_user(
-        app,  # type: ignore
+        app,
         username="test",
-        role_name="Test",
-        permissions=[
-            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
-            (permissions.ACTION_CAN_DELETE, permissions.RESOURCE_DAG),
-        ],
+        role_name="admin",
     )
-    create_user(app, username="test_no_permissions", role_name="TestNoPermissions")  # type: ignore
-    create_user(app, username="test_granular_permissions", role_name="TestGranularDag")  # type: ignore
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
-        "TEST_DAG_1",
-        access_control={
-            "TestGranularDag": {
-                permissions.RESOURCE_DAG: {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ}
-            },
-        },
-    )
-    app.appbuilder.sm.sync_perm_for_dag(  # type: ignore
-        "TEST_DAG_1",
-        access_control={
-            "TestGranularDag": {
-                permissions.RESOURCE_DAG: {permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ}
-            },
-        },
-    )
+    create_user(app, username="test_no_permissions", role_name=None)
 
     with DAG(
         DAG_ID,
@@ -107,9 +84,8 @@ def configured_app(minimal_app_for_api):
 
     yield app
 
-    delete_user(app, username="test")  # type: ignore
-    delete_user(app, username="test_no_permissions")  # type: ignore
-    delete_user(app, username="test_granular_permissions")  # type: ignore
+    delete_user(app, username="test")
+    delete_user(app, username="test_no_permissions")
 
 
 class TestDagEndpoint:
@@ -258,13 +234,6 @@ class TestGetDag(TestDagEndpoint):
             "pickle_id": None,
         } == response.json
 
-    def test_should_respond_200_with_granular_dag_access(self):
-        self._create_dag_models(1)
-        response = self.client.get(
-            "/api/v1/dags/TEST_DAG_1", environ_overrides={"REMOTE_USER": "test_granular_permissions"}
-        )
-        assert response.status_code == 200
-
     def test_should_respond_404(self):
         response = self.client.get("/api/v1/dags/INVALID_DAG", environ_overrides={"REMOTE_USER": "test"})
         assert response.status_code == 404
@@ -279,13 +248,6 @@ class TestGetDag(TestDagEndpoint):
     def test_should_raise_403_forbidden(self):
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/details", environ_overrides={"REMOTE_USER": "test_no_permissions"}
-        )
-        assert response.status_code == 403
-
-    def test_should_respond_403_with_granular_access_for_different_dag(self):
-        self._create_dag_models(3)
-        response = self.client.get(
-            "/api/v1/dags/TEST_DAG_2", environ_overrides={"REMOTE_USER": "test_granular_permissions"}
         )
         assert response.status_code == 403
 
@@ -321,24 +283,6 @@ class TestGetDag(TestDagEndpoint):
             f"/api/v1/dags/TEST_DAG_1?fields={','.join(fields)}", environ_overrides={"REMOTE_USER": "test"}
         )
         assert response.status_code == 400, f"Current code: {response.status_code}"
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, session):
-        dag_model = DagModel(
-            dag_id="TEST_DAG_1",
-            fileloc="/tmp/dag_1.py",
-            timetable_summary=None,
-            is_paused=False,
-        )
-        session.add(dag_model)
-        session.commit()
-
-        response = self.client.get("/api/v1/dags/TEST_DAG_1")
-        assert response.status_code == expected_status_code
 
 
 class TestGetDagDetails(TestDagEndpoint):
@@ -739,18 +683,6 @@ class TestGetDagDetails(TestDagEndpoint):
         )
         assert response.status_code == 400, f"Current code: {response.status_code}"
 
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, url_safe_serializer):
-        self._create_dag_model_for_details_endpoint(self.dag_id)
-        url_safe_serializer.dumps("/tmp/dag.py")
-        response = self.client.get(f"/api/v1/dags/{self.dag_id}/details")
-
-        assert response.status_code == expected_status_code
-
 
 class TestGetDags(TestDagEndpoint):
     @provide_session
@@ -991,15 +923,6 @@ class TestGetDags(TestDagEndpoint):
 
         assert expected_dag_ids == dag_ids
 
-    def test_should_respond_200_with_granular_dag_access(self):
-        self._create_dag_models(3)
-        response = self.client.get(
-            "/api/v1/dags", environ_overrides={"REMOTE_USER": "test_granular_permissions"}
-        )
-        assert response.status_code == 200
-        assert len(response.json["dags"]) == 1
-        assert response.json["dags"][0]["dag_id"] == "TEST_DAG_1"
-
     @pytest.mark.parametrize(
         "url, expected_dag_ids",
         [
@@ -1237,22 +1160,6 @@ class TestGetDags(TestDagEndpoint):
 
         assert response.status_code == 400, f"Current code: {response.status_code}"
 
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code, session):
-        self._create_dag_models(2)
-        self._create_deactivated_dag()
-
-        dags_query = session.query(DagModel)
-        assert len(dags_query.all()) == 3
-
-        response = self.client.get("api/v1/dags")
-
-        assert response.status_code == expected_status_code
-
 
 class TestPatchDag(TestDagEndpoint):
     def test_should_respond_200_on_patch_is_paused(self, url_safe_serializer, session):
@@ -1298,18 +1205,6 @@ class TestPatchDag(TestDagEndpoint):
             session, dag_id="TEST_DAG_1", event="api.patch_dag", execution_date=None, expected_extra=payload
         )
 
-    def test_should_respond_200_on_patch_with_granular_dag_access(self, session):
-        self._create_dag_models(1)
-        response = self.client.patch(
-            "/api/v1/dags/TEST_DAG_1",
-            json={
-                "is_paused": False,
-            },
-            environ_overrides={"REMOTE_USER": "test_granular_permissions"},
-        )
-        assert response.status_code == 200
-        _check_last_log(session, dag_id="TEST_DAG_1", event="api.patch_dag", execution_date=None)
-
     def test_should_respond_400_on_invalid_request(self):
         patch_body = {
             "is_paused": True,
@@ -1320,24 +1215,6 @@ class TestPatchDag(TestDagEndpoint):
         assert response.status_code == 400
         assert response.json == {
             "detail": "Property is read-only - 'timetable_summary'",
-            "status": 400,
-            "title": "Bad Request",
-            "type": EXCEPTIONS_LINK_MAP[400],
-        }
-
-    def test_validation_error_raises_400(self):
-        patch_body = {
-            "ispaused": True,
-        }
-        dag_model = self._create_dag_model()
-        response = self.client.patch(
-            f"/api/v1/dags/{dag_model.dag_id}",
-            json=patch_body,
-            environ_overrides={"REMOTE_USER": "test_granular_permissions"},
-        )
-        assert response.status_code == 400
-        assert response.json == {
-            "detail": "{'ispaused': ['Unknown field.']}",
             "status": 400,
             "title": "Bad Request",
             "type": EXCEPTIONS_LINK_MAP[400],
@@ -1465,24 +1342,6 @@ class TestPatchDag(TestDagEndpoint):
         )
 
         assert response.status_code == 403
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(
-        self, set_auto_role_public, expected_status_code, url_safe_serializer, session
-    ):
-        url_safe_serializer.dumps("/tmp/dag_1.py")
-        dag_model = self._create_dag_model()
-        payload = {"is_paused": False}
-        response = self.client.patch(
-            f"/api/v1/dags/{dag_model.dag_id}",
-            json=payload,
-        )
-
-        assert response.status_code == expected_status_code
 
 
 class TestPatchDags(TestDagEndpoint):
@@ -1884,19 +1743,6 @@ class TestPatchDags(TestDagEndpoint):
 
         assert expected_dag_ids == dag_ids
 
-    def test_should_respond_200_with_granular_dag_access(self):
-        self._create_dag_models(3)
-        response = self.client.patch(
-            "api/v1/dags?dag_id_pattern=~",
-            json={
-                "is_paused": False,
-            },
-            environ_overrides={"REMOTE_USER": "test_granular_permissions"},
-        )
-        assert response.status_code == 200
-        assert len(response.json["dags"]) == 1
-        assert response.json["dags"][0]["dag_id"] == "TEST_DAG_1"
-
     @pytest.mark.parametrize(
         "url, expected_dag_ids",
         [
@@ -2225,29 +2071,6 @@ class TestPatchDags(TestDagEndpoint):
         )
         assert response.status_code == 400
 
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 200)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(
-        self, set_auto_role_public, expected_status_code, session, url_safe_serializer
-    ):
-        url_safe_serializer.dumps("/tmp/dag_1.py")
-        url_safe_serializer.dumps("/tmp/dag_2.py")
-        self._create_dag_models(2)
-        self._create_deactivated_dag()
-
-        dags_query = session.query(DagModel)
-        assert len(dags_query.all()) == 3
-
-        response = self.client.patch(
-            "/api/v1/dags?dag_id_pattern=~",
-            json={"is_paused": False},
-        )
-
-        assert response.status_code == expected_status_code
-
 
 class TestDeleteDagEndpoint(TestDagEndpoint):
     def test_that_dag_can_be_deleted(self, session):
@@ -2299,15 +2122,3 @@ class TestDeleteDagEndpoint(TestDagEndpoint):
             environ_overrides={"REMOTE_USER": "test_no_permissions"},
         )
         assert response.status_code == 403
-
-    @pytest.mark.parametrize(
-        "set_auto_role_public, expected_status_code",
-        (("Public", 403), ("Admin", 204)),
-        indirect=["set_auto_role_public"],
-    )
-    def test_with_auth_role_public_set(self, set_auto_role_public, expected_status_code):
-        self._create_dag_models(1)
-
-        response = self.client.delete("/api/v1/dags/TEST_DAG_1")
-
-        assert response.status_code == expected_status_code

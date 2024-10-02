@@ -95,6 +95,13 @@
       <p>Triggers will not run, and any deferred operator will remain deferred until it times out and fails.</p>
     {% endcall %}
   {% endif %}
+
+  {% if auth_manager.is_logged_in() %}
+    {% call show_message(category='info', dismissible=true) %}
+      <span>We have a new UI for Airflow 3.0</span>
+      <a href="{{ url_for('ui.index') }}">Check it out now!</a>
+    {% endcall %}
+  {% endif %}
 {% endblock %}
 
 {% block footer %}

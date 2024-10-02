@@ -17,7 +17,6 @@
 # under the License.
 from __future__ import annotations
 
-import re
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -83,7 +82,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         image: str | None = None,
         code_path: str | None = None,
         namespace: str = "default",
-        name: str = "default",
+        name: str | None = None,
         application_file: str | None = None,
         template_spec=None,
         get_logs: bool = True,
@@ -103,7 +102,6 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         self.code_path = code_path
         self.application_file = application_file
         self.template_spec = template_spec
-        self.name = self.create_job_name()
         self.kubernetes_conn_id = kubernetes_conn_id
         self.startup_timeout_seconds = startup_timeout_seconds
         self.reattach_on_restart = reattach_on_restart
@@ -161,8 +159,13 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return template_body
 
     def create_job_name(self):
-        initial_name = add_unique_suffix(name=self.task_id, max_len=MAX_LABEL_LEN)
-        return re.sub(r"[^a-z0-9-]+", "-", initial_name.lower())
+        name = (
+            self.name or self.template_body.get("spark", {}).get("metadata", {}).get("name") or self.task_id
+        )
+
+        updated_name = add_unique_suffix(name=name, max_len=MAX_LABEL_LEN)
+
+        return self._set_name(updated_name)
 
     @staticmethod
     def _get_pod_identifying_label_string(labels) -> str:
@@ -202,6 +205,7 @@ class SparkKubernetesOperator(KubernetesPodOperator):
             labels.update(try_number=ti.try_number)
 
         # In the case of sub dags this is just useful
+        # TODO: Remove this when the minimum version of Airflow is bumped to 3.0
         if getattr(context["dag"], "is_subdag", False):
             labels["parent_dag_id"] = context["dag"].parent_dag.dag_id
         # Ensure that label is valid for Kube,
@@ -281,6 +285,8 @@ class SparkKubernetesOperator(KubernetesPodOperator):
         return CustomObjectsApi()
 
     def execute(self, context: Context):
+        self.name = self.create_job_name()
+
         self.log.info("Creating sparkApplication.")
         self.launcher = CustomObjectLauncher(
             name=self.name,

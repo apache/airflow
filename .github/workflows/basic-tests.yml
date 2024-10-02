@@ -24,6 +24,10 @@ on:  # yamllint disable-line rule:truthy
         description: "The array of labels (in json form) determining public runners."
         required: true
         type: string
+      run-ui-tests:
+        description: "Whether to run UI tests (true/false)"
+        required: true
+        type: string
       run-www-tests:
         description: "Whether to run WWW tests (true/false)"
         required: true
@@ -82,6 +86,43 @@ jobs:
       - run: pip install --editable ./dev/breeze/
       - run: python -m pytest -n auto --color=yes
         working-directory: ./dev/breeze/
+
+
+  tests-ui:
+    timeout-minutes: 10
+    name: React UI tests
+    runs-on: ${{ fromJSON(inputs.runs-on-as-json-public) }}
+    if: inputs.run-ui-tests == 'true'
+    steps:
+      - name: "Cleanup repo"
+        shell: bash
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: "Cleanup docker"
+        run: ./scripts/ci/cleanup_docker.sh
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4.0.0
+        with:
+          version: 9
+          run_install: false
+      - name: "Setup node"
+        uses: actions/setup-node@v4
+        with:
+          node-version: 21
+          cache: 'pnpm'
+          cache-dependency-path: 'airflow/ui/pnpm-lock.yaml'
+      - name: "Cache eslint"
+        uses: actions/cache@v4
+        with:
+          path: 'airflow/ui/node_modules'
+          key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/pnpm-lock.yaml') }}
+      - run: cd airflow/ui && pnpm install --frozen-lockfile
+      - run: cd airflow/ui && pnpm test
+        env:
+          FORCE_COLOR: 2
 
   tests-www:
     timeout-minutes: 10
@@ -373,17 +414,20 @@ jobs:
       - name: Install twine
         run: pip install twine
       - name: "Check Airflow create minor branch command"
-        run: breeze release-management create-minor-branch --version-branch 2-8 --answer yes
+        run: |
+          ./scripts/ci/testing/run_breeze_command_with_retries.sh \
+          release-management create-minor-branch --version-branch 2-8 --answer yes
       - name: "Check Airflow RC process command"
-        run: >
-          breeze release-management start-rc-process --version 2.8.3rc1 --previous-version 2.8.0 --answer yes
+        run: |
+          ./scripts/ci/testing/run_breeze_command_with_retries.sh \
+          release-management start-rc-process --version 2.8.3rc1 --previous-version 2.8.0 --answer yes
       - name: "Check Airflow release process command"
-        run: >
-          breeze release-management start-release --release-candidate 2.8.3rc1 --previous-release 2.8.0
-          --answer yes
+        run: |
+          ./scripts/ci/testing/run_breeze_command_with_retries.sh \
+          release-management start-release --release-candidate 2.8.3rc1 --previous-release 2.8.0 --answer yes
       - name: "Fetch all git tags"
         run: git fetch --tags >/dev/null 2>&1 || true
       - name: "Test airflow core issue generation automatically"
         run: |
-          breeze release-management generate-issue-content-core \
-          --limit-pr-count 25 --latest --verbose
+          ./scripts/ci/testing/run_breeze_command_with_retries.sh \
+          release-management generate-issue-content-core --limit-pr-count 25 --latest --verbose

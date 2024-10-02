@@ -250,6 +250,8 @@ class KubernetesHook(BaseHook, PodOperatorHookProtocol):
         if kubeconfig is not None:
             with tempfile.NamedTemporaryFile() as temp_config:
                 self.log.debug("loading kube_config from: connection kube_config")
+                if isinstance(kubeconfig, dict):
+                    kubeconfig = json.dumps(kubeconfig)
                 temp_config.write(kubeconfig.encode())
                 temp_config.flush()
                 self._is_in_cluster = False
@@ -845,6 +847,7 @@ class AsyncKubernetesHook(KubernetesHook):
         :param name: Name of Pod to fetch.
         :param namespace: Namespace of the Pod.
         :param container_name: name of the container within the pod to monitor
+        :param poll_interval: Interval in seconds between polling the container status
         """
         while True:
             pod = await self.get_pod(name=name, namespace=namespace)
@@ -862,6 +865,7 @@ class AsyncKubernetesHook(KubernetesHook):
         :param name: Name of Pod to fetch.
         :param namespace: Namespace of the Pod.
         :param container_name: name of the container within the pod to monitor
+        :param poll_interval: Interval in seconds between polling the container status
         """
         while True:
             pod = await self.get_pod(name=name, namespace=namespace)

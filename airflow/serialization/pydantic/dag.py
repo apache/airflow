@@ -20,17 +20,17 @@ import pathlib
 from datetime import datetime
 from typing import Any, List, Optional
 
-from typing_extensions import Annotated
-
-from airflow import DAG, settings
-from airflow.configuration import conf as airflow_conf
-from airflow.utils.pydantic import (
+from pydantic import (
     BaseModel as BaseModelPydantic,
     ConfigDict,
     PlainSerializer,
     PlainValidator,
     ValidationInfo,
 )
+from typing_extensions import Annotated
+
+from airflow import DAG, settings
+from airflow.configuration import conf as airflow_conf
 
 
 def serialize_operator(x: DAG) -> dict:

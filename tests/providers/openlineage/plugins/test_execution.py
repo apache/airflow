@@ -36,8 +36,11 @@ from airflow.providers.openlineage.plugins.listener import OpenLineageListener
 from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 from airflow.utils import timezone
 from airflow.utils.state import State
-from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS
+from tests.test_utils.compat import AIRFLOW_V_2_10_PLUS, AIRFLOW_V_3_0_PLUS
 from tests.test_utils.config import conf_vars
+
+if AIRFLOW_V_3_0_PLUS:
+    from airflow.utils.types import DagRunTriggeredByType
 
 # TODO(potiuk): Document that openlineage is not supported in DB isolation mode
 pytestmark = pytest.mark.skip_if_database_isolation_mode
@@ -93,11 +96,13 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             dag = dagbag.dags.get("test_openlineage_execution")
             task = dag.get_task(task_name)
 
+            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dag.create_dagrun(
                 run_id=run_id,
                 data_interval=(DEFAULT_DATE, DEFAULT_DATE),
                 state=State.RUNNING,
                 start_date=DEFAULT_DATE,
+                **triggered_by_kwargs,
             )
             ti = TaskInstance(task=task, run_id=run_id)
             job = Job(id=random.randint(0, 23478197), dag_id=ti.dag_id)
@@ -118,6 +123,17 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             events = get_sorted_events(tmp_dir)
             assert has_value_in_events(events, ["inputs", "name"], "on-start")
             assert has_value_in_events(events, ["inputs", "name"], "on-complete")
+
+        @pytest.mark.db_test
+        @conf_vars({("openlineage", "transport"): f'{{"type": "file", "log_file_path": "{listener_path}"}}'})
+        def test_not_stalled_failing_task_emits_proper_lineage(self):
+            task_name = "execute_fail"
+            run_id = "test_failure"
+            self.setup_job(task_name, run_id)
+
+            events = get_sorted_events(tmp_dir)
+            assert has_value_in_events(events, ["inputs", "name"], "on-start")
+            assert has_value_in_events(events, ["inputs", "name"], "on-failure")
 
         @conf_vars(
             {
@@ -179,11 +195,13 @@ with tempfile.TemporaryDirectory(prefix="venv") as tmp_dir:
             dag = dagbag.dags.get("test_openlineage_execution")
             task = dag.get_task("execute_long_stall")
 
+            triggered_by_kwargs = {"triggered_by": DagRunTriggeredByType.TEST} if AIRFLOW_V_3_0_PLUS else {}
             dag.create_dagrun(
                 run_id="test_long_stalled_task_is_killed_by_listener_overtime_if_ol_timeout_long_enough",
                 data_interval=(DEFAULT_DATE, DEFAULT_DATE),
                 state=State.RUNNING,
                 start_date=DEFAULT_DATE,
+                **triggered_by_kwargs,
             )
             ti = TaskInstance(
                 task=task,

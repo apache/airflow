@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 from botocore.waiter import Waiter
 
-from airflow.exceptions import AirflowProviderDeprecationWarning, TaskDeferred
+from airflow.exceptions import TaskDeferred
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook
 from airflow.providers.amazon.aws.operators.eks import (
     EksCreateClusterOperator,
@@ -51,6 +51,7 @@ from tests.providers.amazon.aws.utils.eks_test_constants import (
     TASK_ID,
 )
 from tests.providers.amazon.aws.utils.eks_test_utils import convert_keys
+from tests.providers.amazon.aws.utils.test_template_fields import validate_template_fields
 from tests.providers.amazon.aws.utils.test_waiter import assert_expected_waiter_type
 
 CLUSTER_NAME = "cluster1"
@@ -365,6 +366,15 @@ class TestEksCreateClusterOperator:
             eks_create_cluster_operator.execute({})
         assert "Waiting for EKS Cluster to provision. This will take some time." in caplog.messages
 
+    def test_template_fields(self):
+        op = EksCreateClusterOperator(
+            task_id=TASK_ID,
+            **self.create_cluster_params,
+            compute="fargate",
+        )
+
+        validate_template_fields(op)
+
 
 class TestEksCreateFargateProfileOperator:
     def setup_method(self) -> None:
@@ -444,6 +454,11 @@ class TestEksCreateFargateProfileOperator:
         assert isinstance(
             exc.value.trigger, EksCreateFargateProfileTrigger
         ), "Trigger is not a EksCreateFargateProfileTrigger"
+
+    def test_template_fields(self):
+        op = EksCreateFargateProfileOperator(task_id=TASK_ID, **self.create_fargate_profile_params)
+
+        validate_template_fields(op)
 
 
 class TestEksCreateNodegroupOperator:
@@ -536,6 +551,12 @@ class TestEksCreateNodegroupOperator:
         )
         assert operator.wait_for_completion is True
 
+    def test_template_fields(self):
+        op_kwargs = {**self.create_nodegroup_params}
+        op = EksCreateNodegroupOperator(task_id=TASK_ID, **op_kwargs)
+
+        validate_template_fields(op)
+
 
 class TestEksDeleteClusterOperator:
     def setup_method(self) -> None:
@@ -575,6 +596,9 @@ class TestEksDeleteClusterOperator:
         with pytest.raises(TaskDeferred):
             self.delete_cluster_operator.execute({})
 
+    def test_template_fields(self):
+        validate_template_fields(self.delete_cluster_operator)
+
 
 class TestEksDeleteNodegroupOperator:
     def setup_method(self) -> None:
@@ -607,6 +631,9 @@ class TestEksDeleteNodegroupOperator:
         )
         mock_waiter.assert_called_with(mock.ANY, clusterName=CLUSTER_NAME, nodegroupName=NODEGROUP_NAME)
         assert_expected_waiter_type(mock_waiter, "NodegroupDeleted")
+
+    def test_template_fields(self):
+        validate_template_fields(self.delete_nodegroup_operator)
 
 
 class TestEksDeleteFargateProfileOperator:
@@ -656,6 +683,9 @@ class TestEksDeleteFargateProfileOperator:
             exc.value.trigger, EksDeleteFargateProfileTrigger
         ), "Trigger is not a EksDeleteFargateProfileTrigger"
 
+    def test_template_fields(self):
+        validate_template_fields(self.delete_fargate_profile_operator)
+
 
 class TestEksPodOperator:
     @mock.patch("airflow.providers.cncf.kubernetes.operators.pod.KubernetesPodOperator.execute")
@@ -687,83 +717,54 @@ class TestEksPodOperator:
         assert mock_generate_config_file.return_value.__enter__.return_value == op.config_file
 
     @pytest.mark.parametrize(
-        "compatible_kpo, kwargs, expected_attributes, warning, warning_message",
+        "compatible_kpo, kwargs, expected_attributes",
         [
             (
                 True,
                 {"on_finish_action": "delete_succeeded_pod"},
                 {"on_finish_action": OnFinishAction.DELETE_SUCCEEDED_POD},
-                False,
-                None,
-            ),
-            (
-                # test that priority for deprecated param
-                True,
-                {"on_finish_action": "keep_pod", "is_delete_operator_pod": True},
-                {"on_finish_action": OnFinishAction.DELETE_POD, "is_delete_operator_pod": True},
-                True,
-                "`is_delete_operator_pod` parameter is deprecated, please use `on_finish_action`",
             ),
             (
                 # test default
                 True,
                 {},
-                {"on_finish_action": OnFinishAction.KEEP_POD, "is_delete_operator_pod": False},
-                True,
-                "You have not set parameter `on_finish_action` in class EksPodOperator. Currently the default for this parameter is `keep_pod` but in a future release the default will be changed to `delete_pod`. To ensure pods are not deleted in the future you will need to set `on_finish_action=keep_pod` explicitly.",
-            ),
-            (
-                False,
-                {"is_delete_operator_pod": True},
-                {"is_delete_operator_pod": True},
-                True,
-                "`is_delete_operator_pod` parameter is deprecated, please use `on_finish_action`",
-            ),
-            (
-                False,
-                {"is_delete_operator_pod": False},
-                {"is_delete_operator_pod": False},
-                True,
-                "`is_delete_operator_pod` parameter is deprecated, please use `on_finish_action`",
+                {"on_finish_action": OnFinishAction.DELETE_POD},
             ),
             (
                 # test default
                 False,
                 {},
-                {"is_delete_operator_pod": False},
-                True,
-                "You have not set parameter `on_finish_action` in class EksPodOperator. Currently the default for this parameter is `keep_pod` but in a future release the default will be changed to `delete_pod`. To ensure pods are not deleted in the future you will need to set `on_finish_action=keep_pod` explicitly.",
+                {},
             ),
         ],
     )
-    def test_on_finish_action_handler(
-        self, compatible_kpo, kwargs, expected_attributes, warning, warning_message
-    ):
+    def test_on_finish_action_handler(self, compatible_kpo, kwargs, expected_attributes):
         kpo_init_args_mock = mock.MagicMock(**{"parameters": ["on_finish_action"] if compatible_kpo else []})
 
         with mock.patch("inspect.signature", return_value=kpo_init_args_mock):
-            if warning:
-                with pytest.warns(AirflowProviderDeprecationWarning, match=warning_message):
-                    op = EksPodOperator(
-                        task_id="run_pod",
-                        pod_name="run_pod",
-                        cluster_name=CLUSTER_NAME,
-                        image="amazon/aws-cli:latest",
-                        cmds=["sh", "-c", "ls"],
-                        labels={"demo": "hello_world"},
-                        get_logs=True,
-                        **kwargs,
-                    )
-            else:
-                op = EksPodOperator(
-                    task_id="run_pod",
-                    pod_name="run_pod",
-                    cluster_name=CLUSTER_NAME,
-                    image="amazon/aws-cli:latest",
-                    cmds=["sh", "-c", "ls"],
-                    labels={"demo": "hello_world"},
-                    get_logs=True,
-                    **kwargs,
-                )
+            op = EksPodOperator(
+                task_id="run_pod",
+                pod_name="run_pod",
+                cluster_name=CLUSTER_NAME,
+                image="amazon/aws-cli:latest",
+                cmds=["sh", "-c", "ls"],
+                labels={"demo": "hello_world"},
+                get_logs=True,
+                **kwargs,
+            )
             for expected_attr in expected_attributes:
                 assert op.__getattribute__(expected_attr) == expected_attributes[expected_attr]
+
+    def test_template_fields(self):
+        op = EksPodOperator(
+            task_id="run_pod",
+            pod_name="run_pod",
+            cluster_name=CLUSTER_NAME,
+            image="amazon/aws-cli:latest",
+            cmds=["sh", "-c", "ls"],
+            labels={"demo": "hello_world"},
+            get_logs=True,
+            on_finish_action="delete_pod",
+        )
+
+        validate_template_fields(op)

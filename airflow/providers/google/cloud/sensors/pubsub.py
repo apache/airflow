@@ -22,6 +22,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any, Callable, Sequence
 
+from google.cloud import pubsub_v1
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
 from airflow.configuration import conf
@@ -32,6 +33,10 @@ from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+
+class PubSubMessageTransformException(AirflowException):
+    """Raise when messages failed to convert pubsub received format."""
 
 
 class PubSubPullSensor(BaseSensorOperator):
@@ -69,6 +74,13 @@ class PubSubPullSensor(BaseSensorOperator):
         full subscription path.
     :param max_messages: The maximum number of messages to retrieve per
         PubSub pull request
+    :param return_immediately: If this field set to true, the system will
+        respond immediately even if it there are no messages available to
+        return in the ``Pull`` response. Otherwise, the system may wait
+        (for a bounded amount of time) until at least one message is available,
+        rather than returning no messages. Warning: setting this field to
+        ``true`` is discouraged because it adversely impacts the performance
+        of ``Pull`` operations. We recommend that users do not set this field.
     :param ack_messages: If True, each message will be acknowledged
         immediately rather than by any downstream tasks
     :param gcp_conn_id: The connection ID to use connecting to
@@ -102,6 +114,7 @@ class PubSubPullSensor(BaseSensorOperator):
         project_id: str,
         subscription: str,
         max_messages: int = 5,
+        return_immediately: bool = True,
         ack_messages: bool = False,
         gcp_conn_id: str = "google_cloud_default",
         messages_callback: Callable[[list[ReceivedMessage], Context], Any] | None = None,
@@ -115,6 +128,7 @@ class PubSubPullSensor(BaseSensorOperator):
         self.project_id = project_id
         self.subscription = subscription
         self.max_messages = max_messages
+        self.return_immediately = return_immediately
         self.ack_messages = ack_messages
         self.messages_callback = messages_callback
         self.impersonation_chain = impersonation_chain
@@ -132,7 +146,7 @@ class PubSubPullSensor(BaseSensorOperator):
             project_id=self.project_id,
             subscription=self.subscription,
             max_messages=self.max_messages,
-            return_immediately=True,
+            return_immediately=self.return_immediately,
         )
 
         handle_messages = self.messages_callback or self._default_message_callback
@@ -161,7 +175,6 @@ class PubSubPullSensor(BaseSensorOperator):
                     subscription=self.subscription,
                     max_messages=self.max_messages,
                     ack_messages=self.ack_messages,
-                    messages_callback=self.messages_callback,
                     poke_interval=self.poke_interval,
                     gcp_conn_id=self.gcp_conn_id,
                     impersonation_chain=self.impersonation_chain,
@@ -169,13 +182,27 @@ class PubSubPullSensor(BaseSensorOperator):
                 method_name="execute_complete",
             )
 
-    def execute_complete(self, context: dict[str, Any], event: dict[str, str | list[str]]) -> str | list[str]:
-        """Return immediately and relies on trigger to throw a success event. Callback for the trigger."""
+    def execute_complete(self, context: Context, event: dict[str, str | list[str]]) -> Any:
+        """If messages_callback is provided, execute it; otherwise, return immediately with trigger event message."""
         if event["status"] == "success":
             self.log.info("Sensor pulls messages: %s", event["message"])
+            if self.messages_callback:
+                received_messages = self._convert_to_received_messages(event["message"])
+                _return_value = self.messages_callback(received_messages, context)
+                return _return_value
+
             return event["message"]
         self.log.info("Sensor failed: %s", event["message"])
         raise AirflowException(event["message"])
+
+    def _convert_to_received_messages(self, messages: Any) -> list[ReceivedMessage]:
+        try:
+            received_messages = [pubsub_v1.types.ReceivedMessage(msg) for msg in messages]
+            return received_messages
+        except Exception as e:
+            raise PubSubMessageTransformException(
+                f"Error converting triggerer event message back to received message format: {e}"
+            )
 
     def _default_message_callback(
         self,

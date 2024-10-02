@@ -67,7 +67,7 @@ const XcomEntry = ({
         No value found for XCom key
       </Alert>
     );
-  } else if (!xcom.value) {
+  } else if (xcom.value === undefined || xcom.value === null) {
     content = (
       <Alert status="info">
         <AlertIcon />
