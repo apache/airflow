@@ -300,9 +300,6 @@ class CeleryExecutor(BaseExecutor):
                 # which point we don't need the ID anymore anyway
                 self.event_buffer[key] = (TaskInstanceState.QUEUED, result.task_id)
 
-                # If the task runs _really quickly_ we may already have a result!
-                self.update_task_state(key, result.state, getattr(result, "info", None))
-
     def _send_tasks_to_celery(self, task_tuples_to_send: list[TaskInstanceInCelery]):
         from airflow.providers.celery.executors.celery_executor_utils import send_task_to_executor
 
