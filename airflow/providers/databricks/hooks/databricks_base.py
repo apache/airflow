@@ -561,6 +561,13 @@ class BaseDatabricksHook(BaseHook):
         try:
             for attempt in self._get_retry_object():
                 with attempt:
+                    self.log.debug(
+                        "Initiating %s request to %s with payload: %s, headers: %s",
+                        method,
+                        url,
+                        json,
+                        headers,
+                    )
                     response = request_func(
                         url,
                         json=json if method in ("POST", "PATCH") else None,
@@ -569,6 +576,8 @@ class BaseDatabricksHook(BaseHook):
                         headers=headers,
                         timeout=self.timeout_seconds,
                     )
+                    self.log.debug("Response Status Code: %s", response.status_code)
+                    self.log.debug("Response text: %s", response.text)
                     response.raise_for_status()
                     return response.json()
         except RetryError:
@@ -615,6 +624,13 @@ class BaseDatabricksHook(BaseHook):
         try:
             async for attempt in self._a_get_retry_object():
                 with attempt:
+                    self.log.debug(
+                        "Initiating %s request to %s with payload: %s, headers: %s",
+                        method,
+                        url,
+                        json,
+                        headers,
+                    )
                     async with request_func(
                         url,
                         json=json,
@@ -622,6 +638,8 @@ class BaseDatabricksHook(BaseHook):
                         headers={**headers, **self.user_agent_header},
                         timeout=self.timeout_seconds,
                     ) as response:
+                        self.log.debug("Response Status Code: %s", response.status_code)
+                        self.log.debug("Response text: %s", response.text)
                         response.raise_for_status()
                         return await response.json()
         except RetryError:
