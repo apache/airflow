@@ -34,20 +34,13 @@ from airflow.exceptions import (
 )
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.expandinput import (
-    DictOfListsExpandInput,
     ExpandInput,
-    OperatorExpandArgument,
     _needs_run_time_resolution,
-)
-from airflow.models.mappedoperator import (
-    ensure_xcomarg_return_value,
-    validate_mapping_kwargs,
 )
 from airflow.models.taskinstance import TaskInstance
 from airflow.triggers.base import run_trigger
 from airflow.utils import timezone
 from airflow.utils.context import Context, context_get_outlet_events
-from airflow.utils.helpers import prevent_duplicates
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.operator_helpers import ExecutionCallableRunner
 from airflow.utils.task_instance_session import get_current_task_instance_session
@@ -315,34 +308,3 @@ class StreamedOperator(BaseOperator):
                 self._create_future(context, index) for index, mapped_kwargs in enumerate(self._mapped_kwargs)
             ],
         )
-
-
-def stream(self, **mapped_kwargs: OperatorExpandArgument) -> StreamedOperator:
-    if not mapped_kwargs:
-        raise TypeError("no arguments to expand against")
-    validate_mapping_kwargs(self.operator_class, "stream", mapped_kwargs)
-    prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified")
-
-    expand_input = DictOfListsExpandInput(mapped_kwargs)
-    ensure_xcomarg_return_value(expand_input.value)
-
-    partial_kwargs = self.kwargs.copy()
-    task_id = partial_kwargs.pop("task_id")
-    dag = partial_kwargs.pop("dag")
-    task_group = partial_kwargs.pop("task_group")
-    start_date = partial_kwargs.pop("start_date")
-    end_date = partial_kwargs.pop("end_date")
-    max_active_tis_per_dag = partial_kwargs.pop("max_active_tis_per_dag", None)
-
-    return StreamedOperator(
-        task_id=task_id,
-        dag=dag,
-        task_group=task_group,
-        start_date=start_date,
-        end_date=end_date,
-        max_active_tis_per_dag=max_active_tis_per_dag,
-        operator_class=self.operator_class,
-        expand_input=expand_input,
-        retries=0,
-        partial_kwargs=self.kwargs.copy(),
-    )
