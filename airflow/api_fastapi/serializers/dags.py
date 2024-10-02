@@ -116,17 +116,13 @@ class DAGDetailsResponse(DAGResponse):
     timezone: str | None
     last_parsed: datetime | None
 
-    def _validation_alias_fn(field_name: str):
-        val_dict = {
-            "dag_run_timeout": "dagrun_timeout",
-            "last_parsed": "last_loaded",
-            "template_search_path": "template_searchpath",
-        }
-        return val_dict.get(field_name, field_name)
-
     model_config = ConfigDict(
         alias_generator=AliasGenerator(
-            validation_alias=_validation_alias_fn,
+            validation_alias=lambda field_name: {
+                "dag_run_timeout": "dagrun_timeout",
+                "last_parsed": "last_loaded",
+                "template_search_path": "template_searchpath",
+            }.get(field_name, field_name),
         )
     )
 

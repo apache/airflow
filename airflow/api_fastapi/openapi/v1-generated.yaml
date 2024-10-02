@@ -594,12 +594,12 @@ components:
         catchup:
           type: boolean
           title: Catchup
-        dagrun_timeout:
+        dag_run_timeout:
           anyOf:
           - type: string
             format: duration
           - type: 'null'
-          title: Dagrun Timeout
+          title: Dag Run Timeout
         dataset_expression:
           anyOf:
           - type: object
@@ -632,31 +632,30 @@ components:
           title: Orientation
         params:
           anyOf:
-          - {}
+          - type: object
           - type: 'null'
           title: Params
         render_template_as_native_obj:
           type: boolean
           title: Render Template As Native Obj
-        template_searchpath:
+        template_search_path:
           anyOf:
-          - type: string
           - items:
               type: string
             type: array
           - type: 'null'
-          title: Template Searchpath
+          title: Template Search Path
         timezone:
           anyOf:
           - type: string
           - type: 'null'
           title: Timezone
-        last_loaded:
+        last_parsed:
           anyOf:
           - type: string
             format: date-time
           - type: 'null'
-          title: Last Loaded
+          title: Last Parsed
         file_token:
           type: string
           title: File Token
@@ -666,14 +665,6 @@ components:
           type: integer
           title: Concurrency
           description: Return max_active_tasks as concurrency.
-          readOnly: true
-        last_parsed:
-          anyOf:
-          - type: string
-            format: date-time
-          - type: 'null'
-          title: Last Parsed
-          description: Return last_loaded as last_parsed.
           readOnly: true
       type: object
       required:
@@ -703,7 +694,7 @@ components:
       - next_dagrun_create_after
       - owners
       - catchup
-      - dagrun_timeout
+      - dag_run_timeout
       - dataset_expression
       - doc_md
       - start_date
@@ -712,12 +703,11 @@ components:
       - orientation
       - params
       - render_template_as_native_obj
-      - template_searchpath
+      - template_search_path
       - timezone
-      - last_loaded
+      - last_parsed
       - file_token
       - concurrency
-      - last_parsed
       title: DAGDetailsResponse
       description: Specific serializer for DAG Details responses.
     DAGPatchBody:

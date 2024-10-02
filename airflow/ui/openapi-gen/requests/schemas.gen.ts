@@ -239,7 +239,7 @@ export const $DAGDetailsResponse = {
       type: "boolean",
       title: "Catchup",
     },
-    dagrun_timeout: {
+    dag_run_timeout: {
       anyOf: [
         {
           type: "string",
@@ -249,7 +249,7 @@ export const $DAGDetailsResponse = {
           type: "null",
         },
       ],
-      title: "Dagrun Timeout",
+      title: "Dag Run Timeout",
     },
     dataset_expression: {
       anyOf: [
@@ -314,7 +314,9 @@ export const $DAGDetailsResponse = {
     },
     params: {
       anyOf: [
-        {},
+        {
+          type: "object",
+        },
         {
           type: "null",
         },
@@ -325,11 +327,8 @@ export const $DAGDetailsResponse = {
       type: "boolean",
       title: "Render Template As Native Obj",
     },
-    template_searchpath: {
+    template_search_path: {
       anyOf: [
-        {
-          type: "string",
-        },
         {
           items: {
             type: "string",
@@ -340,7 +339,7 @@ export const $DAGDetailsResponse = {
           type: "null",
         },
       ],
-      title: "Template Searchpath",
+      title: "Template Search Path",
     },
     timezone: {
       anyOf: [
@@ -353,30 +352,6 @@ export const $DAGDetailsResponse = {
       ],
       title: "Timezone",
     },
-    last_loaded: {
-      anyOf: [
-        {
-          type: "string",
-          format: "date-time",
-        },
-        {
-          type: "null",
-        },
-      ],
-      title: "Last Loaded",
-    },
-    file_token: {
-      type: "string",
-      title: "File Token",
-      description: "Return file token.",
-      readOnly: true,
-    },
-    concurrency: {
-      type: "integer",
-      title: "Concurrency",
-      description: "Return max_active_tasks as concurrency.",
-      readOnly: true,
-    },
     last_parsed: {
       anyOf: [
         {
@@ -388,7 +363,17 @@ export const $DAGDetailsResponse = {
         },
       ],
       title: "Last Parsed",
-      description: "Return last_loaded as last_parsed.",
+    },
+    file_token: {
+      type: "string",
+      title: "File Token",
+      description: "Return file token.",
+      readOnly: true,
+    },
+    concurrency: {
+      type: "integer",
+      title: "Concurrency",
+      description: "Return max_active_tasks as concurrency.",
       readOnly: true,
     },
   },
@@ -420,7 +405,7 @@ export const $DAGDetailsResponse = {
     "next_dagrun_create_after",
     "owners",
     "catchup",
-    "dagrun_timeout",
+    "dag_run_timeout",
     "dataset_expression",
     "doc_md",
     "start_date",
@@ -429,12 +414,11 @@ export const $DAGDetailsResponse = {
     "orientation",
     "params",
     "render_template_as_native_obj",
-    "template_searchpath",
+    "template_search_path",
     "timezone",
-    "last_loaded",
+    "last_parsed",
     "file_token",
     "concurrency",
-    "last_parsed",
   ],
   title: "DAGDetailsResponse",
   description: "Specific serializer for DAG Details responses.",

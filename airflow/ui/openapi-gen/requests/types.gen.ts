@@ -38,7 +38,7 @@ export type DAGDetailsResponse = {
   next_dagrun_create_after: string | null;
   owners: Array<string>;
   catchup: boolean;
-  dagrun_timeout: string | null;
+  dag_run_timeout: string | null;
   dataset_expression: {
     [key: string]: unknown;
   } | null;
@@ -47,11 +47,13 @@ export type DAGDetailsResponse = {
   end_date: string | null;
   is_paused_upon_creation: boolean | null;
   orientation: string;
-  params: unknown | null;
+  params: {
+    [key: string]: unknown;
+  } | null;
   render_template_as_native_obj: boolean;
-  template_searchpath: string | Array<string> | null;
+  template_search_path: Array<string> | null;
   timezone: string | null;
-  last_loaded: string | null;
+  last_parsed: string | null;
   /**
    * Return file token.
    */
@@ -60,10 +62,6 @@ export type DAGDetailsResponse = {
    * Return max_active_tasks as concurrency.
    */
   readonly concurrency: number;
-  /**
-   * Return last_loaded as last_parsed.
-   */
-  readonly last_parsed: string | null;
 };
 
 /**
