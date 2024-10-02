@@ -74,6 +74,26 @@ export const UseDagServiceGetDagsKeyFn = (
     },
   ]),
 ];
+export type ConnectionServiceGetConnectionDefaultResponse = Awaited<
+  ReturnType<typeof ConnectionService.getConnection>
+>;
+export type ConnectionServiceGetConnectionQueryResult<
+  TData = ConnectionServiceGetConnectionDefaultResponse,
+  TError = unknown,
+> = UseQueryResult<TData, TError>;
+export const useConnectionServiceGetConnectionKey =
+  "ConnectionServiceGetConnection";
+export const UseConnectionServiceGetConnectionKeyFn = (
+  {
+    connectionId,
+  }: {
+    connectionId: string;
+  },
+  queryKey?: Array<unknown>,
+) => [
+  useConnectionServiceGetConnectionKey,
+  ...(queryKey ?? [{ connectionId }]),
+];
 export type DagServicePatchDagsMutationResult = Awaited<
   ReturnType<typeof DagService.patchDags>
 >;

@@ -140,6 +140,12 @@ export type DeleteConnectionData = {
 
 export type DeleteConnectionResponse = void;
 
+export type GetConnectionData = {
+  connectionId: string;
+};
+
+export type GetConnectionResponse = unknown;
+
 export type $OpenApiTs = {
   "/ui/next_run_datasets/{dag_id}": {
     get: {
@@ -241,6 +247,31 @@ export type $OpenApiTs = {
          * Successful Response
          */
         204: void;
+        /**
+         * Unauthorized
+         */
+        401: HTTPExceptionResponse;
+        /**
+         * Forbidden
+         */
+        403: HTTPExceptionResponse;
+        /**
+         * Not Found
+         */
+        404: HTTPExceptionResponse;
+        /**
+         * Validation Error
+         */
+        422: HTTPValidationError;
+      };
+    };
+    get: {
+      req: GetConnectionData;
+      res: {
+        /**
+         * Successful Response
+         */
+        200: unknown;
         /**
          * Unauthorized
          */

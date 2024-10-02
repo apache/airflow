@@ -1,7 +1,11 @@
 // generated with @7nohe/openapi-react-query-codegen@1.6.0
 import { type QueryClient } from "@tanstack/react-query";
 
-import { AssetService, DagService } from "../requests/services.gen";
+import {
+  AssetService,
+  ConnectionService,
+  DagService,
+} from "../requests/services.gen";
 import { DagRunState } from "../requests/types.gen";
 import * as Common from "./common";
 
@@ -93,4 +97,24 @@ export const prefetchUseDagServiceGetDags = (
         paused,
         tags,
       }),
+  });
+/**
+ * Get Connection
+ * Get a connection entry.
+ * @param data The data for the request.
+ * @param data.connectionId
+ * @returns unknown Successful Response
+ * @throws ApiError
+ */
+export const prefetchUseConnectionServiceGetConnection = (
+  queryClient: QueryClient,
+  {
+    connectionId,
+  }: {
+    connectionId: string;
+  },
+) =>
+  queryClient.prefetchQuery({
+    queryKey: Common.UseConnectionServiceGetConnectionKeyFn({ connectionId }),
+    queryFn: () => ConnectionService.getConnection({ connectionId }),
   });

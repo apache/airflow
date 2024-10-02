@@ -45,3 +45,21 @@ async def delete_connection(
         raise HTTPException(404, f"The Connection with connection_id: `{connection_id}` was not found")
 
     session.delete(connection)
+
+
+@connections_router.get(
+    "/connections/{connection_id}",
+    status_code=200,
+    responses=create_openapi_http_exception_doc([401, 403, 404]),
+)
+async def get_connection(
+    connection_id: str,
+    session: Annotated[Session, Depends(get_session)],
+):
+    """Get a connection entry."""
+    connection = session.scalar(select(Connection).filter_by(conn_id=connection_id))
+
+    if connection is None:
+        raise HTTPException(404, f"The Connection with connection_id: `{connection_id}` was not found")
+
+    return connection

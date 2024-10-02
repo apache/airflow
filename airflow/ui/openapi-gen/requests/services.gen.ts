@@ -13,6 +13,8 @@ import type {
   PatchDagResponse,
   DeleteConnectionData,
   DeleteConnectionResponse,
+  GetConnectionData,
+  GetConnectionResponse,
 } from "./types.gen";
 
 export class AssetService {
@@ -176,6 +178,32 @@ export class ConnectionService {
   ): CancelablePromise<DeleteConnectionResponse> {
     return __request(OpenAPI, {
       method: "DELETE",
+      url: "/public/connections/{connection_id}",
+      path: {
+        connection_id: data.connectionId,
+      },
+      errors: {
+        401: "Unauthorized",
+        403: "Forbidden",
+        404: "Not Found",
+        422: "Validation Error",
+      },
+    });
+  }
+
+  /**
+   * Get Connection
+   * Get a connection entry.
+   * @param data The data for the request.
+   * @param data.connectionId
+   * @returns unknown Successful Response
+   * @throws ApiError
+   */
+  public static getConnection(
+    data: GetConnectionData,
+  ): CancelablePromise<GetConnectionResponse> {
+    return __request(OpenAPI, {
+      method: "GET",
       url: "/public/connections/{connection_id}",
       path: {
         connection_id: data.connectionId,
