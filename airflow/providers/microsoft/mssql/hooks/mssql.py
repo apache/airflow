@@ -19,15 +19,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pymssql
 from pymssql import Connection as PymssqlConnection
 
 from airflow.providers.common.sql.hooks.sql import DbApiHook
-
-if TYPE_CHECKING:
-    pass
 
 
 class MsSqlHook(DbApiHook):
