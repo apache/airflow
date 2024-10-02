@@ -21,8 +21,8 @@ from __future__ import annotations
 
 import pytest
 
+from airflow.hooks.package_index import PackageIndexHook
 from airflow.models.connection import Connection
-from airflow.providers.standard.hooks.package_index import PackageIndexHook
 
 
 class MockConnection(Connection):
@@ -73,7 +73,7 @@ def mock_get_connection(monkeypatch: pytest.MonkeyPatch, request: pytest.Fixture
     password: str | None = testdata.get("password", None)
     expected_result: str | None = testdata.get("expected_result", None)
     monkeypatch.setattr(
-        "airflow.providers.standard.hooks.package_index.PackageIndexHook.get_connection",
+        "airflow.hooks.package_index.PackageIndexHook.get_connection",
         lambda *_: MockConnection(host, login, password),
     )
     return expected_result
@@ -104,7 +104,7 @@ def test_test_connection(monkeypatch: pytest.MonkeyPatch, mock_get_connection: s
 
         return MockProc()
 
-    monkeypatch.setattr("airflow.providers.standard.hooks.package_index.subprocess.run", mock_run)
+    monkeypatch.setattr("airflow.hooks.package_index.subprocess.run", mock_run)
 
     hook_instance = PackageIndexHook()
     if mock_get_connection:

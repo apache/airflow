@@ -106,8 +106,8 @@ For details see: :doc:`apache-airflow-providers:operators-and-hooks-ref/index`.
    * - Hooks
      - Guides
 
-   * - :mod:`airflow.providers.standard.hooks.filesystem`
+   * - :mod:`airflow.hooks.filesystem`
      -
 
-   * - :mod:`airflow.providers.standard.hooks.subprocess`
+   * - :mod:`airflow.hooks.subprocess`
      -
