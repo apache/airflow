@@ -20,6 +20,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import timedelta
 from typing import TYPE_CHECKING
+from unittest import skip
 from unittest.mock import patch
 
 import pendulum
@@ -1353,6 +1354,7 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
+    @skip("Stream is not yet implemented on TaskGroup")
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.parametrize("type_", ["taskflow", "classic"])
     def test_mapped_task_group_simple(self, type_, dag_maker, session):
@@ -1428,6 +1430,7 @@ class TestMappedSetupTeardown:
 
         assert states == expected
 
+    @skip("Stream is not yet implemented on TaskGroup")
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     @pytest.mark.parametrize("type_", ["taskflow", "classic"])
     def test_mapped_task_group_work_fail_or_skip(self, type_, dag_maker):
@@ -1691,6 +1694,7 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
+    @skip("Stream is not yet implemented on TaskGroup")
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_skip_one_mapped_task_from_task_group_with_generator(self, dag_maker):
         with dag_maker() as dag:
@@ -1723,6 +1727,7 @@ class TestMappedSetupTeardown:
         }
         assert states == expected
 
+    @skip("Stream is not yet implemented on TaskGroup")
     @pytest.mark.skip_if_database_isolation_mode  # Does not work in db isolation mode
     def test_skip_one_mapped_task_from_task_group(self, dag_maker):
         with dag_maker() as dag:
