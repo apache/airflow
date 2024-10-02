@@ -401,7 +401,7 @@ def test_mapped_expand_against_params(dag_maker, dag_params, task_params, expect
         MockOperator.partial(task_id="t", params=task_params).stream(params=[{"c": "x"}, {"d": 1}])
 
     t = dag.get_task("t")
-    assert isinstance(t, MappedOperator)
+    assert isinstance(t, StreamedOperator)
     assert t.params == expected_partial_params
     assert t.expand_input.value == {"params": [{"c": "x"}, {"d": 1}]}
 
