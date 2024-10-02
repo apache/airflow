@@ -42,9 +42,14 @@ class TestDruidSubmitHook:
             self.is_sql_based_ingestion = False
 
             def get_conn_url(self, ingestion_type: IngestionType = IngestionType.BATCH):
+                if self.conn.schema:
+                    conn_type = self.conn.schema
+                else:
+                    conn_type = "http"
+
                 if ingestion_type == IngestionType.MSQ:
-                    return "http://druid-overlord:8081/druid/v2/sql/task"
-                return "http://druid-overlord:8081/druid/indexer/v1/task"
+                    return f"{conn_type}//druid-overlord:8081/druid/v2/sql/task"
+                return f"{conn_type}://druid-overlord:8081/druid/indexer/v1/task"
 
         self.db_hook = TestDRuidhook()
 
@@ -257,7 +262,7 @@ class TestDruidHook:
     def test_conn_property(self, mock_get_connection):
         get_conn_value = MagicMock()
         get_conn_value.host = "test_host"
-        get_conn_value.conn_type = "https"
+        get_conn_value.conn_type = "http"
         get_conn_value.port = "1"
         get_conn_value.extra_dejson = {"endpoint": "ingest"}
         mock_get_connection.return_value = get_conn_value
@@ -268,8 +273,20 @@ class TestDruidHook:
     def test_get_conn_url(self, mock_get_connection):
         get_conn_value = MagicMock()
         get_conn_value.host = "test_host"
-        get_conn_value.conn_type = "https"
+        get_conn_value.conn_type = "http"
         get_conn_value.port = "1"
+        get_conn_value.extra_dejson = {"endpoint": "ingest"}
+        mock_get_connection.return_value = get_conn_value
+        hook = DruidHook(timeout=1, max_ingestion_time=5)
+        assert hook.get_conn_url() == "http://test_host:1/ingest"
+
+    @patch("airflow.providers.apache.druid.hooks.druid.DruidHook.get_connection")
+    def test_get_conn_url_with_schema(self, mock_get_connection):
+        get_conn_value = MagicMock()
+        get_conn_value.host = "test_host"
+        get_conn_value.conn_type = "http"
+        get_conn_value.port = "1"
+        get_conn_value.schema = "https"
         get_conn_value.extra_dejson = {"endpoint": "ingest"}
         mock_get_connection.return_value = get_conn_value
         hook = DruidHook(timeout=1, max_ingestion_time=5)
@@ -279,8 +296,20 @@ class TestDruidHook:
     def test_get_conn_url_with_ingestion_type(self, mock_get_connection):
         get_conn_value = MagicMock()
         get_conn_value.host = "test_host"
-        get_conn_value.conn_type = "https"
+        get_conn_value.conn_type = "http"
         get_conn_value.port = "1"
+        get_conn_value.extra_dejson = {"endpoint": "ingest", "msq_endpoint": "sql_ingest"}
+        mock_get_connection.return_value = get_conn_value
+        hook = DruidHook(timeout=1, max_ingestion_time=5)
+        assert hook.get_conn_url(IngestionType.MSQ) == "http://test_host:1/sql_ingest"
+
+    @patch("airflow.providers.apache.druid.hooks.druid.DruidHook.get_connection")
+    def test_get_conn_url_with_ingestion_type_and_schema(self, mock_get_connection):
+        get_conn_value = MagicMock()
+        get_conn_value.host = "test_host"
+        get_conn_value.conn_type = "http"
+        get_conn_value.port = "1"
+        get_conn_value.schema = "https"
         get_conn_value.extra_dejson = {"endpoint": "ingest", "msq_endpoint": "sql_ingest"}
         mock_get_connection.return_value = get_conn_value
         hook = DruidHook(timeout=1, max_ingestion_time=5)
