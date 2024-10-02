@@ -370,7 +370,7 @@ class DagScheduleAssetReference(Base):
 
     __tablename__ = "dag_schedule_asset_reference"
     __table_args__ = (
-        PrimaryKeyConstraint(dataset_id, dag_id, name="dsdr_pkey"),
+        PrimaryKeyConstraint(dataset_id, dag_id, name="dsar_pkey"),
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
