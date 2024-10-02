@@ -175,6 +175,7 @@ def _create_backfill(
                     run_type=DagRunType.BACKFILL_JOB,
                     creating_job_id=None,
                     session=session,
+                    backfill_id=br.id,
                 )
             except Exception:
                 dag.log.exception(
