@@ -30,6 +30,8 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
+from airflow.models.base import naming_convention
+
 # revision identifiers, used by Alembic.
 revision = "e1ff90d3efe9"
 down_revision = "0d9e73a75ee4"
@@ -40,7 +42,9 @@ airflow_version = "3.0.0"
 
 def upgrade():
     """Apply add serial pkey to SerializedDag."""
-    with op.batch_alter_table("serialized_dag", schema=None, recreate="always") as batch_op:
+    with op.batch_alter_table(
+        "serialized_dag", recreate="always", naming_convention=naming_convention
+    ) as batch_op:
         batch_op.drop_constraint("serialized_dag_pkey", type_="primary")
         # hack. The primary_key here sets autoincrement
         batch_op.add_column(sa.Column("id", sa.Integer(), primary_key=True), insert_before="dag_id")
@@ -55,9 +59,8 @@ def upgrade():
 
 def downgrade():
     """Unapply add serial pkey to SerializedDag."""
-    with op.batch_alter_table("serialized_dag", schema=None) as batch_op:
+    with op.batch_alter_table("serialized_dag", naming_convention=naming_convention) as batch_op:
         batch_op.drop_constraint(batch_op.f("dag_hash_version_number_unique"), type_="unique")
-        batch_op.drop_constraint("serialized_dag_pkey", type_="primary")
+        batch_op.drop_column("id")
         batch_op.create_primary_key("serialized_dag_pkey", ["dag_id"])
         batch_op.drop_column("version_number")
-        batch_op.drop_column("id")
