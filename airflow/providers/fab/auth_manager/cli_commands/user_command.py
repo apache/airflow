@@ -212,12 +212,10 @@ def users_import(args):
 
     users_created, users_updated = _import_users(users_list)
     if users_created:
-        users_created_str = "\n\t".join(users_created)
-        print(f"Created the following users:\n\t{users_created_str}")
+        print("Created the following users:\n\t{}".format("\n\t".join(users_created)))
 
     if users_updated:
-        users_updated_str = "\n\t".join(users_updated)
-        print(f"Updated the following users:\n\t{users_updated_str}")
+        print("Updated the following users:\n\t{}".format("\n\t".join(users_updated)))
 
 
 def _import_users(users_list: list[dict[str, Any]]):
@@ -233,7 +231,9 @@ def _import_users(users_list: list[dict[str, Any]]):
                 msg.append(f"[Item {row_num}]")
                 for key, value in failure.items():
                     msg.append(f"\t{key}: {value}")
-            raise SystemExit(f"Error: Input file didn't pass validation.\\nErrors:\\n{msg}")
+            raise SystemExit(
+                "Error: Input file didn't pass validation. See below:\n{}".format("\n".join(msg))
+            )
         for user in users_list:
             roles = []
             for rolename in user["roles"]:
