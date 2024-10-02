@@ -115,7 +115,6 @@ class DbApiHook(BaseHook):
     _test_connection_sql = "select 1"
     # Default SQL placeholder
     _placeholder: str = "%s"
-    dialects: dict[str, type[Dialect]] = {}
 
     def __init__(self, *args, schema: str | None = None, log_sql: bool = True, **kwargs):
         super().__init__()
@@ -262,7 +261,21 @@ class DbApiHook(BaseHook):
         with suppress(Exception):
             self.log.debug("dialect_name: %s", self.dialect_name)
             if self.dialect_name:
-                return self.dialects.get(self.dialect_name, Dialect)(self)
+                from airflow.providers_manager import ProvidersManager
+                from airflow.utils.module_loading import import_string
+
+                dialect_info = ProvidersManager().dialects.get(self.dialect_name)
+
+                self.log.debug("dialect_info: %s", dialect_info)
+
+                if dialect_info:
+                    try:
+                        return import_string(dialect_info.dialect_class_name)(self)
+                    except ImportError:
+                        raise AirflowOptionalProviderFeatureException(
+                            f"{dialect_info.dialect_class_name} not found, run: pip install "
+                            f"'{dialect_info.provider_name}'."
+                        )
         return Dialect(self)
 
     def get_pandas_df(

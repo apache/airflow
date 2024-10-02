@@ -23,6 +23,7 @@ from unittest import mock
 
 import pytest
 from pyodbc import Cursor
+from sqlalchemy.exc import ArgumentError
 
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
@@ -579,3 +580,22 @@ class TestDbApiHook:
 
         self.cur.fetchone.side_effect = Exception("Should not get called !")
         assert rows == self.db_hook.run(sql=query, handler=fetch_one_handler)
+
+    def test_dialect_name_when_resolved_from_sqlalchemy_uri(self):
+        self.db_hook.get_conn().get_uri.return_value = "sqlite://"
+        assert self.db_hook.dialect_name == "sqlite"
+
+    def test_dialect_name_when_resolved_from_conn_type(self):
+        self.db_hook.get_conn().conn_type = "sqlite"
+        self.db_hook.get_conn().get_uri.side_effect = ArgumentError()
+        assert self.db_hook.dialect_name == "sqlite"
+
+    def test_dialect_name_when_resolved_from_sqlalchemy_scheme_in_extra(self):
+        self.db_hook.get_conn().extra_dejson = {"sqlalchemy_scheme": "mssql+pymssql"}
+        self.db_hook.get_conn().get_uri.side_effect = ArgumentError()
+        assert self.db_hook.dialect_name == "mssql"
+
+    def test_dialect_name_when_resolved_from_scheme_in_extra(self):
+        self.db_hook.get_conn().extra_dejson = {"scheme": "oracle"}
+        self.db_hook.get_conn().get_uri.side_effect = ArgumentError()
+        assert self.db_hook.dialect_name == "oracle"
