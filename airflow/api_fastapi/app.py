@@ -16,8 +16,13 @@
 # under the License.
 from __future__ import annotations
 
-from fastapi import FastAPI
+import os
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
 from airflow.www.extensions.init_dagbag import get_dag_bag
 
@@ -69,6 +74,25 @@ def init_views(app) -> None:
 
     app.include_router(ui_router)
     app.include_router(public_router)
+
+    dev_mode = os.environ.get("DEV_MODE", False) == "true"
+
+    directory = "./airflow/ui/dev" if dev_mode else "./airflow/ui/dist"
+
+    templates = Jinja2Templates(directory=directory)
+
+    app.mount(
+        "/static",
+        StaticFiles(
+            directory=directory,
+            html=True,
+        ),
+        name="webapp_static_folder",
+    )
+
+    @app.get("/webapp/{rest_of_path:path}", response_class=HTMLResponse, include_in_schema=False)
+    def webapp(request: Request, rest_of_path: str):
+        return templates.TemplateResponse("/index.html", {"request": request}, media_type="text/html")
 
 
 def cached_app(config=None, testing=False) -> FastAPI:
