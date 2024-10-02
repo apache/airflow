@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-02T08:24:34.999023
+# This constraints file was automatically generated on 2024-10-02T18:01:26.133688
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -466,7 +466,7 @@ moto==5.0.11
 mpmath==1.3.0
 msal-extensions==1.2.0
 msal==1.31.0
-msgraph-core==1.1.4
+msgraph-core==1.1.5
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
@@ -559,7 +559,7 @@ pyasn1==0.6.1
 pyasn1_modules==0.4.0
 pycountry==24.6.1
 pycparser==2.22
-pycryptodome==3.20.0
+pycryptodome==3.21.0
 pydantic==2.9.2
 pydantic_core==2.23.4
 pydata-google-auth==1.8.2
@@ -688,7 +688,7 @@ text-unidecode==1.3
 thrift-sasl==0.4.3
 thrift==0.16.0
 time-machine==2.15.0
-tomli==2.0.1
+tomli==2.0.2
 tomli_w==1.0.0
 tomlkit==0.13.2
 tornado==6.4.1

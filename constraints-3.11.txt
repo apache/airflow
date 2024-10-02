@@ -1,6 +1,6 @@
 
 #
-# This constraints file was automatically generated on 2024-10-02T08:24:34.844687
+# This constraints file was automatically generated on 2024-10-02T18:01:26.198464
 # via "eager-upgrade" mechanism of PIP. For the "v2-10-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -410,7 +410,7 @@ influxdb-client==1.46.0
 iniconfig==2.0.0
 ipdb==0.13.13
 ipykernel==6.29.5
-ipython==8.27.0
+ipython==8.28.0
 isodate==0.6.1
 itsdangerous==2.2.0
 jaraco.classes==3.4.0
@@ -466,7 +466,7 @@ moto==5.0.11
 mpmath==1.3.0
 msal-extensions==1.2.0
 msal==1.31.0
-msgraph-core==1.1.4
+msgraph-core==1.1.5
 msrest==0.7.1
 msrestazure==0.6.4.post1
 multi_key_dict==2.0.3
@@ -559,7 +559,7 @@ pyasn1==0.6.1
 pyasn1_modules==0.4.0
 pycountry==24.6.1
 pycparser==2.22
-pycryptodome==3.20.0
+pycryptodome==3.21.0
 pydantic==2.9.2
 pydantic_core==2.23.4
 pydata-google-auth==1.8.2
