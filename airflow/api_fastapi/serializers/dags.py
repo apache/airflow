@@ -32,7 +32,6 @@ from pydantic import (
 )
 
 from airflow.configuration import conf
-from airflow.models.param import Param
 from airflow.serialization.pydantic.dag import DagTagPydantic
 
 
