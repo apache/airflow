@@ -171,8 +171,8 @@ class StreamedOperator(BaseOperator):
     """Object representing a streamed operator in a DAG."""
 
     _operator_class: type[BaseOperator]
-    _expand_input: ExpandInput
-    _partial_kwargs: dict[str, Any]
+    expand_input: ExpandInput
+    partial_kwargs: dict[str, Any]
 
     def __init__(
         self,
@@ -184,11 +184,11 @@ class StreamedOperator(BaseOperator):
     ):
         super().__init__(**kwargs)
         self._operator_class = operator_class
-        self._expand_input = expand_input
-        self._partial_kwargs = partial_kwargs or {}
+        self.expand_input = expand_input
+        self.partial_kwargs = partial_kwargs or {}
         self._mapped_kwargs: list[dict] = []
         self._semaphore = Semaphore(self.max_active_tis_per_dag or os.cpu_count() or 1)
-        XComArg.apply_upstream_relationship(self, self._expand_input.value)
+        XComArg.apply_upstream_relationship(self, self.expand_input.value)
 
     @property
     def operator_name(self) -> str:
@@ -197,8 +197,8 @@ class StreamedOperator(BaseOperator):
     def _unmap_operator(self, index):
         self.log.debug("index: %s", index)
         kwargs = {
-            **self._partial_kwargs,
-            **{"task_id": f"{self._partial_kwargs.get('task_id')}_{index}"},
+            **self.partial_kwargs,
+            **{"task_id": f"{self.partial_kwargs.get('task_id')}_{index}"},
             **self._mapped_kwargs[index],
         }
         self.log.debug("kwargs: %s", kwargs)
@@ -206,8 +206,8 @@ class StreamedOperator(BaseOperator):
         return self._operator_class(**kwargs)
 
     def _resolve_expand_input(self, context: Context, session: Session):
-        if isinstance(self._expand_input.value, dict):
-            for key, value in self._expand_input.value.items():
+        if isinstance(self.expand_input.value, dict):
+            for key, value in self.expand_input.value.items():
                 if _needs_run_time_resolution(value):
                     value = value.resolve(context=context, session=session)
 
