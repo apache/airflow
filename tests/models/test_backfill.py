@@ -24,7 +24,13 @@ import pytest
 from sqlalchemy import select
 
 from airflow.models import DagRun
-from airflow.models.backfill import AlreadyRunningBackfill, Backfill, BackfillDagRun, _create_backfill
+from airflow.models.backfill import (
+    AlreadyRunningBackfill,
+    Backfill,
+    BackfillDagRun,
+    _cancel_backfill,
+    _create_backfill,
+)
 from airflow.operators.python import PythonOperator
 from airflow.utils.state import DagRunState
 from tests.test_utils.db import clear_db_backfills, clear_db_dags, clear_db_runs, clear_db_serialized_dags
@@ -71,7 +77,7 @@ def test_reverse_and_depends_on_past_fails(dep_on_past, dag_maker, session):
 
 
 @pytest.mark.parametrize("reverse", [True, False])
-def test_simple(reverse, dag_maker, session):
+def test_create_backfill_simple(reverse, dag_maker, session):
     """
     Verify simple case behavior.
 
@@ -150,3 +156,38 @@ def test_active_dag_run(dag_maker, session):
             reverse=False,
             dag_run_conf={"this": "param"},
         )
+
+
+def test_cancel_backfill(dag_maker, session):
+    """
+    Queued runs should be marked *failed*.
+    Every other dag run should be left alone.
+    """
+    with dag_maker(schedule="@daily") as dag:
+        PythonOperator(task_id="hi", python_callable=print)
+    b = _create_backfill(
+        dag_id=dag.dag_id,
+        from_date=pendulum.parse("2021-01-01"),
+        to_date=pendulum.parse("2021-01-05"),
+        max_active_runs=2,
+        reverse=False,
+        dag_run_conf={},
+    )
+    query = (
+        select(DagRun)
+        .join(BackfillDagRun.dag_run)
+        .where(BackfillDagRun.backfill_id == b.id)
+        .order_by(BackfillDagRun.sort_ordinal)
+    )
+    dag_runs = session.scalars(query).all()
+    dates = [str(x.logical_date.date()) for x in dag_runs]
+    expected_dates = ["2021-01-01", "2021-01-02", "2021-01-03", "2021-01-04", "2021-01-05"]
+    assert dates == expected_dates
+    assert all(x.state == DagRunState.QUEUED for x in dag_runs)
+    dag_runs[0].state = "running"
+    session.commit()
+    _cancel_backfill(backfill_id=b.id)
+    session.expunge_all()
+    dag_runs = session.scalars(query).all()
+    states = [x.state for x in dag_runs]
+    assert states == ["running", "failed", "failed", "failed", "failed"]
