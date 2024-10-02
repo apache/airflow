@@ -358,6 +358,11 @@ def partial(
     partial_kwargs["end_date"] = timezone.convert_to_utc(partial_kwargs["end_date"])
     if partial_kwargs["pool"] is None:
         partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME
+    if partial_kwargs["pool_slots"] < 1:
+        dag_str = ""
+        if dag:
+            dag_str = f" in dag {dag.dag_id}"
+        raise ValueError(f"pool slots for {task_id}{dag_str} cannot be less than 1")
     partial_kwargs["retries"] = parse_retries(partial_kwargs["retries"])
     partial_kwargs["retry_delay"] = coerce_timedelta(partial_kwargs["retry_delay"], key="retry_delay")
     if partial_kwargs["max_retry_delay"] is not None:
