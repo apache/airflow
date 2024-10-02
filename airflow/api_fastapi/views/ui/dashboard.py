@@ -16,18 +16,15 @@
 # under the License.
 from __future__ import annotations
 
-from datetime import datetime
 from typing import TYPE_CHECKING
 
 from fastapi import Depends
-from flask import (
-    abort,
-)
-from pendulum.parsing.exceptions import ParserError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from typing_extensions import Annotated
 
+from airflow.api_fastapi.openapi.exceptions import create_openapi_http_exception_doc
+from airflow.api_fastapi.parameters import DateTimeQuery
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -38,25 +35,26 @@ from airflow.api_fastapi.db.common import get_session
 from airflow.api_fastapi.views.router import AirflowRouter
 from airflow.utils import timezone
 
-object_router = AirflowRouter(tags=["Object"])
+dashboard_router = AirflowRouter(tags=["Dashboard"])
 
 
-@object_router.get("/object/historical_metrics_data", include_in_schema=False)
+@dashboard_router.get(
+    "/dashboard/historical_metrics_data",
+    include_in_schema=False,
+    responses=create_openapi_http_exception_doc([400]),
+)
 async def historical_metrics_data(
-    start_date: str,
-    end_date: str,
+    start_date: DateTimeQuery,
+    end_date: DateTimeQuery,
     session: Annotated[Session, Depends(get_session)],
 ) -> dict:
     """Return cluster activity historical metrics."""
-    safe_start_date: datetime | None = _safe_parse_datetime(start_date)
-    safe_end_date: datetime | None = _safe_parse_datetime(end_date)
-
     # DagRuns
     dag_run_types = session.execute(
         select(DagRun.run_type, func.count(DagRun.run_id))
         .where(
-            DagRun.start_date >= safe_start_date,
-            func.coalesce(DagRun.end_date, timezone.utcnow()) <= safe_end_date,
+            DagRun.start_date >= start_date,
+            func.coalesce(DagRun.end_date, timezone.utcnow()) <= end_date,
         )
         .group_by(DagRun.run_type)
     ).all()
@@ -64,8 +62,8 @@ async def historical_metrics_data(
     dag_run_states = session.execute(
         select(DagRun.state, func.count(DagRun.run_id))
         .where(
-            DagRun.start_date >= safe_start_date,
-            func.coalesce(DagRun.end_date, timezone.utcnow()) <= safe_end_date,
+            DagRun.start_date >= start_date,
+            func.coalesce(DagRun.end_date, timezone.utcnow()) <= end_date,
         )
         .group_by(DagRun.state)
     ).all()
@@ -75,12 +73,13 @@ async def historical_metrics_data(
         select(TaskInstance.state, func.count(TaskInstance.run_id))
         .join(TaskInstance.dag_run)
         .where(
-            DagRun.start_date >= safe_start_date,
-            func.coalesce(DagRun.end_date, timezone.utcnow()) <= safe_end_date,
+            DagRun.start_date >= start_date,
+            func.coalesce(DagRun.end_date, timezone.utcnow()) <= end_date,
         )
         .group_by(TaskInstance.state)
     ).all()
 
+    # Combining historical data
     data = {
         "dag_run_types": {
             **{dag_run_type.value: 0 for dag_run_type in DagRunType},
@@ -98,19 +97,3 @@ async def historical_metrics_data(
     }
 
     return data
-
-
-def _safe_parse_datetime(date_to_check, allow_empty=False, strict=True) -> datetime | None:
-    """
-    Parse datetime and return error message for invalid dates.
-
-    :param date_to_check: the string value to be parsed
-    :param allow_empty: Set True to return none if empty str or None
-    :param strict: if False, it will fall back on the dateutil parser if unable to parse with pendulum
-    """
-    if allow_empty is True and not date_to_check:
-        return None
-    try:
-        return timezone.parse(date_to_check, strict=strict)
-    except (TypeError, ParserError):
-        abort(400, f"Invalid datetime: {date_to_check!r}")

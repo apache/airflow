@@ -102,7 +102,7 @@ class TestHistoricalMetricsDataEndpoint:
     @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
     def test_historical_metrics_data(self, test_client, time_machine):
         params = {"start_date": "2023-01-01T00:00", "end_date": "2023-08-02T00:00"}
-        response = test_client.get("/ui/object/historical_metrics_data", params=params)
+        response = test_client.get("/ui/dashboard/historical_metrics_data", params=params)
 
         assert response.status_code == 200
         assert response.json() == {
@@ -128,7 +128,7 @@ class TestHistoricalMetricsDataEndpoint:
     @pytest.mark.usefixtures("freeze_time_for_dagruns", "make_dag_runs")
     def test_historical_metrics_data_date_filters(self, test_client):
         params = {"start_date": "2023-02-02T00:00", "end_date": "2023-06-02T00:00"}
-        response = test_client.get("/ui/object/historical_metrics_data", params=params)
+        response = test_client.get("/ui/dashboard/historical_metrics_data", params=params)
         assert response.status_code == 200
         assert response.json() == {
             "dag_run_states": {"failed": 1, "queued": 0, "running": 0, "success": 0},

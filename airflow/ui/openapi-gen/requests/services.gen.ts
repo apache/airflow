@@ -47,7 +47,7 @@ export class AssetService {
   }
 }
 
-export class ObjectService {
+export class DashboardService {
   /**
    * Historical Metrics Data
    * Return cluster activity historical metrics.
@@ -62,12 +62,13 @@ export class ObjectService {
   ): CancelablePromise<HistoricalMetricsDataResponse> {
     return __request(OpenAPI, {
       method: "GET",
-      url: "/ui/object/historical_metrics_data",
+      url: "/ui/dashboard/historical_metrics_data",
       query: {
         start_date: data.startDate,
         end_date: data.endDate,
       },
       errors: {
+        400: "Bad Request",
         422: "Validation Error",
       },
     });
