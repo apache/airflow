@@ -576,11 +576,9 @@ class BaseDatabricksHook(BaseHook):
                         headers=headers,
                         timeout=self.timeout_seconds,
                     )
-                    self.log.debug("Status Code: %s\nResponse: %s", response.status_code, response.text)
-                    response.raise_for_status()
-                    response_json = response.json()
-                    self.log.debug("Response JSON: %s", response_json)
-                    return response_json
+                    self.log.debug("Response Status Code: %s", response.status_code)
+                    self.log.debug("Response text: %s", response.text)
+                    return response.json()
         except RetryError:
             raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
         except requests_exceptions.HTTPError as e:
@@ -639,11 +637,10 @@ class BaseDatabricksHook(BaseHook):
                         headers={**headers, **self.user_agent_header},
                         timeout=self.timeout_seconds,
                     ) as response:
-                        self.log.debug("Status Code: %s\nResponse: %s", response.status_code, response.text)
+                        self.log.debug("Response Status Code: %s", response.status_code)
+                        self.log.debug("Response text: %s", response.text)
                         response.raise_for_status()
-                        response_json = await response.json()
-                        self.log.debug("Response JSON: %s", response_json)
-                        return response_json
+                        return response.json()
         except RetryError:
             raise AirflowException(f"API requests to Databricks failed {self.retry_limit} times. Giving up.")
         except aiohttp.ClientResponseError as err:
