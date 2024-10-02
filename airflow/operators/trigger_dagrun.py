@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import re
 import time
 from typing import TYPE_CHECKING, Any, Sequence, cast
 
@@ -75,11 +76,9 @@ class TriggerDagRunLink(BaseOperatorLink):
         triggered_dag_run_id = XCom.get_value(ti_key=ti_key, key=XCOM_RUN_ID)
 
         old_trigger_dag_id: str | None = str(cast(TriggerDagRunOperator, operator).trigger_dag_id)
-        if (
-            isinstance(old_trigger_dag_id, str)
-            and old_trigger_dag_id.startswith("{{")
-            and old_trigger_dag_id.endswith("}}")
-        ):
+        # So the Triggered DAG button in the UI will be grayed out until the dag run is can be retrieved from
+        # the XCom
+        if isinstance(old_trigger_dag_id, str) and re.match(r"^.*{{.+}}.*$", old_trigger_dag_id):
             old_trigger_dag_id = None
 
         # Includes the dag id from the XCom during execution or the one passed into the operator
@@ -237,7 +236,6 @@ class TriggerDagRunOperator(BaseOperator):
         # Store the run id from the dag run (either created or found above) to
         # be used when creating the extra link on the webserver.
         ti = context["task_instance"]
-        ti.xcom_push(key=XCOM_LOGICAL_DATE_ISO, value=dag_run.logical_date.isoformat())
         ti.xcom_push(key=XCOM_DAG_ID, value=self.trigger_dag_id)
         ti.xcom_push(key=XCOM_RUN_ID, value=dag_run.run_id)
 
