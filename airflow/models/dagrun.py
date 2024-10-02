@@ -386,24 +386,23 @@ class DagRun(Base, LoggingMixin):
     def active_runs_of_dags(
         cls,
         dag_ids: Iterable[str] | None = None,
+        only_running: bool = False,
         include_backfill=False,
         session: Session = NEW_SESSION,
     ) -> dict[str, int]:
         """Get the number of active dag runs for each dag."""
-        query = (
-            select(
-                cls.dag_id,
-                func.count("*"),
-            )
-            .where(
-                cls.state.in_((DagRunState.RUNNING, DagRunState.QUEUED)),
-            )
-            .group_by(cls.dag_id)
-        )
-        if not include_backfill:
-            query = query.where(cls.run_type != DagRunType.BACKFILL_JOB)
+        query = select(
+            cls.dag_id,
+            func.count("*"),
+        ).group_by(cls.dag_id)
         if dag_ids is not None:
             query = query.where(cls.dag_id.in_(set(dag_ids)))
+        if only_running:
+            query = query.where(cls.state == DagRunState.RUNNING)
+        else:
+            query = query.where(cls.state.in_((DagRunState.RUNNING, DagRunState.QUEUED)))
+        if not include_backfill:
+            query = query.where(cls.run_type != DagRunType.BACKFILL_JOB)
         return dict(iter(session.execute(query)))
 
     @classmethod
