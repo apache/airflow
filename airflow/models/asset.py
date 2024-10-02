@@ -40,7 +40,7 @@ from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
 alias_association_table = Table(
-    "asset_alias_dataset",
+    "asset_alias_asset",
     Base.metadata,
     Column("alias_id", ForeignKey("asset_alias.id", ondelete="CASCADE"), primary_key=True),
     Column("dataset_id", ForeignKey("dataset.id", ondelete="CASCADE"), primary_key=True),
@@ -55,7 +55,7 @@ alias_association_table = Table(
     ForeignKeyConstraint(
         ("dataset_id",),
         ["dataset.id"],
-        name="ds_dsa_asset_id",
+        name="a_aa_asset_id",
         ondelete="CASCADE",
     ),
 )
