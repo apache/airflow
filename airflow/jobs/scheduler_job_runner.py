@@ -1300,6 +1300,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
         self.log.debug("checking for completed backfills.")
         unfinished_states = (DagRunState.RUNNING, DagRunState.QUEUED)
         now = timezone.utcnow()
+        # todo: AIP-78 simplify this function to an update statement
         query = select(Backfill).where(
             Backfill.completed_at.is_(None),
             ~exists(
