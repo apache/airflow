@@ -479,7 +479,14 @@ class DagRun(Base, LoggingMixin):
                     DagModel.is_active == true(),
                 ),
             )
-            .join(BackfillDagRun, BackfillDagRun.dag_run_id == DagRun.id, isouter=True)
+            .join(
+                BackfillDagRun,
+                and_(
+                    BackfillDagRun.dag_run_id == DagRun.id,
+                    BackfillDagRun.backfill_id == DagRun.backfill_id,
+                ),
+                isouter=True,
+            )
             .join(Backfill, isouter=True)
             .join(
                 running_drs,
@@ -491,12 +498,22 @@ class DagRun(Base, LoggingMixin):
                 isouter=True,
             )
             .where(
+                # there are two levels of checks for num_running
+                # the one done in this query verifies that the dag is not maxed out
+                # it could return many more dag runs than runnable if there is even
+                # capacity for 1.  this could be improved.
                 coalesce(running_drs.c.num_running, text("0"))
                 < coalesce(Backfill.max_active_runs, DagModel.max_active_runs),
+                # don't set paused dag runs as running
                 not_(coalesce(Backfill.is_paused, False)),
             )
             .order_by(
-                BackfillDagRun.sort_ordinal.nulls_first(),
+                # ordering by backfill sort ordinal first ensures that backfill dag runs
+                # have lower priority than all other dag run types (since sort_ordinal >= 1).
+                # additionally, sorting by sort_ordinal ensures that the backfill
+                # dag runs are created in the right order when that matters.
+                # todo: AIP-78 use row_number to avoid starvation; limit the number of returned runs per-dag
+                coalesce(BackfillDagRun.sort_ordinal, text("0")),
                 cls.last_scheduling_decision.nulls_first(),
                 coalesce(running_drs.c.num_running, text("0")),  # many running -> lower priority
                 cls.execution_date,
