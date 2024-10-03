@@ -4,7 +4,7 @@
  * Connection serializer for responses.
  */
 export type ConnectionResponse = {
-  connection_id: string;
+  conn_id: string;
   conn_type: string;
   description: string | null;
   host: string | null;

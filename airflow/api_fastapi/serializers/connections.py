@@ -23,7 +23,7 @@ from pydantic import BaseModel, Field
 class ConnectionResponse(BaseModel):
     """Connection serializer for responses."""
 
-    connection_id: str
+    connection_id: str = Field(alias="conn_id")
     conn_type: str
     description: str | None
     host: str | None

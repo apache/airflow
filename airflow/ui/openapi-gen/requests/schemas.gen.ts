@@ -2,9 +2,9 @@
 
 export const $ConnectionResponse = {
   properties: {
-    connection_id: {
+    conn_id: {
       type: "string",
-      title: "Connection Id",
+      title: "Conn Id",
     },
     conn_type: {
       type: "string",
@@ -79,7 +79,7 @@ export const $ConnectionResponse = {
   },
   type: "object",
   required: [
-    "connection_id",
+    "conn_id",
     "conn_type",
     "description",
     "host",
