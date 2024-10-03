@@ -35,7 +35,7 @@ from airflow.providers.google.cloud.operators.pubsub import (
 from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
 DAG_ID = "pubsub_async"

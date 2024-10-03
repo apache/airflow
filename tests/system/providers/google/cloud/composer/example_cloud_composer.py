@@ -37,7 +37,7 @@ from airflow.utils.trigger_rule import TriggerRule
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "default")
 
-DAG_ID = "example_composer"
+DAG_ID = "composer"
 REGION = "us-central1"
 
 # [START howto_operator_composer_simple_environment]

@@ -36,7 +36,7 @@ except AirflowOptionalProviderFeatureException:
 
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "example_leveldb"
 
 with DAG(
