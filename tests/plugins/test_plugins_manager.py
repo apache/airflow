@@ -417,7 +417,7 @@ class TestPluginsManager:
             assert len(plugins_manager.plugins) == 0
             plugins_manager.load_entrypoint_plugins()
             plugins_manager.load_providers_plugins()
-            assert len(plugins_manager.plugins) == 3
+            assert len(plugins_manager.plugins) == 4
 
 
 class TestPluginsDirectorySource:

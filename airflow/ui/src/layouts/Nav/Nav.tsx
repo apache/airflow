@@ -101,7 +101,7 @@ export const Nav = () => {
       <Flex flexDir="column">
         <NavButton
           as={Link}
-          href="/"
+          href={import.meta.env.VITE_LEGACY_API_URL}
           icon={<FiCornerUpLeft size="1.5rem" />}
           title="Return to legacy UI"
         />

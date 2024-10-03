@@ -110,3 +110,23 @@ class TestPubsubPullTrigger:
         response = await trigger.run().asend(None)
 
         assert response == expected_event
+
+    @mock.patch("airflow.providers.google.cloud.triggers.pubsub.PubSubAsyncHook")
+    def test_hook(self, mock_async_hook):
+        trigger = PubsubPullTrigger(
+            project_id=PROJECT_ID,
+            subscription="subscription",
+            max_messages=MAX_MESSAGES,
+            ack_messages=False,
+            poke_interval=TEST_POLL_INTERVAL,
+            gcp_conn_id=TEST_GCP_CONN_ID,
+            impersonation_chain=None,
+        )
+        async_hook_actual = trigger.hook
+
+        mock_async_hook.assert_called_once_with(
+            gcp_conn_id=trigger.gcp_conn_id,
+            impersonation_chain=trigger.impersonation_chain,
+            project_id=trigger.project_id,
+        )
+        assert async_hook_actual == mock_async_hook.return_value
