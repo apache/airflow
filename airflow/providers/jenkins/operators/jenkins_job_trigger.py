@@ -92,6 +92,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
     :param max_try_before_job_appears: The maximum number of requests to make
         while waiting for the job to appears on jenkins server (default 10)
     :param allowed_jenkins_states: Iterable of allowed result jenkins states, default is ``['SUCCESS']``
+    :param verbose: Whether log the detailed job info or not (default False)
     """
 
     template_fields: Sequence[str] = ("parameters",)
@@ -107,6 +108,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         sleep_time: int = 10,
         max_try_before_job_appears: int = 10,
         allowed_jenkins_states: Iterable[str] | None = None,
+        verbose: bool = False,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -116,6 +118,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         self.jenkins_connection_id = jenkins_connection_id
         self.max_try_before_job_appears = max_try_before_job_appears
         self.allowed_jenkins_states = list(allowed_jenkins_states) if allowed_jenkins_states else ["SUCCESS"]
+        self.verbose = verbose
 
     def build_job(self, jenkins_server: Jenkins, params: ParamType = None) -> JenkinsRequest | None:
         """
@@ -156,8 +159,12 @@ class JenkinsJobTriggerOperator(BaseOperator):
         :return: The build_number corresponding to the triggered job
         """
         location += "/api/json"
-        # TODO Use get_queue_info instead
-        # once it will be available in python-jenkins (v > 0.4.15)
+        all_job_info = self.extract_queue_info(jenkins_server)
+        for job in all_job_info:
+            if job.get("stuck"):
+                self.log.warning("Job %s is stuck in the queue", job.get("task"))
+        if self.verbose:
+            self.log.info("Detailed Job Info: %s", all_job_info)
         self.log.info("Polling jenkins queue at the url %s", location)
         for attempt in range(self.max_try_before_job_appears):
             if attempt:
@@ -184,9 +191,26 @@ class JenkinsJobTriggerOperator(BaseOperator):
                         return build_number
         else:
             raise AirflowException(
-                f"The job hasn't been executed after polling the queue "
+                f"The job hasn't been executed after polling the queue"
                 f"{self.max_try_before_job_appears} times"
             )
+
+    def extract_queue_info(self, jenkins_server: Jenkins) -> list[dict[str, Any]]:
+        """Extract the queue information from the jenkins server for all jobs."""
+        queue_info = jenkins_server.get_queue_info()
+        info = []
+
+        for job in queue_info:
+            job_info = {
+                "task": job.get("task"),
+                "stuck": job.get("stuck"),
+                "why": job.get("why"),
+                "blocked": job.get("blocked"),
+                "build": job.get("build"),
+            }
+            info.append(job_info)
+
+        return info
 
     @cached_property
     def hook(self) -> JenkinsHook:

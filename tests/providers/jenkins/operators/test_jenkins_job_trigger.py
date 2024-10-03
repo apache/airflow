@@ -17,6 +17,7 @@
 # under the License.
 from __future__ import annotations
 
+from unittest import mock
 from unittest.mock import Mock, patch
 
 import jenkins
@@ -289,3 +290,30 @@ class TestJenkinsOperator:
 
         assert mock_request.method == "POST"
         assert mock_request.url == "http://apache.org"
+
+    @mock.patch(
+        "airflow.providers.jenkins.operators.jenkins_job_trigger.JenkinsJobTriggerOperator.extract_queue_info"
+    )
+    def test_poll_job_in_queue_stuck_job(self, mock_extract_queue_info):
+        jenkins_mock = Mock(spec=jenkins.Jenkins, auth="secret")
+        mock_extract_queue_info.return_value = [
+            {"task": "a_job_on_jenkins", "stuck": True},
+        ]
+        with mock.patch(
+            "airflow.providers.jenkins.operators.jenkins_job_trigger.jenkins_request_with_headers"
+        ) as mock_make_request:
+            operator = JenkinsJobTriggerOperator(
+                dag=None,
+                jenkins_connection_id="fake_jenkins_connection",
+                task_id="operator_test",
+                job_name="a_job_on_jenkins",
+            )
+            mock_make_request.return_value = {
+                "body": '{"status": "success", "data": {}}',
+                "headers": {"Location": "http://what-a-strange.url/18"},
+            }
+            with mock.patch.object(operator.log, "warning") as mock_log_warning:
+                with pytest.raises(AirflowException):
+                    operator.poll_job_in_queue("fake_location", jenkins_mock)
+                mock_log_warning.assert_called_once_with("Job %s is stuck in the queue", "a_job_on_jenkins")
+                mock_extract_queue_info.assert_called_once()
