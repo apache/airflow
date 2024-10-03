@@ -23,16 +23,16 @@ import { useQuery, UseQueryOptions } from "react-query";
 import { getMetaValue } from "src/utils";
 import URLSearchParamsWrapper from "src/utils/URLSearchParamWrapper";
 import type {
-  DatasetEventCollection,
-  GetDatasetEventsVariables,
+  AssetEventCollection,
+  GetAssetEventsVariables,
 } from "src/types/api-generated";
 
-interface Props extends GetDatasetEventsVariables {
-  options?: UseQueryOptions<DatasetEventCollection>;
+interface Props extends GetAssetEventsVariables {
+  options?: UseQueryOptions<AssetEventCollection>;
 }
 
-const useDatasetEvents = ({
-  datasetId,
+const useAssetEvents = ({
+  assetId,
   sourceDagId,
   sourceRunId,
   sourceTaskId,
@@ -42,10 +42,10 @@ const useDatasetEvents = ({
   orderBy,
   options,
 }: Props) => {
-  const query = useQuery<DatasetEventCollection>(
+  const query = useQuery<AssetEventCollection>(
     [
       "datasets-events",
-      datasetId,
+      assetId,
       sourceDagId,
       sourceRunId,
       sourceTaskId,
@@ -55,14 +55,14 @@ const useDatasetEvents = ({
       orderBy,
     ],
     () => {
-      const datasetsUrl = getMetaValue("dataset_events_api");
+      const datasetsUrl = getMetaValue("asset_events_api");
 
       const params = new URLSearchParamsWrapper();
 
       if (limit) params.set("limit", limit.toString());
       if (offset) params.set("offset", offset.toString());
       if (orderBy) params.set("order_by", orderBy);
-      if (datasetId) params.set("dataset_id", datasetId.toString());
+      if (assetId) params.set("asset_id", assetId.toString());
       if (sourceDagId) params.set("source_dag_id", sourceDagId);
       if (sourceRunId) params.set("source_run_id", sourceRunId);
       if (sourceTaskId) params.set("source_task_id", sourceTaskId);
@@ -80,8 +80,8 @@ const useDatasetEvents = ({
   );
   return {
     ...query,
-    data: query.data ?? { datasetEvents: [], totalEntries: 0 },
+    data: query.data ?? { assetEvents: [], totalEntries: 0 },
   };
 };
 
-export default useDatasetEvents;
+export default useAssetEvents;

@@ -18,38 +18,21 @@
  */
 
 import axios, { AxiosResponse } from "axios";
-import { useMutation, useQueryClient } from "react-query";
+import { useQuery } from "react-query";
 
 import { getMetaValue } from "src/utils";
 import type { API } from "src/types";
-import useErrorToast from "src/utils/useErrorToast";
 
 interface Props {
-  datasetId?: number;
-  uri?: string;
+  uri: string;
 }
 
-const createDatasetUrl = getMetaValue("create_dataset_event_api");
-
-export default function useCreateDatasetEvent({ datasetId, uri }: Props) {
-  const queryClient = useQueryClient();
-  const errorToast = useErrorToast();
-
-  return useMutation(
-    ["createDatasetEvent", uri],
-    (extra?: API.DatasetEvent["extra"]) =>
-      axios.post<AxiosResponse, API.CreateDatasetEventVariables>(
-        createDatasetUrl,
-        {
-          dataset_uri: uri,
-          extra: extra || {},
-        }
-      ),
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries(["datasets-events", datasetId]);
-      },
-      onError: (error: Error) => errorToast({ error }),
-    }
-  );
+export default function useAsset({ uri }: Props) {
+  return useQuery(["dataset", uri], () => {
+    const datasetUrl = getMetaValue("asset_api").replace(
+      "__URI__",
+      encodeURIComponent(uri)
+    );
+    return axios.get<AxiosResponse, API.Asset>(datasetUrl);
+  });
 }
