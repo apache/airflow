@@ -71,7 +71,7 @@ from airflow.utils.helpers import chunks, is_container, prune_dict
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import retry_db_transaction
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, tuple_in_condition, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, tuple_in_condition, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, DagRunTriggeredByType, DagRunType
 
@@ -513,9 +513,9 @@ class DagRun(Base, LoggingMixin):
                 # additionally, sorting by sort_ordinal ensures that the backfill
                 # dag runs are created in the right order when that matters.
                 # todo: AIP-78 use row_number to avoid starvation; limit the number of returned runs per-dag
-                coalesce(BackfillDagRun.sort_ordinal, text("0")),
-                cls.last_scheduling_decision.nulls_first(),
-                coalesce(running_drs.c.num_running, text("0")),  # many running -> lower priority
+                nulls_first(BackfillDagRun.sort_ordinal, session=session),
+                nulls_first(cls.last_scheduling_decision, session=session),
+                nulls_first(running_drs.c.num_running, session=session),  # many running -> lower priority
                 cls.execution_date,
             )
             .limit(cls.DEFAULT_DAGRUNS_TO_EXAMINE)

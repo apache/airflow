@@ -4984,7 +4984,7 @@ class TestSchedulerJob:
         assert session.scalar(select(func.count()).where(DagRun.dag_id == dag1_dag_id)) == 36
 
         # we run scheduler again and observe that now all the runs are created
-        # this must be because last scheduling decision sorting is working
+        # this must be because sorting is working
         self.job_runner._start_queued_dagruns(session)
         session.flush()
 
