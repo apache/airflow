@@ -17,7 +17,11 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+import json
+
+from pydantic import BaseModel, Field, field_validator
+
+from airflow.utils.log.secrets_masker import redact
 
 
 class ConnectionResponse(BaseModel):
@@ -31,3 +35,16 @@ class ConnectionResponse(BaseModel):
     schema_: str | None = Field(alias="schema")
     port: int | None
     extra: str | None
+
+    @field_validator("extra")
+    @classmethod
+    def redact_extra(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
+        try:
+            extra_dict = json.loads(v)
+            redacted_dict = redact(extra_dict)
+            return json.dumps(redacted_dict)
+        except json.JSONDecodeError:
+            # we can't redact fields in an unstructured `extra`
+            return v
