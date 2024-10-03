@@ -2616,12 +2616,7 @@ class DAG(LoggingMixin):
                     f"the configured pattern: '{regex}' or the built-in pattern: '{RUN_ID_REGEX}'"
                 )
 
-        is_backfill = run_type is DagRunType.BACKFILL_JOB
-        has_backfill_id = backfill_id is not None
-        if (has_backfill_id and not is_backfill) or (is_backfill and not has_backfill_id):
-            raise ValueError(
-                f"Inconsistent parameters supplied: backfill_id={backfill_id} and run_type={run_type}"
-            )
+        # todo: AIP-78 add verification that if run type is backfill then we have a backfill id
 
         # create a copy of params before validating
         copied_params = copy.deepcopy(self.params)
