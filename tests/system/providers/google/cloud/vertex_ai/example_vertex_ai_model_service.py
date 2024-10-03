@@ -85,7 +85,7 @@ TABULAR_DATASET = {
     ),
 }
 
-CONTAINER_URI = "gcr.io/cloud-aiplatform/training/tf-cpu.2-2:latest"
+CONTAINER_URI = "us-docker.pkg.dev/vertex-ai/training/tf-cpu.2-2:latest"
 
 # LOCAL_TRAINING_SCRIPT_PATH should be set for Airflow which is running on distributed system.
 # For example in Composer the correct path is `gcs/data/california_housing_training_script.py`.
@@ -99,7 +99,7 @@ MODEL_OUTPUT_CONFIG = {
     },
     "export_format_id": "custom-trained",
 }
-MODEL_SERVING_CONTAINER_URI = "gcr.io/cloud-aiplatform/prediction/tf2-cpu.2-2:latest"
+MODEL_SERVING_CONTAINER_URI = "us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-2:latest"
 MODEL_OBJ = {
     "display_name": f"model-{ENV_ID}",
     "artifact_uri": "{{ti.xcom_pull('custom_task')['artifactUri']}}",

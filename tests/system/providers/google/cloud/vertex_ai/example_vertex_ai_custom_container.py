@@ -68,9 +68,8 @@ def TABULAR_DATASET(bucket_name):
     }
 
 
-CONTAINER_URI = "gcr.io/cloud-aiplatform/training/tf-cpu.2-2:latest"
 CUSTOM_CONTAINER_URI = "us-central1-docker.pkg.dev/airflow-system-tests-resources/system-tests/housing"
-MODEL_SERVING_CONTAINER_URI = "gcr.io/cloud-aiplatform/prediction/tf2-cpu.2-2:latest"
+MODEL_SERVING_CONTAINER_URI = "us-docker.pkg.dev/vertex-ai/prediction/tf2-cpu.2-2:latest"
 REPLICA_COUNT = 1
 MACHINE_TYPE = "n1-standard-4"
 ACCELERATOR_TYPE = "ACCELERATOR_TYPE_UNSPECIFIED"
