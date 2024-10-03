@@ -267,7 +267,7 @@ class DbApiHook(BaseHook):
 
     def get_sqlalchemy_engine(self, engine_kwargs=None):
         """
-        Get an sqlalchemy_engine object.
+        Get a sqlalchemy_engine object.
 
         :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
         :return: the created engine.
