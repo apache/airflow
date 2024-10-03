@@ -167,11 +167,10 @@ class OperatorExecutor(LoggingMixin):
 
             if self.log.isEnabledFor(logging.INFO):
                 self.log.info(
-                    "Task %s of %s for %s with map_index %s finished successfully.",
-                    self.task_instance.try_number,
-                    self.operator.retries,
-                    type(self.operator).__name__,
+                    "Task instance %s for %s finished successfully in %s attempts.",
                     self.task_instance.map_index,
+                    type(self.operator).__name__,
+                    self.task_instance.next_try_number,
                 )
 
 
