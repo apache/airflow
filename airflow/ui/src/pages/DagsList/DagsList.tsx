@@ -21,21 +21,25 @@ import {
   Heading,
   HStack,
   Select,
+  Skeleton,
   Spinner,
   VStack,
 } from "@chakra-ui/react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { type ChangeEventHandler, useCallback } from "react";
+import { type ChangeEventHandler, useCallback, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { useDagServiceGetDags } from "openapi/queries";
 import type { DAGResponse } from "openapi/requests/types.gen";
 import { DataTable } from "src/components/DataTable";
+import { ToggleTableDisplay } from "src/components/DataTable/ToggleTableDisplay";
+import type { CardDef } from "src/components/DataTable/types";
 import { useTableURLState } from "src/components/DataTable/useTableUrlState";
 import { SearchBar } from "src/components/SearchBar";
 import { TogglePause } from "src/components/TogglePause";
 import { pluralize } from "src/utils/pluralize";
 
+import { DagCard } from "./DagCard";
 import { DagsFilters } from "./DagsFilters";
 
 const columns: Array<ColumnDef<DAGResponse>> = [
@@ -83,10 +87,18 @@ const columns: Array<ColumnDef<DAGResponse>> = [
   },
 ];
 
+const cardDef: CardDef<DAGResponse> = {
+  card: ({ row }) => <DagCard dag={row} />,
+  meta: {
+    customSkeleton: <Skeleton height="120px" width="100%" />,
+  },
+};
+
 const PAUSED_PARAM = "paused";
 
-export const DagsList = ({ cardView = false }) => {
+export const DagsList = () => {
   const [searchParams] = useSearchParams();
+  const [display, setDisplay] = useState<"card" | "table">("card");
 
   const showPaused = searchParams.get(PAUSED_PARAM);
 
@@ -97,7 +109,7 @@ export const DagsList = ({ cardView = false }) => {
   const [sort] = sorting;
   const orderBy = sort ? `${sort.desc ? "-" : ""}${sort.id}` : undefined;
 
-  const { data, isLoading } = useDagServiceGetDags({
+  const { data, isFetching, isLoading } = useDagServiceGetDags({
     limit: pagination.pageSize,
     offset: pagination.pageIndex * pagination.pageSize,
     onlyActive: true,
@@ -129,10 +141,10 @@ export const DagsList = ({ cardView = false }) => {
             />
             <DagsFilters />
             <HStack justifyContent="space-between">
-              <Heading size="md">
+              <Heading py={3} size="md">
                 {pluralize("DAG", data?.total_entries)}
               </Heading>
-              {cardView ? (
+              {display === "card" ? (
                 <Select
                   onChange={handleSortChange}
                   placeholder="Sort by…"
@@ -148,10 +160,16 @@ export const DagsList = ({ cardView = false }) => {
               )}
             </HStack>
           </VStack>
+          <ToggleTableDisplay display={display} setDisplay={setDisplay} />
           <DataTable
+            cardDef={cardDef}
             columns={columns}
             data={data?.dags ?? []}
+            displayMode={display}
             initialState={tableURLState}
+            isFetching={isFetching}
+            isLoading={isLoading}
+            modelName="DAG"
             onStateChange={setTableURLState}
             total={data?.total_entries}
           />
