@@ -238,6 +238,10 @@ class SerializedDagModel(Base):
         return True
 
     @classmethod
+    def _latest_item_select_object(cls, dag_id):
+        return select(cls).where(cls.dag_id == dag_id).order_by(cls.id.desc()).limit(1)
+
+    @classmethod
     @provide_session
     def read_all_dags(cls, session: Session = NEW_SESSION) -> dict[str, SerializedDAG]:
         """
@@ -372,7 +376,7 @@ class SerializedDagModel(Base):
         :param dag_id: the DAG to fetch
         :param session: ORM Session
         """
-        return session.scalar(select(cls).where(cls.dag_id == dag_id).order_by(cls.id.desc()).limit(1))
+        return session.scalar(cls._latest_item_select_object(dag_id))
 
     @staticmethod
     @provide_session
@@ -491,12 +495,7 @@ class SerializedDagModel(Base):
     def get_serialized_dag(dag_id: str, task_id: str, session: Session = NEW_SESSION) -> Operator | None:
         try:
             # get the latest version of the DAG
-            model = session.scalar(
-                select(SerializedDagModel)
-                .where(SerializedDagModel.dag_id == dag_id)
-                .order_by(SerializedDagModel.id.desc())
-                .limit(1)
-            )
+            model = session.scalar(SerializedDagModel._latest_item_select_object(dag_id))
             if model:
                 return model.dag.get_task(task_id)
         except (exc.NoResultFound, TaskNotFound):

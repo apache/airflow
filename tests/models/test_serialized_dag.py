@@ -101,16 +101,12 @@ class TestSerializedDagModel:
         assert dag_updated is True
 
         with create_session() as session:
-            s_dag = session.scalar(
-                select(SDM).where(SDM.dag_id == example_bash_op_dag.dag_id).order_by(SDM.id.desc()).limit(1)
-            )
+            s_dag = session.scalar(SDM._latest_item_select_object(example_bash_op_dag.dag_id))
 
             # Test that if DAG is not changed, Serialized DAG is not re-written and last_updated
             # column is not updated
             dag_updated = SDM.write_dag(dag=example_bash_op_dag)
-            s_dag_1 = session.scalar(
-                select(SDM).where(SDM.dag_id == example_bash_op_dag.dag_id).order_by(SDM.id.desc()).limit(1)
-            )
+            s_dag_1 = session.scalar(SDM._latest_item_select_object(example_bash_op_dag.dag_id))
 
             assert s_dag_1.dag_hash == s_dag.dag_hash
             assert s_dag.last_updated == s_dag_1.last_updated
@@ -121,9 +117,7 @@ class TestSerializedDagModel:
             assert example_bash_op_dag.tags == {"example", "example2", "new_tag"}
 
             dag_updated = SDM.write_dag(dag=example_bash_op_dag)
-            s_dag_2 = session.scalar(
-                select(SDM).where(SDM.dag_id == example_bash_op_dag.dag_id).order_by(SDM.id.desc()).limit(1)
-            )
+            s_dag_2 = session.scalar(SDM._latest_item_select_object(example_bash_op_dag.dag_id))
 
             assert s_dag.last_updated != s_dag_2.last_updated
             assert s_dag.dag_hash != s_dag_2.dag_hash
@@ -139,16 +133,12 @@ class TestSerializedDagModel:
         assert dag_updated is True
 
         with create_session() as session:
-            s_dag = session.scalar(
-                select(SDM).where(SDM.dag_id == example_bash_op_dag.dag_id).order_by(SDM.id.desc()).limit(1)
-            )
+            s_dag = session.scalar(SDM._latest_item_select_object(example_bash_op_dag.dag_id))
 
             # Test that if DAG is not changed, Serialized DAG is not re-written and last_updated
             # column is not updated
             dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir="/tmp/test")
-            s_dag_1 = session.scalar(
-                select(SDM).where(SDM.dag_id == example_bash_op_dag.dag_id).order_by(SDM.id.desc()).limit(1)
-            )
+            s_dag_1 = session.scalar(SDM._latest_item_select_object(example_bash_op_dag.dag_id))
 
             assert s_dag_1.dag_hash == s_dag.dag_hash
             assert s_dag.last_updated == s_dag_1.last_updated
@@ -157,9 +147,7 @@ class TestSerializedDagModel:
 
             # Update DAG
             dag_updated = SDM.write_dag(dag=example_bash_op_dag, processor_subdir="/tmp/other")
-            s_dag_2 = session.scalar(
-                select(SDM).where(SDM.dag_id == example_bash_op_dag.dag_id).order_by(SDM.id.desc()).limit(1)
-            )
+            s_dag_2 = session.scalar(SDM._latest_item_select_object(example_bash_op_dag.dag_id))
 
             assert s_dag.processor_subdir != s_dag_2.processor_subdir
             assert dag_updated is True
