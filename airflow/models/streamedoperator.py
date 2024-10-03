@@ -106,15 +106,6 @@ class OperatorExecutor(LoggingMixin):
         self.log.debug("semaphore: %s (%s)", self._semaphore, self._semaphore.locked())
         async with self._semaphore:
             while self.task_instance.try_number <= self.operator.retries:
-                if self.log.isEnabledFor(logging.INFO):
-                    self.log.info(
-                        "Attempting running task %s of %s for %s with map_index %s.",
-                        self.task_instance.try_number,
-                        self.operator.retries,
-                        type(self.operator).__name__,
-                        self.task_instance.map_index,
-                    )
-
                 try:
                     outlet_events = context_get_outlet_events(self.context)
                     callable_runner = ExecutionCallableRunner(
@@ -133,7 +124,6 @@ class OperatorExecutor(LoggingMixin):
                         )
                         raise e
 
-                    self.log.error("An error occurred: %s", e)
                     self.task_instance.try_number += 1
                     self.task_instance.end_date = timezone.utcnow()
 
@@ -156,6 +146,15 @@ class OperatorExecutor(LoggingMixin):
                 return result
 
     async def run(self, method: Callable, *args, **kwargs):
+        if self.log.isEnabledFor(logging.INFO):
+            self.log.info(
+                "Attempting running task %s of %s for %s with map_index %s.",
+                self.task_instance.try_number,
+                self.operator.retries,
+                type(self.operator).__name__,
+                self.task_instance.map_index,
+            )
+
         self.operator.pre_execute(context=self.context)
         self.task_instance._run_execute_callback(context=self.context, task=self.operator)
 
@@ -187,7 +186,9 @@ class StreamedOperator(BaseOperator):
         self.expand_input = expand_input
         self.partial_kwargs = partial_kwargs or {}
         self._mapped_kwargs: list[dict] = []
-        self._semaphore = Semaphore(self.max_active_tis_per_dag or os.cpu_count() or 1)
+        if not self.max_active_tis_per_dag:
+            self.max_active_tis_per_dag = os.cpu_count() or 1
+        self._semaphore = Semaphore(self.max_active_tis_per_dag)
         XComArg.apply_upstream_relationship(self, self.expand_input.value)
 
     @property
