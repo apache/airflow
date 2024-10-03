@@ -33,7 +33,7 @@ from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQue
 from airflow.utils.trigger_rule import TriggerRule
 from tests.system.providers.google import DEFAULT_GCP_SYSTEM_TEST_PROJECT_ID
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 DAG_ID = "gcs_to_bigquery_operator"
 
 DATASET_NAME = f"dataset_{DAG_ID}_{ENV_ID}"
