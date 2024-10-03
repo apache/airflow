@@ -43,7 +43,7 @@ from airflow.providers.google.cloud.operators.video_intelligence import (
 from airflow.providers.google.cloud.transfers.gcs_to_gcs import GCSToGCSOperator
 from airflow.utils.trigger_rule import TriggerRule
 
-ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID", "default")
 
 DAG_ID = "example_gcp_video_intelligence"
 
