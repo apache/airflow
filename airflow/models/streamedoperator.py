@@ -194,6 +194,9 @@ class StreamedOperator(BaseOperator):
     def operator_name(self) -> str:
         return self._operator_class.__name__
 
+    def _get_specified_expand_input(self) -> ExpandInput:
+        return self.expand_input
+
     def _unmap_operator(self, index):
         self.log.debug("index: %s", index)
         kwargs = {
