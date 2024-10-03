@@ -165,6 +165,15 @@ class OperatorExecutor(LoggingMixin):
         finally:
             self.operator.post_execute(context=self.context)
 
+            if self.log.isEnabledFor(logging.INFO):
+                self.log.info(
+                    "Task %s of %s for %s with map_index %s finished successfully.",
+                    self.task_instance.try_number,
+                    self.operator.retries,
+                    type(self.operator).__name__,
+                    self.task_instance.map_index,
+                )
+
 
 class StreamedOperator(BaseOperator):
     """Object representing a streamed operator in a DAG."""
