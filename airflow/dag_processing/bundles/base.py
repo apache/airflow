@@ -26,11 +26,14 @@ from airflow.configuration import conf
 
 class BaseDagBundle(ABC):
     """
-    Base class for DAG bundle backends.
+    Base class for DAG bundles.
 
     DAG bundles can be used in 2 ways:
-      - In an ephemeral manner, essentially to run a task. If the bundle supports versioning, the version is passed.
-      - In an ongoing manner, by the DAG processor to keep the DAGs from the bundle up to date.
+      - In an ephemeral manner, essentially to run a task. This may mean a specific version of the DAG bundle is retrieved.
+      - In an ongoing manner, by the DAG processor, to keep the DAGs in the bundle up to date.
+
+    :param id: String identifier for the DAG bundle
+    :param version: Version of the DAG bundle (Optional)
     """
 
     supports_versioning: bool = False
