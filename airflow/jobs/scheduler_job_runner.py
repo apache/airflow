@@ -1576,7 +1576,7 @@ class SchedulerJobRunner(BaseJobRunner, LoggingMixin):
                     )
                     continue
             elif dag.max_active_runs:
-                if active_runs > dag.max_active_runs:
+                if active_runs >= dag.max_active_runs:
                     self.log.info(
                         "dag cannot be started due to dag max_active_runs constraint; "
                         "active_runs=%s max_active_runs=%s dag_id=%s run_id=%s",
