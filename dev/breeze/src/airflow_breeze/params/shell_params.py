@@ -332,7 +332,9 @@ class ShellParams:
                     get_console().print(
                         "[warning]Adding `celery` extras as it is implicitly needed by celery executor"
                     )
-                    self.airflow_extras = ",".join(current_extras.split(",") + ["celery"])
+                    self.airflow_extras = (
+                        ",".join(current_extras.split(",") + ["celery"]) if current_extras else "celery"
+                    )
 
         compose_file_list.append(DOCKER_COMPOSE_DIR / "base.yml")
         self.add_docker_in_docker(compose_file_list)
