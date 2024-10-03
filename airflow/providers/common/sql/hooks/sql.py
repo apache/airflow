@@ -272,6 +272,9 @@ class DbApiHook(BaseHook):
         :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
         :return: the created engine.
         """
+        if engine_kwargs is None:
+            engine_kwargs = {}
+
         try:
             url = self.sqlalchemy_url
         except NotImplementedError:
