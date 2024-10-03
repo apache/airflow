@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import asyncio
+from functools import cached_property
 from typing import Any, AsyncIterator, Sequence
 
 from google.cloud.pubsub_v1.types import ReceivedMessage
@@ -67,7 +68,6 @@ class PubsubPullTrigger(BaseTrigger):
         self.poke_interval = poke_interval
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        self.hook = PubSubAsyncHook()
 
     def serialize(self) -> tuple[str, dict[str, Any]]:
         """Serialize PubsubPullTrigger arguments and classpath."""
@@ -113,3 +113,11 @@ class PubsubPullTrigger(BaseTrigger):
             messages=pulled_messages,
         )
         self.log.info("Acknowledged ack_ids from subscription %s", self.subscription)
+
+    @cached_property
+    def hook(self) -> PubSubAsyncHook:
+        return PubSubAsyncHook(
+            gcp_conn_id=self.gcp_conn_id,
+            impersonation_chain=self.impersonation_chain,
+            project_id=self.project_id,
+        )
