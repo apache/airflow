@@ -25,6 +25,7 @@ from typing_extensions import Annotated
 
 from airflow.api_fastapi.openapi.exceptions import create_openapi_http_exception_doc
 from airflow.api_fastapi.parameters import DateTimeQuery
+from airflow.api_fastapi.serializers.dashboard import HistoricalMetricDataResponse
 from airflow.models.dagrun import DagRun, DagRunType
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils.state import DagRunState, TaskInstanceState
@@ -47,7 +48,7 @@ async def historical_metrics_data(
     start_date: DateTimeQuery,
     end_date: DateTimeQuery,
     session: Annotated[Session, Depends(get_session)],
-) -> dict:
+) -> HistoricalMetricDataResponse:
     """Return cluster activity historical metrics."""
     # DagRuns
     dag_run_types = session.execute(
@@ -96,4 +97,4 @@ async def historical_metrics_data(
         },
     }
 
-    return data
+    return HistoricalMetricDataResponse.model_validate(data, from_attributes=True)

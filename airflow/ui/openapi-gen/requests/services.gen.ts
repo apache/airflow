@@ -54,7 +54,7 @@ export class DashboardService {
    * @param data The data for the request.
    * @param data.startDate
    * @param data.endDate
-   * @returns unknown Successful Response
+   * @returns HistoricalMetricDataResponse Successful Response
    * @throws ApiError
    */
   public static historicalMetricsData(
