@@ -50,7 +50,6 @@ async def delete_connection(
 
 @connections_router.get(
     "/connections/{connection_id}",
-    status_code=200,
     responses=create_openapi_http_exception_doc([401, 403, 404]),
 )
 async def get_connection(
