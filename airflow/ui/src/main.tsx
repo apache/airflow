@@ -43,8 +43,6 @@ const queryClient = new QueryClient({
   },
 });
 
-axios.defaults.baseURL = import.meta.env.VITE_FASTAPI_URL;
-
 // redirect to login page if the API responds with unauthorized or forbidden errors
 axios.interceptors.response.use(
   (response: AxiosResponse) => response,
@@ -61,7 +59,7 @@ axios.interceptors.response.use(
 const root = createRoot(document.querySelector("#root") as HTMLDivElement);
 
 root.render(
-  <BrowserRouter basename="/ui">
+  <BrowserRouter basename="/webapp">
     <ChakraProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
         <App />
