@@ -321,6 +321,28 @@ class SnowflakeHook(DbApiHook):
                 engine_kwargs["connect_args"][key] = conn_params[key]
         return create_engine(self._conn_params_to_sqlalchemy_uri(conn_params), **engine_kwargs)
 
+    def get_snowpark_session(self):
+        """
+        Get a Snowpark session object.
+
+        :return: the created session.
+        """
+        from snowflake.snowpark import Session
+
+        from airflow import __version__ as airflow_version
+        from airflow.providers.snowflake import __version__ as provider_version
+
+        conn_config = self._get_conn_params
+        session = Session.builder.configs(conn_config).create()
+        # add query tag for observability
+        session.update_query_tag(
+            {
+                "airflow_version": airflow_version,
+                "airflow_provider_version": provider_version,
+            }
+        )
+        return session
+
     def set_autocommit(self, conn, autocommit: Any) -> None:
         conn.autocommit(autocommit)
         conn.autocommit_mode = autocommit
