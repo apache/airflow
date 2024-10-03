@@ -22,7 +22,6 @@ import { DagsList } from "src/pages/DagsList";
 
 import { BaseLayout } from "./layouts/BaseLayout";
 
-// Note: When changing routes, make sure to update init_react_ui.py too
 export const App = () => (
   <Routes>
     <Route element={<BaseLayout />} path="/">
