@@ -52,7 +52,7 @@ class WorkflowRunMetadata:
     """
 
     conn_id: str
-    job_id: str
+    job_id: int
     run_id: int
 
 
@@ -116,6 +116,7 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
         self.notebook_params = notebook_params or {}
         self.tasks_to_convert = tasks_to_convert or []
         self.relevant_upstreams = [task_id]
+        self.workflow_run_metadata: WorkflowRunMetadata | None = None
         super().__init__(task_id=task_id, **kwargs)
 
     def _get_hook(self, caller: str) -> DatabricksHook:
@@ -212,11 +213,35 @@ class _CreateDatabricksWorkflowOperator(BaseOperator):
 
         self._wait_for_job_to_start(run_id)
 
+        self.workflow_run_metadata = WorkflowRunMetadata(
+            self.databricks_conn_id,
+            job_id,
+            run_id,
+        )
+
         return {
             "conn_id": self.databricks_conn_id,
             "job_id": job_id,
             "run_id": run_id,
         }
+
+    def on_kill(self) -> None:
+        if self.workflow_run_metadata:
+            run_id = self.workflow_run_metadata.run_id
+            job_id = self.workflow_run_metadata.job_id
+
+            self._hook.cancel_run(run_id)
+            self.log.info(
+                "Run: %(run_id)s of job_id: %(job_id)s was requested to be cancelled.",
+                {"run_id": run_id, "job_id": job_id},
+            )
+        else:
+            self.log.error(
+                """
+                Error: Workflow Run metadata is not populated, so the run was not canceled. This could be due
+                to the workflow not being started or an error in the workflow creation process.
+                """
+            )
 
 
 class DatabricksWorkflowTaskGroup(TaskGroup):
