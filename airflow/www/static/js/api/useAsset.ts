@@ -29,7 +29,7 @@ interface Props {
 
 export default function useAsset({ uri }: Props) {
   return useQuery(["dataset", uri], () => {
-    const datasetUrl = getMetaValue("dataset_api").replace(
+    const datasetUrl = getMetaValue("asset_api").replace(
       "__URI__",
       encodeURIComponent(uri)
     );
