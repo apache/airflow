@@ -43,16 +43,16 @@ def test_default_dag_storage_path():
 
 class TestLocalDagBundle:
     def test_path(self):
-        local_dag_bundle = LocalDagBundle(id="test", local_folder="/hello")
-        assert local_dag_bundle.path() == Path("/hello")
+        bundle = LocalDagBundle(id="test", local_folder="/hello")
+        assert bundle.path() == Path("/hello")
 
     def test_does_not_support_versioning(self):
         assert LocalDagBundle.supports_versioning is False
 
-        local_dag_bundle = LocalDagBundle(id="test", local_folder="/hello")
+        bundle = LocalDagBundle(id="test", local_folder="/hello")
 
         with pytest.raises(AirflowException):
-            local_dag_bundle.get_current_version()
+            bundle.get_current_version()
 
 
 @pytest.fixture
