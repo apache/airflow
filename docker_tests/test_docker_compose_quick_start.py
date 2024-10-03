@@ -31,7 +31,6 @@ from python_on_whales.exceptions import DockerException
 # isort:off (needed to workaround isort bug)
 from docker_tests.command_utils import run_command
 from docker_tests.constants import SOURCE_ROOT
-from docker_tests.test_prod_image import REGULAR_IMAGE_PROVIDERS
 
 # isort:on (needed to workaround isort bug)
 
@@ -66,10 +65,6 @@ def wait_for_terminal_dag_state(dag_id, dag_run_id):
             break
 
 
-@pytest.mark.skipif(
-    "standard" not in REGULAR_IMAGE_PROVIDERS,
-    reason="Skipping temporarily due to standard provider not available.",
-)
 def test_trigger_dag_and_wait_for_result(default_docker_image, tmp_path_factory, monkeypatch):
     """Simple test which reproduce setup docker-compose environment and trigger example dag."""
     tmp_dir = tmp_path_factory.mktemp("airflow-quick-start")

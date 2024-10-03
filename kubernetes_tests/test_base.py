@@ -34,8 +34,6 @@ from urllib3.util.retry import Retry
 CLUSTER_FORWARDED_PORT = os.environ.get("CLUSTER_FORWARDED_PORT") or "8080"
 KUBERNETES_HOST_PORT = (os.environ.get("CLUSTER_HOST") or "localhost") + ":" + CLUSTER_FORWARDED_PORT
 EXECUTOR = os.environ.get("EXECUTOR")
-SOURCE_ROOT = Path(__file__).resolve().parents[1]
-PROD_IMAGE_PROVIDERS = (SOURCE_ROOT / "prod_image_installed_providers.txt").read_text().splitlines()
 
 print()
 print(f"Cluster host/port used: ${KUBERNETES_HOST_PORT}")
